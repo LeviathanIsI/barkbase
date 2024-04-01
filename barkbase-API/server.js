@@ -15,7 +15,8 @@ const PORT = process.env.PORT || 3001;
 --------------------------------------------------------------- */
 const db = require("./models");
 
-const userCtrl = require("./controllers/userController");
+const employeeCtrl = require("./controllers/employeeController");
+const guestCtrl = require("./controllers/guestController");
 /* Create the Express app
 --------------------------------------------------------------- */
 const app = express();
@@ -43,33 +44,19 @@ app.use(connectLiveReload());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-app.use(morgan("tiny")); // morgan is just a logger
+app.use(morgan("dev")); // morgan is just a logger
 
 app.get("/", function (req, res) {
   res.redirect("/fruits");
 });
 
-app.get("/seed", function (req, res) {
-  // Remove any existing fruits
-  db.Fruit.deleteMany({}).then((removedFruits) => {
-    console.log(`Removed ${removedFruits.length} fruits`);
-
-    // Seed the fruits collection with the seed data
-    db.Fruit.insertMany(db.seedFruits).then((addedFruits) => {
-      console.log(`Added ${addedFruits.length} fruits to be eaten`);
-      res.json(addedFruits);
-    });
-  });
-});
 // render the about us page
 app.get("/about", function (req, res) {
   res.render("about");
 });
 
-// This tells our app to look at the `controllers/fruits.js` file
-// to handle all routes that begin with `localhost:3000/fruits`
-app.use("/fruits", fruitsCtrl);
-app.use("/users", userCtrl);
+app.use("/employee", employeeCtrl);
+app.use("/guest", guestCtrl);
 
 // The "catch-all" route: Runs for any other URL that doesn't match the above routes
 app.get("*", function (req, res) {
