@@ -19,9 +19,9 @@ router.post("/", async (req, res) => {
 // Login
 router.post("/login", async (req, res) => {
   try {
-    const { username, password } = req.body;
-    const user = await db.User.findOne({ username });
-    if (!user) throw new Error(`User not found. User: ${username}`);
+    const { userName, password } = req.body;
+    const user = await db.User.findOne({ userName });
+    if (!user) throw new Error(`User not found. User: ${userName}`);
     const isPasswordMathced = await bcrypt.compare(password, user.password);
     if (!isPasswordMathced) throw new Error("Password does not match");
     const token = createToken(user);

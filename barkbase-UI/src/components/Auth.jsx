@@ -3,7 +3,7 @@ import { useState } from "react";
 function Auth(props) {
   const [showLogin, setShowLogin] = useState(true);
   const [formData, setFormData] = useState({
-    username: "",
+    userName: "",
     password: "",
   });
   const handleLogin = async () => {
@@ -58,9 +58,9 @@ function Auth(props) {
           >
             <input
               type="text"
-              name="username"
-              placeholder="Add Username"
-              value={formData.username}
+              name="userName"
+              placeholder="Add userName"
+              value={formData.userName}
               onChange={handleChange}
             />
             <input
@@ -86,9 +86,9 @@ function Auth(props) {
           >
             <input
               type="text"
-              name="username"
-              placeholder="Add Username"
-              value={formData.username}
+              name="userName"
+              placeholder="Add userName"
+              value={formData.userName}
               onChange={handleChange}
             />
             <input

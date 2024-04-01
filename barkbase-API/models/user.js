@@ -1,12 +1,16 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
+const options = { discriminatorKey: "kind" };
 
 const userSchema = new mongoose.Schema(
   {
-    username: { type: String, required: true, unique: true },
+    userName: { type: String, required: true, unique: true },
+    email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    fruits: [{ type: mongoose.Types.ObjectId, ref: "Fruit" }],
+    firstName: String,
+    lastName: String,
   },
+  options,
   {
     timestamps: true,
     toJSON: {
