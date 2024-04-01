@@ -12,4 +12,6 @@ db.on("connected", function () {
 // Export models and seed data to `server.js`
 module.exports = {
   User: require("../models/User"),
+  Employee: require("../models/Employee"),
+  Guest: require("../models/Guest"),
 };

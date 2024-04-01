@@ -15,7 +15,6 @@ const PORT = process.env.PORT || 3001;
 --------------------------------------------------------------- */
 const db = require("./models");
 
-const fruitsCtrl = require("./controllers/fruits");
 const userCtrl = require("./controllers/userController");
 /* Create the Express app
 --------------------------------------------------------------- */
