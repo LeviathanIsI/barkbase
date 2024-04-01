@@ -1,0 +1,66 @@
+C.R.U.D - Can describe almost any interaction you have had with a website
+
+C - Create, we want to create some data in the database
+R - Read, we want to read / retrieve some data from the database
+U - Update, we want to update some data (like update my profile name)
+D - Delete, we want to delete some data from the database
+
+MVC - Model, View, Controller
+
+HTTP VERBS
+GET - Get some data out of the database (can be a list or single item) and send it back to the client/user - (app.get('/fruits'))
+
+POST - POST request are to create or persist some data in a database (app.post('fruits'))
+
+PUT/PATCH - Update some data in the database
+
+DELETE - Delete
+The 7 RESTful routes
+These routes allow full CRUD routes for a specific type of data
+
+/tweets - GET -  Index - Usually to list all items
+/tweets/new - GET - New - Will send a form to make a new whever route we are on
+/tweets - POST - New - This will handle the data from the form, and create a new tweet
+/tweets/:id - GET - SHOW -  we can access that id with req.params.id and use that value to query items from the database app.get()
+/tweets/:id/edit - GET -  This will send a prepopulated form for the user to update whatver item matches the id in the url
+/tweets/:id - PUT - This will take the form data and try to update the database using the :id and formdata (app.get())
+/tweets/:id - DELETE - This will delete data from the database using the id (app.delete)
+
+example rest routes. Travel Project 
+fake table called - destinations
+ /destinations - GET - The user wants all the desintations
+ /desintations/new - GET - The user wants to make a new desintation (send abck a form)
+ /desintations - POST - The user gave us data to make a new desintation in the database
+ /desintations/:id - GET - Will grab one item using the req.params
+ 
+I.N.D.U.C.E.S
+
+Index
+New
+Delete
+Update
+Create
+edit
+Show
+
+ app.post('/fruits/', (req, res)=>{
+    fruits.push(req.body) /// will add to fruits array
+    res.redirect('/cart')
+
+ })
+
+
+
+ Setting up a new Express App.
+
+ make new directory and enter it
+ make server.js
+ npm init -y make package.json in the projects root directory
+ npm i express - install express
+ npm i morgan
+ Fill out that server.js
+ Set up Models
+ Set up initial routes
+ Set up Views
+   - npm i ejs  
+   - set set up .ejs files in views directory
