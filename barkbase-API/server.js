@@ -15,8 +15,18 @@ const PORT = process.env.PORT || 3001;
 --------------------------------------------------------------- */
 const db = require("./models");
 
+// Generates a random employee ID between 1 and 1000
+const generateEmployeeID = () => Math.floor(Math.random() * 1000);
+
+// Checks to make sure the employee ID is unique
+const isUniqueEmployeeID = async (employeeID) => {
+  const employee = await db.Employee.findOne({ employeeID: employeeID });
+  return !employee;
+};
+
 const employeeCtrl = require("./controllers/employeeController");
 const guestCtrl = require("./controllers/guestController");
+const signupCtrl = require("./controllers/signupController");
 /* Create the Express app
 --------------------------------------------------------------- */
 const app = express();
@@ -46,15 +56,9 @@ app.use(express.json());
 
 app.use(morgan("dev")); // morgan is just a logger
 
-app.get("/", function (req, res) {
-  res.redirect("/fruits");
-});
+// I.N.D.U.C.E.S. - Index, New, Delete, Update, Create, Edit, Show
 
-// render the about us page
-app.get("/about", function (req, res) {
-  res.render("about");
-});
-
+app.use("/", signupCtrl);
 app.use("/employee", employeeCtrl);
 app.use("/guest", guestCtrl);
 
