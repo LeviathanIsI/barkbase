@@ -3,8 +3,9 @@ import { Route, Routes } from "react-router-dom";
 
 import "./App.css";
 import NavBar from "./components/Navbar";
-import Auth from "./components/Auth";
 import Home from "./pages/Home";
+import Signup from "./pages/Signup";
+import Login from "./pages/Login";
 import Pricing from "./pages/Pricing";
 
 function App() {
@@ -20,14 +21,8 @@ function App() {
         // Unprotected routes will go here
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route
-            path="/login"
-            element={<Auth user={user} setUser={setUser} />}
-          />
-          <Route
-            path="/signup"
-            element={<Auth user={user} setUser={setUser} />}
-          />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/login" element={<Login />} />
           <Route path="/pricing" element={<Pricing />} />
         </Routes>
       )}
