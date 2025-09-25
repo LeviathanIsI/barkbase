@@ -81,6 +81,8 @@ model Tenant {
   payments        Payment[]
   staff           Staff[]
   vaccinations    Vaccination[]
+  auditLogs       AuditLog[]
+  usageCounters   UsageCounter[]
 
   @@index([slug])
 }
@@ -98,6 +100,7 @@ model User {
 
   memberships    Membership[]
   createdInvites Invite[]   @relation("UserCreatedInvites")
+  auditLogs      AuditLog[]
 }
 
 
@@ -136,6 +139,39 @@ model Invite {
   @@index([tenantId])
   @@index([email])
   @@unique([tenantId, email])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  tenantId    String
+  actorId     String?
+  action      String
+  entityType  String
+  entityId    String?
+  diff        Json?
+  createdAt   DateTime @default(now())
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor       User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, entityType])
+}
+
+model UsageCounter {
+  id          String   @id @default(cuid())
+  tenantId    String
+  date        DateTime
+  bookings    Int      @default(0)
+  activePets  Int      @default(0)
+  staffSeats  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, date])
+  @@index([tenantId, date])
 }
 
 model Staff {
