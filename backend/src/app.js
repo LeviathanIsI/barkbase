@@ -23,6 +23,8 @@ const dashboardRoutes = require('./routes/dashboard.routes');
 const kennelRoutes = require('./routes/kennels.routes');
 const checkInRoutes = require('./routes/checkin.routes');
 const staffRoutes = require('./routes/staff.routes');
+const membershipRoutes = require('./routes/memberships.routes');
+const inviteRoutes = require('./routes/invites.routes');
 
 const app = express();
 
@@ -84,6 +86,8 @@ app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/reports', reportRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/staff', staffRoutes);
+app.use('/api/v1/memberships', membershipRoutes);
+app.use('/api/v1/invites', inviteRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
