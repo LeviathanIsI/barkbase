@@ -50,7 +50,7 @@ const WaitlistManager = () => {
       upsertBooking(normalised);
       const nextState = useBookingStore.getState();
       nextState.setWaitlist(nextState.bookings.filter((item) => item.status === 'PENDING'));
-    queryClient.invalidateQueries({ queryKey: queryKeys.bookings(tenantKey, {}) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.bookings(tenantKey, {}) });
     } catch (error) {
       toast.error(error.message ?? 'Failed to promote from waitlist.');
     } finally {
