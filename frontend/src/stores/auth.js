@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import getStorage from '@/lib/storage';
 
+const DEFAULT_ACCESS_TOKEN_TTL_MS = 5 * 60 * 1000;
+
 const initialState = {
   user: null,
   memberships: [],
@@ -22,7 +24,7 @@ export const useAuthStore = create(
         const resolvedRefreshToken = refreshToken ?? tokens?.refreshToken ?? null;
         const computedExpiry = tokens?.accessTokenExpiresIn
           ? Date.now() + tokens.accessTokenExpiresIn * 1000
-          : expiresAt ?? null;
+          : expiresAt ?? Date.now() + DEFAULT_ACCESS_TOKEN_TTL_MS;
 
         const resolvedRoleRaw = role ?? user?.role ?? null;
         const resolvedRole = resolvedRoleRaw ? String(resolvedRoleRaw).toUpperCase() : null;
@@ -44,7 +46,7 @@ export const useAuthStore = create(
         const resolvedRefreshToken = refreshToken ?? tokens?.refreshToken;
         const computedExpiry = tokens?.accessTokenExpiresIn
           ? Date.now() + tokens.accessTokenExpiresIn * 1000
-          : expiresAt;
+          : expiresAt ?? Date.now() + DEFAULT_ACCESS_TOKEN_TTL_MS;
         const resolvedRole = role ? String(role).toUpperCase() : undefined;
 
         set((state) => ({
@@ -55,8 +57,22 @@ export const useAuthStore = create(
           expiresAt: computedExpiry ?? state.expiresAt,
         }));
       },
-      clearAuth: () => set(initialState),
-      logout: () => set(initialState),
+      clearAuth: () => {
+        set(initialState);
+        try {
+          getStorage().removeItem('barkbase-auth');
+        } catch (error) {
+          // ignore storage cleanup issues
+        }
+      },
+      logout: () => {
+        set(initialState);
+        try {
+          getStorage().removeItem('barkbase-auth');
+        } catch (error) {
+          // ignore storage cleanup issues
+        }
+      },
       hasRole: (role) => {
         const currentRole = get().role;
         if (!currentRole) {

@@ -3,6 +3,19 @@ import { useTenantStore } from '@/stores/tenant';
 import { enqueueRequest } from '@/lib/offlineQueue';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
+let forcingLogout = false;
+
+const triggerLogout = () => {
+  const logout = useAuthStore.getState().logout;
+  logout();
+  if (typeof window !== 'undefined' && !forcingLogout) {
+    forcingLogout = true;
+    window.location.replace('/login');
+    setTimeout(() => {
+      forcingLogout = false;
+    }, 0);
+  }
+};
 
 const shouldQueue = (error) => {
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -143,7 +156,7 @@ export const apiClient = async (path, options = {}) => {
       if (response.status === 401) {
         const refreshed = await tryRefresh();
         if (!refreshed) {
-          useAuthStore.getState().logout();
+          triggerLogout();
           throw new Error('Unauthorized');
         }
 
