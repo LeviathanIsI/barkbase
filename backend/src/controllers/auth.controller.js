@@ -11,7 +11,7 @@ const cookieOptions = {
 const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    const result = await authService.login(req.tenantId, email, password);
+    const result = await authService.login(req.tenant, email, password);
     res.cookie('refreshToken', result.tokens.refreshToken, cookieOptions);
     res.cookie('accessToken', result.tokens.accessToken, { ...cookieOptions, maxAge: env.tokens.accessTtlMinutes * 60 * 1000 });
     return res.json(result);
