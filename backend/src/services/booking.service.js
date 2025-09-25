@@ -2,6 +2,21 @@ const prisma = require('../config/prisma');
 const { forTenant } = require('../lib/tenantPrisma');
 const { getIO } = require('../lib/socket');
 
+const emitBookingEvent = (tenantId, event, payload) => {
+  try {
+    const channel = `tenant:${tenantId}`;
+    const io = getIO();
+    io.to(channel).emit(event, payload);
+    if (event === 'booking:deleted') {
+      io.to(channel).emit('booking:remove', payload);
+    } else {
+      io.to(channel).emit('booking:update', payload);
+    }
+  } catch (error) {
+    // Socket may not be initialised in tests
+  }
+};
+
 const defaultIncludes = {
   pet: {
     include: {
@@ -116,11 +131,7 @@ const createBooking = async (tenantId, payload) => {
     return booking;
   });
 
-  try {
-    getIO().to(`tenant:${tenantId}`).emit('booking:created', created);
-  } catch (error) {
-    // Socket may not be initialised in tests
-  }
+  emitBookingEvent(tenantId, 'booking:created', created);
 
   return created;
 };
@@ -199,11 +210,7 @@ const updateBooking = async (tenantId, bookingId, payload = {}) => {
     });
   });
 
-  try {
-    getIO().to(`tenant:${tenantId}`).emit('booking:updated', booking);
-  } catch (error) {
-    // ignore socket issues
-  }
+  emitBookingEvent(tenantId, 'booking:updated', booking);
 
   return booking;
 };
@@ -224,11 +231,7 @@ const updateBookingStatus = async (tenantId, bookingId, status) => {
     include: defaultIncludes,
   });
 
-  try {
-    getIO().to(`tenant:${tenantId}`).emit('booking:updated', booking);
-  } catch (error) {
-    // ignore socket issues
-  }
+  emitBookingEvent(tenantId, 'booking:updated', booking);
 
   return booking;
 };
@@ -245,11 +248,7 @@ const deleteBooking = async (tenantId, bookingId) => {
 
   await tenantDb.booking.delete({ where: { id: bookingId } });
 
-  try {
-    getIO().to(`tenant:${tenantId}`).emit('booking:deleted', { id: bookingId });
-  } catch (error) {
-    // noop
-  }
+  emitBookingEvent(tenantId, 'booking:deleted', { id: bookingId });
 };
 
 const quickCheckIn = async (tenantId, { bookingId, kennelId }) => {
@@ -291,11 +290,7 @@ const quickCheckIn = async (tenantId, { bookingId, kennelId }) => {
     });
   });
 
-  try {
-    getIO().to(`tenant:${tenantId}`).emit('booking:checked-in', booking);
-  } catch (error) {
-    // noop
-  }
+  emitBookingEvent(tenantId, 'booking:checked-in', booking);
 
   return booking;
 };
@@ -352,11 +347,7 @@ const promoteWaitlistBooking = async (
     });
   });
 
-  try {
-    getIO().to(`tenant:${tenantId}`).emit('booking:updated', booking);
-  } catch (error) {
-    // ignore socket issues
-  }
+  emitBookingEvent(tenantId, 'booking:updated', booking);
 
   return booking;
 };
