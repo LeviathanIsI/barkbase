@@ -1,4 +1,3 @@
-const prisma = require('../config/prisma');
 const { forTenant } = require('../lib/tenantPrisma');
 
 const memberSelect = {

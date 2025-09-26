@@ -1,7 +1,5 @@
 const request = require('supertest');
 const app = require('../app');
-const prisma = require('../config/prisma');
-
 const loginAs = async (tenantSlug, email, password = 'Passw0rd!') => {
   const response = await request(app)
     .post('/api/v1/auth/login')
