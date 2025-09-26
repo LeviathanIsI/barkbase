@@ -10,6 +10,27 @@ const TenantLoader = () => {
         return 'default';
       }
 
+      const search = window.location?.search ?? '';
+      if (search) {
+        try {
+          const params = new URLSearchParams(search);
+          const queryValue = params.get('tenant');
+          if (queryValue) {
+            const normalized = queryValue.trim().toLowerCase();
+            if (normalized) {
+              try {
+                window.localStorage?.setItem('barkbase-tenant-slug', normalized);
+              } catch (error) {
+                // ignore storage errors
+              }
+              return normalized;
+            }
+          }
+        } catch (error) {
+          // ignore malformed query strings
+        }
+      }
+
       const stored = window.localStorage?.getItem('barkbase-tenant-slug');
       if (stored) {
         return stored;
