@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { applyTheme, getDefaultTheme, mergeTheme } from '@/lib/theme';
+import { resolvePlanFeatures } from '@/features';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
 
@@ -10,6 +11,7 @@ const defaultTenant = {
   plan: 'FREE',
   customDomain: null,
   featureFlags: {},
+  features: resolvePlanFeatures('FREE'),
   theme: getDefaultTheme(),
   terminology: {},
   settings: {},
@@ -20,9 +22,15 @@ export const useTenantStore = create((set, get) => ({
   initialized: false,
   setTenant: (tenantPayload = {}) => {
     const mergedTheme = mergeTheme(tenantPayload.theme);
+    const plan = tenantPayload.plan ?? defaultTenant.plan;
+    const featureFlags = tenantPayload.featureFlags ?? {};
+    const features = tenantPayload.features ?? resolvePlanFeatures(plan, featureFlags);
     const tenant = {
       ...defaultTenant,
       ...tenantPayload,
+      plan,
+      featureFlags,
+      features,
       theme: mergedTheme,
     };
     applyTheme(mergedTheme);
@@ -71,10 +79,44 @@ export const useTenantStore = create((set, get) => ({
   },
   setFeatureFlags: (flags = {}) => {
     const { tenant } = get();
-    set({ tenant: { ...tenant, featureFlags: { ...tenant.featureFlags, ...flags } } });
+    const nextFeatureFlags = { ...tenant.featureFlags, ...flags };
+    set({
+      tenant: {
+        ...tenant,
+        featureFlags: nextFeatureFlags,
+        features: resolvePlanFeatures(tenant.plan, nextFeatureFlags),
+      },
+    });
   },
   setTerminology: (terminology = {}) => {
     const { tenant } = get();
     set({ tenant: { ...tenant, terminology: { ...tenant.terminology, ...terminology } } });
+  },
+  refreshPlan: async () => {
+    const { tenant } = get();
+    const response = await fetch(`${API_BASE_URL}/api/v1/tenants/current/plan`, {
+      credentials: 'include',
+      headers: {
+        'X-Tenant': tenant.slug ?? defaultTenant.slug,
+        Accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to load plan (${response.status})`);
+    }
+
+    const payload = await response.json();
+    const featureFlags = payload.featureFlags ?? tenant.featureFlags;
+    const features = payload.features ?? resolvePlanFeatures(payload.plan, featureFlags);
+    set({
+      tenant: {
+        ...tenant,
+        plan: payload.plan,
+        featureFlags,
+        features,
+      },
+    });
+    return payload;
   },
 }));

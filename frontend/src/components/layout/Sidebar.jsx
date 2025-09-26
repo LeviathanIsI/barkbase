@@ -11,10 +11,12 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useTenantStore } from '@/stores/tenant';
+import { useAuthStore } from '@/stores/auth';
+import { can } from '@/lib/acl';
 
 const baseItems = [
   {
-    to: '/',
+    to: '/dashboard',
     label: 'Dashboard',
     icon: LayoutDashboard,
   },
@@ -37,32 +39,44 @@ const baseItems = [
     to: '/payments',
     label: 'Payments',
     icon: CreditCard,
+    permission: 'viewPayments',
   },
   {
     to: '/reports',
     label: 'Reports',
     icon: BarChart3,
+    permission: 'viewReports',
   },
   {
     to: '/staff',
     label: 'Staff',
     icon: ShieldCheck,
+    permission: 'manageStaff',
   },
   {
     to: '/tenants',
     label: 'Tenant Admin',
     icon: Building2,
+    permission: 'manageTenant',
   },
 ];
 
 const Sidebar = ({ collapsed, isMobile = false, onNavigate }) => {
   const tenant = useTenantStore((state) => state.tenant);
+  const role = useAuthStore((state) => state.role);
+  const permissionContext = {
+    role,
+    plan: tenant?.plan,
+    features: tenant?.features,
+    featureFlags: tenant?.featureFlags,
+  };
   const terminology = tenant?.terminology ?? {};
-  const navItems = baseItems.map((item) => ({
-    ...item,
-    label:
-      terminology[item.label.toLowerCase()] || terminology[item.label] || item.label,
-  }));
+  const navItems = baseItems
+    .filter((item) => !item.permission || can(permissionContext, item.permission))
+    .map((item) => ({
+      ...item,
+      label: terminology[item.label.toLowerCase()] || terminology[item.label] || item.label,
+    }));
 
   return (
     <aside

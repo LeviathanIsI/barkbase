@@ -15,26 +15,39 @@ const TenantSettings = lazy(() => import('@/features/tenants/routes/TenantSettin
 const Staff = lazy(() => import('@/features/staff/routes/Staff'));
 const Login = lazy(() => import('@/features/auth/routes/Login'));
 const Members = lazy(() => import('@/features/settings/routes/Members'));
+const Billing = lazy(() => import('@/features/settings/routes/Billing'));
+const PublicHome = lazy(() => import('@/features/public/routes/Home'));
+const Signup = lazy(() => import('@/features/public/routes/Signup'));
+const VerifyEmail = lazy(() => import('@/features/public/routes/VerifyEmail'));
 
 export const router = createBrowserRouter([
   {
-    element: <ProtectedRoute />,
+    path: '/',
     children: [
+      { index: true, element: <PublicHome /> },
+      { path: 'signup', element: <Signup /> },
+      { path: 'verify-email', element: <VerifyEmail /> },
       {
-        path: '/',
-        element: <AppShell />,
-        errorElement: <NotFound />,
+        element: <ProtectedRoute />,
         children: [
-          { index: true, element: <Dashboard /> },
-          { path: 'bookings', element: <Bookings /> },
-          { path: 'pets', element: <Pets /> },
-          { path: 'owners', element: <Owners /> },
-          { path: 'payments', element: <Payments /> },
-          { path: 'reports', element: <Reports /> },
-          { path: 'staff', element: <Staff /> },
-          { path: 'tenants', element: <TenantSettings /> },
-          { path: 'settings/members', element: <Members /> },
-          { path: 'admin', element: <Admin /> },
+          {
+            element: <AppShell />,
+            errorElement: <NotFound />,
+            children: [
+              { index: true, element: <Dashboard /> },
+              { path: 'dashboard', element: <Dashboard /> },
+              { path: 'bookings', element: <Bookings /> },
+              { path: 'pets', element: <Pets /> },
+              { path: 'owners', element: <Owners /> },
+              { path: 'payments', element: <Payments /> },
+              { path: 'reports', element: <Reports /> },
+              { path: 'staff', element: <Staff /> },
+              { path: 'tenants', element: <TenantSettings /> },
+              { path: 'settings/members', element: <Members /> },
+              { path: 'settings/billing', element: <Billing /> },
+              { path: 'admin', element: <Admin /> },
+            ],
+          },
         ],
       },
     ],

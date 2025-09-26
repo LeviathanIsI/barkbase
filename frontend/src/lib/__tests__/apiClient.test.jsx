@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { apiClient } from '../apiClient';
 import { useTenantStore } from '@/stores/tenant';
+import { getDefaultTheme } from '@/lib/theme';
+
+vi.mock('@/lib/offlineQueue', () => ({
+  enqueueRequest: vi.fn(),
+}));
 
 describe('apiClient tenant headers', () => {
   const originalFetch = global.fetch;
@@ -51,9 +56,32 @@ describe('apiClient tenant headers', () => {
     const headerValue = options.headers.get('X-Tenant');
     expect(headerValue).toBe('acme');
   });
-});
-import { getDefaultTheme } from '@/lib/theme';
 
-vi.mock('@/lib/offlineQueue', () => ({
-  enqueueRequest: vi.fn(),
-}));
+  it('defaults to "default" slug when tenant missing', async () => {
+    useTenantStore.setState({
+      tenant: {
+        id: null,
+        slug: null,
+        name: 'BarkBase',
+        plan: 'FREE',
+        theme: getDefaultTheme(),
+        featureFlags: {},
+        terminology: {},
+      },
+      initialized: true,
+    });
+
+    await apiClient('/api/default-test');
+
+    const [, options] = global.fetch.mock.calls[0];
+    const headerValue = options.headers.get('X-Tenant');
+    expect(headerValue).toBe('default');
+  });
+
+  it('attaches a request id header to every request', async () => {
+    await apiClient('/api/id-test');
+    const [, options] = global.fetch.mock.calls[0];
+    const requestId = options.headers.get('X-Request-ID');
+    expect(requestId).toBeTruthy();
+  });
+});

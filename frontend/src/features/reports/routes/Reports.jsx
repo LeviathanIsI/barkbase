@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Button from '@/components/ui/Button';
@@ -7,6 +8,9 @@ import Skeleton from '@/components/ui/Skeleton';
 import { useReportDashboard } from '../api';
 import { usePaymentSummaryQuery } from '@/features/payments/api';
 import { useDashboardOccupancy } from '@/features/dashboard/api';
+import { useTenantStore } from '@/stores/tenant';
+import { useAuthStore } from '@/stores/auth';
+import { can } from '@/lib/acl';
 
 const formatCurrency = (cents = 0, currency = 'USD') =>
   new Intl.NumberFormat('en-US', {
@@ -18,34 +22,53 @@ const RevenueByMethodChart = lazy(() => import('../components/RevenueByMethodCha
 const WeeklyOccupancyChart = lazy(() => import('../components/WeeklyOccupancyChart'));
 
 const Reports = () => {
+  const navigate = useNavigate();
+  const tenant = useTenantStore((state) => state.tenant);
+  const role = useAuthStore((state) => state.role);
+  const permissionContext = {
+    role,
+    plan: tenant?.plan,
+    features: tenant?.features,
+    featureFlags: tenant?.featureFlags,
+  };
+  const canViewReports = can(permissionContext, 'viewReports');
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
-  const dashboardQuery = useReportDashboard({ month });
-  const paymentsSummaryQuery = usePaymentSummaryQuery();
-  const occupancyQuery = useDashboardOccupancy();
+  const dashboardQuery = useReportDashboard({ month }, { enabled: canViewReports });
+  const paymentsSummaryQuery = usePaymentSummaryQuery({ enabled: canViewReports });
+  const occupancyQuery = useDashboardOccupancy({ enabled: canViewReports });
 
   useEffect(() => {
+    if (!canViewReports) {
+      return;
+    }
     if (dashboardQuery.isError) {
       toast.error(dashboardQuery.error?.message ?? 'Unable to load revenue metrics', {
         id: 'reports-dashboard-error',
       });
     }
-  }, [dashboardQuery.isError, dashboardQuery.error]);
+  }, [canViewReports, dashboardQuery.isError, dashboardQuery.error]);
 
   useEffect(() => {
+    if (!canViewReports) {
+      return;
+    }
     if (paymentsSummaryQuery.isError) {
       toast.error(paymentsSummaryQuery.error?.message ?? 'Unable to load payment summary', {
         id: 'reports-payments-error',
       });
     }
-  }, [paymentsSummaryQuery.isError, paymentsSummaryQuery.error]);
+  }, [canViewReports, paymentsSummaryQuery.isError, paymentsSummaryQuery.error]);
 
   useEffect(() => {
+    if (!canViewReports) {
+      return;
+    }
     if (occupancyQuery.isError) {
       toast.error(occupancyQuery.error?.message ?? 'Unable to load occupancy data', {
         id: 'reports-occupancy-error',
       });
     }
-  }, [occupancyQuery.isError, occupancyQuery.error]);
+  }, [canViewReports, occupancyQuery.isError, occupancyQuery.error]);
 
   const revenueByMethod = useMemo(
     () =>
@@ -70,6 +93,30 @@ const Reports = () => {
     paymentsSummaryQuery.refetch();
     occupancyQuery.refetch();
   };
+
+  if (!canViewReports) {
+    return (
+      <DashboardLayout
+        title="Reports & Analytics"
+        description="Upgrade to unlock revenue analytics, trend charts, and export tools."
+        actions={
+          <Button variant="secondary" size="sm" onClick={() => navigate('/settings/billing')}>
+            Compare plans
+          </Button>
+        }
+      >
+        <Card>
+          <div className="space-y-4 text-sm text-muted">
+            <p>
+              Advanced reports, revenue dashboards, and chart exports are available on BarkBase PRO. Upgrade to bring
+              financial, occupancy, and staff insights into one workspace.
+            </p>
+            <Button onClick={() => navigate('/settings/billing')}>Upgrade to PRO</Button>
+          </div>
+        </Card>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout

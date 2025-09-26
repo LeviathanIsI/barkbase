@@ -5,6 +5,27 @@ import { enqueueRequest } from '@/lib/offlineQueue';
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
 let forcingLogout = false;
 
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+const getCookie = (name) => {
+  if (typeof document === 'undefined') {
+    return null;
+  }
+  const value = document.cookie
+    ?.split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${name}=`));
+  if (!value) return null;
+  return decodeURIComponent(value.split('=').slice(1).join('='));
+};
+
+const generateRequestId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+};
+
 const triggerLogout = () => {
   const logout = useAuthStore.getState().logout;
   logout();
@@ -126,11 +147,20 @@ export const apiClient = async (path, options = {}) => {
   const serializedBody = isJsonPayload ? JSON.stringify(body) : body ?? undefined;
 
   const finalHeaders = { ...queueHeaders };
+  if (!finalHeaders['X-Request-ID']) {
+    finalHeaders['X-Request-ID'] = generateRequestId();
+  }
   if (isJsonPayload && !finalHeaders['Content-Type']) {
     finalHeaders['Content-Type'] = 'application/json';
   }
   if (authState.accessToken) {
     finalHeaders.Authorization = `Bearer ${authState.accessToken}`;
+  }
+  if (!SAFE_METHODS.has(methodUpper)) {
+    const csrfToken = getCookie('csrfToken');
+    if (csrfToken) {
+      finalHeaders['X-CSRF-Token'] = csrfToken;
+    }
   }
 
   const baseInit = {
@@ -165,6 +195,13 @@ export const apiClient = async (path, options = {}) => {
           finalHeaders.Authorization = `Bearer ${nextToken}`;
         } else {
           delete finalHeaders.Authorization;
+        }
+
+        if (!SAFE_METHODS.has(methodUpper)) {
+          const refreshedCsrf = getCookie('csrfToken');
+          if (refreshedCsrf) {
+            finalHeaders['X-CSRF-Token'] = refreshedCsrf;
+          }
         }
 
         const retryResponse = await fetch(url, {

@@ -16,4 +16,5 @@ export const queryKeys = {
   },
   staff: (tenantKey) => [tenantKey, 'staff'],
   members: (tenantKey) => [tenantKey, 'members'],
+  onboarding: (tenantKey) => [tenantKey, 'onboarding'],
 };

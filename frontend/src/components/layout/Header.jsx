@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, Bell, WifiOff, Wifi, ChevronDown } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import Badge from '@/components/ui/Badge';
 import { useTenantStore } from '@/stores/tenant';
 import { useAuthStore } from '@/stores/auth';
 import { useUIStore } from '@/stores/ui';
@@ -14,6 +15,12 @@ const Header = ({ onMenuToggle }) => {
   const user = useAuthStore((state) => state.user);
   const role = useAuthStore((state) => state.role);
   const offline = useUIStore((state) => state.offline);
+  const permissionContext = {
+    role,
+    plan: tenant?.plan,
+    features: tenant?.features,
+    featureFlags: tenant?.featureFlags,
+  };
 
   const closeMenu = () => setMenuOpen(false);
 
@@ -28,6 +35,9 @@ const Header = ({ onMenuToggle }) => {
           <h1 className="text-lg font-semibold text-text">{tenant?.name ?? 'BarkBase'}</h1>
         </div>
         <div className="flex items-center gap-3">
+          <Badge variant="neutral" className="uppercase">
+            {tenant?.plan ?? 'FREE'}
+          </Badge>
           <span
             className={cn(
               'inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-muted',
@@ -57,7 +67,7 @@ const Header = ({ onMenuToggle }) => {
             </button>
             {menuOpen ? (
               <div className="absolute right-0 z-50 mt-2 w-48 rounded-lg border border-border bg-surface p-2 shadow-lg">
-                {can(role, 'manageMembers') ? (
+                {can(permissionContext, 'manageMembers') ? (
                   <Link
                     to="/settings/members"
                     className="block rounded-md px-3 py-2 text-sm text-text hover:bg-primary/10"
@@ -66,7 +76,7 @@ const Header = ({ onMenuToggle }) => {
                     Members
                   </Link>
                 ) : null}
-                {can(role, 'manageBilling') ? (
+                {can(permissionContext, 'manageBilling') ? (
                   <Link
                     to="/settings/billing"
                     className="block rounded-md px-3 py-2 text-sm text-text hover:bg-primary/10"
@@ -75,7 +85,7 @@ const Header = ({ onMenuToggle }) => {
                     Billing
                   </Link>
                 ) : null}
-                {can(role, 'viewAuditLog') ? (
+                {can(permissionContext, 'viewAuditLog') ? (
                   <Link
                     to="/settings/audit-log"
                     className="block rounded-md px-3 py-2 text-sm text-text hover:bg-primary/10"

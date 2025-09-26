@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import Card from '@/components/ui/Card';
@@ -6,6 +7,9 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
 import { usePaymentsQuery, usePaymentSummaryQuery } from '../api';
+import { useTenantStore } from '@/stores/tenant';
+import { useAuthStore } from '@/stores/auth';
+import { can } from '@/lib/acl';
 
 const formatCurrency = (cents = 0, currency = 'USD') =>
   new Intl.NumberFormat('en-US', {
@@ -22,29 +26,45 @@ const statusVariant = {
 };
 
 const Payments = () => {
+  const navigate = useNavigate();
+  const tenant = useTenantStore((state) => state.tenant);
+  const role = useAuthStore((state) => state.role);
+  const permissionContext = {
+    role,
+    plan: tenant?.plan,
+    features: tenant?.features,
+    featureFlags: tenant?.featureFlags,
+  };
+  const canViewPayments = can(permissionContext, 'viewPayments');
   const [page, setPage] = useState(1);
-  const paymentsQuery = usePaymentsQuery({ page });
-  const summaryQuery = usePaymentSummaryQuery();
+  const paymentsQuery = usePaymentsQuery({ page }, { enabled: canViewPayments });
+  const summaryQuery = usePaymentSummaryQuery({ enabled: canViewPayments });
 
   const payments = paymentsQuery.data?.items ?? [];
   const meta = paymentsQuery.data?.meta;
   const summary = summaryQuery.data;
 
   useEffect(() => {
+    if (!canViewPayments) {
+      return;
+    }
     if (paymentsQuery.isError) {
       toast.error(paymentsQuery.error?.message ?? 'Unable to load payments', {
         id: 'payments-error',
       });
     }
-  }, [paymentsQuery.isError, paymentsQuery.error]);
+  }, [canViewPayments, paymentsQuery.isError, paymentsQuery.error]);
 
   useEffect(() => {
+    if (!canViewPayments) {
+      return;
+    }
     if (summaryQuery.isError) {
       toast.error(summaryQuery.error?.message ?? 'Unable to load payment summary', {
         id: 'payments-summary-error',
       });
     }
-  }, [summaryQuery.isError, summaryQuery.error]);
+  }, [canViewPayments, summaryQuery.isError, summaryQuery.error]);
 
   const disablePrev = !meta || meta.page <= 1 || paymentsQuery.isLoading;
   const disableNext = !meta || meta.page >= meta.totalPages || paymentsQuery.isLoading;
@@ -58,6 +78,30 @@ const Payments = () => {
     paymentsQuery.refetch();
     summaryQuery.refetch();
   };
+
+  if (!canViewPayments) {
+    return (
+      <DashboardLayout
+        title="Payments & Deposits"
+        description="Unlock integrated payments, deposits, and reconciliation with BarkBase PRO."
+        actions={
+          <Button variant="secondary" size="sm" onClick={() => navigate('/settings/billing')}>
+            Compare plans
+          </Button>
+        }
+      >
+        <Card>
+          <div className="space-y-4 text-sm text-muted">
+            <p>
+              Capturing payments, managing refunds, and syncing payouts are part of the BarkBase PRO plan. Upgrade your
+              workspace to start reconciling deposits directly from the app.
+            </p>
+            <Button onClick={() => navigate('/settings/billing')}>Upgrade to PRO</Button>
+          </div>
+        </Card>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout

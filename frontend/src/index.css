@@ -1,0 +1,53 @@
+@import "./styles/theme.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: rgb(var(--color-background));
+  color: rgb(var(--color-text));
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: inherit;
+}
+
+a:not([class]) {
+  text-decoration: none;
+}
+
+::selection {
+  background-color: rgba(var(--color-primary) / 0.2);
+  color: rgb(var(--color-surface));
+}
+
+body[data-offline="true"]::before {
+  content: 'Offline mode';
+  position: fixed;
+  top: 0;
+  inset-inline: 0;
+  background-color: rgba(var(--color-warning) / 0.92);
+  color: rgb(var(--color-surface));
+  text-align: center;
+  font-size: 0.875rem;
+  padding: 0.25rem 0.5rem;
+  z-index: 9999;
+  letter-spacing: 0.1em;
+}

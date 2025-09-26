@@ -5,6 +5,7 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
 import { useAuthStore } from '@/stores/auth';
+import { useTenantStore } from '@/stores/tenant';
 import { can } from '@/lib/acl';
 import InviteMember from '../components/InviteMember';
 import {
@@ -22,11 +23,17 @@ const roleOptions = [
 
 const Members = () => {
   const role = useAuthStore((state) => state.role);
+  const tenant = useTenantStore((state) => state.tenant);
   const membersQuery = useMembersQuery();
   const updateRole = useUpdateMemberRoleMutation();
   const removeMember = useRemoveMemberMutation();
 
-  const canManage = can(role, 'manageMembers');
+  const canManage = can({
+    role,
+    plan: tenant?.plan,
+    features: tenant?.features,
+    featureFlags: tenant?.featureFlags,
+  }, 'manageMembers');
 
   const members = membersQuery.data?.members ?? [];
   const invites = membersQuery.data?.invites ?? [];
