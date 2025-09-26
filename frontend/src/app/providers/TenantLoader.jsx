@@ -20,13 +20,13 @@ const TenantLoader = () => {
             if (normalized) {
               try {
                 window.localStorage?.setItem('barkbase-tenant-slug', normalized);
-              } catch (error) {
+              } catch {
                 // ignore storage errors
               }
               return normalized;
             }
           }
-        } catch (error) {
+        } catch {
           // ignore malformed query strings
         }
       }
@@ -45,9 +45,10 @@ const TenantLoader = () => {
 
       const baseDomain = import.meta.env.VITE_BASE_DOMAIN?.toLowerCase();
       if (baseDomain && withoutPort.endsWith(baseDomain)) {
-        const maybeSlug = withoutPort.replace(new RegExp(`\.${baseDomain}$`), '');
-        if (maybeSlug && maybeSlug !== baseDomain) {
-          return maybeSlug.split('.')[0];
+        const prefix = withoutPort.slice(0, -baseDomain.length);
+        const trimmedPrefix = prefix.endsWith('.') ? prefix.slice(0, -1) : prefix;
+        if (trimmedPrefix) {
+          return trimmedPrefix.split('.')[0];
         }
       }
 
@@ -57,7 +58,6 @@ const TenantLoader = () => {
     const slug = resolveSlug();
 
     loadTenant(slug).catch((error) => {
-      // eslint-disable-next-line no-console
       console.error('Failed to load tenant', error);
     });
   }, [loadTenant]);

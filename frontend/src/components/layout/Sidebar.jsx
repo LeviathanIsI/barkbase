@@ -105,24 +105,28 @@ const Sidebar = ({ collapsed, isMobile = false, onNavigate }) => {
         )}
       </div>
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {navItems.map(({ to, label, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            onClick={onNavigate}
-            className={({ isActive }) =>
-              cn(
-                'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-primary/10 hover:text-primary',
-                isActive && 'bg-primary/15 text-primary',
-                collapsed && !isMobile && 'justify-center',
-              )
-            }
-            end={to === '/'}
-          >
-            <Icon className="h-5 w-5" />
-            {(!collapsed || isMobile) && <span>{label}</span>}
-          </NavLink>
-        ))}
+        {navItems.map((item) => {
+          const IconComponent = item.icon;
+
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              onClick={onNavigate}
+              className={({ isActive }) =>
+                cn(
+                  'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-primary/10 hover:text-primary',
+                  isActive && 'bg-primary/15 text-primary',
+                  collapsed && !isMobile && 'justify-center',
+                )
+              }
+              end={item.to === '/'}
+            >
+              <IconComponent className="h-5 w-5" />
+              {(!collapsed || isMobile) && <span>{item.label}</span>}
+            </NavLink>
+          );
+        })}
       </nav>
       <div className="border-t border-border/60 px-5 py-4 text-xs text-muted">
         <p>Version {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}</p>

@@ -76,19 +76,23 @@ const Dashboard = () => {
                 <Skeleton className="h-24 w-full" />
               </Card>
             ))
-          : metrics.map(({ label, value, icon: Icon }) => (
-              <Card key={label}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm uppercase tracking-wide text-muted">{label}</p>
-                    <p className="mt-2 text-3xl font-semibold text-text">{value}</p>
+          : metrics.map((metric) => {
+              const IconComponent = metric.icon;
+
+              return (
+                <Card key={metric.label}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm uppercase tracking-wide text-muted">{metric.label}</p>
+                      <p className="mt-2 text-3xl font-semibold text-text">{metric.value}</p>
+                    </div>
+                    <span className="rounded-full bg-primary/10 p-3 text-primary">
+                      <IconComponent className="h-6 w-6" />
+                    </span>
                   </div>
-                  <span className="rounded-full bg-primary/10 p-3 text-primary">
-                    <Icon className="h-6 w-6" />
-                  </span>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[2fr,1fr]">

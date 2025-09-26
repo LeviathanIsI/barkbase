@@ -56,7 +56,7 @@ const VerifyEmail = () => {
     return () => {
       cancelled = true;
     };
-  }, [token, setAuth, setTenant]);
+  }, [navigate, setAuth, setTenant, token]);
 
   if (isAuthenticated && status.state === 'success') {
     return <Navigate to="/dashboard" replace />;

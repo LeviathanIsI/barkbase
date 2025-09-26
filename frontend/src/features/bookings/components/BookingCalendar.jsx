@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { addDays, eachDayOfInterval, endOfWeek, format, parseISO, startOfDay, startOfWeek } from 'date-fns';
+import { eachDayOfInterval, endOfWeek, format, parseISO, startOfDay, startOfWeek } from 'date-fns';
 import { DndContext, useDroppable, useDraggable } from '@dnd-kit/core';
 import { CalendarCheck2, Clock, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';

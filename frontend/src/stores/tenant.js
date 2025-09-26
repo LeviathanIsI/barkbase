@@ -37,7 +37,7 @@ export const useTenantStore = create((set, get) => ({
     if (typeof window !== 'undefined') {
       try {
         window.localStorage?.setItem('barkbase-tenant-slug', tenant.slug ?? defaultTenant.slug);
-      } catch (error) {
+      } catch {
         // ignore storage errors
       }
     }

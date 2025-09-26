@@ -5,7 +5,7 @@ import { useTenantStore } from '@/stores/tenant';
 import { getDefaultTheme } from '@/lib/theme';
 
 describe('TenantLoader', () => {
-  const originalFetch = global.fetch;
+  const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
     useTenantStore.setState({
@@ -26,7 +26,7 @@ describe('TenantLoader', () => {
   });
 
   afterEach(() => {
-    global.fetch = originalFetch;
+    globalThis.fetch = originalFetch;
     vi.restoreAllMocks();
   });
 
@@ -45,7 +45,7 @@ describe('TenantLoader', () => {
       },
     };
 
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
       json: () => Promise.resolve(tenantPayload),
@@ -57,7 +57,7 @@ describe('TenantLoader', () => {
 
     await waitFor(() => expect(useTenantStore.getState().initialized).toBe(true));
 
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect(globalThis.fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/v1/tenants/current'),
       expect.objectContaining({
         headers: expect.objectContaining({
@@ -71,7 +71,7 @@ describe('TenantLoader', () => {
   });
 
   it('prefers tenant slug from query string and persists it', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
       json: () => Promise.resolve({ id: 'tenant-xyz', slug: 'query-slug', name: 'Query Tenant' }),
@@ -83,7 +83,7 @@ describe('TenantLoader', () => {
 
     await waitFor(() => expect(useTenantStore.getState().initialized).toBe(true));
 
-    expect(global.fetch).toHaveBeenCalledWith(
+    expect(globalThis.fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/v1/tenants/current'),
       expect.objectContaining({
         headers: expect.objectContaining({

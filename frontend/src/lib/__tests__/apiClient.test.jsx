@@ -8,7 +8,7 @@ vi.mock('@/lib/offlineQueue', () => ({
 }));
 
 describe('apiClient tenant headers', () => {
-  const originalFetch = global.fetch;
+  const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
     useTenantStore.setState({
@@ -24,7 +24,7 @@ describe('apiClient tenant headers', () => {
       initialized: true,
     });
 
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
       text: () => Promise.resolve(''),
@@ -32,7 +32,7 @@ describe('apiClient tenant headers', () => {
   });
 
   afterEach(() => {
-    global.fetch = originalFetch;
+    globalThis.fetch = originalFetch;
     useTenantStore.setState({
       tenant: {
         id: null,
@@ -51,8 +51,8 @@ describe('apiClient tenant headers', () => {
   it('sends X-Tenant header with current slug', async () => {
     await apiClient('/api/test');
 
-    expect(global.fetch).toHaveBeenCalledTimes(1);
-    const [, options] = global.fetch.mock.calls[0];
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    const [, options] = globalThis.fetch.mock.calls[0];
     const headerValue = options.headers.get('X-Tenant');
     expect(headerValue).toBe('acme');
   });
@@ -73,14 +73,14 @@ describe('apiClient tenant headers', () => {
 
     await apiClient('/api/default-test');
 
-    const [, options] = global.fetch.mock.calls[0];
+    const [, options] = globalThis.fetch.mock.calls[0];
     const headerValue = options.headers.get('X-Tenant');
     expect(headerValue).toBe('default');
   });
 
   it('attaches a request id header to every request', async () => {
     await apiClient('/api/id-test');
-    const [, options] = global.fetch.mock.calls[0];
+    const [, options] = globalThis.fetch.mock.calls[0];
     const requestId = options.headers.get('X-Request-ID');
     expect(requestId).toBeTruthy();
   });

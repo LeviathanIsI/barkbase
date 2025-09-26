@@ -61,7 +61,7 @@ export const useAuthStore = create(
         set(initialState);
         try {
           getStorage().removeItem('barkbase-auth');
-        } catch (error) {
+        } catch {
           // ignore storage cleanup issues
         }
       },
@@ -69,7 +69,7 @@ export const useAuthStore = create(
         set(initialState);
         try {
           getStorage().removeItem('barkbase-auth');
-        } catch (error) {
+        } catch {
           // ignore storage cleanup issues
         }
       },
