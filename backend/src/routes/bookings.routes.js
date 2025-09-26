@@ -5,10 +5,12 @@ const validate = require('../middleware/validate');
 const controller = require('../controllers/booking.controller');
 const schemas = require('../validators/booking.validator');
 const { auditLogger } = require('../middleware/auditLogger');
+const { tenantWriteLimiter } = require('../middleware/tenantRateLimit');
 
 const router = Router();
 
 router.use(tenantContext, requireAuth());
+router.use(tenantWriteLimiter);
 
 router.get('/', requireAuth(['OWNER', 'ADMIN', 'STAFF', 'READONLY']), controller.list);
 router.post(

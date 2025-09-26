@@ -8,9 +8,11 @@ const rateLimit = require('express-rate-limit');
 require('express-async-errors');
 
 const env = require('./config/env');
+const prisma = require('./config/prisma');
 const requestLogger = require('./middleware/requestLogger');
 const errorHandler = require('./middleware/errorHandler');
 const { tenantResolver } = require('./middleware/tenantResolver');
+const csrfProtection = require('./middleware/csrf');
 
 const authRoutes = require('./routes/auth.routes');
 const tenantRoutes = require('./routes/tenants.routes');
@@ -38,6 +40,12 @@ app.use(
   }),
 );
 app.use(requestLogger);
+app.use((req, res, next) => {
+  if (req.id) {
+    res.setHeader('X-Request-ID', req.id);
+  }
+  next();
+});
 app.use(helmet({
   contentSecurityPolicy: {
     useDefaults: true,
@@ -62,6 +70,7 @@ app.use(
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(csrfProtection());
 app.use('/uploads', express.static(path.resolve(env.uploads.root)));
 
 const baseLimiter = rateLimit({
@@ -70,8 +79,10 @@ const baseLimiter = rateLimit({
 });
 
 const authLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  max: 20,
+  windowMs: 5 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 app.use(baseLimiter);
@@ -91,6 +102,19 @@ app.use('/api/v1/invites', inviteRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
+});
+
+app.get('/healthz', (_req, res) => {
+  res.status(200).send('ok');
+});
+
+app.get('/readyz', async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return res.status(200).send('ready');
+  } catch (error) {
+    return res.status(503).send('not-ready');
+  }
 });
 
 app.use(errorHandler);

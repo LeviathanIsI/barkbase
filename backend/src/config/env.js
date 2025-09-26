@@ -16,6 +16,7 @@ const parseList = (value) =>
 
 module.exports = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
+  appUrl: process.env.APP_URL ?? 'http://localhost:5173',
   port: parseNumber(process.env.PORT, 4000),
   host: process.env.HOST ?? '0.0.0.0',
   database: {
@@ -32,7 +33,7 @@ module.exports = {
     allowedOrigins: parseList(process.env.CORS_ALLOWED_ORIGINS),
   },
   email: {
-    provider: process.env.EMAIL_PROVIDER ?? 'smtp',
+    provider: process.env.EMAIL_PROVIDER ?? (process.env.NODE_ENV === 'test' ? 'json' : 'smtp'),
     from: process.env.EMAIL_FROM ?? 'no-reply@barkbase.local',
   },
   uploads: {

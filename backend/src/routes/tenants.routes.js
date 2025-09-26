@@ -23,6 +23,7 @@ const router = Router();
 router.use(tenantContext);
 
 router.get('/current', controller.current);
+router.get('/current/plan', controller.plan);
 
 router.get(
   '/:tenantId/members',
@@ -32,6 +33,14 @@ router.get(
 );
 
 router.use(requireAuth());
+
+router.get('/current/onboarding', controller.onboarding);
+router.patch(
+  '/current/onboarding',
+  requireAuth(['OWNER', 'ADMIN']),
+  validate(tenantSchemas.onboardingUpdate),
+  controller.updateOnboarding,
+);
 
 router.post(
   '/:tenantId/invites',

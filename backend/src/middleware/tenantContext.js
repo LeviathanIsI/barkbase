@@ -5,6 +5,10 @@ const logger = require('../utils/logger');
 const cache = new Map();
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
+const clearTenantCache = () => {
+  cache.clear();
+};
+
 const resolveFromCache = (key) => {
   const entry = cache.get(key);
   if (!entry) return null;
@@ -33,7 +37,7 @@ const resolveTenantWhere = (slug, hostHint) => {
   };
 };
 
-module.exports = async function tenantContext(req, res, next) {
+async function tenantContext(req, res, next) {
   try {
     const slug = (req.tenantSlug ?? env.tenancy.defaultSlug).toLowerCase();
     const hostHint = req.tenantHost;
@@ -66,4 +70,7 @@ module.exports = async function tenantContext(req, res, next) {
     logger.error({ error }, 'Failed to resolve tenant context');
     return next(error);
   }
-};
+}
+
+module.exports = tenantContext;
+module.exports.clearCache = clearTenantCache;

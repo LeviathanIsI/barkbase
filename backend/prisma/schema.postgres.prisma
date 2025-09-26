@@ -10,17 +10,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum TenantPlan {
-  FREE
-  PRO
+enum SubscriptionTier {
+  TRIAL
+  STANDARD
+  PREMIUM
   ENTERPRISE
-}
-
-enum Role {
-  OWNER
-  ADMIN
-  STAFF
-  READONLY
 }
 
 enum BookingStatus {
@@ -56,20 +50,26 @@ enum KennelType {
   MEDICAL
 }
 
-model Tenant {
-  id              String      @id @default(cuid())
-  slug            String      @unique
-  name            String
-  themeJson       Json?
-  featureFlags    Json?
-  plan            TenantPlan  @default(FREE)
-  customDomain    String?     @unique
-  settings        Json?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+enum StaffRole {
+  OWNER
+  MANAGER
+  STAFF
+  ADMIN
+}
 
-  memberships     Membership[]
-  invites         Invite[]    @relation("TenantInvites")
+model Tenant {
+  id              String           @id @default(cuid())
+  name            String
+  slug            String           @unique
+  theme           Json             @default("{}")
+  featureFlags    Json             @default("{}")
+  subscription    SubscriptionTier @default(TRIAL)
+  customDomain    String?          @unique
+  settings        Json             @default("{}")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  users           User[]
   owners          Owner[]
   pets            Pet[]
   petOwners       PetOwner[]
@@ -81,129 +81,44 @@ model Tenant {
   payments        Payment[]
   staff           Staff[]
   vaccinations    Vaccination[]
-  auditLogs       AuditLog[]
-  usageCounters   UsageCounter[]
 
   @@index([slug])
 }
 
-
 model User {
   id             String    @id @default(cuid())
-  email          String    @unique
+  tenantId       String
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email          String
   passwordHash   String
+  roles          String    @default("staff")
+  refreshToken   String?
   lastLoginAt    DateTime?
   isActive       Boolean   @default(true)
-  emailVerified  Boolean   @default(false)
   twoFactorSecret String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  memberships    Membership[]
-  createdInvites Invite[]   @relation("UserCreatedInvites")
-  auditLogs      AuditLog[]
-  verificationTokens EmailVerificationToken[]
-}
+  staffProfile   Staff?
 
-
-model Membership {
-  id           String   @id @default(cuid())
-  userId       String
-  tenantId     String
-  role         Role     @default(STAFF)
-  refreshToken String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  staff  Staff?
-
-  @@unique([userId, tenantId])
-  @@index([tenantId, role])
-}
-
-model Invite {
-  id           String   @id @default(cuid())
-  tenantId     String
-  email        String
-  token        String   @unique
-  role         Role     @default(STAFF)
-  expiresAt    DateTime
-  acceptedAt   DateTime?
-  createdById  String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  tenant       Tenant   @relation("TenantInvites", fields: [tenantId], references: [id], onDelete: Cascade)
-  createdBy    User?    @relation("UserCreatedInvites", fields: [createdById], references: [id], onDelete: SetNull)
-
-  @@index([tenantId])
-  @@index([email])
   @@unique([tenantId, email])
-}
-
-model EmailVerificationToken {
-  id        String   @id @default(cuid())
-  userId    String
-  token     String   @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, expiresAt])
-}
-
-model AuditLog {
-  id          String   @id @default(cuid())
-  tenantId    String
-  actorId     String?
-  action      String
-  entityType  String
-  entityId    String?
-  diff        Json?
-  createdAt   DateTime @default(now())
-
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  actor       User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
-
-  @@index([tenantId, createdAt])
-  @@index([tenantId, entityType])
-}
-
-model UsageCounter {
-  id          String   @id @default(cuid())
-  tenantId    String
-  date        DateTime
-  bookings    Int      @default(0)
-  activePets  Int      @default(0)
-  staffSeats  Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  @@unique([tenantId, date])
-  @@index([tenantId, date])
+  @@index([tenantId, roles])
 }
 
 model Staff {
-  id            String   @id @default(cuid())
-  tenantId      String
-  membershipId  String   @unique
-  title         String?
-  phone         String?
-  schedule      Json
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String    @id @default(cuid())
+  tenantId       String
+  userId         String    @unique
+  role           StaffRole @default(STAFF)
+  title          String?
+  phone          String?
+  schedule       Json      @default("{}")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  membership    Membership  @relation(fields: [membershipId], references: [id], onDelete: Cascade)
-
-  @@index([tenantId])
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
-
 
 model Owner {
   id           String   @id @default(cuid())
@@ -212,7 +127,7 @@ model Owner {
   lastName     String
   email        String?
   phone        String?
-  address      Json
+  address      Json     @default("{}")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -234,7 +149,7 @@ model Pet {
   photoUrl           String?
   medicalNotes       String?
   dietaryNotes       String?
-  behaviorFlags      Json
+  behaviorFlags      Json        @default("[]")
   status             String      @default("active")
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
@@ -269,7 +184,7 @@ model Kennel {
   type       KennelType
   capacity   Int        @default(1)
   location   String?
-  amenities  Json
+  amenities  Json       @default("[]")
   isActive   Boolean    @default(true)
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
@@ -387,7 +302,7 @@ model Payment {
   status       PaymentStatus @default(PENDING)
   method       String?
   externalId   String?
-  metadata     Json
+  metadata     Json          @default("{}")
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
@@ -397,5 +312,5 @@ model Payment {
 
   @@index([tenantId, status])
   @@index([tenantId, createdAt])
-  @@unique([tenantId, externalId])
 }
+
