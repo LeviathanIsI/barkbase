@@ -51,3 +51,42 @@ body[data-offline="true"]::before {
   z-index: 9999;
   letter-spacing: 0.1em;
 }
+
+.rdp {
+  --rdp-accent-color: rgb(var(--color-primary));
+  --rdp-background-color: rgba(var(--color-primary) / 0.12);
+  --rdp-cell-size: 2.35rem;
+  --rdp-outline: none;
+  --rdp-outline-selected: rgba(var(--color-primary) / 0.28);
+  margin-inline: auto;
+}
+
+.rdp-months {
+  justify-content: center;
+}
+
+.rdp-table {
+  width: 100%;
+}
+
+.rdp-day {
+  border-radius: 9999px;
+  font-weight: 500;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.rdp-day:focus-visible {
+  outline: 2px solid rgba(var(--color-primary) / 0.4);
+  outline-offset: 2px;
+}
+
+.rdp-day_selected,
+.rdp-day_selected:focus-visible,
+.rdp-day_selected:hover {
+  background-color: rgb(var(--color-primary));
+  color: rgb(var(--color-surface));
+}
+
+.rdp-day_today:not(.rdp-day_selected) {
+  border: 1px solid rgba(var(--color-primary) / 0.35);
+}

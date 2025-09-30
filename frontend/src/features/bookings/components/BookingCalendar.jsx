@@ -290,7 +290,7 @@ const BookingCalendar = () => {
             selected={selectedDate}
             onSelect={(date) => date && setSelectedDate(date)}
             weekStartsOn={1}
-            className="rounded-xl"
+            className="w-full rounded-xl"
           />
         </Suspense>
         <div className="mt-4 space-y-2 text-sm text-muted">

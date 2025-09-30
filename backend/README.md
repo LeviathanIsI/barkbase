@@ -21,6 +21,13 @@ npm run dev
 
 Default server runs on `http://localhost:4000` with `/api/v1` namespace.
 
+### Prisma Client & Database
+
+- The backend now relies on the standard `@prisma/client` package generated into `node_modules`.
+- Ensure `backend/.env` contains a `DATABASE_URL` value before starting the server (defaults to SQLite via `file:./prisma/dev.db`).
+- `src/index.js` loads dotenv at startup so Prisma reads environment variables before instantiation.
+- After dependency installs or schema updates run `npm run prisma:generate` followed by `npm run db:push` (SQLite) or `npm run prisma:migrate` (Postgres) to sync the database.
+
 ### Environment Files
 
 Copy `.env.example` to `.env`. Key variables:

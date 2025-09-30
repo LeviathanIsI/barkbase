@@ -1,5 +1,9 @@
-const { PrismaClient } = require('../../generated/prisma');
+const { PrismaClient } = require('@prisma/client');
 const env = require('./env');
+
+if (!env.database.url) {
+  throw new Error('DATABASE_URL is not set. Please configure backend/.env before starting the server.');
+}
 
 const prisma = new PrismaClient({
   datasources: {
@@ -11,4 +15,3 @@ const prisma = new PrismaClient({
 });
 
 module.exports = prisma;
-
