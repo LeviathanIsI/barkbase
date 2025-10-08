@@ -1,10 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import BookingCalendar from '../BookingCalendar';
 import { useBookingStore } from '@/stores/booking';
 import { useTenantStore } from '@/stores/tenant';
 import '@testing-library/jest-dom';
+
+vi.mock('../CheckInModal', () => ({ default: () => null }));
+vi.mock('../CheckOutModal', () => ({ default: () => null }));
+
+import BookingCalendar from '../BookingCalendar';
+
 
 let capturedDragHandler;
 

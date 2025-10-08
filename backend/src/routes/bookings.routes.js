@@ -7,6 +7,15 @@ const schemas = require('../validators/booking.validator');
 const { auditLogger } = require('../middleware/auditLogger');
 const { tenantWriteLimiter } = require('../middleware/tenantRateLimit');
 
+const sanitizeCheckoutAudit = (req) => {
+  const { signatureUrl, metadata, ...rest } = req.body ?? {};
+  return {
+    ...rest,
+    signatureUrl: signatureUrl ? '[provided]' : null,
+    metadata: metadata ? '[metadata]' : undefined,
+  };
+};
+
 const router = Router();
 
 router.use(tenantContext, requireAuth());
@@ -41,6 +50,25 @@ router.patch(
   validate(schemas.updateStatus),
   auditLogger('booking.status', 'booking', (req) => req.params.bookingId, (req) => ({ status: req.body.status })),
   controller.updateStatus,
+);
+router.post(
+  '/:bookingId/checkin',
+  requireAuth(['OWNER', 'ADMIN', 'STAFF']),
+  validate(schemas.checkIn),
+  auditLogger('booking.checkin', 'booking', (req) => req.params.bookingId, (req) => req.body),
+  controller.checkIn,
+);
+router.post(
+  '/:bookingId/checkout',
+  requireAuth(['OWNER', 'ADMIN', 'STAFF']),
+  validate(schemas.checkOut),
+  auditLogger(
+    'booking.checkout',
+    'booking',
+    (req) => req.params.bookingId,
+    sanitizeCheckoutAudit,
+  ),
+  controller.checkOut,
 );
 router.delete(
   '/:bookingId',

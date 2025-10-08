@@ -83,3 +83,62 @@ export const useQuickCheckInMutation = () => {
     },
   });
 };
+
+export const useBookingCheckInMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+  return useMutation({
+    mutationFn: ({ bookingId, payload }) =>
+      apiClient(`/api/v1/bookings/${bookingId}/checkin`, { method: 'POST', body: payload }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.bookings(tenantKey, {}) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.stats(tenantKey) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.occupancy(tenantKey) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.kennels(tenantKey) });
+    },
+  });
+};
+
+export const useBookingCheckOutMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+  return useMutation({
+    mutationFn: ({ bookingId, payload }) =>
+      apiClient(`/api/v1/bookings/${bookingId}/checkout`, { method: 'POST', body: payload }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.bookings(tenantKey, {}) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.stats(tenantKey) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.occupancy(tenantKey) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.payments(tenantKey, {}) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.paymentsSummary(tenantKey) });
+    },
+  });
+};
+
+export const useIncidentsQuery = ({ bookingId, petId } = {}) => {
+  const tenantKey = useTenantKey();
+  return useQuery({
+    queryKey: queryKeys.incidents(tenantKey, { bookingId, petId }),
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (bookingId) params.append('bookingId', bookingId);
+      if (petId) params.append('petId', petId);
+      return apiClient(`/api/v1/incidents?${params.toString()}`);
+    },
+    enabled: Boolean(bookingId || petId),
+    staleTime: 60 * 1000,
+  });
+};
+
+export const useCapturePaymentMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+  return useMutation({
+    mutationFn: ({ paymentId, payload }) =>
+      apiClient(`/api/v1/payments/${paymentId}/capture`, { method: 'POST', body: payload }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.payments(tenantKey, {}) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.paymentsSummary(tenantKey) });
+    },
+  });
+};

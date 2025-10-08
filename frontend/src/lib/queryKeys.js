@@ -11,6 +11,10 @@ export const queryKeys = {
   owners: (tenantKey) => [tenantKey, 'owners'],
   payments: (tenantKey, params = {}) => [tenantKey, 'payments', params],
   paymentsSummary: (tenantKey) => [tenantKey, 'payments', 'summary'],
+  incidents: (tenantKey, params = {}) => [tenantKey, 'incidents', params],
+  calendar: (tenantKey, params = {}) => [tenantKey, 'calendar', params],
+  occupancy: (tenantKey, params = {}) => [tenantKey, 'occupancy', params],
+  suggestKennel: (tenantKey, params = {}) => [tenantKey, 'suggest-kennel', params],
   reports: {
     dashboard: (tenantKey, params = {}) => [tenantKey, 'reports', 'dashboard', params],
   },

@@ -9,6 +9,8 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
 import { useBookingsQuery, updateBooking } from '../api';
+import CheckInModal from './CheckInModal';
+import CheckOutModal from './CheckOutModal';
 import { useKennelAvailability } from '@/features/kennels/api';
 import { cn } from '@/lib/cn';
 import { useBookingStore } from '@/stores/booking';
@@ -34,19 +36,31 @@ const statusVariant = {
 };
 
 
-const BookingCard = ({ booking }) => {
+const BookingCard = ({ booking, onCheckIn, onCheckOut }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: booking.id,
     data: { bookingId: booking.id },
   });
 
+  const transformStyle = transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined;
+
+  const handleCheckInClick = (event) => {
+    event.stopPropagation();
+    event.preventDefault();
+    onCheckIn?.(booking);
+  };
+
+  const handleCheckOutClick = (event) => {
+    event.stopPropagation();
+    event.preventDefault();
+    onCheckOut?.(booking);
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={{
-        transform: transform
-          ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
-          : undefined,
+        transform: transformStyle,
         opacity: isDragging ? 0.5 : 1,
       }}
       className="cursor-grab rounded-xl border border-border/70 bg-surface p-4 shadow-sm active:cursor-grabbing"
@@ -85,6 +99,18 @@ const BookingCard = ({ booking }) => {
           {booking.specialInstructions}
         </p>
       )}
+      <div className="mt-4 flex flex-wrap gap-2">
+        {['CONFIRMED', 'PENDING'].includes(booking.status) ? (
+          <Button type="button" size="sm" onClick={handleCheckInClick}>
+            Check In
+          </Button>
+        ) : null}
+        {booking.status === 'IN_PROGRESS' ? (
+          <Button type="button" size="sm" variant="outline" onClick={handleCheckOutClick}>
+            Check Out
+          </Button>
+        ) : null}
+      </div>
     </div>
   );
 };
@@ -116,7 +142,14 @@ const KennelColumn = ({ kennel, date, bookings, onNavigate }) => {
         {bookings.length === 0 ? (
           <p className="text-center text-xs text-muted">Drop bookings here</p>
         ) : (
-          bookings.map((booking) => <BookingCard key={booking.id} booking={booking} />)
+          bookings.map((booking) => (
+            <BookingCard
+              key={booking.id}
+              booking={booking}
+              onCheckIn={(b) => setSelectedCheckInBooking(b)}
+              onCheckOut={(b) => setSelectedCheckOutBooking(b)}
+            />
+          ))
         )}
       </div>
     </div>
@@ -132,6 +165,8 @@ const BookingCalendar = () => {
   const setBookings = useBookingStore((state) => state.setBookings);
   const setWaitlist = useBookingStore((state) => state.setWaitlist);
   const moveBooking = useBookingStore((state) => state.moveBooking);
+  const [selectedCheckInBooking, setSelectedCheckInBooking] = useState(null);
+  const [selectedCheckOutBooking, setSelectedCheckOutBooking] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const kennels = kennelQuery.data ?? fallbackKennels;
   const queryClient = useQueryClient();
@@ -171,7 +206,7 @@ const BookingCalendar = () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.occupancy(tenantKey) });
     };
 
-    const events = ['booking:created', 'booking:updated', 'booking:deleted', 'booking:checked-in', 'booking:update', 'booking:remove'];
+    const events = ['booking:created', 'booking:updated', 'booking:deleted', 'booking:checked-in', 'booking:checked-out', 'booking:update', 'booking:remove'];
     events.forEach((eventName) => socket.on(eventName, refresh));
 
     return () => {
@@ -282,36 +317,48 @@ const BookingCalendar = () => {
   };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[18rem_1fr]">
-      <Card title="Calendar Filters" description="Select dates to focus your board.">
-        <Suspense fallback={<Skeleton className="h-72 w-full" />}>
-          <DayPicker
-            mode="single"
-            selected={selectedDate}
-            onSelect={(date) => date && setSelectedDate(date)}
-            weekStartsOn={1}
-            className="w-full rounded-xl"
-          />
-        </Suspense>
-        <div className="mt-4 space-y-2 text-sm text-muted">
-          <p>Drag bookings between kennels or onto different days in the board.</p>
-          <p>Offline moves queue automatically and sync on reconnect.</p>
-        </div>
-      </Card>
-      <Card title="Bookings Board" description="Drag & drop to adjust kennel assignments and split stays.">
-        <div className="flex w-full snap-x gap-4 overflow-x-auto pb-2">
-          <DndContext onDragEnd={handleDragEnd}>
-            {grouped.map(({ date, kennels: kennelEntries }) => (
-              <div key={format(date, 'yyyy-MM-dd')} className="flex min-w-[18rem] flex-col gap-4">
-                {kennelEntries.map(({ kennel, bookings: laneBookings }) => (
-                  <KennelColumn key={`${kennel.id}-${format(date, 'yyyy-MM-dd')}`} kennel={kennel} date={date} bookings={laneBookings} />
-                ))}
-              </div>
-            ))}
-          </DndContext>
-        </div>
-      </Card>
-    </div>
+    <>
+      <div className="grid gap-6 xl:grid-cols-[18rem_1fr]">
+        <Card title="Calendar Filters" description="Select dates to focus your board.">
+          <Suspense fallback={<Skeleton className="h-72 w-full" />}>
+            <DayPicker
+              mode="single"
+              selected={selectedDate}
+              onSelect={(date) => date && setSelectedDate(date)}
+              weekStartsOn={1}
+              className="w-full rounded-xl"
+            />
+          </Suspense>
+          <div className="mt-4 space-y-2 text-sm text-muted">
+            <p>Drag bookings between kennels or onto different days in the board.</p>
+            <p>Offline moves queue automatically and sync on reconnect.</p>
+          </div>
+        </Card>
+        <Card title="Bookings Board" description="Drag & drop to adjust kennel assignments and split stays.">
+          <div className="flex w-full snap-x gap-4 overflow-x-auto pb-2">
+            <DndContext onDragEnd={handleDragEnd}>
+              {grouped.map(({ date, kennels: kennelEntries }) => (
+                <div key={format(date, 'yyyy-MM-dd')} className="flex min-w-[18rem] flex-col gap-4">
+                  {kennelEntries.map(({ kennel, bookings: laneBookings }) => (
+                    <KennelColumn key={`${kennel.id}-${format(date, 'yyyy-MM-dd')}`} kennel={kennel} date={date} bookings={laneBookings} />
+                  ))}
+                </div>
+              ))}
+            </DndContext>
+          </div>
+        </Card>
+      </div>
+      <CheckInModal
+        booking={selectedCheckInBooking}
+        open={Boolean(selectedCheckInBooking)}
+        onClose={() => setSelectedCheckInBooking(null)}
+      />
+      <CheckOutModal
+        booking={selectedCheckOutBooking}
+        open={Boolean(selectedCheckOutBooking)}
+        onClose={() => setSelectedCheckOutBooking(null)}
+      />
+    </>
   );
 };
 

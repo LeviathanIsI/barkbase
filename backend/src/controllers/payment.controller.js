@@ -27,8 +27,18 @@ const record = async (req, res, next) => {
   }
 };
 
+const capture = async (req, res, next) => {
+  try {
+    const payment = await paymentService.capturePayment(req.tenantId, req.params.paymentId, req.body);
+    return res.json(payment);
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
   list,
   summary,
   record,
+  capture,
 };

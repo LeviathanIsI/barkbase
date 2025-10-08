@@ -27,6 +27,8 @@ const checkInRoutes = require('./routes/checkin.routes');
 const staffRoutes = require('./routes/staff.routes');
 const membershipRoutes = require('./routes/memberships.routes');
 const inviteRoutes = require('./routes/invites.routes');
+const incidentRoutes = require('./routes/incidents.routes');
+const calendarRoutes = require('./routes/calendar.routes');
 
 const app = express();
 
@@ -99,6 +101,8 @@ app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/staff', staffRoutes);
 app.use('/api/v1/memberships', membershipRoutes);
 app.use('/api/v1/invites', inviteRoutes);
+app.use('/api/v1/incidents', incidentRoutes);
+app.use('/api/v1/calendar', calendarRoutes);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });

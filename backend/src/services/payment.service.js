@@ -62,9 +62,51 @@ const recordPayment = (tenantId, payload) =>
       status: payload.status ?? 'CAPTURED',
       method: payload.method,
       externalId: payload.externalId,
+      intentId: payload.intentId ?? null,
+      capturedAt:
+        payload.capturedAt
+          ? new Date(payload.capturedAt)
+          : payload.status === 'CAPTURED'
+            ? new Date()
+            : null,
       metadata: payload.metadata ?? {},
     },
   });
+
+const capturePayment = async (tenantId, paymentId, { metadata = {}, captureAmountCents, force = false } = {}) => {
+  const tenantDb = forTenant(tenantId);
+  const payment = await tenantDb.payment.findFirst({ where: { id: paymentId } });
+
+  if (!payment) {
+    throw Object.assign(new Error('Payment not found'), { statusCode: 404 });
+  }
+
+  if (payment.status === 'CAPTURED' && !force) {
+    throw Object.assign(new Error('Payment already captured'), { statusCode: 409 });
+  }
+
+  if (!['AUTHORIZED', 'PENDING', 'CAPTURED'].includes(payment.status) && !force) {
+    throw Object.assign(new Error('Payment cannot be captured from current status'), { statusCode: 409 });
+  }
+
+  const data = {
+    status: 'CAPTURED',
+    capturedAt: new Date(),
+    metadata: {
+      ...(payment.metadata ?? {}),
+      ...metadata,
+    },
+  };
+
+  if (typeof captureAmountCents === 'number') {
+    data.amountCents = captureAmountCents;
+  }
+
+  return tenantDb.payment.update({
+    where: { id: paymentId },
+    data,
+  });
+};
 
 const getSummary = async (tenantId) => {
   const tenantDb = forTenant(tenantId);
@@ -126,5 +168,6 @@ const getSummary = async (tenantId) => {
 module.exports = {
   listPayments,
   recordPayment,
+  capturePayment,
   getSummary,
 };

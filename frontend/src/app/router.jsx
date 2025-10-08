@@ -6,6 +6,7 @@ import ProtectedRoute from './ProtectedRoute';
 
 const Dashboard = lazy(() => import('@/features/dashboard/routes/Dashboard'));
 const Bookings = lazy(() => import('@/features/bookings/routes/Bookings'));
+const Calendar = lazy(() => import('@/features/calendar/routes/Calendar'));
 const Pets = lazy(() => import('@/features/pets/routes/Pets'));
 const Owners = lazy(() => import('@/features/owners/routes/Owners'));
 const Payments = lazy(() => import('@/features/payments/routes/Payments'));
@@ -37,6 +38,7 @@ export const router = createBrowserRouter([
               { index: true, element: <Dashboard /> },
               { path: 'dashboard', element: <Dashboard /> },
               { path: 'bookings', element: <Bookings /> },
+              { path: 'calendar', element: <Calendar /> },
               { path: 'pets', element: <Pets /> },
               { path: 'owners', element: <Owners /> },
               { path: 'payments', element: <Payments /> },

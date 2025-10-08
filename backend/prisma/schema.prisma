@@ -26,9 +26,17 @@ enum BookingStatus {
   PENDING
   CONFIRMED
   CHECKED_IN
+  IN_PROGRESS
   CHECKED_OUT
   COMPLETED
   CANCELLED
+}
+
+enum IncidentSeverity {
+  MINOR
+  MODERATE
+  SEVERE
+  CRITICAL
 }
 
 enum PaymentStatus {
@@ -82,6 +90,9 @@ model Tenant {
   vaccinations    Vaccination[]
   auditLogs       AuditLog[]
   usageCounters   UsageCounter[]
+  checkIns        CheckIn[]
+  checkOuts       CheckOut[]
+  incidentReports IncidentReport[]
 
   @@index([slug])
 }
@@ -199,6 +210,8 @@ model Staff {
 
   tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   membership    Membership  @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  checkIns      CheckIn[]
+  checkOuts     CheckOut[]
 
   @@index([tenantId])
 }
@@ -238,10 +251,11 @@ model Pet {
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
-  tenant             Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant             Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   owners             PetOwner[]
   vaccinations       Vaccination[]
   bookings           Booking[]
+  incidentReports    IncidentReport[]
 
   @@index([tenantId, name])
 }
@@ -266,9 +280,10 @@ model Kennel {
   tenantId   String
   name       String
   type       KennelType
+  size       String?
   capacity   Int        @default(1)
   location   String?
-  amenities  Json
+  amenities  String     @default("{}")
   isActive   Boolean    @default(true)
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
@@ -278,6 +293,7 @@ model Kennel {
 
   @@unique([tenantId, name])
   @@index([tenantId, type])
+  @@index([tenantId, isActive])
 }
 
 model Booking {
@@ -297,12 +313,15 @@ model Booking {
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 
-  tenant             Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  pet                Pet             @relation(fields: [petId], references: [id], onDelete: Cascade)
-  owner              Owner           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  tenant             Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pet                Pet              @relation(fields: [petId], references: [id], onDelete: Cascade)
+  owner              Owner            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   segments           BookingSegment[]
   services           BookingService[]
   payments           Payment[]
+  checkIns           CheckIn[]
+  checkOuts          CheckOut[]
+  incidentReports    IncidentReport[]
 
   @@index([tenantId, status, checkIn])
   @@index([tenantId, petId])
@@ -386,6 +405,8 @@ model Payment {
   status       PaymentStatus @default(PENDING)
   method       String?
   externalId   String?
+  intentId     String?
+  capturedAt   DateTime?
   metadata     Json
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -396,5 +417,71 @@ model Payment {
 
   @@index([tenantId, status])
   @@index([tenantId, createdAt])
+  @@index([tenantId, intentId])
   @@unique([tenantId, externalId])
+}
+
+model CheckIn {
+  id               String   @id @default(cuid())
+  tenantId         String
+  bookingId        String
+  staffId          String?
+  time             DateTime @default(now())
+  weight           Float?
+  photos           String   @default("[]")
+  notes            String?
+  conditionRating  Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  booking          Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  staff            Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, bookingId])
+  @@index([tenantId, time])
+}
+
+model CheckOut {
+  id               String   @id @default(cuid())
+  tenantId         String
+  bookingId        String
+  staffId          String?
+  time             DateTime @default(now())
+  incidentReportId String?
+  extraCharges     String   @default("{}")
+  signatureUrl     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant           Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  booking          Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  staff            Staff?          @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  incidentReport   IncidentReport? @relation(fields: [incidentReportId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, bookingId])
+  @@index([tenantId, time])
+}
+
+model IncidentReport {
+  id            String            @id @default(cuid())
+  tenantId      String
+  petId         String
+  bookingId     String?
+  occurredAt    DateTime          @default(now())
+  severity      IncidentSeverity
+  narrative     String
+  photos        String            @default("[]")
+  vetContacted  Boolean           @default(false)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  tenant        Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pet           Pet               @relation(fields: [petId], references: [id], onDelete: Cascade)
+  booking       Booking?          @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  checkOuts     CheckOut[]
+
+  @@index([tenantId, petId])
+  @@index([tenantId, bookingId])
+  @@index([tenantId, occurredAt])
 }

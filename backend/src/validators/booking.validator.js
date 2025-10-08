@@ -17,6 +17,7 @@ const serviceSchema = Joi.object({
 const statusEnum = Joi.string().valid(
   'PENDING',
   'CONFIRMED',
+  'IN_PROGRESS',
   'CHECKED_IN',
   'CHECKED_OUT',
   'COMPLETED',
@@ -65,6 +66,38 @@ const quickCheckIn = Joi.object({
   kennelId: Joi.string().optional(),
 });
 
+const checkIn = Joi.object({
+  time: Joi.date().iso().default(() => new Date()),
+  weight: Joi.number().positive().precision(2).allow(null),
+  photos: Joi.array().items(Joi.string().trim()).max(10).default([]),
+  notes: Joi.string().allow('', null),
+  conditionRating: Joi.number().integer().min(1).max(5).allow(null),
+  staffId: Joi.string().optional(),
+});
+
+const incidentSeverityEnum = Joi.string().valid('MINOR', 'MODERATE', 'SEVERE', 'CRITICAL');
+
+const incidentPayload = Joi.object({
+  petId: Joi.string().required(),
+  occurredAt: Joi.date().iso().default(() => new Date()),
+  severity: incidentSeverityEnum.required(),
+  narrative: Joi.string().min(3).required(),
+  photos: Joi.array().items(Joi.string().trim()).default([]),
+  vetContacted: Joi.boolean().default(false),
+});
+
+const checkOut = Joi.object({
+  time: Joi.date().iso().default(() => new Date()),
+  incidentReportId: Joi.string().allow(null),
+  incident: incidentPayload.optional(),
+  extraCharges: Joi.object().default({}),
+  signatureUrl: Joi.string().allow('', null),
+  remainingBalanceCents: Joi.number().min(0),
+  capturePayment: Joi.boolean().default(true),
+  paymentIntentId: Joi.string().allow('', null),
+  metadata: Joi.object().default({}),
+}).oxor('incidentReportId', 'incident');
+
 const promoteWaitlist = Joi.object({
   kennelId: Joi.string().optional(),
   startDate: Joi.date().iso().optional(),
@@ -85,5 +118,7 @@ module.exports = {
   update,
   updateStatus,
   quickCheckIn,
+  checkIn,
+  checkOut,
   promoteWaitlist,
 };

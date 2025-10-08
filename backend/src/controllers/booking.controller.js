@@ -42,7 +42,11 @@ const update = async (req, res, next) => {
 
 const updateStatus = async (req, res, next) => {
   try {
-    const booking = await bookingService.updateBookingStatus(req.tenantId, req.params.bookingId, req.body.status);
+    const booking = await bookingService.updateBookingStatus(
+      req.tenantId,
+      req.params.bookingId,
+      req.body.status,
+    );
     return res.json(booking);
   } catch (error) {
     return next(error);
@@ -60,8 +64,40 @@ const remove = async (req, res, next) => {
 
 const quickCheckIn = async (req, res, next) => {
   try {
-    const booking = await bookingService.quickCheckIn(req.tenantId, req.body);
+    const booking = await bookingService.quickCheckIn(
+      req.tenantId,
+      req.body,
+      { membershipId: req.user?.membershipId ?? null },
+    );
     return res.json(booking);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const checkIn = async (req, res, next) => {
+  try {
+    const result = await bookingService.checkIn(
+      req.tenantId,
+      req.params.bookingId,
+      req.body,
+      { membershipId: req.user?.membershipId ?? null },
+    );
+    return res.status(201).json(result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+const checkOut = async (req, res, next) => {
+  try {
+    const result = await bookingService.checkOut(
+      req.tenantId,
+      req.params.bookingId,
+      req.body,
+      { membershipId: req.user?.membershipId ?? null },
+    );
+    return res.status(201).json(result);
   } catch (error) {
     return next(error);
   }
@@ -88,5 +124,7 @@ module.exports = {
   updateStatus,
   remove,
   quickCheckIn,
+  checkIn,
+  checkOut,
   promoteWaitlist,
 };

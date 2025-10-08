@@ -5,7 +5,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -280,10 +280,9 @@ model Kennel {
   tenantId   String
   name       String
   type       KennelType
-  size       String?
   capacity   Int        @default(1)
   location   String?
-  amenities  String     @default("{}")
+  amenities  Json
   isActive   Boolean    @default(true)
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
@@ -293,7 +292,6 @@ model Kennel {
 
   @@unique([tenantId, name])
   @@index([tenantId, type])
-  @@index([tenantId, isActive])
 }
 
 model Booking {
@@ -428,7 +426,7 @@ model CheckIn {
   staffId          String?
   time             DateTime @default(now())
   weight           Float?
-  photos           String   @default("[]")
+  photos           Json     @default("[]")
   notes            String?
   conditionRating  Int?
   createdAt        DateTime @default(now())
@@ -449,7 +447,7 @@ model CheckOut {
   staffId          String?
   time             DateTime @default(now())
   incidentReportId String?
-  extraCharges     String   @default("{}")
+  extraCharges     Json     @default("{}")
   signatureUrl     String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -471,7 +469,7 @@ model IncidentReport {
   occurredAt    DateTime          @default(now())
   severity      IncidentSeverity
   narrative     String
-  photos        String            @default("[]")
+  photos        Json              @default("[]")
   vetContacted  Boolean           @default(false)
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt

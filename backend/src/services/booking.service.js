@@ -17,6 +17,21 @@ const emitBookingEvent = (tenantId, event, payload) => {
   }
 };
 
+const resolveStaffId = async (tenantDb, { staffId, membershipId } = {}) => {
+  if (staffId) {
+    const staff = await tenantDb.staff.findFirst({ where: { id: staffId } });
+    if (!staff) {
+      throw Object.assign(new Error('Staff member not found'), { statusCode: 404 });
+    }
+    return staff.id;
+  }
+  if (membershipId) {
+    const staff = await tenantDb.staff.findFirst({ where: { membershipId } });
+    return staff?.id ?? null;
+  }
+  return null;
+};
+
 const defaultIncludes = {
   pet: {
     include: {
@@ -251,7 +266,7 @@ const deleteBooking = async (tenantId, bookingId) => {
   emitBookingEvent(tenantId, 'booking:deleted', { id: bookingId });
 };
 
-const quickCheckIn = async (tenantId, { bookingId, kennelId }) => {
+const quickCheckIn = async (tenantId, { bookingId, kennelId }, context = {}) => {
   const tenantDb = forTenant(tenantId);
   const existing = await tenantDb.booking.findFirst({
     where: { id: bookingId },
@@ -262,13 +277,21 @@ const quickCheckIn = async (tenantId, { bookingId, kennelId }) => {
     throw Object.assign(new Error('Booking not found'), { statusCode: 404 });
   }
 
+  const checkInTime = new Date();
+
   const booking = await prisma.$transaction(async (tx) => {
     const scoped = forTenant(tenantId, tx);
+
+    const staffId = await resolveStaffId(scoped, {
+      membershipId: context.membershipId,
+      staffId: context.staffId,
+    });
+
     await scoped.booking.update({
       where: { id: bookingId },
       data: {
-        status: 'CHECKED_IN',
-        checkIn: new Date(),
+        status: 'IN_PROGRESS',
+        checkIn: checkInTime,
       },
     });
 
@@ -277,12 +300,24 @@ const quickCheckIn = async (tenantId, { bookingId, kennelId }) => {
         data: {
           bookingId,
           kennelId,
-          startDate: new Date(),
+          startDate: checkInTime,
           endDate: existing.checkOut,
-          status: 'CHECKED_IN',
+          status: 'IN_PROGRESS',
         },
       });
     }
+
+    await scoped.checkIn.create({
+      data: {
+        bookingId,
+        staffId,
+        time: checkInTime,
+        weight: null,
+        photos: [],
+        notes: null,
+        conditionRating: null,
+      },
+    });
 
     return scoped.booking.findFirst({
       where: { id: bookingId },
@@ -293,6 +328,186 @@ const quickCheckIn = async (tenantId, { bookingId, kennelId }) => {
   emitBookingEvent(tenantId, 'booking:checked-in', booking);
 
   return booking;
+};
+
+
+const checkIn = async (tenantId, bookingId, payload = {}, context = {}) => {
+  const { membershipId } = context ?? {};
+
+  const result = await prisma.$transaction(async (tx) => {
+    const scoped = forTenant(tenantId, tx);
+    const booking = await scoped.booking.findFirst({
+      where: { id: bookingId },
+    });
+
+    if (!booking) {
+      throw Object.assign(new Error('Booking not found'), { statusCode: 404 });
+    }
+
+    if (['CANCELLED', 'COMPLETED', 'CHECKED_OUT'].includes(booking.status)) {
+      throw Object.assign(new Error('Booking cannot be checked in'), { statusCode: 409 });
+    }
+
+    const staffId = await resolveStaffId(scoped, {
+      staffId: payload.staffId,
+      membershipId,
+    });
+
+    const checkInTime = payload.time ? new Date(payload.time) : new Date();
+
+    const checkInRecord = await scoped.checkIn.create({
+      data: {
+        bookingId,
+        staffId,
+        time: checkInTime,
+        weight: payload.weight ?? null,
+        photos: payload.photos ?? [],
+        notes: payload.notes ?? null,
+        conditionRating: payload.conditionRating ?? null,
+      },
+    });
+
+    const updatedBooking = await scoped.booking.update({
+      where: { id: bookingId },
+      data: {
+        status: 'IN_PROGRESS',
+        checkIn: checkInTime,
+      },
+      include: defaultIncludes,
+    });
+
+    return { booking: updatedBooking, checkIn: checkInRecord };
+  });
+
+  emitBookingEvent(tenantId, 'booking:checked-in', result.booking);
+
+  return result;
+};
+
+const checkOut = async (tenantId, bookingId, payload = {}, context = {}) => {
+  const { membershipId } = context ?? {};
+
+  const result = await prisma.$transaction(async (tx) => {
+    const scoped = forTenant(tenantId, tx);
+    const booking = await scoped.booking.findFirst({
+      where: { id: bookingId },
+    });
+
+    if (!booking) {
+      throw Object.assign(new Error('Booking not found'), { statusCode: 404 });
+    }
+
+    if (['CANCELLED', 'COMPLETED'].includes(booking.status)) {
+      throw Object.assign(new Error('Booking cannot be checked out'), { statusCode: 409 });
+    }
+
+    const staffId = await resolveStaffId(scoped, {
+      staffId: payload.staffId,
+      membershipId,
+    });
+
+    let incidentReport = null;
+    let incidentReportId = payload.incidentReportId ?? null;
+
+    if (payload.incident) {
+      incidentReport = await scoped.incidentReport.create({
+        data: {
+          petId: payload.incident.petId ?? booking.petId,
+          bookingId,
+          occurredAt: payload.incident.occurredAt ? new Date(payload.incident.occurredAt) : new Date(),
+          severity: payload.incident.severity,
+          narrative: payload.incident.narrative,
+          photos: payload.incident.photos ?? [],
+          vetContacted: payload.incident.vetContacted ?? false,
+        },
+      });
+      incidentReportId = incidentReport.id;
+    } else if (incidentReportId) {
+      const existingIncident = await scoped.incidentReport.findFirst({
+        where: { id: incidentReportId },
+      });
+      if (!existingIncident) {
+        throw Object.assign(new Error('Incident report not found'), { statusCode: 404 });
+      }
+    }
+
+    const checkOutTime = payload.time ? new Date(payload.time) : new Date();
+
+    const checkOutRecord = await scoped.checkOut.create({
+      data: {
+        bookingId,
+        staffId,
+        time: checkOutTime,
+        incidentReportId,
+        extraCharges: payload.extraCharges ?? {},
+        signatureUrl: payload.signatureUrl ?? null,
+      },
+    });
+
+    const remainingBalanceCents =
+      typeof payload.remainingBalanceCents === 'number'
+        ? payload.remainingBalanceCents
+        : booking.balanceDueCents;
+
+    const nextStatus = remainingBalanceCents > 0 ? 'CHECKED_OUT' : 'COMPLETED';
+
+    const updatedBooking = await scoped.booking.update({
+      where: { id: bookingId },
+      data: {
+        status: nextStatus,
+        balanceDueCents: remainingBalanceCents,
+        checkOut: checkOutTime,
+      },
+      include: defaultIncludes,
+    });
+
+    let capturedPayment = null;
+    if (payload.capturePayment !== false) {
+      const paymentWhere = {
+        bookingId,
+      };
+
+      if (payload.paymentIntentId) {
+        paymentWhere.intentId = payload.paymentIntentId;
+      } else {
+        paymentWhere.status = { in: ['AUTHORIZED', 'PENDING'] };
+      }
+
+      const payment = await scoped.payment.findFirst({
+        where: paymentWhere,
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (payload.paymentIntentId && !payment) {
+        throw Object.assign(new Error('Payment intent not found'), { statusCode: 404 });
+      }
+
+      if (payment && payment.status !== 'CAPTURED') {
+        capturedPayment = await scoped.payment.update({
+          where: { id: payment.id },
+          data: {
+            status: 'CAPTURED',
+            capturedAt: checkOutTime,
+            metadata: {
+              ...(payment.metadata ?? {}),
+              ...(payload.metadata ?? {}),
+            },
+          },
+        });
+      }
+    }
+
+    return {
+      booking: updatedBooking,
+      checkOut: checkOutRecord,
+      incidentReport,
+      payment: capturedPayment,
+    };
+  });
+
+  emitBookingEvent(tenantId, 'booking:checked-out', result.booking);
+
+  return result;
 };
 
 const promoteWaitlistBooking = async (
@@ -360,5 +575,7 @@ module.exports = {
   updateBookingStatus,
   deleteBooking,
   quickCheckIn,
+  checkIn,
+  checkOut,
   promoteWaitlistBooking,
 };

@@ -12,13 +12,13 @@ const getStats = async (tenantId) => {
     tenantDb.booking.count({
       where: {
         status: {
-          in: ['CONFIRMED', 'CHECKED_IN'],
+          in: ['CONFIRMED', 'IN_PROGRESS'],
         },
       },
     }),
     tenantDb.booking.count({
       where: {
-        status: 'CHECKED_IN',
+        status: 'IN_PROGRESS',
         checkIn: {
           gte: start,
           lte: end,
