@@ -53,6 +53,9 @@ test-results/
 /generated/prisma/*
 generated/prisma/
 generated/prisma/*
+prisma/*.db-shm
+prisma/*.db-wal
+prisma/backups/
 
 # -----------------------
 # OS / editor cruft

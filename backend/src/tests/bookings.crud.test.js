@@ -3,6 +3,7 @@ const { addDays } = require('date-fns');
 const { parse } = require('cookie');
 const app = require('../app');
 const prisma = require('../config/prisma');
+const tenantContext = require('../middleware/tenantContext');
 
 const loginAs = async (tenantSlug, email, password = 'Passw0rd!') => {
   const response = await request(app)
@@ -131,5 +132,115 @@ describe('Booking CRUD', () => {
       });
 
     expect(response.status).toBe(403);
+  });
+
+  it('returns 402 when monthly booking allowance is exceeded', async () => {
+    await prisma.tenant.update({
+      where: { id: tenant.id },
+      data: {
+        featureFlags: {
+          ...(tenant.featureFlags ?? {}),
+          bookingsPerMonth: 1,
+        },
+      },
+    });
+    if (typeof tenantContext.clearCache === 'function') {
+      tenantContext.clearCache();
+    }
+
+    const checkIn = new Date();
+    const checkOut = addDays(checkIn, 1);
+
+    const payload = {
+      petId: pet.id,
+      ownerId: owner.id,
+      status: 'CONFIRMED',
+      checkIn: checkIn.toISOString(),
+      checkOut: checkOut.toISOString(),
+      segments: [
+        {
+          kennelId: kennel.id,
+          startDate: checkIn.toISOString(),
+          endDate: checkOut.toISOString(),
+          status: 'CONFIRMED',
+        },
+      ],
+      services: [],
+    };
+
+    const firstResponse = await request(app)
+      .post('/api/v1/bookings')
+      .set('X-Tenant', 'acme')
+      .set('Authorization', `Bearer ${session.token}`)
+      .set('Cookie', session.cookieHeader)
+      .set('X-CSRF-Token', session.csrfToken)
+      .send(payload);
+
+    expect(firstResponse.status).toBe(201);
+
+    const secondResponse = await request(app)
+      .post('/api/v1/bookings')
+      .set('X-Tenant', 'acme')
+      .set('Authorization', `Bearer ${session.token}`)
+      .set('Cookie', session.cookieHeader)
+      .set('X-CSRF-Token', session.csrfToken)
+      .send(payload);
+
+    expect(secondResponse.status).toBe(402);
+    expect(secondResponse.body.message).toMatch(/booking/i);
+  });
+
+  it('requires plan feature for waitlist promotion', async () => {
+    await prisma.tenant.update({
+      where: { id: tenant.id },
+      data: {
+        featureFlags: {
+          ...(tenant.featureFlags ?? {}),
+          waitlistPromotion: false,
+        },
+      },
+    });
+    if (typeof tenantContext.clearCache === 'function') {
+      tenantContext.clearCache();
+    }
+
+    const checkIn = new Date();
+    const checkOut = addDays(checkIn, 1);
+
+    const createResponse = await request(app)
+      .post('/api/v1/bookings')
+      .set('X-Tenant', 'acme')
+      .set('Authorization', `Bearer ${session.token}`)
+      .set('Cookie', session.cookieHeader)
+      .set('X-CSRF-Token', session.csrfToken)
+      .send({
+        petId: pet.id,
+        ownerId: owner.id,
+        status: 'PENDING',
+        checkIn: checkIn.toISOString(),
+        checkOut: checkOut.toISOString(),
+        segments: [
+          {
+            kennelId: kennel.id,
+            startDate: checkIn.toISOString(),
+            endDate: checkOut.toISOString(),
+            status: 'PENDING',
+          },
+        ],
+        services: [],
+      });
+
+    expect(createResponse.status).toBe(201);
+
+    const promoteResponse = await request(app)
+      .post(`/api/v1/bookings/waitlist/${createResponse.body.id}/promote`)
+      .set('X-Tenant', 'acme')
+      .set('Authorization', `Bearer ${session.token}`)
+      .set('Cookie', session.cookieHeader)
+      .set('X-CSRF-Token', session.csrfToken)
+      .send({});
+
+    expect(promoteResponse.status).toBe(402);
+    expect(promoteResponse.body.message).toMatch(/waitlist/i);
   });
 });

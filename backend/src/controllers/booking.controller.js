@@ -12,7 +12,9 @@ const list = async (req, res, next) => {
 
 const create = async (req, res, next) => {
   try {
-    const booking = await bookingService.createBooking(req.tenantId, req.body);
+    const booking = await bookingService.createBooking(req.tenantId, req.body, {
+      features: req.tenantFeatures,
+    });
     return res.status(201).json(booking);
   } catch (error) {
     return next(error);

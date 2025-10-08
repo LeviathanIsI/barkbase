@@ -147,6 +147,17 @@ export const apiClient = async (path, options = {}) => {
   const serializedBody = isJsonPayload ? JSON.stringify(body) : body ?? undefined;
 
   const finalHeaders = { ...queueHeaders };
+  if (!finalHeaders['X-App-Version']) {
+    let appVersion = null;
+    if (typeof __APP_VERSION__ !== 'undefined') {
+      appVersion = __APP_VERSION__;
+    } else if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_APP_VERSION) {
+      appVersion = import.meta.env.VITE_APP_VERSION;
+    }
+    if (appVersion) {
+      finalHeaders['X-App-Version'] = appVersion;
+    }
+  }
   if (!finalHeaders['X-Request-ID']) {
     finalHeaders['X-Request-ID'] = generateRequestId();
   }

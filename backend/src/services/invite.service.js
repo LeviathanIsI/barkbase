@@ -3,6 +3,8 @@ const bcrypt = require('bcrypt');
 const { addDays } = require('date-fns');
 const prisma = require('../config/prisma');
 const { forTenant } = require('../lib/tenantPrisma');
+const { resolveTenantFeatures } = require('../lib/features');
+const { assertSeatAndInviteCapacity } = require('./usage.service');
 
 const INVITE_EXPIRY_DAYS = 7;
 
@@ -18,8 +20,25 @@ const sanitizeInvite = (invite) => ({
 
 const normalizeEmail = (email) => String(email).trim().toLowerCase();
 
-const ensureNotMember = async (tenantId, email) => {
-  const existing = await prisma.membership.findFirst({
+const loadPlanFeatures = async (tenantId, features) => {
+  if (features) {
+    return features;
+  }
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: {
+      plan: true,
+      featureFlags: true,
+    },
+  });
+  if (!tenant) {
+    throw Object.assign(new Error('Tenant not found'), { statusCode: 404 });
+  }
+  return resolveTenantFeatures(tenant);
+};
+
+const ensureNotMember = async (tenantId, email, client = prisma) => {
+  const existing = await client.membership.findFirst({
     where: {
       tenantId,
       user: {
@@ -33,33 +52,60 @@ const ensureNotMember = async (tenantId, email) => {
   }
 };
 
-const createInvite = async ({ tenantId, email, role, createdById }) => {
+const createInvite = async ({ tenantId, email, role, createdById, features }) => {
   const normalizedEmail = normalizeEmail(email);
-  await ensureNotMember(tenantId, normalizedEmail);
+  const planFeatures = await loadPlanFeatures(tenantId, features);
 
-  const token = crypto.randomUUID().replace(/-/g, '');
-  const expiresAt = addDays(new Date(), INVITE_EXPIRY_DAYS);
+  return prisma.$transaction(async (tx) => {
+    const existingPending = await tx.invite.findFirst({
+      where: {
+        tenantId,
+        email: normalizedEmail,
+        acceptedAt: null,
+      },
+    });
 
-  await prisma.invite.deleteMany({
-    where: {
+    const seatsToAdd = existingPending ? 0 : 1;
+    const invitesToAdd = existingPending ? 0 : 1;
+
+    await assertSeatAndInviteCapacity({
       tenantId,
-      email: normalizedEmail,
-      acceptedAt: null,
-    },
-  });
+      features: planFeatures,
+      tx,
+      seatsToAdd,
+      invitesToAdd,
+    });
 
-  const invite = await prisma.invite.create({
-    data: {
-      tenantId,
-      email: normalizedEmail,
-      role,
-      token,
-      expiresAt,
-      createdById,
-    },
-  });
+    await ensureNotMember(tenantId, normalizedEmail, tx);
 
-  return sanitizeInvite(invite);
+    const token = crypto.randomUUID().replace(/-/g, '');
+    const expiresAt = addDays(new Date(), INVITE_EXPIRY_DAYS);
+
+    if (existingPending) {
+      await tx.invite.delete({ where: { id: existingPending.id } });
+    } else {
+      await tx.invite.deleteMany({
+        where: {
+          tenantId,
+          email: normalizedEmail,
+          acceptedAt: null,
+        },
+      });
+    }
+
+    const invite = await tx.invite.create({
+      data: {
+        tenantId,
+        email: normalizedEmail,
+        role,
+        token,
+        expiresAt,
+        createdById,
+      },
+    });
+
+    return sanitizeInvite(invite);
+  });
 };
 
 const acceptInvite = async (token, { password }) => {

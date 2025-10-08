@@ -38,9 +38,22 @@ const login = async (req, res, next) => {
   }
 };
 
+const extractClientIp = (req) => {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded.length > 0) {
+    return forwarded.split(',')[0].trim();
+  }
+  return req.ip;
+};
+
 const signup = async (req, res, next) => {
   try {
-    const result = await authService.signup(req.body);
+    const consentMeta = {
+      ip: extractClientIp(req),
+      appVersion: req.headers['x-app-version'] ?? req.headers['x-app-build'] ?? null,
+    };
+
+    const result = await authService.signup({ ...req.body, consentMeta });
 
     if (result.tokens) {
       setAuthCookies(res, result.tokens);

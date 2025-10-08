@@ -1,4 +1,6 @@
 const path = require('path');
+const fs = require('fs/promises');
+const { getStorageForTenant } = require('../lib/storage');
 const petService = require('../services/pet.service');
 const { processImage } = require('../lib/imageProcessor');
 
@@ -72,10 +74,18 @@ const uploadPhoto = async (req, res, next) => {
       sizes: [320],
     });
 
-    const relativePath = path.relative(process.cwd(), thumbnailPath).replace(/\\/g, '/');
+    const tenant = req.tenant;
+    const storage = getStorageForTenant(tenant);
+    const normalizedKey = `tenants/${tenant.slug}/pets/${req.params.petId}/${path.basename(thumbnailPath)}`;
+    const uploadResult = await storage.put(thumbnailPath, normalizedKey, { contentType: 'image/webp' });
+
+    await Promise.all([
+      fs.unlink(req.file.path).catch(() => {}),
+      fs.unlink(thumbnailPath).catch(() => {}),
+    ]);
 
     const pet = await petService.updatePet(req.tenantId, req.params.petId, {
-      photoUrl: `/${relativePath}`,
+      photoUrl: storage.getUrl(uploadResult.key),
     });
 
     return res.json(pet);

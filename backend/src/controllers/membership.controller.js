@@ -19,6 +19,7 @@ const inviteMember = async (req, res, next) => {
       email: req.body.email,
       role: req.body.role,
       createdById: req.user?.id,
+      features: req.tenantFeatures,
     });
     return res.status(201).json(invite);
   } catch (error) {

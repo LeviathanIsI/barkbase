@@ -6,6 +6,7 @@ const controller = require('../controllers/booking.controller');
 const schemas = require('../validators/booking.validator');
 const { auditLogger } = require('../middleware/auditLogger');
 const { tenantWriteLimiter } = require('../middleware/tenantRateLimit');
+const { requirePlanFeature } = require('../middleware/requirePlanFeature');
 
 const sanitizeCheckoutAudit = (req) => {
   const { signatureUrl, metadata, ...rest } = req.body ?? {};
@@ -31,6 +32,9 @@ router.post(
 );
 router.post(
   '/waitlist/:bookingId/promote',
+  requirePlanFeature('waitlistPromotion', {
+    message: 'Waitlist promotion is available on BarkBase Pro and above.',
+  }),
   requireAuth(['OWNER', 'ADMIN', 'STAFF']),
   validate(schemas.promoteWaitlist),
   auditLogger('booking.promoted', 'booking', (req) => req.params.bookingId),

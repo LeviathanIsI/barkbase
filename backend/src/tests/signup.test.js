@@ -19,6 +19,7 @@ describe('Public signup and verification', () => {
         tenantSlug: slug,
         email: `founder+${Date.now()}@testkennels.dev`,
         password: 'SuperSafePass123!',
+        acceptLocalDataStorage: true,
       });
 
     expect(response.status).toBe(201);
@@ -32,6 +33,15 @@ describe('Public signup and verification', () => {
     const user = await prisma.user.findUnique({ where: { email: response.body.user.email } });
     expect(user.emailVerified).toBe(true);
 
+    const membership = await prisma.membership.findFirst({
+      where: { tenantId: response.body.tenant.id, userId: user.id },
+      select: { localDataConsent: true },
+    });
+    expect(membership?.localDataConsent).toMatchObject({
+      ip: expect.any(String),
+      agreedAt: expect.any(String),
+    });
+
     const tokenRecord = await prisma.emailVerificationToken.findFirst({ where: { userId: user.id } });
     expect(tokenRecord).toBeNull();
   });
@@ -44,6 +54,7 @@ describe('Public signup and verification', () => {
         tenantSlug: 'unique-co',
         email: 'owner@uniqueco.dev',
         password: 'UniquePass123!',
+        acceptLocalDataStorage: true,
       });
 
     expect(first.status).toBe(201);
@@ -55,6 +66,7 @@ describe('Public signup and verification', () => {
         tenantSlug: 'unique-co',
         email: 'another@uniqueco.dev',
         password: 'AnotherPass123!',
+        acceptLocalDataStorage: true,
       });
 
     expect(duplicate.status).toBe(409);
@@ -71,6 +83,7 @@ describe('Public signup and verification', () => {
         tenantSlug: 'smtp-co',
         email: 'owner@smtpco.dev',
         password: 'VerifyPass123!',
+        acceptLocalDataStorage: true,
       });
 
     expect(response.status).toBe(201);
@@ -95,6 +108,7 @@ describe('Public signup and verification', () => {
         tenantSlug: 'verify-co',
         email: 'owner@verifyco.dev',
         password: 'VerifyPass123!',
+        acceptLocalDataStorage: true,
       });
 
     const token = signupResponse.body?.verification?.token;

@@ -2,13 +2,16 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import Button from '@/components/ui/Button';
 import { useUIStore } from '@/stores/ui';
+import { useTenantStore } from '@/stores/tenant';
 import { cn } from '@/lib/cn';
 
 const AppShell = () => {
   const collapsed = useUIStore((state) => state.sidebarCollapsed);
   const toggleSidebar = useUIStore((state) => state.toggleSidebar);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const tenant = useTenantStore((state) => state.tenant);
 
   const handleMenuToggle = () => {
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
@@ -16,6 +19,15 @@ const AppShell = () => {
     } else {
       toggleSidebar();
     }
+  };
+
+  const latestExportPath = tenant?.settings?.exports?.lastPath;
+  const handleRestore = () => {
+    if (!latestExportPath) {
+      return;
+    }
+    const url = latestExportPath.startsWith('/') ? latestExportPath : `/${latestExportPath}`;
+    window.open(url, '_blank');
   };
 
   return (
@@ -37,6 +49,31 @@ const AppShell = () => {
           </div>
         </div>
       )}
+      {tenant?.recoveryMode ? (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-background/95 px-4 text-center">
+          <div className="max-w-lg space-y-6 rounded-2xl border border-warning/40 bg-surface/95 p-8 shadow-2xl">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-warning">Recovery mode</p>
+              <h2 className="text-2xl font-semibold text-text">We detected database issues</h2>
+              <p className="text-sm text-muted">
+                BarkBase opened in read-only recovery mode. Download your most recent export or backup before making
+                changes. Support cannot restore local data—use your latest export/backup to recover.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3">
+              <Button onClick={handleRestore} disabled={!latestExportPath}>
+                {latestExportPath ? 'Download latest export' : 'No export found yet'}
+              </Button>
+              <Button variant="outline" onClick={() => window.location.reload()}>
+                Reload after restore
+              </Button>
+              <p className="text-xs text-muted">
+                Tip: You can generate fresh exports from another device if this copy is unusable.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

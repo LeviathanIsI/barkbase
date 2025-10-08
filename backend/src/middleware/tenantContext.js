@@ -1,6 +1,9 @@
 const prisma = require('../config/prisma');
 const env = require('../config/env');
 const logger = require('../utils/logger');
+const { resolveTenantFeatures } = require('../lib/features');
+const { getDbForTenant } = require('../lib/dbRouter');
+const { forTenant } = require('../lib/tenantPrisma');
 
 const cache = new Map();
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -38,8 +41,10 @@ const resolveTenantWhere = (slug, hostHint) => {
 };
 
 async function tenantContext(req, res, next) {
+  let slug;
+
   try {
-    const slug = (req.tenantSlug ?? env.tenancy.defaultSlug).toLowerCase();
+    slug = (req.tenantSlug ?? env.tenancy.defaultSlug).toLowerCase();
     const hostHint = req.tenantHost;
 
     const cacheKey = slug || hostHint || env.tenancy.defaultSlug;
@@ -49,11 +54,18 @@ async function tenantContext(req, res, next) {
       req.tenant = cached;
       req.tenantId = cached.id;
       req.tenantSlug = cached.slug;
+      req.tenantPlan = cached.plan;
+      req.tenantFeatures = resolveTenantFeatures(cached);
+      req.tenantDb = getDbForTenant(cached);
+      req.tenantScopedClient = forTenant(cached.id, req.tenantDb);
       return next();
     }
 
     const tenant = await prisma.tenant.findFirst({
       where: resolveTenantWhere(slug, hostHint),
+      include: {
+        byoConfig: true,
+      },
     });
 
     if (!tenant) {
@@ -65,12 +77,21 @@ async function tenantContext(req, res, next) {
     req.tenant = tenant;
     req.tenantId = tenant.id;
     req.tenantSlug = tenant.slug;
+    req.tenantPlan = tenant.plan;
+    req.tenantFeatures = resolveTenantFeatures(tenant);
+    req.tenantDb = getDbForTenant(tenant);
+    req.tenantScopedClient = forTenant(tenant.id, req.tenantDb);
     return next();
   } catch (error) {
-    logger.error({ error }, 'Failed to resolve tenant context');
+    const errorSummary = error?.message ? ` Reason: ${error.message}.` : '';
+    const tenantDescriptor = slug ? ` for tenant ${slug}` : '';
+    logger.error(
+      `Could not establish tenant context${tenantDescriptor}.${errorSummary}`
+    );
     return next(error);
   }
 }
 
 module.exports = tenantContext;
 module.exports.clearCache = clearTenantCache;
+

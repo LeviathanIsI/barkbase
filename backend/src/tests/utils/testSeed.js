@@ -61,11 +61,18 @@ const seedUsers = async ({ acme, globex }) => {
     },
   });
 
+  const consentReceipt = {
+    agreedAt: new Date().toISOString(),
+    ip: '127.0.0.1',
+    appVersion: 'test-suite',
+  };
+
   await prisma.membership.create({
     data: {
       tenantId: acme.id,
       userId: acmeOwner.id,
       role: 'OWNER',
+      localDataConsent: consentReceipt,
     },
   });
 
@@ -74,6 +81,7 @@ const seedUsers = async ({ acme, globex }) => {
       tenantId: globex.id,
       userId: globexOwner.id,
       role: 'OWNER',
+      localDataConsent: consentReceipt,
     },
   });
 

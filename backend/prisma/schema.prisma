@@ -15,6 +15,28 @@ enum TenantPlan {
   ENTERPRISE
 }
 
+enum StorageProvider {
+  LOCAL
+  HOSTED
+  BYO
+}
+
+enum DbProvider {
+  LOCAL
+  HOSTED
+  BYO
+}
+
+enum MigrationState {
+  IDLE
+  STAGING
+  DUALWRITE
+  CUTOVER
+  COMPLETE
+  ROLLBACK
+}
+
+
 enum Role {
   OWNER
   ADMIN
@@ -70,6 +92,10 @@ model Tenant {
   themeJson       Json?
   featureFlags    Json?
   plan            TenantPlan  @default(FREE)
+  storageProvider  StorageProvider  @default(LOCAL)
+  dbProvider       DbProvider       @default(LOCAL)
+  migrationState   MigrationState   @default(IDLE)
+  migrationInfo    Json?
   customDomain    String?     @unique
   settings        Json?
   createdAt       DateTime    @default(now())
@@ -93,10 +119,25 @@ model Tenant {
   checkIns        CheckIn[]
   checkOuts       CheckOut[]
   incidentReports IncidentReport[]
+  byoConfig       TenantBYOConfig?
 
   @@index([slug])
 }
 
+
+model TenantBYOConfig {
+  tenantId    String   @id
+  cloudVendor String
+  bucket      String
+  region      String?
+  encAccessKey Bytes?
+  encSecretKey Bytes?
+  dbUrlCipher Bytes?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
 
 model User {
   id             String    @id @default(cuid())
@@ -122,6 +163,7 @@ model Membership {
   tenantId     String
   role         Role     @default(STAFF)
   refreshToken String?
+  localDataConsent Json?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -419,69 +461,4 @@ model Payment {
   @@index([tenantId, createdAt])
   @@index([tenantId, intentId])
   @@unique([tenantId, externalId])
-}
-
-model CheckIn {
-  id               String   @id @default(cuid())
-  tenantId         String
-  bookingId        String
-  staffId          String?
-  time             DateTime @default(now())
-  weight           Float?
-  photos           String   @default("[]")
-  notes            String?
-  conditionRating  Int?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  booking          Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  staff            Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
-
-  @@index([tenantId, bookingId])
-  @@index([tenantId, time])
-}
-
-model CheckOut {
-  id               String   @id @default(cuid())
-  tenantId         String
-  bookingId        String
-  staffId          String?
-  time             DateTime @default(now())
-  incidentReportId String?
-  extraCharges     String   @default("{}")
-  signatureUrl     String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  tenant           Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  booking          Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  staff            Staff?          @relation(fields: [staffId], references: [id], onDelete: SetNull)
-  incidentReport   IncidentReport? @relation(fields: [incidentReportId], references: [id], onDelete: SetNull)
-
-  @@index([tenantId, bookingId])
-  @@index([tenantId, time])
-}
-
-model IncidentReport {
-  id            String            @id @default(cuid())
-  tenantId      String
-  petId         String
-  bookingId     String?
-  occurredAt    DateTime          @default(now())
-  severity      IncidentSeverity
-  narrative     String
-  photos        String            @default("[]")
-  vetContacted  Boolean           @default(false)
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-
-  tenant        Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  pet           Pet               @relation(fields: [petId], references: [id], onDelete: Cascade)
-  booking       Booking?          @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  checkOuts     CheckOut[]
-
-  @@index([tenantId, petId])
-  @@index([tenantId, bookingId])
-  @@index([tenantId, occurredAt])
 }

@@ -20,6 +20,24 @@ const renderProgressBar = (percent) => {
   );
 };
 
+const REMINDER_DISMISS_KEY = 'barkbase-export-reminder-dismissed-until';
+
+const shouldShowExportReminder = (lastExportAt) => {
+  if (typeof window === 'undefined') return false;
+  const stored = window.localStorage.getItem(REMINDER_DISMISS_KEY);
+  if (stored) {
+    const until = Number(stored);
+    if (!Number.isNaN(until) && Date.now() < until) {
+      return false;
+    }
+  }
+  if (!lastExportAt) return true;
+  const last = new Date(lastExportAt).getTime();
+  if (Number.isNaN(last)) return true;
+  const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+  return Date.now() - last >= THIRTY_DAYS_MS;
+};
+
 const OnboardingChecklist = ({ status, onDismiss, isMutating }) => {
   const navigate = useNavigate();
 
@@ -27,7 +45,7 @@ const OnboardingChecklist = ({ status, onDismiss, isMutating }) => {
     return null;
   }
 
-  const { checklist = [], progress = {}, plan = {} } = status;
+  const { checklist = [], progress = {}, plan = {}, tenant = {} } = status;
   const total = progress.total ?? checklist.length ?? 0;
   const completed = progress.completed ?? checklist.filter((item) => item.done).length;
   const percentComplete = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -37,6 +55,15 @@ const OnboardingChecklist = ({ status, onDismiss, isMutating }) => {
     label,
     enabled: Boolean(plan.features?.[key]),
   }));
+
+  const exportReminderVisible = shouldShowExportReminder(tenant.settings?.exports?.lastGeneratedAt);
+
+  const dismissExportReminder = () => {
+    if (typeof window === 'undefined') return;
+    const next = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    window.localStorage.setItem(REMINDER_DISMISS_KEY, String(next));
+    navigate(0);
+  };
 
   return (
     <Card
@@ -51,17 +78,28 @@ const OnboardingChecklist = ({ status, onDismiss, isMutating }) => {
                 Complete these quick steps to unlock the full BarkBase experience across bookings, pets, and reporting.
               </p>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Badge variant="neutral" className="uppercase">
-              Plan {plan.name ?? 'FREE'}
-            </Badge>
+         </div>
+         <div className="flex items-center gap-3">
+           <Badge variant="neutral" className="uppercase">
+             Plan {plan.name ?? 'FREE'}
+           </Badge>
             <span className="text-xs font-medium text-muted">
               {completed} / {total} complete
             </span>
-          </div>
-        </div>
-      }
+            {exportReminderVisible ? (
+              <Badge variant="warning" className="flex items-center gap-2 text-[11px] font-semibold">
+                Export overdue
+                <button type="button" className="underline" onClick={() => navigate('/settings/billing')}>
+                  Create export
+                </button>
+                <button type="button" onClick={dismissExportReminder} className="text-warning/80 hover:text-warning">
+                  ×
+                </button>
+              </Badge>
+            ) : null}
+         </div>
+       </div>
+     }
       footer={
         <div className="flex w-full flex-wrap items-center gap-3">
           {renderProgressBar(percentComplete)}

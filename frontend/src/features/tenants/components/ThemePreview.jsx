@@ -14,7 +14,13 @@ const ThemePreview = () => {
   const setTenant = useTenantStore((state) => state.setTenant);
   const setTerminology = useTenantStore((state) => state.setTerminology);
   const hasWriteAccess = useAuthStore((state) => state.hasRole(['OWNER', 'ADMIN']));
-  const canEditTheme = hasWriteAccess && isFeatureEnabled('theme.editor', tenant.plan, tenant.featureFlags);
+  const canEditTheme =
+    hasWriteAccess &&
+    isFeatureEnabled('theme.editor', {
+      plan: tenant.plan,
+      overrides: tenant.featureFlags,
+      features: tenant.features,
+    });
   const { register, handleSubmit, reset } = useForm({
     defaultValues: {
       primary: tenant.theme?.colors?.primary ?? '59 130 246',

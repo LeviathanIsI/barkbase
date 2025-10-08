@@ -8,7 +8,11 @@ import ThemePreview from '../components/ThemePreview';
 const TenantSettings = () => {
   const canInvite = useAuthStore((state) => state.hasRole(['OWNER']));
   const tenant = useTenantStore((state) => state.tenant);
-  const domainManagementEnabled = isFeatureEnabled('billing.portal', tenant.plan, tenant.featureFlags);
+  const domainManagementEnabled = isFeatureEnabled('billing.portal', {
+    plan: tenant.plan,
+    overrides: tenant.featureFlags,
+    features: tenant.features,
+  });
 
   return (
     <DashboardLayout

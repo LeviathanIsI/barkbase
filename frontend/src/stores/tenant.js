@@ -9,12 +9,19 @@ const defaultTenant = {
   slug: 'default',
   name: 'BarkBase',
   plan: 'FREE',
+  storageProvider: 'LOCAL',
+  dbProvider: 'LOCAL',
+  migrationState: 'IDLE',
+  migrationInfo: null,
+  byo: null,
   customDomain: null,
   featureFlags: {},
   features: resolvePlanFeatures('FREE'),
+  usage: null,
   theme: getDefaultTheme(),
   terminology: {},
   settings: {},
+  recoveryMode: false,
 };
 
 export const useTenantStore = create((set, get) => ({
@@ -25,12 +32,26 @@ export const useTenantStore = create((set, get) => ({
     const plan = tenantPayload.plan ?? defaultTenant.plan;
     const featureFlags = tenantPayload.featureFlags ?? {};
     const features = tenantPayload.features ?? resolvePlanFeatures(plan, featureFlags);
+    const usage = tenantPayload.usage ?? null;
+    const recoveryMode = Boolean(tenantPayload.recoveryMode);
+    const storageProvider = tenantPayload.storageProvider ?? defaultTenant.storageProvider;
+    const dbProvider = tenantPayload.dbProvider ?? defaultTenant.dbProvider;
+    const migrationState = tenantPayload.migrationState ?? defaultTenant.migrationState;
+    const migrationInfo = tenantPayload.migrationInfo ?? null;
+    const byo = tenantPayload.byo ?? null;
     const tenant = {
       ...defaultTenant,
       ...tenantPayload,
       plan,
+      storageProvider,
+      dbProvider,
+      migrationState,
+      migrationInfo,
+      byo,
       featureFlags,
       features,
+      usage,
+      recoveryMode,
       theme: mergedTheme,
     };
     applyTheme(mergedTheme);
@@ -113,8 +134,15 @@ export const useTenantStore = create((set, get) => ({
       tenant: {
         ...tenant,
         plan: payload.plan,
+        storageProvider: payload.storageProvider ?? tenant.storageProvider,
+        dbProvider: payload.dbProvider ?? tenant.dbProvider,
+        migrationState: payload.migrationState ?? tenant.migrationState,
+        migrationInfo: payload.migrationInfo ?? tenant.migrationInfo ?? null,
+        byo: payload.byo ?? tenant.byo ?? null,
         featureFlags,
         features,
+        usage: payload.usage ?? tenant.usage ?? null,
+        recoveryMode: Boolean(payload.recoveryMode),
       },
     });
     return payload;

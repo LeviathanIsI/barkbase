@@ -6,6 +6,7 @@ const controller = require('../controllers/tenant.controller');
 const membershipController = require('../controllers/membership.controller');
 const tenantSchemas = require('../validators/tenant.validator');
 const inviteSchemas = require('../validators/invite.validator');
+const { requirePlanFeature } = require('../middleware/requirePlanFeature');
 
 const requireMatchingTenantParam = (req, res, next) => {
   const { tenantId } = req.params;
@@ -24,6 +25,7 @@ router.use(tenantContext);
 
 router.get('/current', controller.current);
 router.get('/current/plan', controller.plan);
+router.get('/current/export', requireAuth(['OWNER', 'ADMIN']), controller.exportData);
 
 router.get(
   '/:tenantId/members',
@@ -53,12 +55,18 @@ router.post(
 router.put(
   '/theme',
   requireAuth(['OWNER', 'ADMIN']),
+  requirePlanFeature('themeEditor', {
+    message: 'Custom theming is available on BarkBase Pro and above.',
+  }),
   validate(tenantSchemas.theme),
   controller.updateTheme,
 );
 router.put(
   '/current/theme',
   requireAuth(['OWNER', 'ADMIN']),
+  requirePlanFeature('themeEditor', {
+    message: 'Custom theming is available on BarkBase Pro and above.',
+  }),
   validate(tenantSchemas.theme),
   controller.updateTheme,
 );

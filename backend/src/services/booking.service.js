@@ -1,6 +1,25 @@
 const prisma = require('../config/prisma');
 const { forTenant } = require('../lib/tenantPrisma');
 const { getIO } = require('../lib/socket');
+const { resolveTenantFeatures } = require('../lib/features');
+const { assertBookingsLimit, incrementBookingsUsage } = require('./usage.service');
+
+const loadPlanFeatures = async (tenantId, features) => {
+  if (features) {
+    return features;
+  }
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    select: {
+      plan: true,
+      featureFlags: true,
+    },
+  });
+  if (!tenant) {
+    throw Object.assign(new Error('Tenant not found'), { statusCode: 404 });
+  }
+  return resolveTenantFeatures(tenant);
+};
 
 const emitBookingEvent = (tenantId, event, payload) => {
   try {
@@ -118,8 +137,11 @@ const getBookingById = (tenantId, bookingId) =>
     include: defaultIncludes,
   });
 
-const createBooking = async (tenantId, payload) => {
+const createBooking = async (tenantId, payload, { features, now } = {}) => {
+  const planFeatures = await loadPlanFeatures(tenantId, features);
+
   const created = await prisma.$transaction(async (tx) => {
+    const usageSnapshot = await assertBookingsLimit({ tenantId, features: planFeatures, tx, now });
     const scoped = forTenant(tenantId, tx);
     const booking = await scoped.booking.create({
       data: {
@@ -142,7 +164,7 @@ const createBooking = async (tenantId, payload) => {
       },
       include: defaultIncludes,
     });
-
+    await incrementBookingsUsage({ tenantId, snapshot: usageSnapshot, tx, now });
     return booking;
   });
 

@@ -12,6 +12,9 @@ describe('Tenant plan endpoint', () => {
     expect(response.body.features).toBeDefined();
     expect(response.body.features.billingPortal).toBe(true);
     expect(response.body.features.auditLog).toBe(true);
+    expect(response.body.features.seats).toBe(5);
+    expect(response.body.usage).toBeDefined();
+    expect(response.body.usage.bookings.limit).toBe(2500);
   });
 
   it('respects tenant overrides when returning features', async () => {
@@ -22,5 +25,6 @@ describe('Tenant plan endpoint', () => {
     expect(response.status).toBe(200);
     expect(response.body.plan).toBe('FREE');
     expect(response.body.features.billingPortal).toBe(false);
+    expect(response.body.features.bookingsPerMonth).toBe(150);
   });
 });

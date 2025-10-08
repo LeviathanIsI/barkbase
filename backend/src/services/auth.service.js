@@ -193,9 +193,12 @@ const register = async (tenantId, data) => {
   return sanitizeUser(refreshedUser, tenantId);
 };
 
-const signup = async ({ tenantName, tenantSlug, email, password, honeypot }) => {
+const signup = async ({ tenantName, tenantSlug, email, password, honeypot, acceptLocalDataStorage, consentMeta = {} }) => {
   if (honeypot) {
     throw Object.assign(new Error('Invalid submission'), { statusCode: 400 });
+  }
+  if (acceptLocalDataStorage !== true) {
+    throw Object.assign(new Error('Local data storage consent is required'), { statusCode: 400 });
   }
   if (!PASSWORD_PATTERN.test(password)) {
     throw Object.assign(
@@ -222,6 +225,12 @@ const signup = async ({ tenantName, tenantSlug, email, password, honeypot }) => 
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
+  const consentRecord = {
+    agreedAt: new Date().toISOString(),
+    ip: consentMeta.ip ?? null,
+    appVersion: consentMeta.appVersion ?? null,
+  };
+
   const { tenant, user } = await prisma.$transaction(async (tx) => {
     const createdTenant = await tx.tenant.create({
       data: {
@@ -243,6 +252,7 @@ const signup = async ({ tenantName, tenantSlug, email, password, honeypot }) => 
         tenantId: createdTenant.id,
         userId: createdUser.id,
         role: 'OWNER',
+        localDataConsent: consentRecord,
       },
     });
 

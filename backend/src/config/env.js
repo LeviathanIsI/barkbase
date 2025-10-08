@@ -3,6 +3,9 @@ const dotenv = require('dotenv');
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
+const uploadsRoot = path.resolve(process.cwd(), process.env.UPLOADS_ROOT ?? './uploads');
+const dataRoot = path.resolve(process.cwd(), process.env.DATA_ROOT ?? process.env.UPLOADS_ROOT ?? './uploads');
+
 const parseNumber = (value, fallback) => {
   const parsed = Number(value);
   return Number.isNaN(parsed) ? fallback : parsed;
@@ -22,6 +25,7 @@ module.exports = {
   database: {
     url: process.env.DATABASE_URL,
     provider: process.env.DATABASE_PROVIDER ?? 'sqlite',
+    hostedUrl: process.env.HOSTED_DATABASE_URL ?? null,
   },
   tokens: {
     accessSecret: process.env.JWT_SECRET ?? 'changeme',
@@ -37,7 +41,26 @@ module.exports = {
     from: process.env.EMAIL_FROM ?? 'no-reply@barkbase.local',
   },
   uploads: {
-    root: path.resolve(process.cwd(), process.env.UPLOADS_ROOT ?? './uploads'),
+    root: uploadsRoot,
+  },
+  storage: {
+    root: dataRoot,
+    dataRoot,
+    minFreeBytes: Math.max(0, parseNumber(process.env.STORAGE_MIN_FREE_MB, 500)) * 1024 * 1024,
+    minFreeUploadBytes: Math.max(0, parseNumber(process.env.STORAGE_MIN_FREE_UPLOAD_MB, 1024)) * 1024 * 1024,
+    maxTenantFiles: Math.max(0, parseNumber(process.env.STORAGE_MAX_TENANT_FILES, 100)),
+    maxUploadFileBytes: Math.max(1, parseNumber(process.env.STORAGE_MAX_FILE_MB, 5)) * 1024 * 1024,
+    maxExports: Math.max(1, parseNumber(process.env.STORAGE_MAX_EXPORTS, 10)),
+    maxBackups: Math.max(1, parseNumber(process.env.STORAGE_MAX_BACKUPS, 5)),
+    hosted: {
+      bucket: process.env.HOSTED_STORAGE_S3_BUCKET ?? null,
+      region: process.env.HOSTED_STORAGE_S3_REGION ?? null,
+      accessKeyId: process.env.HOSTED_STORAGE_S3_ACCESS_KEY_ID ?? null,
+      secretAccessKey: process.env.HOSTED_STORAGE_S3_SECRET_ACCESS_KEY ?? null,
+    },
+  },
+  byo: {
+    kmsKeyHex: process.env.BYO_KMS_KEY_HEX ?? null,
   },
   tenancy: {
     defaultSlug: process.env.TENANT_DEFAULT_SLUG ?? 'default',
@@ -51,3 +74,4 @@ module.exports = {
     })(),
   },
 };
+

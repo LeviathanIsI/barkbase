@@ -23,6 +23,7 @@ const signup = Joi.object({
   tenantSlug: slugField.required(),
   email: emailField.required(),
   password: Joi.string().min(12).required(),
+  acceptLocalDataStorage: Joi.boolean().valid(true).required(),
   honeypot: Joi.string().allow('').custom((value, helpers) => {
     if (value) {
       return helpers.error('any.invalid');

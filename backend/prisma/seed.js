@@ -58,6 +58,11 @@ const createUsers = async (tenantId) => {
       tenantId,
       userId: ownerUser.id,
       role: 'OWNER',
+      localDataConsent: {
+        agreedAt: new Date().toISOString(),
+        ip: null,
+        appVersion: 'seed-data',
+      },
     },
   });
 
@@ -73,6 +78,7 @@ const createUsers = async (tenantId) => {
       tenantId,
       userId: staffUser.id,
       role: 'STAFF',
+      localDataConsent: null,
     },
   });
 
