@@ -1,4 +1,4 @@
-const prisma = require('../config/prisma');
+const { forTenant } = require('../lib/tenantPrisma');
 
 const recordAuditEvent = async ({ tenantId, actorId, action, entityType, entityId, diff }) => {
   if (!tenantId || !action || !entityType) {
@@ -6,9 +6,9 @@ const recordAuditEvent = async ({ tenantId, actorId, action, entityType, entityI
   }
 
   try {
-    await prisma.auditLog.create({
+    const db = forTenant(tenantId);
+    await db.auditLog.create({
       data: {
-        tenantId,
         actorId: actorId ?? null,
         action,
         entityType,

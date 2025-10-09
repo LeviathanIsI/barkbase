@@ -26,18 +26,18 @@ const renderChecklistSummary = (values) => {
   return entries.join(' • ');
 };
 
-const readFilesAsDataUrls = (fileList) =>
-  Promise.all(
-    Array.from(fileList).map(
-      (file) =>
-        new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = () => reject(reader.error);
-          reader.readAsDataURL(file);
-        }),
-    ),
-  );
+/**
+ * Creates object URLs for files instead of DataURLs to save memory.
+ * Object URLs are references, not base64-encoded data.
+ * @param {FileList} fileList - Files to create URLs for
+ * @returns {Array<{file: File, url: string}>} Array of file objects with URLs
+ */
+const createFileObjectUrls = (fileList) => {
+  return Array.from(fileList).map((file) => ({
+    file,
+    url: URL.createObjectURL(file),
+  }));
+};
 
 const CheckInModal = ({ booking, open, onClose }) => {
   const [photos, setPhotos] = useState([]);
@@ -60,12 +60,23 @@ const CheckInModal = ({ booking, open, onClose }) => {
     }
   }, [open, reset]);
 
-  const onSelectPhotos = async (event) => {
+  // Cleanup object URLs when component unmounts or photos change
+  useEffect(() => {
+    return () => {
+      photos.forEach((photo) => {
+        if (photo.url) {
+          URL.revokeObjectURL(photo.url);
+        }
+      });
+    };
+  }, [photos]);
+
+  const onSelectPhotos = (event) => {
     if (!event.target.files?.length) return;
     try {
       setIsUploading(true);
-      const dataUrls = await readFilesAsDataUrls(event.target.files);
-      setPhotos((prev) => [...prev, ...dataUrls]);
+      const newPhotos = createFileObjectUrls(event.target.files);
+      setPhotos((prev) => [...prev, ...newPhotos]);
       event.target.value = '';
     } catch (error) {
       toast.error('Failed to read photo. Please try again.');
@@ -75,7 +86,14 @@ const CheckInModal = ({ booking, open, onClose }) => {
   };
 
   const removePhoto = (index) => {
-    setPhotos((prev) => prev.filter((_, idx) => idx !== index));
+    setPhotos((prev) => {
+      const photoToRemove = prev[index];
+      // Revoke object URL to free memory
+      if (photoToRemove?.url) {
+        URL.revokeObjectURL(photoToRemove.url);
+      }
+      return prev.filter((_, idx) => idx !== index);
+    });
   };
 
   const onSubmit = async (values) => {
@@ -84,16 +102,33 @@ const CheckInModal = ({ booking, open, onClose }) => {
     const conditionRating = values.conditionRating ? Number(values.conditionRating) : null;
     const combinedNotes = [checklistSummary, values.notes].filter(Boolean).join('\n');
 
-    const payload = {
-      time: new Date().toISOString(),
-      weight: Number.isFinite(weight) ? weight : null,
-      conditionRating: Number.isFinite(conditionRating) ? conditionRating : null,
-      notes: combinedNotes,
-      photos,
+    // Convert files to DataURLs only at submit time to save memory
+    const convertFilesToDataUrls = async () => {
+      return Promise.all(
+        photos.map(
+          ({ file }) =>
+            new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.onerror = () => reject(reader.error);
+              reader.readAsDataURL(file);
+            }),
+        ),
+      );
     };
 
     try {
       setIsSubmitting(true);
+      const photoDataUrls = photos.length > 0 ? await convertFilesToDataUrls() : [];
+
+      const payload = {
+        time: new Date().toISOString(),
+        weight: Number.isFinite(weight) ? weight : null,
+        conditionRating: Number.isFinite(conditionRating) ? conditionRating : null,
+        notes: combinedNotes,
+        photos: photoDataUrls,
+      };
+
       await mutation.mutateAsync({ bookingId: booking.id, payload });
       toast.success(`Checked in ${booking?.pet?.name ?? 'pet'} successfully.`);
       onClose?.();
@@ -183,13 +218,18 @@ const CheckInModal = ({ booking, open, onClose }) => {
           {isUploading ? <Skeleton className="h-20 w-full" /> : null}
           {photos.length ? (
             <div className="flex flex-wrap gap-3">
-              {photos.map((src, index) => (
+              {photos.map((photo, index) => (
                 <div key={index} className="relative">
-                  <img src={src} alt={`Check-in ${index + 1}`} className="h-20 w-20 rounded-lg object-cover" />
+                  <img
+                    src={photo.url}
+                    alt={`Check-in ${index + 1}`}
+                    className="h-20 w-20 rounded-lg object-cover"
+                  />
                   <button
                     type="button"
                     onClick={() => removePhoto(index)}
                     className="absolute right-1 top-1 rounded-full bg-black/60 px-2 py-1 text-xs text-white"
+                    aria-label={`Remove photo ${index + 1}`}
                   >
                     Remove
                   </button>

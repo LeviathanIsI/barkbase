@@ -28,6 +28,7 @@ const Header = ({ onMenuToggle }) => {
 
   const tenant = useTenantStore((state) => state.tenant);
   const loadTenant = useTenantStore((state) => state.loadTenant);
+  const setDevPlan = useTenantStore((state) => state.setDevPlan);
   const user = useAuthStore((state) => state.user);
   const role = useAuthStore((state) => state.role);
   const offline = useUIStore((state) => state.offline);
@@ -239,6 +240,33 @@ const Header = ({ onMenuToggle }) => {
           <Badge variant="neutral" className="uppercase">
             {tenant?.plan ?? 'FREE'}
           </Badge>
+          {import.meta.env.DEV ? (
+            <div className="flex items-center gap-2">
+              <Badge variant="warning" className="text-xs">
+                DEV
+              </Badge>
+              <select
+                value={tenant?.plan ?? 'FREE'}
+                onChange={(e) => setDevPlan(e.target.value)}
+                className="rounded-md border border-warning/50 bg-warning/10 px-2 py-1 text-xs font-medium text-warning focus:outline-none focus:ring-2 focus:ring-warning/40"
+                aria-label="Development tier switcher"
+              >
+                <option value="FREE">FREE</option>
+                <option value="PRO">PRO</option>
+                <option value="ENTERPRISE">ENTERPRISE</option>
+              </select>
+              <select
+                value={tenant?.storageProvider ?? 'LOCAL'}
+                onChange={(e) => setDevPlan(tenant?.plan ?? 'FREE', e.target.value)}
+                className="rounded-md border border-warning/50 bg-warning/10 px-2 py-1 text-xs font-medium text-warning focus:outline-none focus:ring-2 focus:ring-warning/40"
+                aria-label="Development storage provider switcher"
+              >
+                <option value="LOCAL">LOCAL</option>
+                <option value="HOSTED">HOSTED</option>
+                <option value="BYO">BYO</option>
+              </select>
+            </div>
+          ) : null}
           {bookingUsageLabel ? (
             <Badge variant={bookingsVariant} className="hidden md:inline-flex">
               {bookingUsageLabel}

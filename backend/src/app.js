@@ -12,11 +12,14 @@ const prisma = require("./config/prisma");
 const requestLogger = require("./middleware/requestLogger");
 const errorHandler = require("./middleware/errorHandler");
 const { tenantResolver } = require("./middleware/tenantResolver");
+const tenantContext = require("./middleware/tenantContext");
+const { validateFileAccess } = require("./middleware/validateFileAccess");
 const csrfProtection = require("./middleware/csrf");
 
 const authRoutes = require("./routes/auth.routes");
 const tenantRoutes = require("./routes/tenants.routes");
 const petRoutes = require("./routes/pets.routes");
+const ownerRoutes = require("./routes/owners.routes");
 const bookingRoutes = require("./routes/bookings.routes");
 const paymentRoutes = require("./routes/payments.routes");
 const reportRoutes = require("./routes/reports.routes");
@@ -79,7 +82,10 @@ app.use(express.json({ limit: "5mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(csrfProtection());
-app.use("/uploads", express.static(path.resolve(env.storage.root)));
+
+// Secure file uploads with authentication and tenant validation
+// Must authenticate users and validate they can only access their tenant's files
+app.use("/uploads", tenantContext, validateFileAccess(), express.static(path.resolve(env.storage.root)));
 
 const baseLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -98,6 +104,7 @@ app.use("/api/v1/auth", authLimiter, authRoutes);
 app.use("/api/v1/tenants", tenantRoutes);
 app.use("/api/v1/tenants/upgrade", upgradeRoutes);
 app.use("/api/v1/pets", petRoutes);
+app.use("/api/v1/owners", ownerRoutes);
 app.use("/api/v1/bookings", bookingRoutes);
 app.use("/api/v1/kennels", kennelRoutes);
 app.use("/api/v1/check-in", checkInRoutes);

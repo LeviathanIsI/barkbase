@@ -125,7 +125,7 @@ const seedAcmeData = async (acme) => {
       name: 'Suite 1',
       type: 'SUITE',
       capacity: 1,
-      amenities: [],
+      amenities: '[]',
       isActive: true,
     },
   });

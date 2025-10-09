@@ -47,9 +47,6 @@ const onboarding = async (req, res, next) => {
 
 const updateTheme = async (req, res, next) => {
   try {
-    if (!req.tenantFeatures?.themeEditor) {
-      throw featureUpgradeError('themeEditor', 'Custom theming is available on BarkBase Pro and above.');
-    }
     const tenant = await tenantService.updateTheme(req.tenantId, req.body);
     return res.json(tenant);
   } catch (error) {

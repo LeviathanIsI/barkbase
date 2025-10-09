@@ -55,18 +55,12 @@ router.post(
 router.put(
   '/theme',
   requireAuth(['OWNER', 'ADMIN']),
-  requirePlanFeature('themeEditor', {
-    message: 'Custom theming is available on BarkBase Pro and above.',
-  }),
   validate(tenantSchemas.theme),
   controller.updateTheme,
 );
 router.put(
   '/current/theme',
   requireAuth(['OWNER', 'ADMIN']),
-  requirePlanFeature('themeEditor', {
-    message: 'Custom theming is available on BarkBase Pro and above.',
-  }),
   validate(tenantSchemas.theme),
   controller.updateTheme,
 );

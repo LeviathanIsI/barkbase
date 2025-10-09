@@ -98,13 +98,14 @@ export const useAuthStore = create(
     {
       name: 'barkbase-auth',
       storage: createJSONStorage(getStorage),
-      partialize: ({ user, memberships, role, tenantId, accessToken, refreshToken, expiresAt }) => ({
+      // SECURITY: Do NOT persist tokens in localStorage (XSS vulnerability)
+      // Tokens are kept in memory only. Backend uses httpOnly cookies for refresh.
+      partialize: ({ user, memberships, role, tenantId, expiresAt }) => ({
         user,
         memberships,
         role,
         tenantId,
-        accessToken,
-        refreshToken,
+        // accessToken and refreshToken intentionally excluded from persistence
         expiresAt,
       }),
     },

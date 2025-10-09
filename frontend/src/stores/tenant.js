@@ -147,4 +147,29 @@ export const useTenantStore = create((set, get) => ({
     });
     return payload;
   },
+  // Development-only method to manually override plan for testing
+  setDevPlan: (plan, storageProvider = null) => {
+    const { tenant } = get();
+    const nextStorageProvider = storageProvider ?? (plan === 'FREE' ? 'LOCAL' : 'HOSTED');
+    const features = resolvePlanFeatures(plan, tenant.featureFlags);
+
+    // Update usage limits based on plan
+    const updatedUsage = tenant.usage ? {
+      ...tenant.usage,
+      bookings: {
+        ...tenant.usage.bookings,
+        limit: plan === 'FREE' ? 100 : plan === 'PRO' ? 1000 : null, // null = unlimited for ENTERPRISE
+      },
+    } : null;
+
+    set({
+      tenant: {
+        ...tenant,
+        plan,
+        storageProvider: nextStorageProvider,
+        features,
+        usage: updatedUsage,
+      },
+    });
+  },
 }));

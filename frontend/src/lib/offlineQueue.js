@@ -36,7 +36,9 @@ export const flushQueue = async () => {
       await store.delete(item.id);
     } catch (error) {
       // stop processing to retry later
-      console.error('Failed to flush request', error);
+      if (import.meta.env.DEV) {
+        console.error('Failed to flush request', error);
+      }
       break;
     }
   }

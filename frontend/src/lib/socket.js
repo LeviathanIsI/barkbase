@@ -1,15 +1,9 @@
 import { io } from 'socket.io-client';
 import { useTenantStore } from '@/stores/tenant';
+import { useAuthStore } from '@/stores/auth';
 
 let socketInstance;
-let unsubscribeTenant;
-
-const joinTenantRoom = (socket, tenantId) => {
-  if (!socket || !tenantId) {
-    return;
-  }
-  socket.emit('tenant:join', { tenantId });
-};
+let unsubscribeAuth;
 
 export const getSocket = () => {
   if (socketInstance) {
@@ -18,26 +12,53 @@ export const getSocket = () => {
 
   const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
 
-  const initialTenantId = useTenantStore.getState().tenant?.id;
+  // Get authentication token for socket connection
+  const initialToken = useAuthStore.getState().accessToken;
+
+  if (!initialToken) {
+    if (import.meta.env.DEV) {
+      console.warn('Cannot initialize socket: no access token available');
+    }
+    return null;
+  }
 
   socketInstance = io(apiUrl, {
     withCredentials: true,
     transports: ['websocket'],
-    auth: initialTenantId ? { tenantId: initialTenantId } : undefined,
+    auth: {
+      token: initialToken, // Backend validates this token and auto-joins tenant room
+    },
   });
 
   socketInstance.on('connect', () => {
-    const tenantId = useTenantStore.getState().tenant?.id;
-    joinTenantRoom(socketInstance, tenantId);
+    if (import.meta.env.DEV) {
+      console.log('Socket connected successfully');
+    }
+    // Backend automatically joins user to their tenant room based on authenticated token
+    // No need to manually emit tenant:join
   });
 
-  unsubscribeTenant = useTenantStore.subscribe(
-    (state) => state.tenant?.id,
-    (tenantId) => {
-      if (!socketInstance?.connected) {
-        return;
+  socketInstance.on('connect_error', (error) => {
+    if (import.meta.env.DEV) {
+      console.error('Socket connection error:', error.message);
+    }
+  });
+
+  // Reconnect with fresh token if auth changes
+  unsubscribeAuth = useAuthStore.subscribe(
+    (state) => state.accessToken,
+    (newToken) => {
+      if (!newToken && socketInstance?.connected) {
+        // Token removed, disconnect socket
+        if (import.meta.env.DEV) {
+          console.log('Access token removed, disconnecting socket');
+        }
+        socketInstance.disconnect();
+      } else if (newToken && !socketInstance?.connected) {
+        // New token available, attempt to reconnect
+        socketInstance.auth = { token: newToken };
+        socketInstance.connect();
       }
-      joinTenantRoom(socketInstance, tenantId);
     },
   );
 
@@ -45,9 +66,9 @@ export const getSocket = () => {
 };
 
 export const disconnectSocket = () => {
-  if (unsubscribeTenant) {
-    unsubscribeTenant();
-    unsubscribeTenant = undefined;
+  if (unsubscribeAuth) {
+    unsubscribeAuth();
+    unsubscribeAuth = undefined;
   }
 
   if (socketInstance) {
