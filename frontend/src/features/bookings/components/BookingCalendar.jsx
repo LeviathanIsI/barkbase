@@ -108,7 +108,7 @@ const BookingCard = ({ booking, onCheckIn, onCheckOut }) => {
             Check In
           </Button>
         ) : null}
-        {booking.status === 'IN_PROGRESS' ? (
+        {['CHECKED_IN', 'IN_PROGRESS'].includes(booking.status) ? (
           <Button type="button" size="sm" variant="outline" onClick={handleCheckOutClick}>
             Check Out
           </Button>
@@ -118,7 +118,7 @@ const BookingCard = ({ booking, onCheckIn, onCheckOut }) => {
   );
 };
 
-const KennelColumn = ({ kennel, date, bookings, onNavigate }) => {
+const KennelColumn = ({ kennel, date, bookings, onNavigate, onCheckIn, onCheckOut }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: `slot-${kennel.id}-${format(date, 'yyyy-MM-dd')}`,
     data: { kennelId: kennel.id, date },
@@ -149,8 +149,8 @@ const KennelColumn = ({ kennel, date, bookings, onNavigate }) => {
             <BookingCard
               key={booking.id}
               booking={booking}
-              onCheckIn={(b) => setSelectedCheckInBooking(b)}
-              onCheckOut={(b) => setSelectedCheckOutBooking(b)}
+              onCheckIn={onCheckIn}
+              onCheckOut={onCheckOut}
             />
           ))
         )}
@@ -378,7 +378,14 @@ const BookingCalendar = () => {
             {grouped.map(({ date, kennels: kennelEntries }) => (
               <div key={format(date, 'yyyy-MM-dd')} className="flex min-w-[18rem] flex-col gap-4">
                 {kennelEntries.map(({ kennel, bookings: laneBookings }) => (
-                  <KennelColumn key={`${kennel.id}-${format(date, 'yyyy-MM-dd')}`} kennel={kennel} date={date} bookings={laneBookings} />
+                  <KennelColumn
+                    key={`${kennel.id}-${format(date, 'yyyy-MM-dd')}`}
+                    kennel={kennel}
+                    date={date}
+                    bookings={laneBookings}
+                    onCheckIn={setSelectedCheckInBooking}
+                    onCheckOut={setSelectedCheckOutBooking}
+                  />
                 ))}
               </div>
             ))}
