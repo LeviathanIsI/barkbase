@@ -4,7 +4,7 @@ import AppShell from '@/components/layout/AppShell';
 import NotFound from './NotFound';
 import ProtectedRoute from './ProtectedRoute';
 
-const Dashboard = lazy(() => import('@/features/dashboard/routes/Dashboard'));
+const Dashboard = lazy(() => import('@/features/dashboard/routes/DashboardEnhanced'));
 const Bookings = lazy(() => import('@/features/bookings/routes/Bookings'));
 const Calendar = lazy(() => import('@/features/calendar/routes/Calendar'));
 const Pets = lazy(() => import('@/features/pets/routes/Pets'));

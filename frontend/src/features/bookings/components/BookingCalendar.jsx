@@ -1,16 +1,19 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { eachDayOfInterval, endOfWeek, format, parseISO, startOfDay, startOfWeek } from 'date-fns';
+import { eachDayOfInterval, endOfWeek, format, parseISO, startOfDay, startOfWeek, addDays, subDays } from 'date-fns';
 import { DndContext, useDroppable, useDraggable } from '@dnd-kit/core';
-import { CalendarCheck2, Clock, FileText } from 'lucide-react';
+import { CalendarCheck2, Clock, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
+import Modal from '@/components/ui/Modal';
 import { useBookingsQuery, updateBooking } from '../api';
 import CheckInModal from './CheckInModal';
 import CheckOutModal from './CheckOutModal';
+import QuickCheckIn from './QuickCheckIn';
+import WaitlistManager from './WaitlistManager';
 import { useKennelAvailability } from '@/features/kennels/api';
 import { cn } from '@/lib/cn';
 import { useBookingStore } from '@/stores/booking';
@@ -168,6 +171,7 @@ const BookingCalendar = () => {
   const [selectedCheckInBooking, setSelectedCheckInBooking] = useState(null);
   const [selectedCheckOutBooking, setSelectedCheckOutBooking] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [calendarPickerOpen, setCalendarPickerOpen] = useState(false);
   const kennels = kennelQuery.data ?? fallbackKennels;
   const queryClient = useQueryClient();
   const tenantKey = useTenantStore((state) => state.tenant?.slug ?? 'default');
@@ -175,6 +179,7 @@ const BookingCalendar = () => {
   useEffect(() => {
     import('react-day-picker/dist/style.css');
   }, []);
+
 
   const normaliseBooking = (booking) => ({
     ...booking,
@@ -318,36 +323,69 @@ const BookingCalendar = () => {
 
   return (
     <>
-      <div className="grid gap-6 xl:grid-cols-[18rem_1fr]">
-        <Card title="Calendar Filters" description="Select dates to focus your board.">
-          <Suspense fallback={<Skeleton className="h-72 w-full" />}>
-            <DayPicker
-              mode="single"
-              selected={selectedDate}
-              onSelect={(date) => date && setSelectedDate(date)}
-              weekStartsOn={1}
-              className="w-full rounded-xl"
-            />
-          </Suspense>
-          <div className="mt-4 space-y-2 text-sm text-muted">
-            <p>Drag bookings between kennels or onto different days in the board.</p>
-            <p>Offline moves queue automatically and sync on reconnect.</p>
-          </div>
-        </Card>
-        <Card title="Bookings Board" description="Drag & drop to adjust kennel assignments and split stays.">
-          <div className="flex w-full snap-x gap-4 overflow-x-auto pb-2">
-            <DndContext onDragEnd={handleDragEnd}>
-              {grouped.map(({ date, kennels: kennelEntries }) => (
-                <div key={format(date, 'yyyy-MM-dd')} className="flex min-w-[18rem] flex-col gap-4">
-                  {kennelEntries.map(({ kennel, bookings: laneBookings }) => (
-                    <KennelColumn key={`${kennel.id}-${format(date, 'yyyy-MM-dd')}`} kennel={kennel} date={date} bookings={laneBookings} />
-                  ))}
-                </div>
-              ))}
-            </DndContext>
-          </div>
-        </Card>
+      {/* Quick Check-In and Waitlist - ABOVE the board */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <QuickCheckIn />
+        <WaitlistManager />
       </div>
+
+      {/* Bookings Board - Full width with simple date navigation */}
+      <Card
+        header={
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <h3 className="text-lg font-semibold text-text">Bookings Board</h3>
+              <p className="text-sm text-muted">Drag & drop to adjust kennel assignments and split stays.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSelectedDate((date) => subDays(date, 1))}
+                aria-label="Previous day"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <button
+                type="button"
+                onClick={() => setCalendarPickerOpen(true)}
+                className="min-w-[180px] cursor-pointer text-center text-sm font-medium text-text transition-colors hover:text-primary"
+              >
+                {format(selectedDate, 'MMMM d, yyyy')}
+              </button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSelectedDate((date) => addDays(date, 1))}
+                aria-label="Next day"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedDate(new Date())}
+                className="ml-2"
+              >
+                Today
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        <div className="flex w-full snap-x gap-4 overflow-x-auto pb-2">
+          <DndContext onDragEnd={handleDragEnd}>
+            {grouped.map(({ date, kennels: kennelEntries }) => (
+              <div key={format(date, 'yyyy-MM-dd')} className="flex min-w-[18rem] flex-col gap-4">
+                {kennelEntries.map(({ kennel, bookings: laneBookings }) => (
+                  <KennelColumn key={`${kennel.id}-${format(date, 'yyyy-MM-dd')}`} kennel={kennel} date={date} bookings={laneBookings} />
+                ))}
+              </div>
+            ))}
+          </DndContext>
+        </div>
+      </Card>
+
       <CheckInModal
         booking={selectedCheckInBooking}
         open={Boolean(selectedCheckInBooking)}
@@ -358,6 +396,26 @@ const BookingCalendar = () => {
         open={Boolean(selectedCheckOutBooking)}
         onClose={() => setSelectedCheckOutBooking(null)}
       />
+      <Modal
+        open={calendarPickerOpen}
+        onClose={() => setCalendarPickerOpen(false)}
+        title="Select Date"
+      >
+        <Suspense fallback={<Skeleton className="h-80 w-full" />}>
+          <DayPicker
+            mode="single"
+            selected={selectedDate}
+            onSelect={(date) => {
+              if (date) {
+                setSelectedDate(date);
+                setCalendarPickerOpen(false);
+              }
+            }}
+            weekStartsOn={1}
+            className="mx-auto"
+          />
+        </Suspense>
+      </Modal>
     </>
   );
 };

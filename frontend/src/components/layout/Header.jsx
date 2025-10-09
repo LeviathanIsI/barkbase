@@ -343,15 +343,13 @@ const Header = ({ onMenuToggle }) => {
                     Members
                   </Link>
                 ) : null}
-                {can(permissionContext, 'manageBilling') ? (
-                  <Link
-                    to="/settings/billing"
-                    className="block rounded-md px-3 py-2 text-sm text-text hover:bg-primary/10"
-                    onClick={closeMenu}
-                  >
-                    Billing
-                  </Link>
-                ) : null}
+                <Link
+                  to="/settings/billing"
+                  className="block rounded-md px-3 py-2 text-sm text-text hover:bg-primary/10"
+                  onClick={closeMenu}
+                >
+                  Billing
+                </Link>
                 {can(permissionContext, 'viewAuditLog') ? (
                   <Link
                     to="/settings/audit-log"
