@@ -193,12 +193,20 @@ const register = async (tenantId, data) => {
   return sanitizeUser(refreshedUser, tenantId);
 };
 
-const signup = async ({ tenantName, tenantSlug, email, password, honeypot, acceptLocalDataStorage, consentMeta = {} }) => {
+const signup = async ({
+  tenantName,
+  tenantSlug,
+  email,
+  password,
+  honeypot,
+  acknowledgeSupabaseHosting,
+  consentMeta = {},
+}) => {
   if (honeypot) {
     throw Object.assign(new Error('Invalid submission'), { statusCode: 400 });
   }
-  if (acceptLocalDataStorage !== true) {
-    throw Object.assign(new Error('Local data storage consent is required'), { statusCode: 400 });
+  if (acknowledgeSupabaseHosting !== true) {
+    throw Object.assign(new Error('Supabase hosting acknowledgement is required'), { statusCode: 400 });
   }
   if (!PASSWORD_PATTERN.test(password)) {
     throw Object.assign(

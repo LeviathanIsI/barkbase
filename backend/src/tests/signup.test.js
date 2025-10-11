@@ -19,7 +19,7 @@ describe('Public signup and verification', () => {
         tenantSlug: slug,
         email: `founder+${Date.now()}@testkennels.dev`,
         password: 'SuperSafePass123!',
-        acceptLocalDataStorage: true,
+        acknowledgeSupabaseHosting: true,
       });
 
     expect(response.status).toBe(201);
@@ -54,7 +54,7 @@ describe('Public signup and verification', () => {
         tenantSlug: 'unique-co',
         email: 'owner@uniqueco.dev',
         password: 'UniquePass123!',
-        acceptLocalDataStorage: true,
+        acknowledgeSupabaseHosting: true,
       });
 
     expect(first.status).toBe(201);
@@ -66,7 +66,7 @@ describe('Public signup and verification', () => {
         tenantSlug: 'unique-co',
         email: 'another@uniqueco.dev',
         password: 'AnotherPass123!',
-        acceptLocalDataStorage: true,
+        acknowledgeSupabaseHosting: true,
       });
 
     expect(duplicate.status).toBe(409);
@@ -83,7 +83,7 @@ describe('Public signup and verification', () => {
         tenantSlug: 'smtp-co',
         email: 'owner@smtpco.dev',
         password: 'VerifyPass123!',
-        acceptLocalDataStorage: true,
+        acknowledgeSupabaseHosting: true,
       });
 
     expect(response.status).toBe(201);
@@ -108,7 +108,7 @@ describe('Public signup and verification', () => {
         tenantSlug: 'verify-co',
         email: 'owner@verifyco.dev',
         password: 'VerifyPass123!',
-        acceptLocalDataStorage: true,
+        acknowledgeSupabaseHosting: true,
       });
 
     const token = signupResponse.body?.verification?.token;

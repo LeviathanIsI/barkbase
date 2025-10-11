@@ -21,7 +21,6 @@ describe('TenantLoader', () => {
       initialized: false,
     });
     document.documentElement.style.cssText = '';
-    window.localStorage?.clear();
     window.history.replaceState({}, '', '/');
   });
 
@@ -51,7 +50,7 @@ describe('TenantLoader', () => {
       json: () => Promise.resolve(tenantPayload),
     });
 
-    window.localStorage?.setItem('barkbase-tenant-slug', 'acme');
+    window.history.replaceState({}, '', '/?tenant=acme');
 
     render(<TenantLoader />);
 
@@ -70,7 +69,7 @@ describe('TenantLoader', () => {
     expect(primaryColor.trim()).toBe('10 20 30');
   });
 
-  it('prefers tenant slug from query string and persists it', async () => {
+  it('prefers tenant slug from query string', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -92,7 +91,6 @@ describe('TenantLoader', () => {
       }),
     );
 
-    expect(window.localStorage.getItem('barkbase-tenant-slug')).toBe('query-slug');
     expect(useTenantStore.getState().tenant.slug).toBe('query-slug');
   });
 });

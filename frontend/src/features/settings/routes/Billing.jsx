@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -8,6 +7,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useTenantStore } from '@/stores/tenant';
 import { can } from '@/lib/acl';
 import UpgradeWizard from '../components/UpgradeWizard';
+import SettingsPage from '../components/SettingsPage';
 
 const formatLimit = (value, { unit = '', unlimitedLabel = 'Unlimited' } = {}) => {
   if (value == null) {
@@ -57,17 +57,10 @@ const Billing = () => {
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const planFeatures = tenant?.features ?? {};
   const plan = tenant?.plan ?? 'FREE';
-  const storageProvider = tenant?.storageProvider ?? 'LOCAL';
-  const dbProvider = tenant?.dbProvider ?? 'LOCAL';
+  const storageProviderLabel = 'Supabase Cloud';
+  const dbProviderLabel = 'Supabase Postgres';
   const migrationState = tenant?.migrationState ?? 'IDLE';
   const migrationInfo = tenant?.migrationInfo ?? null;
-  const storageVendor = tenant?.byo?.cloudVendor ?? null;
-  const storageProviderLabel = storageProvider === 'HOSTED'
-    ? 'BarkBase Cloud'
-    : storageProvider === 'BYO'
-    ? `Bring Your Own${storageVendor ? ` (${storageVendor.toUpperCase()})` : ''}`
-    : 'Local device';
-  const dbProviderLabel = dbProvider === 'HOSTED' ? 'BarkBase Cloud' : dbProvider === 'BYO' ? 'Bring Your Own' : 'Local database';
   const migrationStateLabel = (() => {
     if (!migrationState || migrationState === 'IDLE') return 'Idle';
     const friendly = migrationState.toLowerCase().replace(/_/g, ' ');
@@ -157,16 +150,17 @@ const Billing = () => {
   ];
 
   return (
-    <DashboardLayout
+    <SettingsPage
       title="Billing & Subscription"
-      description="Review plan benefits, usage caps, and upgrade paths for your workspace."
+      description="Review plan benefits, track usage, and explore upgrade paths for your workspace."
       actions={
         canManageBilling ? (
-          <Button onClick={handlePortalClick}>Go to billing portal</Button>
+          <Button onClick={handlePortalClick}>Billing Portal</Button>
         ) : null
       }
+      contentClassName="space-y-6"
     >
-      <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
+      <div className="grid gap-6 xl:grid-cols-[2fr,1fr]">
         <Card
           title="Storage & hosting"
           description="Control where BarkBase stores files and how migrations run."
@@ -368,7 +362,7 @@ const Billing = () => {
         </Card>
       </div>
       <UpgradeWizard open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
-    </DashboardLayout>
+    </SettingsPage>
   );
 };
 

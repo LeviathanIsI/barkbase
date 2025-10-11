@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useAuthStore } from '@/stores/auth';
 import { useTenantStore } from '@/stores/tenant';
+import { getTenantSlugCookie } from '@/lib/cookies';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
 
@@ -23,18 +24,8 @@ const AuthLoader = () => {
       hasAttemptedRef.current = true;
 
       const attemptRefresh = async () => {
-        // Get tenant slug from localStorage first (same as TenantLoader does)
-        // This ensures we use the correct tenant instead of the default
-        let tenantSlug = 'default';
-        try {
-          const storedSlug = window.localStorage?.getItem('barkbase-tenant-slug');
-          if (storedSlug) {
-            tenantSlug = storedSlug;
-          }
-        } catch {
-          // Fallback to store if localStorage fails
-          tenantSlug = useTenantStore.getState().tenant?.slug ?? 'default';
-        }
+        const tenantSlug =
+          useTenantStore.getState().tenant?.slug ?? getTenantSlugCookie() ?? 'default';
 
         console.log('[AuthLoader] Attempting token refresh for tenant:', tenantSlug);
 

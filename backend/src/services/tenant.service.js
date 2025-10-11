@@ -24,8 +24,8 @@ const serializeTenant = (tenant, { features, usage } = {}) => {
     slug: tenant.slug,
     name: tenant.name,
     plan: tenant.plan,
-    storageProvider: tenant.storageProvider ?? 'LOCAL',
-    dbProvider: tenant.dbProvider ?? 'LOCAL',
+    storageProvider: tenant.storageProvider ?? 'SUPABASE',
+    dbProvider: tenant.dbProvider ?? 'SUPABASE',
     migrationState: tenant.migrationState ?? 'IDLE',
     migrationInfo: tenant.migrationInfo ?? null,
     featureFlags: tenant.featureFlags ?? {},
@@ -34,14 +34,6 @@ const serializeTenant = (tenant, { features, usage } = {}) => {
     theme: tenant.themeJson ?? {},
     customDomain: tenant.customDomain ?? null,
     settings: tenant.settings ?? {},
-    byo: tenant.byoConfig
-      ? {
-          cloudVendor: tenant.byoConfig.cloudVendor,
-          bucket: tenant.byoConfig.bucket,
-          region: tenant.byoConfig.region,
-          hasDatabase: Boolean(tenant.byoConfig.dbUrlCipher),
-        }
-      : null,
     updatedAt: tenant.updatedAt,
     createdAt: tenant.createdAt,
     recoveryMode: isRecoveryMode(),
@@ -215,7 +207,6 @@ const mergeTenantSettings = (tenant, updates) => {
 const getTenant = async (tenantId) => {
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
-    include: { byoConfig: true },
   });
   if (!tenant) {
     throw Object.assign(new Error('Tenant not found'), { statusCode: 404 });
@@ -228,7 +219,6 @@ const getTenant = async (tenantId) => {
 const getTenantPlan = async (tenantId) => {
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
-    include: { byoConfig: true },
   });
   if (!tenant) {
     throw Object.assign(new Error('Tenant not found'), { statusCode: 404 });
@@ -237,21 +227,13 @@ const getTenantPlan = async (tenantId) => {
   const usage = await getUsageSnapshot({ tenantId, features });
   return {
     plan: tenant.plan,
-    storageProvider: tenant.storageProvider ?? 'LOCAL',
-    dbProvider: tenant.dbProvider ?? 'LOCAL',
+    storageProvider: tenant.storageProvider ?? 'SUPABASE',
+    dbProvider: tenant.dbProvider ?? 'SUPABASE',
     migrationState: tenant.migrationState ?? 'IDLE',
     migrationInfo: tenant.migrationInfo ?? null,
     featureFlags: tenant.featureFlags ?? {},
     features,
     usage,
-    byo: tenant.byoConfig
-      ? {
-          cloudVendor: tenant.byoConfig.cloudVendor,
-          bucket: tenant.byoConfig.bucket,
-          region: tenant.byoConfig.region,
-          hasDatabase: Boolean(tenant.byoConfig.dbUrlCipher),
-        }
-      : null,
     recoveryMode: isRecoveryMode(),
   };
 };
@@ -685,7 +667,6 @@ const updateTheme = async (tenantId, theme) => {
   const tenant = await prisma.tenant.update({
     where: { id: tenantId },
     data: { themeJson: theme },
-    include: { byoConfig: true },
   });
   invalidateTenantCache();
   const features = resolveTenantFeatures(tenant);
@@ -697,7 +678,6 @@ const updateFeatureFlags = async (tenantId, featureFlags) => {
   const tenant = await prisma.tenant.update({
     where: { id: tenantId },
     data: { featureFlags },
-    include: { byoConfig: true },
   });
   invalidateTenantCache();
   const features = resolveTenantFeatures(tenant);
@@ -733,3 +713,4 @@ module.exports = {
   getOnboardingStatus,
   updateOnboardingStatus,
 };
+

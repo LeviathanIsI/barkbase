@@ -8,6 +8,7 @@ import {
   BarChart3,
   ShieldCheck,
   Building2,
+  Workflow,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useTenantStore } from '@/stores/tenant';
@@ -48,14 +49,20 @@ const baseItems = [
     permission: 'viewReports',
   },
   {
+    to: '/handler-flows',
+    label: 'Handler Flows',
+    icon: Workflow,
+    permission: 'manageTenant',
+  },
+  {
     to: '/staff',
     label: 'Staff',
     icon: ShieldCheck,
     permission: 'manageStaff',
   },
   {
-    to: '/tenants',
-    label: 'Tenant Admin',
+    to: '/settings/account',
+    label: 'Settings',
     icon: Building2,
     permission: 'manageTenant',
   },
@@ -82,6 +89,7 @@ const Sidebar = ({ collapsed, isMobile = false, onNavigate }) => {
     <aside
       className={cn(
         'border-r border-border/80 bg-surface/98 transition-all duration-200',
+        !isMobile && 'lg:sticky lg:top-0 lg:h-screen lg:self-start',
         isMobile
           ? 'flex w-64 flex-col'
           : collapsed

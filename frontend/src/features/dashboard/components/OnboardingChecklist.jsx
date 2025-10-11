@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowUpRight, CheckCircle, Circle } from 'lucide-react';
 import Card from '@/components/ui/Card';
@@ -20,17 +21,8 @@ const renderProgressBar = (percent) => {
   );
 };
 
-const REMINDER_DISMISS_KEY = 'barkbase-export-reminder-dismissed-until';
-
-const shouldShowExportReminder = (lastExportAt) => {
-  if (typeof window === 'undefined') return false;
-  const stored = window.localStorage.getItem(REMINDER_DISMISS_KEY);
-  if (stored) {
-    const until = Number(stored);
-    if (!Number.isNaN(until) && Date.now() < until) {
-      return false;
-    }
-  }
+const shouldShowExportReminder = (lastExportAt, dismissed) => {
+  if (dismissed) return false;
   if (!lastExportAt) return true;
   const last = new Date(lastExportAt).getTime();
   if (Number.isNaN(last)) return true;
@@ -56,14 +48,11 @@ const OnboardingChecklist = ({ status, onDismiss, isMutating }) => {
     enabled: Boolean(plan.features?.[key]),
   }));
 
-  const exportReminderVisible = shouldShowExportReminder(tenant.settings?.exports?.lastGeneratedAt);
-
-  const dismissExportReminder = () => {
-    if (typeof window === 'undefined') return;
-    const next = Date.now() + 30 * 24 * 60 * 60 * 1000;
-    window.localStorage.setItem(REMINDER_DISMISS_KEY, String(next));
-    navigate(0);
-  };
+  const [exportReminderDismissed, setExportReminderDismissed] = useState(false);
+  const exportReminderVisible = shouldShowExportReminder(
+    tenant.settings?.exports?.lastGeneratedAt,
+    exportReminderDismissed,
+  );
 
   return (
     <Card
@@ -92,7 +81,11 @@ const OnboardingChecklist = ({ status, onDismiss, isMutating }) => {
                 <button type="button" className="underline" onClick={() => navigate('/settings/billing')}>
                   Create export
                 </button>
-                <button type="button" onClick={dismissExportReminder} className="text-warning/80 hover:text-warning">
+                <button
+                  type="button"
+                  onClick={() => setExportReminderDismissed(true)}
+                  className="text-warning/80 hover:text-warning"
+                >
                   ×
                 </button>
               </Badge>

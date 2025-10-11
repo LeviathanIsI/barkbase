@@ -9,11 +9,10 @@ const defaultTenant = {
   slug: 'default',
   name: 'BarkBase',
   plan: 'FREE',
-  storageProvider: 'LOCAL',
-  dbProvider: 'LOCAL',
+  storageProvider: 'SUPABASE',
+  dbProvider: 'SUPABASE',
   migrationState: 'IDLE',
   migrationInfo: null,
-  byo: null,
   customDomain: null,
   featureFlags: {},
   features: resolvePlanFeatures('FREE'),
@@ -38,7 +37,6 @@ export const useTenantStore = create((set, get) => ({
     const dbProvider = tenantPayload.dbProvider ?? defaultTenant.dbProvider;
     const migrationState = tenantPayload.migrationState ?? defaultTenant.migrationState;
     const migrationInfo = tenantPayload.migrationInfo ?? null;
-    const byo = tenantPayload.byo ?? null;
     const tenant = {
       ...defaultTenant,
       ...tenantPayload,
@@ -47,7 +45,6 @@ export const useTenantStore = create((set, get) => ({
       dbProvider,
       migrationState,
       migrationInfo,
-      byo,
       featureFlags,
       features,
       usage,
@@ -55,13 +52,6 @@ export const useTenantStore = create((set, get) => ({
       theme: mergedTheme,
     };
     applyTheme(mergedTheme);
-    if (typeof window !== 'undefined') {
-      try {
-        window.localStorage?.setItem('barkbase-tenant-slug', tenant.slug ?? defaultTenant.slug);
-      } catch {
-        // ignore storage errors
-      }
-    }
     set({ tenant, initialized: true });
   },
   loadTenant: async (slug) => {
@@ -138,7 +128,6 @@ export const useTenantStore = create((set, get) => ({
         dbProvider: payload.dbProvider ?? tenant.dbProvider,
         migrationState: payload.migrationState ?? tenant.migrationState,
         migrationInfo: payload.migrationInfo ?? tenant.migrationInfo ?? null,
-        byo: payload.byo ?? tenant.byo ?? null,
         featureFlags,
         features,
         usage: payload.usage ?? tenant.usage ?? null,
@@ -148,9 +137,8 @@ export const useTenantStore = create((set, get) => ({
     return payload;
   },
   // Development-only method to manually override plan for testing
-  setDevPlan: (plan, storageProvider = null) => {
+  setDevPlan: (plan) => {
     const { tenant } = get();
-    const nextStorageProvider = storageProvider ?? (plan === 'FREE' ? 'LOCAL' : 'HOSTED');
     const features = resolvePlanFeatures(plan, tenant.featureFlags);
 
     // Update usage limits based on plan
@@ -166,7 +154,6 @@ export const useTenantStore = create((set, get) => ({
       tenant: {
         ...tenant,
         plan,
-        storageProvider: nextStorageProvider,
         features,
         usage: updatedUsage,
       },

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import getStorage from '@/lib/storage';
 
 export const useUIStore = create(
   persist(
@@ -33,7 +34,7 @@ export const useUIStore = create(
     }),
     {
       name: 'barkbase-ui',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(getStorage),
       partialize: (state) => ({ sidebarCollapsed: state.sidebarCollapsed }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);

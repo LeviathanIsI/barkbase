@@ -33,6 +33,10 @@ const inviteRoutes = require("./routes/invites.routes");
 const incidentRoutes = require("./routes/incidents.routes");
 const calendarRoutes = require("./routes/calendar.routes");
 const upgradeRoutes = require("./routes/upgrade.routes");
+const accountDefaultsRoutes = require("./routes/accountDefaults.routes");
+const handlerFlowsRoutes = require("./routes/handlerFlows.routes");
+const handlerRunsRoutes = require("./routes/handlerRuns.routes");
+const eventsRoutes = require("./routes/events.routes");
 
 const app = express();
 
@@ -117,6 +121,10 @@ app.use("/api/v1/memberships", membershipRoutes);
 app.use("/api/v1/invites", inviteRoutes);
 app.use("/api/v1/incidents", incidentRoutes);
 app.use("/api/v1/calendar", calendarRoutes);
+app.use("/api/v1/events", eventsRoutes);
+app.use("/api/v1/handler-flows", handlerFlowsRoutes);
+app.use("/api/v1/handler-runs", handlerRunsRoutes);
+app.use("/api/v1/account-defaults", accountDefaultsRoutes);
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", time: new Date().toISOString() });

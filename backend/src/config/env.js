@@ -52,15 +52,6 @@ module.exports = {
     maxUploadFileBytes: Math.max(1, parseNumber(process.env.STORAGE_MAX_FILE_MB, 5)) * 1024 * 1024,
     maxExports: Math.max(1, parseNumber(process.env.STORAGE_MAX_EXPORTS, 10)),
     maxBackups: Math.max(1, parseNumber(process.env.STORAGE_MAX_BACKUPS, 5)),
-    hosted: {
-      bucket: process.env.HOSTED_STORAGE_S3_BUCKET ?? null,
-      region: process.env.HOSTED_STORAGE_S3_REGION ?? null,
-      accessKeyId: process.env.HOSTED_STORAGE_S3_ACCESS_KEY_ID ?? null,
-      secretAccessKey: process.env.HOSTED_STORAGE_S3_SECRET_ACCESS_KEY ?? null,
-    },
-  },
-  byo: {
-    kmsKeyHex: process.env.BYO_KMS_KEY_HEX ?? null,
   },
   tenancy: {
     defaultSlug: process.env.TENANT_DEFAULT_SLUG ?? 'default',
@@ -73,5 +64,14 @@ module.exports = {
       return ['localhost', '127.0.0.1'];
     })(),
   },
+  supabase: {
+    url: process.env.SUPABASE_URL ?? null,
+    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? null,
+    anonKey: process.env.SUPABASE_ANON_KEY ?? null,
+    storageBucket: process.env.SUPABASE_STORAGE_BUCKET ?? null,
+    useRls: (process.env.SUPABASE_USE_RLS ?? 'true').toLowerCase() !== 'false',
+  },
 };
+
+
 

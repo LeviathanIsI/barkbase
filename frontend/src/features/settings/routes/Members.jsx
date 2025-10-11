@@ -1,5 +1,4 @@
 import toast from 'react-hot-toast';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -8,6 +7,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useTenantStore } from '@/stores/tenant';
 import { can } from '@/lib/acl';
 import InviteMember from '../components/InviteMember';
+import SettingsPage from '../components/SettingsPage';
 import {
   useMembersQuery,
   useUpdateMemberRoleMutation,
@@ -57,12 +57,12 @@ const Members = () => {
   };
 
   return (
-    <DashboardLayout
+    <SettingsPage
       title="Workspace Members"
       description="Manage who can access this tenant and their roles."
       actions={canManage ? <InviteMember /> : null}
+      contentClassName="grid gap-6 xl:grid-cols-[2fr,1fr]"
     >
-      <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
         <Card
           title="Active Members"
           description="Update roles or remove members. Owners retain full control over billing and invites."
@@ -155,8 +155,7 @@ const Members = () => {
             </ul>
           )}
         </Card>
-      </div>
-    </DashboardLayout>
+    </SettingsPage>
   );
 };
 

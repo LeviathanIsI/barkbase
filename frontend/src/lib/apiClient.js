@@ -287,3 +287,6 @@ export const uploadClient = async (path, formData, options = {}) => {
 
   return asJson(response);
 };
+
+export default apiClient;
+

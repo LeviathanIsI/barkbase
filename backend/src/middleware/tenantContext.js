@@ -63,9 +63,6 @@ async function tenantContext(req, res, next) {
 
     const tenant = await prisma.tenant.findFirst({
       where: resolveTenantWhere(slug, hostHint),
-      include: {
-        byoConfig: true,
-      },
     });
 
     if (!tenant) {

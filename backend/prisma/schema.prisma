@@ -16,16 +16,16 @@ enum TenantPlan {
 }
 
 enum StorageProvider {
-  LOCAL
-  HOSTED
-  BYO
+  SUPABASE
 }
 
+
+
 enum DbProvider {
-  LOCAL
-  HOSTED
-  BYO
+  SUPABASE
 }
+
+
 
 enum MigrationState {
   IDLE
@@ -92,8 +92,8 @@ model Tenant {
   themeJson       Json?
   featureFlags    Json?
   plan            TenantPlan  @default(FREE)
-  storageProvider  StorageProvider  @default(LOCAL)
-  dbProvider       DbProvider       @default(LOCAL)
+  storageProvider  StorageProvider  @default(SUPABASE)
+  dbProvider       DbProvider       @default(SUPABASE)
   migrationState   MigrationState   @default(IDLE)
   migrationInfo    Json?
   customDomain    String?     @unique
@@ -119,25 +119,9 @@ model Tenant {
   checkIns        CheckIn[]
   checkOuts       CheckOut[]
   incidentReports IncidentReport[]
-  byoConfig       TenantBYOConfig?
-
   @@index([slug])
 }
 
-
-model TenantBYOConfig {
-  tenantId    String   @id
-  cloudVendor String
-  bucket      String
-  region      String?
-  encAccessKey Bytes?
-  encSecretKey Bytes?
-  dbUrlCipher Bytes?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-}
 
 model User {
   id             String    @id @default(cuid())
@@ -527,3 +511,6 @@ model IncidentReport {
   @@index([tenantId, bookingId])
   @@index([tenantId, occurredAt])
 }
+
+
+

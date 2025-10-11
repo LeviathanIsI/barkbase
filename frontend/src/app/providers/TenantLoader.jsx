@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useTenantStore } from '@/stores/tenant';
+import { getTenantSlugCookie, setTenantSlugCookie } from '@/lib/cookies';
 
 const TenantLoader = () => {
   const loadTenant = useTenantStore((state) => state.loadTenant);
@@ -18,11 +19,6 @@ const TenantLoader = () => {
           if (queryValue) {
             const normalized = queryValue.trim().toLowerCase();
             if (normalized) {
-              try {
-                window.localStorage?.setItem('barkbase-tenant-slug', normalized);
-              } catch {
-                // ignore storage errors
-              }
               return normalized;
             }
           }
@@ -31,16 +27,16 @@ const TenantLoader = () => {
         }
       }
 
-      const stored = window.localStorage?.getItem('barkbase-tenant-slug');
-      if (stored) {
-        return stored;
-      }
-
       const host = window.location.host?.toLowerCase() ?? '';
       const withoutPort = host.split(':')[0];
       const parts = withoutPort.split('.').filter(Boolean);
       if (parts.length >= 3) {
         return parts[0];
+      }
+
+      const cookieSlug = getTenantSlugCookie();
+      if (cookieSlug) {
+        return cookieSlug;
       }
 
       const baseDomain = import.meta.env.VITE_BASE_DOMAIN?.toLowerCase();
@@ -57,9 +53,13 @@ const TenantLoader = () => {
 
     const slug = resolveSlug();
 
-    loadTenant(slug).catch((error) => {
-      console.error('Failed to load tenant', error);
-    });
+    loadTenant(slug)
+      .then(() => {
+        setTenantSlugCookie(slug);
+      })
+      .catch((error) => {
+        console.error('Failed to load tenant', error);
+      });
   }, [loadTenant]);
 
   return null;

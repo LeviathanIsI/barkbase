@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import Button from '@/components/ui/Button';
@@ -12,6 +12,8 @@ const AppShell = () => {
   const toggleSidebar = useUIStore((state) => state.toggleSidebar);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const tenant = useTenantStore((state) => state.tenant);
+  const location = useLocation();
+  const isSettingsRoute = location.pathname.startsWith('/settings');
 
   const handleMenuToggle = () => {
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
@@ -36,7 +38,12 @@ const AppShell = () => {
       <div className="flex w-full flex-col">
         <Header onMenuToggle={handleMenuToggle} />
         <main className="flex flex-1 flex-col overflow-hidden">
-          <div className={cn('flex-1 overflow-y-auto bg-background px-4 py-6 lg:px-8')}>
+          <div
+            className={cn(
+              'flex-1 bg-background',
+              isSettingsRoute ? 'overflow-hidden' : 'overflow-y-auto px-4 py-6 lg:px-8',
+            )}
+          >
             <Outlet />
           </div>
         </main>

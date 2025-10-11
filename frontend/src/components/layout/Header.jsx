@@ -17,14 +17,7 @@ const Header = ({ onMenuToggle }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [storageModalOpen, setStorageModalOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [dismissedExportReminder, setDismissedExportReminder] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    try {
-      return window.localStorage.getItem('barkbase-dismiss-export-reminder') === '1';
-    } catch {
-      return false;
-    }
-  });
+  const [dismissedExportReminder, setDismissedExportReminder] = useState(false);
 
   const tenant = useTenantStore((state) => state.tenant);
   const loadTenant = useTenantStore((state) => state.loadTenant);
@@ -66,77 +59,25 @@ const Header = ({ onMenuToggle }) => {
     return `Bookings ${bookingUsage.used.toLocaleString()} / ${bookingUsage.limit.toLocaleString()}`;
   })();
 
-  const storageProvider = tenant?.storageProvider ?? 'LOCAL';
-  const storageVendor = tenant?.byo?.cloudVendor ?? null;
   const migrationState = tenant?.migrationState ?? 'IDLE';
-  const storageLabel = (() => {
-    if (storageProvider === 'HOSTED') {
-      return 'Storage: BarkBase Cloud';
-    }
-    if (storageProvider === 'BYO') {
-      const vendorLabel = storageVendor ? ` (${storageVendor.toUpperCase()})` : '';
-      return `Storage: BYO${vendorLabel}`;
-    }
-    return 'Storage: Local • No Cloud Backups';
-  })();
+  const storageLabel = 'Storage: Supabase Cloud';
+  const storageModalContent = {
+    title: 'Supabase-managed storage',
+    paragraphs: [
+      "Your workspace runs on BarkBase’s Supabase cluster with daily snapshots and point-in-time recovery.",
+      'Exports remain available if you want an extra copy outside of the managed retention window.',
+    ],
+    bullets: [
+      'Regional replication keeps uploads available even during maintenance windows.',
+      'Upgraded tiers raise storage limits and extend retention automatically.',
+    ],
+  };
   const migrationLabel = (() => {
     if (!migrationState || migrationState === 'IDLE') return null;
     const friendly = migrationState.toLowerCase().replace(/_/g, ' ');
     return friendly.charAt(0).toUpperCase() + friendly.slice(1);
   })();
   const isMigrationActive = migrationState && !['IDLE', 'COMPLETE'].includes(migrationState);
-
-  const storageModalContent = (() => {
-    if (storageProvider === 'HOSTED') {
-      return {
-        title: 'BarkBase Cloud hosting',
-        paragraphs: [
-          'Your tenant is backed up in BarkBase-managed infrastructure with encryption at rest.',
-          'Exports remain available if you want an extra copy outside of our retention window.',
-        ],
-        bullets: [
-          'Changes write to redundant storage during migrations and dual-write windows.',
-          'Reach out via support if you need a different region or retention schedule.',
-        ],
-      };
-    }
-    if (storageProvider === 'BYO') {
-      const vendorDetails = storageVendor ? storageVendor.toUpperCase() : 'Your cloud';
-      const vendorBullet = (() => {
-        if (!storageVendor) return null;
-        if (storageVendor === 'aws') {
-          return 'The IAM user should keep s3:PutObject, s3:GetObject, s3:ListBucket, and s3:DeleteObject permissions.';
-        }
-        if (storageVendor === 'gcp') {
-          return 'Service account needs storage.objects.{create,get,list,delete} on your bucket.';
-        }
-        if (storageVendor === 'azure') {
-          return 'Connection string must include read/write access for the target container.';
-        }
-        return null;
-      })();
-      return {
-        title: `Bring Your Own Cloud (${vendorDetails})`,
-        paragraphs: [
-          'Uploads and exports route to the bucket you connected. Credentials never leave this device.',
-          'Rotate keys anytime from Settings → Billing → Upgrade.',
-        ],
-        bullets: [
-          vendorBullet,
-          'Monitor lifecycle policies and storage costs from your own cloud console.',
-        ].filter(Boolean),
-      };
-    }
-    return {
-      title: 'Local storage & backups',
-      paragraphs: ['BarkBase Free keeps everything on this device. We do not run cloud backups, so protecting your data is on you.'],
-      bullets: [
-        'Download periodic exports and store them somewhere safe (external drive or cloud storage you control).',
-        'Exports include pets, owners, bookings, payments, audit logs, and membership consents.',
-        'Our support team cannot restore Free plan data—keep exports and local backups handy.',
-      ],
-    };
-  })();
 
   const storageModalTitle = storageModalContent.title;
   const storageModalParagraphs = storageModalContent.paragraphs ?? [];
@@ -255,16 +196,6 @@ const Header = ({ onMenuToggle }) => {
                 <option value="PRO">PRO</option>
                 <option value="ENTERPRISE">ENTERPRISE</option>
               </select>
-              <select
-                value={tenant?.storageProvider ?? 'LOCAL'}
-                onChange={(e) => setDevPlan(tenant?.plan ?? 'FREE', e.target.value)}
-                className="rounded-md border border-warning/50 bg-warning/10 px-2 py-1 text-xs font-medium text-warning focus:outline-none focus:ring-2 focus:ring-warning/40"
-                aria-label="Development storage provider switcher"
-              >
-                <option value="LOCAL">LOCAL</option>
-                <option value="HOSTED">HOSTED</option>
-                <option value="BYO">BYO</option>
-              </select>
             </div>
           ) : null}
           {bookingUsageLabel ? (
@@ -286,25 +217,17 @@ const Header = ({ onMenuToggle }) => {
           ) : null}
           {showExportNudge ? (
             <div className="hidden md:flex items-center gap-2 text-xs font-medium text-warning/80">
-              <span>Create an export now. That’s it—no cloud.</span>
+              <span>Supabase keeps daily snapshots—grab an export if you need an extra copy.</span>
               <button
                 type="button"
                 className="text-warning/60 hover:text-warning"
-                onClick={() => {
-                  setDismissedExportReminder(true);
-                  if (typeof window !== 'undefined') {
-                    try {
-                      window.localStorage.setItem('barkbase-dismiss-export-reminder', '1');
-                    } catch {
-                      /* ignore */
-                    }
-                  }
-                }}
+                onClick={() => setDismissedExportReminder(true)}
               >
                 Dismiss
               </button>
             </div>
           ) : null}
+
           <span
             className={cn(
               'inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-muted',
@@ -387,3 +310,8 @@ const Header = ({ onMenuToggle }) => {
 };
 
 export default Header;
+
+
+
+
+

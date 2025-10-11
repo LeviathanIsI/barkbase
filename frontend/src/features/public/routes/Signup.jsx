@@ -17,7 +17,7 @@ const Signup = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [honeypot, setHoneypot] = useState('');
-  const [acceptLocalDataStorage, setAcceptLocalDataStorage] = useState(false);
+  const [acknowledgeSupabaseHosting, setAcknowledgeSupabaseHosting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -34,7 +34,7 @@ const Signup = () => {
     try {
       const result = await apiClient('/api/v1/auth/signup', {
         method: 'POST',
-        body: { tenantName, tenantSlug, email, password, honeypot, acceptLocalDataStorage },
+        body: { tenantName, tenantSlug, email, password, honeypot, acknowledgeSupabaseHosting },
       });
 
       if (result.tokens) {
@@ -58,7 +58,7 @@ const Signup = () => {
       setTenantSlug('');
       setEmail('');
       setPassword('');
-      setAcceptLocalDataStorage(false);
+      setAcknowledgeSupabaseHosting(false);
     } catch (err) {
       setError(err.message ?? 'Unable to create workspace');
     } finally {
@@ -182,19 +182,19 @@ const Signup = () => {
             <label className="flex items-start gap-2 rounded-lg border border-border/70 bg-surface/80 p-3 text-sm">
               <input
                 type="checkbox"
-                checked={acceptLocalDataStorage}
-                onChange={(event) => setAcceptLocalDataStorage(event.target.checked)}
+                checked={acknowledgeSupabaseHosting}
+                onChange={(event) => setAcknowledgeSupabaseHosting(event.target.checked)}
                 className="mt-1 h-4 w-4"
                 required
               />
               <span className="text-left text-xs text-muted">
-                I understand all BarkBase Free plan data is stored locally on this device. BarkBase does not back up my
-                data. I am responsible for my own backups and accept the risk of data loss.
+                I understand BarkBase stores my workspace on Supabase-managed infrastructure and that plan limits control
+                retention and capacity. I will export data regularly if I need additional backups.
               </span>
             </label>
             {error ? <p className="text-sm text-danger">{error}</p> : null}
             <div className="flex items-center justify-between gap-3">
-              <Button type="submit" disabled={submitting || !acceptLocalDataStorage}>
+              <Button type="submit" disabled={submitting || !acknowledgeSupabaseHosting}>
                 {submitting ? 'Creating workspace…' : 'Create workspace'}
               </Button>
               <Link to="/login" className="text-sm text-primary underline">
