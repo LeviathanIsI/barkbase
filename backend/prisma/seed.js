@@ -14,6 +14,7 @@ const clearDatabase = async () => {
   await prisma.pet.deleteMany();
   await prisma.kennel.deleteMany();
   await prisma.owner.deleteMany();
+  await prisma.customProperty.deleteMany();
   await prisma.staff.deleteMany();
   await prisma.membership.deleteMany();
   await prisma.user.deleteMany();
@@ -198,7 +199,7 @@ const createKennels = async (tenantId) => {
           name: kennel.name,
           type: kennel.type,
           capacity: kennel.capacity,
-          amenities: [],
+          amenities: "[]",
         },
       }),
     ),

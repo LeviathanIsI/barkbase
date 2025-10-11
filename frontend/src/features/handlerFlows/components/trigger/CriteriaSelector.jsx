@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Search } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
+import PropertyCriteriaSelector from './PropertyCriteriaSelector';
 
 const criteriaCategories = [
   {
@@ -53,6 +54,8 @@ const criteriaCategories = [
 const CriteriaSelector = ({ onSelect, onClose }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedObject, setSelectedObject] = useState('Pet'); // Default filtering object
+  const [showPropertySelector, setShowPropertySelector] = useState(false);
+  const [selectedPropertyCriteria, setSelectedPropertyCriteria] = useState(null);
 
   const filteredCategories = criteriaCategories.map(category => ({
     ...category,
@@ -61,6 +64,30 @@ const CriteriaSelector = ({ onSelect, onClose }) => {
       c.description.toLowerCase().includes(searchQuery.toLowerCase())
     ),
   })).filter(category => category.criteria.length > 0);
+
+  const handleCriteriaClick = (criteria) => {
+    // Check if this is a property-based criteria
+    const propertyTypes = ['pet-properties', 'owner-properties', 'booking-properties'];
+
+    if (propertyTypes.includes(criteria.id)) {
+      // Open property selector
+      setSelectedPropertyCriteria(criteria.id);
+      setShowPropertySelector(true);
+    } else {
+      // Regular criteria - pass through
+      onSelect({
+        type: criteria.id,
+        label: criteria.label,
+        description: criteria.description,
+      });
+    }
+  };
+
+  const handlePropertySelect = (propertyCriteria) => {
+    onSelect(propertyCriteria);
+    setShowPropertySelector(false);
+    setSelectedPropertyCriteria(null);
+  };
 
   return (
     <Modal open={true} onClose={onClose}>
@@ -109,11 +136,7 @@ const CriteriaSelector = ({ onSelect, onClose }) => {
                 {category.criteria.map((criteria) => (
                   <button
                     key={criteria.id}
-                    onClick={() => onSelect({
-                      type: criteria.id,
-                      label: criteria.label,
-                      description: criteria.description,
-                    })}
+                    onClick={() => handleCriteriaClick(criteria)}
                     className="w-full text-left px-3 py-2 rounded hover:bg-primary/5 border border-transparent hover:border-primary transition-colors"
                   >
                     <div className="text-sm font-medium text-text">{criteria.label}</div>
@@ -134,6 +157,18 @@ const CriteriaSelector = ({ onSelect, onClose }) => {
           </button>
         </div>
       </div>
+
+      {/* Property Criteria Selector */}
+      {showPropertySelector && selectedPropertyCriteria && (
+        <PropertyCriteriaSelector
+          criteriaType={selectedPropertyCriteria}
+          onSelect={handlePropertySelect}
+          onClose={() => {
+            setShowPropertySelector(false);
+            setSelectedPropertyCriteria(null);
+          }}
+        />
+      )}
     </Modal>
   );
 };

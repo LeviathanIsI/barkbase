@@ -23,7 +23,10 @@ const Modal = ({ open, onClose, title, ariaLabel = 'Dialog', children, footer, c
   useEffect(() => {
     if (!open) return undefined;
 
-    previouslyFocusedRef.current = document.activeElement;
+    // Only save the previously focused element once when modal opens
+    if (!previouslyFocusedRef.current) {
+      previouslyFocusedRef.current = document.activeElement;
+    }
 
     const node = dialogRef.current;
     if (!node) return undefined;
@@ -35,10 +38,13 @@ const Modal = ({ open, onClose, title, ariaLabel = 'Dialog', children, footer, c
     const firstFocusable = focusableElements[0];
     const lastFocusable = focusableElements[focusableElements.length - 1];
 
-    if (firstFocusable) {
-      firstFocusable.focus({ preventScroll: true });
-    } else {
-      node.focus({ preventScroll: true });
+    // Only auto-focus the first element if nothing is currently focused in the modal
+    if (!node.contains(document.activeElement)) {
+      if (firstFocusable) {
+        firstFocusable.focus({ preventScroll: true });
+      } else {
+        node.focus({ preventScroll: true });
+      }
     }
 
     const handleKeyDown = (event) => {
@@ -69,6 +75,7 @@ const Modal = ({ open, onClose, title, ariaLabel = 'Dialog', children, footer, c
       if (previous && typeof previous.focus === 'function') {
         previous.focus({ preventScroll: true });
       }
+      previouslyFocusedRef.current = null; // Reset for next open
     };
   }, [open, onClose]);
 

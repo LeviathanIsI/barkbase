@@ -55,18 +55,6 @@ const navigationBuckets = [
     ],
   },
   {
-    id: 'records',
-    label: 'Records',
-    icon: PawPrint,
-    items: [
-      { to: '/pets', label: 'Pets', icon: PawPrint },
-      { to: '/owners', label: 'Owners', icon: Users },
-      { to: '/facilities', label: 'Facilities & Runs', icon: Building2 },
-      { to: '/services', label: 'Services & Add-ons', icon: Sparkles },
-      { to: '/packages', label: 'Packages & Memberships', icon: Package, featureFlag: 'packages' },
-    ],
-  },
-  {
     id: 'billing',
     label: 'Billing',
     icon: CreditCard,
@@ -116,7 +104,7 @@ const BucketedSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
   const role = useAuthStore((state) => state.role);
   const location = useLocation();
   const [openBucket, setOpenBucket] = useState(null);
-  const [lastOpenBucket, setLastOpenBucket] = useState(null);
+  const [openGroups, setOpenGroups] = useState({});
   const trackNavBucket = useNavBucketTracking();
 
   const permissionContext = {
@@ -130,20 +118,9 @@ const BucketedSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
   useEffect(() => {
     const stored = localStorage.getItem(`barkbase-sidebar-bucket-${tenant?.slug}`);
     if (stored) {
-      setLastOpenBucket(stored);
+      setOpenBucket(stored);
     }
   }, [tenant?.slug]);
-
-  // Determine active bucket based on current route
-  useEffect(() => {
-    const currentPath = location.pathname;
-    const activeBucket = navigationBuckets.find((bucket) =>
-      bucket.items.some((item) => currentPath.startsWith(item.to))
-    );
-    if (activeBucket && !openBucket) {
-      setOpenBucket(activeBucket.id);
-    }
-  }, [location.pathname]);
 
   const toggleBucket = useCallback((bucketId) => {
     setOpenBucket((prev) => {
@@ -279,8 +256,65 @@ const BucketedSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
               {/* Bucket Items (Flyout) */}
               {isOpen && (!collapsed || isMobile) && (
                 <div className="ml-8 mt-1 space-y-1 border-l border-border/40 pl-3">
-                  {bucket.items.map((item) => {
+                  {bucket.items.map((item, itemIndex) => {
                     const ItemIcon = item.icon;
+
+                    // Handle nested groups (e.g., Objects submenu)
+                    if (item.isGroup && item.children) {
+                      const groupKey = `${bucket.id}-${item.label}`;
+                      const groupOpen = openGroups[groupKey] || false;
+
+                      const toggleGroup = () => {
+                        setOpenGroups(prev => ({
+                          ...prev,
+                          [groupKey]: !prev[groupKey],
+                        }));
+                      };
+
+                      return (
+                        <div key={`group-${itemIndex}`}>
+                          <button
+                            onClick={toggleGroup}
+                            className="group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-primary/10 hover:text-primary"
+                          >
+                            <ItemIcon className="h-4 w-4 flex-shrink-0" />
+                            <span className="flex-1 text-left">{item.label}</span>
+                            <ChevronRight
+                              className={cn(
+                                'h-3 w-3 transition-transform',
+                                groupOpen && 'rotate-90',
+                              )}
+                            />
+                          </button>
+
+                          {groupOpen && (
+                            <div className="ml-6 mt-1 space-y-1 border-l border-border/30 pl-3">
+                              {item.children.filter(canViewItem).map((child) => {
+                                const ChildIcon = child.icon;
+                                return (
+                                  <NavLink
+                                    key={child.to}
+                                    to={child.to}
+                                    onClick={onNavigate}
+                                    className={({ isActive }) =>
+                                      cn(
+                                        'group flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-primary/10 hover:text-primary',
+                                        isActive && 'bg-primary/15 text-primary',
+                                      )
+                                    }
+                                  >
+                                    <ChildIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                                    <span>{child.label}</span>
+                                  </NavLink>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    // Regular item
                     return (
                       <NavLink
                         key={item.to}

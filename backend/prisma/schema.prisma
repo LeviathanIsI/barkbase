@@ -119,6 +119,7 @@ model Tenant {
   checkIns        CheckIn[]
   checkOuts       CheckOut[]
   incidentReports IncidentReport[]
+  customProperties CustomProperty[]
   @@index([slug])
 }
 
@@ -510,6 +511,29 @@ model IncidentReport {
   @@index([tenantId, petId])
   @@index([tenantId, bookingId])
   @@index([tenantId, occurredAt])
+}
+
+model CustomProperty {
+  id          String    @id @default(cuid())
+  tenantId    String
+  objectType  String
+  name        String
+  label       String
+  description String?
+  type        String
+  group       String
+  required    Boolean   @default(false)
+  fieldConfig Json?
+  archived    Boolean   @default(false)
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, objectType, name])
+  @@index([tenantId, objectType])
+  @@index([tenantId, objectType, archived])
 }
 
 

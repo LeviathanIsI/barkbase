@@ -92,6 +92,17 @@ const CriteriaGroup = ({ group, onUpdate, onRemove, isEnrollmentFilter = false }
                         <div className="text-xs text-muted mt-1">
                           {criteria.description || 'Custom condition'}
                         </div>
+                        {/* Show property details if it's a property condition */}
+                        {criteria.type === 'property-condition' && criteria.condition && (
+                          <div className="mt-2 flex items-center gap-2 text-xs">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                              {criteria.condition.property.type}
+                            </span>
+                            <span className="text-muted">
+                              Property: {criteria.condition.property.label}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       <button
                         onClick={() => handleRemoveCriteria(criteria.id)}

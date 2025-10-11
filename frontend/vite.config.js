@@ -58,6 +58,13 @@ export default defineConfig(({ mode }) => {
       hmr: {
         overlay: true,
       },
+      proxy: {
+        '/api': {
+          target: 'http://localhost:4000',
+          changeOrigin: true,
+          secure: false,
+        },
+      },
     },
     preview: {
       host: true,

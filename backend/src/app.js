@@ -37,6 +37,7 @@ const accountDefaultsRoutes = require("./routes/accountDefaults.routes");
 const handlerFlowsRoutes = require("./routes/handlerFlows.routes");
 const handlerRunsRoutes = require("./routes/handlerRuns.routes");
 const eventsRoutes = require("./routes/events.routes");
+const propertiesRoutes = require("./routes/properties.routes");
 
 const app = express();
 
@@ -125,6 +126,7 @@ app.use("/api/v1/events", eventsRoutes);
 app.use("/api/v1/handler-flows", handlerFlowsRoutes);
 app.use("/api/v1/handler-runs", handlerRunsRoutes);
 app.use("/api/v1/account-defaults", accountDefaultsRoutes);
+app.use("/api/v1/settings/properties", propertiesRoutes);
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", time: new Date().toISOString() });

@@ -234,17 +234,23 @@ const ConditionConfig = ({ nodeData, onChange }) => {
       <div>
         <label className="text-xs font-medium text-text mb-1 block">Condition</label>
         <select
-          defaultValue={nodeData?.conditionOperator || 'equals'}
+          defaultValue={nodeData?.conditionOperator || 'is_equal_to'}
           onChange={(e) => onChange({ conditionOperator: e.target.value })}
           className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text"
         >
-          <option value="equals">Equals</option>
-          <option value="not_equals">Does not equal</option>
-          <option value="greater_than">Greater than</option>
-          <option value="less_than">Less than</option>
-          <option value="contains">Contains</option>
-          <option value="is_empty">Is empty</option>
-          <option value="is_not_empty">Is not empty</option>
+          <option value="is_equal_to">is equal to</option>
+          <option value="is_not_equal_to">is not equal to</option>
+          <option value="is_less_than">is less than</option>
+          <option value="is_less_than_or_equal_to">is less than or equal to</option>
+          <option value="is_greater_than">is greater than</option>
+          <option value="is_greater_than_or_equal_to">is greater than or equal to</option>
+          <option value="is_between">is between</option>
+          <option value="contains">contains</option>
+          <option value="not_contains">does not contain</option>
+          <option value="has_ever_been_equal_to">has ever been equal to</option>
+          <option value="has_never_been_equal_to">has never been equal to</option>
+          <option value="is_known">is known</option>
+          <option value="is_unknown">is unknown</option>
         </select>
       </div>
 
