@@ -1,6 +1,7 @@
 import { X, ChevronRight, Mail, MessageSquare, Star, CheckSquare, Bell, Printer, Ticket, Edit3, FileText, RefreshCw, DollarSign, Copy, GitBranch, Clock, Timer, Code, Webhook as WebhookIcon, Settings, Search } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import TriggerSelector from './TriggerSelector';
+import TriggerConfigurator from './TriggerConfigurator';
 import ActionConfigurator from './ActionConfigurator';
 import { useState } from 'react';
 
@@ -275,9 +276,9 @@ const ContextSidebar = ({ mode, selectedNode, onClose, onNodeSelect, onNodeUpdat
   // Don't render sidebar if no mode is active
   if (!mode) return null;
 
-  // Show TriggerSelector when editing a trigger node
+  // Show TriggerConfigurator when editing a trigger node
   if (mode === 'edit' && selectedNode?.type === 'trigger') {
-    return <TriggerSelector onClose={onClose} onSelect={onNodeSelect} />;
+    return <TriggerConfigurator trigger={selectedNode} onClose={onClose} onUpdate={onNodeUpdate} />;
   }
 
   // Show ActionConfigurator when editing a non-trigger node

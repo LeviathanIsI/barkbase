@@ -437,6 +437,472 @@ const FeeDiscountConfig = ({ nodeData, onChange }) => {
   );
 };
 
+// Review request configuration
+const ReviewRequestConfig = ({ nodeData, onChange }) => {
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Review Platform</label>
+        <select
+          defaultValue={nodeData?.reviewPlatform || 'google'}
+          onChange={(e) => onChange({ reviewPlatform: e.target.value })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text"
+        >
+          <option value="google">Google Reviews</option>
+          <option value="yelp">Yelp</option>
+          <option value="facebook">Facebook</option>
+          <option value="custom">Custom Review Link</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Send after</label>
+        <select
+          defaultValue={nodeData?.reviewTiming || 'checkout'}
+          onChange={(e) => onChange({ reviewTiming: e.target.value })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text"
+        >
+          <option value="checkout">Immediately after check-out</option>
+          <option value="1day">1 day after check-out</option>
+          <option value="3days">3 days after check-out</option>
+          <option value="1week">1 week after check-out</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="text-xs font-medium text-text mb-1 flex items-center gap-1">
+          <input type="checkbox" defaultChecked={nodeData?.onlyPositive || false} />
+          <span>Only send to satisfied customers (4+ star ratings)</span>
+        </label>
+      </div>
+    </div>
+  );
+};
+
+// Internal notification configuration
+const NotificationConfig = ({ nodeData, onChange }) => {
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Notification Type</label>
+        <select
+          defaultValue={nodeData?.notificationType || 'in-app'}
+          onChange={(e) => onChange({ notificationType: e.target.value })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text"
+        >
+          <option value="in-app">In-App Notification</option>
+          <option value="email">Email to Team</option>
+          <option value="slack">Slack Message</option>
+          <option value="all">All of the above</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Send to</label>
+        <select
+          defaultValue={nodeData?.notifyWho || ''}
+          onChange={(e) => onChange({ notifyWho: e.target.value })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text"
+        >
+          <option value="">Select recipient...</option>
+          <option value="role:manager">All Managers</option>
+          <option value="role:groomer">All Groomers</option>
+          <option value="role:handler">All Handlers</option>
+          <option value="assigned">Assigned Staff Member</option>
+          <option value="custom">Specific Person</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Message</label>
+        <textarea
+          defaultValue={nodeData?.notificationMessage || ''}
+          onChange={(e) => onChange({ notificationMessage: e.target.value })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text"
+          placeholder="{{pet.name}} has special dietary requirements for their stay starting {{booking.checkInDate}}"
+          rows={3}
+        />
+      </div>
+    </div>
+  );
+};
+
+// Print document configuration
+const PrintDocumentConfig = ({ nodeData, onChange }) => {
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Document Type</label>
+        <select
+          defaultValue={nodeData?.documentType || ''}
+          onChange={(e) => onChange({ documentType: e.target.value })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text"
+        >
+          <option value="">Select document...</option>
+          <option value="run-card">Run Card / Kennel Card</option>
+          <option value="meal-plan">Meal Plan</option>
+          <option value="medication-schedule">Medication Schedule</option>
+          <option value="invoice">Invoice</option>
+          <option value="receipt">Receipt</option>
+          <option value="check-in-form">Check-in Form</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Print to</label>
+        <select
+          defaultValue={nodeData?.printer || 'default'}
+          onChange={(e) => onChange({ printer: e.target.value })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text"
+        >
+          <option value="default">Default Printer</option>
+          <option value="reception">Reception Desk</option>
+          <option value="kennel">Kennel Area</option>
+          <option value="grooming">Grooming Station</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Number of Copies</label>
+        <input
+          type="number"
+          min="1"
+          max="10"
+          defaultValue={nodeData?.copies || 1}
+          onChange={(e) => onChange({ copies: parseInt(e.target.value) })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text"
+        />
+      </div>
+    </div>
+  );
+};
+
+// Create record configuration
+const CreateRecordConfig = ({ nodeData, onChange }) => {
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Record Type</label>
+        <select
+          defaultValue={nodeData?.recordType || ''}
+          onChange={(e) => onChange({ recordType: e.target.value })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text"
+        >
+          <option value="">Select type...</option>
+          <option value="booking">Booking</option>
+          <option value="invoice">Invoice</option>
+          <option value="note">Note</option>
+          <option value="log-entry">Log Entry</option>
+          <option value="activity">Activity Record</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Associate with</label>
+        <select
+          defaultValue={nodeData?.associateWith || 'current'}
+          onChange={(e) => onChange({ associateWith: e.target.value })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text"
+        >
+          <option value="current">Current Record</option>
+          <option value="pet">Associated Pet</option>
+          <option value="owner">Pet Owner</option>
+          <option value="booking">Associated Booking</option>
+        </select>
+      </div>
+
+      <div className="p-3 bg-background border border-border rounded">
+        <div className="text-xs font-medium text-text mb-2">Template Fields</div>
+        <div className="text-xs text-muted">
+          Configure default values for the new record in the advanced settings
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Create note configuration
+const CreateNoteConfig = ({ nodeData, onChange }) => {
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Note Title</label>
+        <input
+          type="text"
+          defaultValue={nodeData?.noteTitle || ''}
+          onChange={(e) => onChange({ noteTitle: e.target.value })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text"
+          placeholder="e.g., Special care instructions"
+        />
+      </div>
+
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Note Content</label>
+        <textarea
+          defaultValue={nodeData?.noteContent || ''}
+          onChange={(e) => onChange({ noteContent: e.target.value })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text"
+          placeholder="{{pet.name}} requires..."
+          rows={4}
+        />
+      </div>
+
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Attach to</label>
+        <select
+          defaultValue={nodeData?.noteAttachTo || 'pet'}
+          onChange={(e) => onChange({ noteAttachTo: e.target.value })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text"
+        >
+          <option value="pet">Pet Profile</option>
+          <option value="owner">Owner Profile</option>
+          <option value="booking">Current Booking</option>
+        </select>
+      </div>
+    </div>
+  );
+};
+
+// Update status configuration
+const UpdateStatusConfig = ({ nodeData, onChange }) => {
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Record Type</label>
+        <select
+          defaultValue={nodeData?.statusRecordType || 'booking'}
+          onChange={(e) => onChange({ statusRecordType: e.target.value })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text"
+        >
+          <option value="booking">Booking</option>
+          <option value="invoice">Invoice</option>
+          <option value="ticket">Support Ticket</option>
+          <option value="task">Task</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">New Status</label>
+        <select
+          defaultValue={nodeData?.newStatus || ''}
+          onChange={(e) => onChange({ newStatus: e.target.value })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text"
+        >
+          <option value="">Select status...</option>
+          {nodeData?.statusRecordType === 'booking' && (
+            <>
+              <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="checked-in">Checked In</option>
+              <option value="checked-out">Checked Out</option>
+              <option value="cancelled">Cancelled</option>
+            </>
+          )}
+          {nodeData?.statusRecordType === 'invoice' && (
+            <>
+              <option value="draft">Draft</option>
+              <option value="sent">Sent</option>
+              <option value="paid">Paid</option>
+              <option value="overdue">Overdue</option>
+              <option value="cancelled">Cancelled</option>
+            </>
+          )}
+        </select>
+      </div>
+    </div>
+  );
+};
+
+// Schedule service configuration
+const ScheduleServiceConfig = ({ nodeData, onChange }) => {
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Service Type</label>
+        <select
+          defaultValue={nodeData?.serviceType || ''}
+          onChange={(e) => onChange({ serviceType: e.target.value })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text"
+        >
+          <option value="">Select service...</option>
+          <option value="grooming">Grooming</option>
+          <option value="bath">Bath</option>
+          <option value="nail-trim">Nail Trim</option>
+          <option value="training">Training Session</option>
+          <option value="playtime">Extra Playtime</option>
+          <option value="medication">Medication Administration</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Schedule for</label>
+        <select
+          defaultValue={nodeData?.serviceSchedule || 'check-in'}
+          onChange={(e) => onChange({ serviceSchedule: e.target.value })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text"
+        >
+          <option value="check-in">On check-in day</option>
+          <option value="mid-stay">Mid-stay</option>
+          <option value="check-out">Before check-out</option>
+          <option value="specific">Specific date/time</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Price</label>
+        <input
+          type="number"
+          step="0.01"
+          defaultValue={nodeData?.servicePrice || ''}
+          onChange={(e) => onChange({ servicePrice: parseFloat(e.target.value) })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text"
+          placeholder="0.00"
+        />
+      </div>
+
+      <div>
+        <label className="text-xs font-medium text-text mb-1 flex items-center gap-1">
+          <input type="checkbox" defaultChecked={nodeData?.addToInvoice || true} />
+          <span>Automatically add to invoice</span>
+        </label>
+      </div>
+    </div>
+  );
+};
+
+// Vaccination status configuration
+const VaccinationConfig = ({ nodeData, onChange }) => {
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Vaccination Type</label>
+        <select
+          defaultValue={nodeData?.vaccinationType || ''}
+          onChange={(e) => onChange({ vaccinationType: e.target.value })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text"
+        >
+          <option value="">Select vaccination...</option>
+          <option value="rabies">Rabies</option>
+          <option value="dhpp">DHPP</option>
+          <option value="bordetella">Bordetella</option>
+          <option value="influenza">Canine Influenza</option>
+          <option value="fvrcp">FVRCP (Cats)</option>
+          <option value="felv">FeLV (Cats)</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Status</label>
+        <select
+          defaultValue={nodeData?.vaccinationStatus || ''}
+          onChange={(e) => onChange({ vaccinationStatus: e.target.value })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text"
+        >
+          <option value="current">Current</option>
+          <option value="expiring-soon">Expiring Soon</option>
+          <option value="expired">Expired</option>
+          <option value="not-required">Not Required</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Expiry Date</label>
+        <input
+          type="date"
+          defaultValue={nodeData?.expiryDate || ''}
+          onChange={(e) => onChange({ expiryDate: e.target.value })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text"
+        />
+      </div>
+    </div>
+  );
+};
+
+// Webhook configuration
+const WebhookConfig = ({ nodeData, onChange }) => {
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Webhook URL</label>
+        <input
+          type="url"
+          defaultValue={nodeData?.webhookUrl || ''}
+          onChange={(e) => onChange({ webhookUrl: e.target.value })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text font-mono"
+          placeholder="https://api.example.com/webhook"
+        />
+      </div>
+
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Method</label>
+        <select
+          defaultValue={nodeData?.webhookMethod || 'POST'}
+          onChange={(e) => onChange({ webhookMethod: e.target.value })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text"
+        >
+          <option value="GET">GET</option>
+          <option value="POST">POST</option>
+          <option value="PUT">PUT</option>
+          <option value="PATCH">PATCH</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Headers (JSON)</label>
+        <textarea
+          defaultValue={nodeData?.webhookHeaders || '{}'}
+          onChange={(e) => onChange({ webhookHeaders: e.target.value })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text font-mono"
+          rows={3}
+          placeholder={'{\n  "Authorization": "Bearer token"\n}'}
+        />
+      </div>
+
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Body Template (JSON)</label>
+        <textarea
+          defaultValue={nodeData?.webhookBody || ''}
+          onChange={(e) => onChange({ webhookBody: e.target.value })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text font-mono"
+          rows={4}
+          placeholder={'{\n  "petName": "{{pet.name}}",\n  "ownerId": "{{owner.id}}"\n}'}
+        />
+      </div>
+    </div>
+  );
+};
+
+// Segment management configuration
+const SegmentConfig = ({ nodeData, onChange }) => {
+  const isAdd = nodeData?.actionType === 'add-segment';
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <label className="text-xs font-medium text-text mb-1 block">Segment/List</label>
+        <select
+          defaultValue={nodeData?.segmentId || ''}
+          onChange={(e) => onChange({ segmentId: e.target.value })}
+          className="w-full px-3 py-2 text-sm border border-border rounded bg-background text-text"
+        >
+          <option value="">Select segment...</option>
+          <option value="vip">VIP Customers</option>
+          <option value="frequent">Frequent Visitors</option>
+          <option value="new">New Customers</option>
+          <option value="inactive">Inactive Customers</option>
+          <option value="vaccination-expiring">Vaccination Expiring Soon</option>
+        </select>
+      </div>
+
+      <div className="p-3 bg-background border border-border rounded">
+        <div className="text-xs text-muted">
+          {isAdd ? 'Pet owner will be added to' : 'Pet owner will be removed from'} the selected segment
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Generic configuration (fallback)
 const GenericConfig = ({ nodeData, onChange }) => {
   return (
@@ -502,25 +968,64 @@ const ActionConfigurator = ({ node, onUpdate }) => {
     if (actionType === 'sms') {
       return <SmsConfig nodeData={localData} onChange={handleChange} />;
     }
-
-    // Condition/logic actions
-    if (actionType === 'if-then' || nodeType === 'condition') {
-      return <ConditionConfig nodeData={localData} onChange={handleChange} />;
+    if (actionType === 'review') {
+      return <ReviewRequestConfig nodeData={localData} onChange={handleChange} />;
     }
 
     // Staff actions
     if (actionType === 'task') {
       return <TaskConfig nodeData={localData} onChange={handleChange} />;
     }
+    if (actionType === 'notification') {
+      return <NotificationConfig nodeData={localData} onChange={handleChange} />;
+    }
+    if (actionType === 'print') {
+      return <PrintDocumentConfig nodeData={localData} onChange={handleChange} />;
+    }
 
     // Record actions
     if (actionType === 'set-field') {
       return <SetFieldConfig nodeData={localData} onChange={handleChange} />;
     }
+    if (actionType === 'create-record') {
+      return <CreateRecordConfig nodeData={localData} onChange={handleChange} />;
+    }
+    if (actionType === 'note') {
+      return <CreateNoteConfig nodeData={localData} onChange={handleChange} />;
+    }
+    if (actionType === 'update-status') {
+      return <UpdateStatusConfig nodeData={localData} onChange={handleChange} />;
+    }
 
     // Billing actions
     if (actionType === 'fee-discount') {
       return <FeeDiscountConfig nodeData={localData} onChange={handleChange} />;
+    }
+    if (actionType === 'invoice' || actionType === 'payment-reminder') {
+      return <FeeDiscountConfig nodeData={localData} onChange={handleChange} />;
+    }
+
+    // Pet service actions
+    if (actionType === 'schedule-service') {
+      return <ScheduleServiceConfig nodeData={localData} onChange={handleChange} />;
+    }
+    if (actionType === 'vaccination') {
+      return <VaccinationConfig nodeData={localData} onChange={handleChange} />;
+    }
+
+    // Segment actions
+    if (actionType === 'add-segment' || actionType === 'remove-segment') {
+      return <SegmentConfig nodeData={localData} onChange={handleChange} />;
+    }
+
+    // Advanced actions
+    if (actionType === 'webhook') {
+      return <WebhookConfig nodeData={localData} onChange={handleChange} />;
+    }
+
+    // Condition/logic actions
+    if (actionType === 'if-then' || nodeType === 'condition') {
+      return <ConditionConfig nodeData={localData} onChange={handleChange} />;
     }
 
     // Fallback to generic config

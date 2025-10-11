@@ -68,6 +68,22 @@ const PublicHome = lazy(() => import('@/features/public/routes/Home'));
 const Signup = lazy(() => import('@/features/public/routes/Signup'));
 const VerifyEmail = lazy(() => import('@/features/public/routes/VerifyEmail'));
 
+// Placeholder routes for BarkBase features
+const RunAssignment = lazy(() => import('@/features/placeholders/routes/RunAssignment'));
+const FeedingMeds = lazy(() => import('@/features/placeholders/routes/FeedingMeds'));
+const DaycareCheckin = lazy(() => import('@/features/placeholders/routes/DaycareCheckin'));
+const Facilities = lazy(() => import('@/features/placeholders/routes/Facilities'));
+const ServicesAddons = lazy(() => import('@/features/placeholders/routes/ServicesAddons'));
+const Packages = lazy(() => import('@/features/placeholders/routes/Packages'));
+const Invoices = lazy(() => import('@/features/placeholders/routes/Invoices'));
+const PricingRules = lazy(() => import('@/features/placeholders/routes/PricingRules'));
+const FollowUps = lazy(() => import('@/features/placeholders/routes/FollowUps'));
+const Webhooks = lazy(() => import('@/features/placeholders/routes/Webhooks'));
+const CustomCode = lazy(() => import('@/features/placeholders/routes/CustomCode'));
+const Tickets = lazy(() => import('@/features/placeholders/routes/Tickets'));
+const KnowledgeBase = lazy(() => import('@/features/placeholders/routes/KnowledgeBase'));
+const AuditLogs = lazy(() => import('@/features/placeholders/routes/AuditLogs'));
+
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -92,9 +108,29 @@ export const router = createBrowserRouter([
               { path: 'owners', element: <Owners /> },
               { path: 'payments', element: <Payments /> },
               { path: 'reports', element: <Reports /> },
+              // Operations
+              { path: 'runs', element: <RunAssignment /> },
+              { path: 'feeding-meds', element: <FeedingMeds /> },
+              { path: 'daycare/checkin', element: <DaycareCheckin /> },
+              // Records
+              { path: 'facilities', element: <Facilities /> },
+              { path: 'services', element: <ServicesAddons /> },
+              { path: 'packages', element: <Packages /> },
+              // Billing
+              { path: 'invoices', element: <Invoices /> },
+              { path: 'pricing-rules', element: <PricingRules /> },
+              // Automations
               { path: 'handler-flows', element: <HandlerFlows /> },
               { path: 'handler-flows/:flowId', element: <HandlerFlowDetail /> },
               { path: 'handler-flows/runs/:runId', element: <HandlerRunDetail /> },
+              { path: 'automations/follow-ups', element: <FollowUps /> },
+              { path: 'automations/webhooks', element: <Webhooks /> },
+              { path: 'automations/custom-code', element: <CustomCode /> },
+              // Support
+              { path: 'support/tickets', element: <Tickets /> },
+              { path: 'support/knowledge-base', element: <KnowledgeBase /> },
+              { path: 'support/logs', element: <AuditLogs /> },
+              // Admin/Staff
               { path: 'staff', element: <Staff /> },
               { path: 'tenants', element: <TenantSettings /> },
               {

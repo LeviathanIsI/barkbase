@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import Sidebar from './Sidebar';
+import BucketedSidebar from './BucketedSidebar';
 import Header from './Header';
 import Button from '@/components/ui/Button';
 import { useUIStore } from '@/stores/ui';
@@ -34,7 +34,7 @@ const AppShell = () => {
 
   return (
     <div className="flex min-h-screen bg-background text-text">
-      <Sidebar collapsed={collapsed} />
+      <BucketedSidebar collapsed={collapsed} />
       <div className="flex w-full flex-col">
         <Header onMenuToggle={handleMenuToggle} />
         <main className="flex flex-1 flex-col overflow-hidden">
@@ -52,7 +52,7 @@ const AppShell = () => {
         <div className="fixed inset-0 z-50 flex gap-0 lg:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setMobileSidebarOpen(false)} aria-hidden="true" />
           <div className="relative h-full w-64 bg-surface shadow-xl">
-            <Sidebar collapsed={false} isMobile onNavigate={() => setMobileSidebarOpen(false)} />
+            <BucketedSidebar collapsed={false} isMobile onNavigate={() => setMobileSidebarOpen(false)} />
           </div>
         </div>
       )}
