@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import ReactFlow, {
   MiniMap,
   Controls,
@@ -27,6 +27,17 @@ const WorkflowCanvas = ({
 }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+  // Sync external nodes/edges with internal state when they change
+  useEffect(() => {
+    console.log('[WorkflowCanvas] Syncing initialNodes to internal state', initialNodes.length, 'nodes');
+    setNodes(initialNodes);
+  }, [initialNodes, setNodes]);
+
+  useEffect(() => {
+    console.log('[WorkflowCanvas] Syncing initialEdges to internal state', initialEdges.length, 'edges');
+    setEdges(initialEdges);
+  }, [initialEdges, setEdges]);
 
   const onConnect = useCallback(
     (params) => {

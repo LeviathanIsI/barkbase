@@ -18,8 +18,12 @@ const BaseNode = ({ id, data, children, className, variant = 'default' }) => {
 
   const handleAddClick = (e) => {
     e.stopPropagation(); // Prevent node click event from firing
+    console.log('[BaseNode] Plus button clicked', { stepIndex, hasOnInsert: !!data?.onInsert, data });
     if (data?.onInsert) {
+      console.log('[BaseNode] Calling onInsert with stepIndex:', stepIndex);
       data.onInsert(stepIndex);
+    } else {
+      console.error('[BaseNode] No onInsert handler found in node data');
     }
   };
 

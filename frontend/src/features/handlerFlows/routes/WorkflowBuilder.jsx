@@ -121,6 +121,11 @@ export default function WorkflowBuilder() {
   }, []);
 
   const handleDeleteNode = useCallback((nodeId) => {
+    // Always close sidebar when deleting any node to prevent showing deleted node config
+    setSidebarMode(null);
+    setSelectedNode(null);
+    setAddAfterStepIndex(null);
+
     setNodes((currentNodes) => {
       const updated = removeNodeAtIndex(currentNodes, nodeId);
       return updated;
@@ -129,9 +134,11 @@ export default function WorkflowBuilder() {
 
   // Open sidebar to add action
   const handleOpenAddAction = useCallback((afterStepIndex) => {
+    console.log('[WorkflowBuilder] handleOpenAddAction called with:', afterStepIndex);
     setAddAfterStepIndex(afterStepIndex);
     setSidebarMode('add');
     setSelectedNode(null);
+    console.log('[WorkflowBuilder] Sidebar mode set to: add');
   }, []);
 
   // Handle selecting an action from the sidebar
@@ -185,8 +192,16 @@ export default function WorkflowBuilder() {
 
   // Handle clicking on a node to edit it
   const handleNodeClick = useCallback((event, node) => {
-    setSelectedNode(node);
-    setSidebarMode('edit');
+    // Check if the node still exists in the current nodes array
+    // This prevents opening the sidebar for a node that was just deleted
+    setNodes((currentNodes) => {
+      const nodeExists = currentNodes.some(n => n.id === node.id);
+      if (nodeExists) {
+        setSelectedNode(node);
+        setSidebarMode('edit');
+      }
+      return currentNodes; // Don't modify nodes, just use this to access current state
+    });
   }, []);
 
   // Close sidebar
@@ -240,22 +255,28 @@ export default function WorkflowBuilder() {
       // Check if enrichment is needed (any node missing handlers)
       const needsEnrichment = currentNodes.some(node => !node.data?.onClone);
       if (!needsEnrichment && currentNodes.every(node => node.data?.totalSteps === currentNodes.length)) {
+        console.log('[WorkflowBuilder] Skipping enrichment - handlers already present');
         return currentNodes; // Skip enrichment to avoid infinite loop
       }
 
-      return currentNodes.map((node, index) => ({
-        ...node,
-        data: {
-          ...node.data,
-          stepIndex: node.data?.stepIndex || index + 1,
-          totalSteps: currentNodes.length,
-          onClone: handleCloneNode,
-          onMoveUp: (id) => handleMoveNode(id, 'up'),
-          onMoveDown: (id) => handleMoveNode(id, 'down'),
-          onDelete: handleDeleteNode,
-          onInsert: handleOpenAddAction,
-        },
-      }));
+      console.log('[WorkflowBuilder] Enriching nodes with handlers');
+      return currentNodes.map((node, index) => {
+        const enriched = {
+          ...node,
+          data: {
+            ...node.data,
+            stepIndex: node.data?.stepIndex || index + 1,
+            totalSteps: currentNodes.length,
+            onClone: handleCloneNode,
+            onMoveUp: (id) => handleMoveNode(id, 'up'),
+            onMoveDown: (id) => handleMoveNode(id, 'down'),
+            onDelete: handleDeleteNode,
+            onInsert: handleOpenAddAction,
+          },
+        };
+        console.log('[WorkflowBuilder] Enriched node:', node.id, 'has onInsert:', !!enriched.data.onInsert);
+        return enriched;
+      });
     });
   }, [nodes, handleCloneNode, handleMoveNode, handleDeleteNode, handleOpenAddAction]);
 
