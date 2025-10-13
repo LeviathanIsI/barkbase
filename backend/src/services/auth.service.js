@@ -70,19 +70,27 @@ const login = async (tenant, email, password) => {
     throw Object.assign(new Error('Email verification required'), { statusCode: 403 });
   }
 
-  const membership = user.memberships.find((entry) => entry.tenantId === tenant.id);
-  if (!membership) {
-    throw Object.assign(new Error('Membership required for tenant'), { statusCode: 403 });
-  }
-
   const matches = await bcrypt.compare(password, user.passwordHash);
   if (!matches) {
     throw Object.assign(new Error('Invalid credentials'), { statusCode: 401 });
   }
 
+  // If no tenant specified or tenant not found, use user's first membership
+  let membership = tenant ? user.memberships.find((entry) => entry.tenantId === tenant.id) : null;
+  
+  if (!membership) {
+    if (user.memberships.length === 0) {
+      throw Object.assign(new Error('No workspace found for this account'), { statusCode: 403 });
+    }
+    // Auto-select first tenant
+    membership = user.memberships[0];
+  }
+
+  const selectedTenant = membership.tenant;
+
   const payload = {
     sub: user.id,
-    tenantId: tenant.id,
+    tenantId: selectedTenant.id,
     membershipId: membership.id,
     role: membership.role,
   };
@@ -90,19 +98,23 @@ const login = async (tenant, email, password) => {
   const accessToken = issueAccessToken(payload);
   const refreshToken = issueRefreshToken(payload);
 
-  await prisma.$transaction([
-    prisma.membership.update({
+  await prisma.$transaction(async (tx) => {
+    // Set tenant GUC for RLS-protected Membership updates via SECURITY DEFINER helper
+    await tx.$executeRaw`select app.set_tenant_id(${selectedTenant.id})`;
+    
+    await tx.membership.update({
       where: { id: membership.id },
       data: { refreshToken },
-    }),
-    prisma.user.update({
+    });
+    
+    await tx.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
-    }),
-  ]);
+    });
+  });
 
   return {
-    user: sanitizeUser(user, tenant.id),
+    user: sanitizeUser(user, selectedTenant.id),
     tokens: {
       accessToken,
       refreshToken,
@@ -171,12 +183,17 @@ const register = async (tenantId, data) => {
     throw Object.assign(new Error('User already belongs to tenant'), { statusCode: 409 });
   }
 
-  await prisma.membership.create({
-    data: {
-      tenantId,
-      userId: user.id,
-      role,
-    },
+  await prisma.$transaction(async (tx) => {
+    // Set tenant GUC so Membership RLS policy allows the insert via SECURITY DEFINER helper
+    await tx.$executeRaw`select app.set_tenant_id(${tenantId})`;
+    
+    await tx.membership.create({
+      data: {
+        tenantId,
+        userId: user.id,
+        role,
+      },
+    });
   });
 
   const refreshedUser = await prisma.user.findUnique({
@@ -233,12 +250,6 @@ const signup = async ({
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-  const consentRecord = {
-    agreedAt: new Date().toISOString(),
-    ip: consentMeta.ip ?? null,
-    appVersion: consentMeta.appVersion ?? null,
-  };
-
   const { tenant, user } = await prisma.$transaction(async (tx) => {
     const createdTenant = await tx.tenant.create({
       data: {
@@ -255,12 +266,14 @@ const signup = async ({
       },
     });
 
+    // Set tenant GUC so Membership RLS policy allows the insert via SECURITY DEFINER helper
+    await tx.$executeRaw`select app.set_tenant_id(${createdTenant.id})`;
+
     await tx.membership.create({
       data: {
         tenantId: createdTenant.id,
         userId: createdUser.id,
         role: 'OWNER',
-        localDataConsent: consentRecord,
       },
     });
 
@@ -344,23 +357,45 @@ async function verifyEmail(tokenValue) {
 
   const user = tokenRecord.user;
 
-  const membership = await prisma.membership.findFirst({
-    where: { userId: user.id },
-    include: { tenant: true },
-  });
+  // Query via SECURITY DEFINER helper (bypasses RLS safely)
+  logger.info({ userId: user.id }, 'Querying membership via definer function');
+  const memberships = await prisma.$queryRaw`
+    select * from app.get_first_membership_for_user(${user.id})
+  `;
 
-  if (!membership) {
+  logger.info({ membershipCount: memberships?.length, userId: user.id }, 'Definer membership query result');
+
+  if (!memberships || memberships.length === 0) {
     await prisma.emailVerificationToken.delete({ where: { id: tokenRecord.id } });
     throw Object.assign(new Error('Membership not found for user'), { statusCode: 400 });
   }
 
-  await prisma.$transaction([
-    prisma.user.update({
+  const rawMembership = memberships[0];
+  const membership = {
+    id: rawMembership.membership_id,
+    tenantId: rawMembership.tenantId,
+    userId: rawMembership.userId,
+    role: rawMembership.role,
+    refreshToken: rawMembership.refreshToken,
+    tenant: {
+      id: rawMembership.tenant_id,
+      slug: rawMembership.tenant_slug,
+      name: rawMembership.tenant_name,
+      plan: rawMembership.tenant_plan,
+    },
+  };
+
+  await prisma.$transaction(async (tx) => {
+    // Set tenant GUC for any RLS-protected operations via SECURITY DEFINER helper
+    await tx.$executeRaw`select app.set_tenant_id(${membership.tenantId})`;
+    
+    await tx.user.update({
       where: { id: user.id },
       data: { emailVerified: true, isActive: true },
-    }),
-    prisma.emailVerificationToken.deleteMany({ where: { userId: user.id } }),
-  ]);
+    });
+    
+    await tx.emailVerificationToken.deleteMany({ where: { userId: user.id } });
+  });
 
   const payload = {
     sub: user.id,
@@ -372,9 +407,14 @@ async function verifyEmail(tokenValue) {
   const accessToken = issueAccessToken(payload);
   const refreshToken = issueRefreshToken(payload);
 
-  await prisma.membership.update({
-    where: { id: membership.id },
-    data: { refreshToken },
+  await prisma.$transaction(async (tx) => {
+    // Set tenant GUC for RLS-protected Membership updates via SECURITY DEFINER helper
+    await tx.$executeRaw`select app.set_tenant_id(${membership.tenantId})`;
+    
+    await tx.membership.update({
+      where: { id: membership.id },
+      data: { refreshToken },
+    });
   });
 
   const refreshedUser = await prisma.user.findUnique({

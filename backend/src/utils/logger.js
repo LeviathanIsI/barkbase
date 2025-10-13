@@ -1,18 +1,5 @@
-const pino = require('pino');
-const env = require('../config/env');
-
-const logger = pino({
-  level: env.nodeEnv === 'development' ? 'debug' : 'info',
-  transport:
-    env.nodeEnv === 'development'
-      ? {
-          target: 'pino-pretty',
-          options: {
-            colorize: true,
-            translateTime: 'SYS:standard',
-          },
-        }
-      : undefined,
-});
+const { logger, withTenant, withReq } = require('../lib/logger');
 
 module.exports = logger;
+module.exports.withTenant = (tenantId) => withTenant(logger, tenantId);
+module.exports.withReq = (reqId) => withReq(logger, reqId);

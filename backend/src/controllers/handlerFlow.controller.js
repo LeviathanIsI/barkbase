@@ -1,132 +1,291 @@
 const handlerFlowService = require('../services/handlerFlow.service');
 
-const ensurePlanAllowsFlow = (plan, trigger, steps) => {
-  const currentPlan = (plan ?? 'FREE').toUpperCase();
-
-  if (currentPlan === 'FREE') {
-    if ((trigger?.type ?? 'event') === 'schedule') {
-      const err = new Error('Schedule triggers require BarkBase Pro or higher.');
-      err.statusCode = 403;
-      throw err;
-    }
-
-    const invalidAction = steps?.find(
-      (step) =>
-        step.kind === 'action' &&
-        !['record.update', 'note.append'].includes(step.config?.actionType ?? 'record.update'),
-    );
-
-    if (invalidAction) {
-      const err = new Error(`Action ${invalidAction.config?.actionType} is unavailable on the Free plan.`);
-      err.statusCode = 403;
-      throw err;
-    }
-
-    const hasDelay = steps?.some((step) => step.kind === 'delay');
-    if (hasDelay) {
-      const err = new Error('Delay steps require BarkBase Pro or higher.');
-      err.statusCode = 403;
-      throw err;
-    }
-  } else if (currentPlan === 'PRO') {
-    const invalidEnterpriseAction = steps?.find(
-      (step) => step.kind === 'action' && step.config?.actionType === 'sms.send',
-    );
-    if (invalidEnterpriseAction) {
-      const err = new Error('SMS automations are only available on BarkBase Enterprise.');
-      err.statusCode = 403;
-      throw err;
-    }
-  }
-};
-
-const createDraft = async (req, res, next) => {
+/**
+ * Create a new draft flow
+ */
+const createFlow = async (req, res, next) => {
   try {
-    const { name, trigger, steps, definition } = req.body ?? {};
-    ensurePlanAllowsFlow(req.tenantPlan, trigger, steps);
-    const flow = await handlerFlowService.createDraftFlow({
+    const { name, description, definition } = req.body || {};
+
+    if (!definition) {
+      return res.status(400).json({ error: 'Flow definition is required' });
+    }
+
+    const flow = await handlerFlowService.createFlow({
       tenantId: req.tenantId,
       name,
-      trigger,
-      steps,
+      description,
       definition,
-      userId: req.user?.id,
     });
+
     return res.status(201).json(flow);
   } catch (error) {
     return next(error);
   }
 };
 
-const publish = async (req, res, next) => {
+/**
+ * Update an existing flow
+ */
+const updateFlow = async (req, res, next) => {
   try {
     const { flowId } = req.params;
-    const flow = await handlerFlowService.publishFlow({
+    const { name, description, status, definition } = req.body || {};
+
+    const flow = await handlerFlowService.updateFlow({
       tenantId: req.tenantId,
       flowId,
-      userId: req.user?.id,
+      name,
+      description,
+      status,
+      definition,
     });
+
     return res.json(flow);
   } catch (error) {
     return next(error);
   }
 };
 
-const list = async (req, res, next) => {
+/**
+ * Publish a flow (turn it on)
+ */
+const publishFlow = async (req, res, next) => {
   try {
+    const { flowId } = req.params;
+
+    const flow = await handlerFlowService.publishFlow({
+      tenantId: req.tenantId,
+      flowId,
+    });
+
+    return res.json(flow);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * List flows
+ */
+const listFlows = async (req, res, next) => {
+  try {
+    const { status } = req.query;
+
     const flows = await handlerFlowService.listFlows({
       tenantId: req.tenantId,
-      status: req.query.status,
+      status,
     });
+
     return res.json(flows);
   } catch (error) {
     return next(error);
   }
 };
 
-const getById = async (req, res, next) => {
+/**
+ * Get a single flow by ID
+ */
+const getFlowById = async (req, res, next) => {
   try {
+    const { flowId } = req.params;
+
     const flow = await handlerFlowService.getFlowById({
       tenantId: req.tenantId,
-      flowId: req.params.flowId,
+      flowId,
     });
+
     return res.json(flow);
   } catch (error) {
     return next(error);
   }
 };
 
+/**
+ * Delete a flow
+ */
+const deleteFlow = async (req, res, next) => {
+  try {
+    const { flowId } = req.params;
+
+    const result = await handlerFlowService.deleteFlow({
+      tenantId: req.tenantId,
+      flowId,
+    });
+
+    return res.json(result);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * Manual run trigger
+ */
 const manualRun = async (req, res, next) => {
   try {
+    const { flowId } = req.params;
+    const { payload, idempotencyKey } = req.body || {};
+
     const result = await handlerFlowService.manualRun({
       tenantId: req.tenantId,
-      flowId: req.params.flowId,
-      payload: req.body?.payload ?? {},
-      idempotencyKey: req.body?.idempotencyKey,
+      flowId,
+      payload: payload || {},
+      idempotencyKey,
     });
+
     return res.status(result.created ? 201 : 200).json(result);
   } catch (error) {
     return next(error);
   }
 };
 
+/**
+ * Get run logs
+ */
 const getRunLogs = async (req, res, next) => {
   try {
+    const { runId } = req.params;
+
     const logs = await handlerFlowService.getRunLogs({
       tenantId: req.tenantId,
-      runId: req.params.runId,
+      runId,
     });
+
     return res.json(logs);
   } catch (error) {
     return next(error);
   }
 };
 
+/**
+ * Get run details
+ */
+const getRunById = async (req, res, next) => {
+  try {
+    const { runId } = req.params;
+
+    const run = await handlerFlowService.getRunById({
+      tenantId: req.tenantId,
+      runId,
+    });
+
+    return res.json(run);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+/**
+ * Validate a flow definition without creating it
+ */
+const validateFlow = async (req, res, next) => {
+  try {
+    const { definition } = req.body || {};
+
+    if (!definition) {
+      return res.status(400).json({ error: 'Flow definition is required' });
+    }
+
+    // Validation checks
+    const errors = [];
+
+    // Check meta
+    if (!definition.meta || !definition.meta.name) {
+      errors.push('definition.meta.name is required');
+    }
+
+    // Check trigger
+    if (!definition.trigger) {
+      errors.push('definition.trigger is required');
+    }
+
+    // Check nodes
+    if (!Array.isArray(definition.nodes) || definition.nodes.length === 0) {
+      errors.push('definition.nodes must be a non-empty array');
+    } else {
+      // Check for trigger node
+      const triggerNode = definition.nodes.find(n => n.type === 'trigger');
+      if (!triggerNode) {
+        errors.push('Flow must have a trigger node');
+      }
+
+      // Check for duplicate node IDs
+      const nodeIds = definition.nodes.map(n => n.id);
+      const duplicates = nodeIds.filter((id, index) => nodeIds.indexOf(id) !== index);
+      if (duplicates.length > 0) {
+        errors.push(`Duplicate node IDs found: ${duplicates.join(', ')}`);
+      }
+
+      // Validate each node has required fields
+      definition.nodes.forEach((node, index) => {
+        if (!node.id) {
+          errors.push(`Node at index ${index} is missing id`);
+        }
+        if (!node.type) {
+          errors.push(`Node ${node.id || index} is missing type`);
+        }
+        if (!node.data) {
+          errors.push(`Node ${node.id || index} is missing data`);
+        }
+      });
+    }
+
+    // Check edges
+    if (!Array.isArray(definition.edges)) {
+      errors.push('definition.edges must be an array');
+    } else {
+      // Check for dangling edges (edges pointing to non-existent nodes)
+      const nodeIds = new Set(definition.nodes.map(n => n.id));
+      definition.edges.forEach((edge, index) => {
+        if (!nodeIds.has(edge.source)) {
+          errors.push(`Edge ${index} has invalid source node: ${edge.source}`);
+        }
+        if (!nodeIds.has(edge.target)) {
+          errors.push(`Edge ${index} has invalid target node: ${edge.target}`);
+        }
+      });
+
+      // Check for cycles (simplified check)
+      // This is a basic check - a full cycle detection would be more complex
+      const hasMultipleOutgoingFromNonBranch = definition.nodes.some(node => {
+        if (node.type === 'branch' || node.type === 'condition') {
+          return false; // These can have multiple outgoing edges
+        }
+        const outgoing = definition.edges.filter(e => e.source === node.id);
+        return outgoing.length > 1;
+      });
+
+      if (hasMultipleOutgoingFromNonBranch) {
+        errors.push('Non-branch/condition nodes cannot have multiple outgoing edges');
+      }
+    }
+
+    if (errors.length > 0) {
+      return res.status(400).json({
+        valid: false,
+        errors,
+      });
+    }
+
+    return res.json({
+      valid: true,
+      message: 'Flow definition is valid',
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 module.exports = {
-  createDraft,
-  publish,
-  list,
-  getById,
+  createFlow,
+  updateFlow,
+  publishFlow,
+  listFlows,
+  getFlowById,
+  deleteFlow,
   manualRun,
   getRunLogs,
+  getRunById,
+  validateFlow,
 };

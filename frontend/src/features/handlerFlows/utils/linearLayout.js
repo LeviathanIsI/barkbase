@@ -221,7 +221,57 @@ export const cloneNode = (nodes, nodeId) => {
 };
 
 /**
- * Validates linear mode constraints
+ * Creates or updates an edge between nodes (idempotent)
+ * @param {Array} edges - Current edges
+ * @param {string} sourceId - Source node ID
+ * @param {string} targetId - Target node ID
+ * @param {string} sourceHandle - Optional source handle (e.g., 'true', 'false', 'branch-0')
+ * @param {string} label - Optional edge label
+ * @returns {Object} New or updated edge
+ */
+export const createOrUpdateEdge = (edges, sourceId, targetId, sourceHandle = null, label = null) => {
+  const edgeId = sourceHandle
+    ? `e${sourceId}-${sourceHandle}-${targetId}`
+    : `e${sourceId}-${targetId}`;
+
+  const existingEdge = edges.find(e => e.id === edgeId);
+
+  const edge = {
+    id: edgeId,
+    source: sourceId,
+    target: targetId,
+    sourceHandle: sourceHandle || undefined,
+    label: label || undefined,
+    animated: true,
+    type: 'linear',
+  };
+
+  if (existingEdge) {
+    // Update existing edge
+    return edges.map(e => e.id === edgeId ? edge : e);
+  } else {
+    // Add new edge
+    return [...edges, edge];
+  }
+};
+
+/**
+ * Get the next linear node in sequence
+ * @param {Array} nodes - All nodes sorted by stepIndex
+ * @param {number} currentStepIndex - Current node's stepIndex
+ * @returns {Object|null} Next node or null
+ */
+export const nextLinearNode = (nodes, currentStepIndex) => {
+  const sorted = sortByStepIndex(nodes);
+  const currentIndex = sorted.findIndex(n => n.data.stepIndex === currentStepIndex);
+  if (currentIndex >= 0 && currentIndex < sorted.length - 1) {
+    return sorted[currentIndex + 1];
+  }
+  return null;
+};
+
+/**
+ * Validates linear mode constraints (now allows branching)
  */
 export const validateLinearMode = (nodes, edges) => {
   const errors = [];
@@ -241,17 +291,7 @@ export const validateLinearMode = (nodes, edges) => {
     errors.push('Must have exactly one entry node');
   }
 
-  // Check for single outgoing edge per node
-  const outgoingCount = new Map();
-  edges.forEach((edge) => {
-    outgoingCount.set(edge.source, (outgoingCount.get(edge.source) || 0) + 1);
-  });
-
-  outgoingCount.forEach((count, nodeId) => {
-    if (count > 1) {
-      errors.push(`Node ${nodeId} has more than one outgoing edge`);
-    }
-  });
+  // No longer check for single outgoing edge - branching is now allowed
 
   return {
     isValid: errors.length === 0,

@@ -18,7 +18,7 @@ export const queryKeys = {
   bookings: (tenantKey, filters = {}) => [tenantKey, 'bookings', filters],
   pets: (tenantKey, filters = {}) => [tenantKey, 'pets', filters],
   kennels: (tenantKey, params = {}) => [tenantKey, 'kennels', params],
-  owners: (tenantKey) => [tenantKey, 'owners'],
+  owners: (tenantKey, params = {}) => [tenantKey, 'owners', params],
   payments: (tenantKey, params = {}) => [tenantKey, 'payments', params],
   paymentsSummary: (tenantKey) => [tenantKey, 'payments', 'summary'],
   incidents: (tenantKey, params = {}) => [tenantKey, 'incidents', params],

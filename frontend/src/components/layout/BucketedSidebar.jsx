@@ -25,29 +25,33 @@ import {
   FileSearch,
   Settings as SettingsIcon,
   ChevronRight,
+  ChevronLeft,
+  PanelLeftClose,
+  PanelLeft,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useTenantStore } from '@/stores/tenant';
 import { useAuthStore } from '@/stores/auth';
+import { useUIStore } from '@/stores/ui';
 import { can } from '@/lib/acl';
 import { useNavBucketTracking } from '@/hooks/useTelemetry';
 
 // Navigation structure with buckets
 const navigationBuckets = [
   {
-    id: 'dashboard',
-    label: 'Dashboard',
+    id: 'home',
+    label: 'Home',
     icon: LayoutDashboard,
     items: [
       { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     ],
   },
   {
-    id: 'operations',
-    label: 'Operations',
+    id: 'kennel',
+    label: 'Kennel',
     icon: CalendarCheck2,
     items: [
-      { to: '/bookings', label: 'Bookings', icon: CalendarCheck2 },
+      { to: '/bookings', label: 'Reservations', icon: CalendarCheck2 },
       { to: '/calendar', label: 'Calendar', icon: Calendar },
       { to: '/runs', label: 'Run Assignment', icon: Home },
       { to: '/feeding-meds', label: 'Feeding & Meds', icon: Pill },
@@ -55,35 +59,44 @@ const navigationBuckets = [
     ],
   },
   {
-    id: 'billing',
-    label: 'Billing',
+    id: 'pack',
+    label: 'The Pack',
+    icon: PawPrint,
+    items: [
+      { to: '/pets', label: 'Pets', icon: PawPrint },
+      { to: '/owners', label: 'Owners', icon: Users },
+    ],
+  },
+  {
+    id: 'money',
+    label: 'Money',
     icon: CreditCard,
     items: [
       { to: '/invoices', label: 'Invoices', icon: FileText },
       { to: '/payments', label: 'Payments', icon: CreditCard, permission: 'viewPayments' },
-      { to: '/reports', label: 'Reports', icon: BarChart3, permission: 'viewReports' },
-      { to: '/pricing-rules', label: 'Pricing Rules', icon: DollarSign },
+      { to: '/reports', label: 'Insights', icon: BarChart3, permission: 'viewReports' },
+      { to: '/pricing-rules', label: 'Pricing', icon: DollarSign },
     ],
   },
   {
-    id: 'automations',
-    label: 'Automations',
+    id: 'handlers',
+    label: 'Handlers',
     icon: Workflow,
     items: [
-      { to: '/handler-flows', label: 'Handler Flows', icon: Workflow, permission: 'manageTenant' },
-      { to: '/automations/follow-ups', label: 'Follow-ups (Sequences)', icon: Mail, featureFlag: 'sequences' },
+      { to: '/handler-flows', label: 'Flows', icon: Workflow, permission: 'manageTenant' },
+      { to: '/automations/follow-ups', label: 'Follow-ups', icon: Mail, featureFlag: 'sequences' },
       { to: '/automations/webhooks', label: 'Webhooks', icon: Webhook },
       { to: '/automations/custom-code', label: 'Custom Code', icon: Code, featureFlag: 'customCode' },
     ],
   },
   {
-    id: 'support',
-    label: 'Support',
+    id: 'helpdesk',
+    label: 'Help Desk',
     icon: TicketIcon,
     items: [
-      { to: '/support/tickets', label: 'Tickets (Issues)', icon: TicketIcon },
-      { to: '/support/knowledge-base', label: 'Knowledge Base (Help Center)', icon: BookOpen },
-      { to: '/support/logs', label: 'Logs & Audit', icon: FileSearch },
+      { to: '/support/tickets', label: 'Tickets', icon: TicketIcon },
+      { to: '/support/knowledge-base', label: 'Knowledge Base', icon: BookOpen },
+      { to: '/support/logs', label: 'Activity Logs', icon: FileSearch },
     ],
   },
   {
@@ -102,6 +115,7 @@ const navigationBuckets = [
 const BucketedSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
   const tenant = useTenantStore((state) => state.tenant);
   const role = useAuthStore((state) => state.role);
+  const toggleSidebar = useUIStore((state) => state.toggleSidebar);
   const location = useLocation();
   const [openBucket, setOpenBucket] = useState(null);
   const [openGroups, setOpenGroups] = useState({});
@@ -123,6 +137,9 @@ const BucketedSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
   }, [tenant?.slug]);
 
   const toggleBucket = useCallback((bucketId) => {
+    // Don't toggle buckets if sidebar is collapsed (unless mobile)
+    if (collapsed && !isMobile) return;
+
     setOpenBucket((prev) => {
       const newState = prev === bucketId ? null : bucketId;
       trackNavBucket(bucketId, newState !== null);
@@ -131,7 +148,14 @@ const BucketedSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
       }
       return newState;
     });
-  }, [tenant?.slug, trackNavBucket]);
+  }, [tenant?.slug, trackNavBucket, collapsed, isMobile]);
+
+  // Close open buckets when sidebar is collapsed
+  useEffect(() => {
+    if (collapsed && !isMobile) {
+      setOpenBucket(null);
+    }
+  }, [collapsed, isMobile]);
 
   // Filter items based on permissions and feature flags
   const canViewItem = useCallback((item) => {
@@ -179,19 +203,56 @@ const BucketedSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
       )}
     >
       {/* Logo/Brand */}
-      <div className="flex items-center gap-3 border-b border-border/60 px-5 py-4">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
-          {tenant?.assets?.logo ? (
-            <img src={tenant.assets.logo} alt={`${tenant.name} logo`} className="h-10 w-10 rounded-lg object-cover" />
-          ) : (
-            <span className="text-lg font-bold">BB</span>
-          )}
-        </div>
-        {!collapsed && (
-          <div>
-            <p className="text-sm font-semibold text-text">{tenant?.name ?? 'BarkBase'}</p>
-            <span className="text-xs text-muted">{tenant?.plan ?? 'FREE'}</span>
+      <div className={cn(
+        "flex items-center border-b border-border/60 py-4 transition-all",
+        collapsed && !isMobile ? "justify-center px-2" : "justify-between gap-3 px-5"
+      )}>
+        {collapsed && !isMobile ? (
+          // Collapsed state - just show the logo/icon centered
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15 text-primary">
+              {tenant?.assets?.logo ? (
+                <img src={tenant.assets.logo} alt={`${tenant.name} logo`} className="h-10 w-10 rounded-lg object-cover" />
+              ) : (
+                <span className="text-lg font-bold">BB</span>
+              )}
+            </div>
+            <button
+              onClick={toggleSidebar}
+              className="rounded-lg p-1 text-muted transition-colors hover:bg-primary/10 hover:text-primary"
+              aria-label="Expand sidebar"
+              title="Expand sidebar"
+            >
+              <PanelLeft className="h-4 w-4" />
+            </button>
           </div>
+        ) : (
+          // Expanded state - show logo, name, and collapse button
+          <>
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                {tenant?.assets?.logo ? (
+                  <img src={tenant.assets.logo} alt={`${tenant.name} logo`} className="h-10 w-10 rounded-lg object-cover" />
+                ) : (
+                  <span className="text-lg font-bold">BB</span>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-text truncate">{tenant?.name ?? 'BarkBase'}</p>
+                <span className="text-xs text-muted">{tenant?.plan ?? 'FREE'}</span>
+              </div>
+            </div>
+            {!isMobile && (
+              <button
+                onClick={toggleSidebar}
+                className="flex-shrink-0 rounded-lg p-1.5 text-muted transition-colors hover:bg-primary/10 hover:text-primary"
+                aria-label="Collapse sidebar"
+                title="Collapse sidebar"
+              >
+                <PanelLeftClose className="h-5 w-5" />
+              </button>
+            )}
+          </>
         )}
       </div>
 
@@ -203,7 +264,7 @@ const BucketedSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
           const BucketIcon = bucket.icon;
 
           // If bucket has only one item, render it directly without flyout
-          if (bucket.items.length === 1 && bucket.id === 'dashboard') {
+          if (bucket.items.length === 1 && bucket.id === 'home') {
             const item = bucket.items[0];
             const ItemIcon = item.icon;
             return (

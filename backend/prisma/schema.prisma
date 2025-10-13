@@ -5,8 +5,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")  // pooler @ 6543 (runtime)
+  directUrl = env("DIRECT_URL")    // direct @ 5432 (migrate)
 }
 
 enum TenantPlan {
@@ -120,6 +121,12 @@ model Tenant {
   checkOuts       CheckOut[]
   incidentReports IncidentReport[]
   customProperties CustomProperty[]
+  associationDefinitions AssociationDefinition[]
+  handlerFlows    HandlerFlow[]
+  handlerRuns     HandlerRun[]
+  handlerRunLogs  HandlerRunLog[]
+  handlerJobs     HandlerJob[]
+  handlerEvents   HandlerEvent[]
   @@index([slug])
 }
 
@@ -536,5 +543,129 @@ model CustomProperty {
   @@index([tenantId, objectType, archived])
 }
 
+model AssociationDefinition {
+  id              String    @id @default(cuid())
+  tenantId        String
+  label           String    // Label shown from fromObject perspective
+  reverseLabel    String?   // Label shown from toObject perspective (null if single label)
+  isPaired        Boolean   @default(false) // true if different labels for each direction
+  fromObjectType  String    // e.g., "pet", "owner", "booking"
+  toObjectType    String    // e.g., "owner", "booking", "pet"
+  limitType       String    // "ONE_TO_ONE", "ONE_TO_MANY", "MANY_TO_MANY"
+  isSystemDefined Boolean   @default(false)
+  createdById     String?
+  usageCount      Int       @default(0)
+  archived        Boolean   @default(false)
+  archivedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, fromObjectType, toObjectType, label])
+  @@index([tenantId, fromObjectType, toObjectType])
+  @@index([tenantId, archived])
+}
+
+// Handler Flow models (workflows/automations)
+model HandlerFlow {
+  id              String    @id @default(cuid())
+  tenantId        String
+  name            String
+  description     String?
+  status          String    @default("draft") // 'draft' | 'on' | 'off'
+  definition      Json      // FlowDefinition schema (nodes, edges, trigger config)
+  version         Int       @default(1)
+  lastPublishedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  runs            HandlerRun[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, updatedAt])
+}
+
+model HandlerRun {
+  id              String    @id @default(cuid())
+  flowId          String
+  tenantId        String
+  status          String    @default("queued") // 'queued' | 'running' | 'paused' | 'succeeded' | 'failed' | 'canceled'
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  currentNodeId   String?
+  context         Json      // Evaluation context (enrollment payload + mutations)
+  idempotencyKey  String?
+  triggerType     String    // 'manual' | 'criteria' | 'schedule'
+  reEnrollCount   Int       @default(0)
+  errorMessage    String?
+  retryCount      Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  flow            HandlerFlow     @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  logs            HandlerRunLog[]
+  jobs            HandlerJob[]
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, flowId])
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+}
+
+model HandlerEvent {
+  id             String   @id @default(cuid())
+  tenantId       String
+  eventType      String
+  idempotencyKey String
+  payload        Json?
+  runs           Json?
+  createdAt      DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@unique([tenantId, idempotencyKey])
+}
+
+model HandlerRunLog {
+  id        String   @id @default(cuid())
+  runId     String
+  tenantId  String
+  ts        DateTime @default(now())
+  level     String   // 'debug' | 'info' | 'warn' | 'error'
+  nodeId    String?
+  message   String
+  details   Json?
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  run       HandlerRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, runId, ts])
+  @@index([runId])
+}
+
+model HandlerJob {
+  id          String    @id @default(cuid())
+  tenantId    String
+  runId       String
+  nodeId      String?
+  dueAt       DateTime
+  lockedBy    String?
+  lockedAt    DateTime?
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(3)
+  payload     Json?
+  createdAt   DateTime  @default(now())
+
+  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  run         HandlerRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, dueAt])
+  @@index([dueAt, lockedBy])
+  @@index([runId])
+}
 
 

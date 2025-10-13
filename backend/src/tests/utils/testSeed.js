@@ -3,6 +3,13 @@ const prisma = require('../../config/prisma');
 const tenantContext = require('../../middleware/tenantContext');
 
 const wipeDatabase = async () => {
+  await prisma.handlerRunLog.deleteMany();
+  await prisma.handlerJob.deleteMany();
+  await prisma.handlerRun.deleteMany();
+  await prisma.handlerFlow.deleteMany();
+  if (prisma.handlerEvent) {
+    await prisma.handlerEvent.deleteMany();
+  }
   await prisma.auditLog.deleteMany();
   await prisma.usageCounter.deleteMany();
   await prisma.bookingService.deleteMany();

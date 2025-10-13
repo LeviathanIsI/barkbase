@@ -1,5 +1,5 @@
 const bcrypt = require('bcryptjs');
-const { prisma } = require('../config/prisma');
+const prisma = require('../config/prisma');
 
 /**
  * Get user profile by ID

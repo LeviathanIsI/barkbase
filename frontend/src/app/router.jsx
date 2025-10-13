@@ -17,6 +17,8 @@ const Bookings = lazy(() => import("@/features/bookings/routes/Bookings"));
 const Calendar = lazy(() => import("@/features/calendar/routes/Calendar"));
 const Pets = lazy(() => import("@/features/pets/routes/Pets"));
 const Owners = lazy(() => import("@/features/owners/routes/Owners"));
+const OwnerDetail = lazy(() => import("@/features/owners/routes/OwnerDetail"));
+const PetDetail = lazy(() => import("@/features/pets/routes/PetDetail"));
 const Payments = lazy(() => import("@/features/payments/routes/Payments"));
 const Reports = lazy(() => import("@/features/reports/routes/Reports"));
 const Admin = lazy(() => import("@/features/admin/routes/Admin"));
@@ -51,9 +53,6 @@ const SettingsGeneral = lazy(() =>
 );
 const SettingsNotifications = lazy(() =>
   import("@/features/settings/routes/Notifications")
-);
-const SettingsAppearance = lazy(() =>
-  import("@/features/settings/routes/Appearance")
 );
 const SettingsSecurity = lazy(() =>
   import("@/features/settings/routes/Security")
@@ -212,6 +211,15 @@ const PropertiesSettings = lazy(() =>
 const PropertyDetail = lazy(() =>
   import("@/features/settings/routes/PropertyDetail")
 );
+const AssociationsSettings = lazy(() =>
+  import("@/features/settings/routes/AssociationsSettings")
+);
+const PetsAssociations = lazy(() =>
+  import("@/features/objects/routes/PetsAssociations")
+);
+const OwnersAssociations = lazy(() =>
+  import("@/features/objects/routes/OwnersAssociations")
+);
 
 export const router = createBrowserRouter([
   {
@@ -234,7 +242,9 @@ export const router = createBrowserRouter([
               { path: "bookings", element: <Bookings /> },
               { path: "calendar", element: <Calendar /> },
               { path: "pets", element: <Pets /> },
+              { path: "pets/:petId", element: <PetDetail /> },
               { path: "owners", element: <Owners /> },
+              { path: "owners/:ownerId", element: <OwnerDetail /> },
               { path: "payments", element: <Payments /> },
               { path: "reports", element: <Reports /> },
               // Operations
@@ -291,7 +301,6 @@ export const router = createBrowserRouter([
                   { path: "profile", element: <SettingsProfile /> },
                   { path: "general", element: <SettingsGeneral /> },
                   { path: "notifications", element: <SettingsNotifications /> },
-                  { path: "appearance", element: <SettingsAppearance /> },
                   { path: "security", element: <SettingsSecurity /> },
 
                   // Account Management
@@ -375,7 +384,9 @@ export const router = createBrowserRouter([
                   { path: "properties/:objectType/:propertyId", element: <PropertyDetail /> },
                   { path: "objects", element: <Navigate to="objects/pets" replace /> },
                   { path: "objects/pets", element: <PetsSetup /> },
+                  { path: "objects/pets/associations", element: <PetsAssociations /> },
                   { path: "objects/owners", element: <OwnersSetup /> },
+                  { path: "objects/owners/associations", element: <OwnersAssociations /> },
                   { path: "objects/bookings", element: <BookingsSetup /> },
                   { path: "objects/facilities", element: <FacilitiesSetup /> },
                   { path: "objects/services", element: <ServicesSetup /> },

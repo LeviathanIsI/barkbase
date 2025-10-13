@@ -41,15 +41,15 @@ const WorkflowCanvas = ({
 
   const onConnect = useCallback(
     (params) => {
-      // Linear mode constraint: Each node can only have ONE outgoing edge
-      const existingOutgoing = edges.filter(e => e.source === params.source);
-      if (existingOutgoing.length > 0) {
-        console.warn('Linear mode: Each step can only have one outgoing edge. Remove existing connection first.');
-        return; // Reject connection
-      }
+      // Allow multiple edges for branching support
+      const newEdge = {
+        ...params,
+        type: 'linear',
+        animated: true,
+      };
 
-      setEdges((eds) => addEdge(params, eds));
-      onEdgesChangeProp?.(addEdge(params, edges));
+      setEdges((eds) => addEdge(newEdge, eds));
+      onEdgesChangeProp?.(addEdge(newEdge, edges));
     },
     [setEdges, edges, onEdgesChangeProp]
   );
@@ -84,7 +84,7 @@ const WorkflowCanvas = ({
         fitView
         defaultZoom={zoom / 100}
         nodesDraggable={false}
-        nodesConnectable={false}
+        nodesConnectable={true}
         elementsSelectable={true}
         className="bg-background"
       >

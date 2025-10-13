@@ -1,7 +1,10 @@
 const path = require('path');
 const dotenv = require('dotenv');
+const { getDatabaseUrl } = require('./databaseUrl');
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
+const resolvedDatabaseUrl = getDatabaseUrl();
 
 const uploadsRoot = path.resolve(process.cwd(), process.env.UPLOADS_ROOT ?? './uploads');
 const dataRoot = path.resolve(process.cwd(), process.env.DATA_ROOT ?? process.env.UPLOADS_ROOT ?? './uploads');
@@ -23,9 +26,13 @@ module.exports = {
   port: parseNumber(process.env.PORT, 4000),
   host: process.env.HOST ?? '0.0.0.0',
   database: {
-    url: process.env.DATABASE_URL,
-    provider: process.env.DATABASE_PROVIDER ?? 'sqlite',
+    url: resolvedDatabaseUrl,
+    provider: process.env.DATABASE_PROVIDER ?? 'postgresql',
     hostedUrl: process.env.HOSTED_DATABASE_URL ?? null,
+    devUrl: process.env.DEV_DATABASE_URL ?? null,
+    prodUrl: process.env.PROD_DATABASE_URL ?? null,
+    directUrl: process.env.DIRECT_URL ?? null,
+    shadowUrl: process.env.SHADOW_DATABASE_URL ?? null,
   },
   tokens: {
     accessSecret: process.env.JWT_SECRET ?? 'changeme',

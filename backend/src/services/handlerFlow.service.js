@@ -1,425 +1,647 @@
 const crypto = require('crypto');
-const { resolvePlanFeatures } = require('../lib/features');
-const { getClientOrThrow, mapError } = require('../lib/supabaseAdmin');
+const { forTenant } = require('../lib/tenantPrisma');
+const prisma = require('../config/prisma');
 
+// Flow statuses
 const STATUS = {
   DRAFT: 'draft',
-  PUBLISHED: 'published',
-  ARCHIVED: 'archived',
+  ON: 'on',
+  OFF: 'off',
 };
 
+// Run statuses
 const RUN_STATUS = {
   QUEUED: 'queued',
+  RUNNING: 'running',
+  PAUSED: 'paused',
+  SUCCEEDED: 'succeeded',
+  FAILED: 'failed',
+  CANCELED: 'canceled',
 };
 
+// Trigger types
 const TRIGGER_TYPES = {
-  EVENT: 'event',
-  SCHEDULE: 'schedule',
   MANUAL: 'manual',
+  CRITERIA: 'criteria',
+  SCHEDULE: 'schedule',
 };
 
-const STEP_KINDS = ['condition', 'action', 'delay', 'branch'];
-
-const sanitizeSteps = (steps = [], flowId, tenantId) =>
-  steps.map((step) => ({
-    id: step.id || crypto.randomUUID(),
-    tenant_id: tenantId,
-    flow_id: flowId,
-    kind: STEP_KINDS.includes(step.kind) ? step.kind : 'action',
-    name: step.name || 'Step',
-    config: step.config ?? {},
-    next_id: step.nextId ?? null,
-    alt_next_id: step.altNextId ?? null,
-  }));
-
-const hashPayload = (payload) =>
-  crypto.createHash('sha256').update(JSON.stringify(payload ?? {})).digest('hex');
-
-const buildRunKey = (flowId, flowVersion, idempotencyKey) =>
-  `${flowId}:${flowVersion}:${idempotencyKey}`;
-
-const ensureEntryStep = (definition) => {
-  if (!definition || !definition.entryStepId) {
-    throw Object.assign(new Error('definition.entryStepId is required'), { statusCode: 400 });
+/**
+ * Validate flow definition structure
+ */
+const validateFlowDefinition = (definition) => {
+  if (!definition) {
+    throw Object.assign(new Error('Flow definition is required'), { statusCode: 400 });
   }
+
+  if (!definition.meta || !definition.meta.name) {
+    throw Object.assign(new Error('Flow definition.meta.name is required'), { statusCode: 400 });
+  }
+
+  if (!definition.trigger) {
+    throw Object.assign(new Error('Flow definition.trigger is required'), { statusCode: 400 });
+  }
+
+  if (!Array.isArray(definition.nodes) || definition.nodes.length === 0) {
+    throw Object.assign(new Error('Flow definition must have at least one node'), { statusCode: 400 });
+  }
+
+  if (!Array.isArray(definition.edges)) {
+    throw Object.assign(new Error('Flow definition.edges must be an array'), { statusCode: 400 });
+  }
+
+  // Ensure there's a trigger node
+  const triggerNode = definition.nodes.find(n => n.type === 'trigger');
+  if (!triggerNode) {
+    throw Object.assign(new Error('Flow must have a trigger node'), { statusCode: 400 });
+  }
+
+  return true;
 };
 
-const createDraftFlow = async ({ tenantId, name, trigger, steps = [], definition = {}, userId }) => {
-  const supabase = getClientOrThrow();
+/**
+ * Create a new draft flow
+ */
+const createFlow = async ({ tenantId, name, description, definition }) => {
+  validateFlowDefinition(definition);
 
-  ensureEntryStep(definition);
+  const db = forTenant(tenantId);
 
-  const flowInsert = {
-    tenant_id: tenantId,
-    name,
-    status: STATUS.DRAFT,
-    definition,
-    version: definition.version ?? 1,
-    created_by: userId ?? null,
-    updated_by: userId ?? null,
-  };
+  const flow = await db.handlerFlow.create({
+    data: {
+      name: name || definition.meta.name,
+      description: description || definition.meta.description || null,
+      status: STATUS.DRAFT,
+      definition,
+      version: 1,
+    },
+  });
 
-  const { data: flowData, error: flowError } = await supabase
-    .from('handler_flows')
-    .insert(flowInsert)
-    .select()
-    .single();
-  if (flowError) throw mapError(flowError);
-
-  const triggerInsert = {
-    tenant_id: tenantId,
-    flow_id: flowData.id,
-    type: trigger?.type ?? TRIGGER_TYPES.EVENT,
-    config: trigger?.config ?? {},
-  };
-
-  const { error: triggerError } = await supabase.from('handler_triggers').insert(triggerInsert);
-  if (triggerError) throw mapError(triggerError);
-
-  if (Array.isArray(steps) && steps.length > 0) {
-    const stepInsert = sanitizeSteps(steps, flowData.id, tenantId);
-    const { error: stepError } = await supabase.from('handler_steps').insert(stepInsert);
-    if (stepError) throw mapError(stepError);
-  }
-
-  return flowData;
+  return flow;
 };
 
-const publishFlow = async ({ tenantId, flowId, userId }) => {
-  const supabase = getClientOrThrow();
+/**
+ * Update an existing flow
+ */
+const updateFlow = async ({ tenantId, flowId, name, description, status, definition }) => {
+  const db = forTenant(tenantId);
 
-  const { data: flow, error: flowError } = await supabase
-    .from('handler_flows')
-    .select('id, status')
-    .eq('tenant_id', tenantId)
-    .eq('id', flowId)
-    .single();
-  if (flowError) throw mapError(flowError);
-
-  if (flow.status === STATUS.PUBLISHED) {
-    return flow;
+  // If updating definition, validate it
+  if (definition) {
+    validateFlowDefinition(definition);
   }
 
-  const { data: updated, error: updateError } = await supabase
-    .from('handler_flows')
-    .update({
-      status: STATUS.PUBLISHED,
-      updated_by: userId ?? null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('tenant_id', tenantId)
-    .eq('id', flowId)
-    .select()
-    .single();
-  if (updateError) throw mapError(updateError);
+  const updateData = {};
+  if (name !== undefined) updateData.name = name;
+  if (description !== undefined) updateData.description = description;
+  if (status !== undefined) updateData.status = status;
+  if (definition !== undefined) updateData.definition = definition;
+
+  const flow = await db.handlerFlow.update({
+    where: { id: flowId },
+    data: updateData,
+  });
+
+  return flow;
+};
+
+/**
+ * Publish a flow (turn it on)
+ */
+const publishFlow = async ({ tenantId, flowId }) => {
+  const db = forTenant(tenantId);
+
+  const flow = await db.handlerFlow.findUnique({
+    where: { id: flowId },
+  });
+
+  if (!flow) {
+    throw Object.assign(new Error('Flow not found'), { statusCode: 404 });
+  }
+
+  // Validate definition before publishing
+  validateFlowDefinition(flow.definition);
+
+  const updated = await db.handlerFlow.update({
+    where: { id: flowId },
+    data: {
+      status: STATUS.ON,
+      lastPublishedAt: new Date(),
+    },
+  });
 
   return updated;
 };
 
+/**
+ * List flows for a tenant
+ */
 const listFlows = async ({ tenantId, status }) => {
-  const supabase = getClientOrThrow();
-  let query = supabase
-    .from('handler_flows')
-    .select('*, handler_triggers(*), handler_steps(*)')
-    .eq('tenant_id', tenantId)
-    .order('updated_at', { ascending: false });
+  const db = forTenant(tenantId);
 
+  const where = {};
   if (status) {
-    query = query.eq('status', status);
+    where.status = status;
   }
 
-  const { data, error } = await query;
-  if (error) throw mapError(error);
-  return data ?? [];
+  const flows = await db.handlerFlow.findMany({
+    where,
+    orderBy: { updatedAt: 'desc' },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      status: true,
+      version: true,
+      lastPublishedAt: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  return flows;
 };
 
+/**
+ * Get a flow by ID with full definition
+ */
 const getFlowById = async ({ tenantId, flowId }) => {
-  const supabase = getClientOrThrow();
-  const { data, error } = await supabase
-    .from('handler_flows')
-    .select('*, handler_triggers(*), handler_steps(*)')
-    .eq('tenant_id', tenantId)
-    .eq('id', flowId)
-    .maybeSingle();
-  if (error) throw mapError(error);
-  if (!data) {
-    const err = new Error('Flow not found');
-    err.statusCode = 404;
-    throw err;
+  const db = forTenant(tenantId);
+
+  const flow = await db.handlerFlow.findUnique({
+    where: { id: flowId },
+  });
+
+  if (!flow) {
+    throw Object.assign(new Error('Flow not found'), { statusCode: 404 });
   }
-  return data;
+
+  return flow;
 };
 
+/**
+ * Get published flows that match an event type
+ */
 const getPublishedFlowsByEvent = async ({ tenantId, eventType }) => {
-  const supabase = getClientOrThrow();
-  const { data, error } = await supabase
-    .from('handler_flows')
-    .select('id, definition, version, handler_triggers!inner(type, config)')
-    .eq('tenant_id', tenantId)
-    .eq('status', STATUS.PUBLISHED)
-    .eq('handler_triggers.type', TRIGGER_TYPES.EVENT)
-    .contains('handler_triggers.config', { event: eventType });
-  if (error) throw mapError(error);
-  return data ?? [];
+  const db = forTenant(tenantId);
+
+  const flows = await db.handlerFlow.findMany({
+    where: {
+      status: STATUS.ON,
+    },
+  });
+
+  // Filter flows that have criteria matching this event
+  const matchingFlows = flows.filter(flow => {
+    const trigger = flow.definition?.trigger;
+    if (!trigger) return false;
+
+    // Check if any criteria group references this event
+    if (trigger.criteriaGroups && trigger.criteriaGroups.length > 0) {
+      return trigger.criteriaGroups.some(group =>
+        group.criteria && group.criteria.some(c =>
+          c.type === 'event-condition' && c.eventName === eventType
+        )
+      );
+    }
+
+    return false;
+  });
+
+  return matchingFlows;
 };
 
-const createRunIfAbsent = async ({
+/**
+ * Delete a flow
+ */
+const deleteFlow = async ({ tenantId, flowId }) => {
+  const db = forTenant(tenantId);
+
+  // Check if flow exists
+  const flow = await db.handlerFlow.findUnique({
+    where: { id: flowId },
+  });
+
+  if (!flow) {
+    throw Object.assign(new Error('Flow not found'), { statusCode: 404 });
+  }
+
+  // Delete the flow (cascade will handle runs, logs, jobs)
+  await db.handlerFlow.delete({
+    where: { id: flowId },
+  });
+
+  return { success: true };
+};
+
+/**
+ * Create a run for a flow
+ */
+const createRun = async ({
   tenantId,
-  flow,
+  flowId,
   payload,
   idempotencyKey,
-  triggerType,
+  triggerType = TRIGGER_TYPES.MANUAL,
 }) => {
-  const supabase = getClientOrThrow();
-  const flowVersion = flow.version ?? 1;
-  const hashed = idempotencyKey || hashPayload(payload);
-  const runKey = buildRunKey(flow.id, flowVersion, hashed);
+  const db = forTenant(tenantId);
 
-  const { data: existing, error: existingError } = await supabase
-    .from('handler_runs')
-    .select('id')
-    .eq('tenant_id', tenantId)
-    .eq('idempotency_key', runKey)
-    .maybeSingle();
-  if (existingError) throw mapError(existingError);
-  if (existing) {
-    return { created: false, runId: existing.id };
+  // Get the flow
+  const flow = await db.handlerFlow.findUnique({
+    where: { id: flowId },
+  });
+
+  if (!flow) {
+    throw Object.assign(new Error('Flow not found'), { statusCode: 404 });
   }
 
-  ensureEntryStep(flow.definition);
+  if (flow.status !== STATUS.ON && triggerType !== TRIGGER_TYPES.MANUAL) {
+    throw Object.assign(new Error('Flow must be published to run'), { statusCode: 400 });
+  }
 
+  // Generate idempotency key if not provided
+  const runKey = idempotencyKey ||
+    `${flowId}:${flow.version}:${crypto.createHash('sha256').update(JSON.stringify(payload || {})).digest('hex')}`;
+
+  // Check for existing run with same idempotency key
+  if (runKey) {
+    const existing = await db.handlerRun.findFirst({
+      where: {
+        idempotencyKey: runKey,
+      },
+    });
+
+    if (existing) {
+      return { created: false, runId: existing.id, run: existing };
+    }
+  }
+
+  // Find the first non-trigger node to start execution
+  const nodes = flow.definition.nodes || [];
+  const sortedNodes = nodes
+    .filter(n => n.type !== 'trigger')
+    .sort((a, b) => (a.data?.stepIndex || 0) - (b.data?.stepIndex || 0));
+
+  const startNodeId = sortedNodes[0]?.id || null;
+
+  // Build initial context
   const context = {
     triggerType,
-    payload,
+    payload: payload || {},
+    now: new Date().toISOString(),
+    actions: [],
   };
 
-  const insertPayload = {
-    tenant_id: tenantId,
-    flow_id: flow.id,
-    flow_version: flowVersion,
-    status: RUN_STATUS.QUEUED,
-    current_step_id: flow.definition.entryStepId,
-    idempotency_key: runKey,
-    context,
-    started_at: null,
-    finished_at: null,
-    attempt: 0,
-  };
-
-  const { data: runData, error: runError } = await supabase
-    .from('handler_runs')
-    .insert(insertPayload)
-    .select()
-    .single();
-  if (runError) throw mapError(runError);
-
-  const jobPayload = {
-    tenant_id: tenantId,
-    run_id: runData.id,
-    due_at: new Date().toISOString(),
-    payload: {
-      stepId: flow.definition.entryStepId,
+  // Create the run
+  const run = await db.handlerRun.create({
+    data: {
+      flowId,
+      status: RUN_STATUS.QUEUED,
+      currentNodeId: startNodeId,
+      context,
+      idempotencyKey: runKey,
+      triggerType,
+      reEnrollCount: 0,
+      retryCount: 0,
     },
-  };
+  });
 
-  const { error: jobError } = await supabase.from('handler_jobs').insert(jobPayload);
-  if (jobError) throw mapError(jobError);
-
-  return { created: true, runId: runData.id };
-};
-
-const handleEvent = async ({ tenantId, eventType, payload, idempotencyKey }) => {
-  const flows = await getPublishedFlowsByEvent({ tenantId, eventType });
-  if (flows.length === 0) {
-    return { createdRuns: 0 };
-  }
-
-  let createdRuns = 0;
-  for (const flow of flows) {
-    const { created } = await createRunIfAbsent({
-      tenantId,
-      flow,
-      payload,
-      idempotencyKey,
-      triggerType: TRIGGER_TYPES.EVENT,
+  // Create initial job
+  if (startNodeId) {
+    await db.handlerJob.create({
+      data: {
+        runId: run.id,
+        nodeId: startNodeId,
+        dueAt: new Date(),
+        attempts: 0,
+        maxAttempts: 3,
+        payload: {},
+      },
     });
-    if (created) createdRuns += 1;
   }
-  return { createdRuns };
+
+  return { created: true, runId: run.id, run };
 };
 
+/**
+ * Manual run trigger
+ */
 const manualRun = async ({ tenantId, flowId, payload, idempotencyKey }) => {
-  const flow = await getFlowById({ tenantId, flowId });
-  if (flow.status !== STATUS.PUBLISHED) {
-    const err = new Error('Flow must be published before execution');
-    err.statusCode = 400;
-    throw err;
-  }
-  return createRunIfAbsent({
+  return createRun({
     tenantId,
-    flow,
+    flowId,
     payload,
     idempotencyKey,
     triggerType: TRIGGER_TYPES.MANUAL,
   });
 };
 
+const hashEventPayload = (eventType, payload = {}) =>
+  crypto
+    .createHash('sha256')
+    .update(`${eventType}:${JSON.stringify(payload)}`)
+    .digest('hex')
+    .substring(0, 24);
+
+const handleEvent = async ({ tenantId, eventType, payload, idempotencyKey }) => {
+  if (!eventType) {
+    throw Object.assign(new Error('eventType is required'), { statusCode: 400 });
+  }
+
+  const db = forTenant(tenantId);
+  const eventKey = idempotencyKey || hashEventPayload(eventType, payload);
+
+  let eventRecord;
+  try {
+    eventRecord = await db.handlerEvent.create({
+      data: {
+        tenantId,
+        eventType,
+        idempotencyKey: eventKey,
+        payload: payload || {},
+      },
+    });
+  } catch (error) {
+    if (error.code === 'P2002') {
+      const existing = await db.handlerEvent.findFirst({
+        where: { tenantId, idempotencyKey: eventKey },
+      });
+
+      return {
+        eventId: existing?.id,
+        runs: (existing?.runs || []),
+        deduplicated: true,
+      };
+    }
+
+    throw error;
+  }
+
+  const flows = await getPublishedFlowsByEvent({ tenantId, eventType });
+  const runSummaries = [];
+
+  for (const flow of flows) {
+    try {
+      const runResult = await createRun({
+        tenantId,
+        flowId: flow.id,
+        payload: payload || {},
+        idempotencyKey: `${eventKey}:${flow.id}`,
+        triggerType: TRIGGER_TYPES.CRITERIA,
+      });
+
+      runSummaries.push({
+        flowId: flow.id,
+        runId: runResult.runId,
+        created: runResult.created,
+      });
+    } catch (error) {
+      runSummaries.push({
+        flowId: flow.id,
+        error: error.message,
+      });
+    }
+  }
+
+  await db.handlerEvent.update({
+    where: { id: eventRecord.id },
+    data: {
+      runs: runSummaries,
+    },
+  });
+
+  return {
+    eventId: eventRecord.id,
+    runs: runSummaries,
+    deduplicated: false,
+  };
+};
+
+/**
+ * Get run logs
+ */
 const getRunLogs = async ({ tenantId, runId }) => {
-  const supabase = getClientOrThrow();
+  const db = forTenant(tenantId);
 
-  const { data: run, error: runError } = await supabase
-    .from('handler_runs')
-    .select('id')
-    .eq('tenant_id', tenantId)
-    .eq('id', runId)
-    .single();
-  if (runError) throw mapError(runError);
+  // Verify run exists
+  const run = await db.handlerRun.findUnique({
+    where: { id: runId },
+  });
+
   if (!run) {
-    const err = new Error('Run not found');
-    err.statusCode = 404;
-    throw err;
+    throw Object.assign(new Error('Run not found'), { statusCode: 404 });
   }
 
-  const { data, error } = await supabase
-    .from('handler_run_logs')
-    .select('*')
-    .eq('tenant_id', tenantId)
-    .eq('run_id', runId)
-    .order('ts', { ascending: true });
-  if (error) throw mapError(error);
-  return data ?? [];
+  const logs = await db.handlerRunLog.findMany({
+    where: { runId },
+    orderBy: { ts: 'asc' },
+  });
+
+  return logs;
 };
 
-const getTenantPlan = async (tenantId) => {
-  const supabase = getClientOrThrow();
-  const { data, error } = await supabase.rpc('get_tenant_plan', { p_tenant: tenantId });
-  if (error) throw mapError(error);
-  if (!data || !data[0]) {
-    const err = new Error('Tenant plan not found');
-    err.statusCode = 404;
-    throw err;
-  }
-  const row = data[0];
-  const features = resolvePlanFeatures(row.plan?.toUpperCase() ?? 'FREE', row.feature_flags ?? {});
-  return { plan: row.plan?.toUpperCase() ?? 'FREE', features };
-};
-
+/**
+ * Get run with flow details
+ */
 const getRunWithFlow = async ({ tenantId, runId }) => {
-  const supabase = getClientOrThrow();
-  const { data, error } = await supabase
-    .from('handler_runs')
-    .select('*, handler_flows!inner(*, handler_steps(*))')
-    .eq('tenant_id', tenantId)
-    .eq('id', runId)
-    .maybeSingle();
-  if (error) throw mapError(error);
-  if (!data) {
-    const err = new Error('Run not found');
-    err.statusCode = 404;
-    throw err;
+  const db = forTenant(tenantId);
+
+  const run = await db.handlerRun.findUnique({
+    where: { id: runId },
+    include: {
+      flow: true,
+    },
+  });
+
+  if (!run) {
+    throw Object.assign(new Error('Run not found'), { statusCode: 404 });
   }
-  return data;
+
+  return run;
 };
 
-const appendRunLog = async ({ tenantId, runId, stepId, level, message, input, output, error }) => {
-  const supabase = getClientOrThrow();
-  const payload = {
-    tenant_id: tenantId,
-    run_id: runId,
-    step_id: stepId ?? null,
-    level,
-    message,
-    input: input ?? null,
-    output: output ?? null,
-    error: error ?? null,
-  };
-  const { error: insertError } = await supabase.from('handler_run_logs').insert(payload);
-  if (insertError) throw mapError(insertError);
-};
+/**
+ * Get run by ID
+ */
+const getRunById = async ({ tenantId, runId }) => {
+  const db = forTenant(tenantId);
 
-const updateRun = async ({ runId, tenantId, patch }) => {
-  const supabase = getClientOrThrow();
-  const { data, error } = await supabase
-    .from('handler_runs')
-    .update({
-      ...patch,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('tenant_id', tenantId)
-    .eq('id', runId)
-    .select()
-    .single();
-  if (error) throw mapError(error);
-  return data;
-};
+  const run = await db.handlerRun.findUnique({
+    where: { id: runId },
+  });
 
-const deleteJob = async (jobId) => {
-  const supabase = getClientOrThrow();
-  const { error } = await supabase.from('handler_jobs').delete().eq('id', jobId);
-  if (error) throw mapError(error);
-};
-
-const rescheduleJob = async ({ jobId, delayMs, maxAttempts }) => {
-  const supabase = getClientOrThrow();
-  const dueAt = new Date(Date.now() + delayMs).toISOString();
-  const patch = {
-    due_at: dueAt,
-    locked_by: null,
-    locked_at: null,
-  };
-  if (maxAttempts != null) {
-    patch.max_attempts = maxAttempts;
+  if (!run) {
+    throw Object.assign(new Error('Run not found'), { statusCode: 404 });
   }
-  const { error } = await supabase.from('handler_jobs').update(patch).eq('id', jobId);
-  if (error) throw mapError(error);
+
+  return run;
 };
 
+/**
+ * Append a log entry to a run
+ */
+const appendRunLog = async ({ tenantId, runId, nodeId, level, message, details }) => {
+  const db = forTenant(tenantId);
+
+  const log = await db.handlerRunLog.create({
+    data: {
+      runId,
+      nodeId: nodeId || null,
+      level,
+      message,
+      details: details || null,
+    },
+  });
+
+  return log;
+};
+
+/**
+ * Update a run
+ */
+const updateRun = async ({ tenantId, runId, patch }) => {
+  const db = forTenant(tenantId);
+
+  const run = await db.handlerRun.update({
+    where: { id: runId },
+    data: patch,
+  });
+
+  return run;
+};
+
+/**
+ * Claim next job for processing (with locking)
+ */
 const claimNextJob = async ({ workerId }) => {
-  const supabase = getClientOrThrow();
-  const { data, error } = await supabase.rpc('claim_next_handler_job', {
-    worker_id: workerId,
+  // Use base prisma for job claiming (no tenant context needed here)
+  // Use transaction for atomic claim
+
+  const now = new Date();
+
+  // Find next available job
+  const job = await prisma.handlerJob.findFirst({
+    where: {
+      dueAt: { lte: now },
+      OR: [
+        { lockedBy: null },
+        {
+          lockedAt: {
+            lt: new Date(Date.now() - 5 * 60 * 1000), // 5 minute stale lock timeout
+          },
+        },
+      ],
+      attempts: {
+        lt: prisma.handlerJob.fields.maxAttempts,
+      },
+    },
+    orderBy: [
+      { dueAt: 'asc' },
+      { createdAt: 'asc' },
+    ],
   });
-  if (error) throw mapError(error);
-  return data;
+
+  if (!job) {
+    return null;
+  }
+
+  // Try to claim it
+  try {
+    const claimed = await prisma.handlerJob.update({
+      where: { id: job.id },
+      data: {
+        lockedBy: workerId,
+        lockedAt: now,
+        attempts: job.attempts + 1,
+      },
+    });
+
+    return claimed;
+  } catch (error) {
+    // Race condition - another worker claimed it
+    return null;
+  }
 };
 
-const createJob = async ({ tenantId, runId, stepId, dueAt, payload }) => {
-  const supabase = getClientOrThrow();
-  const { data, error } = await supabase.rpc('enqueue_handler_job', {
-    p_tenant: tenantId,
-    p_run: runId,
-    p_step: stepId,
-    p_due: dueAt ?? new Date().toISOString(),
-    p_payload: payload ?? {},
+/**
+ * Delete a job
+ */
+const deleteJob = async (jobId) => {
+  await prisma.handlerJob.delete({
+    where: { id: jobId },
   });
-  if (error) throw mapError(error);
-  return data;
+};
+
+/**
+ * Create a new job
+ */
+const createJob = async ({ tenantId, runId, nodeId, dueAt, payload, maxAttempts = 3 }) => {
+  const db = forTenant(tenantId);
+
+  const job = await db.handlerJob.create({
+    data: {
+      runId,
+      nodeId: nodeId || null,
+      dueAt: dueAt || new Date(),
+      attempts: 0,
+      maxAttempts,
+      payload: payload || null,
+    },
+  });
+
+  return job;
+};
+
+/**
+ * Reschedule a job (for retries or delays)
+ */
+const rescheduleJob = async ({ jobId, delayMs, maxAttempts }) => {
+  const dueAt = new Date(Date.now() + delayMs);
+
+  const updateData = {
+    dueAt,
+    lockedBy: null,
+    lockedAt: null,
+  };
+
+  if (maxAttempts !== undefined) {
+    updateData.maxAttempts = maxAttempts;
+  }
+
+  await prisma.handlerJob.update({
+    where: { id: jobId },
+    data: updateData,
+  });
 };
 
 module.exports = {
-  createDraftFlow,
+  // Flow management
+  createFlow,
+  updateFlow,
   publishFlow,
   listFlows,
   getFlowById,
-  handleEvent,
+  deleteFlow,
+  getPublishedFlowsByEvent,
+
+  // Run management
+  createRun,
   manualRun,
   getRunLogs,
   getRunWithFlow,
+  getRunById,
   appendRunLog,
   updateRun,
-  deleteJob,
-  rescheduleJob,
-  getTenantPlan,
-  claimNextJob,
-  createJob,
-};
-
-module.exports = {
-  createDraftFlow,
-  publishFlow,
-  listFlows,
-  getFlowById,
   handleEvent,
-  manualRun,
-  getRunLogs,
+
+  // Job management
+  claimNextJob,
+  deleteJob,
+  createJob,
+  rescheduleJob,
+
+  // Constants
+  STATUS,
+  RUN_STATUS,
+  TRIGGER_TYPES,
 };

@@ -61,6 +61,7 @@ const PropertiesSettings = () => {
   const [deletingProperty, setDeletingProperty] = useState(null);
   const [archivingProperty, setArchivingProperty] = useState(null);
   const [archivedCount, setArchivedCount] = useState(0);
+  const [activePropertiesCount, setActivePropertiesCount] = useState(0);
 
   // Set document title
   useEffect(() => {
@@ -98,6 +99,11 @@ const PropertiesSettings = () => {
       }
 
       setProperties((prev) => ({ ...prev, [objectType]: data }));
+
+      // Store the active properties count when viewing non-archived properties
+      if (!includeArchived) {
+        setActivePropertiesCount(data.total_properties || 0);
+      }
 
       // Fetch archived count
       const countData = await apiClient(`/api/v1/settings/properties/archived/count?object=${objectType}`);
@@ -281,7 +287,7 @@ const PropertiesSettings = () => {
                 : 'border-transparent text-muted hover:text-text hover:border-border'
             }`}
           >
-            Properties ({currentData?.total_properties || 0})
+            Properties ({activePropertiesCount})
           </button>
           <button
             onClick={() => setSelectedView('conditional-logic')}

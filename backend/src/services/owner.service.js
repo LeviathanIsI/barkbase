@@ -1,22 +1,13 @@
 const { forTenant } = require('../lib/tenantPrisma');
+const { buildWhere, parsePageLimit, toPageResult } = require('../utils/pagination');
 
 /**
  * List all owners for a tenant with pagination
  */
-const listOwners = async (tenantId, { page = 1, limit = 50, search } = {}) => {
+const listOwners = async (tenantId, options = {}) => {
   const db = forTenant(tenantId);
-  const skip = (page - 1) * limit;
-
-  const whereClause = search
-    ? {
-        OR: [
-          { firstName: { contains: search, mode: 'insensitive' } },
-          { lastName: { contains: search, mode: 'insensitive' } },
-          { email: { contains: search, mode: 'insensitive' } },
-          { phone: { contains: search, mode: 'insensitive' } },
-        ],
-      }
-    : {};
+  const { page, limit, skip } = parsePageLimit(options, { defaultLimit: 50, maxLimit: 200 });
+  const whereClause = buildWhere(options.search, ['firstName', 'lastName', 'email', 'phone']);
 
   const [owners, total] = await Promise.all([
     db.owner.findMany({
@@ -39,23 +30,35 @@ const listOwners = async (tenantId, { page = 1, limit = 50, search } = {}) => {
             },
           },
         },
+        bookings: {
+          select: {
+            id: true,
+            checkIn: true,
+            checkOut: true,
+            status: true,
+          },
+          orderBy: {
+            checkIn: 'desc',
+          },
+        },
+        payments: {
+          select: {
+            id: true,
+            amountCents: true,
+            status: true,
+          },
+        },
       },
     }),
     db.owner.count({ where: whereClause }),
   ]);
 
-  return {
-    data: owners.map((owner) => ({
-      ...owner,
-      pets: owner.pets.map((po) => po.pet),
-    })),
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
+  const data = owners.map((owner) => ({
+    ...owner,
+    pets: owner.pets.map((po) => po.pet),
+  }));
+
+  return toPageResult({ items: data, total, page, limit });
 };
 
 /**
@@ -74,10 +77,29 @@ const getOwnerById = async (tenantId, ownerId) => {
               id: true,
               name: true,
               breed: true,
-              birthDate: true,
+              birthdate: true,
               status: true,
             },
           },
+        },
+      },
+      bookings: {
+        select: {
+          id: true,
+          checkIn: true,
+          checkOut: true,
+          status: true,
+        },
+        orderBy: {
+          checkIn: 'desc',
+        },
+      },
+      payments: {
+        select: {
+          id: true,
+          amountCents: true,
+          status: true,
+          createdAt: true,
         },
       },
     },
@@ -247,6 +269,89 @@ const getOwnerPets = async (tenantId, ownerId) => {
   }));
 };
 
+/**
+ * Add a pet to an owner (create PetOwner relationship)
+ */
+const addPetToOwner = async (tenantId, ownerId, petId, isPrimary = false) => {
+  const db = forTenant(tenantId);
+
+  // Verify owner exists
+  const owner = await db.owner.findFirst({
+    where: { id: ownerId },
+  });
+
+  if (!owner) {
+    throw Object.assign(new Error('Owner not found'), { statusCode: 404 });
+  }
+
+  // Verify pet exists
+  const pet = await db.pet.findFirst({
+    where: { id: petId },
+  });
+
+  if (!pet) {
+    throw Object.assign(new Error('Pet not found'), { statusCode: 404 });
+  }
+
+  // Check if relationship already exists
+  const existing = await db.petOwner.findFirst({
+    where: {
+      petId,
+      ownerId,
+    },
+  });
+
+  if (existing) {
+    throw Object.assign(new Error('Pet is already associated with this owner'), {
+      statusCode: 409,
+    });
+  }
+
+  // Create the relationship
+  const petOwner = await db.petOwner.create({
+    data: {
+      tenantId,
+      petId,
+      ownerId,
+      isPrimary,
+    },
+    include: {
+      pet: true,
+      owner: true,
+    },
+  });
+
+  return petOwner;
+};
+
+/**
+ * Remove a pet from an owner (delete PetOwner relationship)
+ */
+const removePetFromOwner = async (tenantId, ownerId, petId) => {
+  const db = forTenant(tenantId);
+
+  // Find the relationship
+  const petOwner = await db.petOwner.findFirst({
+    where: {
+      petId,
+      ownerId,
+    },
+  });
+
+  if (!petOwner) {
+    throw Object.assign(new Error('Pet is not associated with this owner'), {
+      statusCode: 404,
+    });
+  }
+
+  // Delete the relationship
+  await db.petOwner.delete({
+    where: { id: petOwner.id },
+  });
+
+  return { success: true };
+};
+
 module.exports = {
   listOwners,
   getOwnerById,
@@ -254,4 +359,6 @@ module.exports = {
   updateOwner,
   deleteOwner,
   getOwnerPets,
+  addPetToOwner,
+  removePetFromOwner,
 };

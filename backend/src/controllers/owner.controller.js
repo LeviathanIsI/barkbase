@@ -30,6 +30,25 @@ const getOwnerPets = async (req, res) => {
   res.json(pets);
 };
 
+const addPetToOwner = async (req, res) => {
+  const result = await ownerService.addPetToOwner(
+    req.tenantId,
+    req.params.id,
+    req.body.petId,
+    req.body.isPrimary
+  );
+  res.json(result);
+};
+
+const removePetFromOwner = async (req, res) => {
+  const result = await ownerService.removePetFromOwner(
+    req.tenantId,
+    req.params.id,
+    req.params.petId
+  );
+  res.json(result);
+};
+
 module.exports = {
   listOwners,
   getOwner,
@@ -37,4 +56,6 @@ module.exports = {
   updateOwner,
   deleteOwner,
   getOwnerPets,
+  addPetToOwner,
+  removePetFromOwner,
 };

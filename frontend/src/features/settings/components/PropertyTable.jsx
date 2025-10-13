@@ -82,7 +82,7 @@ const PropertyTable = ({
   };
 
   return (
-    <div className="rounded-lg border border-border bg-surface overflow-hidden">
+    <div className="rounded-lg border border-border bg-surface">
       <table className="w-full">
         <thead className="bg-surface border-b border-border">
           <tr>
@@ -131,10 +131,10 @@ const PropertyTable = ({
                   </div>
                 </td>
                 <td
-                  className="px-4 py-4 text-center"
+                  className="px-4 py-4 text-center relative"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity relative z-50">
                     <DropdownMenu
                       trigger={
                         <button

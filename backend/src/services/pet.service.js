@@ -1,4 +1,5 @@
 const { forTenant } = require('../lib/tenantPrisma');
+const { buildWhere, parsePageLimit } = require('../utils/pagination');
 
 const petIncludes = {
   owners: {
@@ -11,17 +12,17 @@ const petIncludes = {
   },
 };
 
-const listPets = (tenantId, { search } = {}) => {
+const listPets = (tenantId, options = {}) => {
   const tenantDb = forTenant(tenantId);
-  const where = {};
-  if (search) {
-    where.name = { contains: search, mode: 'insensitive' };
-  }
+  const { limit, skip } = parsePageLimit(options, { defaultLimit: 100, maxLimit: 500 });
+  const where = buildWhere(options.search, ['name', 'breed']);
 
   return tenantDb.pet.findMany({
     where,
     include: petIncludes,
     orderBy: { updatedAt: 'desc' },
+    take: limit,
+    skip,
   });
 };
 
@@ -29,23 +30,30 @@ const getPetById = (tenantId, petId) =>
   forTenant(tenantId).pet.findFirst({ where: { id: petId }, include: petIncludes });
 
 const createPet = async (tenantId, payload) => {
+  const ownerIds = payload.ownerIds || [];
+  const petData = {
+    name: payload.name,
+    breed: payload.breed,
+    birthdate: payload.birthdate ? new Date(payload.birthdate) : undefined,
+    photoUrl: payload.photoUrl,
+    medicalNotes: payload.medicalNotes,
+    dietaryNotes: payload.dietaryNotes,
+    behaviorFlags: payload.behaviorFlags ?? [],
+  };
+
+  // Only add owners if ownerIds array is not empty
+  if (ownerIds.length > 0) {
+    petData.owners = {
+      create: ownerIds.map((ownerId, index) => ({
+        tenantId,
+        ownerId,
+        isPrimary: index === 0,
+      })),
+    };
+  }
+
   const pet = await forTenant(tenantId).pet.create({
-    data: {
-      name: payload.name,
-      breed: payload.breed,
-      birthdate: payload.birthdate ? new Date(payload.birthdate) : undefined,
-      photoUrl: payload.photoUrl,
-      medicalNotes: payload.medicalNotes,
-      dietaryNotes: payload.dietaryNotes,
-      behaviorFlags: payload.behaviorFlags ?? [],
-      owners: {
-        create: payload.ownerIds.map((ownerId, index) => ({
-          tenantId,
-          ownerId,
-          isPrimary: index === 0,
-        })),
-      },
-    },
+    data: petData,
     include: petIncludes,
   });
   return pet;

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import WorkflowCanvas from '../components/WorkflowCanvas';
 import ContextSidebar from '../components/ContextSidebar';
 import FlowHeader from '../components/FlowHeader';
@@ -12,6 +13,18 @@ import {
   moveNode,
   cloneNode,
 } from '../utils/linearLayout';
+import {
+  toFlowDefinition,
+  fromFlowDefinition,
+} from '../utils/flowDefinitionMapper';
+import { validateFlowDefinition } from '../utils/validateDefinition';
+import {
+  useHandlerFlowQuery,
+  useCreateHandlerFlowMutation,
+  useUpdateHandlerFlowMutation,
+  useValidateFlowMutation,
+  usePublishHandlerFlowMutation,
+} from '../api';
 
 // Sample initial nodes for demo (linear flow)
 // Positions will be calculated by linearLayout utilities
@@ -80,25 +93,56 @@ function WorkflowCanvasWrapper({
 }
 
 export default function WorkflowBuilder() {
+  const { flowId } = useParams();
+  const navigate = useNavigate();
   const tenant = useTenantStore((state) => state.tenant);
+
   const [nodes, setNodes] = useState(initialNodes);
   const [edges, setEdges] = useState(initialEdges);
   const [workflowName, setWorkflowName] = useState('Unnamed workflow');
+  const [workflowDescription, setWorkflowDescription] = useState('');
+  const [triggerConfig, setTriggerConfig] = useState({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showMinimap, setShowMinimap] = useState(true);
+
+  // API hooks
+  const { data: flowData, isLoading: isLoadingFlow } = useHandlerFlowQuery(flowId);
+  const createFlowMutation = useCreateHandlerFlowMutation();
+  const updateFlowMutation = useUpdateHandlerFlowMutation();
+  const validateFlowMutation = useValidateFlowMutation();
+  const publishFlowMutation = usePublishHandlerFlowMutation();
 
   // Sidebar state
   const [sidebarMode, setSidebarMode] = useState(null); // null, 'add', or 'edit'
   const [selectedNode, setSelectedNode] = useState(null);
   const [addAfterStepIndex, setAddAfterStepIndex] = useState(null);
 
-  // Initialize with stepIndices on mount
+  // Load flow data if editing existing flow
   useEffect(() => {
-    const nodesWithIndices = assignStepIndices(initialNodes);
-    setNodes(nodesWithIndices);
+    if (flowData && flowData.definition) {
+      const { nodes: loadedNodes, edges: loadedEdges, name, description, triggerConfig: loadedTriggerConfig } = fromFlowDefinition(flowData.definition);
+
+      // Assign step indices if not present
+      const nodesWithIndices = assignStepIndices(loadedNodes);
+
+      setNodes(nodesWithIndices);
+      setEdges(loadedEdges);
+      setWorkflowName(name);
+      setWorkflowDescription(description || '');
+      setTriggerConfig(loadedTriggerConfig || {});
+      setHasUnsavedChanges(false);
+    }
+  }, [flowData]);
+
+  // Initialize with stepIndices on mount (only if no flowId)
+  useEffect(() => {
+    if (!flowId) {
+      const nodesWithIndices = assignStepIndices(initialNodes);
+      setNodes(nodesWithIndices);
+    }
     // Edges will be created by the separate useEffect that depends on nodes
-  }, []);
+  }, [flowId]);
 
   // Track changes to nodes/edges
   useEffect(() => {
@@ -174,6 +218,7 @@ export default function WorkflowBuilder() {
           data: {
             label: nodeConfig.label,
             description: nodeConfig.description || '',
+            actionType: nodeConfig.actionType, // CRITICAL: Save actionType so config panel works
           },
         };
 
@@ -243,10 +288,51 @@ export default function WorkflowBuilder() {
     });
   }, []);
 
-  // Update edges whenever nodes change to maintain linear flow
+  // Update edges when nodes change, but preserve manually created edges
   useEffect(() => {
-    const newEdges = createSequentialEdges(nodes, handleOpenAddAction);
-    setEdges(newEdges);
+    setEdges((currentEdges) => {
+      const sorted = nodes.sort((a, b) => (a.data.stepIndex || 0) - (b.data.stepIndex || 0));
+      const newEdges = [];
+      const nodesWithOutgoingEdges = new Set(currentEdges.map(e => e.source));
+
+      // For each node, if it doesn't have an outgoing edge, create a default sequential edge
+      for (let i = 0; i < sorted.length - 1; i++) {
+        const currentNode = sorted[i];
+        const nextNode = sorted[i + 1];
+
+        // Check if this node already has manual edges
+        const hasManualEdges = nodesWithOutgoingEdges.has(currentNode.id);
+
+        if (!hasManualEdges) {
+          // Create default sequential edge
+          newEdges.push({
+            id: `e${currentNode.id}-${nextNode.id}`,
+            source: currentNode.id,
+            target: nextNode.id,
+            animated: true,
+            type: 'linear',
+            data: {
+              afterStepIndex: currentNode.data?.stepIndex || (i + 1),
+              onInsert: handleOpenAddAction,
+            },
+          });
+        }
+      }
+
+      // Preserve all manual edges (those not in the newEdges)
+      const manualEdges = currentEdges.filter(edge => {
+        // Keep edges that still have valid source and target nodes
+        const sourceExists = nodes.some(n => n.id === edge.source);
+        const targetExists = nodes.some(n => n.id === edge.target);
+        return sourceExists && targetExists;
+      });
+
+      // Combine manual edges with new default edges (manual edges take precedence)
+      const existingEdgeKeys = new Set(manualEdges.map(e => `${e.source}-${e.target}`));
+      const defaultEdges = newEdges.filter(e => !existingEdgeKeys.has(`${e.source}-${e.target}`));
+
+      return [...manualEdges, ...defaultEdges];
+    });
   }, [nodes, handleOpenAddAction]);
 
   // Enrich all nodes with handlers (runs when handlers are available or nodes change)
@@ -283,27 +369,112 @@ export default function WorkflowBuilder() {
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     try {
-      // TODO: Implement save logic
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Convert to FlowDefinition format
+      const definition = toFlowDefinition({
+        nodes,
+        edges,
+        name: workflowName,
+        description: workflowDescription,
+        triggerConfig,
+      });
+
+      // Validate before saving
+      const validation = validateFlowDefinition(definition);
+      if (!validation.valid) {
+        const errorList = validation.errors.join('\n• ');
+        alert(`Cannot save: Flow has validation errors:\n\n• ${errorList}`);
+        setIsSaving(false);
+        return;
+      }
+
+      let result;
+
+      if (flowId) {
+        // Update existing flow
+        result = await updateFlowMutation.mutateAsync({
+          flowId,
+          name: workflowName,
+          description: workflowDescription,
+          definition,
+        });
+      } else {
+        // Create new flow
+        result = await createFlowMutation.mutateAsync({
+          name: workflowName,
+          description: workflowDescription,
+          definition,
+        });
+
+        // Navigate to the new flow's edit page
+        if (result?.id) {
+          navigate(`/workflows/${result.id}/edit`, { replace: true });
+        }
+      }
+
       setHasUnsavedChanges(false);
-      // eslint-disable-next-line no-console
-      console.log('Saved workflow:', { name: workflowName, nodes, edges });
+    } catch (error) {
+      console.error('Failed to save workflow:', error);
+      // TODO: Show error toast
     } finally {
       setIsSaving(false);
     }
-  }, [workflowName, nodes, edges]);
+  }, [workflowName, workflowDescription, triggerConfig, nodes, edges, flowId, updateFlowMutation, createFlowMutation, navigate]);
 
-  const handleValidate = useCallback(() => {
-    // TODO: Implement validation logic
-    // eslint-disable-next-line no-console
-    console.log('Validating workflow...');
-  }, []);
+  const handleValidate = useCallback(async () => {
+    try {
+      // Convert to FlowDefinition format
+      const definition = toFlowDefinition({
+        nodes,
+        edges,
+        name: workflowName,
+        description: workflowDescription,
+        triggerConfig,
+      });
 
-  const handleRun = useCallback(() => {
-    // TODO: Implement test run logic
-    // eslint-disable-next-line no-console
-    console.log('Running workflow...');
-  }, []);
+      // Client-side validation first (fast)
+      const clientValidation = validateFlowDefinition(definition);
+
+      if (!clientValidation.valid) {
+        const errorList = clientValidation.errors.join('\n• ');
+        alert(`Validation failed:\n\n• ${errorList}`);
+        return;
+      }
+
+      // Server-side validation (optional additional checks)
+      try {
+        const serverResult = await validateFlowMutation.mutateAsync(definition);
+
+        if (serverResult.valid) {
+          alert('✓ Flow is valid and ready to publish!');
+        } else {
+          const errorList = serverResult.errors.join('\n• ');
+          alert(`Server validation failed:\n\n• ${errorList}`);
+        }
+      } catch (serverError) {
+        // If server validation fails, at least client validation passed
+        console.warn('Server validation unavailable:', serverError);
+        alert('✓ Client-side validation passed! (Server validation unavailable)');
+      }
+    } catch (error) {
+      console.error('Validation error:', error);
+      alert(`Validation error: ${error.message}`);
+    }
+  }, [nodes, edges, workflowName, workflowDescription, triggerConfig, validateFlowMutation]);
+
+  const handlePublish = useCallback(async () => {
+    if (!flowId) {
+      alert('Please save the workflow before publishing');
+      return;
+    }
+
+    try {
+      await publishFlowMutation.mutateAsync({ flowId });
+      alert('✓ Flow published successfully! It is now active.');
+    } catch (error) {
+      console.error('Publish error:', error);
+      alert(`Publish error: ${error.message}`);
+    }
+  }, [flowId, publishFlowMutation]);
 
   return (
     <div className="fixed inset-0 flex flex-col bg-background">
@@ -314,10 +485,12 @@ export default function WorkflowBuilder() {
         hasUnsavedChanges={hasUnsavedChanges}
         onSave={handleSave}
         onValidate={handleValidate}
-        onRun={handleRun}
+        onPublish={handlePublish}
         isSaving={isSaving}
         tenant={tenant?.slug || 'testing'}
         plan={tenant?.plan || 'FREE'}
+        flowId={flowId}
+        flowStatus={flowData?.status || 'draft'}
       />
 
       {/* Main Content: Sidebar + Canvas */}

@@ -1,24 +1,53 @@
+const path = require('path');
+const dotenv = require('dotenv');
+
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcrypt');
 const { addDays, subDays, startOfDay } = require('date-fns');
 
+const DEFAULT_DB_NAME = process.env.SUPABASE_DB_NAME || 'postgres';
+const DEFAULT_SSL_MODE = process.env.SUPABASE_SSLMODE || 'require';
+const expandTemplate = (raw) => {
+  if (!raw) return raw;
+  return raw.replace(/\$\{([^}]+)\}/g, (_, key) => {
+    if (key === 'SUPABASE_DB_NAME') return DEFAULT_DB_NAME;
+    if (key === 'SUPABASE_SSLMODE') return DEFAULT_SSL_MODE;
+    return process.env[key] ?? '';
+  });
+};
+
+const resolvedUrl = expandTemplate(process.env.DATABASE_URL || process.env.DEV_DATABASE_URL);
+if (resolvedUrl && !process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = resolvedUrl;
+}
+
 const prisma = new PrismaClient();
 
+const safeDeleteMany = async (delegate) => {
+  const d = prisma[delegate];
+  if (d && typeof d.deleteMany === 'function') {
+    await d.deleteMany();
+  }
+};
+
 const clearDatabase = async () => {
-  await prisma.bookingService.deleteMany();
-  await prisma.bookingSegment.deleteMany();
-  await prisma.booking.deleteMany();
-  await prisma.payment.deleteMany();
-  await prisma.vaccination.deleteMany();
-  await prisma.petOwner.deleteMany();
-  await prisma.pet.deleteMany();
-  await prisma.kennel.deleteMany();
-  await prisma.owner.deleteMany();
-  await prisma.customProperty.deleteMany();
-  await prisma.staff.deleteMany();
-  await prisma.membership.deleteMany();
-  await prisma.user.deleteMany();
-  await prisma.tenant.deleteMany();
+  // Order matters due to FK constraints
+  await safeDeleteMany('bookingService');
+  await safeDeleteMany('bookingSegment');
+  await safeDeleteMany('booking');
+  await safeDeleteMany('payment');
+  await safeDeleteMany('vaccination');
+  await safeDeleteMany('petOwner');
+  await safeDeleteMany('pet');
+  await safeDeleteMany('kennel');
+  await safeDeleteMany('owner');
+  await safeDeleteMany('customProperty');
+  await safeDeleteMany('staff');
+  await safeDeleteMany('membership');
+  await safeDeleteMany('user');
+  await safeDeleteMany('tenant');
 };
 
 const createTenant = async () =>
@@ -59,11 +88,6 @@ const createUsers = async (tenantId) => {
       tenantId,
       userId: ownerUser.id,
       role: 'OWNER',
-      localDataConsent: {
-        agreedAt: new Date().toISOString(),
-        ip: null,
-        appVersion: 'seed-data',
-      },
     },
   });
 
@@ -79,7 +103,6 @@ const createUsers = async (tenantId) => {
       tenantId,
       userId: staffUser.id,
       role: 'STAFF',
-      localDataConsent: null,
     },
   });
 

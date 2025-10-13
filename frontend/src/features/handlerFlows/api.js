@@ -28,10 +28,11 @@ export const useCreateHandlerFlowMutation = () => {
   });
 };
 
-export const usePublishHandlerFlowMutation = () => {
+export const useUpdateHandlerFlowMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ flowId }) => apiClient(`/api/v1/handler-flows/${flowId}/publish`, { method: 'PUT' }),
+    mutationFn: ({ flowId, ...payload }) =>
+      apiClient(`/api/v1/handler-flows/${flowId}`, { method: 'POST', body: payload }),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: flowsKey });
       if (variables?.flowId) {
@@ -40,6 +41,28 @@ export const usePublishHandlerFlowMutation = () => {
     },
   });
 };
+
+export const usePublishHandlerFlowMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ flowId }) => apiClient(`/api/v1/handler-flows/${flowId}/publish`, { method: 'POST' }),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: flowsKey });
+      if (variables?.flowId) {
+        queryClient.invalidateQueries({ queryKey: flowKey(variables.flowId) });
+      }
+    },
+  });
+};
+
+export const useValidateFlowMutation = () =>
+  useMutation({
+    mutationFn: (definition) =>
+      apiClient('/api/v1/handler-flows/validate', {
+        method: 'POST',
+        body: { definition },
+      }),
+  });
 
 export const useManualRunMutation = () =>
   useMutation({

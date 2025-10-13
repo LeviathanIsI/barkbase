@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate, Link } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import { useAuthStore } from '@/stores/auth';
@@ -7,7 +7,7 @@ import { useTenantStore } from '@/stores/tenant';
 import { apiClient } from '@/lib/apiClient';
 
 const Login = () => {
-  const tenant = useTenantStore((state) => state.tenant);
+  const setTenant = useTenantStore((state) => state.setTenant);
   const setAuth = useAuthStore((state) => state.setAuth);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
   const navigate = useNavigate();
@@ -32,6 +32,11 @@ const Login = () => {
         body: { email, password },
       });
 
+      // Update tenant store with full tenant info from login response
+      if (result.user?.memberships?.[0]?.tenant) {
+        setTenant(result.user.memberships[0].tenant);
+      }
+
       setAuth({
         user: result.user,
         tokens: result.tokens,
@@ -55,7 +60,7 @@ const Login = () => {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
       <div className="mb-6 text-center">
-        <p className="text-xs uppercase tracking-wide text-muted">{tenant?.name ?? 'BarkBase'}</p>
+        <p className="text-xs uppercase tracking-wide text-muted">BARKBASE</p>
         <h1 className="text-2xl font-semibold text-text">Welcome back</h1>
       </div>
       <Card className="max-w-md">
@@ -86,6 +91,12 @@ const Login = () => {
           <Button type="submit" disabled={submitting || !email || !password}>
             {submitting ? 'Signing in…' : 'Sign In'}
           </Button>
+          <p className="text-center text-xs text-muted">
+            Don't have a workspace?{' '}
+            <Link to="/signup" className="text-primary hover:underline">
+              Create one
+            </Link>
+          </p>
         </form>
       </Card>
     </div>

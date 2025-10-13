@@ -1,60 +1,38 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useEffect, useMemo, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { PawPrint, Plus, FileDown, Settings, ChevronDown, Download, Trash2, RefreshCw, X } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import Card from '@/components/ui/Card';
+import DataTable from '@/components/ui/DataTable';
 import Button from '@/components/ui/Button';
 import Skeleton from '@/components/ui/Skeleton';
 import { useTenantStore } from '@/stores/tenant';
 import { queryKeys } from '@/lib/queryKeys';
-import PetProfile from '../components/PetProfile';
-import VaccinationTimeline from '../components/VaccinationTimeline';
+import { cn } from '@/lib/cn';
 import {
   usePetsQuery,
   useCreatePetMutation,
-  useUpdatePetMutation,
   useDeletePetMutation,
+  useUpdatePetMutation,
 } from '../api';
-
-const formatCurrency = (valueCents = 0, currency = 'USD') =>
-  new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-  }).format(valueCents / 100);
+import { PetFormModal } from '../components';
 
 const Pets = () => {
+  const navigate = useNavigate();
   const petsQuery = usePetsQuery();
   const pets = useMemo(() => petsQuery.data ?? [], [petsQuery.data]);
-  const [selectedPetId, setSelectedPetId] = useState(null);
   const tenantKey = useTenantStore((state) => state.tenant?.slug ?? 'default');
   const queryClient = useQueryClient();
-  const {
-    register: registerEdit,
-    handleSubmit: handleEditSubmit,
-    reset: resetEdit,
-    formState: { isSubmitting: isSaving },
-  } = useForm({
-    defaultValues: {
-      medicalNotes: '',
-      dietaryNotes: '',
-    },
-  });
-  const {
-    register: registerCreate,
-    handleSubmit: handleCreateSubmit,
-    reset: resetCreate,
-    formState: { isSubmitting: isCreating },
-  } = useForm({
-    defaultValues: {
-      name: '',
-      breed: '',
-      ownerIds: '',
-    },
-  });
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [activeView, setActiveView] = useState('all-pets');
+  const [activeFilters, setActiveFilters] = useState({});
+  const [showActionsDropdown, setShowActionsDropdown] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [petFormModalOpen, setPetFormModalOpen] = useState(false);
+  const [selectedPet, setSelectedPet] = useState(null);
+  const actionsDropdownRef = useRef(null);
   const createPetMutation = useCreatePetMutation();
-  const updatePetMutation = useUpdatePetMutation(selectedPetId);
+  const updatePetMutation = useUpdatePetMutation(selectedPet?.id);
   const deletePetMutation = useDeletePetMutation();
 
   useEffect(() => {
@@ -63,242 +41,571 @@ const Pets = () => {
     }
   }, [petsQuery.isError, petsQuery.error]);
 
+  // Close actions dropdown on outside click
   useEffect(() => {
-    if (!selectedPetId && pets.length) {
-      setSelectedPetId(pets[0].id);
-    }
-  }, [pets, selectedPetId]);
-
-  const selectedPet = useMemo(
-    () => pets.find((pet) => pet.id === selectedPetId) ?? null,
-    [pets, selectedPetId],
-  );
-
-  useEffect(() => {
-    if (selectedPet) {
-      resetEdit({
-        medicalNotes: selectedPet.medicalNotes ?? '',
-        dietaryNotes: selectedPet.dietaryNotes ?? '',
-      });
-    }
-  }, [selectedPet, resetEdit]);
-
-  const onSubmit = async (values) => {
-    if (!selectedPet) return;
-    try {
-      await updatePetMutation.mutateAsync(values);
-      toast.success('Pet details updated');
-      queryClient.invalidateQueries({ queryKey: queryKeys.pets(tenantKey, {}) });
-    } catch (error) {
-      toast.error(error.message ?? 'Unable to update pet');
-    }
-  };
-
-  const bookings = selectedPet?.bookings ?? [];
-  const vaccinations = selectedPet?.vaccinations ?? [];
-
-  const handleCreate = async (values) => {
-    const ownerIds = values.ownerIds
-      .split(',')
-      .map((ownerId) => ownerId.trim())
-      .filter(Boolean);
-
-    if (ownerIds.length === 0) {
-      toast.error('Provide at least one owner ID');
-      return;
-    }
-
-    try {
-      const created = await createPetMutation.mutateAsync({
-        name: values.name,
-        breed: values.breed || undefined,
-        ownerIds,
-      });
-      toast.success('Pet created');
-      queryClient.invalidateQueries({ queryKey: queryKeys.pets(tenantKey, {}) });
-      resetCreate({ name: '', breed: '', ownerIds: '' });
-      setShowCreateForm(false);
-      if (created?.id) {
-        setSelectedPetId(created.id);
+    const handleClickOutside = (event) => {
+      if (actionsDropdownRef.current && !actionsDropdownRef.current.contains(event.target)) {
+        setShowActionsDropdown(false);
       }
+    };
+
+    if (showActionsDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showActionsDropdown]);
+
+  // Calculate views
+  const views = useMemo(() => {
+    const activePets = pets.filter((p) => p.status === 'active' || !p.status);
+    const inactivePets = pets.filter((p) => p.status === 'inactive');
+
+    return [
+      { id: 'all-pets', label: 'All Pets' },
+      { id: 'active', label: 'Active' },
+      { id: 'inactive', label: 'Inactive' },
+      { id: 'recent', label: 'Recently Added', canClose: true },
+    ];
+  }, [pets]);
+
+  // Filter groups for the filter bar
+  const filterGroups = [
+    {
+      id: 'owner',
+      label: 'Pet Owner',
+      options: [
+        ...Array.from(new Set(pets.flatMap(p => p.owners || []).map(o => o.name || o.email)))
+          .filter(Boolean)
+          .sort()
+          .map(name => ({ value: name, label: name }))
+      ],
+    },
+    {
+      id: 'breed',
+      label: 'Breed',
+      options: [
+        ...Array.from(new Set(pets.map(p => p.breed).filter(Boolean)))
+          .sort()
+          .map(breed => ({ value: breed, label: breed }))
+      ],
+    },
+    {
+      id: 'status',
+      label: 'Status',
+      options: [
+        { value: 'active', label: 'Active' },
+        { value: 'inactive', label: 'Inactive' },
+      ],
+    },
+    {
+      id: 'bookings',
+      label: 'Booking Count',
+      options: [
+        { value: 'zero', label: '0 bookings' },
+        { value: '1-5', label: '1-5 bookings' },
+        { value: '6-10', label: '6-10 bookings' },
+        { value: '11-20', label: '11-20 bookings' },
+        { value: '21+', label: '21+ bookings' },
+      ],
+    },
+  ];
+
+  // Filter data based on active view and filters
+  const filteredPets = useMemo(() => {
+    let result = pets;
+
+    // Apply view filter
+    if (activeView === 'active') {
+      result = result.filter((p) => p.status === 'active' || !p.status);
+    } else if (activeView === 'inactive') {
+      result = result.filter((p) => p.status === 'inactive');
+    } else if (activeView === 'recent') {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      result = result.filter((p) => new Date(p.createdAt || 0) >= thirtyDaysAgo);
+    }
+
+    // Apply active filters
+    if (activeFilters.owner) {
+      result = result.filter((p) => {
+        const ownerNames = (p.owners || []).map(o => o.name || o.email);
+        return ownerNames.includes(activeFilters.owner);
+      });
+    }
+
+    if (activeFilters.breed) {
+      result = result.filter((p) => p.breed === activeFilters.breed);
+    }
+
+    if (activeFilters.status) {
+      result = result.filter((p) => (p.status || 'active') === activeFilters.status);
+    }
+
+    if (activeFilters.bookings) {
+      result = result.filter((p) => {
+        const count = p.bookings?.length || 0;
+        switch (activeFilters.bookings) {
+          case 'zero':
+            return count === 0;
+          case '1-5':
+            return count >= 1 && count <= 5;
+          case '6-10':
+            return count >= 6 && count <= 10;
+          case '11-20':
+            return count >= 11 && count <= 20;
+          case '21+':
+            return count >= 21;
+          default:
+            return true;
+        }
+      });
+    }
+
+    return result;
+  }, [pets, activeView, activeFilters]);
+
+  const columns = [
+    {
+      header: 'Name',
+      accessor: 'name',
+      sortable: true,
+      cell: (row) => (
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+            <PawPrint className="h-4 w-4" />
+          </div>
+          <div>
+            <button className="font-medium text-blue-600 hover:underline">
+              {row.name}
+            </button>
+            <p className="text-xs text-gray-500">{row.breed || 'Unknown breed'}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: 'Breed',
+      accessor: 'breed',
+      sortable: true,
+      cell: (row) => <span className="text-gray-700">{row.breed || '--'}</span>,
+    },
+    {
+      header: 'Owners',
+      accessor: 'owners',
+      cell: (row) => {
+        const owners = row.owners || [];
+        if (owners.length === 0) return <span className="text-gray-500">--</span>;
+        return (
+          <div className="flex flex-col gap-0.5">
+            {owners.slice(0, 2).map((owner) => (
+              <button
+                key={owner.id}
+                className="text-left text-sm text-blue-600 hover:underline"
+              >
+                {owner.name || owner.email}
+              </button>
+            ))}
+            {owners.length > 2 && (
+              <span className="text-xs text-gray-500">+{owners.length - 2} more</span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      header: 'Medical Notes',
+      accessor: 'medicalNotes',
+      cell: (row) => {
+        const notes = row.medicalNotes || '';
+        if (!notes) return <span className="text-gray-500">--</span>;
+        if (notes.length > 50) {
+          return (
+            <button className="text-left text-sm text-blue-600 hover:underline">
+              {notes.substring(0, 50)}...
+            </button>
+          );
+        }
+        return <span className="text-sm text-gray-700">{notes}</span>;
+      },
+    },
+    {
+      header: 'Dietary Notes',
+      accessor: 'dietaryNotes',
+      cell: (row) => {
+        const notes = row.dietaryNotes || '';
+        if (!notes) return <span className="text-gray-500">--</span>;
+        if (notes.length > 50) {
+          return (
+            <button className="text-left text-sm text-blue-600 hover:underline">
+              {notes.substring(0, 50)}...
+            </button>
+          );
+        }
+        return <span className="text-sm text-gray-700">{notes}</span>;
+      },
+    },
+    {
+      header: 'Bookings',
+      accessor: 'bookingCount',
+      sortable: true,
+      cell: (row) => {
+        const count = row.bookings?.length || 0;
+        const lastBooking = row.bookings?.[0];
+        return (
+          <div>
+            <button className="font-medium text-blue-600 hover:underline">
+              {count} {count === 1 ? 'record' : 'records'}
+            </button>
+            {lastBooking && (
+              <p className="text-xs text-gray-500">
+                Last: {new Date(lastBooking.checkIn).toLocaleDateString()}
+              </p>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      header: 'Status',
+      accessor: 'status',
+      sortable: true,
+      cell: (row) => {
+        const status = row.status || 'active';
+        const statusStyles = {
+          active: 'bg-green-100 text-green-800',
+          inactive: 'bg-gray-100 text-gray-800',
+        };
+        return (
+          <span className={cn('inline-flex rounded-full px-2 py-0.5 text-xs font-medium', statusStyles[status])}>
+            {status.charAt(0).toUpperCase() + status.slice(1)}
+          </span>
+        );
+      },
+    },
+  ];
+
+  const handleRowClick = (pet) => {
+    navigate(`/pets/${pet.id}`);
+  };
+
+  const handleFilterChange = (filterId, value) => {
+    setActiveFilters((prev) => ({
+      ...prev,
+      [filterId]: value,
+    }));
+  };
+
+  const handleFilterClear = (filterId) => {
+    setActiveFilters((prev) => {
+      const updated = { ...prev };
+      delete updated[filterId];
+      return updated;
+    });
+  };
+
+  const handleExport = () => {
+    // Export visible data to CSV
+    const headers = columns.map(col => col.header);
+    const rows = filteredPets.map(pet =>
+      columns.map(col => {
+        const value = pet[col.accessor];
+        if (col.accessor === 'owners') {
+          const owners = pet.owners || [];
+          return owners.map(o => o.name || o.email).join('; ');
+        }
+        if (col.accessor === 'bookingCount') {
+          return pet.bookings?.length || 0;
+        }
+        return value || '';
+      })
+    );
+
+    const csv = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `pets-export-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    toast.success('Pets exported successfully');
+  };
+
+  const handleExportAll = () => {
+    // Export all pets to CSV
+    const headers = columns.map(col => col.header);
+    const rows = pets.map(pet =>
+      columns.map(col => {
+        const value = pet[col.accessor];
+        if (col.accessor === 'owners') {
+          const owners = pet.owners || [];
+          return owners.map(o => o.name || o.email).join('; ');
+        }
+        if (col.accessor === 'bookingCount') {
+          return pet.bookings?.length || 0;
+        }
+        return value || '';
+      })
+    );
+
+    const csv = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `all-pets-export-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    toast.success('All pets exported successfully');
+    setShowActionsDropdown(false);
+  };
+
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.pets(tenantKey) });
+    toast.success('Pets data refreshed');
+    setShowActionsDropdown(false);
+  };
+
+  const handleDeleteAll = () => {
+    if (window.confirm('Are you sure you want to delete all pets? This action cannot be undone.')) {
+      toast.error('Bulk delete not yet implemented');
+    }
+    setShowActionsDropdown(false);
+  };
+
+  const handleImport = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const text = e.target?.result;
+      const lines = text.split('\n').filter(line => line.trim());
+      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+
+      const petsToCreate = lines.slice(1).map(line => {
+        const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+        const pet = {};
+        headers.forEach((header, idx) => {
+          const value = values[idx];
+          switch (header.toLowerCase()) {
+            case 'name':
+              pet.name = value;
+              break;
+            case 'breed':
+              pet.breed = value;
+              break;
+            case 'status':
+              pet.status = value;
+              break;
+            case 'medical notes':
+            case 'medicalnotes':
+              pet.medicalNotes = value;
+              break;
+            case 'dietary notes':
+            case 'dietarynotes':
+              pet.dietaryNotes = value;
+              break;
+          }
+        });
+        return pet;
+      });
+
+      try {
+        for (const pet of petsToCreate) {
+          if (pet.name) {
+            await createPetMutation.mutateAsync(pet);
+          }
+        }
+        toast.success(`Successfully imported ${petsToCreate.length} pets`);
+        setImportModalOpen(false);
+      } catch (error) {
+        toast.error(`Import failed: ${error.message}`);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleCreatePet = () => {
+    setSelectedPet(null);
+    setPetFormModalOpen(true);
+  };
+
+  const handlePetFormSubmit = async (data) => {
+    try {
+      if (selectedPet) {
+        await updatePetMutation.mutateAsync(data);
+        toast.success('Pet updated successfully');
+      } else {
+        // Add required fields for pet creation - only send fields that have values
+        const petData = {
+          name: data.name,
+          ownerIds: [], // Empty array - owners can be assigned later
+          behaviorFlags: [], // Empty array for behavior flags
+        };
+
+        // Only add optional fields if they have values
+        if (data.breed) petData.breed = data.breed;
+        if (data.birthdate) petData.birthdate = data.birthdate;
+        if (data.medicalNotes) petData.medicalNotes = data.medicalNotes;
+        if (data.dietaryNotes) petData.dietaryNotes = data.dietaryNotes;
+        if (data.status) petData.status = data.status;
+
+        console.log('Sending pet data:', petData);
+        await createPetMutation.mutateAsync(petData);
+        toast.success('Pet created successfully');
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.pets(tenantKey) });
+      setPetFormModalOpen(false);
+      setSelectedPet(null);
     } catch (error) {
-      toast.error(error.message ?? 'Unable to create pet');
+      console.error('Pet creation error:', error);
+      toast.error(error?.message || 'Failed to save pet');
     }
   };
 
-  const handleDelete = async () => {
-    if (!selectedPet) return;
-    const shouldDelete = window.confirm(`Delete ${selectedPet.pet?.name ?? selectedPet.name}?`);
-    if (!shouldDelete) return;
-    try {
-      await deletePetMutation.mutateAsync(selectedPet.id);
-      toast.success('Pet removed');
-      queryClient.invalidateQueries({ queryKey: queryKeys.pets(tenantKey, {}) });
-      setSelectedPetId(null);
-    } catch (error) {
-      toast.error(error.message ?? 'Unable to delete pet');
-    }
-  };
+  if (petsQuery.isLoading) {
+    return (
+      <div className="p-8">
+        <Skeleton className="h-12 w-64 mb-4" />
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
+  }
 
   return (
-    <DashboardLayout
-      title="Pet Management"
-      description="Detailed history, medical tracking, and owner collaboration tools."
-      actions={
-        <Button variant={showCreateForm ? 'ghost' : 'default'} onClick={() => setShowCreateForm((value) => !value)}>
-          {showCreateForm ? 'Close Form' : 'New Pet'}
-        </Button>
-      }
-    >
-      {showCreateForm ? (
-        <Card title="Create Pet" description="Provide a name and owner identifiers to add a new pet.">
-          <form className="grid gap-4 md:grid-cols-2" onSubmit={handleCreateSubmit(handleCreate)}>
-            <label className="text-sm font-medium text-text">
-              Name
-              <input
-                type="text"
-                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
-                {...registerCreate('name', { required: true })}
-              />
-            </label>
-            <label className="text-sm font-medium text-text">
-              Breed
-              <input
-                type="text"
-                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
-                {...registerCreate('breed')}
-              />
-            </label>
-            <label className="text-sm font-medium text-text md:col-span-2">
-              Owner IDs
-              <input
-                type="text"
-                placeholder="owner-1, owner-2"
-                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
-                {...registerCreate('ownerIds', { required: true })}
-              />
-              <span className="mt-1 block text-xs text-muted">Comma-separated owner IDs from your CRM.</span>
-            </label>
-            <div className="flex items-center gap-2 md:col-span-2">
-              <Button type="submit" disabled={isCreating}>
-                {isCreating ? 'Saving…' : 'Create Pet'}
+    <>
+      <DataTable
+        title="Pets"
+        recordCount={pets.length}
+        columns={columns}
+        data={filteredPets}
+        views={views}
+        activeView={activeView}
+        onViewChange={setActiveView}
+        filterGroups={filterGroups}
+        activeFilters={activeFilters}
+        onFilterChange={handleFilterChange}
+        onFilterClear={handleFilterClear}
+        searchPlaceholder="Search name, breed, owner, notes..."
+        onRowClick={handleRowClick}
+        enableSelection
+        onExport={handleExport}
+        headerActions={
+          <>
+            <div ref={actionsDropdownRef} className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowActionsDropdown(!showActionsDropdown)}
+              >
+                Actions
+                <ChevronDown className="h-4 w-4 ml-2" />
               </Button>
-              <Button type="button" variant="ghost" onClick={() => setShowCreateForm(false)}>
+              {showActionsDropdown && (
+                <div className="absolute right-0 top-full z-50 mt-1 min-w-[180px] rounded-md border border-border bg-white shadow-lg">
+                  <div className="py-1">
+                    <button
+                      onClick={handleExportAll}
+                      className="flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      <Download className="h-4 w-4" />
+                      Export all
+                    </button>
+                    <button
+                      onClick={handleRefresh}
+                      className="flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      Refresh data
+                    </button>
+                    <button
+                      onClick={handleDeleteAll}
+                      className="flex w-full items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete all
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setImportModalOpen(true)}>
+              Import
+            </Button>
+            <Button size="sm" onClick={handleCreatePet}>
+              <Plus className="h-4 w-4 mr-2" />
+              New Pet
+            </Button>
+          </>
+        }
+      />
+
+      {/* Import Modal */}
+      {importModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-semibold">Import Pets</h2>
+              <button
+                onClick={() => setImportModalOpen(false)}
+                className="rounded p-1 hover:bg-gray-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mb-4">
+              <p className="mb-2 text-sm text-gray-600">
+                Upload a CSV file with the following columns:
+              </p>
+              <ul className="mb-4 list-disc pl-5 text-sm text-gray-600">
+                <li>Name (required)</li>
+                <li>Breed</li>
+                <li>Status (active/inactive)</li>
+                <li>Medical Notes</li>
+                <li>Dietary Notes</li>
+              </ul>
+              <input
+                type="file"
+                accept=".csv"
+                onChange={handleImport}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-primary/90"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setImportModalOpen(false)}>
                 Cancel
               </Button>
             </div>
-          </form>
-        </Card>
-      ) : null}
-
-      <div className="grid gap-6 xl:grid-cols-[18rem_1fr]">
-        <Card title="Pets" description="Select a pet to review their profile.">
-          {petsQuery.isLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <Skeleton key={index} className="h-10 w-full" />
-              ))}
-            </div>
-          ) : pets.length === 0 ? (
-            <p className="text-sm text-muted">No pets found for this tenant.</p>
-          ) : (
-            <ul className="space-y-2 text-sm">
-              {pets.map((pet) => (
-                <li key={pet.id}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedPetId(pet.id)}
-                    className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left transition-colors ${
-                      pet.id === selectedPetId
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border bg-surface text-text hover:border-primary/60'
-                    }`}
-                  >
-                    <span>{pet.name}</span>
-                    {pet.bookings?.[0] && (
-                      <span className="text-xs text-muted">
-                        Last stay {new Date(pet.bookings[0].checkIn).toLocaleDateString()}
-                      </span>
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-        <div className="space-y-6">
-          {selectedPet ? (
-            <>
-              <PetProfile pet={selectedPet} />
-              <Card title="Health Notes" description="Keep team members informed with the latest updates.">
-                <form className="grid gap-4" onSubmit={handleEditSubmit(onSubmit)}>
-                  <label className="text-sm font-medium text-text">
-                    Medical Notes
-                    <textarea
-                      rows={3}
-                      className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
-                      {...registerEdit('medicalNotes')}
-                    />
-                  </label>
-                  <label className="text-sm font-medium text-text">
-                    Dietary Notes
-                    <textarea
-                      rows={2}
-                      className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
-                      {...registerEdit('dietaryNotes')}
-                    />
-                  </label>
-                  <div className="flex justify-end">
-                    <div className="flex gap-2">
-                      <Button type="button" variant="ghost" onClick={handleDelete} disabled={deletePetMutation.isPending}>
-                        Delete
-                      </Button>
-                      <Button type="submit" disabled={petsQuery.isLoading || isSaving || updatePetMutation.isPending}>
-                        {updatePetMutation.isPending ? 'Saving…' : 'Save Changes'}
-                      </Button>
-                    </div>
-                  </div>
-                </form>
-              </Card>
-              <div className="grid gap-6 lg:grid-cols-2">
-                <VaccinationTimeline vaccinations={vaccinations} />
-                <Card
-                  title="Recent Bookings"
-                  description="Last five stays with balances remaining."
-                >
-                  {bookings.length === 0 ? (
-                    <p className="text-xs text-muted">No stays logged yet.</p>
-                  ) : (
-                    <ul className="space-y-3 text-sm">
-                      {bookings.map((booking) => (
-                        <li
-                          key={booking.id}
-                          className="rounded-xl border border-border/60 bg-surface/60 p-3"
-                        >
-                          <p className="font-medium text-text">
-                            {new Date(booking.checkIn).toLocaleDateString()} –
-                            {' '}
-                            {new Date(booking.checkOut).toLocaleDateString()}
-                          </p>
-                          <p className="text-xs text-muted">Status · {booking.status}</p>
-                          <p className="text-xs text-muted">
-                            Balance {formatCurrency(booking.balanceDueCents)}
-                          </p>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </Card>
-              </div>
-            </>
-          ) : (
-            <Card title="Select a pet">
-              <p className="text-sm text-muted">Choose a pet from the list to view details.</p>
-            </Card>
-          )}
+          </div>
         </div>
-      </div>
-    </DashboardLayout>
+      )}
+
+      {/* Pet Form Modal */}
+      <PetFormModal
+        open={petFormModalOpen}
+        onClose={() => {
+          setPetFormModalOpen(false);
+          setSelectedPet(null);
+        }}
+        onSubmit={handlePetFormSubmit}
+        pet={selectedPet}
+        isLoading={createPetMutation.isPending || updatePetMutation.isPending}
+      />
+    </>
   );
 };
 

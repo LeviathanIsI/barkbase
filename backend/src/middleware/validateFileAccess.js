@@ -1,6 +1,70 @@
-const path = require('path');
-const { requireAuth } = require('./requireAuth');
+const prisma = require('../config/prisma');
+const { verifyAccessToken } = require('../utils/jwt');
 const logger = require('../utils/logger');
+
+const extractToken = (req) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    return authHeader.slice(7);
+  }
+  if (req.cookies?.accessToken) {
+    return req.cookies.accessToken;
+  }
+  return null;
+};
+
+const ensureAuthenticated = async (req) => {
+  if (req.user && req.user.tenantId === req.tenantId) {
+    return;
+  }
+
+  const token = extractToken(req);
+  if (!token) {
+    const error = new Error('Authentication required');
+    error.statusCode = 401;
+    throw error;
+  }
+
+  let payload;
+  try {
+    payload = verifyAccessToken(token);
+  } catch (error) {
+    const authError = new Error('Invalid or expired token');
+    authError.statusCode = 401;
+    throw authError;
+  }
+
+  if (payload.tenantId !== req.tenantId) {
+    const error = new Error('Tenant scope mismatch');
+    error.statusCode = 403;
+    throw error;
+  }
+
+  const membership = await prisma.membership.findFirst({
+    where: {
+      id: payload.membershipId,
+      tenantId: payload.tenantId,
+      userId: payload.sub,
+    },
+    include: {
+      user: true,
+    },
+  });
+
+  if (!membership || membership.user?.isActive === false) {
+    const error = new Error('Invalid authentication context');
+    error.statusCode = 401;
+    throw error;
+  }
+
+  req.user = {
+    id: membership.user.id,
+    email: membership.user.email,
+    role: membership.role,
+    tenantId: membership.tenantId,
+    membershipId: membership.id,
+  };
+};
 
 /**
  * Middleware to validate that authenticated users can only access files
@@ -11,58 +75,46 @@ const logger = require('../utils/logger');
  * This middleware must be placed AFTER tenantContext and BEFORE express.static
  */
 const validateFileAccess = () => {
-  // First ensure user is authenticated
-  const authMiddleware = requireAuth();
-
   return async (req, res, next) => {
     try {
-      // Run authentication first
-      await new Promise((resolve, reject) => {
-        authMiddleware(req, res, (err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
+      await ensureAuthenticated(req);
 
-      // Parse the requested file path
-      // req.path will be something like: /tenants/acme/uploads/2025-01-01/file.pdf
+      const pathToInspect = req.originalUrl || req.url || req.path;
+      if (pathToInspect.includes('..')) {
+        logger.warn({ path: req.originalUrl, user: req.user }, 'Path traversal attempt blocked');
+        return res.status(400).json({ message: 'Invalid file path' });
+      }
+
       const pathSegments = req.path.split('/').filter(Boolean);
 
-      // Validate path structure: must start with "tenants/{slug}"
-      if (pathSegments.length < 2 || pathSegments[0] !== 'tenants') {
+      if (pathSegments.length < 5 || pathSegments[0] !== 'tenants' || pathSegments[2] !== 'uploads') {
         logger.warn({ path: req.path, user: req.user }, 'Invalid file path structure');
         return res.status(400).json({ message: 'Invalid file path' });
       }
 
       const requestedTenantSlug = pathSegments[1];
 
-      // Validate that the authenticated user's tenant matches the requested file's tenant
       if (req.tenantSlug !== requestedTenantSlug) {
         logger.warn(
           {
             userTenant: req.tenantSlug,
             requestedTenant: requestedTenantSlug,
             userId: req.user?.id,
-            path: req.path
+            path: req.path,
           },
-          'Cross-tenant file access attempt blocked'
+          'Cross-tenant file access attempt blocked',
         );
         return res.status(403).json({ message: 'Access denied' });
       }
 
-      // Additional security: Prevent path traversal attempts
-      const normalizedPath = path.normalize(req.path);
-      if (normalizedPath.includes('..')) {
-        logger.warn({ path: req.path, normalizedPath, user: req.user }, 'Path traversal attempt blocked');
-        return res.status(400).json({ message: 'Invalid file path' });
+      return next();
+    } catch (error) {
+      if (error.statusCode === 401 || error.message?.includes('Authentication required') || error.message?.includes('Invalid or expired token')) {
+        return res.status(401).json({ message: 'Authentication required to access files' });
       }
 
-      // All checks passed, allow static file serving to proceed
-      next();
-    } catch (error) {
-      // Authentication failed - return 401
-      if (error.message?.includes('Authentication required') || error.message?.includes('Invalid or expired token')) {
-        return res.status(401).json({ message: 'Authentication required to access files' });
+      if (error.statusCode === 403 || error.message === 'Tenant scope mismatch') {
+        return res.status(403).json({ message: 'Access denied' });
       }
 
       logger.error({ error, path: req.path }, 'File access validation failed');

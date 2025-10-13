@@ -3,7 +3,7 @@ const tenantContext = require('../middleware/tenantContext');
 const { requireAuth } = require('../middleware/requireAuth');
 const validate = require('../middleware/validate');
 const controller = require('../controllers/event.controller');
-const schemas = require('../validators/events.validator');
+const schemas = require('../validators/event.validator');
 
 const router = Router();
 

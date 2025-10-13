@@ -1,4 +1,5 @@
 import { Plus } from 'lucide-react';
+import { Handle, Position } from 'reactflow';
 import { cn } from '@/lib/cn';
 import NodeActions from './NodeActions';
 
@@ -15,6 +16,7 @@ const BaseNode = ({ id, data, children, className, variant = 'default' }) => {
 
   const stepIndex = data?.stepIndex;
   const totalSteps = data?.totalSteps || 1;
+  const branches = data?.branches || 2;
 
   const handleAddClick = (e) => {
     e.stopPropagation(); // Prevent node click event from firing
@@ -27,6 +29,75 @@ const BaseNode = ({ id, data, children, className, variant = 'default' }) => {
     }
   };
 
+  // Determine which handles to render based on variant
+  const renderHandles = () => {
+    const handles = [];
+
+    // All nodes except trigger get a target handle at the top
+    if (variant !== 'trigger' && stepIndex > 1) {
+      handles.push(
+        <Handle
+          key="target"
+          type="target"
+          position={Position.Top}
+          id="target"
+          className="opacity-0"
+        />
+      );
+    }
+
+    // Source handles at the bottom - varies by node type
+    if (variant === 'condition') {
+      // Condition nodes have two handles: true and false
+      handles.push(
+        <Handle
+          key="true"
+          type="source"
+          position={Position.Bottom}
+          id="true"
+          className="opacity-0"
+          style={{ left: '33%' }}
+        />,
+        <Handle
+          key="false"
+          type="source"
+          position={Position.Bottom}
+          id="false"
+          className="opacity-0"
+          style={{ left: '66%' }}
+        />
+      );
+    } else if (variant === 'branch') {
+      // Branch nodes have N handles
+      for (let i = 0; i < branches; i++) {
+        const leftPercent = (100 / (branches + 1)) * (i + 1);
+        handles.push(
+          <Handle
+            key={`branch-${i}`}
+            type="source"
+            position={Position.Bottom}
+            id={`branch-${i}`}
+            className="opacity-0"
+            style={{ left: `${leftPercent}%` }}
+          />
+        );
+      }
+    } else {
+      // All other nodes have a single default source handle
+      handles.push(
+        <Handle
+          key="source"
+          type="source"
+          position={Position.Bottom}
+          id="source"
+          className="opacity-0"
+        />
+      );
+    }
+
+    return handles;
+  };
+
   return (
     <div className="relative">
       <div
@@ -36,6 +107,8 @@ const BaseNode = ({ id, data, children, className, variant = 'default' }) => {
           className
         )}
       >
+        {/* React Flow Handles */}
+        {renderHandles()}
         {/* Step Number Badge */}
         {stepIndex && (
           <div className="absolute -top-3 -left-3 w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold shadow-md border-2 border-white z-10">

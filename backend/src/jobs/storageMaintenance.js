@@ -2,6 +2,9 @@ const path = require('path');
 const fs = require('fs/promises');
 const cron = require('node-cron');
 const env = require('../config/env');
+const logger = require('../utils/logger');
+
+const log = logger.child({ job: 'storage-maintenance' });
 
 const MAX_EXPORTS = Math.max(1, env.storage.maxExports ?? 10);
 const MAX_BACKUPS = Math.max(1, env.storage.maxBackups ?? 5);
@@ -29,7 +32,7 @@ const pruneTempFiles = async () => {
     );
   } catch (error) {
     if (error.code !== 'ENOENT') {
-      console.warn('[storage] Failed to prune temp files', error.message);
+      log.warn({ error: error.message }, 'Failed to prune temp files');
     }
   }
 };
@@ -78,7 +81,7 @@ const pruneExports = async (tenantDir, limit) => {
       });
   } catch (error) {
     if (error.code !== 'ENOENT') {
-      console.warn('[storage] Failed to prune exports in', tenantDir, error.message);
+      log.warn({ error: error.message, tenantDir }, 'Failed to prune exports');
     }
   }
 };
@@ -99,7 +102,7 @@ const runMaintenance = async () => {
     );
   } catch (error) {
     if (error.code !== 'ENOENT') {
-      console.warn('[storage] Failed to inspect tenant storage', error.message);
+      log.warn({ error: error.message }, 'Failed to inspect tenant storage');
     }
   }
 };
@@ -107,7 +110,7 @@ const runMaintenance = async () => {
 const scheduleStorageMaintenance = () => {
   cron.schedule('30 3 * * *', () => {
     runMaintenance().catch((error) => {
-      console.warn('[storage] Maintenance job failed', error.message);
+      log.warn({ error: error.message }, 'Maintenance job failed');
     });
   });
 };

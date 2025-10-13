@@ -2,7 +2,7 @@
 
 ## Features
 - Express 4 with layered routing (`controllers`, `services`, `validators`)
-- Prisma ORM with multi-tenant schema, SQLite default and PostgreSQL via env
+- Prisma ORM with multi-tenant schema backed by Supabase Postgres
 - JWT auth + refresh tokens (cookies), bcrypt hashing, role-based middleware
 - Tenant resolution from host/subdomain with cache
 - Multer + Sharp for tenant-scoped uploads and thumbnails
@@ -15,45 +15,45 @@
 
 ```bash
 npm install
-npm run prisma:generate
+npm run migrate:deploy   # optional locally if schema changes
 npm run dev
 ```
 
-Default server runs on `http://localhost:4000` with `/api/v1` namespace.
+The server listens on `http://localhost:4000` with `/api/v1` routes.
 
 ### Prisma Client & Database
 
-- The backend now relies on the standard `@prisma/client` package generated into `node_modules`.
-- Ensure `backend/.env` contains a `DATABASE_URL` value before starting the server (defaults to SQLite via `file:./prisma/dev.db`).
-- `src/index.js` loads dotenv at startup so Prisma reads environment variables before instantiation.
-- After dependency installs or schema updates run `npm run prisma:generate` followed by `npm run db:push` (SQLite) or `npm run prisma:migrate` (Postgres) to sync the database.
+- Prisma is configured once in `src/lib/prisma.js` and connects to Supabase.
+- The connection string is selected automatically:
+  - `DEV_DATABASE_URL` (direct 5432) when `NODE_ENV !== 'production'`
+  - `PROD_DATABASE_URL` (PgBouncer 6543) when `NODE_ENV === 'production'`
+- `DIRECT_URL` / `SHADOW_DATABASE_URL` always point to the direct database for migrations.
+- On startup we run a health check and fail fast if the database is unavailable.
 
 ### Environment Files
 
-Copy `.env.example` to `.env`. Key variables:
+Copy `.env.example` to `.env` and fill in the Supabase credentials:
 
-- `DATABASE_URL` – `file:./dev.db` (SQLite) or Postgres connection string
-- `DATABASE_PROVIDER` – `sqlite` or `postgresql` (auto-selects Prisma schema)
-- `JWT_SECRET`, `JWT_REFRESH_SECRET` – token secrets
-- `CORS_ALLOWED_ORIGINS` – comma-separated whitelist
-- `UPLOADS_ROOT` – file system storage root (mounted volume in Docker)
+- `DEV_DATABASE_URL` – direct Postgres (`db.<project>.supabase.co:5432`)
+- `PROD_DATABASE_URL` – PgBouncer pooler (`aws-*.pooler.supabase.com:6543`)
+- `DIRECT_URL`, `SHADOW_DATABASE_URL` – direct Postgres for Prisma migrations
+- `SUPABASE_DB_NAME`, `SUPABASE_SSLMODE` – keep `postgres` / `require`
+- The rest of the app settings (`JWT_SECRET`, `CORS_ALLOWED_ORIGINS`, etc.) remain unchanged.
+
+See [DEVELOPING.md](./DEVELOPING.md) for the full matrix and troubleshooting tips.
 
 ### Scripts
 
 | Script | Description |
 | --- | --- |
-| `npm run dev` | Nodemon server with env reload |
-| `npm run start` | Production start |
-| `npm run prisma:generate` | Generate Prisma client (auto-switches schema) |
-| `npm run prisma:migrate` | `prisma migrate dev` with schema auto-selection |
-| `npm run prisma:deploy` | `prisma migrate deploy` |
-| `npm run db:push` | `prisma db push` |
-| `npm run db:seed` | Placeholder for seeding script |
+| `npm run dev` | Nodemon watcher using the development Supabase connection |
+| `npm run start` | Production start (requires `PROD_DATABASE_URL`) |
+| `npm run build` | Generate Prisma client and run build checks |
+| `npm run migrate:deploy` | `prisma migrate deploy` against the direct Postgres endpoint |
+| `npm run db:health` | One-off database health probe (prints PASS/FAIL with host:port) |
+| `npm run prisma:generate` | Regenerate the Prisma client |
+| `npm run db:seed` | Seed helper (wraps `scripts/run-prisma.js db seed`) |
 | `npm test` | Jest + Supertest suite |
-
-### Database Switching
-
-`scripts/run-prisma.js` inspects `DATABASE_PROVIDER`/`DATABASE_URL` to pick the correct schema (`schema.prisma` for SQLite, `schema.postgres.prisma` for Postgres). Use `npm run prisma:generate` to refresh the client after changing providers.
 
 ### API Surface (initial)
 

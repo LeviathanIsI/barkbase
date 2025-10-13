@@ -7,6 +7,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum TenantPlan {
@@ -64,7 +65,7 @@ enum KennelType {
 }
 
 model Tenant {
-  id              String      @id @default(cuid())
+  id              String      @id @default(cuid()) @map("recordId")
   slug            String      @unique
   name            String
   themeJson       Json?
@@ -99,7 +100,7 @@ model Tenant {
 
 
 model User {
-  id             String    @id @default(cuid())
+  id             String    @id @default(cuid()) @map("recordId")
   email          String    @unique
   passwordHash   String
   lastLoginAt    DateTime?
@@ -117,7 +118,7 @@ model User {
 
 
 model Membership {
-  id           String   @id @default(cuid())
+  id           String   @id @default(cuid()) @map("recordId")
   userId       String
   tenantId     String
   role         Role     @default(STAFF)
@@ -134,7 +135,7 @@ model Membership {
 }
 
 model Invite {
-  id           String   @id @default(cuid())
+  id           String   @id @default(cuid()) @map("recordId")
   tenantId     String
   email        String
   token        String   @unique
@@ -154,7 +155,7 @@ model Invite {
 }
 
 model EmailVerificationToken {
-  id        String   @id @default(cuid())
+  id        String   @id @default(cuid()) @map("recordId")
   userId    String
   token     String   @unique
   expiresAt DateTime
@@ -166,7 +167,7 @@ model EmailVerificationToken {
 }
 
 model AuditLog {
-  id          String   @id @default(cuid())
+  id          String   @id @default(cuid()) @map("recordId")
   tenantId    String
   actorId     String?
   action      String
@@ -183,7 +184,7 @@ model AuditLog {
 }
 
 model UsageCounter {
-  id          String   @id @default(cuid())
+  id          String   @id @default(cuid()) @map("recordId")
   tenantId    String
   date        DateTime
   bookings    Int      @default(0)
@@ -199,7 +200,7 @@ model UsageCounter {
 }
 
 model Staff {
-  id            String   @id @default(cuid())
+  id            String   @id @default(cuid()) @map("recordId")
   tenantId      String
   membershipId  String   @unique
   title         String?
@@ -218,7 +219,7 @@ model Staff {
 
 
 model Owner {
-  id           String   @id @default(cuid())
+  id           String   @id @default(cuid()) @map("recordId")
   tenantId     String
   firstName    String
   lastName     String
@@ -238,7 +239,7 @@ model Owner {
 }
 
 model Pet {
-  id                 String       @id @default(cuid())
+  id                 String       @id @default(cuid()) @map("recordId")
   tenantId           String
   name               String
   breed              String?
@@ -261,7 +262,7 @@ model Pet {
 }
 
 model PetOwner {
-  id        String @id @default(cuid())
+  id        String @id @default(cuid()) @map("recordId")
   tenantId  String
   petId     String
   ownerId   String
@@ -276,7 +277,7 @@ model PetOwner {
 }
 
 model Kennel {
-  id         String     @id @default(cuid())
+  id         String     @id @default(cuid()) @map("recordId")
   tenantId   String
   name       String
   type       KennelType
@@ -297,7 +298,7 @@ model Kennel {
 }
 
 model Booking {
-  id                 String          @id @default(cuid())
+  id                 String          @id @default(cuid()) @map("recordId")
   tenantId           String
   petId              String
   ownerId            String
@@ -328,7 +329,7 @@ model Booking {
 }
 
 model BookingSegment {
-  id         String        @id @default(cuid())
+  id         String        @id @default(cuid()) @map("recordId")
   tenantId   String
   bookingId  String
   kennelId   String
@@ -346,7 +347,7 @@ model BookingSegment {
 }
 
 model Service {
-  id          String          @id @default(cuid())
+  id          String          @id @default(cuid()) @map("recordId")
   tenantId    String
   name        String
   description String?
@@ -363,7 +364,7 @@ model Service {
 }
 
 model BookingService {
-  id         String   @id @default(cuid())
+  id         String   @id @default(cuid()) @map("recordId")
   tenantId   String
   bookingId  String
   serviceId  String
@@ -378,7 +379,7 @@ model BookingService {
 }
 
 model Vaccination {
-  id            String   @id @default(cuid())
+  id            String   @id @default(cuid()) @map("recordId")
   tenantId      String
   petId         String
   type          String
@@ -396,7 +397,7 @@ model Vaccination {
 }
 
 model Payment {
-  id           String        @id @default(cuid())
+  id           String        @id @default(cuid()) @map("recordId")
   tenantId     String
   bookingId    String?
   ownerId      String
@@ -422,7 +423,7 @@ model Payment {
 }
 
 model CheckIn {
-  id               String   @id @default(cuid())
+  id               String   @id @default(cuid()) @map("recordId")
   tenantId         String
   bookingId        String
   staffId          String?
@@ -443,7 +444,7 @@ model CheckIn {
 }
 
 model CheckOut {
-  id               String   @id @default(cuid())
+  id               String   @id @default(cuid()) @map("recordId")
   tenantId         String
   bookingId        String
   staffId          String?
@@ -464,7 +465,7 @@ model CheckOut {
 }
 
 model IncidentReport {
-  id            String            @id @default(cuid())
+  id            String            @id @default(cuid()) @map("recordId")
   tenantId      String
   petId         String
   bookingId     String?

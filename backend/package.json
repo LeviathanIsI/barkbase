@@ -5,21 +5,27 @@
   "main": "index.js",
   "scripts": {
     "postinstall": "prisma generate",
-    "dev": "nodemon --watch src --ext js,json --exec node src/index.js",
+    "dev": "nodemon src/index.js",
     "start": "node src/index.js",
-    "build": "echo \\ Backend build not required\\",
+    "build": "prisma generate && node ./scripts/build-checks.js",
     "lint": "eslint . --ext .js",
     "test": "jest --runInBand",
     "jobs:handler": "node src/jobs/handlerWorker.js",
     "seed:handler": "node scripts/seedHandlerFlow.js",
-    "prisma:generate": "node scripts/run-prisma.js generate",
+    "prisma:generate": "prisma generate",
     "prisma:migrate": "node scripts/run-prisma.js migrate dev",
+    "prisma:migrate:dev": "prisma migrate dev --name init_supabase",
     "prisma:deploy": "node scripts/run-prisma.js migrate deploy",
-    "prisma:studio": "node scripts/run-prisma.js studio",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:studio": "prisma studio",
     "db:push": "node scripts/run-prisma.js db push",
     "db:seed": "node scripts/run-prisma.js db seed",
-    "migrate": "prisma migrate deploy",
-    "migrate:dev": "prisma migrate dev",
+    "db:smoke": "node scripts/db-smoke.js",
+    "db:health": "node ./scripts/db-health.js",
+    "seed": "node prisma/seed.js",
+    "migrate": "node scripts/run-prisma.js migrate deploy",
+    "migrate:dev": "node scripts/run-prisma.js migrate dev",
+    "migrate:deploy": "node scripts/run-prisma.js migrate deploy",
     "backfill:tenants": "ts-node --transpile-only ./scripts/backfillTenants.ts"
   },
   "keywords": [],
@@ -67,8 +73,5 @@
     "supertest": "^7.1.4",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.3"
-  },
-  "prisma": {
-    "seed": "node prisma/seed.js"
   }
 }

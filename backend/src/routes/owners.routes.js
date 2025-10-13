@@ -46,6 +46,26 @@ router.get(
 );
 
 /**
+ * POST /api/v1/owners/:id/pets
+ * Associate a pet with an owner
+ */
+router.post(
+  '/:id/pets',
+  requireAuth(['OWNER', 'ADMIN', 'STAFF']),
+  ownerController.addPetToOwner
+);
+
+/**
+ * DELETE /api/v1/owners/:id/pets/:petId
+ * Remove a pet from an owner
+ */
+router.delete(
+  '/:id/pets/:petId',
+  requireAuth(['OWNER', 'ADMIN', 'STAFF']),
+  ownerController.removePetFromOwner
+);
+
+/**
  * POST /api/v1/owners
  * Create a new owner
  */

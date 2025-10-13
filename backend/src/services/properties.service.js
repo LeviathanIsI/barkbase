@@ -12,6 +12,16 @@ const prisma = new PrismaClient();
 const SYSTEM_PROPERTIES = {
   pets: [
     {
+      id: 'pet_id',
+      name: 'id',
+      label: 'Record ID',
+      type: 'uuid',
+      group: 'identification',
+      required: true,
+      system: true,
+      description: 'Unique record identifier',
+    },
+    {
       id: 'pet_name',
       name: 'name',
       label: 'Name',
@@ -117,6 +127,16 @@ const SYSTEM_PROPERTIES = {
   ],
   owners: [
     {
+      id: 'owner_id',
+      name: 'id',
+      label: 'Record ID',
+      type: 'uuid',
+      group: 'identification',
+      required: true,
+      system: true,
+      description: 'Unique record identifier',
+    },
+    {
       id: 'owner_first_name',
       name: 'first_name',
       label: 'First Name',
@@ -188,6 +208,16 @@ const SYSTEM_PROPERTIES = {
     },
   ],
   bookings: [
+    {
+      id: 'booking_id',
+      name: 'id',
+      label: 'Record ID',
+      type: 'uuid',
+      group: 'identification',
+      required: true,
+      system: true,
+      description: 'Unique record identifier',
+    },
     {
       id: 'booking_status',
       name: 'status',
@@ -309,12 +339,12 @@ const SYSTEM_PROPERTIES = {
     {
       id: 'invoice_id',
       name: 'id',
-      label: 'Invoice ID',
+      label: 'Record ID',
       type: 'uuid',
       group: 'identification',
       required: true,
       system: true,
-      description: 'Unique invoice identifier',
+      description: 'Unique record identifier',
     },
     {
       id: 'invoice_created_at',
@@ -328,6 +358,16 @@ const SYSTEM_PROPERTIES = {
     },
   ],
   payments: [
+    {
+      id: 'payment_id',
+      name: 'id',
+      label: 'Record ID',
+      type: 'uuid',
+      group: 'identification',
+      required: true,
+      system: true,
+      description: 'Unique record identifier',
+    },
     {
       id: 'payment_amount_cents',
       name: 'amount_cents',
@@ -419,12 +459,12 @@ const SYSTEM_PROPERTIES = {
     {
       id: 'ticket_id',
       name: 'id',
-      label: 'Ticket ID',
+      label: 'Record ID',
       type: 'uuid',
       group: 'identification',
       required: true,
       system: true,
-      description: 'Unique ticket identifier',
+      description: 'Unique record identifier',
     },
     {
       id: 'ticket_created_at',
@@ -455,14 +495,15 @@ const PROPERTY_GROUPS = {
  * Get properties for an object type
  */
 async function getProperties(objectType, tenantId, includeArchived = false) {
-  const systemProperties = SYSTEM_PROPERTIES[objectType] || [];
+  // Only include system properties when not viewing archived (system properties can't be archived)
+  const systemProperties = includeArchived ? [] : (SYSTEM_PROPERTIES[objectType] || []);
 
   // Fetch custom properties from database
   const customProperties = await prisma.customProperty.findMany({
     where: {
       tenantId,
       objectType,
-      archived: includeArchived ? undefined : false,
+      archived: includeArchived ? true : false,
     },
     orderBy: {
       createdAt: 'asc',

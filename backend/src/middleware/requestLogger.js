@@ -84,10 +84,13 @@ const formatErrorMessage = (req, res, _err, responseTime) => {
   return [summary, ensureSentence(context), outcome].filter(Boolean).join(' ');
 };
 
-const attachRequestId = (req) => {
+const attachRequestId = (req, res) => {
   const existingId = req.headers['x-request-id'];
   const requestId = existingId || randomUUID();
   req.id = requestId;
+  if (res && typeof res.setHeader === 'function') {
+    res.setHeader('x-request-id', requestId);
+  }
   return requestId;
 };
 
@@ -107,5 +110,5 @@ module.exports = pinoHttp({
     if (res.statusCode >= 400) return 'warn';
     return 'info';
   },
-  genReqId: (req) => attachRequestId(req),
+  genReqId: (req, res) => attachRequestId(req, res),
 });

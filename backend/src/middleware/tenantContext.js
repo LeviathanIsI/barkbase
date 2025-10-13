@@ -4,6 +4,21 @@ const logger = require('../utils/logger');
 const { resolveTenantFeatures } = require('../lib/features');
 const { getDbForTenant } = require('../lib/dbRouter');
 const { forTenant } = require('../lib/tenantPrisma');
+const readiness = require('../lib/readiness');
+const { getConnectionInfo } = require('../config/databaseUrl');
+
+const CONNECTION_ERROR_CODES = new Set(['P1000', 'P1001', 'P1002', 'P1017', 'P1003']);
+
+const describeConnection = () => {
+  const meta = getConnectionInfo();
+  return `${meta.host}:${meta.port} (pooler=${meta.isPooler})`;
+};
+
+const isConnectionError = (error) =>
+  CONNECTION_ERROR_CODES.has(error?.code) ||
+  error?.name === 'PrismaClientInitializationError' ||
+  error?.name === 'PrismaClientRustPanicError' ||
+  /connect|socket|timeout|ECONNREFUSED|database error/i.test(error?.message ?? '');
 
 const cache = new Map();
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -80,6 +95,21 @@ async function tenantContext(req, res, next) {
     req.tenantScopedClient = forTenant(tenant.id, req.tenantDb);
     return next();
   } catch (error) {
+    if (isConnectionError(error)) {
+      readiness.setDbHealthy(false);
+      logger.error(
+        {
+          tenant: slug,
+          connection: describeConnection(),
+          error: error.message,
+        },
+        'Database unavailable while resolving tenant context',
+      );
+      return res
+        .status(503)
+        .json({ message: 'Service temporarily unavailable. Please try again shortly.' });
+    }
+
     const errorSummary = error?.message ? ` Reason: ${error.message}.` : '';
     const tenantDescriptor = slug ? ` for tenant ${slug}` : '';
     logger.error(

@@ -9,6 +9,8 @@ require("express-async-errors");
 
 const env = require("./config/env");
 const prisma = require("./config/prisma");
+const { getConnectionInfo } = require("./config/databaseUrl");
+const readiness = require("./lib/readiness");
 const requestLogger = require("./middleware/requestLogger");
 const errorHandler = require("./middleware/errorHandler");
 const { tenantResolver } = require("./middleware/tenantResolver");
@@ -38,6 +40,7 @@ const handlerFlowsRoutes = require("./routes/handlerFlows.routes");
 const handlerRunsRoutes = require("./routes/handlerRuns.routes");
 const eventsRoutes = require("./routes/events.routes");
 const propertiesRoutes = require("./routes/properties.routes");
+const associationsRoutes = require("./routes/associations.routes");
 
 const app = express();
 
@@ -127,22 +130,48 @@ app.use("/api/v1/handler-flows", handlerFlowsRoutes);
 app.use("/api/v1/handler-runs", handlerRunsRoutes);
 app.use("/api/v1/account-defaults", accountDefaultsRoutes);
 app.use("/api/v1/settings/properties", propertiesRoutes);
+app.use("/api/v1/settings/associations", associationsRoutes);
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", time: new Date().toISOString() });
 });
 
-app.get("/healthz", (_req, res) => {
-  res.status(200).send("ok");
+app.get("/health/db", async (_req, res) => {
+  const ok = await prisma.healthCheck();
+  readiness.setDbHealthy(ok);
+  const meta = getConnectionInfo();
+  if (ok) {
+    return res.json({
+      ok: true,
+      host: meta.host,
+      port: meta.port,
+      pooler: meta.isPooler,
+    });
+  }
+  return res.status(503).json({
+    ok: false,
+    host: meta.host,
+    port: meta.port,
+    pooler: meta.isPooler,
+  });
 });
 
-app.get("/readyz", async (_req, res) => {
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    return res.status(200).send("ready");
-  } catch (error) {
-    return res.status(503).send("not-ready");
-  }
+app.get("/health/ready", (_req, res) => {
+  const ready = readiness.isAppReady();
+  const dbHealthy = readiness.isDbHealthy();
+  const statusCode = ready ? 200 : 503;
+  res.status(statusCode).json({ ok: ready, dbHealthy });
+});
+
+app.get("/healthz", (_req, res) => {
+  const dbHealthy = readiness.isDbHealthy();
+  const statusCode = dbHealthy ? 200 : 503;
+  res.status(statusCode).send(dbHealthy ? "ok" : "db-unhealthy");
+});
+
+app.get("/readyz", (_req, res) => {
+  const ready = readiness.isAppReady();
+  res.status(ready ? 200 : 503).send(ready ? "ready" : "not-ready");
 });
 
 app.use(errorHandler);

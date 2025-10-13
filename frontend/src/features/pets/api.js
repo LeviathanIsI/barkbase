@@ -15,14 +15,18 @@ export const usePetsQuery = (params = {}) => {
   });
 };
 
-export const usePetDetailsQuery = (petId) => {
+export const usePetDetailsQuery = (petId, options = {}) => {
   const tenantKey = useTenantKey();
+  const { enabled = Boolean(petId), ...queryOptions } = options;
   return useQuery({
     queryKey: [...queryKeys.pets(tenantKey), petId],
     queryFn: () => apiClient(`/api/v1/pets/${petId}`),
-    enabled: Boolean(petId),
+    enabled,
+    ...queryOptions,
   });
 };
+
+export const usePetQuery = (petId, options = {}) => usePetDetailsQuery(petId, options);
 
 export const useUpdatePetMutation = (petId) => {
   const queryClient = useQueryClient();

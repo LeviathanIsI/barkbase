@@ -1,4 +1,7 @@
+const logger = require('../utils/logger');
 const propertiesService = require('../services/properties.service');
+
+const logWithTenant = (tenantId) => (tenantId ? logger.withTenant(tenantId) : logger);
 
 /**
  * Get properties for an object type
@@ -35,7 +38,7 @@ async function getPropertiesByObjectType(req, res) {
     );
     return res.json(properties);
   } catch (error) {
-    console.error('Error fetching properties:', error);
+    logWithTenant(req.user?.tenantId).error({ err: error }, 'Error fetching properties');
     return res.status(500).json({
       error: error.message || 'Failed to fetch properties',
     });
@@ -59,7 +62,7 @@ async function createProperty(req, res) {
     const property = await propertiesService.createProperty(tenantId, req.body);
     return res.status(201).json(property);
   } catch (error) {
-    console.error('Error creating property:', error);
+    logWithTenant(req.user?.tenantId).error({ err: error }, 'Error creating property');
     return res.status(400).json({
       error: error.message || 'Failed to create property',
     });
@@ -84,7 +87,7 @@ async function updateProperty(req, res) {
     const property = await propertiesService.updateProperty(tenantId, id, req.body);
     return res.json(property);
   } catch (error) {
-    console.error('Error updating property:', error);
+    logWithTenant(req.user?.tenantId).error({ err: error }, 'Error updating property');
     return res.status(400).json({
       error: error.message || 'Failed to update property',
     });
@@ -107,9 +110,9 @@ async function deleteProperty(req, res) {
     }
 
     await propertiesService.deleteProperty(tenantId, id);
-    return res.status(204).send();
+   return res.status(204).send();
   } catch (error) {
-    console.error('Error deleting property:', error);
+    logWithTenant(req.user?.tenantId).error({ err: error }, 'Error deleting property');
     return res.status(400).json({
       error: error.message || 'Failed to delete property',
     });
@@ -134,7 +137,7 @@ async function archiveProperty(req, res) {
     const property = await propertiesService.archiveProperty(tenantId, id);
     return res.json(property);
   } catch (error) {
-    console.error('Error archiving property:', error);
+    logWithTenant(req.user?.tenantId).error({ err: error }, 'Error archiving property');
     return res.status(400).json({
       error: error.message || 'Failed to archive property',
     });
@@ -159,7 +162,7 @@ async function restoreProperty(req, res) {
     const property = await propertiesService.restoreProperty(tenantId, id);
     return res.json(property);
   } catch (error) {
-    console.error('Error restoring property:', error);
+    logWithTenant(req.user?.tenantId).error({ err: error }, 'Error restoring property');
     return res.status(400).json({
       error: error.message || 'Failed to restore property',
     });
@@ -190,7 +193,7 @@ async function getArchivedCount(req, res) {
     const count = await propertiesService.getArchivedCount(tenantId, object);
     return res.json({ count });
   } catch (error) {
-    console.error('Error getting archived count:', error);
+    logWithTenant(req.user?.tenantId).error({ err: error }, 'Error getting archived property count');
     return res.status(500).json({
       error: error.message || 'Failed to get archived count',
     });

@@ -1,107 +1,271 @@
-import { X, Calendar, Zap, Filter, Webhook, MousePointer } from 'lucide-react';
+import { X, ChevronRight, Search, Database, Mail, Globe, Zap, Code } from 'lucide-react';
 import { cn } from '@/lib/cn';
-import Button from '@/components/ui/Button';
 import { useState } from 'react';
 
-const triggerTypes = [
+// Trigger categories matching HubSpot's structure
+const triggerCategories = [
   {
-    id: 'manual',
-    label: 'Manually triggered',
-    description: 'Run this flow on demand for specific records',
-    icon: <MousePointer className="w-8 h-8" />,
-    category: 'basic',
+    id: 'data-values',
+    name: 'Data values',
+    description: 'When data is created, changed or meets conditions',
+    icon: <Database className="w-5 h-5" />,
+    color: 'text-cyan-600',
+    triggers: [
+      {
+        id: 'segment.changed',
+        label: 'List membership changed',
+        description: 'When a record is added or removed from a list',
+        requiresObject: true,
+        subOptions: [
+          { id: 'is_member', label: 'Is a member of a list' },
+          { id: 'not_member', label: 'Is not a member of a list' },
+          { id: 'added', label: 'Added to list' },
+          { id: 'removed', label: 'Removed from list' },
+        ],
+      },
+      {
+        id: 'property.changed',
+        label: 'Property value changed',
+        description: "When a record's property value is added, edited, or removed",
+        requiresObject: true,
+        subOptions: [
+          { id: 'one_property', label: 'One property value changed', description: 'One property is edited, added, or removed' },
+          { id: 'multiple_properties', label: 'Multiple property values were met', description: 'One or more properties are edited, added, or removed' },
+        ],
+      },
+      {
+        id: 'record.created',
+        label: 'Record created',
+        description: 'When a new record is created in the system',
+        requiresObject: true,
+      },
+      {
+        id: 'filter.met',
+        label: 'Record meets a set of filter conditions',
+        description: 'When a record meets multiple conditions',
+        requiresObject: true,
+      },
+    ],
   },
   {
-    id: 'event',
-    label: 'When an event occurs',
-    description: 'Booking created, Pet checked in, Status changed, etc.',
-    icon: <Zap className="w-8 h-8" />,
-    category: 'basic',
-    popular: true,
+    id: 'communication',
+    name: 'Emails, calls, & communication',
+    description: 'When information is sent or discussed',
+    icon: <Mail className="w-5 h-5" />,
+    color: 'text-orange-600',
+    triggers: [
+      {
+        id: 'email.sent',
+        label: 'Email sent',
+        description: 'When an email is sent to a contact',
+        requiresObject: false,
+      },
+      {
+        id: 'email.opened',
+        label: 'Email opened',
+        description: 'When a contact opens an email',
+        requiresObject: false,
+      },
+      {
+        id: 'sms.received',
+        label: 'SMS received',
+        description: 'When an SMS message is received',
+        requiresObject: false,
+      },
+    ],
   },
   {
-    id: 'filter',
-    label: 'When filter criteria is met',
-    description: 'Vaccination expires ≤7 days, Invoice overdue, etc.',
-    icon: <Filter className="w-8 h-8" />,
-    category: 'basic',
-    popular: true,
+    id: 'websites',
+    name: 'Websites & media',
+    description: 'When websites and media are interacted with',
+    icon: <Globe className="w-5 h-5" />,
+    color: 'text-purple-600',
+    triggers: [
+      {
+        id: 'form.submitted',
+        label: 'Form submitted',
+        description: 'When a form is submitted on your website',
+        requiresObject: false,
+      },
+      {
+        id: 'page.visited',
+        label: 'Page visited',
+        description: 'When a specific page is visited',
+        requiresObject: false,
+      },
+    ],
   },
   {
-    id: 'schedule',
-    label: 'Based on a schedule',
-    description: 'Daily at 9:00 AM, Weekly on Mondays, etc.',
-    icon: <Calendar className="w-8 h-8" />,
-    category: 'basic',
+    id: 'automations',
+    name: 'Automations triggered',
+    description: 'When automated steps start or complete',
+    icon: <Zap className="w-5 h-5" />,
+    color: 'text-yellow-600',
+    triggers: [
+      {
+        id: 'workflow.completed',
+        label: 'Workflow completed',
+        description: 'When another workflow is completed',
+        requiresObject: false,
+      },
+    ],
   },
   {
-    id: 'webhook',
-    label: 'When a webhook is received',
-    description: 'Triggered by external system or API call',
-    icon: <Webhook className="w-8 h-8" />,
-    category: 'advanced',
+    id: 'custom',
+    name: 'Custom events & external events',
+    description: 'Requires custom configuration',
+    icon: <Code className="w-5 h-5" />,
+    color: 'text-gray-600',
+    triggers: [
+      {
+        id: 'webhook.received',
+        label: 'Received a webhook from an external app',
+        description: 'When an external app sends data to BarkBase',
+        requiresObject: false,
+      },
+      {
+        id: 'custom.event',
+        label: 'Custom events',
+        description: 'Trigger based on custom events tracked in your system',
+        requiresObject: true,
+      },
+    ],
   },
 ];
 
-// Event-based triggers (most common)
-const eventTriggers = [
-  { id: 'booking.created', label: 'Booking created', object: 'Booking' },
-  { id: 'booking.updated', label: 'Booking updated', object: 'Booking' },
-  { id: 'booking.confirmed', label: 'Booking confirmed', object: 'Booking' },
-  { id: 'booking.cancelled', label: 'Booking cancelled', object: 'Booking' },
-  { id: 'pet.checkedin', label: 'Pet checked in', object: 'Pet' },
-  { id: 'pet.checkedout', label: 'Pet checked out', object: 'Pet' },
-  { id: 'pet.created', label: 'Pet profile created', object: 'Pet' },
-  { id: 'invoice.created', label: 'Invoice created', object: 'Invoice' },
-  { id: 'invoice.paid', label: 'Invoice paid', object: 'Invoice' },
-  { id: 'invoice.overdue', label: 'Invoice overdue', object: 'Invoice' },
-  { id: 'owner.created', label: 'Owner profile created', object: 'Owner' },
-  { id: 'owner.updated', label: 'Owner profile updated', object: 'Owner' },
+// Object types for enrollment (pulled from system - in real app this would be dynamic)
+const enrollmentObjects = [
+  { id: 'owner', label: 'Owner', description: 'Pet owners and guardians' },
+  { id: 'pet', label: 'Pet', description: 'Dogs, cats, and other animals' },
+  { id: 'booking', label: 'Booking', description: 'Reservations and stays' },
+  { id: 'invoice', label: 'Invoice', description: 'Bills and payments' },
+  { id: 'property', label: 'Property', description: 'Custom property records' },
 ];
+
+// Step indicator component
+const StepIndicator = ({ currentStep }) => {
+  const steps = [
+    { id: 'trigger', label: 'Start triggers' },
+    { id: 'object', label: 'Eligible records' },
+    { id: 'settings', label: 'Settings' },
+  ];
+
+  return (
+    <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-background/50">
+      {steps.map((step, index) => (
+        <div key={step.id} className="flex items-center flex-1">
+          <div className="flex items-center gap-2">
+            <div
+              className={cn(
+                'w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold',
+                currentStep === step.id
+                  ? 'bg-primary text-white'
+                  : steps.findIndex(s => s.id === currentStep) > index
+                  ? 'bg-primary text-white'
+                  : 'bg-border text-muted'
+              )}
+            >
+              {steps.findIndex(s => s.id === currentStep) > index ? '✓' : index + 1}
+            </div>
+            <span
+              className={cn(
+                'text-xs font-medium',
+                currentStep === step.id ? 'text-text' : 'text-muted'
+              )}
+            >
+              {step.label}
+            </span>
+          </div>
+          {index < steps.length - 1 && (
+            <div className="flex-1 h-0.5 bg-border mx-2" />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
 
 const TriggerSelector = ({ onClose, onSelect }) => {
-  const [step, setStep] = useState('type'); // 'type' or 'event'
-  const [selectedType, setSelectedType] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedCategories, setExpandedCategories] = useState(['data-values']); // Start with data values expanded
+  const [step, setStep] = useState('trigger'); // 'trigger', 'sub-option', 'object'
+  const [selectedTrigger, setSelectedTrigger] = useState(null);
+  const [selectedSubOption, setSelectedSubOption] = useState(null);
 
-  const handleTypeSelect = (type) => {
-    if (type.id === 'event') {
-      setSelectedType(type);
-      setStep('event');
+  const toggleCategory = (categoryId) => {
+    setExpandedCategories(prev =>
+      prev.includes(categoryId)
+        ? prev.filter(id => id !== categoryId)
+        : [...prev, categoryId]
+    );
+  };
+
+  const handleTriggerSelect = (trigger) => {
+    setSelectedTrigger(trigger);
+
+    if (trigger.subOptions) {
+      // Has sub-options, show them first
+      setStep('sub-option');
+    } else if (trigger.requiresObject) {
+      // Need to select object type
+      setStep('object');
     } else {
-      // For other types, select immediately
+      // No object needed, complete selection
       onSelect({
         type: 'trigger',
-        triggerType: type.id,
-        label: type.label,
-        description: type.description,
+        triggerType: trigger.id,
+        label: trigger.label,
+        description: trigger.description,
+        object: null,
       });
     }
   };
 
-  const handleEventSelect = (event) => {
+  const handleSubOptionSelect = (subOption) => {
+    setSelectedSubOption(subOption);
+    // After selecting sub-option, go to object selection
+    setStep('object');
+  };
+
+  const handleObjectSelect = (object) => {
+    const label = selectedSubOption
+      ? `${object.label}: ${selectedSubOption.label}`
+      : `${object.label}: ${selectedTrigger.label}`;
+
     onSelect({
       type: 'trigger',
-      triggerType: 'event',
-      eventId: event.id,
-      label: event.label,
-      description: `When ${event.label.toLowerCase()} in BarkBase`,
-      object: event.object,
+      triggerType: selectedTrigger.id,
+      subOption: selectedSubOption?.id,
+      label,
+      description: selectedTrigger.description,
+      object: object.id,
     });
   };
 
+  const filteredCategories = triggerCategories.map(category => ({
+    ...category,
+    triggers: category.triggers.filter(trigger =>
+      trigger.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      trigger.description.toLowerCase().includes(searchQuery.toLowerCase())
+    ),
+  })).filter(category => category.triggers.length > 0);
+
   return (
-    <div className="w-96 border-r border-border bg-surface flex flex-col h-full overflow-hidden">
+    <div className="w-[480px] border-r border-border bg-surface flex flex-col h-full overflow-hidden">
       {/* Header */}
       <div className="p-4 border-b border-border flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-text">
-            {step === 'type' ? 'Choose a trigger' : 'Select event'}
+            {step === 'trigger' && 'Choose a trigger to start this workflow'}
+            {step === 'sub-option' && `Choose a ${selectedTrigger?.label.toLowerCase()} trigger`}
+            {step === 'object' && 'Choose a type of record that can enroll'}
           </h2>
-          <p className="text-xs text-muted mt-1">
-            {step === 'type'
-              ? 'Start when this happens'
-              : 'Choose what event starts this flow'}
-          </p>
+          {step === 'trigger' && (
+            <p className="text-xs text-muted mt-1">Select what event will enroll records into this flow</p>
+          )}
+          {step === 'object' && (
+            <p className="text-xs text-muted mt-1">You'll be able to choose records to enroll when you turn the workflow on</p>
+          )}
         </div>
         <button
           onClick={onClose}
@@ -112,112 +276,175 @@ const TriggerSelector = ({ onClose, onSelect }) => {
         </button>
       </div>
 
+      {/* Step Indicator */}
+      <StepIndicator currentStep={step === 'sub-option' ? 'trigger' : step} />
+
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {step === 'type' && (
-          <div className="space-y-4">
-            {/* Basic triggers */}
-            <div>
-              <h3 className="text-xs font-semibold text-muted uppercase mb-3">Start triggers</h3>
-              <div className="space-y-2">
-                {triggerTypes
-                  .filter(t => t.category === 'basic')
-                  .map((trigger) => (
-                    <button
-                      key={trigger.id}
-                      onClick={() => handleTypeSelect(trigger)}
-                      className={cn(
-                        'w-full text-left p-4 rounded-lg border border-border',
-                        'hover:border-primary hover:bg-primary/5',
-                        'transition-colors cursor-pointer',
-                        'flex items-start gap-4 relative'
-                      )}
-                    >
-                      {trigger.popular && (
-                        <div className="absolute top-2 right-2">
-                          <span className="text-xs bg-primary text-white px-2 py-0.5 rounded font-medium">
-                            Popular
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex-shrink-0 text-primary">
-                        {trigger.icon}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold text-text">{trigger.label}</div>
-                        <div className="text-xs text-muted mt-1">{trigger.description}</div>
-                      </div>
-                    </button>
-                  ))}
+      <div className="flex-1 overflow-y-auto">
+        {step === 'trigger' && (
+          <>
+            {/* Search bar */}
+            <div className="p-4 border-b border-border sticky top-0 bg-surface z-10">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+                <input
+                  type="text"
+                  placeholder="Search triggers, forms, properties, emails..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded bg-background text-text focus:outline-none focus:ring-2 focus:ring-primary"
+                />
               </div>
             </div>
 
-            {/* Advanced triggers */}
-            <div>
-              <h3 className="text-xs font-semibold text-muted uppercase mb-3">Advanced options</h3>
-              <div className="space-y-2">
-                {triggerTypes
-                  .filter(t => t.category === 'advanced')
-                  .map((trigger) => (
+            {/* Trigger manually and filter options */}
+            <div className="p-4 space-y-2 border-b border-border">
+              <button
+                onClick={() => {
+                  setSelectedTrigger({
+                    id: 'manual',
+                    label: 'Trigger manually',
+                    description: 'Run this workflow on demand',
+                    requiresObject: true,
+                  });
+                  setStep('object');
+                }}
+                className="w-full text-left px-4 py-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors"
+              >
+                <div className="text-sm font-semibold text-text">Trigger manually</div>
+              </button>
+              <button
+                onClick={() => {
+                  setSelectedTrigger({
+                    id: 'filter.met',
+                    label: 'Met filter criteria',
+                    description: 'When a record meets multiple conditions',
+                    requiresObject: true,
+                  });
+                  setStep('object');
+                }}
+                className="w-full text-left px-4 py-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors"
+              >
+                <div className="text-sm font-semibold text-text">Met filter criteria</div>
+              </button>
+              <button
+                onClick={() => onSelect({
+                  type: 'trigger',
+                  triggerType: 'schedule',
+                  label: 'On a schedule',
+                  description: 'Run this workflow on a recurring schedule',
+                  object: null,
+                })}
+                className="w-full text-left px-4 py-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors"
+              >
+                <div className="text-sm font-semibold text-text">On a schedule</div>
+              </button>
+            </div>
+
+            {/* Expandable categories */}
+            <div className="divide-y divide-border">
+              {filteredCategories.map((category) => {
+                const isExpanded = expandedCategories.includes(category.id);
+                return (
+                  <div key={category.id}>
+                    {/* Category header */}
                     <button
-                      key={trigger.id}
-                      onClick={() => handleTypeSelect(trigger)}
-                      className={cn(
-                        'w-full text-left p-4 rounded-lg border border-border',
-                        'hover:border-primary hover:bg-primary/5',
-                        'transition-colors cursor-pointer',
-                        'flex items-start gap-4'
-                      )}
+                      onClick={() => toggleCategory(category.id)}
+                      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-border/30 transition-colors text-left"
                     >
-                      <div className="flex-shrink-0 text-primary">
-                        {trigger.icon}
+                      <ChevronRight
+                        className={cn(
+                          'w-4 h-4 transition-transform flex-shrink-0',
+                          isExpanded && 'rotate-90'
+                        )}
+                      />
+                      <div className={cn('flex-shrink-0', category.color)}>
+                        {category.icon}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold text-text">{trigger.label}</div>
-                        <div className="text-xs text-muted mt-1">{trigger.description}</div>
+                        <div className="text-sm font-semibold text-text">{category.name}</div>
+                        <div className="text-xs text-muted">{category.description}</div>
                       </div>
                     </button>
-                  ))}
-              </div>
+
+                    {/* Category triggers */}
+                    {isExpanded && (
+                      <div className="bg-background/50">
+                        {category.triggers.map((trigger) => (
+                          <button
+                            key={trigger.id}
+                            onClick={() => handleTriggerSelect(trigger)}
+                            className="w-full px-4 py-3 pl-12 hover:bg-primary/5 transition-colors text-left border-l-4 border-transparent hover:border-primary"
+                          >
+                            <div className="text-sm font-medium text-text">{trigger.label}</div>
+                            <div className="text-xs text-muted mt-0.5">{trigger.description}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {step === 'sub-option' && (
+          <div className="p-4">
+            <button
+              onClick={() => setStep('trigger')}
+              className="text-sm text-primary hover:text-primary/80 mb-4"
+            >
+              ← Back to triggers
+            </button>
+
+            <div className="space-y-2">
+              {selectedTrigger?.subOptions?.map((subOption) => (
+                <button
+                  key={subOption.id}
+                  onClick={() => handleSubOptionSelect(subOption)}
+                  className="w-full text-left px-4 py-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors"
+                >
+                  <div className="text-sm font-semibold text-text">{subOption.label}</div>
+                  {subOption.description && (
+                    <div className="text-xs text-muted mt-1">{subOption.description}</div>
+                  )}
+                </button>
+              ))}
             </div>
           </div>
         )}
 
-        {step === 'event' && (
-          <div className="space-y-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setStep('type')}
-              className="mb-2"
+        {step === 'object' && (
+          <div className="p-4">
+            <button
+              onClick={() => setStep(selectedTrigger?.subOptions ? 'sub-option' : 'trigger')}
+              className="text-sm text-primary hover:text-primary/80 mb-4"
             >
-              ← Back to trigger types
-            </Button>
+              ← Back
+            </button>
 
-            {/* Group by object */}
-            {['Booking', 'Pet', 'Invoice', 'Owner'].map(object => {
-              const events = eventTriggers.filter(e => e.object === object);
-              return (
-                <div key={object}>
-                  <h3 className="text-xs font-semibold text-muted uppercase mb-2">{object} Events</h3>
-                  <div className="space-y-1">
-                    {events.map(event => (
-                      <button
-                        key={event.id}
-                        onClick={() => handleEventSelect(event)}
-                        className={cn(
-                          'w-full text-left px-3 py-2 rounded border border-border',
-                          'hover:border-primary hover:bg-primary/5',
-                          'transition-colors cursor-pointer'
-                        )}
-                      >
-                        <div className="text-sm font-medium text-text">{event.label}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
+            {/* Search */}
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
+              <input
+                type="text"
+                placeholder="Search"
+                className="w-full pl-9 pr-3 py-2 text-sm border border-border rounded bg-background text-text focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+
+            <div className="space-y-1">
+              {enrollmentObjects.map((object) => (
+                <button
+                  key={object.id}
+                  onClick={() => handleObjectSelect(object)}
+                  className="w-full text-left px-4 py-2 hover:bg-primary/5 transition-colors text-sm text-text"
+                >
+                  {object.label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>

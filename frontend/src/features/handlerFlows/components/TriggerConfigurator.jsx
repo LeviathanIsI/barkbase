@@ -5,10 +5,22 @@ import CriteriaGroup from './trigger/CriteriaGroup';
 import ScheduleTrigger from './trigger/ScheduleTrigger';
 
 const TriggerConfigurator = ({ trigger, onClose, onUpdate }) => {
+  const [tab, setTab] = useState('start'); // 'start' or 'settings'
   const [manuallyTriggered, setManuallyTriggered] = useState(trigger?.manuallyTriggered ?? true);
   const [criteriaGroups, setCriteriaGroups] = useState(trigger?.criteriaGroups ?? []);
   const [scheduleTrigger, setScheduleTrigger] = useState(trigger?.scheduleTrigger ?? null);
   const [enrollmentFilters, setEnrollmentFilters] = useState(trigger?.enrollmentFilters ?? []);
+
+  // Settings state
+  const [reEnrollment, setReEnrollment] = useState(trigger?.settings?.reEnrollment ?? 'disallow');
+  const [cooldownMinutes, setCooldownMinutes] = useState(trigger?.settings?.cooldownMinutes ?? 60);
+  const [timezone, setTimezone] = useState(trigger?.settings?.timezone ?? 'America/New_York');
+  const [maxConcurrentRuns, setMaxConcurrentRuns] = useState(trigger?.settings?.maxConcurrentRuns ?? 10);
+  const [maxAttempts, setMaxAttempts] = useState(trigger?.settings?.defaultRetry?.maxAttempts ?? 3);
+  const [backoffStrategy, setBackoffStrategy] = useState(trigger?.settings?.defaultRetry?.backoff ?? 'exponential');
+  const [initialMs, setInitialMs] = useState(trigger?.settings?.defaultRetry?.initialMs ?? 1000);
+  const [maxMs, setMaxMs] = useState(trigger?.settings?.defaultRetry?.maxMs ?? 60000);
+  const [enforceActionIdempotency, setEnforceActionIdempotency] = useState(trigger?.settings?.enforceActionIdempotency ?? true);
 
   const handleAddCriteriaGroup = () => {
     const newGroup = {
@@ -70,6 +82,19 @@ const TriggerConfigurator = ({ trigger, onClose, onUpdate }) => {
       criteriaGroups,
       scheduleTrigger,
       enrollmentFilters,
+      settings: {
+        reEnrollment,
+        cooldownMinutes: reEnrollment === 'cooldown' ? cooldownMinutes : undefined,
+        timezone,
+        maxConcurrentRuns,
+        defaultRetry: {
+          maxAttempts,
+          backoff: backoffStrategy,
+          initialMs,
+          maxMs,
+        },
+        enforceActionIdempotency,
+      },
     };
     onUpdate(trigger.id, triggerConfig);
     onClose();
@@ -93,16 +118,32 @@ const TriggerConfigurator = ({ trigger, onClose, onUpdate }) => {
 
       {/* Tabs */}
       <div className="border-b border-border flex">
-        <button className="flex-1 px-4 py-3 text-sm font-medium border-b-2 border-primary text-primary bg-primary/5">
+        <button
+          onClick={() => setTab('start')}
+          className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+            tab === 'start'
+              ? 'border-primary text-primary bg-primary/5'
+              : 'border-transparent text-muted hover:bg-border/30'
+          }`}
+        >
           Start triggers
         </button>
-        <button className="flex-1 px-4 py-3 text-sm font-medium text-muted hover:bg-border/30">
+        <button
+          onClick={() => setTab('settings')}
+          className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+            tab === 'settings'
+              ? 'border-primary text-primary bg-primary/5'
+              : 'border-transparent text-muted hover:bg-border/30'
+          }`}
+        >
           Settings
         </button>
       </div>
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        {tab === 'start' && (
+          <>
         {/* Start when this happens */}
         <div>
           <h3 className="text-sm font-semibold text-text mb-3">Start when this happens</h3>
@@ -249,6 +290,178 @@ const TriggerConfigurator = ({ trigger, onClose, onUpdate }) => {
             </div>
           )}
         </div>
+          </>
+        )}
+
+        {tab === 'settings' && (
+          <>
+            {/* Re-enrollment Settings */}
+            <div>
+              <h3 className="text-sm font-semibold text-text mb-3">Re-enrollment</h3>
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="reEnrollment"
+                    value="disallow"
+                    checked={reEnrollment === 'disallow'}
+                    onChange={(e) => setReEnrollment(e.target.value)}
+                    className="w-4 h-4 text-primary focus:ring-primary"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-text">Disallow re-enrollment</span>
+                    <p className="text-xs text-muted">Record can only enter this flow once</p>
+                  </div>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="reEnrollment"
+                    value="allow"
+                    checked={reEnrollment === 'allow'}
+                    onChange={(e) => setReEnrollment(e.target.value)}
+                    className="w-4 h-4 text-primary focus:ring-primary"
+                  />
+                  <div>
+                    <span className="text-sm font-medium text-text">Allow re-enrollment</span>
+                    <p className="text-xs text-muted">Record can enter multiple times</p>
+                  </div>
+                </label>
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="reEnrollment"
+                    value="cooldown"
+                    checked={reEnrollment === 'cooldown'}
+                    onChange={(e) => setReEnrollment(e.target.value)}
+                    className="w-4 h-4 text-primary focus:ring-primary mt-0.5"
+                  />
+                  <div className="flex-1">
+                    <span className="text-sm font-medium text-text">Allow with cooldown</span>
+                    <p className="text-xs text-muted mb-2">Set a minimum time between enrollments</p>
+                    {reEnrollment === 'cooldown' && (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          value={cooldownMinutes}
+                          onChange={(e) => setCooldownMinutes(parseInt(e.target.value) || 0)}
+                          className="w-20 px-2 py-1 text-sm border border-border rounded focus:ring-primary focus:border-primary"
+                          min="1"
+                        />
+                        <span className="text-sm text-muted">minutes</span>
+                      </div>
+                    )}
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Timezone */}
+            <div className="border-t border-border pt-6">
+              <h3 className="text-sm font-semibold text-text mb-3">Timezone</h3>
+              <select
+                value={timezone}
+                onChange={(e) => setTimezone(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-border rounded focus:ring-primary focus:border-primary"
+              >
+                <option value="America/New_York">America/New_York (EST/EDT)</option>
+                <option value="America/Chicago">America/Chicago (CST/CDT)</option>
+                <option value="America/Denver">America/Denver (MST/MDT)</option>
+                <option value="America/Los_Angeles">America/Los_Angeles (PST/PDT)</option>
+                <option value="Europe/London">Europe/London (GMT/BST)</option>
+                <option value="Europe/Paris">Europe/Paris (CET/CEST)</option>
+                <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                <option value="UTC">UTC</option>
+              </select>
+              <p className="text-xs text-muted mt-2">Schedule triggers and delays will use this timezone</p>
+            </div>
+
+            {/* Concurrency */}
+            <div className="border-t border-border pt-6">
+              <h3 className="text-sm font-semibold text-text mb-3">Concurrency</h3>
+              <div className="space-y-2">
+                <label className="text-sm text-muted">Maximum concurrent runs per tenant</label>
+                <input
+                  type="number"
+                  value={maxConcurrentRuns}
+                  onChange={(e) => setMaxConcurrentRuns(parseInt(e.target.value) || 1)}
+                  className="w-full px-3 py-2 text-sm border border-border rounded focus:ring-primary focus:border-primary"
+                  min="1"
+                  max="100"
+                />
+                <p className="text-xs text-muted">Limits how many instances can run simultaneously</p>
+              </div>
+            </div>
+
+            {/* Default Retry Policy */}
+            <div className="border-t border-border pt-6">
+              <h3 className="text-sm font-semibold text-text mb-3">Default Retry Policy</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm text-muted">Max attempts</label>
+                  <input
+                    type="number"
+                    value={maxAttempts}
+                    onChange={(e) => setMaxAttempts(parseInt(e.target.value) || 1)}
+                    className="w-full px-3 py-2 text-sm border border-border rounded focus:ring-primary focus:border-primary mt-1"
+                    min="1"
+                    max="10"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-muted">Backoff strategy</label>
+                  <select
+                    value={backoffStrategy}
+                    onChange={(e) => setBackoffStrategy(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-border rounded focus:ring-primary focus:border-primary mt-1"
+                  >
+                    <option value="fixed">Fixed delay</option>
+                    <option value="exponential">Exponential backoff</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm text-muted">Initial delay (ms)</label>
+                    <input
+                      type="number"
+                      value={initialMs}
+                      onChange={(e) => setInitialMs(parseInt(e.target.value) || 100)}
+                      className="w-full px-3 py-2 text-sm border border-border rounded focus:ring-primary focus:border-primary mt-1"
+                      min="100"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted">Max delay (ms)</label>
+                    <input
+                      type="number"
+                      value={maxMs}
+                      onChange={(e) => setMaxMs(parseInt(e.target.value) || 1000)}
+                      className="w-full px-3 py-2 text-sm border border-border rounded focus:ring-primary focus:border-primary mt-1"
+                      min="1000"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Idempotency */}
+            <div className="border-t border-border pt-6">
+              <h3 className="text-sm font-semibold text-text mb-3">Idempotency</h3>
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={enforceActionIdempotency}
+                  onChange={(e) => setEnforceActionIdempotency(e.target.checked)}
+                  className="w-4 h-4 rounded border-border text-primary focus:ring-primary mt-0.5"
+                />
+                <div>
+                  <span className="text-sm font-medium text-text">Enforce action-level idempotency</span>
+                  <p className="text-xs text-muted">Prevents duplicate actions using outbox pattern</p>
+                </div>
+              </label>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Footer */}

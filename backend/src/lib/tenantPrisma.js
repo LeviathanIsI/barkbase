@@ -164,6 +164,13 @@ const forTenant = (tenantId, client = prisma) => {
         if (modelName === '$client') {
           return client;
         }
+        if (modelName === '$withTenantGuc') {
+          return async (fn) =>
+            client.$transaction(async (tx) => {
+              await tx.$executeRaw`select app.set_tenant_id(${tenantId})`;
+              return fn(tx);
+            });
+        }
         return wrapDelegate(tenantId, modelName, client);
       },
     },

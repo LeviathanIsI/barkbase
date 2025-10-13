@@ -4,10 +4,13 @@ const fs = require('fs/promises');
 const path = require('path');
 const env = require('../config/env');
 
+let loginAttempt = 0;
+
 const loginAs = async (tenantSlug, email, password = 'Passw0rd!') => {
   const response = await request(app)
     .post('/api/v1/auth/login')
     .set('X-Tenant', tenantSlug)
+    .set('X-Forwarded-For', `127.0.0.${(loginAttempt += 1) % 255}`)
     .send({ email, password });
 
   expect(response.status).toBe(200);
@@ -20,10 +23,9 @@ describe('File Access Security', () => {
   const date = new Date().toISOString().slice(0, 10);
 
   beforeEach(async () => {
-    // Login as users for both test tenants (runs after DB is seeded)
     acmeLogin = await loginAs('acme', 'owner@acme.test');
     globexLogin = await loginAs('globex', 'owner@globex.test');
-
+    
     // Create test files for each tenant
     const acmeDir = path.join(env.storage.root, 'tenants', 'acme', 'uploads', date);
     const globexDir = path.join(env.storage.root, 'tenants', 'globex', 'uploads', date);
