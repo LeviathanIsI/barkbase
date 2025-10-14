@@ -39,8 +39,7 @@ const daySchema = Joi.object({
   return value;
 });
 
-const holidaySchema = Joi.object({
-  id: Joi.string().max(120).optional(),
+const holidaySchema = Joi.object({ recordId: Joi.string().max(120).optional(),
   name: Joi.string().max(120).required(),
   startDate: Joi.string().isoDate().required(),
   endDate: Joi.string().isoDate().allow(null).optional(),

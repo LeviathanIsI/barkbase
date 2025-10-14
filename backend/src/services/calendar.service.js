@@ -31,14 +31,14 @@ const getCalendarView = async (tenantId, { from, to }) => {
       include: {
         pet: {
           select: {
-            id: true,
+            recordId: true,
             name: true,
             breed: true,
           },
         },
         owner: {
           select: {
-            id: true,
+            recordId: true,
             firstName: true,
             lastName: true,
             phone: true,
@@ -60,7 +60,7 @@ const getCalendarView = async (tenantId, { from, to }) => {
       include: {
         pet: {
           select: {
-            id: true,
+            recordId: true,
             name: true,
           },
         },
@@ -69,8 +69,7 @@ const getCalendarView = async (tenantId, { from, to }) => {
     }),
 
     tenantDb.staff.findMany({
-      select: {
-        id: true,
+      select: { recordId: true,
         title: true,
         schedule: true,
         membership: {
@@ -108,8 +107,7 @@ const getOccupancy = async (tenantId, { from, to }) => {
   const [kennels, segments] = await Promise.all([
     tenantDb.kennel.findMany({
       where: { isActive: true },
-      select: {
-        id: true,
+      select: { recordId: true,
         name: true,
         type: true,
         size: true,
@@ -138,20 +136,17 @@ const getOccupancy = async (tenantId, { from, to }) => {
       },
       include: {
         booking: {
-          select: {
-            id: true,
+          select: { recordId: true,
             status: true,
             pet: {
-              select: {
-                id: true,
+              select: { recordId: true,
                 name: true,
               },
             },
           },
         },
         kennel: {
-          select: {
-            id: true,
+          select: { recordId: true,
             name: true,
             type: true,
             capacity: true,
@@ -163,7 +158,7 @@ const getOccupancy = async (tenantId, { from, to }) => {
 
   // Group segments by kennel
   const kennelOccupancy = kennels.map((kennel) => {
-    const kennelSegments = segments.filter((seg) => seg.kennelId === kennel.id);
+    const kennelSegments = segments.filter((seg) => seg.kennelId === kennel.recordId);
     const occupied = kennelSegments.length;
     const available = Math.max(0, kennel.capacity - occupied);
     const utilizationPercent = kennel.capacity > 0 ? Math.round((occupied / kennel.capacity) * 100) : 0;
@@ -176,7 +171,7 @@ const getOccupancy = async (tenantId, { from, to }) => {
       utilizationPercent,
       bookings: kennelSegments.map((seg) => ({
         bookingId: seg.bookingId,
-        segmentId: seg.id,
+        segmentId: seg.recordId,
         startDate: seg.startDate,
         endDate: seg.endDate,
         petName: seg.booking?.pet?.name,
@@ -214,7 +209,7 @@ const checkClash = async (tenantId, { kennelId, startDate, endDate, excludeSegme
   const end = typeof endDate === 'string' ? parseISO(endDate) : endDate;
 
   const kennel = await tenantDb.kennel.findFirst({
-    where: { id: kennelId },
+    where: { recordId: kennelId },
   });
 
   if (!kennel) {
@@ -233,12 +228,11 @@ const checkClash = async (tenantId, { kennelId, startDate, endDate, excludeSegme
     where: {
       kennelId,
       status: { in: ['CONFIRMED', 'IN_PROGRESS'] },
-      ...(excludeSegmentId ? { id: { not: excludeSegmentId } } : {}),
+      ...(excludeSegmentId ? { recordId: { not: excludeSegmentId } } : {}),
     },
     include: {
       booking: {
-        select: {
-          id: true,
+        select: { recordId: true,
           pet: {
             select: {
               name: true,
@@ -264,7 +258,7 @@ const checkClash = async (tenantId, { kennelId, startDate, endDate, excludeSegme
       capacity: kennel.capacity,
       currentOccupancy: clashes.length,
       clashes: clashes.map((seg) => ({
-        segmentId: seg.id,
+        segmentId: seg.recordId,
         bookingId: seg.bookingId,
         petName: seg.booking?.pet?.name,
         startDate: seg.startDate,
@@ -299,8 +293,7 @@ const suggestBestKennel = async (tenantId, { startDate, endDate, petSize = 'MEDI
         where: {
           status: { in: ['CONFIRMED', 'IN_PROGRESS'] },
         },
-        select: {
-          id: true,
+        select: { recordId: true,
           startDate: true,
           endDate: true,
         },
@@ -350,8 +343,7 @@ const suggestBestKennel = async (tenantId, { startDate, endDate, petSize = 'MEDI
       }
 
       return {
-        kennel: {
-          id: kennel.id,
+        kennel: { recordId: kennel.recordId,
           name: kennel.name,
           type: kennel.type,
           size: kennel.size,
@@ -394,7 +386,7 @@ const assignKennel = async (tenantId, bookingId, { kennelId, startDate, endDate 
 
   // Verify booking exists
   const booking = await tenantDb.booking.findFirst({
-    where: { id: bookingId },
+    where: { recordId: bookingId },
   });
 
   if (!booking) {
@@ -434,7 +426,7 @@ const reassignKennel = async (tenantId, segmentId, { kennelId, startDate = null,
   const tenantDb = forTenant(tenantId);
 
   const segment = await tenantDb.bookingSegment.findFirst({
-    where: { id: segmentId },
+    where: { recordId: segmentId },
     include: { kennel: true },
   });
 
@@ -463,7 +455,7 @@ const reassignKennel = async (tenantId, segmentId, { kennelId, startDate = null,
 
   // Update segment
   const updated = await tenantDb.bookingSegment.update({
-    where: { id: segmentId },
+    where: { recordId: segmentId },
     data: {
       kennelId: newKennelId,
       startDate: newStart,

@@ -24,7 +24,7 @@ const OwnerNotifyConfig = ({ node, onUpdate }) => {
     }
 
     setErrors([]);
-    onUpdate(node.id, {
+    onUpdate(node.recordId, {
       actionType: 'owner.notify',
       config: newConfig,
       label: node.data.label || 'Notify Owner',

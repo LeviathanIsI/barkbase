@@ -7,7 +7,7 @@ const env = require('../config/env');
 const { isRecoveryMode } = require('../config/state');
 const { ensureDiskSpace } = require('../lib/diskSpace');
 const { resolveTenantFeatures } = require('../lib/features');
-const tenantContext = require('../middleware/tenantContext');
+const { tenantContext } = require('../middleware/tenantContext');
 const { forTenant } = require('../lib/tenantPrisma');
 const { getUsageSnapshot } = require('./usage.service');
 
@@ -20,7 +20,7 @@ const invalidateTenantCache = () => {
 const serializeTenant = (tenant, { features, usage } = {}) => {
   const resolvedFeatures = features ?? resolveTenantFeatures(tenant);
   return {
-    id: tenant.id,
+    recordId: tenant.recordId,
     slug: tenant.slug,
     name: tenant.name,
     plan: tenant.plan,
@@ -206,7 +206,7 @@ const mergeTenantSettings = (tenant, updates) => {
 
 const getTenant = async (tenantId) => {
   const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
+    where: { recordId: tenantId },
   });
   if (!tenant) {
     throw Object.assign(new Error('Tenant not found'), { statusCode: 404 });
@@ -218,7 +218,7 @@ const getTenant = async (tenantId) => {
 
 const getTenantPlan = async (tenantId) => {
   const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
+    where: { recordId: tenantId },
   });
   if (!tenant) {
     throw Object.assign(new Error('Tenant not found'), { statusCode: 404 });
@@ -240,9 +240,8 @@ const getTenantPlan = async (tenantId) => {
 
 const getTenantExport = async (tenantId) => {
   const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
-    select: {
-      id: true,
+    where: { recordId: tenantId },
+    select: { recordId: true,
       slug: true,
       name: true,
       plan: true,
@@ -264,8 +263,7 @@ const getTenantExport = async (tenantId) => {
       where: { tenantId },
       include: {
         user: {
-          select: {
-            id: true,
+          select: { recordId: true,
             email: true,
             lastLoginAt: true,
             createdAt: true,
@@ -281,8 +279,7 @@ const getTenantExport = async (tenantId) => {
       orderBy: { createdAt: 'asc' },
     }),
     tenantDb.owner.findMany({
-      select: {
-        id: true,
+      select: { recordId: true,
         firstName: true,
         lastName: true,
         email: true,
@@ -300,8 +297,7 @@ const getTenantExport = async (tenantId) => {
       orderBy: { createdAt: 'asc' },
     }),
     tenantDb.pet.findMany({
-      select: {
-        id: true,
+      select: { recordId: true,
         name: true,
         breed: true,
         birthdate: true,
@@ -319,8 +315,7 @@ const getTenantExport = async (tenantId) => {
           },
         },
         vaccinations: {
-          select: {
-            id: true,
+          select: { recordId: true,
             type: true,
             administeredAt: true,
             expiresAt: true,
@@ -336,14 +331,12 @@ const getTenantExport = async (tenantId) => {
     tenantDb.booking.findMany({
       include: {
         pet: {
-          select: {
-            id: true,
+          select: { recordId: true,
             name: true,
           },
         },
         owner: {
-          select: {
-            id: true,
+          select: { recordId: true,
             firstName: true,
             lastName: true,
             email: true,
@@ -352,8 +345,7 @@ const getTenantExport = async (tenantId) => {
         segments: {
           include: {
             kennel: {
-              select: {
-                id: true,
+              select: { recordId: true,
                 name: true,
               },
             },
@@ -373,8 +365,7 @@ const getTenantExport = async (tenantId) => {
       where: { tenantId },
       include: {
         actor: {
-          select: {
-            id: true,
+          select: { recordId: true,
             email: true,
           },
         },
@@ -384,7 +375,7 @@ const getTenantExport = async (tenantId) => {
   ]);
 
   const memberships = membershipRecords.map((membership) => ({
-    id: membership.id,
+    recordId: membership.recordId,
     tenantId: membership.tenantId,
     userId: membership.userId,
     role: membership.role,
@@ -393,7 +384,7 @@ const getTenantExport = async (tenantId) => {
     updatedAt: toIsoString(membership.updatedAt),
     user: membership.user
       ? {
-          id: membership.user.id,
+          recordId: membership.user.recordId,
           email: membership.user.email,
           lastLoginAt: toIsoString(membership.user.lastLoginAt),
           createdAt: toIsoString(membership.user.createdAt),
@@ -404,7 +395,7 @@ const getTenantExport = async (tenantId) => {
   }));
 
   const auditLogs = auditLogRecords.map((log) => ({
-    id: log.id,
+    recordId: log.recordId,
     action: log.action,
     entityType: log.entityType,
     entityId: log.entityId ?? '',
@@ -412,7 +403,7 @@ const getTenantExport = async (tenantId) => {
     createdAt: toIsoString(log.createdAt),
     actor: log.actor
       ? {
-          id: log.actor.id,
+          recordId: log.actor.recordId,
           email: log.actor.email,
         }
       : null,
@@ -435,7 +426,7 @@ const getTenantExport = async (tenantId) => {
     },
   };
 
-  const safeSlug = tenant.slug || tenant.id || 'tenant';
+  const safeSlug = tenant.slug || tenant.recordId || 'tenant';
   const exportsDir = path.join(env.storage.root, 'tenants', safeSlug, 'exports');
   const timestamp = payload.generatedAt.replace(/[:]/g, '-');
   const filename = `${safeSlug}-export-${timestamp}.zip`;
@@ -444,8 +435,7 @@ const getTenantExport = async (tenantId) => {
   const csvEntries = [
     {
       name: 'memberships.csv',
-      rows: memberships.map((member) => ({
-        id: member.id,
+      rows: memberships.map((member) => ({ recordId: member.recordId,
         userEmail: member.user?.email ?? '',
         role: member.role,
         consentAt: member.localDataConsent?.agreedAt ? toIsoString(member.localDataConsent.agreedAt) : '',
@@ -455,7 +445,7 @@ const getTenantExport = async (tenantId) => {
         updatedAt: member.updatedAt,
       })),
       columns: [
-        { header: 'id', accessor: (row) => row.id },
+        { header: 'id', accessor: (row) => row.recordId },
         { header: 'userEmail', accessor: (row) => row.userEmail },
         { header: 'role', accessor: (row) => row.role },
         { header: 'consentAt', accessor: (row) => row.consentAt },
@@ -467,8 +457,7 @@ const getTenantExport = async (tenantId) => {
     },
     {
       name: 'owners.csv',
-      rows: ownerRecords.map((owner) => ({
-        id: owner.id,
+      rows: ownerRecords.map((owner) => ({ recordId: owner.recordId,
         firstName: owner.firstName,
         lastName: owner.lastName,
         email: owner.email ?? '',
@@ -478,7 +467,7 @@ const getTenantExport = async (tenantId) => {
         updatedAt: toIsoString(owner.updatedAt),
       })),
       columns: [
-        { header: 'id', accessor: (row) => row.id },
+        { header: 'id', accessor: (row) => row.recordId },
         { header: 'firstName', accessor: (row) => row.firstName },
         { header: 'lastName', accessor: (row) => row.lastName },
         { header: 'email', accessor: (row) => row.email },
@@ -490,8 +479,7 @@ const getTenantExport = async (tenantId) => {
     },
     {
       name: 'pets.csv',
-      rows: petRecords.map((pet) => ({
-        id: pet.id,
+      rows: petRecords.map((pet) => ({ recordId: pet.recordId,
         name: pet.name,
         breed: pet.breed ?? '',
         birthdate: toIsoString(pet.birthdate),
@@ -501,7 +489,7 @@ const getTenantExport = async (tenantId) => {
         updatedAt: toIsoString(pet.updatedAt),
       })),
       columns: [
-        { header: 'id', accessor: (row) => row.id },
+        { header: 'id', accessor: (row) => row.recordId },
         { header: 'name', accessor: (row) => row.name },
         { header: 'breed', accessor: (row) => row.breed },
         { header: 'birthdate', accessor: (row) => row.birthdate },
@@ -513,8 +501,7 @@ const getTenantExport = async (tenantId) => {
     },
     {
       name: 'bookings.csv',
-      rows: bookingRecords.map((booking) => ({
-        id: booking.id,
+      rows: bookingRecords.map((booking) => ({ recordId: booking.recordId,
         petId: booking.petId,
         petName: booking.pet?.name ?? '',
         ownerId: booking.ownerId,
@@ -530,7 +517,7 @@ const getTenantExport = async (tenantId) => {
         updatedAt: toIsoString(booking.updatedAt),
       })),
       columns: [
-        { header: 'id', accessor: (row) => row.id },
+        { header: 'id', accessor: (row) => row.recordId },
         { header: 'petId', accessor: (row) => row.petId },
         { header: 'petName', accessor: (row) => row.petName },
         { header: 'ownerId', accessor: (row) => row.ownerId },
@@ -574,8 +561,7 @@ const getTenantExport = async (tenantId) => {
     },
     {
       name: 'audit_logs.csv',
-      rows: auditLogs.map((log) => ({
-        id: log.id,
+      rows: auditLogs.map((log) => ({ recordId: log.recordId,
         action: log.action,
         entityType: log.entityType,
         entityId: log.entityId ?? '',
@@ -584,7 +570,7 @@ const getTenantExport = async (tenantId) => {
         createdAt: log.createdAt,
       })),
       columns: [
-        { header: 'id', accessor: (row) => row.id },
+        { header: 'id', accessor: (row) => row.recordId },
         { header: 'action', accessor: (row) => row.action },
         { header: 'entityType', accessor: (row) => row.entityType },
         { header: 'entityId', accessor: (row) => row.entityId },
@@ -618,7 +604,7 @@ const getTenantExport = async (tenantId) => {
   });
 
   await prisma.tenant.update({
-    where: { id: tenantId },
+    where: { recordId: tenantId },
     data: {
       settings: nextSettings,
     },
@@ -631,9 +617,9 @@ const getTenantExport = async (tenantId) => {
 
 const getOnboardingStatus = async (tenantId) => {
   const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
+    where: { recordId: tenantId },
     select: {
-      id: true,
+      recordId: true,
       plan: true,
       featureFlags: true,
       settings: true,
@@ -665,7 +651,7 @@ const getOnboardingStatus = async (tenantId) => {
 
 const updateTheme = async (tenantId, theme) => {
   const tenant = await prisma.tenant.update({
-    where: { id: tenantId },
+    where: { recordId: tenantId },
     data: { themeJson: theme },
   });
   invalidateTenantCache();
@@ -676,7 +662,7 @@ const updateTheme = async (tenantId, theme) => {
 
 const updateFeatureFlags = async (tenantId, featureFlags) => {
   const tenant = await prisma.tenant.update({
-    where: { id: tenantId },
+    where: { recordId: tenantId },
     data: { featureFlags },
   });
   invalidateTenantCache();
@@ -687,7 +673,7 @@ const updateFeatureFlags = async (tenantId, featureFlags) => {
 
 const updateOnboardingStatus = async (tenantId, updates) => {
   const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
+    where: { recordId: tenantId },
     select: { settings: true },
   });
 
@@ -697,7 +683,7 @@ const updateOnboardingStatus = async (tenantId, updates) => {
 
   const nextSettings = mergeTenantSettings(tenant, updates);
   await prisma.tenant.update({
-    where: { id: tenantId },
+    where: { recordId: tenantId },
     data: { settings: nextSettings },
   });
 

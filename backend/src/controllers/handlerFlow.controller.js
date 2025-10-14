@@ -211,22 +211,22 @@ const validateFlow = async (req, res, next) => {
       }
 
       // Check for duplicate node IDs
-      const nodeIds = definition.nodes.map(n => n.id);
-      const duplicates = nodeIds.filter((id, index) => nodeIds.indexOf(id) !== index);
+      const nodeIds = definition.nodes.map(n => n.recordId);
+      const duplicates = nodeIds.filter((recordId, index) => nodeIds.indexOf(recordId) !== index);
       if (duplicates.length > 0) {
         errors.push(`Duplicate node IDs found: ${duplicates.join(', ')}`);
       }
 
       // Validate each node has required fields
       definition.nodes.forEach((node, index) => {
-        if (!node.id) {
+        if (!node.recordId) {
           errors.push(`Node at index ${index} is missing id`);
         }
         if (!node.type) {
-          errors.push(`Node ${node.id || index} is missing type`);
+          errors.push(`Node ${node.recordId || index} is missing type`);
         }
         if (!node.data) {
-          errors.push(`Node ${node.id || index} is missing data`);
+          errors.push(`Node ${node.recordId || index} is missing data`);
         }
       });
     }
@@ -236,7 +236,7 @@ const validateFlow = async (req, res, next) => {
       errors.push('definition.edges must be an array');
     } else {
       // Check for dangling edges (edges pointing to non-existent nodes)
-      const nodeIds = new Set(definition.nodes.map(n => n.id));
+      const nodeIds = new Set(definition.nodes.map(n => n.recordId));
       definition.edges.forEach((edge, index) => {
         if (!nodeIds.has(edge.source)) {
           errors.push(`Edge ${index} has invalid source node: ${edge.source}`);
@@ -252,7 +252,7 @@ const validateFlow = async (req, res, next) => {
         if (node.type === 'branch' || node.type === 'condition') {
           return false; // These can have multiple outgoing edges
         }
-        const outgoing = definition.edges.filter(e => e.source === node.id);
+        const outgoing = definition.edges.filter(e => e.source === node.recordId);
         return outgoing.length > 1;
       });
 

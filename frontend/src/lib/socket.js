@@ -10,7 +10,10 @@ export const getSocket = () => {
     return socketInstance;
   }
 
-  const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
+  // For WebSocket connections, we need an absolute URL
+  // In dev, default to localhost:4000. In production, VITE_API_URL should be set
+  const apiUrl = import.meta.env.VITE_API_URL ?? 
+    (import.meta.env.DEV ? 'http://localhost:4000' : window.location.origin);
 
   // Get authentication token for socket connection
   const initialToken = useAuthStore.getState().accessToken;

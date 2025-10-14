@@ -20,13 +20,14 @@ import { useBookingStore } from '@/stores/booking';
 import { useTenantStore } from '@/stores/tenant';
 import { queryKeys } from '@/lib/queryKeys';
 import { getSocket } from '@/lib/socket';
+import { useTerminology } from '@/lib/terminology';
 
 const fallbackKennels = [
-  { id: 'deluxe-1', name: 'Deluxe Suite 1', type: 'suite' },
-  { id: 'deluxe-2', name: 'Deluxe Suite 2', type: 'suite' },
-  { id: 'standard-1', name: 'Standard Kennel 1', type: 'kennel' },
-  { id: 'standard-2', name: 'Standard Kennel 2', type: 'kennel' },
-  { id: 'daycare-1', name: 'Daycare Pod A', type: 'daycare' },
+  { recordId: 'deluxe-1', name: 'Deluxe Suite 1', type: 'suite' },
+  { recordId: 'deluxe-2', name: 'Deluxe Suite 2', type: 'suite' },
+  { recordId: 'standard-1', name: 'Standard Kennel 1', type: 'kennel' },
+  { recordId: 'standard-2', name: 'Standard Kennel 2', type: 'kennel' },
+  { recordId: 'daycare-1', name: 'Daycare Pod A', type: 'daycare' },
 ];
 
 const statusVariant = {
@@ -40,9 +41,8 @@ const statusVariant = {
 
 
 const BookingCard = ({ booking, onCheckIn, onCheckOut }) => {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: booking.id,
-    data: { bookingId: booking.id },
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ recordId: booking.recordId,
+    data: { bookingId: booking.recordId },
   });
 
   const transformStyle = transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined;
@@ -118,20 +118,21 @@ const BookingCard = ({ booking, onCheckIn, onCheckOut }) => {
   );
 };
 
-const KennelColumn = ({ kennel, date, bookings, onNavigate, onCheckIn, onCheckOut }) => {
-  const { setNodeRef, isOver } = useDroppable({
-    id: `slot-${kennel.id}-${format(date, 'yyyy-MM-dd')}`,
-    data: { kennelId: kennel.id, date },
+const KennelColumn = ({ kennel, date, bookings, onNavigate, onCheckIn, onCheckOut, terminology }) => {
+  const { setNodeRef, isOver } = useDroppable({ recordId: `slot-${kennel.recordId}-${format(date, 'yyyy-MM-dd')}`,
+    data: { kennelId: kennel.recordId, date },
   });
 
   return (
     <div className="flex min-w-[18rem] flex-col gap-3">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-semibold text-text">{kennel.name}</p>
+          <p className="text-sm font-semibold text-text">
+            {terminology?.getDisplayName(kennel.type, kennel.name, kennel.number) || kennel.name}
+          </p>
           <p className="text-xs uppercase tracking-wide text-muted">{format(date, 'EEE, MMM d')}</p>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => onNavigate?.(kennel.id)}>
+        <Button variant="ghost" size="sm" onClick={() => onNavigate?.(kennel.recordId)}>
           Details
         </Button>
       </div>
@@ -147,7 +148,7 @@ const KennelColumn = ({ kennel, date, bookings, onNavigate, onCheckIn, onCheckOu
         ) : (
           bookings.map((booking) => (
             <BookingCard
-              key={booking.id}
+              key={booking.recordId}
               booking={booking}
               onCheckIn={onCheckIn}
               onCheckOut={onCheckOut}
@@ -175,6 +176,7 @@ const BookingCalendar = () => {
   const kennels = kennelQuery.data ?? fallbackKennels;
   const queryClient = useQueryClient();
   const tenantKey = useTenantStore((state) => state.tenant?.slug ?? 'default');
+  const terminology = useTerminology();
 
   useEffect(() => {
     import('react-day-picker/dist/style.css');
@@ -189,7 +191,7 @@ const BookingCalendar = () => {
     kennelId:
       booking.kennelId ??
       booking.segments?.[0]?.kennelId ??
-      booking.segments?.[0]?.kennel?.id ?? null,
+      booking.segments?.[0]?.kennel?.recordId ?? null,
     kennelName: booking.kennelName ?? booking.segments?.[0]?.kennel?.name ?? '',
   });
 
@@ -240,12 +242,12 @@ const BookingCalendar = () => {
               return booking.segments.some((segment) => {
                 const segmentStart = startOfDay(parseISO(segment.startDate));
                 const segmentEnd = startOfDay(parseISO(segment.endDate));
-                return segment.kennelId === kennel.id && segmentStart <= date && date < segmentEnd;
+                return segment.kennelId === kennel.recordId && segmentStart <= date && date < segmentEnd;
               });
             }
             const start = startOfDay(parseISO(booking.dateRange.start));
             const end = startOfDay(parseISO(booking.dateRange.end));
-            return start <= date && date < end && booking.kennelId === kennel.id;
+            return start <= date && date < end && booking.kennelId === kennel.recordId;
           }),
         })),
       };
@@ -255,11 +257,11 @@ const BookingCalendar = () => {
   const handleDragEnd = async (event) => {
     const { active, over } = event;
     if (!over) return;
-    const bookingId = active?.id;
+    const bookingId = active?.recordId;
     const dropData = over.data?.current;
     if (!bookingId || !dropData) return;
 
-    const booking = useBookingStore.getState().bookings.find((item) => item.id === bookingId);
+    const booking = useBookingStore.getState().bookings.find((item) => item.recordId === bookingId);
     if (!booking) return;
 
     const dropDate = dropData.date;
@@ -379,12 +381,13 @@ const BookingCalendar = () => {
               <div key={format(date, 'yyyy-MM-dd')} className="flex min-w-[18rem] flex-col gap-4">
                 {kennelEntries.map(({ kennel, bookings: laneBookings }) => (
                   <KennelColumn
-                    key={`${kennel.id}-${format(date, 'yyyy-MM-dd')}`}
+                    key={`${kennel.recordId}-${format(date, 'yyyy-MM-dd')}`}
                     kennel={kennel}
                     date={date}
                     bookings={laneBookings}
                     onCheckIn={setSelectedCheckInBooking}
                     onCheckOut={setSelectedCheckOutBooking}
+                    terminology={terminology}
                   />
                 ))}
               </div>

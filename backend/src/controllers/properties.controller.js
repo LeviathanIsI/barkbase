@@ -75,7 +75,7 @@ async function createProperty(req, res) {
  */
 async function updateProperty(req, res) {
   try {
-    const { id } = req.params;
+    const { recordId } = req.params;
     const tenantId = req.user?.tenantId;
 
     if (!tenantId) {
@@ -84,7 +84,7 @@ async function updateProperty(req, res) {
       });
     }
 
-    const property = await propertiesService.updateProperty(tenantId, id, req.body);
+    const property = await propertiesService.updateProperty(tenantId, recordId, req.body);
     return res.json(property);
   } catch (error) {
     logWithTenant(req.user?.tenantId).error({ err: error }, 'Error updating property');
@@ -100,7 +100,7 @@ async function updateProperty(req, res) {
  */
 async function deleteProperty(req, res) {
   try {
-    const { id } = req.params;
+    const { recordId } = req.params;
     const tenantId = req.user?.tenantId;
 
     if (!tenantId) {
@@ -109,7 +109,7 @@ async function deleteProperty(req, res) {
       });
     }
 
-    await propertiesService.deleteProperty(tenantId, id);
+    await propertiesService.deleteProperty(tenantId, recordId);
    return res.status(204).send();
   } catch (error) {
     logWithTenant(req.user?.tenantId).error({ err: error }, 'Error deleting property');
@@ -121,11 +121,11 @@ async function deleteProperty(req, res) {
 
 /**
  * Archive a property
- * POST /api/v1/settings/properties/:id/archive
+ * POST /api/v1/settings/properties/:recordId/archive
  */
 async function archiveProperty(req, res) {
   try {
-    const { id } = req.params;
+    const { recordId } = req.params;
     const tenantId = req.user?.tenantId;
 
     if (!tenantId) {
@@ -134,7 +134,7 @@ async function archiveProperty(req, res) {
       });
     }
 
-    const property = await propertiesService.archiveProperty(tenantId, id);
+    const property = await propertiesService.archiveProperty(tenantId, recordId);
     return res.json(property);
   } catch (error) {
     logWithTenant(req.user?.tenantId).error({ err: error }, 'Error archiving property');
@@ -146,11 +146,11 @@ async function archiveProperty(req, res) {
 
 /**
  * Restore an archived property
- * POST /api/v1/settings/properties/:id/restore
+ * POST /api/v1/settings/properties/:recordId/restore
  */
 async function restoreProperty(req, res) {
   try {
-    const { id } = req.params;
+    const { recordId } = req.params;
     const tenantId = req.user?.tenantId;
 
     if (!tenantId) {
@@ -159,7 +159,7 @@ async function restoreProperty(req, res) {
       });
     }
 
-    const property = await propertiesService.restoreProperty(tenantId, id);
+    const property = await propertiesService.restoreProperty(tenantId, recordId);
     return res.json(property);
   } catch (error) {
     logWithTenant(req.user?.tenantId).error({ err: error }, 'Error restoring property');

@@ -33,7 +33,7 @@ const AssociationLabelModal = ({ open, onClose, association = null }) => {
   });
 
   const createMutation = useCreateAssociationMutation();
-  const updateMutation = useUpdateAssociationMutation(association?.id);
+  const updateMutation = useUpdateAssociationMutation(association?.recordId);
 
   const isEditing = !!association;
 

@@ -40,7 +40,7 @@ export default function HandlerRunDetail() {
           ) : (
             logs.map((log) => (
               <div
-                key={log.id}
+                key={log.recordId}
                 className="rounded-lg border border-border/60 bg-surface/95 p-4 text-sm text-muted"
               >
                 <div className="flex items-center justify-between gap-3 text-xs text-muted">

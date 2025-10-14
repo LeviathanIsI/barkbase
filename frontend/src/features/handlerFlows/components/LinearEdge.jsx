@@ -2,7 +2,7 @@ import { Plus } from 'lucide-react';
 import { BaseEdge, EdgeLabelRenderer, getStraightPath } from 'reactflow';
 import { cn } from '@/lib/cn';
 
-export default function LinearEdge({ id, sourceX, sourceY, targetX, targetY, data }) {
+export default function LinearEdge({ recordId, sourceX, sourceY, targetX, targetY, data }) {
   const [edgePath, labelX, labelY] = getStraightPath({
     sourceX,
     sourceY,
@@ -18,7 +18,7 @@ export default function LinearEdge({ id, sourceX, sourceY, targetX, targetY, dat
 
   return (
     <>
-      <BaseEdge id={id} path={edgePath} />
+      <BaseEdge id={ recordId} path={edgePath} />
       <EdgeLabelRenderer>
         <div
           style={{

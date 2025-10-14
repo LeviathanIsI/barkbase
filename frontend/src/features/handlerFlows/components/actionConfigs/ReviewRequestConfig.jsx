@@ -30,7 +30,7 @@ const ReviewRequestConfig = ({ node, onUpdate }) => {
     }
 
     setErrors([]);
-    onUpdate(node.id, {
+    onUpdate(node.recordId, {
       actionType: 'review.request',
       config: newConfig,
       label: node.data.label || 'Request Review',

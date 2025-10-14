@@ -7,8 +7,7 @@ const CriteriaGroup = ({ group, onUpdate, onRemove, isEnrollmentFilter = false }
   const [isExpanded, setIsExpanded] = useState(true);
 
   const handleAddCriteria = (criteriaConfig) => {
-    const newCriteria = {
-      id: `criteria-${Date.now()}`,
+    const newCriteria = { recordId: `criteria-${Date.now()}`,
       ...criteriaConfig,
     };
     onUpdate({
@@ -19,14 +18,14 @@ const CriteriaGroup = ({ group, onUpdate, onRemove, isEnrollmentFilter = false }
 
   const handleRemoveCriteria = (criteriaId) => {
     onUpdate({
-      criteria: group.criteria.filter(c => c.id !== criteriaId),
+      criteria: group.criteria.filter(c => c.recordId !== criteriaId),
     });
   };
 
   const handleUpdateCriteria = (criteriaId, updates) => {
     onUpdate({
       criteria: group.criteria.map(c =>
-        c.id === criteriaId ? { ...c, ...updates } : c
+        c.recordId === criteriaId ? { ...c, ...updates } : c
       ),
     });
   };
@@ -78,7 +77,7 @@ const CriteriaGroup = ({ group, onUpdate, onRemove, isEnrollmentFilter = false }
             ) : (
               <div className="space-y-2">
                 {group.criteria.map((criteria, index) => (
-                  <div key={criteria.id}>
+                  <div key={criteria.recordId}>
                     {index > 0 && (
                       <div className="text-center py-1">
                         <span className="text-xs font-semibold text-muted">AND</span>
@@ -105,7 +104,7 @@ const CriteriaGroup = ({ group, onUpdate, onRemove, isEnrollmentFilter = false }
                         )}
                       </div>
                       <button
-                        onClick={() => handleRemoveCriteria(criteria.id)}
+                        onClick={() => handleRemoveCriteria(criteria.recordId)}
                         className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-red-500/10 rounded text-muted hover:text-red-600 transition-all"
                       >
                         <Trash2 className="w-4 h-4" />

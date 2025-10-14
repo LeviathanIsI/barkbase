@@ -96,25 +96,25 @@ const processScheduledTrigger = async (flow) => {
     const subjects = await getEnrollmentSubjects(flow);
 
     for (const subject of subjects) {
-      const subjectKey = `${subject.type}:${subject.id}`;
+      const subjectKey = `${subject.type}:${subject.recordId}`;
 
       // Check re-enrollment policy
       if (reEnrollment === 'disallow') {
         const existingRun = await prisma.handlerRun.findFirst({
           where: {
-            flowId: flow.id,
+            flowId: flow.recordId,
             triggerType: TRIGGER_TYPES.SCHEDULE,
           },
         });
 
         if (existingRun) {
-          logger.debug({ flowId: flow.id, subjectKey }, 'Skipping re-enrollment (disallow)');
+          logger.debug({ flowId: flow.recordId, subjectKey }, 'Skipping re-enrollment (disallow)');
           continue;
         }
       } else if (reEnrollment === 'cooldown') {
-        const canEnroll = await checkReEnrollmentCooldown(flow.id, subjectKey, cooldownMinutes);
+        const canEnroll = await checkReEnrollmentCooldown(flow.recordId, subjectKey, cooldownMinutes);
         if (!canEnroll) {
-          logger.debug({ flowId: flow.id, subjectKey }, 'Skipping re-enrollment (cooldown)');
+          logger.debug({ flowId: flow.recordId, subjectKey }, 'Skipping re-enrollment (cooldown)');
           continue;
         }
       }
@@ -126,7 +126,7 @@ const processScheduledTrigger = async (flow) => {
 
       // Check enrollment criteria
       if (!shouldEnroll(trigger, context)) {
-        logger.debug({ flowId: flow.id, subjectKey }, 'Subject does not meet enrollment criteria');
+        logger.debug({ flowId: flow.recordId, subjectKey }, 'Subject does not meet enrollment criteria');
         continue;
       }
 
@@ -134,22 +134,22 @@ const processScheduledTrigger = async (flow) => {
       try {
         const result = await createRun({
           tenantId: flow.tenantId,
-          flowId: flow.id,
+          flowId: flow.recordId,
           payload: subject,
           idempotencyKey: null, // Allow multiple scheduled runs
           triggerType: TRIGGER_TYPES.SCHEDULE,
         });
 
         logger.info(
-          { flowId: flow.id, runId: result.runId, subjectKey, created: result.created },
+          { flowId: flow.recordId, runId: result.runId, subjectKey, created: result.created },
           'Scheduled run created'
         );
       } catch (error) {
-        logger.error({ err: error, flowId: flow.id, subjectKey }, 'Failed to create scheduled run');
+        logger.error({ err: error, flowId: flow.recordId, subjectKey }, 'Failed to create scheduled run');
       }
     }
   } catch (error) {
-    logger.error({ err: error, flowId: flow.id }, 'Error processing scheduled trigger');
+    logger.error({ err: error, flowId: flow.recordId }, 'Error processing scheduled trigger');
   }
 };
 
@@ -178,7 +178,7 @@ const getEnrollmentSubjects = async (flow) => {
  * Schedule a flow
  */
 const scheduleFlow = (flow) => {
-  const { id, tenantId, definition } = flow;
+  const { recordId, tenantId, definition } = flow;
   const trigger = definition?.trigger?.scheduleTrigger;
 
   if (!trigger) {
@@ -186,9 +186,9 @@ const scheduleFlow = (flow) => {
   }
 
   // Stop existing job if any
-  if (activeJobs.has(id)) {
-    activeJobs.get(id).stop();
-    activeJobs.delete(id);
+  if (activeJobs.has(recordId)) {
+    activeJobs.get(recordId).stop();
+    activeJobs.delete(recordId);
   }
 
   const cronExpression = parseToCronExpression(trigger);
@@ -202,7 +202,7 @@ const scheduleFlow = (flow) => {
     }, intervalMs);
 
     // Store as a pseudo-job
-    activeJobs.set(id, {
+    activeJobs.set(recordId, {
       stop: () => clearInterval(intervalId),
       type: 'interval',
     });
@@ -214,7 +214,7 @@ const scheduleFlow = (flow) => {
       processScheduledTrigger(flow);
     });
 
-    activeJobs.set(id, job);
+    activeJobs.set(recordId, job);
 
     logger.info({ flowId: id, cron: cronExpression }, 'Scheduled cron trigger');
   } else {
@@ -243,15 +243,15 @@ const loadScheduledFlows = async () => {
   try {
     // Get all tenants
     const tenants = await prisma.tenant.findMany({
-      select: { id: true },
+      select: { recordId: true },
     });
 
     for (const tenant of tenants) {
-      const flows = await listFlows({ tenantId: tenant.id, status: 'on' });
+      const flows = await listFlows({ tenantId: tenant.recordId, status: 'on' });
 
       for (const flow of flows) {
         const fullFlow = await prisma.handlerFlow.findUnique({
-          where: { id: flow.id },
+          where: { recordId: flow.recordId },
         });
 
         if (fullFlow?.definition?.trigger?.scheduleTrigger) {

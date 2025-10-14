@@ -116,7 +116,7 @@ const OnboardingChecklist = ({ status, onDismiss, isMutating }) => {
             const Icon = item.done ? CheckCircle : Circle;
             return (
               <div
-                key={item.id}
+                key={item.recordId}
                 className={cn(
                   'flex flex-col gap-2 rounded-lg border border-border/60 bg-surface/95 p-4 shadow-sm transition-colors',
                   item.done && 'border-success/50 bg-success/5',

@@ -98,7 +98,7 @@ const updateFlow = async ({ tenantId, flowId, name, description, status, definit
   if (definition !== undefined) updateData.definition = definition;
 
   const flow = await db.handlerFlow.update({
-    where: { id: flowId },
+    where: { recordId: flowId },
     data: updateData,
   });
 
@@ -112,7 +112,7 @@ const publishFlow = async ({ tenantId, flowId }) => {
   const db = forTenant(tenantId);
 
   const flow = await db.handlerFlow.findUnique({
-    where: { id: flowId },
+    where: { recordId: flowId },
   });
 
   if (!flow) {
@@ -123,7 +123,7 @@ const publishFlow = async ({ tenantId, flowId }) => {
   validateFlowDefinition(flow.definition);
 
   const updated = await db.handlerFlow.update({
-    where: { id: flowId },
+    where: { recordId: flowId },
     data: {
       status: STATUS.ON,
       lastPublishedAt: new Date(),
@@ -147,8 +147,7 @@ const listFlows = async ({ tenantId, status }) => {
   const flows = await db.handlerFlow.findMany({
     where,
     orderBy: { updatedAt: 'desc' },
-    select: {
-      id: true,
+    select: { recordId: true,
       name: true,
       description: true,
       status: true,
@@ -169,7 +168,7 @@ const getFlowById = async ({ tenantId, flowId }) => {
   const db = forTenant(tenantId);
 
   const flow = await db.handlerFlow.findUnique({
-    where: { id: flowId },
+    where: { recordId: flowId },
   });
 
   if (!flow) {
@@ -219,7 +218,7 @@ const deleteFlow = async ({ tenantId, flowId }) => {
 
   // Check if flow exists
   const flow = await db.handlerFlow.findUnique({
-    where: { id: flowId },
+    where: { recordId: flowId },
   });
 
   if (!flow) {
@@ -228,7 +227,7 @@ const deleteFlow = async ({ tenantId, flowId }) => {
 
   // Delete the flow (cascade will handle runs, logs, jobs)
   await db.handlerFlow.delete({
-    where: { id: flowId },
+    where: { recordId: flowId },
   });
 
   return { success: true };
@@ -248,7 +247,7 @@ const createRun = async ({
 
   // Get the flow
   const flow = await db.handlerFlow.findUnique({
-    where: { id: flowId },
+    where: { recordId: flowId },
   });
 
   if (!flow) {
@@ -272,7 +271,7 @@ const createRun = async ({
     });
 
     if (existing) {
-      return { created: false, runId: existing.id, run: existing };
+      return { created: false, runId: existing.recordId, run: existing };
     }
   }
 
@@ -282,7 +281,7 @@ const createRun = async ({
     .filter(n => n.type !== 'trigger')
     .sort((a, b) => (a.data?.stepIndex || 0) - (b.data?.stepIndex || 0));
 
-  const startNodeId = sortedNodes[0]?.id || null;
+  const startNodeId = sortedNodes[0]?.recordId || null;
 
   // Build initial context
   const context = {
@@ -310,7 +309,7 @@ const createRun = async ({
   if (startNodeId) {
     await db.handlerJob.create({
       data: {
-        runId: run.id,
+        runId: run.recordId,
         nodeId: startNodeId,
         dueAt: new Date(),
         attempts: 0,
@@ -320,7 +319,7 @@ const createRun = async ({
     });
   }
 
-  return { created: true, runId: run.id, run };
+  return { created: true, runId: run.recordId, run };
 };
 
 /**
@@ -368,7 +367,7 @@ const handleEvent = async ({ tenantId, eventType, payload, idempotencyKey }) => 
       });
 
       return {
-        eventId: existing?.id,
+        eventId: existing?.recordId,
         runs: (existing?.runs || []),
         deduplicated: true,
       };
@@ -384,34 +383,34 @@ const handleEvent = async ({ tenantId, eventType, payload, idempotencyKey }) => 
     try {
       const runResult = await createRun({
         tenantId,
-        flowId: flow.id,
+        flowId: flow.recordId,
         payload: payload || {},
-        idempotencyKey: `${eventKey}:${flow.id}`,
+        idempotencyKey: `${eventKey}:${flow.recordId}`,
         triggerType: TRIGGER_TYPES.CRITERIA,
       });
 
       runSummaries.push({
-        flowId: flow.id,
+        flowId: flow.recordId,
         runId: runResult.runId,
         created: runResult.created,
       });
     } catch (error) {
       runSummaries.push({
-        flowId: flow.id,
+        flowId: flow.recordId,
         error: error.message,
       });
     }
   }
 
   await db.handlerEvent.update({
-    where: { id: eventRecord.id },
+    where: { recordId: eventRecord.recordId },
     data: {
       runs: runSummaries,
     },
   });
 
   return {
-    eventId: eventRecord.id,
+    eventId: eventRecord.recordId,
     runs: runSummaries,
     deduplicated: false,
   };
@@ -425,7 +424,7 @@ const getRunLogs = async ({ tenantId, runId }) => {
 
   // Verify run exists
   const run = await db.handlerRun.findUnique({
-    where: { id: runId },
+    where: { recordId: runId },
   });
 
   if (!run) {
@@ -447,7 +446,7 @@ const getRunWithFlow = async ({ tenantId, runId }) => {
   const db = forTenant(tenantId);
 
   const run = await db.handlerRun.findUnique({
-    where: { id: runId },
+    where: { recordId: runId },
     include: {
       flow: true,
     },
@@ -467,7 +466,7 @@ const getRunById = async ({ tenantId, runId }) => {
   const db = forTenant(tenantId);
 
   const run = await db.handlerRun.findUnique({
-    where: { id: runId },
+    where: { recordId: runId },
   });
 
   if (!run) {
@@ -503,7 +502,7 @@ const updateRun = async ({ tenantId, runId, patch }) => {
   const db = forTenant(tenantId);
 
   const run = await db.handlerRun.update({
-    where: { id: runId },
+    where: { recordId: runId },
     data: patch,
   });
 
@@ -548,7 +547,7 @@ const claimNextJob = async ({ workerId }) => {
   // Try to claim it
   try {
     const claimed = await prisma.handlerJob.update({
-      where: { id: job.id },
+      where: { recordId: job.recordId },
       data: {
         lockedBy: workerId,
         lockedAt: now,
@@ -568,7 +567,7 @@ const claimNextJob = async ({ workerId }) => {
  */
 const deleteJob = async (jobId) => {
   await prisma.handlerJob.delete({
-    where: { id: jobId },
+    where: { recordId: jobId },
   });
 };
 
@@ -609,7 +608,7 @@ const rescheduleJob = async ({ jobId, delayMs, maxAttempts }) => {
   }
 
   await prisma.handlerJob.update({
-    where: { id: jobId },
+    where: { recordId: jobId },
     data: updateData,
   });
 };

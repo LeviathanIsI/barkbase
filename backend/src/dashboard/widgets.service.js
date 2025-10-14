@@ -74,29 +74,25 @@ async function getShiftHandoff(tenantId) {
   ]);
 
   return {
-    criticalAlerts: criticalAlerts.map((checkIn) => ({
-      id: checkIn.id,
+    criticalAlerts: criticalAlerts.map((checkIn) => ({ recordId: checkIn.recordId,
       time: checkIn.time,
       notes: checkIn.notes,
       conditionRating: checkIn.conditionRating,
       petName: checkIn.booking.pet.name,
       kennelName: checkIn.booking.segments[0]?.kennel?.name ?? 'Unassigned',
     })),
-    pendingTasks: pendingTasks.map((booking) => ({
-      id: booking.id,
+    pendingTasks: pendingTasks.map((booking) => ({ recordId: booking.recordId,
       petName: booking.pet.name,
       kennelName: booking.segments[0]?.kennel?.name ?? 'Unassigned',
       specialInstructions: booking.specialInstructions,
     })),
-    recentIncidents: recentIncidents.map((incident) => ({
-      id: incident.id,
+    recentIncidents: recentIncidents.map((incident) => ({ recordId: incident.recordId,
       occurredAt: incident.occurredAt,
       description: incident.description,
       petName: incident.pet?.name,
       kennelName: incident.booking?.segments[0]?.kennel?.name ?? 'Unassigned',
     })),
-    recentCheckIns: recentCheckIns.map((checkIn) => ({
-      id: checkIn.id,
+    recentCheckIns: recentCheckIns.map((checkIn) => ({ recordId: checkIn.recordId,
       time: checkIn.time,
       notes: checkIn.notes,
       staffName: checkIn.staff ? `${checkIn.staff.firstName} ${checkIn.staff.lastName}` : null,
@@ -128,8 +124,7 @@ async function getEmergencyAccess(tenantId) {
     take: 20,
   });
 
-  return criticalPets.map((booking) => ({
-    id: booking.id,
+  return criticalPets.map((booking) => ({ recordId: booking.recordId,
     petName: booking.pet.name,
     kennelName: booking.segments[0]?.kennel?.name ?? 'Unassigned',
     medicalNotes: booking.pet.medicalNotes,
@@ -254,16 +249,14 @@ async function getParentCommunication(tenantId) {
     });
 
     if (!hasPhotos) {
-      needsUpdate.push({
-        id: booking.id,
+      needsUpdate.push({ recordId: booking.recordId,
         petName: booking.pet.name,
         ownerName: `${booking.owner.firstName} ${booking.owner.lastName}`,
         priority: booking.checkIn === start ? 'high' : 'normal',
         daysStayed: differenceInCalendarDays(today, booking.checkIn),
       });
     } else {
-      recentUpdates.push({
-        id: booking.id,
+      recentUpdates.push({ recordId: booking.recordId,
         petName: booking.pet.name,
         photoCount: todayCheckIns.reduce((sum, ci) => {
           try {
@@ -314,15 +307,14 @@ async function getFacilityHeatmap(tenantId) {
   ]);
 
   return kennels.map((kennel) => {
-    const segment = activeSegments.find((s) => s.kennelId === kennel.id);
+    const segment = activeSegments.find((s) => s.kennelId === kennel.recordId);
     const status = segment
       ? segment.booking.status === 'IN_PROGRESS'
         ? 'occupied'
         : 'reserved'
       : 'available';
 
-    return {
-      id: kennel.id,
+    return { recordId: kennel.recordId,
       name: kennel.name,
       type: kennel.type,
       size: kennel.size,
@@ -367,10 +359,9 @@ async function getSocialCompatibility(tenantId) {
   const petCompatibility = activeBookings.map((booking) => {
     const pet = booking.pet;
     const behaviorFlags = typeof pet.behaviorFlags === 'object' ? pet.behaviorFlags : {};
-    const petIncidents = incidents.filter((i) => i.petId === pet.id);
+    const petIncidents = incidents.filter((i) => i.petId === pet.recordId);
 
-    return {
-      id: pet.id,
+    return { recordId: pet.recordId,
       name: pet.name,
       breed: pet.breed,
       kennelName: booking.segments[0]?.kennel?.name ?? 'Unassigned',

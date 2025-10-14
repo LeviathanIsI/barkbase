@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const associationController = require('../controllers/association.controller');
 const { requireAuth } = require('../middleware/requireAuth');
-const tenantContext = require('../middleware/tenantContext');
+const { tenantContext } = require('../middleware/tenantContext');
 
 // Apply tenant context to all routes
 router.use(tenantContext);

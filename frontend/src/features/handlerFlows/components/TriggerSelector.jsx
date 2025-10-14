@@ -4,127 +4,110 @@ import { useState } from 'react';
 
 // Trigger categories matching HubSpot's structure
 const triggerCategories = [
-  {
-    id: 'data-values',
+  { recordId: 'data-values',
     name: 'Data values',
     description: 'When data is created, changed or meets conditions',
     icon: <Database className="w-5 h-5" />,
     color: 'text-cyan-600',
     triggers: [
-      {
-        id: 'segment.changed',
+      { recordId: 'segment.changed',
         label: 'List membership changed',
         description: 'When a record is added or removed from a list',
         requiresObject: true,
         subOptions: [
-          { id: 'is_member', label: 'Is a member of a list' },
-          { id: 'not_member', label: 'Is not a member of a list' },
-          { id: 'added', label: 'Added to list' },
-          { id: 'removed', label: 'Removed from list' },
+          { recordId: 'is_member', label: 'Is a member of a list' },
+          { recordId: 'not_member', label: 'Is not a member of a list' },
+          { recordId: 'added', label: 'Added to list' },
+          { recordId: 'removed', label: 'Removed from list' },
         ],
       },
-      {
-        id: 'property.changed',
+      { recordId: 'property.changed',
         label: 'Property value changed',
         description: "When a record's property value is added, edited, or removed",
         requiresObject: true,
         subOptions: [
-          { id: 'one_property', label: 'One property value changed', description: 'One property is edited, added, or removed' },
-          { id: 'multiple_properties', label: 'Multiple property values were met', description: 'One or more properties are edited, added, or removed' },
+          { recordId: 'one_property', label: 'One property value changed', description: 'One property is edited, added, or removed' },
+          { recordId: 'multiple_properties', label: 'Multiple property values were met', description: 'One or more properties are edited, added, or removed' },
         ],
       },
-      {
-        id: 'record.created',
+      { recordId: 'record.created',
         label: 'Record created',
         description: 'When a new record is created in the system',
         requiresObject: true,
       },
-      {
-        id: 'filter.met',
+      { recordId: 'filter.met',
         label: 'Record meets a set of filter conditions',
         description: 'When a record meets multiple conditions',
         requiresObject: true,
       },
     ],
   },
-  {
-    id: 'communication',
+  { recordId: 'communication',
     name: 'Emails, calls, & communication',
     description: 'When information is sent or discussed',
     icon: <Mail className="w-5 h-5" />,
     color: 'text-orange-600',
     triggers: [
-      {
-        id: 'email.sent',
+      { recordId: 'email.sent',
         label: 'Email sent',
         description: 'When an email is sent to a contact',
         requiresObject: false,
       },
-      {
-        id: 'email.opened',
+      { recordId: 'email.opened',
         label: 'Email opened',
         description: 'When a contact opens an email',
         requiresObject: false,
       },
-      {
-        id: 'sms.received',
+      { recordId: 'sms.received',
         label: 'SMS received',
         description: 'When an SMS message is received',
         requiresObject: false,
       },
     ],
   },
-  {
-    id: 'websites',
+  { recordId: 'websites',
     name: 'Websites & media',
     description: 'When websites and media are interacted with',
     icon: <Globe className="w-5 h-5" />,
     color: 'text-purple-600',
     triggers: [
-      {
-        id: 'form.submitted',
+      { recordId: 'form.submitted',
         label: 'Form submitted',
         description: 'When a form is submitted on your website',
         requiresObject: false,
       },
-      {
-        id: 'page.visited',
+      { recordId: 'page.visited',
         label: 'Page visited',
         description: 'When a specific page is visited',
         requiresObject: false,
       },
     ],
   },
-  {
-    id: 'automations',
+  { recordId: 'automations',
     name: 'Automations triggered',
     description: 'When automated steps start or complete',
     icon: <Zap className="w-5 h-5" />,
     color: 'text-yellow-600',
     triggers: [
-      {
-        id: 'workflow.completed',
+      { recordId: 'workflow.completed',
         label: 'Workflow completed',
         description: 'When another workflow is completed',
         requiresObject: false,
       },
     ],
   },
-  {
-    id: 'custom',
+  { recordId: 'custom',
     name: 'Custom events & external events',
     description: 'Requires custom configuration',
     icon: <Code className="w-5 h-5" />,
     color: 'text-gray-600',
     triggers: [
-      {
-        id: 'webhook.received',
+      { recordId: 'webhook.received',
         label: 'Received a webhook from an external app',
         description: 'When an external app sends data to BarkBase',
         requiresObject: false,
       },
-      {
-        id: 'custom.event',
+      { recordId: 'custom.event',
         label: 'Custom events',
         description: 'Trigger based on custom events tracked in your system',
         requiresObject: true,
@@ -135,42 +118,42 @@ const triggerCategories = [
 
 // Object types for enrollment (pulled from system - in real app this would be dynamic)
 const enrollmentObjects = [
-  { id: 'owner', label: 'Owner', description: 'Pet owners and guardians' },
-  { id: 'pet', label: 'Pet', description: 'Dogs, cats, and other animals' },
-  { id: 'booking', label: 'Booking', description: 'Reservations and stays' },
-  { id: 'invoice', label: 'Invoice', description: 'Bills and payments' },
-  { id: 'property', label: 'Property', description: 'Custom property records' },
+  { recordId: 'owner', label: 'Owner', description: 'Pet owners and guardians' },
+  { recordId: 'pet', label: 'Pet', description: 'Dogs, cats, and other animals' },
+  { recordId: 'booking', label: 'Booking', description: 'Reservations and stays' },
+  { recordId: 'invoice', label: 'Invoice', description: 'Bills and payments' },
+  { recordId: 'property', label: 'Property', description: 'Custom property records' },
 ];
 
 // Step indicator component
 const StepIndicator = ({ currentStep }) => {
   const steps = [
-    { id: 'trigger', label: 'Start triggers' },
-    { id: 'object', label: 'Eligible records' },
-    { id: 'settings', label: 'Settings' },
+    { recordId: 'trigger', label: 'Start triggers' },
+    { recordId: 'object', label: 'Eligible records' },
+    { recordId: 'settings', label: 'Settings' },
   ];
 
   return (
     <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-background/50">
       {steps.map((step, index) => (
-        <div key={step.id} className="flex items-center flex-1">
+        <div key={step.recordId} className="flex items-center flex-1">
           <div className="flex items-center gap-2">
             <div
               className={cn(
                 'w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold',
-                currentStep === step.id
+                currentStep === step.recordId
                   ? 'bg-primary text-white'
-                  : steps.findIndex(s => s.id === currentStep) > index
+                  : steps.findIndex(s => s.recordId === currentStep) > index
                   ? 'bg-primary text-white'
                   : 'bg-border text-muted'
               )}
             >
-              {steps.findIndex(s => s.id === currentStep) > index ? '✓' : index + 1}
+              {steps.findIndex(s => s.recordId === currentStep) > index ? '✓' : index + 1}
             </div>
             <span
               className={cn(
                 'text-xs font-medium',
-                currentStep === step.id ? 'text-text' : 'text-muted'
+                currentStep === step.recordId ? 'text-text' : 'text-muted'
               )}
             >
               {step.label}
@@ -195,7 +178,7 @@ const TriggerSelector = ({ onClose, onSelect }) => {
   const toggleCategory = (categoryId) => {
     setExpandedCategories(prev =>
       prev.includes(categoryId)
-        ? prev.filter(id => id !== categoryId)
+        ? prev.filter(recordId => id !== categoryId)
         : [...prev, categoryId]
     );
   };
@@ -213,7 +196,7 @@ const TriggerSelector = ({ onClose, onSelect }) => {
       // No object needed, complete selection
       onSelect({
         type: 'trigger',
-        triggerType: trigger.id,
+        triggerType: trigger.recordId,
         label: trigger.label,
         description: trigger.description,
         object: null,
@@ -234,11 +217,11 @@ const TriggerSelector = ({ onClose, onSelect }) => {
 
     onSelect({
       type: 'trigger',
-      triggerType: selectedTrigger.id,
-      subOption: selectedSubOption?.id,
+      triggerType: selectedTrigger.recordId,
+      subOption: selectedSubOption?.recordId,
       label,
       description: selectedTrigger.description,
-      object: object.id,
+      object: object.recordId,
     });
   };
 
@@ -301,8 +284,7 @@ const TriggerSelector = ({ onClose, onSelect }) => {
             <div className="p-4 space-y-2 border-b border-border">
               <button
                 onClick={() => {
-                  setSelectedTrigger({
-                    id: 'manual',
+                  setSelectedTrigger({ recordId: 'manual',
                     label: 'Trigger manually',
                     description: 'Run this workflow on demand',
                     requiresObject: true,
@@ -315,8 +297,7 @@ const TriggerSelector = ({ onClose, onSelect }) => {
               </button>
               <button
                 onClick={() => {
-                  setSelectedTrigger({
-                    id: 'filter.met',
+                  setSelectedTrigger({ recordId: 'filter.met',
                     label: 'Met filter criteria',
                     description: 'When a record meets multiple conditions',
                     requiresObject: true,
@@ -344,12 +325,12 @@ const TriggerSelector = ({ onClose, onSelect }) => {
             {/* Expandable categories */}
             <div className="divide-y divide-border">
               {filteredCategories.map((category) => {
-                const isExpanded = expandedCategories.includes(category.id);
+                const isExpanded = expandedCategories.includes(category.recordId);
                 return (
-                  <div key={category.id}>
+                  <div key={category.recordId}>
                     {/* Category header */}
                     <button
-                      onClick={() => toggleCategory(category.id)}
+                      onClick={() => toggleCategory(category.recordId)}
                       className="w-full px-4 py-3 flex items-center gap-3 hover:bg-border/30 transition-colors text-left"
                     >
                       <ChevronRight
@@ -372,7 +353,7 @@ const TriggerSelector = ({ onClose, onSelect }) => {
                       <div className="bg-background/50">
                         {category.triggers.map((trigger) => (
                           <button
-                            key={trigger.id}
+                            key={trigger.recordId}
                             onClick={() => handleTriggerSelect(trigger)}
                             className="w-full px-4 py-3 pl-12 hover:bg-primary/5 transition-colors text-left border-l-4 border-transparent hover:border-primary"
                           >
@@ -401,7 +382,7 @@ const TriggerSelector = ({ onClose, onSelect }) => {
             <div className="space-y-2">
               {selectedTrigger?.subOptions?.map((subOption) => (
                 <button
-                  key={subOption.id}
+                  key={subOption.recordId}
                   onClick={() => handleSubOptionSelect(subOption)}
                   className="w-full text-left px-4 py-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors"
                 >
@@ -437,7 +418,7 @@ const TriggerSelector = ({ onClose, onSelect }) => {
             <div className="space-y-1">
               {enrollmentObjects.map((object) => (
                 <button
-                  key={object.id}
+                  key={object.recordId}
                   onClick={() => handleObjectSelect(object)}
                   className="w-full text-left px-4 py-2 hover:bg-primary/5 transition-colors text-sm text-text"
                 >

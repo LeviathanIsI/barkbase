@@ -1,9 +1,9 @@
 import BaseNode from './BaseNode';
 import Badge from '@/components/ui/Badge';
 
-const ActionNode = ({ id, data }) => {
+const ActionNode = ({ recordId, data }) => {
   return (
-    <BaseNode id={id} data={data} variant="action">
+    <BaseNode id={ recordId} data={data} variant="action">
       <div className="flex items-center gap-2">
         <Badge variant="primary" className="text-xs uppercase">Action</Badge>
       </div>

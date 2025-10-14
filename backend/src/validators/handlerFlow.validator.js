@@ -4,14 +4,12 @@ const triggerSchema = Joi.object({
   type: Joi.string().valid('event', 'schedule', 'manual').required(),
 }).unknown(true);
 
-const nodeSchema = Joi.object({
-  id: Joi.string().required(),
+const nodeSchema = Joi.object({ recordId: Joi.string().required(),
   type: Joi.string().min(2).max(64).required(),
   data: Joi.object().required(),
 }).unknown(true);
 
-const edgeSchema = Joi.object({
-  id: Joi.string().optional(),
+const edgeSchema = Joi.object({ recordId: Joi.string().optional(),
   source: Joi.string().required(),
   target: Joi.string().required(),
   sourceHandle: Joi.string().optional(),

@@ -58,7 +58,7 @@ const PropertySelector = ({
 
     // Filter by allowed groups
     if (allowedGroups) {
-      filtered = filtered.filter((group) => allowedGroups.includes(group.id));
+      filtered = filtered.filter((group) => allowedGroups.includes(group.recordId));
     }
 
     // Filter by search and allowed types
@@ -146,7 +146,7 @@ const PropertySelector = ({
         ) : (
           <div className="divide-y divide-border">
             {filteredGroups.map((group) => (
-              <div key={group.id} className="p-2">
+              <div key={group.recordId} className="p-2">
                 {/* Group Header */}
                 <div className="px-2 py-1.5 text-xs font-semibold text-muted uppercase tracking-wider">
                   {GROUP_LABELS[group.id] || group.label}
@@ -156,11 +156,11 @@ const PropertySelector = ({
                 <div className="space-y-0.5">
                   {group.properties.map((property) => (
                     <button
-                      key={property.id}
+                      key={property.recordId}
                       onClick={() => onSelect(property)}
                       className={cn(
                         'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors',
-                        selectedProperty?.id === property.id
+                        selectedProperty?.recordId === property.recordId
                           ? 'bg-primary/10 text-primary font-medium'
                           : 'text-text hover:bg-surface/80'
                       )}

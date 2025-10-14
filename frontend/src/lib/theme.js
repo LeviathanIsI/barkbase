@@ -79,9 +79,7 @@ export const applyTheme = (incomingTheme) => {
     root.style.setProperty('--font-heading', theme.fonts.heading);
   }
 
-  if (theme.mode) {
-    root.dataset.theme = theme.mode;
-  }
+  // Mode functionality removed - single theme mode only
 
   if (theme.assets?.logo) {
     root.style.setProperty('--logo-url', `url(${theme.assets.logo})`);

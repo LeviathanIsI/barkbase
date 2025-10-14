@@ -16,14 +16,14 @@ export const useOwnersQuery = (params = {}) => {
   });
 };
 
-export const useOwnerQuery = (id, options = {}) => {
+export const useOwnerQuery = (recordId, options = {}) => {
   const tenantKey = useTenantStore((state) => state.tenant?.slug ?? 'default');
   const { enabled = !!id, ...queryOptions } = options;
 
   return useQuery({
     queryKey: [...queryKeys.owners(tenantKey), id],
     queryFn: async () => {
-      return await apiClient(`/api/v1/owners/${id}`);
+      return await apiClient(`/api/v1/owners/${ recordId}`);
     },
     enabled,
     ...queryOptions,
@@ -41,10 +41,10 @@ export const useCreateOwnerMutation = () => {
   });
 };
 
-export const useUpdateOwnerMutation = (id) => {
+export const useUpdateOwnerMutation = (recordId) => {
   return useMutation({
     mutationFn: async (data) => {
-      return await apiClient(`/api/v1/owners/${id}`, {
+      return await apiClient(`/api/v1/owners/${ recordId}`, {
         method: 'PUT',
         body: data,
       });
@@ -54,8 +54,8 @@ export const useUpdateOwnerMutation = (id) => {
 
 export const useDeleteOwnerMutation = () => {
   return useMutation({
-    mutationFn: async (id) => {
-      return await apiClient(`/api/v1/owners/${id}`, {
+    mutationFn: async (recordId) => {
+      return await apiClient(`/api/v1/owners/${ recordId}`, {
         method: 'DELETE',
       });
     },

@@ -1,13 +1,11 @@
 const { forTenant } = require('../lib/tenantPrisma');
 
-const memberSelect = {
-  id: true,
+const memberSelect = { recordId: true,
   role: true,
   createdAt: true,
   updatedAt: true,
   user: {
-    select: {
-      id: true,
+    select: { recordId: true,
       email: true,
       isActive: true,
       lastLoginAt: true,
@@ -15,8 +13,7 @@ const memberSelect = {
   },
 };
 
-const inviteSelect = {
-  id: true,
+const inviteSelect = { recordId: true,
   email: true,
   role: true,
   token: true,
@@ -40,8 +37,7 @@ const listMembers = async (tenantId) => {
   ]);
 
   return {
-    members: memberships.map((membership) => ({
-      id: membership.id,
+    members: memberships.map((membership) => ({ recordId: membership.recordId,
       role: membership.role,
       createdAt: membership.createdAt,
       updatedAt: membership.updatedAt,
@@ -52,7 +48,7 @@ const listMembers = async (tenantId) => {
 };
 
 const assertRoleChangeAllowed = (memberships, membershipId, nextRole) => {
-  const target = memberships.find((member) => member.id === membershipId);
+  const target = memberships.find((member) => member.recordId === membershipId);
   if (!target) {
     throw Object.assign(new Error('Membership not found'), { statusCode: 404 });
   }
@@ -71,13 +67,12 @@ const updateMemberRole = async (tenantId, membershipId, role) => {
   assertRoleChangeAllowed(members, membershipId, role);
 
   const updated = await tenantDb.membership.update({
-    where: { id: membershipId },
+    where: { recordId: membershipId },
     data: { role },
     select: memberSelect,
   });
 
-  return {
-    id: updated.id,
+  return { recordId: updated.recordId,
     role: updated.role,
     createdAt: updated.createdAt,
     updatedAt: updated.updatedAt,
@@ -90,11 +85,11 @@ const removeMember = async (tenantId, membershipId, actingUserId) => {
   const memberships = await tenantDb.membership.findMany({ include: { user: true } });
   const target = assertRoleChangeAllowed(memberships, membershipId, null);
 
-  if (target.user.id === actingUserId) {
+  if (target.user.recordId === actingUserId) {
     throw Object.assign(new Error('Cannot remove your own membership'), { statusCode: 400 });
   }
 
-  await tenantDb.membership.delete({ where: { id: membershipId } });
+  await tenantDb.membership.delete({ where: { recordId: membershipId } });
 };
 
 module.exports = {

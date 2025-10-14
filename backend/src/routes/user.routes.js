@@ -2,13 +2,13 @@ const { Router } = require('express');
 const userController = require('../controllers/user.controller');
 const validate = require('../middleware/validate');
 const { requireAuth } = require('../middleware/requireAuth');
-const tenantContext = require('../middleware/tenantContext');
+const { tenantContext } = require('../middleware/tenantContext');
 const { updateProfile, updatePassword } = require('../validators/user.validator');
 
 const router = Router();
 
-// All routes require authentication (no tenant context needed for user profile)
-router.use(requireAuth());
+// All routes require authentication and tenant context
+router.use(tenantContext, requireAuth());
 
 router.get('/profile', userController.getProfile);
 router.patch('/profile', validate(updateProfile), userController.updateProfile);

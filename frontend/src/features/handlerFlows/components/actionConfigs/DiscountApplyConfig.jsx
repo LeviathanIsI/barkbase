@@ -26,7 +26,7 @@ const DiscountApplyConfig = ({ node, onUpdate }) => {
     }
 
     setErrors([]);
-    onUpdate(node.id, {
+    onUpdate(node.recordId, {
       actionType: 'discount.apply',
       config: newConfig,
       label: node.data.label || 'Apply Discount',

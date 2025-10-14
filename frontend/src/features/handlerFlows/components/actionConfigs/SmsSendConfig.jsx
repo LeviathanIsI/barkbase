@@ -31,7 +31,7 @@ const SmsSendConfig = ({ node, onUpdate }) => {
     }
 
     setErrors([]);
-    onUpdate(node.id, {
+    onUpdate(node.recordId, {
       actionType: 'sms.send',
       config: newConfig,
       label: node.data.label || 'Send SMS',

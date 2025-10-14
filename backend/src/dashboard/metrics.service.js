@@ -133,8 +133,7 @@ async function getUpcomingVaccinations(tenantId, { daysAhead = 180, limit = 5 } 
       severity = 'warning';
     }
 
-    return {
-      id: vaccination.id,
+    return { recordId: vaccination.recordId,
       petName: vaccination.pet.name,
       ownerName: primaryOwner ? `${primaryOwner.firstName} ${primaryOwner.lastName}` : null,
       vaccine: vaccination.type,

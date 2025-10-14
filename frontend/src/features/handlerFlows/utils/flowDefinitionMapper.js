@@ -39,8 +39,7 @@ export function toFlowDefinition({ nodes, edges, name, description, triggerConfi
 
   // Map nodes to FlowDefinition format
   const mappedNodes = nodes.map(node => {
-    const baseNode = {
-      id: node.id,
+    const baseNode = { recordId: node.recordId,
       type: node.type,
       position: node.position,
       data: {
@@ -82,7 +81,7 @@ export function toFlowDefinition({ nodes, edges, name, description, triggerConfi
       case 'condition':
         baseNode.data = {
           ...baseNode.data,
-          criteriaGroup: node.data?.criteriaGroup || { id: '', name: '', criteria: [] },
+          criteriaGroup: node.data?.criteriaGroup || { recordId: '', name: '', criteria: [] },
         };
         break;
 
@@ -114,8 +113,7 @@ export function toFlowDefinition({ nodes, edges, name, description, triggerConfi
   });
 
   // Map edges to FlowDefinition format
-  const mappedEdges = edges.map(edge => ({
-    id: edge.id,
+  const mappedEdges = edges.map(edge => ({ recordId: edge.recordId,
     source: edge.source,
     sourceHandle: edge.sourceHandle || null,
     target: edge.target,
@@ -152,8 +150,7 @@ export function fromFlowDefinition(definition) {
   }
 
   // Map nodes to React Flow format
-  const nodes = definition.nodes.map(node => ({
-    id: node.id,
+  const nodes = definition.nodes.map(node => ({ recordId: node.recordId,
     type: node.type,
     position: node.position || { x: 0, y: 0 },
     data: {
@@ -169,8 +166,7 @@ export function fromFlowDefinition(definition) {
   }));
 
   // Map edges to React Flow format
-  const edges = definition.edges.map(edge => ({
-    id: edge.id,
+  const edges = definition.edges.map(edge => ({ recordId: edge.recordId,
     source: edge.source,
     sourceHandle: edge.sourceHandle || undefined,
     target: edge.target,
@@ -205,8 +201,7 @@ export function createEmptyFlowDefinition() {
       enrollmentFilters: [],
     },
     nodes: [
-      {
-        id: '1',
+      { recordId: '1',
         type: 'trigger',
         position: { x: 0, y: 0 },
         data: {

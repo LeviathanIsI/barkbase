@@ -4,49 +4,44 @@ import Modal from '@/components/ui/Modal';
 import PropertyCriteriaSelector from './PropertyCriteriaSelector';
 
 const criteriaCategories = [
-  {
-    id: 'data-events',
+  { recordId: 'data-events',
     name: 'Data events',
     criteria: [
-      { id: 'list-membership-changed', label: 'List membership changed', description: 'Added to or removed from a list' },
-      { id: 'property-value-changed', label: 'Property value changed', description: 'Field value updated' },
-      { id: 'record-created', label: 'Record created', description: 'New record added to system' },
+      { recordId: 'list-membership-changed', label: 'List membership changed', description: 'Added to or removed from a list' },
+      { recordId: 'property-value-changed', label: 'Property value changed', description: 'Field value updated' },
+      { recordId: 'record-created', label: 'Record created', description: 'New record added to system' },
     ],
   },
-  {
-    id: 'workflow-events',
+  { recordId: 'workflow-events',
     name: 'Workflow events',
     criteria: [
-      { id: 'enrolled-in-workflow', label: 'Enrolled in workflow', description: 'Added to another workflow' },
-      { id: 'unenrolled-from-workflow', label: 'Unenrolled from workflow', description: 'Removed from another workflow' },
+      { recordId: 'enrolled-in-workflow', label: 'Enrolled in workflow', description: 'Added to another workflow' },
+      { recordId: 'unenrolled-from-workflow', label: 'Unenrolled from workflow', description: 'Removed from another workflow' },
     ],
   },
-  {
-    id: 'object-info',
+  { recordId: 'object-info',
     name: 'Object information',
     criteria: [
-      { id: 'pet-properties', label: 'Pet properties', description: 'Filter by pet attributes' },
-      { id: 'owner-properties', label: 'Owner properties', description: 'Filter by owner attributes' },
-      { id: 'booking-properties', label: 'Booking properties', description: 'Filter by booking attributes' },
+      { recordId: 'pet-properties', label: 'Pet properties', description: 'Filter by pet attributes' },
+      { recordId: 'owner-properties', label: 'Owner properties', description: 'Filter by owner attributes' },
+      { recordId: 'booking-properties', label: 'Booking properties', description: 'Filter by booking attributes' },
     ],
   },
-  {
-    id: 'dates',
+  { recordId: 'dates',
     name: 'Date properties',
     criteria: [
-      { id: 'check-in-date', label: 'Check-in date', description: 'Booking check-in date' },
-      { id: 'check-out-date', label: 'Check-out date', description: 'Booking check-out date' },
-      { id: 'vaccination-date', label: 'Vaccination expiry', description: 'Vaccine expiration date' },
-      { id: 'last-visit-date', label: 'Last visit date', description: 'Date of most recent stay' },
+      { recordId: 'check-in-date', label: 'Check-in date', description: 'Booking check-in date' },
+      { recordId: 'check-out-date', label: 'Check-out date', description: 'Booking check-out date' },
+      { recordId: 'vaccination-date', label: 'Vaccination expiry', description: 'Vaccine expiration date' },
+      { recordId: 'last-visit-date', label: 'Last visit date', description: 'Date of most recent stay' },
     ],
   },
-  {
-    id: 'marketing',
+  { recordId: 'marketing',
     name: 'Marketing interactions',
     criteria: [
-      { id: 'custom-events', label: 'Custom Events', description: 'Track custom event occurrences' },
-      { id: 'email-interaction', label: 'Email interaction', description: 'Email sent, opened, clicked' },
-      { id: 'sms-interaction', label: 'SMS interaction', description: 'Text sent or replied to' },
+      { recordId: 'custom-events', label: 'Custom Events', description: 'Track custom event occurrences' },
+      { recordId: 'email-interaction', label: 'Email interaction', description: 'Email sent, opened, clicked' },
+      { recordId: 'sms-interaction', label: 'SMS interaction', description: 'Text sent or replied to' },
     ],
   },
 ];
@@ -69,14 +64,14 @@ const CriteriaSelector = ({ onSelect, onClose }) => {
     // Check if this is a property-based criteria
     const propertyTypes = ['pet-properties', 'owner-properties', 'booking-properties'];
 
-    if (propertyTypes.includes(criteria.id)) {
+    if (propertyTypes.includes(criteria.recordId)) {
       // Open property selector
-      setSelectedPropertyCriteria(criteria.id);
+      setSelectedPropertyCriteria(criteria.recordId);
       setShowPropertySelector(true);
     } else {
       // Regular criteria - pass through
       onSelect({
-        type: criteria.id,
+        type: criteria.recordId,
         label: criteria.label,
         description: criteria.description,
       });
@@ -130,12 +125,12 @@ const CriteriaSelector = ({ onSelect, onClose }) => {
         {/* Criteria list */}
         <div className="max-h-96 overflow-y-auto space-y-4">
           {filteredCategories.map((category) => (
-            <div key={category.id}>
+            <div key={category.recordId}>
               <h4 className="text-sm font-semibold text-text mb-2">{category.name}</h4>
               <div className="space-y-1">
                 {category.criteria.map((criteria) => (
                   <button
-                    key={criteria.id}
+                    key={criteria.recordId}
                     onClick={() => handleCriteriaClick(criteria)}
                     className="w-full text-left px-3 py-2 rounded hover:bg-primary/5 border border-transparent hover:border-primary transition-colors"
                   >

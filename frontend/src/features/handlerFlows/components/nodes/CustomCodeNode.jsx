@@ -1,9 +1,9 @@
 import BaseNode from './BaseNode';
 import Badge from '@/components/ui/Badge';
 
-const CustomCodeNode = ({ id, data }) => {
+const CustomCodeNode = ({ recordId, data }) => {
   return (
-    <BaseNode id={id} data={data} variant="code">
+    <BaseNode id={ recordId} data={data} variant="code">
       <div className="flex items-center gap-2">
         <Badge variant="info" className="text-xs uppercase">Custom code</Badge>
       </div>

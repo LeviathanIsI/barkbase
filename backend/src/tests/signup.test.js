@@ -34,7 +34,7 @@ describe('Public signup and verification', () => {
     expect(user.emailVerified).toBe(true);
 
     const membership = await prisma.membership.findFirst({
-      where: { tenantId: response.body.tenant.id, userId: user.id },
+      where: { tenantId: response.body.tenant.recordId, userId: user.recordId },
       select: { localDataConsent: true },
     });
     expect(membership?.localDataConsent).toMatchObject({
@@ -42,7 +42,7 @@ describe('Public signup and verification', () => {
       agreedAt: expect.any(String),
     });
 
-    const tokenRecord = await prisma.emailVerificationToken.findFirst({ where: { userId: user.id } });
+    const tokenRecord = await prisma.emailVerificationToken.findFirst({ where: { userId: user.recordId } });
     expect(tokenRecord).toBeNull();
   });
 

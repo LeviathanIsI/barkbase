@@ -38,7 +38,7 @@ const PropertyDetail = () => {
 
       // Find the specific property
       const allProperties = data.groups?.flatMap(g => g.properties || []) || [];
-      const prop = allProperties.find(p => p.id === propertyId);
+      const prop = allProperties.find(p => p.recordId === propertyId);
 
       if (prop) {
         setProperty(prop);
@@ -76,9 +76,9 @@ const PropertyDetail = () => {
   };
 
   const sections = [
-    { id: 'details', label: 'Details' },
-    { id: 'field-type', label: 'Field type' },
-    { id: 'rules', label: 'Rules' },
+    { recordId: 'details', label: 'Details' },
+    { recordId: 'field-type', label: 'Field type' },
+    { recordId: 'rules', label: 'Rules' },
   ];
 
   if (loading) {
@@ -142,18 +142,18 @@ const PropertyDetail = () => {
             <nav className="space-y-1">
               {sections.map((section) => (
                 <button
-                  key={section.id}
-                  onClick={() => setActiveSection(section.id)}
+                  key={section.recordId}
+                  onClick={() => setActiveSection(section.recordId)}
                   className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors ${
-                    activeSection === section.id
+                    activeSection === section.recordId
                       ? 'bg-primary/10 text-primary font-medium'
                       : 'text-text hover:bg-surface/80'
                   }`}
                 >
-                  {activeSection === section.id && (
+                  {activeSection === section.recordId && (
                     <Check className="h-4 w-4 text-primary" />
                   )}
-                  <span className={activeSection === section.id ? '' : 'ml-6'}>
+                  <span className={activeSection === section.recordId ? '' : 'ml-6'}>
                     {section.label}
                   </span>
                 </button>

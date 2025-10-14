@@ -28,14 +28,14 @@ describe('Rate limiting', () => {
     const payload = () => {
       const now = Date.now();
       return {
-        petId: pet.id,
+        petId: pet.recordId,
         ownerId: pet.owners[0].ownerId,
         status: 'CONFIRMED',
         checkIn: new Date(now + Math.random() * 1000).toISOString(),
         checkOut: new Date(now + 60 * 60 * 1000 + Math.random() * 1000).toISOString(),
         segments: [
           {
-            kennelId: kennel.id,
+            kennelId: kennel.recordId,
             startDate: new Date(now + Math.random() * 1000).toISOString(),
             endDate: new Date(now + 60 * 60 * 1000 + Math.random() * 1000).toISOString(),
             status: 'CONFIRMED',

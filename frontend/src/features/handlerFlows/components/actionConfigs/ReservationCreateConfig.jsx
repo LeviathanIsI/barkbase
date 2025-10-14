@@ -28,7 +28,7 @@ const ReservationCreateConfig = ({ node, onUpdate }) => {
     }
 
     setErrors([]);
-    onUpdate(node.id, {
+    onUpdate(node.recordId, {
       actionType: 'reservation.create',
       config: newConfig,
       label: node.data.label || 'Create Reservation',

@@ -187,16 +187,16 @@ const DataTable = ({
     if (selectedRows.size === paginatedData.length) {
       setSelectedRows(new Set());
     } else {
-      setSelectedRows(new Set(paginatedData.map((row) => row.id)));
+      setSelectedRows(new Set(paginatedData.map((row) => row.recordId)));
     }
   };
 
-  const handleSelectRow = (id) => {
+  const handleSelectRow = (recordId) => {
     const newSelected = new Set(selectedRows);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
+    if (newSelected.has(recordId)) {
+      newSelected.delete(recordId);
     } else {
-      newSelected.add(id);
+      newSelected.add(recordId);
     }
     setSelectedRows(newSelected);
   };
@@ -302,12 +302,12 @@ const DataTable = ({
 
   // Advanced filter properties
   const advancedFilterProperties = [
-    { id: 'email', label: 'Email contains', type: 'text', accessor: 'email' },
-    { id: 'phone', label: 'Phone contains', type: 'text', accessor: 'phone' },
-    { id: 'createdAt', label: 'Create date', type: 'date', accessor: 'createdAt' },
-    { id: 'totalBookings', label: 'Number of bookings', type: 'number', accessor: 'totalBookings' },
-    { id: 'lifetimeValue', label: 'Total spent', type: 'number', accessor: 'lifetimeValue' },
-    { id: 'lastBooking', label: 'Last booking date', type: 'date', accessor: 'lastBooking' },
+    { recordId: 'email', label: 'Email contains', type: 'text', accessor: 'email' },
+    { recordId: 'phone', label: 'Phone contains', type: 'text', accessor: 'phone' },
+    { recordId: 'createdAt', label: 'Create date', type: 'date', accessor: 'createdAt' },
+    { recordId: 'totalBookings', label: 'Number of bookings', type: 'number', accessor: 'totalBookings' },
+    { recordId: 'lifetimeValue', label: 'Total spent', type: 'number', accessor: 'lifetimeValue' },
+    { recordId: 'lastBooking', label: 'Last booking date', type: 'date', accessor: 'lastBooking' },
   ];
 
   const getOperatorsForType = (type) => {
@@ -339,9 +339,8 @@ const DataTable = ({
 
   const handleAddFilter = (property) => {
     const operators = getOperatorsForType(property.type);
-    const newFilter = {
-      id: Date.now(),
-      property: property.id,
+    const newFilter = { recordId: Date.now(),
+      property: property.recordId,
       propertyLabel: property.label,
       propertyType: property.type,
       accessor: property.accessor,
@@ -361,14 +360,14 @@ const DataTable = ({
   };
 
   const handleRemoveAdvancedFilter = (filterId) => {
-    setAdvancedFilters(advancedFilters.filter(f => f.id !== filterId));
+    setAdvancedFilters(advancedFilters.filter(f => f.recordId !== filterId));
   };
 
   const handleClearAllFilters = () => {
     setAdvancedFilters([]);
     // Also clear quick filters
     filterGroups.forEach(group => {
-      onFilterClear?.(group.id);
+      onFilterClear?.(group.recordId);
     });
   };
 
@@ -395,17 +394,17 @@ const DataTable = ({
           <div className="flex items-center gap-2 overflow-x-auto">
             {views.map((view) => (
               <button
-                key={view.id}
-                onClick={() => onViewChange?.(view.id)}
+                key={view.recordId}
+                onClick={() => onViewChange?.(view.recordId)}
                 className={cn(
                   'flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-                  activeView === view.id
+                  activeView === view.recordId
                     ? 'bg-primary/10 text-primary'
                     : 'text-muted hover:bg-surface hover:text-text'
                 )}
               >
                 {view.label}
-                {view.canClose && activeView === view.id && (
+                {view.canClose && activeView === view.recordId && (
                   <X className="h-3 w-3" />
                 )}
               </button>
@@ -446,12 +445,12 @@ const DataTable = ({
         {/* Filter Dropdowns */}
         {filterGroups.map((group) => (
           <FilterDropdown
-            key={group.id}
+            key={group.recordId}
             label={group.label}
             options={group.options || []}
             value={activeFilters[group.id]}
-            onChange={(value) => onFilterChange?.(group.id, value)}
-            onClear={() => onFilterClear?.(group.id)}
+            onChange={(value) => onFilterChange?.(group.recordId, value)}
+            onClear={() => onFilterClear?.(group.recordId)}
           />
         ))}
 
@@ -638,7 +637,7 @@ const DataTable = ({
             ) : (
               paginatedData.map((row) => (
                 <tr
-                  key={row.id}
+                  key={row.recordId}
                   onClick={() => onRowClick?.(row)}
                   className={cn(
                     'transition-colors hover:bg-gray-50',
@@ -649,10 +648,10 @@ const DataTable = ({
                     <td className="px-6 py-4">
                       <input
                         type="checkbox"
-                        checked={selectedRows.has(row.id)}
+                        checked={selectedRows.has(row.recordId)}
                         onChange={(e) => {
                           e.stopPropagation();
-                          handleSelectRow(row.id);
+                          handleSelectRow(row.recordId);
                         }}
                         className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-2 focus:ring-primary/20"
                       />
@@ -910,7 +909,7 @@ const DataTable = ({
                     {Object.keys(activeFilters).length > 0 ? (
                       <div className="space-y-2">
                         {Object.entries(activeFilters).map(([key, value]) => {
-                          const group = filterGroups.find(g => g.id === key);
+                          const group = filterGroups.find(g => g.recordId === key);
                           const option = group?.options?.find(o => o.value === value);
                           return (
                             <div key={key} className="flex items-center justify-between rounded bg-blue-50 px-3 py-2">
@@ -942,7 +941,7 @@ const DataTable = ({
                           const operators = getOperatorsForType(filter.propertyType);
                           const operatorLabel = operators.find(o => o.value === filter.operator)?.label || filter.operator;
                           return (
-                            <div key={filter.id} className="rounded bg-gray-100 px-3 py-2">
+                            <div key={filter.recordId} className="rounded bg-gray-100 px-3 py-2">
                               <div className="flex items-center justify-between">
                                 <div className="flex-1 text-sm">
                                   <span className="font-medium text-gray-900">{filter.propertyLabel}</span>
@@ -953,7 +952,7 @@ const DataTable = ({
                                   )}
                                 </div>
                                 <button
-                                  onClick={() => handleRemoveAdvancedFilter(filter.id)}
+                                  onClick={() => handleRemoveAdvancedFilter(filter.recordId)}
                                   className="ml-2 text-gray-400 hover:text-gray-600"
                                 >
                                   <X className="h-4 w-4" />
@@ -1103,7 +1102,7 @@ const DataTable = ({
                               .filter(prop => !filterSearch || prop.label.toLowerCase().includes(filterSearch.toLowerCase()))
                               .map((property) => (
                                 <button
-                                  key={property.id}
+                                  key={property.recordId}
                                   className="flex w-full items-center justify-between rounded px-3 py-2 text-left hover:bg-gray-50"
                                   onClick={() => handleAddFilter(property)}
                                 >

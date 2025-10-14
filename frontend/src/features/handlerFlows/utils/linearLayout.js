@@ -55,10 +55,9 @@ export const createSequentialEdges = (nodes, onInsert = null) => {
   const edges = [];
 
   for (let i = 0; i < sorted.length - 1; i++) {
-    edges.push({
-      id: `e${sorted[i].id}-${sorted[i + 1].id}`,
-      source: sorted[i].id,
-      target: sorted[i + 1].id,
+    edges.push({ recordId: `e${sorted[i].recordId}-${sorted[i + 1].recordId}`,
+      source: sorted[i].recordId,
+      target: sorted[i + 1].recordId,
       animated: true,
       type: 'linear', // Use custom linear edge with insert affordance
       data: {
@@ -80,8 +79,8 @@ export const convertToLinear = (nodes, edges) => {
   const inDegree = new Map();
 
   nodes.forEach((node) => {
-    adjacency.set(node.id, []);
-    inDegree.set(node.id, 0);
+    adjacency.set(node.recordId, []);
+    inDegree.set(node.recordId, 0);
   });
 
   edges.forEach((edge) => {
@@ -106,7 +105,7 @@ export const convertToLinear = (nodes, edges) => {
 
   while (queue.length > 0) {
     const nodeId = queue.shift();
-    const node = nodes.find((n) => n.id === nodeId);
+    const node = nodes.find((n) => n.recordId === nodeId);
     if (node) {
       sorted.push(node);
     }
@@ -123,7 +122,7 @@ export const convertToLinear = (nodes, edges) => {
 
   // Add any remaining nodes (in case of disconnected components)
   nodes.forEach((node) => {
-    if (!sorted.find((n) => n.id === node.id)) {
+    if (!sorted.find((n) => n.recordId === node.recordId)) {
       sorted.push(node);
     }
   });
@@ -173,7 +172,7 @@ export const insertNodeAtIndex = (nodes, newNode, insertIndex) => {
  * Removes a node and compacts indices
  */
 export const removeNodeAtIndex = (nodes, nodeId) => {
-  const filtered = nodes.filter((n) => n.id !== nodeId);
+  const filtered = nodes.filter((n) => n.recordId !== nodeId);
   return calculateLinearPositions(filtered);
 };
 
@@ -182,7 +181,7 @@ export const removeNodeAtIndex = (nodes, nodeId) => {
  */
 export const moveNode = (nodes, nodeId, direction) => {
   const sorted = sortByStepIndex(nodes);
-  const currentIndex = sorted.findIndex((n) => n.id === nodeId);
+  const currentIndex = sorted.findIndex((n) => n.recordId === nodeId);
 
   if (currentIndex === -1) return nodes;
 
@@ -204,7 +203,7 @@ export const moveNode = (nodes, nodeId, direction) => {
  * Clones a node and inserts it after the original
  */
 export const cloneNode = (nodes, nodeId) => {
-  const node = nodes.find((n) => n.id === nodeId);
+  const node = nodes.find((n) => n.recordId === nodeId);
   if (!node) return nodes;
 
   const clonedNode = {
@@ -234,10 +233,9 @@ export const createOrUpdateEdge = (edges, sourceId, targetId, sourceHandle = nul
     ? `e${sourceId}-${sourceHandle}-${targetId}`
     : `e${sourceId}-${targetId}`;
 
-  const existingEdge = edges.find(e => e.id === edgeId);
+  const existingEdge = edges.find(e => e.recordId === edgeId);
 
-  const edge = {
-    id: edgeId,
+  const edge = { recordId: edgeId,
     source: sourceId,
     target: targetId,
     sourceHandle: sourceHandle || undefined,
@@ -248,7 +246,7 @@ export const createOrUpdateEdge = (edges, sourceId, targetId, sourceHandle = nul
 
   if (existingEdge) {
     // Update existing edge
-    return edges.map(e => e.id === edgeId ? edge : e);
+    return edges.map(e => e.recordId === edgeId ? edge : e);
   } else {
     // Add new edge
     return [...edges, edge];
@@ -286,7 +284,7 @@ export const validateLinearMode = (nodes, edges) => {
 
   // Check for single entry point
   const nodesWithIncoming = new Set(edges.map((e) => e.target));
-  const entryNodes = nodes.filter((n) => !nodesWithIncoming.has(n.id));
+  const entryNodes = nodes.filter((n) => !nodesWithIncoming.has(n.recordId));
   if (entryNodes.length !== 1) {
     errors.push('Must have exactly one entry node');
   }

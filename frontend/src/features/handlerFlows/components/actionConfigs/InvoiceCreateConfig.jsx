@@ -22,7 +22,7 @@ const InvoiceCreateConfig = ({ node, onUpdate }) => {
     }
 
     setErrors([]);
-    onUpdate(node.id, {
+    onUpdate(node.recordId, {
       actionType: 'invoice.create',
       config: newConfig,
       label: node.data.label || 'Create Invoice',

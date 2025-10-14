@@ -48,14 +48,14 @@ describe('CSRF protection', () => {
     const kennel = await prisma.kennel.findFirst();
 
     const payload = {
-      petId: pet?.id,
+      petId: pet?.recordId,
       ownerId: pet?.owners?.[0]?.ownerId,
       status: 'CONFIRMED',
       checkIn,
       checkOut,
       segments: [
         {
-          kennelId: kennel?.id,
+          kennelId: kennel?.recordId,
           startDate: checkIn,
           endDate: checkOut,
           status: 'CONFIRMED',

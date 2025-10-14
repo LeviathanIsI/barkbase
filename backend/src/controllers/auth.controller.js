@@ -2,6 +2,13 @@ const authService = require('../services/auth.service');
 const env = require('../config/env');
 const { generateCsrfToken, CSRF_COOKIE_NAME } = require('../utils/csrf');
 
+const getRefreshCookieOptions = (rememberMe = false) => ({
+  httpOnly: true,
+  secure: env.nodeEnv === 'production',
+  sameSite: 'lax',
+  maxAge: rememberMe ? 30 * 24 * 60 * 60 * 1000 : undefined, // 30 days if rememberMe, else session cookie
+});
+
 const cookieOptions = {
   httpOnly: true,
   secure: env.nodeEnv === 'production',
@@ -17,9 +24,9 @@ const csrfCookieOptions = {
   path: '/',
 };
 
-const setAuthCookies = (res, tokens) => {
+const setAuthCookies = (res, tokens, rememberMe = false) => {
   const csrfToken = generateCsrfToken();
-  res.cookie('refreshToken', tokens.refreshToken, cookieOptions);
+  res.cookie('refreshToken', tokens.refreshToken, getRefreshCookieOptions(rememberMe));
   res.cookie('accessToken', tokens.accessToken, {
     ...cookieOptions,
     maxAge: env.tokens.accessTtlMinutes * 60 * 1000,
@@ -29,9 +36,9 @@ const setAuthCookies = (res, tokens) => {
 
 const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, rememberMe } = req.body;
     const result = await authService.login(req.tenant, email, password);
-    setAuthCookies(res, result.tokens);
+    setAuthCookies(res, result.tokens, rememberMe);
     return res.json(result);
   } catch (error) {
     return next(error);
@@ -56,7 +63,8 @@ const signup = async (req, res, next) => {
     const result = await authService.signup({ ...req.body, consentMeta });
 
     if (result.tokens) {
-      setAuthCookies(res, result.tokens);
+      // Default rememberMe to true for signup (they just created an account)
+      setAuthCookies(res, result.tokens, true);
       return res.status(201).json({
         message: 'Workspace created successfully.',
         tenant: result.tenant,
@@ -79,7 +87,8 @@ const signup = async (req, res, next) => {
 const verifyEmail = async (req, res, next) => {
   try {
     const result = await authService.verifyEmail(req.body.token);
-    setAuthCookies(res, result.tokens);
+    // Default rememberMe to true for email verification (they just verified)
+    setAuthCookies(res, result.tokens, true);
     return res.json(result);
   } catch (error) {
     return next(error);
@@ -88,7 +97,8 @@ const verifyEmail = async (req, res, next) => {
 
 const refresh = async (req, res, next) => {
   try {
-    const token = req.cookies.refreshToken;
+    // Try to get refresh token from cookie first, then from request body (for rememberMe scenarios)
+    const token = req.cookies.refreshToken || req.body?.refreshToken;
     if (!token) {
       return res.status(401).json({ message: 'Refresh token missing' });
     }

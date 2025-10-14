@@ -16,7 +16,7 @@ async function getRevenueOptimizer(tenantId) {
     tenantDb.kennel.findMany({
       where: {
         isActive: true,
-        segments: {
+        bookings: {
           none: {
             startDate: { lte: weekAhead },
             endDate: { gte: today },
@@ -132,11 +132,7 @@ async function getStaffingIntelligence(tenantId) {
         pet: true,
       },
     }),
-    tenantDb.staff.count({
-      where: {
-        isActive: true,
-      },
-    }),
+    tenantDb.staff.count(),
   ]);
 
   const recommendedStaffToday = Math.ceil(todayBookings / 5);
@@ -237,8 +233,7 @@ async function getCustomerCLV(tenantId) {
     const isAtRisk = daysSinceLastVisit > avgDaysBetween * 1.5;
     const isVIP = totalRevenue > 1000;
 
-    return {
-      id: owner.id,
+    return { recordId: owner.recordId,
       name: `${owner.firstName} ${owner.lastName}`,
       email: owner.email,
       phone: owner.phone,
@@ -269,7 +264,7 @@ async function getCustomerCLV(tenantId) {
 
   const repeatBookingRate =
     (bookings.filter((booking) => {
-      const ownerBookingCount = ownerMetrics.find((o) => o.id === booking.ownerId)?.bookingCount || 0;
+      const ownerBookingCount = ownerMetrics.find((o) => o.recordId === booking.ownerId)?.bookingCount || 0;
       return ownerBookingCount > 1;
     }).length /
       (bookings.length || 1)) *

@@ -39,7 +39,7 @@ describe('Tenant onboarding checklist', () => {
     expect(Array.isArray(response.body.checklist)).toBe(true);
     expect(response.body.checklist.length).toBeGreaterThan(0);
 
-    const byId = Object.fromEntries(response.body.checklist.map((item) => [item.id, item]));
+    const byId = Object.fromEntries(response.body.checklist.map((item) => [item.recordId, item]));
 
     expect(byId['add-pet'].done).toBe(true);
     expect(byId['configure-kennels'].done).toBe(true);

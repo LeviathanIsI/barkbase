@@ -15,8 +15,7 @@ const listPayments = async (tenantId, { status, page = 1, pageSize = 20 } = {}) 
       where,
       include: {
         booking: {
-          select: {
-            id: true,
+          select: { recordId: true,
             petId: true,
             pet: {
               select: {
@@ -26,8 +25,7 @@ const listPayments = async (tenantId, { status, page = 1, pageSize = 20 } = {}) 
           },
         },
         owner: {
-          select: {
-            id: true,
+          select: { recordId: true,
             firstName: true,
             lastName: true,
             email: true,
@@ -75,7 +73,7 @@ const recordPayment = (tenantId, payload) =>
 
 const capturePayment = async (tenantId, paymentId, { metadata = {}, captureAmountCents, force = false } = {}) => {
   const tenantDb = forTenant(tenantId);
-  const payment = await tenantDb.payment.findFirst({ where: { id: paymentId } });
+  const payment = await tenantDb.payment.findFirst({ where: { recordId: paymentId } });
 
   if (!payment) {
     throw Object.assign(new Error('Payment not found'), { statusCode: 404 });
@@ -103,7 +101,7 @@ const capturePayment = async (tenantId, paymentId, { metadata = {}, captureAmoun
   }
 
   return tenantDb.payment.update({
-    where: { id: paymentId },
+    where: { recordId: paymentId },
     data,
   });
 };
@@ -134,8 +132,7 @@ const getSummary = async (tenantId) => {
   const lastCaptured = await tenantDb.payment.findFirst({
     where: { status: 'CAPTURED' },
     orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
+    select: { recordId: true,
       amountCents: true,
       currency: true,
       createdAt: true,

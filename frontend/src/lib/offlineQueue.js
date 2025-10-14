@@ -33,7 +33,7 @@ export const flushQueue = async () => {
         body: item.body,
         headers: item.headers,
       });
-      await store.delete(item.id);
+      await store.delete(item.recordId);
     } catch (error) {
       // stop processing to retry later
       if (import.meta.env.DEV) {

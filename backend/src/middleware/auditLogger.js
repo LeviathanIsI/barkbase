@@ -3,7 +3,7 @@ const { recordAuditEvent } = require('../services/audit.service');
 const auditLogger = (action, entityType, entityIdSelector, diffSelector) => async (req, _res, next) => {
   resOnFinish(req, _res, async () => {
     const tenantId = req.tenantId;
-    const actorId = req.user?.id ?? null;
+    const actorId = req.user?.recordId ?? null;
     if (!tenantId) {
       return;
     }

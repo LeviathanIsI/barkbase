@@ -22,7 +22,7 @@ const PdfGenerateConfig = ({ node, onUpdate }) => {
     }
 
     setErrors([]);
-    onUpdate(node.id, {
+    onUpdate(node.recordId, {
       actionType: 'pdf.generate',
       config: newConfig,
       label: node.data.label || 'Generate PDF',

@@ -14,6 +14,7 @@ const Login = () => {
   const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true); // Default to checked
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
@@ -29,7 +30,7 @@ const Login = () => {
     try {
       const result = await apiClient('/api/v1/auth/login', {
         method: 'POST',
-        body: { email, password },
+        body: { email, password, rememberMe },
       });
 
       // Update tenant store with full tenant info from login response
@@ -43,6 +44,7 @@ const Login = () => {
         role: result.role ?? result.user?.role,
         tenantId: result.tenantId ?? result.user?.tenantId,
         memberships: result.user?.memberships,
+        rememberMe,
       });
 
       const from = location.state?.from;
@@ -51,7 +53,19 @@ const Login = () => {
         : '/dashboard';
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      setError(err.message ?? 'Unable to sign in');
+      // Check if it's a "no workspace" error
+      if (err.message && err.message.includes('No workspace found')) {
+        setError(
+          <span>
+            {err.message}{' '}
+            <Link to="/signup" className="text-primary underline">
+              Create a new workspace
+            </Link>
+          </span>
+        );
+      } else {
+        setError(err.message ?? 'Unable to sign in');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -86,6 +100,15 @@ const Login = () => {
               autoComplete="current-password"
               required
             />
+          </label>
+          <label className="flex items-center gap-2 text-sm text-text">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(event) => setRememberMe(event.target.checked)}
+              className="h-4 w-4 rounded border-border text-primary focus:ring-2 focus:ring-primary"
+            />
+            <span>Remember me for 30 days</span>
           </label>
           {error ? <p className="text-sm text-danger">{error}</p> : null}
           <Button type="submit" disabled={submitting || !email || !password}>

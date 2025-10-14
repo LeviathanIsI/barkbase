@@ -26,7 +26,7 @@ const VaccinationRemindConfig = ({ node, onUpdate }) => {
     }
 
     setErrors([]);
-    onUpdate(node.id, {
+    onUpdate(node.recordId, {
       actionType: 'vaccination.remind',
       config: newConfig,
       label: node.data.label || 'Send Vaccination Reminder',

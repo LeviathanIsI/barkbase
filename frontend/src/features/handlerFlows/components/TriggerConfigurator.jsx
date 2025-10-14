@@ -23,8 +23,7 @@ const TriggerConfigurator = ({ trigger, onClose, onUpdate }) => {
   const [enforceActionIdempotency, setEnforceActionIdempotency] = useState(trigger?.settings?.enforceActionIdempotency ?? true);
 
   const handleAddCriteriaGroup = () => {
-    const newGroup = {
-      id: `group-${Date.now()}`,
+    const newGroup = { recordId: `group-${Date.now()}`,
       name: `Group ${criteriaGroups.length + 1}`,
       criteria: [],
     };
@@ -32,12 +31,12 @@ const TriggerConfigurator = ({ trigger, onClose, onUpdate }) => {
   };
 
   const handleRemoveCriteriaGroup = (groupId) => {
-    setCriteriaGroups(criteriaGroups.filter(g => g.id !== groupId));
+    setCriteriaGroups(criteriaGroups.filter(g => g.recordId !== groupId));
   };
 
   const handleUpdateCriteriaGroup = (groupId, updatedGroup) => {
     setCriteriaGroups(criteriaGroups.map(g =>
-      g.id === groupId ? { ...g, ...updatedGroup } : g
+      g.recordId === groupId ? { ...g, ...updatedGroup } : g
     ));
   };
 
@@ -58,8 +57,7 @@ const TriggerConfigurator = ({ trigger, onClose, onUpdate }) => {
   };
 
   const handleAddEnrollmentFilter = () => {
-    const newFilter = {
-      id: `filter-${Date.now()}`,
+    const newFilter = { recordId: `filter-${Date.now()}`,
       name: `Group ${enrollmentFilters.length + 1}`,
       criteria: [],
     };
@@ -67,12 +65,12 @@ const TriggerConfigurator = ({ trigger, onClose, onUpdate }) => {
   };
 
   const handleRemoveEnrollmentFilter = (filterId) => {
-    setEnrollmentFilters(enrollmentFilters.filter(f => f.id !== filterId));
+    setEnrollmentFilters(enrollmentFilters.filter(f => f.recordId !== filterId));
   };
 
   const handleUpdateEnrollmentFilter = (filterId, updatedFilter) => {
     setEnrollmentFilters(enrollmentFilters.map(f =>
-      f.id === filterId ? { ...f, ...updatedFilter } : f
+      f.recordId === filterId ? { ...f, ...updatedFilter } : f
     ));
   };
 
@@ -96,7 +94,7 @@ const TriggerConfigurator = ({ trigger, onClose, onUpdate }) => {
         enforceActionIdempotency,
       },
     };
-    onUpdate(trigger.id, triggerConfig);
+    onUpdate(trigger.recordId, triggerConfig);
     onClose();
   };
 
@@ -175,11 +173,11 @@ const TriggerConfigurator = ({ trigger, onClose, onUpdate }) => {
 
           {/* Criteria Groups */}
           {criteriaGroups.map((group, index) => (
-            <div key={group.id}>
+            <div key={group.recordId}>
               <CriteriaGroup
                 group={group}
-                onUpdate={(updated) => handleUpdateCriteriaGroup(group.id, updated)}
-                onRemove={() => handleRemoveCriteriaGroup(group.id)}
+                onUpdate={(updated) => handleUpdateCriteriaGroup(group.recordId, updated)}
+                onRemove={() => handleRemoveCriteriaGroup(group.recordId)}
               />
               {/* OR divider between groups or before schedule */}
               {(index < criteriaGroups.length - 1 || scheduleTrigger) && (
@@ -261,11 +259,11 @@ const TriggerConfigurator = ({ trigger, onClose, onUpdate }) => {
           ) : (
             <div className="space-y-3">
               {enrollmentFilters.map((filter, index) => (
-                <div key={filter.id}>
+                <div key={filter.recordId}>
                   <CriteriaGroup
                     group={filter}
-                    onUpdate={(updated) => handleUpdateEnrollmentFilter(filter.id, updated)}
-                    onRemove={() => handleRemoveEnrollmentFilter(filter.id)}
+                    onUpdate={(updated) => handleUpdateEnrollmentFilter(filter.recordId, updated)}
+                    onRemove={() => handleRemoveEnrollmentFilter(filter.recordId)}
                     isEnrollmentFilter
                   />
                   {index < enrollmentFilters.length - 1 && (

@@ -42,8 +42,7 @@ const Reports = () => {
       return;
     }
     if (dashboardQuery.isError) {
-      toast.error(dashboardQuery.error?.message ?? 'Unable to load revenue metrics', {
-        id: 'reports-dashboard-error',
+      toast.error(dashboardQuery.error?.message ?? 'Unable to load revenue metrics', { recordId: 'reports-dashboard-error',
       });
     }
   }, [canViewReports, dashboardQuery.isError, dashboardQuery.error]);
@@ -53,8 +52,7 @@ const Reports = () => {
       return;
     }
     if (paymentsSummaryQuery.isError) {
-      toast.error(paymentsSummaryQuery.error?.message ?? 'Unable to load payment summary', {
-        id: 'reports-payments-error',
+      toast.error(paymentsSummaryQuery.error?.message ?? 'Unable to load payment summary', { recordId: 'reports-payments-error',
       });
     }
   }, [canViewReports, paymentsSummaryQuery.isError, paymentsSummaryQuery.error]);
@@ -64,8 +62,7 @@ const Reports = () => {
       return;
     }
     if (occupancyQuery.isError) {
-      toast.error(occupancyQuery.error?.message ?? 'Unable to load occupancy data', {
-        id: 'reports-occupancy-error',
+      toast.error(occupancyQuery.error?.message ?? 'Unable to load occupancy data', { recordId: 'reports-occupancy-error',
       });
     }
   }, [canViewReports, occupancyQuery.isError, occupancyQuery.error]);

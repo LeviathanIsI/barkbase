@@ -2,7 +2,7 @@ const { Router } = require('express');
 const rateLimit = require('express-rate-limit');
 const authController = require('../controllers/auth.controller');
 const validate = require('../middleware/validate');
-const tenantContext = require('../middleware/tenantContext');
+const { tenantContext } = require('../middleware/tenantContext');
 const { requireAuth } = require('../middleware/requireAuth');
 const schemas = require('../validators/auth.validator');
 
@@ -16,7 +16,7 @@ const signupLimiter = rateLimit({
 const router = Router();
 
 router.post('/signup', signupLimiter, validate(schemas.signup), authController.signup);
-router.post('/login', tenantContext, validate(schemas.login), authController.login);
+router.post('/login', validate(schemas.login), authController.login);
 router.post('/refresh', tenantContext, authController.refresh);
 router.post('/verify-email', validate(schemas.verifyEmail), authController.verifyEmail);
 router.post(

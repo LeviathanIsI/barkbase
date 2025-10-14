@@ -71,8 +71,7 @@ const normaliseHoliday = (holiday) => {
   if (!startDate) {
     return null;
   }
-  return {
-    id: holiday.id ?? `holiday-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  return { recordId: holiday.recordId ?? `holiday-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     name: holiday.name ?? 'Holiday',
     startDate,
     endDate: endDate ?? startDate,
@@ -214,9 +213,8 @@ const getSupabaseTenant = async (tenantId) => {
 };
 
 const getPrismaTenant = async (tenantId) => prisma.tenant.findUnique({
-  where: { id: tenantId },
-  select: {
-    id: true,
+  where: { recordId: tenantId },
+  select: { recordId: true,
     slug: true,
     name: true,
     plan: true,
@@ -225,7 +223,7 @@ const getPrismaTenant = async (tenantId) => prisma.tenant.findUnique({
 });
 
 const fetchTenantRecord = async (tenant) => {
-  const tenantId = typeof tenant === 'string' ? tenant : tenant?.id;
+  const tenantId = typeof tenant === 'string' ? tenant : tenant?.recordId;
   if (!tenantId) {
     throw new Error('Tenant id is required');
   }
@@ -255,7 +253,7 @@ const persistTenantSettings = async (tenantId, settings) => {
     return data.settings;
   }
   const updated = await prisma.tenant.update({
-    where: { id: tenantId },
+    where: { recordId: tenantId },
     data: { settings },
     select: { settings: true },
   });
@@ -286,12 +284,12 @@ exports.updateAccountDefaults = async (tenant, updates = {}) => {
     accountDefaults: nextDefaults,
   };
 
-  const persistedSettings = await persistTenantSettings(record.id, nextSettings);
+  const persistedSettings = await persistTenantSettings(record.recordId, nextSettings);
   return applyDefaults(record, persistedSettings.accountDefaults ?? nextDefaults);
 };
 
 exports.saveTenantLogo = async (tenant, file) => {
-  if (!tenant?.id) {
+  if (!tenant?.recordId) {
     throw new Error('Tenant context is required');
   }
   if (!file?.path) {
@@ -332,7 +330,7 @@ exports.saveTenantLogo = async (tenant, file) => {
     accountDefaults: nextDefaults,
   };
 
-  const persistedSettings = await persistTenantSettings(record.id, nextSettings);
+  const persistedSettings = await persistTenantSettings(record.recordId, nextSettings);
   const updated = applyDefaults(record, persistedSettings.accountDefaults ?? nextDefaults);
   return updated.businessInfo.logo;
 };

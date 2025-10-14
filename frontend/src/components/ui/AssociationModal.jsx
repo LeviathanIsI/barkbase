@@ -32,7 +32,7 @@ const AssociationModal = ({
   onCreateNew,
   createForm,
   associationLabels = [],
-  formatRecordDisplay = (record) => record.name || record.id,
+  formatRecordDisplay = (record) => record.name || record.recordId,
   isLoading = false,
 }) => {
   const [activeTab, setActiveTab] = useState('existing');
@@ -198,12 +198,12 @@ const AssociationModal = ({
                       </p>
                     ) : (
                       filteredRecords.map((record) => {
-                        const isAlreadyAssociated = currentAssociations.includes(record.id);
+                        const isAlreadyAssociated = currentAssociations.includes(record.recordId);
                         const isSelected = selectedRecords[record.id] || false;
                         const isChecked = isAlreadyAssociated || isSelected;
 
                         return (
-                          <div key={record.id} className="space-y-2">
+                          <div key={record.recordId} className="space-y-2">
                             <div
                               className={cn(
                                 'flex items-center gap-3 rounded-md border border-border bg-white p-3 transition-colors',
@@ -211,12 +211,12 @@ const AssociationModal = ({
                                   ? 'bg-gray-100 cursor-not-allowed'
                                   : 'cursor-pointer hover:border-primary hover:bg-blue-50'
                               )}
-                              onClick={() => handleToggleRecord(record.id)}
+                              onClick={() => handleToggleRecord(record.recordId)}
                             >
                               <input
                                 type="checkbox"
                                 checked={isChecked}
-                                onChange={() => handleToggleRecord(record.id)}
+                                onChange={() => handleToggleRecord(record.recordId)}
                                 disabled={isAlreadyAssociated}
                                 className="h-4 w-4 rounded border-border text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
                                 onClick={(e) => e.stopPropagation()}
@@ -241,7 +241,7 @@ const AssociationModal = ({
                                 </label>
                                 <select
                                   value={recordLabels[record.id] || associationLabels[0]?.value || ''}
-                                  onChange={(e) => handleLabelChange(record.id, e.target.value)}
+                                  onChange={(e) => handleLabelChange(record.recordId, e.target.value)}
                                   className="w-full rounded-md border border-border bg-white px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                                   onClick={(e) => e.stopPropagation()}
                                 >

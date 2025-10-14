@@ -205,7 +205,7 @@ const AssociationsTab = ({ objectType }) => {
             <tbody className="divide-y divide-border">
               {filteredAssociations.map((association) => (
                 <tr
-                  key={association.id}
+                  key={association.recordId}
                   className={`hover:bg-gray-50 transition-colors ${
                     association.archived ? 'opacity-50' : ''
                   }`}
@@ -258,7 +258,7 @@ const AssociationsTab = ({ objectType }) => {
                       </button>
                       {!association.isSystemDefined && (
                         <button
-                          onClick={() => handleDeleteAssociation(association.id)}
+                          onClick={() => handleDeleteAssociation(association.recordId)}
                           className="p-1 text-muted hover:text-red-600 transition-colors"
                           title="Delete association"
                           disabled={deleteMutation.isPending}

@@ -511,8 +511,7 @@ async function getProperties(objectType, tenantId, includeArchived = false) {
   });
 
   // Transform custom properties to match system property format
-  const transformedCustomProps = customProperties.map((prop) => ({
-    id: prop.id,
+  const transformedCustomProps = customProperties.map((prop) => ({ recordId: prop.recordId,
     name: prop.name,
     label: prop.label,
     type: prop.type,
@@ -601,8 +600,7 @@ async function createProperty(tenantId, propertyData) {
 async function updateProperty(tenantId, propertyId, updates) {
   // Check if property exists and belongs to tenant
   const existing = await prisma.customProperty.findFirst({
-    where: {
-      id: propertyId,
+    where: { recordId: propertyId,
       tenantId,
     },
   });
@@ -630,7 +628,7 @@ async function updateProperty(tenantId, propertyId, updates) {
 
   // Update the property
   const property = await prisma.customProperty.update({
-    where: { id: propertyId },
+    where: { recordId: propertyId },
     data: {
       ...updates,
       updatedAt: new Date(),
@@ -646,8 +644,7 @@ async function updateProperty(tenantId, propertyId, updates) {
 async function deleteProperty(tenantId, propertyId) {
   // Check if property exists and belongs to tenant
   const existing = await prisma.customProperty.findFirst({
-    where: {
-      id: propertyId,
+    where: { recordId: propertyId,
       tenantId,
     },
   });
@@ -658,7 +655,7 @@ async function deleteProperty(tenantId, propertyId) {
 
   // Delete the property
   await prisma.customProperty.delete({
-    where: { id: propertyId },
+    where: { recordId: propertyId },
   });
 
   return { success: true };
@@ -670,8 +667,7 @@ async function deleteProperty(tenantId, propertyId) {
 async function archiveProperty(tenantId, propertyId) {
   // Check if property exists and belongs to tenant
   const existing = await prisma.customProperty.findFirst({
-    where: {
-      id: propertyId,
+    where: { recordId: propertyId,
       tenantId,
     },
   });
@@ -686,7 +682,7 @@ async function archiveProperty(tenantId, propertyId) {
 
   // Archive the property
   const property = await prisma.customProperty.update({
-    where: { id: propertyId },
+    where: { recordId: propertyId },
     data: {
       archived: true,
       archivedAt: new Date(),
@@ -702,8 +698,7 @@ async function archiveProperty(tenantId, propertyId) {
 async function restoreProperty(tenantId, propertyId) {
   // Check if property exists and belongs to tenant
   const existing = await prisma.customProperty.findFirst({
-    where: {
-      id: propertyId,
+    where: { recordId: propertyId,
       tenantId,
     },
   });
@@ -718,7 +713,7 @@ async function restoreProperty(tenantId, propertyId) {
 
   // Restore the property
   const property = await prisma.customProperty.update({
-    where: { id: propertyId },
+    where: { recordId: propertyId },
     data: {
       archived: false,
       archivedAt: null,

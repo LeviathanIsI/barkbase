@@ -27,7 +27,7 @@ const listPets = (tenantId, options = {}) => {
 };
 
 const getPetById = (tenantId, petId) =>
-  forTenant(tenantId).pet.findFirst({ where: { id: petId }, include: petIncludes });
+  forTenant(tenantId).pet.findFirst({ where: { recordId: petId }, include: petIncludes });
 
 const createPet = async (tenantId, payload) => {
   const ownerIds = payload.ownerIds || [];
@@ -61,7 +61,7 @@ const createPet = async (tenantId, payload) => {
 
 const updatePet = async (tenantId, petId, payload) => {
   const tenantDb = forTenant(tenantId);
-  const existing = await tenantDb.pet.findFirst({ where: { id: petId } });
+  const existing = await tenantDb.pet.findFirst({ where: { recordId: petId } });
   if (!existing) {
     throw Object.assign(new Error('Pet not found'), { statusCode: 404 });
   }
@@ -78,7 +78,7 @@ const updatePet = async (tenantId, petId, payload) => {
   if (payload.behaviorFlags !== undefined) data.behaviorFlags = payload.behaviorFlags;
 
   const pet = await tenantDb.pet.update({
-    where: { id: petId },
+    where: { recordId: petId },
     data,
     include: petIncludes,
   });
@@ -87,17 +87,17 @@ const updatePet = async (tenantId, petId, payload) => {
 
 const deletePet = async (tenantId, petId) => {
   const tenantDb = forTenant(tenantId);
-  const existing = await tenantDb.pet.findFirst({ where: { id: petId } });
+  const existing = await tenantDb.pet.findFirst({ where: { recordId: petId } });
   if (!existing) {
     throw Object.assign(new Error('Pet not found'), { statusCode: 404 });
   }
 
-  await tenantDb.pet.delete({ where: { id: petId } });
+  await tenantDb.pet.delete({ where: { recordId: petId } });
 };
 
 const addVaccination = async (tenantId, petId, payload) => {
   const tenantDb = forTenant(tenantId);
-  const pet = await tenantDb.pet.findFirst({ where: { id: petId } });
+  const pet = await tenantDb.pet.findFirst({ where: { recordId: petId } });
   if (!pet) {
     throw Object.assign(new Error('Pet not found'), { statusCode: 404 });
   }

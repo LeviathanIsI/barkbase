@@ -35,7 +35,7 @@ describe('Auth refresh flow', () => {
     });
 
     await prisma.membership.update({
-      where: { id: membership.id },
+      where: { recordId: membership.recordId },
       data: { refreshToken: 'revoked-token' },
     });
 

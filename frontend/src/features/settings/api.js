@@ -3,7 +3,7 @@ import { apiClient } from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
 
-const useTenantKey = () => useTenantStore((state) => state.tenant?.id ?? 'default');
+const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
 export const useMembersQuery = () => {
   const tenantId = useTenantKey();

@@ -2,14 +2,12 @@ const { forTenant } = require('../lib/tenantPrisma');
 
 const defaultInclude = {
   pet: {
-    select: {
-      id: true,
+    select: { recordId: true,
       name: true,
     },
   },
   booking: {
-    select: {
-      id: true,
+    select: { recordId: true,
       status: true,
       checkIn: true,
       checkOut: true,

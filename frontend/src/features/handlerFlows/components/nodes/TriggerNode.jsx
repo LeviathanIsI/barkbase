@@ -1,9 +1,9 @@
 import BaseNode from './BaseNode';
 import Badge from '@/components/ui/Badge';
 
-const TriggerNode = ({ id, data }) => {
+const TriggerNode = ({ recordId, data }) => {
   return (
-    <BaseNode id={id} data={data} variant="trigger">
+    <BaseNode id={ recordId} data={data} variant="trigger">
       <div className="flex items-center gap-2">
         <Badge variant="info" className="text-xs uppercase">Trigger</Badge>
       </div>

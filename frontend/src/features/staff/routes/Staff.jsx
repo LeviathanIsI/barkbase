@@ -14,8 +14,7 @@ const Staff = () => {
 
   useEffect(() => {
     if (staffQuery.isError) {
-      toast.error(staffQuery.error?.message ?? 'Unable to load staff', {
-        id: 'staff-error',
+      toast.error(staffQuery.error?.message ?? 'Unable to load staff', { recordId: 'staff-error',
       });
     }
   }, [staffQuery.isError, staffQuery.error]);
@@ -54,7 +53,7 @@ const Staff = () => {
           <ul className="space-y-3 text-sm">
             {staffMembers.map((member) => (
               <li
-                key={member.id}
+                key={member.recordId}
                 className="flex items-center justify-between rounded-xl border border-border/60 bg-surface/60 p-4"
               >
                 <div>
@@ -78,7 +77,7 @@ const Staff = () => {
                     variant="ghost"
                     size="sm"
                     disabled={toggleStatus.isPending}
-                    onClick={() => handleToggle(member.id, member.user?.isActive)}
+                    onClick={() => handleToggle(member.recordId, member.user?.isActive)}
                   >
                     {member.user?.isActive ? 'Disable' : 'Enable'}
                   </Button>

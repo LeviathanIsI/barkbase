@@ -148,7 +148,7 @@ const FieldSetConfig = ({ node, onUpdate }) => {
     }
 
     setErrors([]);
-    onUpdate(node.id, {
+    onUpdate(node.recordId, {
       actionType: 'field.set',
       config: newConfig,
       label: `Set ${selectedFieldMeta?.label || field}`,
@@ -390,7 +390,7 @@ const FieldSetConfig = ({ node, onUpdate }) => {
                     {filteredProperties.length > 0 ? (
                       filteredProperties.map((property) => (
                         <button
-                          key={property.id}
+                          key={property.recordId}
                           type="button"
                           onClick={() => handleFieldSelect(property)}
                           className="w-full text-left px-3 py-2 hover:bg-primary/10 transition-colors border-b border-border last:border-b-0"

@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const tenantContext = require('../middleware/tenantContext');
+const { tenantContext } = require('../middleware/tenantContext');
 const { requireAuth } = require('../middleware/requireAuth');
 const validate = require('../middleware/validate');
 const controller = require('../controllers/booking.controller');
@@ -27,7 +27,7 @@ router.post(
   '/',
   requireAuth(['OWNER', 'ADMIN']),
   validate(schemas.create),
-  auditLogger('booking.created', 'booking', (req) => req.body?.id),
+  auditLogger('booking.created', 'booking', (req) => req.body?.recordId),
   controller.create,
 );
 router.post(

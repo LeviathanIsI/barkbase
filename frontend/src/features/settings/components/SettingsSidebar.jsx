@@ -5,8 +5,7 @@ import { useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 
 const NAV_SECTIONS = [
-  {
-    id: "preferences",
+  { recordId: "preferences",
     title: "Your Preferences",
     items: [
       { label: "Profile", to: "/settings/profile" },
@@ -15,8 +14,7 @@ const NAV_SECTIONS = [
       { label: "Security", to: "/settings/security" },
     ],
   },
-  {
-    id: "account-management",
+  { recordId: "account-management",
     title: "Account Management",
     items: [
       { label: "Account Defaults", to: "/settings/account" },
@@ -30,8 +28,16 @@ const NAV_SECTIONS = [
       { label: "Members", to: "/settings/members" },
     ],
   },
-  {
-    id: "data-management",
+  { recordId: "facility-management",
+    title: "Facility Management",
+    items: [
+      { label: "Accommodations", to: "/settings/facility/accommodations" },
+      { label: "Inventory Management", to: "/settings/facility/inventory" },
+      { label: "Facility Locations", to: "/settings/facility/locations" },
+      { label: "Training & Schedules", to: "/settings/facility/schedules" },
+    ],
+  },
+  { recordId: "data-management",
     title: "Data Management",
     items: [
       { label: "Properties", to: "/settings/properties" },
@@ -55,8 +61,7 @@ const NAV_SECTIONS = [
       { label: "Exports", to: "/settings/exports" },
     ],
   },
-  {
-    id: "communication",
+  { recordId: "communication",
     title: "Communication",
     items: [
       { label: "Email Settings", to: "/settings/email" },
@@ -67,8 +72,7 @@ const NAV_SECTIONS = [
       },
     ],
   },
-  {
-    id: "booking",
+  { recordId: "booking",
     title: "Booking & Scheduling",
     items: [
       { label: "Booking Configuration", to: "/settings/booking-config" },
@@ -77,8 +81,7 @@ const NAV_SECTIONS = [
       { label: "Services & Offerings", to: "/settings/services" },
     ],
   },
-  {
-    id: "billing",
+  { recordId: "billing",
     title: "Payment & Invoicing",
     items: [
       { label: "Payment Processing", to: "/settings/payment-processing" },
@@ -86,8 +89,7 @@ const NAV_SECTIONS = [
       { label: "Products & Packages", to: "/settings/products-services" },
     ],
   },
-  {
-    id: "integrations",
+  { recordId: "integrations",
     title: "Website & Integrations",
     items: [
       { label: "Domain & Hosting", to: "/settings/domain" },
@@ -99,16 +101,14 @@ const NAV_SECTIONS = [
       },
     ],
   },
-  {
-    id: "compliance",
+  { recordId: "compliance",
     title: "Compliance & Legal",
     items: [
       { label: "Privacy & Consent", to: "/settings/privacy" },
       { label: "Terms & Policies", to: "/settings/terms-policies" },
     ],
   },
-  {
-    id: "insights",
+  { recordId: "insights",
     title: "Insights & Reporting",
     items: [{ label: "Reporting & Analytics", to: "/settings/reporting" }],
   },
@@ -169,8 +169,8 @@ const SettingsSidebar = () => {
 
         <div className="space-y-6">
           {NAV_SECTIONS.map((section) => (
-            <div key={section.id} className="space-y-2">
-              <div className="text-xs font-semibold uppercase tracking-wide text-muted">
+            <div key={section.recordId} className="space-y-2">
+              <div className="text-xs font-bold uppercase tracking-wide text-text/80 border-b border-border/30 pb-1 mb-3">
                 {section.title}
               </div>
               <div className="space-y-1">

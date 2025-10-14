@@ -9,7 +9,7 @@ export const useUserProfileQuery = () => {
     queryKey: ['user', 'profile'],
     queryFn: async () => {
       const response = await apiClient.get('/users/profile');
-      return response.data;
+      return response; // apiClient returns data directly, not wrapped in .data
     },
   });
 };

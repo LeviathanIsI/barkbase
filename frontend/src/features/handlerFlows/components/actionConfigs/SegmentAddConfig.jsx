@@ -22,7 +22,7 @@ const SegmentAddConfig = ({ node, onUpdate }) => {
     }
 
     setErrors([]);
-    onUpdate(node.id, {
+    onUpdate(node.recordId, {
       actionType: 'segment.add',
       config: newConfig,
       label: node.data.label || 'Add to Segment',

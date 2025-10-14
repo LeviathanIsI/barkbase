@@ -9,7 +9,7 @@ const loadPlanFeatures = async (tenantId, features) => {
     return features;
   }
   const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
+    where: { recordId: tenantId },
     select: {
       plan: true,
       featureFlags: true,
@@ -38,15 +38,15 @@ const emitBookingEvent = (tenantId, event, payload) => {
 
 const resolveStaffId = async (tenantDb, { staffId, membershipId } = {}) => {
   if (staffId) {
-    const staff = await tenantDb.staff.findFirst({ where: { id: staffId } });
+    const staff = await tenantDb.staff.findFirst({ where: { recordId: staffId } });
     if (!staff) {
       throw Object.assign(new Error('Staff member not found'), { statusCode: 404 });
     }
-    return staff.id;
+    return staff.recordId;
   }
   if (membershipId) {
     const staff = await tenantDb.staff.findFirst({ where: { membershipId } });
-    return staff?.id ?? null;
+    return staff?.recordId ?? null;
   }
   return null;
 };
@@ -133,7 +133,7 @@ const listBookings = async (tenantId, { status, startDate, endDate } = {}) => {
 
 const getBookingById = (tenantId, bookingId) =>
   forTenant(tenantId).booking.findFirst({
-    where: { id: bookingId },
+    where: { recordId: bookingId },
     include: defaultIncludes,
   });
 
@@ -176,7 +176,7 @@ const createBooking = async (tenantId, payload, { features, now } = {}) => {
 const updateBooking = async (tenantId, bookingId, payload = {}) => {
   const tenantDb = forTenant(tenantId);
   const existing = await tenantDb.booking.findFirst({
-    where: { id: bookingId },
+    where: { recordId: bookingId },
     include: {
       segments: true,
       services: true,
@@ -222,7 +222,7 @@ const updateBooking = async (tenantId, bookingId, payload = {}) => {
     const scoped = forTenant(tenantId, tx);
 
     await scoped.booking.update({
-      where: { id: bookingId },
+      where: { recordId: bookingId },
       data: updateData,
     });
 
@@ -242,7 +242,7 @@ const updateBooking = async (tenantId, bookingId, payload = {}) => {
     }
 
     return scoped.booking.findFirst({
-      where: { id: bookingId },
+      where: { recordId: bookingId },
       include: defaultIncludes,
     });
   });
@@ -255,7 +255,7 @@ const updateBooking = async (tenantId, bookingId, payload = {}) => {
 const updateBookingStatus = async (tenantId, bookingId, status) => {
   const tenantDb = forTenant(tenantId);
   const existing = await tenantDb.booking.findFirst({
-    where: { id: bookingId },
+    where: { recordId: bookingId },
   });
 
   if (!existing) {
@@ -263,7 +263,7 @@ const updateBookingStatus = async (tenantId, bookingId, status) => {
   }
 
   const booking = await tenantDb.booking.update({
-    where: { id: bookingId },
+    where: { recordId: bookingId },
     data: { status },
     include: defaultIncludes,
   });
@@ -276,22 +276,22 @@ const updateBookingStatus = async (tenantId, bookingId, status) => {
 const deleteBooking = async (tenantId, bookingId) => {
   const tenantDb = forTenant(tenantId);
   const existing = await tenantDb.booking.findFirst({
-    where: { id: bookingId },
+    where: { recordId: bookingId },
   });
 
   if (!existing) {
     throw Object.assign(new Error('Booking not found'), { statusCode: 404 });
   }
 
-  await tenantDb.booking.delete({ where: { id: bookingId } });
+  await tenantDb.booking.delete({ where: { recordId: bookingId } });
 
-  emitBookingEvent(tenantId, 'booking:deleted', { id: bookingId });
+  emitBookingEvent(tenantId, 'booking:deleted', { recordId: bookingId });
 };
 
 const quickCheckIn = async (tenantId, { bookingId, kennelId }, context = {}) => {
   const tenantDb = forTenant(tenantId);
   const existing = await tenantDb.booking.findFirst({
-    where: { id: bookingId },
+    where: { recordId: bookingId },
     include: { segments: true },
   });
 
@@ -310,7 +310,7 @@ const quickCheckIn = async (tenantId, { bookingId, kennelId }, context = {}) => 
     });
 
     await scoped.booking.update({
-      where: { id: bookingId },
+      where: { recordId: bookingId },
       data: {
         status: 'IN_PROGRESS',
         checkIn: checkInTime,
@@ -342,7 +342,7 @@ const quickCheckIn = async (tenantId, { bookingId, kennelId }, context = {}) => 
     });
 
     return scoped.booking.findFirst({
-      where: { id: bookingId },
+      where: { recordId: bookingId },
       include: defaultIncludes,
     });
   });
@@ -359,7 +359,7 @@ const checkIn = async (tenantId, bookingId, payload = {}, context = {}) => {
   const result = await prisma.$transaction(async (tx) => {
     const scoped = forTenant(tenantId, tx);
     const booking = await scoped.booking.findFirst({
-      where: { id: bookingId },
+      where: { recordId: bookingId },
     });
 
     if (!booking) {
@@ -390,7 +390,7 @@ const checkIn = async (tenantId, bookingId, payload = {}, context = {}) => {
     });
 
     const updatedBooking = await scoped.booking.update({
-      where: { id: bookingId },
+      where: { recordId: bookingId },
       data: {
         status: 'IN_PROGRESS',
         checkIn: checkInTime,
@@ -412,7 +412,7 @@ const checkOut = async (tenantId, bookingId, payload = {}, context = {}) => {
   const result = await prisma.$transaction(async (tx) => {
     const scoped = forTenant(tenantId, tx);
     const booking = await scoped.booking.findFirst({
-      where: { id: bookingId },
+      where: { recordId: bookingId },
     });
 
     if (!booking) {
@@ -443,10 +443,10 @@ const checkOut = async (tenantId, bookingId, payload = {}, context = {}) => {
           vetContacted: payload.incident.vetContacted ?? false,
         },
       });
-      incidentReportId = incidentReport.id;
+      incidentReportId = incidentReport.recordId;
     } else if (incidentReportId) {
       const existingIncident = await scoped.incidentReport.findFirst({
-        where: { id: incidentReportId },
+        where: { recordId: incidentReportId },
       });
       if (!existingIncident) {
         throw Object.assign(new Error('Incident report not found'), { statusCode: 404 });
@@ -474,7 +474,7 @@ const checkOut = async (tenantId, bookingId, payload = {}, context = {}) => {
     const nextStatus = remainingBalanceCents > 0 ? 'CHECKED_OUT' : 'COMPLETED';
 
     const updatedBooking = await scoped.booking.update({
-      where: { id: bookingId },
+      where: { recordId: bookingId },
       data: {
         status: nextStatus,
         balanceDueCents: remainingBalanceCents,
@@ -506,7 +506,7 @@ const checkOut = async (tenantId, bookingId, payload = {}, context = {}) => {
 
       if (payment && payment.status !== 'CAPTURED') {
         capturedPayment = await scoped.payment.update({
-          where: { id: payment.id },
+          where: { recordId: payment.recordId },
           data: {
             status: 'CAPTURED',
             capturedAt: checkOutTime,
@@ -539,7 +539,7 @@ const promoteWaitlistBooking = async (
 ) => {
   const tenantDb = forTenant(tenantId);
   const existing = await tenantDb.booking.findFirst({
-    where: { id: bookingId },
+    where: { recordId: bookingId },
     include: {
       segments: true,
     },
@@ -557,7 +557,7 @@ const promoteWaitlistBooking = async (
   const booking = await prisma.$transaction(async (tx) => {
     const scoped = forTenant(tenantId, tx);
     await scoped.booking.update({
-      where: { id: bookingId },
+      where: { recordId: bookingId },
       data: {
         status: nextStatus,
         checkIn: resolvedStart,
@@ -579,7 +579,7 @@ const promoteWaitlistBooking = async (
     }
 
     return scoped.booking.findFirst({
-      where: { id: bookingId },
+      where: { recordId: bookingId },
       include: defaultIncludes,
     });
   });

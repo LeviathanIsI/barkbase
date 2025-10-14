@@ -93,8 +93,7 @@ const FALLBACK_META = {
 };
 
 const AUDIT_EVENTS = [
-  createEvent(0.2, {
-    id: 'log_1007',
+  createEvent(0.2, { recordId: 'log_1007',
     action: 'security.login.failed',
     entityType: 'session',
     entityName: 'Portal login',
@@ -104,8 +103,7 @@ const AUDIT_EVENTS = [
     location: 'Seattle, WA',
     metadata: { reason: 'Invalid password' },
   }),
-  createEvent(0.8, {
-    id: 'log_1001',
+  createEvent(0.8, { recordId: 'log_1001',
     action: 'booking.created',
     entityType: 'booking',
     entityName: 'Overnight stay for Luna',
@@ -120,8 +118,7 @@ const AUDIT_EVENTS = [
       kennel: 'Luxury Suite 3',
     },
   }),
-  createEvent(1.6, {
-    id: 'log_1002',
+  createEvent(1.6, { recordId: 'log_1002',
     action: 'booking.cancelled',
     entityType: 'booking',
     entityName: 'Daycare for Clover',
@@ -131,8 +128,7 @@ const AUDIT_EVENTS = [
     location: 'Portland, OR',
     metadata: { reason: 'Owner request', refund: 'Pending' },
   }),
-  createEvent(2.2, {
-    id: 'log_1003',
+  createEvent(2.2, { recordId: 'log_1003',
     action: 'team.invite.sent',
     entityType: 'membership',
     entityName: 'Invite: julia@resortpaws.com',
@@ -142,8 +138,7 @@ const AUDIT_EVENTS = [
     location: 'Portland, OR',
     metadata: { role: 'Staff', expiresAt: '2025-10-20T00:00:00Z' },
   }),
-  createEvent(3.1, {
-    id: 'log_1004',
+  createEvent(3.1, { recordId: 'log_1004',
     action: 'settings.audit.exported',
     entityType: 'audit-log',
     entityName: 'Audit CSV download',
@@ -153,8 +148,7 @@ const AUDIT_EVENTS = [
     location: 'Portland, OR',
     metadata: { window: '2025-09-01 → 2025-10-10', format: 'csv' },
   }),
-  createEvent(5.7, {
-    id: 'log_1005',
+  createEvent(5.7, { recordId: 'log_1005',
     action: 'team.role.updated',
     entityType: 'membership',
     entityName: 'Role change: jose@hadeshome.com',
@@ -165,8 +159,7 @@ const AUDIT_EVENTS = [
     metadata: { previousRole: 'Staff', nextRole: 'Manager' },
     diff: { role: ['Staff', 'Manager'] },
   }),
-  createEvent(9.5, {
-    id: 'log_1006',
+  createEvent(9.5, { recordId: 'log_1006',
     action: 'security.login.succeeded',
     entityType: 'session',
     entityName: 'App login',
@@ -176,8 +169,7 @@ const AUDIT_EVENTS = [
     location: 'Boise, ID',
     metadata: { device: 'iPhone 15 Pro', mfa: true },
   }),
-  createEvent(14, {
-    id: 'log_1008',
+  createEvent(14, { recordId: 'log_1008',
     action: 'security.mfa.disabled',
     entityType: 'security',
     entityName: 'MFA status changed',
@@ -187,8 +179,7 @@ const AUDIT_EVENTS = [
     location: 'Austin, TX',
     metadata: { user: 'guest@pinepaws.com', reason: 'Device reset' },
   }),
-  createEvent(21, {
-    id: 'log_1009',
+  createEvent(21, { recordId: 'log_1009',
     action: 'data.export.generated',
     entityType: 'export',
     entityName: 'Workspace export archive',
@@ -301,7 +292,7 @@ const AuditLog = () => {
       return;
     }
 
-    const stillVisible = selectedEvent && filteredEvents.some((event) => event.id === selectedEvent.id);
+    const stillVisible = selectedEvent && filteredEvents.some((event) => event.recordId === selectedEvent.recordId);
     if (!stillVisible) {
       setSelectedEvent(filteredEvents[0]);
     }
@@ -409,10 +400,10 @@ const AuditLog = () => {
                 filteredEvents.map((event) => {
                   const meta = ACTION_META[event.action] ?? FALLBACK_META;
                   const Icon = meta.icon ?? FileText;
-                  const isSelected = selectedEvent?.id === event.id;
+                  const isSelected = selectedEvent?.recordId === event.recordId;
                   return (
                     <button
-                      key={event.id}
+                      key={event.recordId}
                       type="button"
                       onClick={() => setSelectedEvent(event)}
                       className={cn(
@@ -522,7 +513,7 @@ const EventDetails = ({ event }) => {
           <Badge variant={meta.variant ?? 'neutral'}>{meta.group}</Badge>
         </div>
         <div className="text-xs text-muted">
-          Event ID <span className="font-mono text-text">{event.id}</span> &middot;{' '}
+          Event ID <span className="font-mono text-text">{event.recordId}</span> &middot;{' '}
           {format(timestamp, 'MMM d, yyyy h:mm a')} ({formatDistanceToNowStrict(timestamp, { addSuffix: true })})
         </div>
         {meta.severity === 'high' ? (

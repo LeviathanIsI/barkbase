@@ -42,7 +42,7 @@ const FlowTable = ({ flows, onView, onPublish, onTest, isPublishing, isTesting }
           {flows.map((flow) => {
             const trigger = flow.handler_triggers?.[0];
             return (
-              <tr key={flow.id} className="hover:bg-primary/5">
+              <tr key={flow.recordId} className="hover:bg-primary/5">
                 <td className="px-4 py-4">
                   <div className="flex flex-col">
                     <span className="text-sm font-semibold text-text">{flow.name}</span>
@@ -104,12 +104,12 @@ export default function HandlerFlows() {
 
   const handleTestRun = async (flow) => {
     if (flow.status !== 'published') {
-      await handlePublish(flow.id);
+      await handlePublish(flow.recordId);
     }
     const response = await runMutation.mutateAsync({
-      flowId: flow.id,
+      flowId: flow.recordId,
       payload: {
-        booking: { id: 'sample-booking', total: 120 },
+        booking: { recordId: 'sample-booking', total: 120 },
         owner: { email: 'owner@example.com' },
       },
       idempotencyKey: `manual-${Date.now()}`,
@@ -135,8 +135,8 @@ export default function HandlerFlows() {
         ) : (
           <FlowTable
             flows={flowsQuery.data}
-            onView={(flow) => navigate(`/handler-flows/${flow.id}`)}
-            onPublish={(flow) => handlePublish(flow.id)}
+            onView={(flow) => navigate(`/handler-flows/${flow.recordId}`)}
+            onPublish={(flow) => handlePublish(flow.recordId)}
             onTest={handleTestRun}
             isPublishing={publishMutation.isPending}
             isTesting={runMutation.isPending}

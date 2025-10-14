@@ -82,7 +82,6 @@ const ThemePreview = () => {
         warning: tenant.theme?.colors?.warning,
         danger: tenant.theme?.colors?.danger,
       },
-      mode: tenant.theme?.mode,
     };
 
     updateTheme(themePayload);
@@ -120,7 +119,6 @@ const ThemePreview = () => {
         warning: tenant.theme?.colors?.warning,
         danger: tenant.theme?.colors?.danger,
       },
-      mode: tenant.theme?.mode,
     };
 
     updateTheme(defaultThemePayload);
@@ -229,14 +227,6 @@ const ThemePreview = () => {
         <div className="flex flex-wrap gap-2">
           <Button type="submit" disabled={!canEditTheme}>
             Apply Theme
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={!canEditTheme}
-            onClick={() => updateTheme({ mode: tenant.theme.mode === 'dark' ? 'light' : 'dark' })}
-          >
-            Toggle Mode
           </Button>
           <Button
             type="button"

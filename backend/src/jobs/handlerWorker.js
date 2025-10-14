@@ -129,14 +129,14 @@ async function executeNode({
 }) {
   const nodeType = node.type;
   const nodeData = node.data || {};
-  const runId = run.id;
-  const correlationId = `${runId}:${node.id}:${jobId ?? 'job'}`;
+  const runId = run.recordId;
+  const correlationId = `${runId}:${node.recordId}:${jobId ?? 'job'}`;
 
   const safeLog = (level, message, details) =>
     logRunEvent({
       tenantId,
       runId,
-      nodeId: node.id,
+      nodeId: node.recordId,
       level,
       message,
       details,
@@ -178,7 +178,7 @@ async function executeNode({
       const criteriaGroup = nodeData.criteriaGroup;
 
       if (!criteriaGroup) {
-        throw new Error(`Condition node ${node.id} missing criteriaGroup`);
+        throw new Error(`Condition node ${node.recordId} missing criteriaGroup`);
       }
 
       const result = evaluateCriteriaGroup(criteriaGroup, context);
@@ -207,7 +207,7 @@ async function executeNode({
       const { js, timeoutMs } = nodeData;
 
       if (!js) {
-        throw new Error(`Custom code node ${node.id} missing js`);
+        throw new Error(`Custom code node ${node.recordId} missing js`);
       }
 
       const execution = await runAction({
@@ -236,12 +236,12 @@ async function executeNode({
 
 async function executeFlowChain({ job, run, flow, signal }) {
   const tenantId = job.tenantId;
-  const runId = run.id;
+  const runId = run.recordId;
   const definition = flow.definition || {};
 
   const nodes = definition.nodes || [];
   const edges = definition.edges || [];
-  const nodeMap = new Map(nodes.map((node) => [node.id, node]));
+  const nodeMap = new Map(nodes.map((node) => [node.recordId, node]));
 
   let currentNodeId = job.nodeId || run.currentNodeId;
   let currentContext = buildExecutionContext(run);
@@ -289,7 +289,7 @@ async function executeFlowChain({ job, run, flow, signal }) {
     await logRunEvent({
       tenantId,
       runId,
-      nodeId: node.id,
+      nodeId: node.recordId,
       level: 'debug',
       message: `Executing node: ${node.type}`,
       details: { nodeType: node.type, nodeLabel: node.data?.label },
@@ -302,7 +302,7 @@ async function executeFlowChain({ job, run, flow, signal }) {
       context: currentContext,
       enforceActionIdempotency,
       signal,
-      jobId: job.id,
+      jobId: job.recordId,
     });
 
     if (executionResult.delay) {
@@ -312,7 +312,7 @@ async function executeFlowChain({ job, run, flow, signal }) {
       await logRunEvent({
         tenantId,
         runId,
-        nodeId: node.id,
+        nodeId: node.recordId,
         level: 'info',
         message: `Delaying execution for ${Math.round(executionResult.delay / 1000)}s`,
         details: { dueAt, nextNodeId },
@@ -338,7 +338,7 @@ async function executeFlowChain({ job, run, flow, signal }) {
         },
       });
 
-      await removeJob(job.id);
+      await removeJob(job.recordId);
       return;
     }
 
@@ -358,7 +358,7 @@ async function executeFlowChain({ job, run, flow, signal }) {
       await logRunEvent({
         tenantId,
         runId,
-        nodeId: node.id,
+        nodeId: node.recordId,
         level: 'info',
         message: `Condition evaluated to ${executionResult.conditionResult}`,
         details: { result: executionResult.conditionResult, nextNodeId },
@@ -374,7 +374,7 @@ async function executeFlowChain({ job, run, flow, signal }) {
       await logRunEvent({
         tenantId,
         runId,
-        nodeId: node.id,
+        nodeId: node.recordId,
         level: 'info',
         message: `Branch selected: ${executionResult.branchIndex}`,
         details: { branchIndex: executionResult.branchIndex, nextNodeId },
@@ -386,7 +386,7 @@ async function executeFlowChain({ job, run, flow, signal }) {
         await logRunEvent({
           tenantId,
           runId,
-          nodeId: node.id,
+          nodeId: node.recordId,
           level: 'info',
           message: 'Node executed successfully',
           details: { result: executionResult.result, nextNodeId },
@@ -424,7 +424,7 @@ async function executeFlowChain({ job, run, flow, signal }) {
     },
   });
 
-  await removeJob(job.id);
+  await removeJob(job.recordId);
 }
 
 async function processJob() {
@@ -439,7 +439,7 @@ async function processJob() {
     return false;
   }
 
-  logger.info({ jobId: job.id, runId: job.runId }, 'Processing job');
+  logger.info({ jobId: job.recordId, runId: job.runId }, 'Processing job');
 
   activeController = controller;
 
@@ -453,7 +453,7 @@ async function processJob() {
     await executeFlowChain({ job, run, flow: run.flow, signal: controller.signal });
     return true;
   } catch (error) {
-    logger.error({ err: error, jobId: job.id, runId: job.runId }, 'Job execution failed');
+    logger.error({ err: error, jobId: job.recordId, runId: job.runId }, 'Job execution failed');
 
     await logRunEvent({
       tenantId: job.tenantId,
@@ -482,7 +482,7 @@ async function processJob() {
         },
       });
 
-      await removeJob(job.id);
+      await removeJob(job.recordId);
     } else {
       const delayMs = getDelay(job.attempts);
 
@@ -494,7 +494,7 @@ async function processJob() {
         message: `Retrying in ${Math.round(delayMs / 1000)}s (attempt ${job.attempts}/${job.maxAttempts})`,
       });
 
-      await scheduleRetry({ jobId: job.id, delayMs });
+      await scheduleRetry({ jobId: job.recordId, delayMs });
     }
 
     return false;

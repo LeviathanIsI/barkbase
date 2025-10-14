@@ -18,7 +18,7 @@ const inviteMember = async (req, res, next) => {
       tenantId,
       email: req.body.email,
       role: req.body.role,
-      createdById: req.user?.id,
+      createdById: req.user?.recordId,
       features: req.tenantFeatures,
     });
     return res.status(201).json(invite);
@@ -38,7 +38,7 @@ const updateMemberRole = async (req, res, next) => {
 
 const removeMember = async (req, res, next) => {
   try {
-    await membershipService.removeMember(req.tenantId, req.params.membershipId, req.user?.id);
+    await membershipService.removeMember(req.tenantId, req.params.membershipId, req.user?.recordId);
     return res.status(204).send();
   } catch (error) {
     return next(error);

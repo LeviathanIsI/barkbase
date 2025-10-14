@@ -1,11 +1,9 @@
 import { create } from 'zustand';
 import { applyTheme, getDefaultTheme, mergeTheme } from '@/lib/theme';
 import { resolvePlanFeatures } from '@/features';
+import apiClient from '@/lib/apiClient';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
-
-const defaultTenant = {
-  id: null,
+const defaultTenant = { recordId: null,
   slug: 'default',
   name: 'BarkBase',
   plan: 'FREE',
@@ -58,19 +56,12 @@ export const useTenantStore = create((set, get) => ({
     const resolvedSlug = slug ?? get().tenant?.slug ?? defaultTenant.slug;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/tenants/current`, {
-        credentials: 'include',
+      const payload = await apiClient('/api/v1/tenants/current', {
         headers: {
           'X-Tenant': resolvedSlug,
           Accept: 'application/json',
         },
       });
-
-      if (!response.ok) {
-        throw new Error(`Failed to load tenant (${response.status})`);
-      }
-
-      const payload = await response.json();
       get().setTenant({ ...payload, slug: payload.slug ?? resolvedSlug });
       return payload;
     } catch (error) {

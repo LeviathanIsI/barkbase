@@ -22,7 +22,7 @@ const CustomJsConfig = ({ node, onUpdate }) => {
     }
 
     setErrors([]);
-    onUpdate(node.id, {
+    onUpdate(node.recordId, {
       actionType: 'custom.js',
       config: newConfig,
       label: node.data.label || 'Custom JavaScript',

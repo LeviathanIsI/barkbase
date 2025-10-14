@@ -11,12 +11,10 @@ export const useOfflineDetection = () => {
       const offline = typeof navigator !== 'undefined' ? !navigator.onLine : false;
       setOffline(offline);
       if (offline) {
-        toast.error('You are offline. Changes will sync when connection returns.', {
-          id: 'offline-warning',
+        toast.error('You are offline. Changes will sync when connection returns.', { recordId: 'offline-warning',
         });
       } else {
-        toast.success('Connection restored. Synchronizing...', {
-          id: 'offline-warning',
+        toast.success('Connection restored. Synchronizing...', { recordId: 'offline-warning',
         });
       }
     };
@@ -25,13 +23,13 @@ export const useOfflineDetection = () => {
 
     const handleOnline = () => {
       setOffline(false);
-      toast.success('Back online. Sync in progress...', { id: 'offline-warning' });
+      toast.success('Back online. Sync in progress...', { recordId: 'offline-warning' });
       flushQueue();
     };
 
     const handleOffline = () => {
       setOffline(true);
-      toast.error('Offline mode activated.', { id: 'offline-warning' });
+      toast.error('Offline mode activated.', { recordId: 'offline-warning' });
     };
 
     window.addEventListener('online', handleOnline);

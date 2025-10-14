@@ -1,0 +1,318 @@
+import { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
+import Modal from '@/components/ui/Modal';
+import Input from '@/components/ui/Input';
+import Select from '@/components/ui/Select';
+import Textarea from '@/components/ui/Textarea';
+import Button from '@/components/ui/Button';
+import Badge from '@/components/ui/Badge';
+import { useCreateKennel, useUpdateKennel } from '../api';
+import { toast } from 'sonner';
+
+const AMENITY_OPTIONS = [
+  'Climate Controlled',
+  'Outdoor Access', 
+  'Webcam',
+  'TV',
+  'Music',
+  'Raised Bed',
+  'Soft Bedding',
+  'Natural Light',
+  'Private Patio',
+  'Double Size',
+  'Water Feature',
+  'Play Area Access'
+];
+
+const KennelForm = ({ kennel, onClose, onSuccess, terminology }) => {
+  const createMutation = useCreateKennel();
+  const updateMutation = useUpdateKennel(kennel?.recordId);
+  
+  const [formData, setFormData] = useState({
+    name: '',
+    type: 'KENNEL',
+    size: '',
+    capacity: 1,
+    location: '',
+    building: '',
+    zone: '',
+    amenities: [],
+    hourlyRate: '',
+    dailyRate: '',
+    weeklyRate: '',
+    notes: '',
+    isActive: true
+  });
+
+  const [customAmenity, setCustomAmenity] = useState('');
+
+  useEffect(() => {
+    if (kennel) {
+      const amenities = kennel.amenities ? 
+        (typeof kennel.amenities === 'string' ? JSON.parse(kennel.amenities) : kennel.amenities) : 
+        [];
+      
+      setFormData({
+        name: kennel.name || '',
+        type: kennel.type || 'KENNEL',
+        size: kennel.size || '',
+        capacity: kennel.capacity || 1,
+        location: kennel.location || '',
+        building: kennel.building || '',
+        zone: kennel.zone || '',
+        amenities: Array.isArray(amenities) ? amenities : [],
+        hourlyRate: kennel.hourlyRate || '',
+        dailyRate: kennel.dailyRate || '',
+        weeklyRate: kennel.weeklyRate || '',
+        notes: kennel.notes || '',
+        isActive: kennel.isActive ?? true
+      });
+    }
+  }, [kennel]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    try {
+      const data = {
+        ...formData,
+        capacity: parseInt(formData.capacity) || 1,
+        hourlyRate: formData.hourlyRate ? parseInt(formData.hourlyRate) : null,
+        dailyRate: formData.dailyRate ? parseInt(formData.dailyRate) : null,
+        weeklyRate: formData.weeklyRate ? parseInt(formData.weeklyRate) : null,
+        amenities: formData.amenities
+      };
+
+      if (kennel) {
+        await updateMutation.mutateAsync(data);
+      } else {
+        await createMutation.mutateAsync(data);
+      }
+      
+      onSuccess();
+    } catch (error) {
+      toast.error(error.message || `Failed to ${kennel ? 'update' : 'create'} ${terminology.kennel.toLowerCase()}`);
+    }
+  };
+
+  const toggleAmenity = (amenity) => {
+    setFormData(prev => ({
+      ...prev,
+      amenities: prev.amenities.includes(amenity)
+        ? prev.amenities.filter(a => a !== amenity)
+        : [...prev.amenities, amenity]
+    }));
+  };
+
+  const addCustomAmenity = () => {
+    if (customAmenity && !formData.amenities.includes(customAmenity)) {
+      setFormData(prev => ({
+        ...prev,
+        amenities: [...prev.amenities, customAmenity]
+      }));
+      setCustomAmenity('');
+    }
+  };
+
+  const isLoading = createMutation.isPending || updateMutation.isPending;
+
+  return (
+    <Modal isOpen onClose={onClose} className="max-w-2xl">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-semibold">
+          {kennel ? `Edit ${terminology.kennel}` : `Add New ${terminology.kennel}`}
+        </h2>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onClose}
+          className="h-8 w-8 p-0"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Basic Information */}
+        <div className="grid gap-4 md:grid-cols-2">
+          <Input
+            label="Name"
+            value={formData.name}
+            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+            placeholder={`${terminology.kennel} 1`}
+            required
+          />
+          <Select
+            label="Type"
+            value={formData.type}
+            onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value }))}
+            required
+          >
+            <option value="KENNEL">{terminology.kennel || 'Kennel'}</option>
+            <option value="SUITE">{terminology.suite || 'Suite'}</option>
+            <option value="CABIN">{terminology.cabin || 'Cabin'}</option>
+            <option value="DAYCARE">{terminology.daycare || 'Daycare'}</option>
+            <option value="MEDICAL">{terminology.medical || 'Medical'}</option>
+          </Select>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <Select
+            label="Size Restriction"
+            value={formData.size}
+            onChange={(e) => setFormData(prev => ({ ...prev, size: e.target.value }))}
+            helpText="Optional - limit to specific pet sizes"
+          >
+            <option value="">Any Size</option>
+            <option value="SMALL">Small (up to 25 lbs)</option>
+            <option value="MEDIUM">Medium (26-60 lbs)</option>
+            <option value="LARGE">Large (61-100 lbs)</option>
+            <option value="XLARGE">Extra Large (100+ lbs)</option>
+          </Select>
+          <Input
+            label="Capacity"
+            type="number"
+            min="1"
+            value={formData.capacity}
+            onChange={(e) => setFormData(prev => ({ ...prev, capacity: e.target.value }))}
+            helpText="Number of pets that can stay"
+            required
+          />
+        </div>
+
+        {/* Location */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <Input
+            label="Building"
+            value={formData.building}
+            onChange={(e) => setFormData(prev => ({ ...prev, building: e.target.value }))}
+            placeholder="Main Building"
+          />
+          <Input
+            label="Zone/Area"
+            value={formData.zone}
+            onChange={(e) => setFormData(prev => ({ ...prev, zone: e.target.value }))}
+            placeholder="North Wing"
+          />
+          <Input
+            label="Location Details"
+            value={formData.location}
+            onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+            placeholder="Near entrance"
+          />
+        </div>
+
+        {/* Pricing */}
+        <div>
+          <h3 className="font-medium mb-3">Pricing</h3>
+          <div className="grid gap-4 md:grid-cols-3">
+            <Input
+              label="Hourly Rate"
+              type="number"
+              min="0"
+              value={formData.hourlyRate}
+              onChange={(e) => setFormData(prev => ({ ...prev, hourlyRate: e.target.value }))}
+              placeholder="0"
+              leftText="$"
+              rightText=".00"
+            />
+            <Input
+              label="Daily Rate"
+              type="number"
+              min="0"
+              value={formData.dailyRate}
+              onChange={(e) => setFormData(prev => ({ ...prev, dailyRate: e.target.value }))}
+              placeholder="0"
+              leftText="$"
+              rightText=".00"
+            />
+            <Input
+              label="Weekly Rate"
+              type="number"
+              min="0"
+              value={formData.weeklyRate}
+              onChange={(e) => setFormData(prev => ({ ...prev, weeklyRate: e.target.value }))}
+              placeholder="0"
+              leftText="$"
+              rightText=".00"
+            />
+          </div>
+        </div>
+
+        {/* Amenities */}
+        <div>
+          <h3 className="font-medium mb-3">Amenities</h3>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {AMENITY_OPTIONS.map((amenity) => (
+              <Badge
+                key={amenity}
+                variant={formData.amenities.includes(amenity) ? 'primary' : 'outline'}
+                className="cursor-pointer"
+                onClick={() => toggleAmenity(amenity)}
+              >
+                {amenity}
+              </Badge>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <Input
+              placeholder="Add custom amenity"
+              value={customAmenity}
+              onChange={(e) => setCustomAmenity(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomAmenity())}
+            />
+            <Button type="button" onClick={addCustomAmenity} variant="secondary">
+              Add
+            </Button>
+          </div>
+          {formData.amenities.length > 0 && !AMENITY_OPTIONS.some(a => formData.amenities.includes(a)) && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {formData.amenities.filter(a => !AMENITY_OPTIONS.includes(a)).map((amenity) => (
+                <Badge
+                  key={amenity}
+                  variant="primary"
+                  className="cursor-pointer"
+                  onClick={() => toggleAmenity(amenity)}
+                >
+                  {amenity} ×
+                </Badge>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Notes */}
+        <Textarea
+          label="Notes"
+          value={formData.notes}
+          onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+          placeholder="Any special notes about this accommodation"
+          rows={3}
+        />
+
+        {/* Status */}
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={formData.isActive}
+            onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+            className="rounded border-border"
+          />
+          <span>Active (available for bookings)</span>
+        </label>
+
+        {/* Actions */}
+        <div className="flex justify-end gap-2 pt-4 border-t">
+          <Button type="button" variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" loading={isLoading}>
+            {kennel ? 'Update' : 'Create'} {terminology.kennel}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+};
+
+export default KennelForm;

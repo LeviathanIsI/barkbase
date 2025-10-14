@@ -228,7 +228,7 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
       };
 
       if (isEditing) {
-        await onSubmit(existingProperty.id, propertyData);
+        await onSubmit(existingProperty.recordId, propertyData);
       } else {
         await onSubmit(propertyData);
       }

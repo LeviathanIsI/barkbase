@@ -8,6 +8,7 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import {
   useDashboardStats,
   useDashboardOccupancy,
@@ -34,6 +35,27 @@ const metricLabels = ['Active Bookings', 'Checked In Today', 'Waitlist', 'New Cl
 const DashboardCharts = lazy(() => import('../components/Charts'));
 
 const DashboardEnhanced = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  // Don't load dashboard data until authentication is complete
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          <Skeleton className="h-8 w-48" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i}>
+                <Skeleton className="h-32 w-full" />
+              </Card>
+            ))}
+          </div>
+          <Skeleton className="h-96 w-full" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   const statsQuery = useDashboardStats();
   const occupancyQuery = useDashboardOccupancy();
   const vaccinationsQuery = useDashboardVaccinations({ limit: 5 });
@@ -126,7 +148,7 @@ const DashboardEnhanced = () => {
               </h4>
               <ul className="space-y-2">
                 {shiftHandoff.alerts?.slice(0, 3).map((alert) => (
-                  <li key={alert.id} className="rounded-lg border border-danger/30 bg-danger/5 p-2 text-xs">
+                  <li key={alert.recordId} className="rounded-lg border border-danger/30 bg-danger/5 p-2 text-xs">
                     <p className="font-semibold">{alert.petName} - {alert.kennelName}</p>
                     <p className="text-muted">{alert.message}</p>
                   </li>
@@ -140,7 +162,7 @@ const DashboardEnhanced = () => {
               </h4>
               <ul className="space-y-2">
                 {shiftHandoff.tasks?.slice(0, 3).map((task) => (
-                  <li key={task.id} className="rounded-lg border border-border p-2 text-xs">
+                  <li key={task.recordId} className="rounded-lg border border-border p-2 text-xs">
                     <p className="font-semibold">{task.petName}</p>
                     <p className="text-muted">{task.task}</p>
                   </li>
@@ -154,7 +176,7 @@ const DashboardEnhanced = () => {
               </h4>
               <ul className="space-y-2">
                 {shiftHandoff.staffNotes?.slice(0, 3).map((note) => (
-                  <li key={note.id} className="rounded-lg border border-border p-2 text-xs">
+                  <li key={note.recordId} className="rounded-lg border border-border p-2 text-xs">
                     <p className="font-semibold">{note.petName}</p>
                     <p className="text-muted">{note.note}</p>
                     <p className="mt-1 text-xs text-muted">- {note.staffName}</p>
@@ -204,7 +226,7 @@ const DashboardEnhanced = () => {
           ) : emergencyAccess.length > 0 ? (
             <div className="space-y-3">
               {emergencyAccess.slice(0, 3).map((pet) => (
-                <div key={pet.id} className="rounded-lg border border-danger/30 bg-danger/5 p-3">
+                <div key={pet.recordId} className="rounded-lg border border-danger/30 bg-danger/5 p-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
@@ -280,7 +302,7 @@ const DashboardEnhanced = () => {
               {parentComm.needsUpdate?.length > 0 ? (
                 <ul className="space-y-2">
                   {parentComm.needsUpdate.slice(0, 5).map((pet) => (
-                    <li key={pet.id} className="flex items-center justify-between text-sm">
+                    <li key={pet.recordId} className="flex items-center justify-between text-sm">
                       <span>{pet.petName} - {pet.ownerName}</span>
                       <Badge variant={pet.priority === 'high' ? 'danger' : 'neutral'} className="text-xs">
                         {pet.priority === 'high' ? 'High Priority' : `Day ${pet.daysStayed}`}
@@ -352,7 +374,7 @@ const DashboardEnhanced = () => {
           ) : vaccinations.length ? (
             <ul className="space-y-3 text-sm">
               {vaccinations.map((item) => (
-                <li key={item.id} className="flex items-center justify-between">
+                <li key={item.recordId} className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold">{item.petName}</p>
                     <p className="text-xs text-muted">{item.ownerName ?? 'Primary owner pending'}</p>
@@ -387,7 +409,7 @@ const DashboardEnhanced = () => {
                 };
                 return (
                   <div
-                    key={kennel.id}
+                    key={kennel.recordId}
                     className={`rounded-lg border-2 p-2 text-center ${statusColors[kennel.status]}`}
                     title={kennel.pet ? `${kennel.pet.name} - ${kennel.pet.ownerName}` : 'Available'}
                   >

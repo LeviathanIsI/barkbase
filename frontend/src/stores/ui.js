@@ -21,9 +21,9 @@ export const useUIStore = create(
       showModal: (modal, payload = {}) => set({ activeModal: { name: modal, payload } }),
       hideModal: () => set({ activeModal: null }),
       enqueueNotification: (notification) =>
-        set((state) => ({ notifications: [...state.notifications, { id: crypto.randomUUID(), ...notification }] })),
+        set((state) => ({ notifications: [...state.notifications, { recordId: crypto.randomUUID(), ...notification }] })),
       dismissNotification: (notificationId) =>
-        set((state) => ({ notifications: state.notifications.filter(({ id }) => id !== notificationId) })),
+        set((state) => ({ notifications: state.notifications.filter(({ recordId }) => id !== notificationId) })),
       setOffline: (offline) => {
         if (typeof document !== 'undefined') {
           document.body.dataset.offline = offline;

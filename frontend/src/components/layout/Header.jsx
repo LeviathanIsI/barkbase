@@ -11,7 +11,9 @@ import { useUIStore } from '@/stores/ui';
 import { cn } from '@/lib/cn';
 import { can } from '@/lib/acl';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
+// In development, use empty string to leverage Vite proxy (/api -> http://localhost:4000/api)
+// In production, VITE_API_URL should be set to the backend URL
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
 
 const Header = ({ onMenuToggle }) => {
   const [menuOpen, setMenuOpen] = useState(false);

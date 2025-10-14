@@ -17,6 +17,7 @@ const Bookings = lazy(() => import("@/features/bookings/routes/Bookings"));
 const Calendar = lazy(() => import("@/features/calendar/routes/Calendar"));
 const Pets = lazy(() => import("@/features/pets/routes/Pets"));
 const Owners = lazy(() => import("@/features/owners/routes/Owners"));
+const Kennels = lazy(() => import("@/features/kennels/routes/Kennels"));
 const OwnerDetail = lazy(() => import("@/features/owners/routes/OwnerDetail"));
 const PetDetail = lazy(() => import("@/features/pets/routes/PetDetail"));
 const Payments = lazy(() => import("@/features/payments/routes/Payments"));
@@ -141,6 +142,20 @@ const SettingsTermsPolicies = lazy(() =>
 const SettingsReporting = lazy(() =>
   import("@/features/settings/routes/Reporting")
 );
+
+// Facility Management
+const FacilityAccommodations = lazy(() =>
+  import("@/features/settings/routes/facility/Accommodations")
+);
+const FacilityInventory = lazy(() =>
+  import("@/features/settings/routes/facility/Inventory")
+);
+const FacilityLocations = lazy(() =>
+  import("@/features/settings/routes/facility/Locations")
+);
+const FacilitySchedules = lazy(() =>
+  import("@/features/settings/routes/facility/Schedules")
+);
 const PublicHome = lazy(() => import("@/features/public/routes/Home"));
 const Signup = lazy(() => import("@/features/public/routes/Signup"));
 const VerifyEmail = lazy(() => import("@/features/public/routes/VerifyEmail"));
@@ -220,6 +235,12 @@ const PetsAssociations = lazy(() =>
 const OwnersAssociations = lazy(() =>
   import("@/features/objects/routes/OwnersAssociations")
 );
+const CustomerDetail = lazy(() =>
+  import("@/features/customers/routes/CustomerDetail")
+);
+const SegmentList = lazy(() =>
+  import("@/features/segments/components/SegmentList")
+);
 
 export const router = createBrowserRouter([
   {
@@ -241,10 +262,13 @@ export const router = createBrowserRouter([
               { path: "dashboard", element: <Dashboard /> },
               { path: "bookings", element: <Bookings /> },
               { path: "calendar", element: <Calendar /> },
+              { path: "kennels", element: <Kennels /> },
               { path: "pets", element: <Pets /> },
               { path: "pets/:petId", element: <PetDetail /> },
               { path: "owners", element: <Owners /> },
               { path: "owners/:ownerId", element: <OwnerDetail /> },
+              { path: "customers/:ownerId", element: <CustomerDetail /> },
+              { path: "segments", element: <SegmentList /> },
               { path: "payments", element: <Payments /> },
               { path: "reports", element: <Reports /> },
               // Operations
@@ -316,6 +340,12 @@ export const router = createBrowserRouter([
                   { path: "audit-log", element: <SettingsAuditLog /> },
                   { path: "billing", element: <SettingsBilling /> },
                   { path: "members", element: <SettingsMembers /> },
+
+                  // Facility Management
+                  { path: "facility/accommodations", element: <FacilityAccommodations /> },
+                  { path: "facility/inventory", element: <FacilityInventory /> },
+                  { path: "facility/locations", element: <FacilityLocations /> },
+                  { path: "facility/schedules", element: <FacilitySchedules /> },
 
                   // Data Management
                   { path: "custom-fields", element: <SettingsCustomFields /> },

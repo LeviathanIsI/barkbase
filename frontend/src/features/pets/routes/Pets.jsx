@@ -32,12 +32,12 @@ const Pets = () => {
   const [selectedPet, setSelectedPet] = useState(null);
   const actionsDropdownRef = useRef(null);
   const createPetMutation = useCreatePetMutation();
-  const updatePetMutation = useUpdatePetMutation(selectedPet?.id);
+  const updatePetMutation = useUpdatePetMutation(selectedPet?.recordId);
   const deletePetMutation = useDeletePetMutation();
 
   useEffect(() => {
     if (petsQuery.isError) {
-      toast.error(petsQuery.error?.message ?? 'Unable to load pets', { id: 'pets-error' });
+      toast.error(petsQuery.error?.message ?? 'Unable to load pets', { recordId: 'pets-error' });
     }
   }, [petsQuery.isError, petsQuery.error]);
 
@@ -64,17 +64,16 @@ const Pets = () => {
     const inactivePets = pets.filter((p) => p.status === 'inactive');
 
     return [
-      { id: 'all-pets', label: 'All Pets' },
-      { id: 'active', label: 'Active' },
-      { id: 'inactive', label: 'Inactive' },
-      { id: 'recent', label: 'Recently Added', canClose: true },
+      { recordId: 'all-pets', label: 'All Pets' },
+      { recordId: 'active', label: 'Active' },
+      { recordId: 'inactive', label: 'Inactive' },
+      { recordId: 'recent', label: 'Recently Added', canClose: true },
     ];
   }, [pets]);
 
   // Filter groups for the filter bar
   const filterGroups = [
-    {
-      id: 'owner',
+    { recordId: 'owner',
       label: 'Pet Owner',
       options: [
         ...Array.from(new Set(pets.flatMap(p => p.owners || []).map(o => o.name || o.email)))
@@ -83,8 +82,7 @@ const Pets = () => {
           .map(name => ({ value: name, label: name }))
       ],
     },
-    {
-      id: 'breed',
+    { recordId: 'breed',
       label: 'Breed',
       options: [
         ...Array.from(new Set(pets.map(p => p.breed).filter(Boolean)))
@@ -92,16 +90,14 @@ const Pets = () => {
           .map(breed => ({ value: breed, label: breed }))
       ],
     },
-    {
-      id: 'status',
+    { recordId: 'status',
       label: 'Status',
       options: [
         { value: 'active', label: 'Active' },
         { value: 'inactive', label: 'Inactive' },
       ],
     },
-    {
-      id: 'bookings',
+    { recordId: 'bookings',
       label: 'Booking Count',
       options: [
         { value: 'zero', label: '0 bookings' },
@@ -202,7 +198,7 @@ const Pets = () => {
           <div className="flex flex-col gap-0.5">
             {owners.slice(0, 2).map((owner) => (
               <button
-                key={owner.id}
+                key={owner.recordId}
                 className="text-left text-sm text-blue-600 hover:underline"
               >
                 {owner.name || owner.email}
@@ -288,7 +284,7 @@ const Pets = () => {
   ];
 
   const handleRowClick = (pet) => {
-    navigate(`/pets/${pet.id}`);
+    navigate(`/pets/${pet.recordId}`);
   };
 
   const handleFilterChange = (filterId, value) => {

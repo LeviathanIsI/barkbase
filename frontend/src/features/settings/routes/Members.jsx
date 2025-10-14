@@ -88,13 +88,13 @@ const Members = () => {
                 </thead>
                 <tbody className="divide-y divide-border/60">
                   {members.map((member) => (
-                    <tr key={member.id} className="hover:bg-surface/60">
+                    <tr key={member.recordId} className="hover:bg-surface/60">
                       <td className="px-3 py-2 text-text">{member.user?.email ?? '—'}</td>
                       <td className="px-3 py-2">
                         {canManage ? (
                           <select
                             value={member.role}
-                            onChange={(event) => handleRoleChange(member.id, event.target.value)}
+                            onChange={(event) => handleRoleChange(member.recordId, event.target.value)}
                             className="rounded-lg border border-border bg-surface px-2 py-1 text-sm"
                             disabled={updateRole.isPending}
                           >
@@ -120,7 +120,7 @@ const Members = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleRemove(member.id)}
+                            onClick={() => handleRemove(member.recordId)}
                             disabled={removeMember.isPending}
                           >
                             Remove
@@ -140,7 +140,7 @@ const Members = () => {
           ) : (
             <ul className="space-y-3 text-sm">
               {invites.map((invite) => (
-                <li key={invite.id} className="rounded-lg border border-border/60 bg-surface/60 p-3">
+                <li key={invite.recordId} className="rounded-lg border border-border/60 bg-surface/60 p-3">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium text-text">{invite.email}</p>

@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const tenantContext = require('../middleware/tenantContext');
+const { tenantContext } = require('../middleware/tenantContext');
 const { requireAuth } = require('../middleware/requireAuth');
 const validate = require('../middleware/validate');
 const membershipController = require('../controllers/membership.controller');

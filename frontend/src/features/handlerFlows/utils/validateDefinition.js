@@ -471,14 +471,14 @@ export const validateFlowDefinition = (definition) => {
       const actionType = node.data?.actionType;
 
       if (!actionType) {
-        errors.push(`Action node at index ${index} (${node.id}) is missing actionType`);
+        errors.push(`Action node at index ${index} (${node.recordId}) is missing actionType`);
         return;
       }
 
       const configErrors = validateActionConfig(actionType, node.data?.config);
 
       if (configErrors.length > 0) {
-        errors.push(`Action node ${node.id} (${actionType}): ${configErrors.join(', ')}`);
+        errors.push(`Action node ${node.recordId} (${actionType}): ${configErrors.join(', ')}`);
       }
     }
   });
@@ -489,7 +489,7 @@ export const validateFlowDefinition = (definition) => {
   }
 
   // Check for dangling edges
-  const nodeIds = new Set(definition.nodes?.map(n => n.id) || []);
+  const nodeIds = new Set(definition.nodes?.map(n => n.recordId) || []);
   definition.edges?.forEach((edge, index) => {
     if (!nodeIds.has(edge.source)) {
       errors.push(`Edge ${index} has invalid source node: ${edge.source}`);

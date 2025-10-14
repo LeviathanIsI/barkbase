@@ -23,7 +23,7 @@ const VaccinationTimeline = ({ vaccinations = [] }) => (
           const daysRemaining = differenceInCalendarDays(expiry, new Date());
           return (
             <li
-              key={vaccination.id}
+              key={vaccination.recordId}
               className="flex items-center justify-between rounded-xl border border-border/60 bg-surface/60 p-3"
             >
               <div>

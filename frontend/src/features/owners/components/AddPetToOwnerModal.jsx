@@ -11,7 +11,7 @@ const AddPetToOwnerModal = ({ open, onClose, onAdd, currentPetIds = [] }) => {
   const allPets = petsQuery.data?.data ?? [];
 
   // Filter out pets that are already associated
-  const availablePets = allPets.filter(pet => !currentPetIds.includes(pet.id));
+  const availablePets = allPets.filter(pet => !currentPetIds.includes(pet.recordId));
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -60,7 +60,7 @@ const AddPetToOwnerModal = ({ open, onClose, onAdd, currentPetIds = [] }) => {
                 >
                   <option value="">Choose a pet...</option>
                   {availablePets.map((pet) => (
-                    <option key={pet.id} value={pet.id}>
+                    <option key={pet.recordId} value={pet.recordId}>
                       {pet.name} {pet.breed ? `(${pet.breed})` : ''}
                     </option>
                   ))}

@@ -40,7 +40,7 @@ export const useUpdatePetMutation = (petId) => {
       if (previous) {
         queryClient.setQueryData(listKey, (old = []) =>
           old.map((pet) =>
-            pet.id === petId
+            pet.recordId === petId
               ? {
                   ...pet,
                   ...payload,
@@ -72,7 +72,7 @@ export const useDeletePetMutation = () => {
       await queryClient.cancelQueries({ queryKey: listKey });
       const previous = queryClient.getQueryData(listKey);
       if (previous) {
-        queryClient.setQueryData(listKey, (old = []) => old.filter((pet) => pet.id !== petId));
+        queryClient.setQueryData(listKey, (old = []) => old.filter((pet) => pet.recordId !== petId));
       }
       return { previous };
     },
@@ -104,7 +104,7 @@ export const useCreatePetMutation = () => {
       }
     },
     onSuccess: (created) => {
-      if (created?.id) {
+      if (created?.recordId) {
         queryClient.setQueryData(listKey, (old = []) => [created, ...old]);
       }
     },

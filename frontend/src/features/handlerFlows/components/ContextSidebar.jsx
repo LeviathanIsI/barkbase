@@ -7,28 +7,24 @@ import { useState } from 'react';
 
 // Kennel-specific action categories
 const actionCategories = [
-  {
-    id: 'communication',
+  { recordId: 'communication',
     name: 'Owner Communication',
     icon: <Mail className="w-5 h-5" />,
     color: 'text-blue-600',
     actions: [
-      {
-        id: 'send-email',
+      { recordId: 'send-email',
         label: 'Send email to owner',
         description: 'Send templated email with booking/pet details',
         type: 'action',
         actionType: 'email.send',
       },
-      {
-        id: 'send-sms',
+      { recordId: 'send-sms',
         label: 'Send SMS to owner',
         description: 'Text message reminder or update',
         type: 'action',
         actionType: 'sms.send',
       },
-      {
-        id: 'send-review',
+      { recordId: 'send-review',
         label: 'Send review request',
         description: 'Ask for feedback after stay',
         type: 'action',
@@ -36,28 +32,24 @@ const actionCategories = [
       },
     ],
   },
-  {
-    id: 'staff',
+  { recordId: 'staff',
     name: 'Staff & Tasks',
     icon: <CheckSquare className="w-5 h-5" />,
     color: 'text-purple-600',
     actions: [
-      {
-        id: 'create-task',
+      { recordId: 'create-task',
         label: 'Create staff task',
         description: 'Assign task to team member with due date',
         type: 'action',
         actionType: 'task.create',
       },
-      {
-        id: 'notify-team',
+      { recordId: 'notify-team',
         label: 'Send internal notification',
         description: 'Alert staff via in-app, email, or Slack',
         type: 'action',
         actionType: 'team.notify',
       },
-      {
-        id: 'print-document',
+      { recordId: 'print-document',
         label: 'Print document',
         description: 'Generate run card, meal plan, or invoice',
         type: 'action',
@@ -65,49 +57,42 @@ const actionCategories = [
       },
     ],
   },
-  {
-    id: 'records',
+  { recordId: 'records',
     name: 'Records & Data',
     icon: <FileText className="w-5 h-5" />,
     color: 'text-cyan-600',
     actions: [
-      {
-        id: 'set-field',
+      { recordId: 'set-field',
         label: 'Set field value',
         description: 'Update any field on pet, owner, or booking',
         type: 'action',
         actionType: 'field.set',
       },
-      {
-        id: 'create-reservation',
+      { recordId: 'create-reservation',
         label: 'Create reservation',
         description: 'Create a new booking/reservation',
         type: 'action',
         actionType: 'reservation.create',
       },
-      {
-        id: 'create-note',
+      { recordId: 'create-note',
         label: 'Create note',
         description: 'Add note attached to pet or booking',
         type: 'action',
         actionType: 'note.create',
       },
-      {
-        id: 'update-status',
+      { recordId: 'update-status',
         label: 'Update status',
         description: 'Change booking/invoice/ticket stage',
         type: 'action',
         actionType: 'status.update',
       },
-      {
-        id: 'cancel-reservation',
+      { recordId: 'cancel-reservation',
         label: 'Cancel reservation',
         description: 'Cancel an existing booking',
         type: 'action',
         actionType: 'reservation.cancel',
       },
-      {
-        id: 'increase-number',
+      { recordId: 'increase-number',
         label: 'Increase/decrease number',
         description: 'Adjust visit counter, loyalty points, etc.',
         type: 'action',
@@ -115,28 +100,24 @@ const actionCategories = [
       },
     ],
   },
-  {
-    id: 'billing',
+  { recordId: 'billing',
     name: 'Billing & Payments',
     icon: <DollarSign className="w-5 h-5" />,
     color: 'text-green-600',
     actions: [
-      {
-        id: 'apply-fee',
+      { recordId: 'apply-fee',
         label: 'Apply fee',
         description: 'Add late fee or other charges',
         type: 'action',
         actionType: 'fee.add',
       },
-      {
-        id: 'apply-discount',
+      { recordId: 'apply-discount',
         label: 'Apply discount',
         description: 'Apply discount or promo code',
         type: 'action',
         actionType: 'discount.apply',
       },
-      {
-        id: 'create-invoice',
+      { recordId: 'create-invoice',
         label: 'Create invoice',
         description: 'Generate invoice for booking or services',
         type: 'action',
@@ -144,28 +125,24 @@ const actionCategories = [
       },
     ],
   },
-  {
-    id: 'pet-services',
+  { recordId: 'pet-services',
     name: 'Pet Services',
     icon: <Star className="w-5 h-5" />,
     color: 'text-orange-600',
     actions: [
-      {
-        id: 'vaccination-remind',
+      { recordId: 'vaccination-remind',
         label: 'Send vaccination reminder',
         description: 'Remind owner about upcoming vaccinations',
         type: 'action',
         actionType: 'vaccination.remind',
       },
-      {
-        id: 'generate-pdf',
+      { recordId: 'generate-pdf',
         label: 'Generate PDF',
         description: 'Create PDF document from template',
         type: 'action',
         actionType: 'pdf.generate',
       },
-      {
-        id: 'generate-file',
+      { recordId: 'generate-file',
         label: 'Generate file (CSV/XLSX)',
         description: 'Export data to file format',
         type: 'action',
@@ -173,21 +150,18 @@ const actionCategories = [
       },
     ],
   },
-  {
-    id: 'segments',
+  { recordId: 'segments',
     name: 'Segments & Lists',
     icon: <GitBranch className="w-5 h-5" />,
     color: 'text-pink-600',
     actions: [
-      {
-        id: 'add-to-segment',
+      { recordId: 'add-to-segment',
         label: 'Add to static segment',
         description: 'Add owner/pet to a saved list',
         type: 'action',
         actionType: 'segment.add',
       },
-      {
-        id: 'remove-from-segment',
+      { recordId: 'remove-from-segment',
         label: 'Remove from static segment',
         description: 'Remove from an existing list',
         type: 'action',
@@ -195,35 +169,30 @@ const actionCategories = [
       },
     ],
   },
-  {
-    id: 'logic',
+  { recordId: 'logic',
     name: 'Logic & Control',
     icon: <GitBranch className="w-5 h-5" />,
     color: 'text-yellow-600',
     actions: [
-      {
-        id: 'if-then',
+      { recordId: 'if-then',
         label: 'If/Then check',
         description: 'Branch based on conditions (returns to main flow)',
         type: 'condition',
         actionType: 'if-then',
       },
-      {
-        id: 'delay-duration',
+      { recordId: 'delay-duration',
         label: 'Delay for duration',
         description: 'Wait hours/days before next step',
         type: 'delay',
         actionType: 'delay-duration',
       },
-      {
-        id: 'delay-until',
+      { recordId: 'delay-until',
         label: 'Delay until time',
         description: 'Wait until specific day/time or business hours',
         type: 'delay',
         actionType: 'delay-until',
       },
-      {
-        id: 'value-split',
+      { recordId: 'value-split',
         label: 'Value-based split',
         description: 'Route by accommodation type or field value',
         type: 'condition',
@@ -231,35 +200,30 @@ const actionCategories = [
       },
     ],
   },
-  {
-    id: 'advanced',
+  { recordId: 'advanced',
     name: 'Advanced',
     icon: <Code className="w-5 h-5" />,
     color: 'text-gray-600',
     actions: [
-      {
-        id: 'custom-code',
+      { recordId: 'custom-code',
         label: 'Custom code',
         description: 'Execute JavaScript for complex logic',
         type: 'action',
         actionType: 'custom.js',
       },
-      {
-        id: 'webhook',
+      { recordId: 'webhook',
         label: 'Send webhook',
         description: 'Call external API or system',
         type: 'action',
         actionType: 'http.webhook',
       },
-      {
-        id: 'queue-enqueue',
+      { recordId: 'queue-enqueue',
         label: 'Enqueue job',
         description: 'Add job to processing queue',
         type: 'action',
         actionType: 'queue.enqueue',
       },
-      {
-        id: 'owner-notify',
+      { recordId: 'owner-notify',
         label: 'Notify owner',
         description: 'Send notification via email or SMS',
         type: 'action',
@@ -281,7 +245,7 @@ const ContextSidebar = ({ mode, selectedNode, onClose, onNodeSelect, onNodeUpdat
     return <TriggerSelector onClose={onClose} onSelect={(triggerData) => {
       // Save the trigger type and object to the node (exclude 'type' field)
       const { type, ...dataToSave } = triggerData;
-      onNodeUpdate(selectedNode.id, dataToSave);
+      onNodeUpdate(selectedNode.recordId, dataToSave);
       // Keep sidebar open but switch to TriggerConfigurator view
       // The node will update and re-render with the new data
     }} />;
@@ -322,7 +286,7 @@ const ContextSidebar = ({ mode, selectedNode, onClose, onNodeSelect, onNodeUpdat
   const toggleCategory = (categoryId) => {
     setExpandedCategories(prev =>
       prev.includes(categoryId)
-        ? prev.filter(id => id !== categoryId)
+        ? prev.filter(recordId => id !== categoryId)
         : [...prev, categoryId]
     );
   };
@@ -374,12 +338,12 @@ const ContextSidebar = ({ mode, selectedNode, onClose, onNodeSelect, onNodeUpdat
             {/* Expandable categories */}
             <div className="divide-y divide-border">
               {filteredCategories.map((category) => {
-                const isExpanded = expandedCategories.includes(category.id);
+                const isExpanded = expandedCategories.includes(category.recordId);
                 return (
-                  <div key={category.id}>
+                  <div key={category.recordId}>
                     {/* Category header */}
                     <button
-                      onClick={() => toggleCategory(category.id)}
+                      onClick={() => toggleCategory(category.recordId)}
                       className="w-full px-4 py-3 flex items-center gap-3 hover:bg-border/30 transition-colors text-left"
                     >
                       <ChevronRight
@@ -399,7 +363,7 @@ const ContextSidebar = ({ mode, selectedNode, onClose, onNodeSelect, onNodeUpdat
                       <div className="bg-background/50">
                         {category.actions.map((action) => (
                           <button
-                            key={action.id}
+                            key={action.recordId}
                             onClick={() => onNodeSelect({
                               type: action.type,
                               label: action.label,

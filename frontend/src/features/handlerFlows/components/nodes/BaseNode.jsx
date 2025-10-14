@@ -3,7 +3,7 @@ import { Handle, Position } from 'reactflow';
 import { cn } from '@/lib/cn';
 import NodeActions from './NodeActions';
 
-const BaseNode = ({ id, data, children, className, variant = 'default' }) => {
+const BaseNode = ({ recordId, data, children, className, variant = 'default' }) => {
   const variants = {
     default: 'bg-surface border-border',
     trigger: 'bg-blue-500/10 border-blue-500',
@@ -119,7 +119,7 @@ const BaseNode = ({ id, data, children, className, variant = 'default' }) => {
         {/* Node Actions (Clone, Move, Delete) - Hidden for triggers */}
         {stepIndex > 1 && (
           <NodeActions
-            nodeId={id}
+            nodeId={ recordId}
             onClone={data?.onClone}
             onMoveUp={data?.onMoveUp}
             onMoveDown={data?.onMoveDown}

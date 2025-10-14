@@ -69,7 +69,7 @@ const OwnerDetailModal = ({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onDelete(owner.id)}
+              onClick={() => onDelete(owner.recordId)}
               disabled={isDeleting}
               className="text-red-600 hover:bg-red-50"
             >
@@ -155,7 +155,7 @@ const OwnerDetailModal = ({
             <div className="grid grid-cols-2 gap-3">
               {pets.map((pet) => (
                 <div
-                  key={pet.id}
+                  key={pet.recordId}
                   className="flex items-center gap-3 rounded-lg border border-border bg-surface/50 p-3 hover:bg-surface transition-colors"
                 >
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600">
@@ -178,7 +178,7 @@ const OwnerDetailModal = ({
             <div className="space-y-2">
               {owner.bookings.slice(0, 5).map((booking) => (
                 <div
-                  key={booking.id}
+                  key={booking.recordId}
                   className="flex items-center justify-between rounded-lg border border-border bg-surface/50 p-3"
                 >
                   <div className="flex items-center gap-3">

@@ -22,40 +22,8 @@ if (!prismaSingleton) {
     },
   });
 
-  const recordIdExtension = {
-    result: {
-      Tenant: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      User: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      Membership: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      Invite: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      EmailVerificationToken: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      AuditLog: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      UsageCounter: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      Staff: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      Owner: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      Pet: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      PetOwner: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      Kennel: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      Booking: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      BookingSegment: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      Service: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      BookingService: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      Vaccination: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      Payment: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      CheckIn: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      CheckOut: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      IncidentReport: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      CustomProperty: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      AssociationDefinition: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      HandlerFlow: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      HandlerRun: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      HandlerEvent: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      HandlerRunLog: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-      HandlerJob: { recordId: { needs: { id: true }, compute: (m) => m.id } },
-    },
-  };
-
-  prismaSingleton = baseClient.$extends(recordIdExtension);
+  // No longer need id extension since we're using recordId directly in the schema
+  prismaSingleton = baseClient;
 
   if (process.env.NODE_ENV !== 'production') {
     globalThis.__PRISMA_SINGLETON = prismaSingleton;

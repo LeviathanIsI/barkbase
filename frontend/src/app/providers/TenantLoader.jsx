@@ -1,66 +1,51 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useTenantStore } from '@/stores/tenant';
 import { getTenantSlugCookie, setTenantSlugCookie } from '@/lib/cookies';
 
 const TenantLoader = () => {
+  const hasInitialized = useRef(false);
   const loadTenant = useTenantStore((state) => state.loadTenant);
-
+  
   useEffect(() => {
-    const resolveSlug = () => {
-      if (typeof window === 'undefined') {
-        return 'default';
-      }
+    if (hasInitialized.current) {
+      return;
+    }
+    hasInitialized.current = true;
 
-      const search = window.location?.search ?? '';
-      if (search) {
-        try {
-          const params = new URLSearchParams(search);
-          const queryValue = params.get('tenant');
-          if (queryValue) {
-            const normalized = queryValue.trim().toLowerCase();
-            if (normalized) {
-              return normalized;
-            }
-          }
-        } catch {
-          // ignore malformed query strings
-        }
-      }
-
-      const host = window.location.host?.toLowerCase() ?? '';
-      const withoutPort = host.split(':')[0];
-      const parts = withoutPort.split('.').filter(Boolean);
-      if (parts.length >= 3) {
-        return parts[0];
-      }
-
+    const initTenant = async () => {
+      let slug = 'default';
+      
+      // Try to get slug from cookie first
       const cookieSlug = getTenantSlugCookie();
       if (cookieSlug) {
-        return cookieSlug;
+        slug = cookieSlug;
       }
-
-      const baseDomain = import.meta.env.VITE_BASE_DOMAIN?.toLowerCase();
-      if (baseDomain && withoutPort.endsWith(baseDomain)) {
-        const prefix = withoutPort.slice(0, -baseDomain.length);
-        const trimmedPrefix = prefix.endsWith('.') ? prefix.slice(0, -1) : prefix;
-        if (trimmedPrefix) {
-          return trimmedPrefix.split('.')[0];
-        }
+      
+      // Check URL params
+      const params = new URLSearchParams(window.location.search);
+      const urlTenant = params.get('tenant');
+      if (urlTenant) {
+        slug = urlTenant.toLowerCase().trim();
       }
-
-      return 'default';
+      
+      // For now, hardcode to 'testing' since that's your actual tenant
+      // Remove this line once you have proper tenant resolution
+      if (slug === 'default') {
+        slug = 'testing';
+      }
+      
+      try {
+        await loadTenant(slug);
+        setTenantSlugCookie(slug);
+      } catch (error) {
+        console.error('Failed to load tenant:', error);
+        // Set the slug in cookie anyway so we don't keep retrying with 'default'
+        setTenantSlugCookie(slug);
+      }
     };
 
-    const slug = resolveSlug();
-
-    loadTenant(slug)
-      .then(() => {
-        setTenantSlugCookie(slug);
-      })
-      .catch((error) => {
-        console.error('Failed to load tenant', error);
-      });
-  }, [loadTenant]);
+    initTenant();
+  }, []); // Empty deps, only run once
 
   return null;
 };

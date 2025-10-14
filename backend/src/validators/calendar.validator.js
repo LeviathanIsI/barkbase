@@ -1,32 +1,32 @@
 const Joi = require('joi');
 
 const calendarView = Joi.object({
-  from: Joi.date().iso(),
-  to: Joi.date().iso().min(Joi.ref('from')),
+  from: Joi.string().isoDate(),
+  to: Joi.string().isoDate(),
 }).with('to', 'from');
 
 const occupancy = Joi.object({
-  from: Joi.date().iso(),
-  to: Joi.date().iso().min(Joi.ref('from')),
+  from: Joi.string().isoDate(),
+  to: Joi.string().isoDate(),
 }).with('to', 'from');
 
 const suggestKennel = Joi.object({
-  startDate: Joi.date().iso().required(),
-  endDate: Joi.date().iso().min(Joi.ref('startDate')).required(),
+  startDate: Joi.string().isoDate().required(),
+  endDate: Joi.string().isoDate().required(),
   petSize: Joi.string().valid('SMALL', 'MEDIUM', 'LARGE', 'XLARGE'),
   kennelType: Joi.string().valid('SUITE', 'KENNEL', 'CABIN', 'DAYCARE', 'MEDICAL'),
 });
 
 const assignKennel = Joi.object({
   kennelId: Joi.string().required(),
-  startDate: Joi.date().iso().required(),
-  endDate: Joi.date().iso().min(Joi.ref('startDate')).required(),
+  startDate: Joi.string().isoDate().required(),
+  endDate: Joi.string().isoDate().required(),
 });
 
 const reassignKennel = Joi.object({
   kennelId: Joi.string(),
-  startDate: Joi.date().iso(),
-  endDate: Joi.date().iso(),
+  startDate: Joi.string().isoDate(),
+  endDate: Joi.string().isoDate(),
 }).min(1);
 
 module.exports = {

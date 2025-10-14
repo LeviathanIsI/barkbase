@@ -1,6 +1,6 @@
 const bcrypt = require('bcrypt');
 const prisma = require('../../config/prisma');
-const tenantContext = require('../../middleware/tenantContext');
+const { tenantContext } = require('../../middleware/tenantContext');
 
 const wipeDatabase = async () => {
   await prisma.handlerRunLog.deleteMany();
@@ -76,8 +76,8 @@ const seedUsers = async ({ acme, globex }) => {
 
   await prisma.membership.create({
     data: {
-      tenantId: acme.id,
-      userId: acmeOwner.id,
+      tenantId: acme.recordId,
+      userId: acmeOwner.recordId,
       role: 'OWNER',
       localDataConsent: consentReceipt,
     },
@@ -85,8 +85,8 @@ const seedUsers = async ({ acme, globex }) => {
 
   await prisma.membership.create({
     data: {
-      tenantId: globex.id,
-      userId: globexOwner.id,
+      tenantId: globex.recordId,
+      userId: globexOwner.recordId,
       role: 'OWNER',
       localDataConsent: consentReceipt,
     },
@@ -98,7 +98,7 @@ const seedUsers = async ({ acme, globex }) => {
 const seedAcmeData = async (acme) => {
   const owner = await prisma.owner.create({
     data: {
-      tenantId: acme.id,
+      tenantId: acme.recordId,
       firstName: 'Alex',
       lastName: 'Anderson',
       email: 'alex@example.com',
@@ -108,7 +108,7 @@ const seedAcmeData = async (acme) => {
 
   const pet = await prisma.pet.create({
     data: {
-      tenantId: acme.id,
+      tenantId: acme.recordId,
       name: 'Riley',
       breed: 'Labrador',
       behaviorFlags: [],
@@ -117,8 +117,8 @@ const seedAcmeData = async (acme) => {
       status: 'active',
       owners: {
         create: {
-          tenantId: acme.id,
-          ownerId: owner.id,
+          tenantId: acme.recordId,
+          ownerId: owner.recordId,
           isPrimary: true,
         },
       },
@@ -128,7 +128,7 @@ const seedAcmeData = async (acme) => {
 
   const kennel = await prisma.kennel.create({
     data: {
-      tenantId: acme.id,
+      tenantId: acme.recordId,
       name: 'Suite 1',
       type: 'SUITE',
       capacity: 1,

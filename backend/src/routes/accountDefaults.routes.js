@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { requireAuth } = require('../middleware/requireAuth');
-const tenantContext = require('../middleware/tenantContext');
+const { tenantContext } = require('../middleware/tenantContext');
 const validate = require('../middleware/validate');
 const { updateAccountDefaults } = require('../validators/accountDefaults.validator');
 const { upload } = require('../lib/uploads');

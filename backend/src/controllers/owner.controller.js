@@ -6,7 +6,7 @@ const listOwners = async (req, res) => {
 };
 
 const getOwner = async (req, res) => {
-  const owner = await ownerService.getOwnerById(req.tenantId, req.params.id);
+  const owner = await ownerService.getOwnerById(req.tenantId, req.params.recordId);
   res.json(owner);
 };
 
@@ -16,24 +16,24 @@ const createOwner = async (req, res) => {
 };
 
 const updateOwner = async (req, res) => {
-  const owner = await ownerService.updateOwner(req.tenantId, req.params.id, req.body);
+  const owner = await ownerService.updateOwner(req.tenantId, req.params.recordId, req.body);
   res.json(owner);
 };
 
 const deleteOwner = async (req, res) => {
-  const result = await ownerService.deleteOwner(req.tenantId, req.params.id);
+  const result = await ownerService.deleteOwner(req.tenantId, req.params.recordId);
   res.json(result);
 };
 
 const getOwnerPets = async (req, res) => {
-  const pets = await ownerService.getOwnerPets(req.tenantId, req.params.id);
+  const pets = await ownerService.getOwnerPets(req.tenantId, req.params.recordId);
   res.json(pets);
 };
 
 const addPetToOwner = async (req, res) => {
   const result = await ownerService.addPetToOwner(
     req.tenantId,
-    req.params.id,
+    req.params.recordId,
     req.body.petId,
     req.body.isPrimary
   );
@@ -43,7 +43,7 @@ const addPetToOwner = async (req, res) => {
 const removePetFromOwner = async (req, res) => {
   const result = await ownerService.removePetFromOwner(
     req.tenantId,
-    req.params.id,
+    req.params.recordId,
     req.params.petId
   );
   res.json(result);

@@ -12,7 +12,7 @@ const PropertyList = ({ data, onEdit, onDelete }) => {
   return (
     <div className="space-y-6">
       {data.groups.map((group) => (
-        <div key={group.id} className="rounded-lg border border-border bg-surface">
+        <div key={group.recordId} className="rounded-lg border border-border bg-surface">
           {/* Group Header */}
           <div className="border-b border-border bg-surface/50 px-6 py-4">
             <div className="flex items-center justify-between">
@@ -32,7 +32,7 @@ const PropertyList = ({ data, onEdit, onDelete }) => {
             {group.properties && group.properties.length > 0 ? (
               group.properties.map((property) => (
                 <PropertyItem
-                  key={property.id}
+                  key={property.recordId}
                   property={property}
                   onEdit={onEdit}
                   onDelete={onDelete}

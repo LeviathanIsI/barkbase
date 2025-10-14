@@ -1,32 +1,31 @@
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
-const prisma = require('../config/prisma');
+const prisma = require('../lib/prisma');
+const { issueAccessToken, issueRefreshToken, verifyRefreshToken } = require('../utils/jwt');
+const { resolveTenantFeatures } = require('../lib/features');
+const mailer = require('../lib/mailer');
 const env = require('../config/env');
 const logger = require('../utils/logger');
-const { issueAccessToken, issueRefreshToken, verifyRefreshToken } = require('../utils/jwt');
-const mailer = require('../lib/mailer');
-const { resolveTenantFeatures } = require('../lib/features');
 
-const SALT_ROUNDS = Number(process.env.BCRYPT_SALT_ROUNDS ?? 12);
-const ROLE_VALUES = ['OWNER', 'ADMIN', 'STAFF', 'READONLY'];
-const RESERVED_SLUGS = new Set(['admin', 'api', 'app', 'www', 'barkbase', 'support', 'login', 'signup']);
-const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{12,}$/;
+const SALT_ROUNDS = 12;
+const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$/;
+const RESERVED_SLUGS = new Set(['api', 'www', 'admin', 'app', 'mail', 'ftp', 'localhost', 'staging', 'test', 'dev']);
 
-const normalizeRole = (role = 'STAFF') => {
+const normalizeRole = (role) => {
   const upper = String(role).toUpperCase();
-  if (!ROLE_VALUES.includes(upper)) {
+  if (!['OWNER', 'ADMIN', 'STAFF'].includes(upper)) {
     throw Object.assign(new Error(`Unsupported role ${role}`), { statusCode: 400 });
   }
   return upper;
 };
 
 const sanitizeMembership = (membership) => ({
-  id: membership.id,
+  recordId: membership.recordId,
   tenantId: membership.tenantId,
   role: membership.role,
   tenant: membership.tenant
     ? {
-        id: membership.tenant.id,
+        recordId: membership.tenant.recordId,
         slug: membership.tenant.slug,
         name: membership.tenant.name,
         plan: membership.tenant.plan,
@@ -38,7 +37,7 @@ const sanitizeUser = (user, tenantId) => {
   const memberships = (user.memberships ?? []).map(sanitizeMembership);
   const current = memberships.find((membership) => membership.tenantId === tenantId) ?? null;
   return {
-    id: user.id,
+    recordId: user.recordId,
     email: user.email,
     memberships,
     tenantId: current?.tenantId ?? null,
@@ -46,100 +45,31 @@ const sanitizeUser = (user, tenantId) => {
   };
 };
 
+/**
+ * Enterprise login function - delegates to enterprise auth service
+ */
 const login = async (tenant, email, password) => {
-  const user = await prisma.user.findUnique({
-    where: { email },
-    include: {
-      memberships: {
-        include: {
-          tenant: true,
-        },
-      },
-    },
-  });
-
-  if (!user) {
-    throw Object.assign(new Error('Invalid credentials'), { statusCode: 401 });
-  }
-
-  if (user.isActive === false) {
-    throw Object.assign(new Error('Account disabled'), { statusCode: 403 });
-  }
-
-  if (!user.emailVerified) {
-    throw Object.assign(new Error('Email verification required'), { statusCode: 403 });
-  }
-
-  const matches = await bcrypt.compare(password, user.passwordHash);
-  if (!matches) {
-    throw Object.assign(new Error('Invalid credentials'), { statusCode: 401 });
-  }
-
-  // If no tenant specified or tenant not found, use user's first membership
-  let membership = tenant ? user.memberships.find((entry) => entry.tenantId === tenant.id) : null;
-  
-  if (!membership) {
-    if (user.memberships.length === 0) {
-      throw Object.assign(new Error('No workspace found for this account'), { statusCode: 403 });
-    }
-    // Auto-select first tenant
-    membership = user.memberships[0];
-  }
-
-  const selectedTenant = membership.tenant;
-
-  const payload = {
-    sub: user.id,
-    tenantId: selectedTenant.id,
-    membershipId: membership.id,
-    role: membership.role,
-  };
-
-  const accessToken = issueAccessToken(payload);
-  const refreshToken = issueRefreshToken(payload);
-
-  await prisma.$transaction(async (tx) => {
-    // Set tenant GUC for RLS-protected Membership updates via SECURITY DEFINER helper
-    await tx.$executeRaw`select app.set_tenant_id(${selectedTenant.id})`;
-    
-    await tx.membership.update({
-      where: { id: membership.id },
-      data: { refreshToken },
-    });
-    
-    await tx.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    });
-  });
-
-  return {
-    user: sanitizeUser(user, selectedTenant.id),
-    tokens: {
-      accessToken,
-      refreshToken,
-      accessTokenExpiresIn: env.tokens.accessTtlMinutes * 60,
-      refreshTokenExpiresIn: env.tokens.refreshTtlDays * 24 * 60 * 60,
-    },
-  };
+  const enterpriseAuth = require('./enterprise-auth.service');
+  return await enterpriseAuth.login(tenant, email, password);
 };
 
 const refresh = async (tenantId, token) => {
   const payload = verifyRefreshToken(token);
 
-  if (payload.tenantId !== tenantId) {
-    throw Object.assign(new Error('Tenant mismatch'), { statusCode: 403 });
-  }
-
-  const membership = await prisma.membership.findFirst({
-    where: {
-      id: payload.membershipId,
-      tenantId,
-      userId: payload.sub,
-    },
-    include: {
-      user: true,
-    },
+  const membership = await prisma.$transaction(async (tx) => {
+    // Set tenant context for RLS
+    await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
+    
+    return await tx.membership.findFirst({
+      where: {
+        recordId: payload.membershipId,
+        tenantId,
+        userId: payload.sub,
+      },
+      include: {
+        user: true,
+      },
+    });
   });
 
   if (!membership || membership.refreshToken !== token) {
@@ -149,7 +79,7 @@ const refresh = async (tenantId, token) => {
   const accessToken = issueAccessToken({
     sub: payload.sub,
     tenantId,
-    membershipId: membership.id,
+    membershipId: membership.recordId,
     role: membership.role,
   });
 
@@ -187,17 +117,18 @@ const register = async (tenantId, data) => {
     // Set tenant GUC so Membership RLS policy allows the insert via SECURITY DEFINER helper
     await tx.$executeRaw`select app.set_tenant_id(${tenantId})`;
     
+    // Create membership directly in this transaction
     await tx.membership.create({
       data: {
         tenantId,
-        userId: user.id,
+        userId: user.recordId,
         role,
       },
     });
   });
 
   const refreshedUser = await prisma.user.findUnique({
-    where: { id: user.id },
+    where: { recordId: user.recordId },
     include: {
       memberships: {
         include: {
@@ -253,9 +184,8 @@ const signup = async ({
   const { tenant, user } = await prisma.$transaction(async (tx) => {
     const createdTenant = await tx.tenant.create({
       data: {
-        name: tenantName,
         slug,
-        plan: 'FREE',
+        name: tenantName,
       },
     });
 
@@ -267,12 +197,13 @@ const signup = async ({
     });
 
     // Set tenant GUC so Membership RLS policy allows the insert via SECURITY DEFINER helper
-    await tx.$executeRaw`select app.set_tenant_id(${createdTenant.id})`;
+    await tx.$executeRaw`select app.set_tenant_id(${createdTenant.recordId})`;
 
+    // Create membership directly in this transaction
     await tx.membership.create({
       data: {
-        tenantId: createdTenant.id,
-        userId: createdUser.id,
+        tenantId: createdTenant.recordId,
+        userId: createdUser.recordId,
         role: 'OWNER',
       },
     });
@@ -285,7 +216,7 @@ const signup = async ({
 
   await prisma.emailVerificationToken.create({
     data: {
-      userId: user.id,
+      userId: user.recordId,
       token: verificationToken,
       expiresAt,
     },
@@ -313,13 +244,13 @@ const signup = async ({
 
   return {
     tenant: {
-      id: tenant.id,
+      recordId: tenant.recordId,
       slug: tenant.slug,
       name: tenant.name,
       plan: tenant.plan,
     },
     user: {
-      id: user.id,
+      recordId: user.recordId,
       email: user.email,
     },
     verification: {
@@ -334,15 +265,7 @@ async function verifyEmail(tokenValue) {
   const tokenRecord = await prisma.emailVerificationToken.findUnique({
     where: { token: tokenValue },
     include: {
-      user: {
-        include: {
-          memberships: {
-            include: {
-              tenant: true,
-            },
-          },
-        },
-      },
+      user: true,
     },
   });
 
@@ -351,88 +274,52 @@ async function verifyEmail(tokenValue) {
   }
 
   if (tokenRecord.expiresAt < new Date()) {
-    await prisma.emailVerificationToken.delete({ where: { id: tokenRecord.id } });
+    await prisma.emailVerificationToken.delete({ where: { recordId: tokenRecord.recordId } });
     throw Object.assign(new Error('Verification token expired'), { statusCode: 410 });
   }
 
   const user = tokenRecord.user;
 
-  // Query via SECURITY DEFINER helper (bypasses RLS safely)
-  logger.info({ userId: user.id }, 'Querying membership via definer function');
-  const memberships = await prisma.$queryRaw`
-    select * from app.get_first_membership_for_user(${user.id})
-  `;
+  // Use enterprise auth service to get memberships
+  const enterpriseAuth = require('./enterprise-auth.service');
+  const userWithMemberships = await enterpriseAuth.getUserWithMemberships(user.email);
 
-  logger.info({ membershipCount: memberships?.length, userId: user.id }, 'Definer membership query result');
-
-  if (!memberships || memberships.length === 0) {
-    await prisma.emailVerificationToken.delete({ where: { id: tokenRecord.id } });
+  if (!userWithMemberships || userWithMemberships.memberships.length === 0) {
+    await prisma.emailVerificationToken.delete({ where: { recordId: tokenRecord.recordId } });
     throw Object.assign(new Error('Membership not found for user'), { statusCode: 400 });
   }
 
-  const rawMembership = memberships[0];
-  const membership = {
-    id: rawMembership.membership_id,
-    tenantId: rawMembership.tenantId,
-    userId: rawMembership.userId,
-    role: rawMembership.role,
-    refreshToken: rawMembership.refreshToken,
-    tenant: {
-      id: rawMembership.tenant_id,
-      slug: rawMembership.tenant_slug,
-      name: rawMembership.tenant_name,
-      plan: rawMembership.tenant_plan,
-    },
-  };
+  const membership = userWithMemberships.memberships[0];
+  const tenant = membership.tenant;
 
   await prisma.$transaction(async (tx) => {
     // Set tenant GUC for any RLS-protected operations via SECURITY DEFINER helper
     await tx.$executeRaw`select app.set_tenant_id(${membership.tenantId})`;
     
     await tx.user.update({
-      where: { id: user.id },
+      where: { recordId: user.recordId },
       data: { emailVerified: true, isActive: true },
     });
     
-    await tx.emailVerificationToken.deleteMany({ where: { userId: user.id } });
+    await tx.emailVerificationToken.deleteMany({ where: { userId: user.recordId } });
   });
 
   const payload = {
-    sub: user.id,
+    sub: user.recordId,
     tenantId: membership.tenantId,
-    membershipId: membership.id,
+    membershipId: membership.recordId,
     role: membership.role,
   };
 
   const accessToken = issueAccessToken(payload);
   const refreshToken = issueRefreshToken(payload);
 
-  await prisma.$transaction(async (tx) => {
-    // Set tenant GUC for RLS-protected Membership updates via SECURITY DEFINER helper
-    await tx.$executeRaw`select app.set_tenant_id(${membership.tenantId})`;
-    
-    await tx.membership.update({
-      where: { id: membership.id },
-      data: { refreshToken },
-    });
-  });
-
-  const refreshedUser = await prisma.user.findUnique({
-    where: { id: user.id },
-    include: {
-      memberships: {
-        include: {
-          tenant: true,
-        },
-      },
-    },
-  });
-
-  const tenant = membership.tenant;
+  // Use enterprise auth service to update refresh token
+  await enterpriseAuth.updateMembershipRefreshToken(membership.recordId, membership.tenantId, refreshToken);
 
   return {
     tenant: {
-      id: tenant.id,
+      recordId: tenant.recordId,
       slug: tenant.slug,
       name: tenant.name,
       plan: tenant.plan,
@@ -442,7 +329,7 @@ async function verifyEmail(tokenValue) {
       customDomain: tenant.customDomain ?? null,
       settings: tenant.settings ?? {},
     },
-    user: sanitizeUser(refreshedUser, tenant.id),
+    user: sanitizeUser(userWithMemberships, tenant.recordId),
     tokens: {
       accessToken,
       refreshToken,
@@ -452,17 +339,10 @@ async function verifyEmail(tokenValue) {
   };
 }
 
-const revokeRefreshToken = (membershipId) =>
-  prisma.membership.update({
-    where: { id: membershipId },
-    data: { refreshToken: null },
-  });
-
 module.exports = {
   login,
   refresh,
   register,
   signup,
   verifyEmail,
-  revokeRefreshToken,
 };

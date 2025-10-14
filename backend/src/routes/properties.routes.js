@@ -1,6 +1,6 @@
 const express = require('express');
 const propertiesController = require('../controllers/properties.controller');
-const tenantContext = require('../middleware/tenantContext');
+const { tenantContext } = require('../middleware/tenantContext');
 const { requireAuth } = require('../middleware/requireAuth');
 
 const router = express.Router();
@@ -18,15 +18,15 @@ router.get('/archived/count', propertiesController.getArchivedCount);
 router.post('/', propertiesController.createProperty);
 
 // POST /api/v1/settings/properties/:id/archive
-router.post('/:id/archive', propertiesController.archiveProperty);
+router.post('/:recordId/archive', propertiesController.archiveProperty);
 
 // POST /api/v1/settings/properties/:id/restore
-router.post('/:id/restore', propertiesController.restoreProperty);
+router.post('/:recordId/restore', propertiesController.restoreProperty);
 
 // PATCH /api/v1/settings/properties/:id
-router.patch('/:id', propertiesController.updateProperty);
+router.patch('/:recordId', propertiesController.updateProperty);
 
 // DELETE /api/v1/settings/properties/:id
-router.delete('/:id', propertiesController.deleteProperty);
+router.delete('/:recordId', propertiesController.deleteProperty);
 
 module.exports = router;

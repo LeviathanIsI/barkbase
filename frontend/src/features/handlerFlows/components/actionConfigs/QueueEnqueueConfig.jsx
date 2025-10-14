@@ -33,7 +33,7 @@ const QueueEnqueueConfig = ({ node, onUpdate }) => {
     }
 
     setErrors([]);
-    onUpdate(node.id, {
+    onUpdate(node.recordId, {
       actionType: 'queue.enqueue',
       config: newConfig,
       label: node.data.label || 'Enqueue Job',

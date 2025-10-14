@@ -49,8 +49,7 @@ const Payments = () => {
       return;
     }
     if (paymentsQuery.isError) {
-      toast.error(paymentsQuery.error?.message ?? 'Unable to load payments', {
-        id: 'payments-error',
+      toast.error(paymentsQuery.error?.message ?? 'Unable to load payments', { recordId: 'payments-error',
       });
     }
   }, [canViewPayments, paymentsQuery.isError, paymentsQuery.error]);
@@ -60,8 +59,7 @@ const Payments = () => {
       return;
     }
     if (summaryQuery.isError) {
-      toast.error(summaryQuery.error?.message ?? 'Unable to load payment summary', {
-        id: 'payments-summary-error',
+      toast.error(summaryQuery.error?.message ?? 'Unable to load payment summary', { recordId: 'payments-summary-error',
       });
     }
   }, [canViewPayments, summaryQuery.isError, summaryQuery.error]);
@@ -207,12 +205,12 @@ const Payments = () => {
               </thead>
               <tbody className="divide-y divide-border/60 bg-surface">
                 {payments.map((payment) => (
-                  <tr key={payment.id}>
+                  <tr key={payment.recordId}>
                     <td className="px-4 py-3">
                       <p className="font-medium text-text">
                         {payment.booking?.pet?.name ?? payment.bookingId ?? 'Booking'}
                       </p>
-                      <p className="text-xs text-muted">{payment.booking?.id}</p>
+                      <p className="text-xs text-muted">{payment.booking?.recordId}</p>
                     </td>
                     <td className="px-4 py-3 text-muted">
                       {payment.owner

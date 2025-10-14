@@ -1,9 +1,9 @@
 import BaseNode from './BaseNode';
 import Badge from '@/components/ui/Badge';
 
-const ConditionNode = ({ id, data }) => {
+const ConditionNode = ({ recordId, data }) => {
   return (
-    <BaseNode id={id} data={data} variant="condition">
+    <BaseNode id={ recordId} data={data} variant="condition">
       <div className="flex items-center gap-2">
         <Badge variant="warning" className="text-xs uppercase">Condition</Badge>
       </div>

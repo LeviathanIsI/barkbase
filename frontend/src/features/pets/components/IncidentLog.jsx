@@ -9,7 +9,7 @@ const IncidentLog = ({ incidents }) => (
   >
     <ul className="space-y-3 text-sm">
       {incidents.map((incident) => (
-        <li key={incident.id} className="rounded-xl border border-border/60 bg-surface/60 p-3">
+        <li key={incident.recordId} className="rounded-xl border border-border/60 bg-surface/60 p-3">
           <div className="flex items-center justify-between">
             <p className="font-medium text-text">{incident.title}</p>
             <Badge variant="warning">{incident.severity}</Badge>

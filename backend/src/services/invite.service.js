@@ -8,8 +8,7 @@ const { assertSeatAndInviteCapacity } = require('./usage.service');
 
 const INVITE_EXPIRY_DAYS = 7;
 
-const sanitizeInvite = (invite) => ({
-  id: invite.id,
+const sanitizeInvite = (invite) => ({ recordId: invite.recordId,
   email: invite.email,
   role: invite.role,
   token: invite.token,
@@ -25,7 +24,7 @@ const loadPlanFeatures = async (tenantId, features) => {
     return features;
   }
   const tenant = await prisma.tenant.findUnique({
-    where: { id: tenantId },
+    where: { recordId: tenantId },
     select: {
       plan: true,
       featureFlags: true,
@@ -82,7 +81,7 @@ const createInvite = async ({ tenantId, email, role, createdById, features }) =>
     const expiresAt = addDays(new Date(), INVITE_EXPIRY_DAYS);
 
     if (existingPending) {
-      await tx.invite.delete({ where: { id: existingPending.id } });
+      await tx.invite.delete({ where: { recordId: existingPending.recordId } });
     } else {
       await tx.invite.deleteMany({
         where: {
@@ -143,7 +142,7 @@ const acceptInvite = async (token, { password }) => {
   } else if (!user.passwordHash) {
     const passwordHash = await bcrypt.hash(password, Number(process.env.BCRYPT_SALT_ROUNDS ?? 12));
     await prisma.user.update({
-      where: { id: user.id },
+      where: { recordId: user.recordId },
       data: { passwordHash },
     });
   }
@@ -157,12 +156,12 @@ const acceptInvite = async (token, { password }) => {
   await prisma.$transaction([
     tenantDb.membership.create({
       data: {
-        userId: user.id,
+        userId: user.recordId,
         role: invite.role,
       },
     }),
     prisma.invite.update({
-      where: { id: invite.id },
+      where: { recordId: invite.recordId },
       data: { acceptedAt },
     }),
   ]);
@@ -172,7 +171,7 @@ const acceptInvite = async (token, { password }) => {
 
 const revokeInvite = (inviteId) =>
   prisma.invite.delete({
-    where: { id: inviteId },
+    where: { recordId: inviteId },
   });
 
 module.exports = {

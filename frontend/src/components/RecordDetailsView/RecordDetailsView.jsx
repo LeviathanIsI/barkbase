@@ -102,7 +102,7 @@ export default function RecordDetailsView({
   const Section = RENDERERS[objectType];
   const hasAside = asideSections?.length > 0;
 
-  const [activeTabId, setActiveTabId] = useState(() => tabs?.[0]?.id ?? null);
+  const [activeTabId, setActiveTabId] = useState(() => tabs?.[0]?.recordId ?? null);
 
   useEffect(() => {
     if (!tabs?.length) {
@@ -110,12 +110,12 @@ export default function RecordDetailsView({
       return;
     }
 
-    if (!tabs.some((tab) => tab.id === activeTabId)) {
-      setActiveTabId(tabs[0].id);
+    if (!tabs.some((tab) => tab.recordId === activeTabId)) {
+      setActiveTabId(tabs[0].recordId);
     }
   }, [tabs, activeTabId]);
 
-  const activeTab = tabs?.find((tab) => tab.id === activeTabId) ?? (tabs?.length ? tabs[0] : null);
+  const activeTab = tabs?.find((tab) => tab.recordId === activeTabId) ?? (tabs?.length ? tabs[0] : null);
 
   if (!finalData && query.isLoading) {
     return (
@@ -154,17 +154,17 @@ export default function RecordDetailsView({
           <nav className="flex gap-6 overflow-x-auto px-1">
             {tabs.map((tab) => (
               <button
-                key={tab.id}
-                onClick={() => setActiveTabId(tab.id)}
+                key={tab.recordId}
+                onClick={() => setActiveTabId(tab.recordId)}
                 className={cn(
                   'relative pb-3 pt-4 text-sm font-medium transition-colors',
-                  activeTab?.id === tab.id
+                  activeTab?.recordId === tab.recordId
                     ? 'text-primary'
                     : 'text-muted hover:text-text',
                 )}
               >
                 {tab.label}
-                {activeTab?.id === tab.id && (
+                {activeTab?.recordId === tab.recordId && (
                   <span className="absolute inset-x-0 bottom-0 h-0.5 bg-primary" />
                 )}
               </button>
@@ -198,7 +198,7 @@ export default function RecordDetailsView({
 
           {sections.map((section) => (
             <SectionCard
-              key={section.id ?? section.title}
+              key={section.recordId ?? section.title}
               title={section.title}
               description={section.description}
               header={
@@ -223,7 +223,7 @@ export default function RecordDetailsView({
           <div className="space-y-6">
             {asideSections.map((section) => (
               <SectionCard
-                key={section.id ?? section.title}
+                key={section.recordId ?? section.title}
                 title={section.title}
                 description={section.description}
                 header={

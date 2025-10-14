@@ -97,7 +97,7 @@ const CheckInModal = ({ booking, open, onClose }) => {
   };
 
   const onSubmit = async (values) => {
-    if (!booking?.id) return;
+    if (!booking?.recordId) return;
     const weight = values.weight ? Number(values.weight) : null;
     const conditionRating = values.conditionRating ? Number(values.conditionRating) : null;
     const combinedNotes = [checklistSummary, values.notes].filter(Boolean).join('\n');
@@ -129,7 +129,7 @@ const CheckInModal = ({ booking, open, onClose }) => {
         photos: photoDataUrls,
       };
 
-      await mutation.mutateAsync({ bookingId: booking.id, payload });
+      await mutation.mutateAsync({ bookingId: booking.recordId, payload });
       toast.success(`Checked in ${booking?.pet?.name ?? 'pet'} successfully.`);
       onClose?.();
     } catch (error) {

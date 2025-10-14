@@ -21,8 +21,7 @@ const scheduleAuditRetentionJob = () => {
   cron.schedule('30 2 * * *', async () => {
     try {
       const tenants = await prisma.tenant.findMany({
-        select: {
-          id: true,
+        select: { recordId: true,
           plan: true,
           featureFlags: true,
         },
@@ -38,7 +37,7 @@ const scheduleAuditRetentionJob = () => {
 
         await prisma.auditLog.deleteMany({
           where: {
-            tenantId: tenant.id,
+            tenantId: tenant.recordId,
             createdAt: {
               lt: cutoff,
             },

@@ -197,7 +197,7 @@ const CheckOutModal = ({ booking, open, onClose }) => {
 
   const signatureRef = useRef(null);
   const mutation = useBookingCheckOutMutation();
-  const incidentQuery = useIncidentsQuery({ bookingId: booking?.id, petId: booking?.pet?.id ?? booking?.petId });
+  const incidentQuery = useIncidentsQuery({ bookingId: booking?.recordId, petId: booking?.pet?.recordId ?? booking?.petId });
 
   useEffect(() => {
     if (open) {
@@ -241,7 +241,7 @@ const CheckOutModal = ({ booking, open, onClose }) => {
   }, [booking, lateFeeCents, addOnsCents]);
 
   const handleSubmit = async () => {
-    if (!booking?.id) return;
+    if (!booking?.recordId) return;
 
     const payload = {
       time: new Date(checkoutTime).toISOString(),
@@ -259,7 +259,7 @@ const CheckOutModal = ({ booking, open, onClose }) => {
 
     if (incidentMode === 'create') {
       payload.incident = {
-        petId: booking.pet?.id ?? booking.petId,
+        petId: booking.pet?.recordId ?? booking.petId,
         occurredAt: new Date().toISOString(),
         severity: incidentSeverity,
         narrative: incidentNarrative,
@@ -272,7 +272,7 @@ const CheckOutModal = ({ booking, open, onClose }) => {
 
     try {
       setIsSubmitting(true);
-      const result = await mutation.mutateAsync({ bookingId: booking.id, payload });
+      const result = await mutation.mutateAsync({ bookingId: booking.recordId, payload });
       toast.success(`Checked out ${booking?.pet?.name ?? 'pet'} successfully.`);
 
       if (sendReceipt) {
@@ -482,7 +482,7 @@ const CheckOutModal = ({ booking, open, onClose }) => {
             >
               <option value="">Select an incident...</option>
               {incidentQuery.data?.map((incident) => (
-                <option key={incident.id} value={incident.id}>
+                <option key={incident.recordId} value={incident.recordId}>
                   {format(new Date(incident.occurredAt), 'PPpp')} - {incident.severity}
                 </option>
               ))}

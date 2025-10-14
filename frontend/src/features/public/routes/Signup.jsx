@@ -43,7 +43,7 @@ const Signup = () => {
           user: result.user,
           tokens: result.tokens,
           role: result.user?.role ?? 'OWNER',
-          tenantId: result.tenant.id,
+          tenantId: result.tenant.recordId,
           memberships: result.user?.memberships,
         });
         navigate('/dashboard', { replace: true });

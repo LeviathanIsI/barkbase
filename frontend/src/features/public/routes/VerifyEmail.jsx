@@ -35,7 +35,7 @@ const VerifyEmail = () => {
           user: result.user,
           tokens: result.tokens,
           role: result.user?.role,
-          tenantId: result.tenant.id,
+          tenantId: result.tenant.recordId,
           memberships: result.user?.memberships,
         });
         setStatus({ state: 'success' });

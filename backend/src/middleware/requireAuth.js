@@ -1,4 +1,4 @@
-const prisma = require('../config/prisma');
+const prisma = require('../lib/prisma');
 const { verifyAccessToken } = require('../utils/jwt');
 const logger = require('../utils/logger');
 
@@ -42,15 +42,20 @@ const requireAuth = (roles = []) => {
         return res.status(403).json({ message: 'Tenant scope mismatch' });
       }
 
-      const membership = await prisma.membership.findFirst({
-        where: {
-          id: payload.membershipId,
-          tenantId: payload.tenantId,
-          userId: payload.sub,
-        },
-        include: {
-          user: true,
-        },
+      const membership = await prisma.$transaction(async (tx) => {
+        // Set tenant context for RLS
+        await tx.$executeRaw`SELECT set_config('app.tenant_id', ${payload.tenantId}, true)`;
+        
+        return await tx.membership.findFirst({
+          where: {
+            recordId: payload.membershipId,
+            tenantId: payload.tenantId,
+            userId: payload.sub,
+          },
+          include: {
+            user: true,
+          },
+        });
       });
 
       if (!membership || membership.user?.isActive === false) {
@@ -58,11 +63,11 @@ const requireAuth = (roles = []) => {
       }
 
       req.user = {
-        id: membership.user.id,
+        recordId: membership.user.recordId,
         email: membership.user.email,
         role: membership.role,
         tenantId: membership.tenantId,
-        membershipId: membership.id,
+        membershipId: membership.recordId,
       };
 
       if (allowedRoles.length && !allowedRoles.includes(req.user.role)) {

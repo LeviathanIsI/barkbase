@@ -29,7 +29,7 @@ const TeamNotifyConfig = ({ node, onUpdate }) => {
     }
 
     setErrors([]);
-    onUpdate(node.id, {
+    onUpdate(node.recordId, {
       actionType: 'team.notify',
       config: newConfig,
       label: node.data.label || 'Notify Team',

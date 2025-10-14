@@ -5,8 +5,7 @@ const staffInclude = {
   membership: {
     include: {
       user: {
-        select: {
-          id: true,
+        select: { recordId: true,
           email: true,
           isActive: true,
           lastLoginAt: true,
@@ -16,8 +15,7 @@ const staffInclude = {
   },
 };
 
-const mapStaffMember = (staff) => ({
-  id: staff.id,
+const mapStaffMember = (staff) => ({ recordId: staff.recordId,
   title: staff.title,
   phone: staff.phone,
   role: staff.membership.role,
@@ -39,7 +37,7 @@ const listStaff = async (tenantId) => {
 const setStaffStatus = async (tenantId, staffId, isActive) => {
   const tenantDb = forTenant(tenantId);
   const staff = await tenantDb.staff.findFirst({
-    where: { id: staffId },
+    where: { recordId: staffId },
     include: staffInclude,
   });
 
@@ -48,12 +46,12 @@ const setStaffStatus = async (tenantId, staffId, isActive) => {
   }
 
   await prisma.user.update({
-    where: { id: staff.membership.user.id },
+    where: { recordId: staff.membership.user.recordId },
     data: { isActive },
   });
 
   const refreshed = await tenantDb.staff.findFirst({
-    where: { id: staffId },
+    where: { recordId: staffId },
     include: staffInclude,
   });
 

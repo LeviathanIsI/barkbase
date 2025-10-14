@@ -10,12 +10,12 @@ import { usePageView } from '@/hooks/useTelemetry';
 import apiClient from '@/lib/apiClient';
 
 const OBJECT_TYPES = [
-  { id: 'pets', label: 'Pets' },
-  { id: 'owners', label: 'Owners' },
-  { id: 'bookings', label: 'Bookings' },
-  { id: 'invoices', label: 'Invoices' },
-  { id: 'payments', label: 'Payments' },
-  { id: 'tickets', label: 'Tickets' },
+  { recordId: 'pets', label: 'Pets' },
+  { recordId: 'owners', label: 'Owners' },
+  { recordId: 'bookings', label: 'Bookings' },
+  { recordId: 'invoices', label: 'Invoices' },
+  { recordId: 'payments', label: 'Payments' },
+  { recordId: 'tickets', label: 'Tickets' },
 ];
 
 const FIELD_TYPES = [
@@ -48,7 +48,7 @@ const PropertiesSettings = () => {
   const tabParam = searchParams.get('tab');
 
   const [selectedObject, setSelectedObject] = useState(
-    tabParam && OBJECT_TYPES.find(t => t.id === tabParam) ? tabParam : 'pets'
+    tabParam && OBJECT_TYPES.find(t => t.recordId === tabParam) ? tabParam : 'pets'
   );
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGroup, setSelectedGroup] = useState('all');
@@ -262,10 +262,10 @@ const PropertiesSettings = () => {
         <nav className="flex gap-1 overflow-x-auto">
           {OBJECT_TYPES.map((type) => (
             <button
-              key={type.id}
-              onClick={() => setSelectedObject(type.id)}
+              key={type.recordId}
+              onClick={() => setSelectedObject(type.recordId)}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                selectedObject === type.id
+                selectedObject === type.recordId
                   ? 'border-primary text-primary'
                   : 'border-transparent text-muted hover:text-text hover:border-border'
               }`}
@@ -403,7 +403,7 @@ const PropertiesSettings = () => {
         isOpen={!!deletingProperty}
         property={deletingProperty}
         onClose={closeModals}
-        onConfirm={() => handleDeleteProperty(deletingProperty.id)}
+        onConfirm={() => handleDeleteProperty(deletingProperty.recordId)}
       />
 
       {/* Archive Confirmation Dialog */}
@@ -411,7 +411,7 @@ const PropertiesSettings = () => {
         isOpen={!!archivingProperty}
         property={archivingProperty}
         onClose={closeModals}
-        onConfirm={() => handleArchiveProperty(archivingProperty.id)}
+        onConfirm={() => handleArchiveProperty(archivingProperty.recordId)}
       />
     </div>
   );

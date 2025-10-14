@@ -22,8 +22,7 @@ const listOwners = async (tenantId, options = {}) => {
         pets: {
           include: {
             pet: {
-              select: {
-                id: true,
+              select: { recordId: true,
                 name: true,
                 breed: true,
               },
@@ -31,8 +30,7 @@ const listOwners = async (tenantId, options = {}) => {
           },
         },
         bookings: {
-          select: {
-            id: true,
+          select: { recordId: true,
             checkIn: true,
             checkOut: true,
             status: true,
@@ -42,8 +40,7 @@ const listOwners = async (tenantId, options = {}) => {
           },
         },
         payments: {
-          select: {
-            id: true,
+          select: { recordId: true,
             amountCents: true,
             status: true,
           },
@@ -68,13 +65,12 @@ const getOwnerById = async (tenantId, ownerId) => {
   const db = forTenant(tenantId);
 
   const owner = await db.owner.findFirst({
-    where: { id: ownerId },
+    where: { recordId: ownerId },
     include: {
       pets: {
         include: {
           pet: {
-            select: {
-              id: true,
+            select: { recordId: true,
               name: true,
               breed: true,
               birthdate: true,
@@ -84,8 +80,7 @@ const getOwnerById = async (tenantId, ownerId) => {
         },
       },
       bookings: {
-        select: {
-          id: true,
+        select: { recordId: true,
           checkIn: true,
           checkOut: true,
           status: true,
@@ -95,8 +90,7 @@ const getOwnerById = async (tenantId, ownerId) => {
         },
       },
       payments: {
-        select: {
-          id: true,
+        select: { recordId: true,
           amountCents: true,
           status: true,
           createdAt: true,
@@ -155,7 +149,7 @@ const updateOwner = async (tenantId, ownerId, ownerData) => {
 
   // Verify owner exists
   const existing = await db.owner.findFirst({
-    where: { id: ownerId },
+    where: { recordId: ownerId },
   });
 
   if (!existing) {
@@ -180,7 +174,7 @@ const updateOwner = async (tenantId, ownerId, ownerData) => {
   }
 
   const updated = await db.owner.update({
-    where: { id: ownerId },
+    where: { recordId: ownerId },
     data: ownerData,
   });
 
@@ -195,13 +189,12 @@ const deleteOwner = async (tenantId, ownerId) => {
 
   // Check if owner exists
   const owner = await db.owner.findFirst({
-    where: { id: ownerId },
+    where: { recordId: ownerId },
     include: {
       pets: {
         include: {
           pet: {
-            select: {
-              id: true,
+            select: { recordId: true,
               name: true,
               status: true,
             },
@@ -225,8 +218,7 @@ const deleteOwner = async (tenantId, ownerId) => {
         code: 'HAS_ACTIVE_PETS',
         meta: {
           activePetCount: activePets.length,
-          activePets: activePets.map((po) => ({
-            id: po.pet.id,
+          activePets: activePets.map((po) => ({ recordId: po.pet.recordId,
             name: po.pet.name,
           })),
         },
@@ -236,7 +228,7 @@ const deleteOwner = async (tenantId, ownerId) => {
 
   // Delete owner (this will cascade delete PetOwner join records)
   await db.owner.delete({
-    where: { id: ownerId },
+    where: { recordId: ownerId },
   });
 
   return { success: true };
@@ -249,7 +241,7 @@ const getOwnerPets = async (tenantId, ownerId) => {
   const db = forTenant(tenantId);
 
   const owner = await db.owner.findFirst({
-    where: { id: ownerId },
+    where: { recordId: ownerId },
     include: {
       pets: {
         include: {
@@ -277,7 +269,7 @@ const addPetToOwner = async (tenantId, ownerId, petId, isPrimary = false) => {
 
   // Verify owner exists
   const owner = await db.owner.findFirst({
-    where: { id: ownerId },
+    where: { recordId: ownerId },
   });
 
   if (!owner) {
@@ -286,7 +278,7 @@ const addPetToOwner = async (tenantId, ownerId, petId, isPrimary = false) => {
 
   // Verify pet exists
   const pet = await db.pet.findFirst({
-    where: { id: petId },
+    where: { recordId: petId },
   });
 
   if (!pet) {
@@ -346,7 +338,7 @@ const removePetFromOwner = async (tenantId, ownerId, petId) => {
 
   // Delete the relationship
   await db.petOwner.delete({
-    where: { id: petOwner.id },
+    where: { recordId: petOwner.recordId },
   });
 
   return { success: true };

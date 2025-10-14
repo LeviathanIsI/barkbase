@@ -42,7 +42,7 @@ const PropertyCriteriaSelector = ({ criteriaType, onSelect, onClose }) => {
     // Format the condition for display in the workflow
     onSelect({
       type: 'property-condition',
-      propertyId: condition.property.id,
+      propertyId: condition.property.recordId,
       propertyName: condition.property.name,
       propertyLabel: condition.property.label,
       operator: condition.operator,

@@ -14,7 +14,7 @@ const readiness = require("./lib/readiness");
 const requestLogger = require("./middleware/requestLogger");
 const errorHandler = require("./middleware/errorHandler");
 const { tenantResolver } = require("./middleware/tenantResolver");
-const tenantContext = require("./middleware/tenantContext");
+const { tenantContext } = require("./middleware/tenantContext");
 const { validateFileAccess } = require("./middleware/validateFileAccess");
 const csrfProtection = require("./middleware/csrf");
 
@@ -41,6 +41,11 @@ const handlerRunsRoutes = require("./routes/handlerRuns.routes");
 const eventsRoutes = require("./routes/events.routes");
 const propertiesRoutes = require("./routes/properties.routes");
 const associationsRoutes = require("./routes/associations.routes");
+const facilityRoutes = require("./routes/facility.routes");
+const userRoutes = require("./routes/user.routes");
+const communicationRoutes = require("./routes/communication.routes");
+const noteRoutes = require("./routes/note.routes");
+const segmentRoutes = require("./routes/segment.routes");
 
 const app = express();
 
@@ -55,8 +60,8 @@ app.use(
 );
 app.use(requestLogger);
 app.use((req, res, next) => {
-  if (req.id) {
-    res.setHeader("X-Request-ID", req.id);
+  if (req.recordId) {
+    res.setHeader("X-Request-ID", req.recordId);
   }
   next();
 });
@@ -131,6 +136,11 @@ app.use("/api/v1/handler-runs", handlerRunsRoutes);
 app.use("/api/v1/account-defaults", accountDefaultsRoutes);
 app.use("/api/v1/settings/properties", propertiesRoutes);
 app.use("/api/v1/settings/associations", associationsRoutes);
+app.use("/api/v1/facility", facilityRoutes);
+app.use("/api/v1/communications", communicationRoutes);
+app.use("/api/v1/notes", noteRoutes);
+app.use("/api/v1/segments", segmentRoutes);
+app.use("/users", userRoutes);
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", time: new Date().toISOString() });

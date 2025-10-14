@@ -42,8 +42,7 @@ const BookingCard = ({ booking, isDragging = false }) => {
 };
 
 const DraggableBooking = ({ booking, segmentId }) => {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: `booking-${segmentId}`,
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ recordId: `booking-${segmentId}`,
     data: { booking, segmentId },
   });
 
@@ -60,22 +59,21 @@ const DraggableBooking = ({ booking, segmentId }) => {
 };
 
 const KennelColumn = ({ kennel, day, bookings, occupancy }) => {
-  const { isOver, setNodeRef } = useDroppable({
-    id: `kennel-${kennel.id}-${format(day, 'yyyy-MM-dd')}`,
-    data: { kennelId: kennel.id, date: day },
+  const { isOver, setNodeRef } = useDroppable({ recordId: `kennel-${kennel.recordId}-${format(day, 'yyyy-MM-dd')}`,
+    data: { kennelId: kennel.recordId, date: day },
   });
 
   const dayBookings = bookings.filter((booking) => {
     const segments = booking.segments || [];
     return segments.some((seg) => {
-      if (seg.kennelId !== kennel.id) return false;
+      if (seg.kennelId !== kennel.recordId) return false;
       const segStart = parseISO(seg.startDate);
       const segEnd = parseISO(seg.endDate);
       return isSameDay(segStart, day) || (segStart <= day && segEnd >= day);
     });
   });
 
-  const kennelOccupancy = occupancy?.kennels?.find((k) => k.kennel.id === kennel.id);
+  const kennelOccupancy = occupancy?.kennels?.find((k) => k.kennel.recordId === kennel.recordId);
   const utilizationPercent = kennelOccupancy?.utilizationPercent ?? 0;
 
   const heatmapColor =
@@ -95,8 +93,8 @@ const KennelColumn = ({ kennel, day, bookings, occupancy }) => {
       className={`min-h-[120px] border-r border-b p-2 ${heatmapColor} ${isOver ? 'ring-2 ring-primary' : ''}`}
     >
       {dayBookings.map((booking) => {
-        const segment = booking.segments?.find((seg) => seg.kennelId === kennel.id);
-        return segment ? <DraggableBooking key={segment.id} booking={booking} segmentId={segment.id} /> : null;
+        const segment = booking.segments?.find((seg) => seg.kennelId === kennel.recordId);
+        return segment ? <DraggableBooking key={segment.recordId} booking={booking} segmentId={segment.recordId} /> : null;
       })}
     </div>
   );
@@ -186,8 +184,8 @@ const WeekView = () => {
 
     bookings.forEach((booking) => {
       booking.segments?.forEach((segment) => {
-        if (segment.kennel && !kennelMap.has(segment.kennel.id)) {
-          kennelMap.set(segment.kennel.id, segment.kennel);
+        if (segment.kennel && !kennelMap.has(segment.kennel.recordId)) {
+          kennelMap.set(segment.kennel.recordId, segment.kennel);
         }
       });
     });
@@ -196,7 +194,7 @@ const WeekView = () => {
   }, [calendarQuery.data]);
 
   const handleDragStart = (event) => {
-    setActiveId(event.active.id);
+    setActiveId(event.active.recordId);
   };
 
   const handleDragEnd = async (event) => {
@@ -214,7 +212,7 @@ const WeekView = () => {
     const { kennelId, date } = overData;
 
     // If dropped on the same kennel and same day, do nothing
-    const segment = booking.segments?.find((s) => s.id === segmentId);
+    const segment = booking.segments?.find((s) => s.recordId === segmentId);
     if (segment && segment.kennelId === kennelId && isSameDay(parseISO(segment.startDate), date)) {
       return;
     }
@@ -258,7 +256,7 @@ const WeekView = () => {
 
   const bookings = calendarQuery.data?.bookings || [];
   const activeBooking = activeId
-    ? bookings.find((b) => b.segments?.some((s) => `booking-${s.id}` === activeId))
+    ? bookings.find((b) => b.segments?.some((s) => `booking-${s.recordId}` === activeId))
     : null;
 
   return (
@@ -302,7 +300,7 @@ const WeekView = () => {
                 </div>
               ) : (
                 kennels.map((kennel) => (
-                  <div key={kennel.id} className="contents">
+                  <div key={kennel.recordId} className="contents">
                     <div className="bg-surface border-r border-b p-2 font-medium sticky left-0">
                       <div>{kennel.name}</div>
                       <Badge variant="neutral" className="text-xs">
@@ -311,7 +309,7 @@ const WeekView = () => {
                     </div>
                     {days.map((day) => (
                       <KennelColumn
-                        key={`${kennel.id}-${day.toISOString()}`}
+                        key={`${kennel.recordId}-${day.toISOString()}`}
                         kennel={kennel}
                         day={day}
                         bookings={bookings}

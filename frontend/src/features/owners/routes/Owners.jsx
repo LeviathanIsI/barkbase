@@ -45,12 +45,12 @@ const Owners = () => {
   const queryClient = useQueryClient();
 
   const createOwnerMutation = useCreateOwnerMutation();
-  const updateOwnerMutation = useUpdateOwnerMutation(editingOwner?.id);
+  const updateOwnerMutation = useUpdateOwnerMutation(editingOwner?.recordId);
   const deleteOwnerMutation = useDeleteOwnerMutation();
 
   useEffect(() => {
     if (ownersQuery.isError) {
-      toast.error(ownersQuery.error?.message ?? 'Unable to load owners', { id: 'owners-error' });
+      toast.error(ownersQuery.error?.message ?? 'Unable to load owners', { recordId: 'owners-error' });
     }
   }, [ownersQuery.isError, ownersQuery.error]);
 
@@ -72,16 +72,15 @@ const Owners = () => {
 
   // Views
   const views = useMemo(() => [
-    { id: 'all-owners', label: 'All Owners' },
-    { id: 'active', label: 'Active Clients' },
-    { id: 'inactive', label: 'Inactive' },
-    { id: 'high-value', label: 'High Value Clients', canClose: true },
+    { recordId: 'all-owners', label: 'All Owners' },
+    { recordId: 'active', label: 'Active Clients' },
+    { recordId: 'inactive', label: 'Inactive' },
+    { recordId: 'high-value', label: 'High Value Clients', canClose: true },
   ], []);
 
   // Filter groups for the filter bar
   const filterGroups = [
-    {
-      id: 'bookings',
+    { recordId: 'bookings',
       label: 'Booking Count',
       options: [
         { value: 'zero', label: '0 bookings' },
@@ -91,8 +90,7 @@ const Owners = () => {
         { value: '21+', label: '21+ bookings' },
       ],
     },
-    {
-      id: 'joinDate',
+    { recordId: 'joinDate',
       label: 'Create Date',
       options: [
         { value: 'last7days', label: 'Last 7 days' },
@@ -102,8 +100,7 @@ const Owners = () => {
         { value: 'lastYear', label: 'Last year' },
       ],
     },
-    {
-      id: 'lastBooking',
+    { recordId: 'lastBooking',
       label: 'Last Booking',
       options: [
         { value: 'last7days', label: 'Last 7 days' },
@@ -113,8 +110,7 @@ const Owners = () => {
         { value: 'never', label: 'Never booked' },
       ],
     },
-    {
-      id: 'lifetime',
+    { recordId: 'lifetime',
       label: 'Lifetime Value',
       options: [
         { value: '0-500', label: '$0 - $500' },
@@ -349,7 +345,7 @@ const Owners = () => {
   ];
 
   const handleRowClick = (owner) => {
-    navigate(`/owners/${owner.id}`);
+    navigate(`/customers/${owner.recordId}`);
   };
 
   const handleExport = () => {

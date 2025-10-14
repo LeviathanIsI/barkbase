@@ -29,8 +29,7 @@ import {
 // Sample initial nodes for demo (linear flow)
 // Positions will be calculated by linearLayout utilities
 const initialNodes = [
-  {
-    id: '1',
+  { recordId: '1',
     type: 'trigger',
     position: { x: 0, y: 0 }, // Will be set by linearLayout
     data: {
@@ -191,7 +190,7 @@ export default function WorkflowBuilder() {
     if (selectedNode?.type === 'trigger') {
       setNodes((currentNodes) => {
         return currentNodes.map(node => {
-          if (node.id === selectedNode.id) {
+          if (node.recordId === selectedNode.recordId) {
             return {
               ...node,
               data: {
@@ -211,8 +210,7 @@ export default function WorkflowBuilder() {
     } else {
       // Adding a new action node
       setNodes((currentNodes) => {
-        const newNode = {
-          id: `node-${Date.now()}`,
+        const newNode = { recordId: `node-${Date.now()}`,
           type: nodeConfig.type,
           position: { x: 0, y: 0 }, // Will be set by linearLayout
           data: {
@@ -240,7 +238,7 @@ export default function WorkflowBuilder() {
     // Check if the node still exists in the current nodes array
     // This prevents opening the sidebar for a node that was just deleted
     setNodes((currentNodes) => {
-      const nodeExists = currentNodes.some(n => n.id === node.id);
+      const nodeExists = currentNodes.some(n => n.recordId === node.recordId);
       if (nodeExists) {
         setSelectedNode(node);
         setSidebarMode('edit');
@@ -260,7 +258,7 @@ export default function WorkflowBuilder() {
   const handleNodeUpdate = useCallback((nodeId, newData) => {
     setNodes((currentNodes) => {
       return currentNodes.map(node => {
-        if (node.id === nodeId) {
+        if (node.recordId === nodeId) {
           return {
             ...node,
             data: {
@@ -275,7 +273,7 @@ export default function WorkflowBuilder() {
 
     // Also update the selected node state to reflect changes
     setSelectedNode((current) => {
-      if (current && current.id === nodeId) {
+      if (current && current.recordId === nodeId) {
         return {
           ...current,
           data: {
@@ -301,14 +299,13 @@ export default function WorkflowBuilder() {
         const nextNode = sorted[i + 1];
 
         // Check if this node already has manual edges
-        const hasManualEdges = nodesWithOutgoingEdges.has(currentNode.id);
+        const hasManualEdges = nodesWithOutgoingEdges.has(currentNode.recordId);
 
         if (!hasManualEdges) {
           // Create default sequential edge
-          newEdges.push({
-            id: `e${currentNode.id}-${nextNode.id}`,
-            source: currentNode.id,
-            target: nextNode.id,
+          newEdges.push({ recordId: `e${currentNode.recordId}-${nextNode.recordId}`,
+            source: currentNode.recordId,
+            target: nextNode.recordId,
             animated: true,
             type: 'linear',
             data: {
@@ -322,8 +319,8 @@ export default function WorkflowBuilder() {
       // Preserve all manual edges (those not in the newEdges)
       const manualEdges = currentEdges.filter(edge => {
         // Keep edges that still have valid source and target nodes
-        const sourceExists = nodes.some(n => n.id === edge.source);
-        const targetExists = nodes.some(n => n.id === edge.target);
+        const sourceExists = nodes.some(n => n.recordId === edge.source);
+        const targetExists = nodes.some(n => n.recordId === edge.target);
         return sourceExists && targetExists;
       });
 
@@ -354,13 +351,13 @@ export default function WorkflowBuilder() {
             stepIndex: node.data?.stepIndex || index + 1,
             totalSteps: currentNodes.length,
             onClone: handleCloneNode,
-            onMoveUp: (id) => handleMoveNode(id, 'up'),
-            onMoveDown: (id) => handleMoveNode(id, 'down'),
+            onMoveUp: (recordId) => handleMoveNode(recordId, 'up'),
+            onMoveDown: (recordId) => handleMoveNode(recordId, 'down'),
             onDelete: handleDeleteNode,
             onInsert: handleOpenAddAction,
           },
         };
-        console.log('[WorkflowBuilder] Enriched node:', node.id, 'has onInsert:', !!enriched.data.onInsert);
+        console.log('[WorkflowBuilder] Enriched node:', node.recordId, 'has onInsert:', !!enriched.data.onInsert);
         return enriched;
       });
     });
@@ -406,8 +403,8 @@ export default function WorkflowBuilder() {
         });
 
         // Navigate to the new flow's edit page
-        if (result?.id) {
-          navigate(`/workflows/${result.id}/edit`, { replace: true });
+        if (result?.recordId) {
+          navigate(`/workflows/${result.recordId}/edit`, { replace: true });
         }
       }
 

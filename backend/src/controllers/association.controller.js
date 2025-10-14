@@ -11,7 +11,7 @@ const listAssociations = async (req, res) => {
 };
 
 const getAssociation = async (req, res) => {
-  const association = await associationService.getAssociationById(req.tenantId, req.params.id);
+  const association = await associationService.getAssociationById(req.tenantId, req.params.recordId);
   res.json(association);
 };
 
@@ -27,14 +27,14 @@ const createAssociation = async (req, res) => {
 const updateAssociation = async (req, res) => {
   const association = await associationService.updateAssociation(
     req.tenantId,
-    req.params.id,
+    req.params.recordId,
     req.body
   );
   res.json(association);
 };
 
 const deleteAssociation = async (req, res) => {
-  const result = await associationService.deleteAssociation(req.tenantId, req.params.id);
+  const result = await associationService.deleteAssociation(req.tenantId, req.params.recordId);
   res.json(result);
 };
 

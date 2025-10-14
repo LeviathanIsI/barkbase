@@ -59,7 +59,7 @@ export default function HandlerFlowDetail() {
             <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">Steps</h3>
             <div className="mt-2 space-y-3">
               {(flow.handler_steps ?? []).map((step) => (
-                <div key={step.id} className="rounded-lg border border-border/60 bg-surface/95 p-4">
+                <div key={step.recordId} className="rounded-lg border border-border/60 bg-surface/95 p-4">
                   <p className="text-sm font-semibold text-text">
                     {step.name}{' '}
                     <Badge variant="neutral" className="uppercase">

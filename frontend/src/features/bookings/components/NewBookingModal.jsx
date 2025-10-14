@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button';
 import { useCreateBookingMutation } from '../api';
 import { usePetsQuery } from '@/features/pets/api';
 import { useKennelAvailability } from '@/features/kennels/api';
+import { useTerminology } from '@/lib/terminology';
 
 const defaultValues = {
   petId: '',
@@ -27,6 +28,7 @@ const NewBookingModal = ({ open, onClose }) => {
   const mutation = useCreateBookingMutation();
   const petsQuery = usePetsQuery();
   const kennelQuery = useKennelAvailability();
+  const terminology = useTerminology();
   const { register, handleSubmit, reset, watch, setValue } = useForm({ defaultValues });
 
   const selectedPetId = watch('petId');
@@ -36,7 +38,7 @@ const NewBookingModal = ({ open, onClose }) => {
   // Auto-populate owner when pet is selected
   useEffect(() => {
     if (selectedPetId && pets.length) {
-      const selectedPet = pets.find((p) => p.id === selectedPetId);
+      const selectedPet = pets.find((p) => p.recordId === selectedPetId);
       if (selectedPet?.ownerId) {
         setValue('ownerId', selectedPet.ownerId);
       }
@@ -49,8 +51,7 @@ const NewBookingModal = ({ open, onClose }) => {
       const uniqueOwners = new Map();
       pets.forEach((pet) => {
         if (pet.owner && pet.ownerId && !uniqueOwners.has(pet.ownerId)) {
-          uniqueOwners.set(pet.ownerId, {
-            id: pet.ownerId,
+          uniqueOwners.set(pet.ownerId, { recordId: pet.ownerId,
             name: `${pet.owner.firstName ?? ''} ${pet.owner.lastName ?? ''}`.trim(),
           });
         }
@@ -132,7 +133,7 @@ const NewBookingModal = ({ open, onClose }) => {
           >
             <option value="">Select a pet...</option>
             {pets.map((pet) => (
-              <option key={pet.id} value={pet.id}>
+              <option key={pet.recordId} value={pet.recordId}>
                 {pet.name} ({pet.species ?? 'Unknown'})
               </option>
             ))}
@@ -150,7 +151,7 @@ const NewBookingModal = ({ open, onClose }) => {
           >
             <option value="">Select an owner...</option>
             {owners.map((owner) => (
-              <option key={owner.id} value={owner.id}>
+              <option key={owner.recordId} value={owner.recordId}>
                 {owner.name}
               </option>
             ))}
@@ -159,20 +160,20 @@ const NewBookingModal = ({ open, onClose }) => {
 
         <div className="grid gap-2">
           <label className="text-sm font-medium">
-            Kennel Assignment <span className="text-red-500">*</span>
+            {terminology.getAccommodationType('KENNEL')} Assignment <span className="text-red-500">*</span>
           </label>
           <select
             {...register('kennelId', { required: true })}
             className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
           >
-            <option value="">Select a kennel...</option>
+            <option value="">Select a {terminology.kennel.toLowerCase()}...</option>
             {kennels.map((kennel) => (
-              <option key={kennel.id} value={kennel.id}>
-                {kennel.name} - {kennel.type ?? 'Standard'}
+              <option key={kennel.recordId} value={kennel.recordId}>
+                {terminology.getDisplayName(kennel.type, kennel.name, kennel.number)} - {terminology.getAccommodationType(kennel.type)}
               </option>
             ))}
           </select>
-          {kennelQuery.isLoading && <p className="text-xs text-muted">Loading kennels...</p>}
+          {kennelQuery.isLoading && <p className="text-xs text-muted">Loading {terminology.kennels}...</p>}
         </div>
 
         <div className="grid grid-cols-2 gap-4">

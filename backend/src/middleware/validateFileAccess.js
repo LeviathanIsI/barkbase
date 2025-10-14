@@ -41,8 +41,7 @@ const ensureAuthenticated = async (req) => {
   }
 
   const membership = await prisma.membership.findFirst({
-    where: {
-      id: payload.membershipId,
+    where: { recordId: payload.membershipId,
       tenantId: payload.tenantId,
       userId: payload.sub,
     },
@@ -57,12 +56,11 @@ const ensureAuthenticated = async (req) => {
     throw error;
   }
 
-  req.user = {
-    id: membership.user.id,
+  req.user = { recordId: membership.user.recordId,
     email: membership.user.email,
     role: membership.role,
     tenantId: membership.tenantId,
-    membershipId: membership.id,
+    membershipId: membership.recordId,
   };
 };
 
@@ -99,7 +97,7 @@ const validateFileAccess = () => {
           {
             userTenant: req.tenantSlug,
             requestedTenant: requestedTenantSlug,
-            userId: req.user?.id,
+            userId: req.user?.recordId,
             path: req.path,
           },
           'Cross-tenant file access attempt blocked',

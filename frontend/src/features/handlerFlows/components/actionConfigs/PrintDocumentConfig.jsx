@@ -24,7 +24,7 @@ const PrintDocumentConfig = ({ node, onUpdate }) => {
     }
 
     setErrors([]);
-    onUpdate(node.id, {
+    onUpdate(node.recordId, {
       actionType: 'print.document',
       config: newConfig,
       label: node.data.label || 'Print Document',

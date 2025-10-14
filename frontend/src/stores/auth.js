@@ -12,6 +12,7 @@ const initialState = {
   accessToken: null,
   refreshToken: null,
   expiresAt: null,
+  rememberMe: false,
 };
 
 export const useAuthStore = create(
@@ -19,7 +20,7 @@ export const useAuthStore = create(
     (set, get) => ({
       ...initialState,
       setAuth: (payload = {}) => {
-        const { user, tokens, accessToken, refreshToken, role, tenantId, memberships, expiresAt } = payload;
+        const { user, tokens, accessToken, refreshToken, role, tenantId, memberships, expiresAt, rememberMe } = payload;
         const resolvedAccessToken = accessToken ?? tokens?.accessToken ?? null;
         const resolvedRefreshToken = refreshToken ?? tokens?.refreshToken ?? null;
         const computedExpiry = tokens?.accessTokenExpiresIn
@@ -30,6 +31,7 @@ export const useAuthStore = create(
         const resolvedRole = resolvedRoleRaw ? String(resolvedRoleRaw).toUpperCase() : null;
         const resolvedTenantId = tenantId ?? user?.tenantId ?? null;
         const resolvedMemberships = memberships ?? user?.memberships ?? [];
+        const shouldRemember = rememberMe ?? false;
 
         set({
           user: user ?? null,
@@ -39,6 +41,7 @@ export const useAuthStore = create(
           tenantId: resolvedTenantId,
           memberships: resolvedMemberships,
           expiresAt: computedExpiry,
+          rememberMe: shouldRemember,
         });
       },
       updateTokens: ({ accessToken, refreshToken, tokens, expiresAt, role, tenantId }) => {
@@ -98,15 +101,17 @@ export const useAuthStore = create(
     {
       name: 'barkbase-auth',
       storage: createJSONStorage(getStorage),
-      // SECURITY: Do NOT persist tokens in browser storage (XSS vulnerability)
-      // Tokens are kept in memory only. Backend uses httpOnly cookies for refresh.
-      partialize: ({ user, memberships, role, tenantId, expiresAt }) => ({
+      // SECURITY: Tokens are only persisted if user opts in via "Remember Me"
+      // When rememberMe is false, tokens are kept in memory only and backend uses httpOnly cookies
+      partialize: ({ user, memberships, role, tenantId, expiresAt, rememberMe, refreshToken }) => ({
         user,
         memberships,
         role,
         tenantId,
-        // accessToken and refreshToken intentionally excluded from persistence
         expiresAt,
+        rememberMe,
+        // Only persist refreshToken if rememberMe is enabled
+        ...(rememberMe && refreshToken ? { refreshToken } : {}),
       }),
     },
   ),

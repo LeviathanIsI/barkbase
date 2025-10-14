@@ -27,7 +27,7 @@ const TaskCreateConfig = ({ node, onUpdate }) => {
     }
 
     setErrors([]);
-    onUpdate(node.id, {
+    onUpdate(node.recordId, {
       actionType: 'task.create',
       config: newConfig,
       label: node.data.label || 'Create Task',

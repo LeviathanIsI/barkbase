@@ -1,6 +1,6 @@
 const express = require('express');
 const { requireAuth } = require('../middleware/requireAuth');
-const tenantContext = require('../middleware/tenantContext');
+const { tenantContext } = require('../middleware/tenantContext');
 const validate = require('../middleware/validate');
 const {
   createOwnerSchema,
@@ -36,31 +36,31 @@ router.get(
 );
 
 /**
- * GET /api/v1/owners/:id/pets
+ * GET /api/v1/owners/:recordId/pets
  * Get all pets for an owner
  */
 router.get(
-  '/:id/pets',
+  '/:recordId/pets',
   requireAuth(['OWNER', 'ADMIN', 'STAFF']),
   ownerController.getOwnerPets
 );
 
 /**
- * POST /api/v1/owners/:id/pets
+ * POST /api/v1/owners/:recordId/pets
  * Associate a pet with an owner
  */
 router.post(
-  '/:id/pets',
+  '/:recordId/pets',
   requireAuth(['OWNER', 'ADMIN', 'STAFF']),
   ownerController.addPetToOwner
 );
 
 /**
- * DELETE /api/v1/owners/:id/pets/:petId
+ * DELETE /api/v1/owners/:recordId/pets/:petId
  * Remove a pet from an owner
  */
 router.delete(
-  '/:id/pets/:petId',
+  '/:recordId/pets/:petId',
   requireAuth(['OWNER', 'ADMIN', 'STAFF']),
   ownerController.removePetFromOwner
 );

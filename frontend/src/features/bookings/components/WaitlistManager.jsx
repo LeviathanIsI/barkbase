@@ -29,9 +29,9 @@ const WaitlistManager = () => {
       payload.endDate = overrides.endDate;
     }
 
-    setProcessingId(entry.id);
+    setProcessingId(entry.recordId);
     try {
-      const promoted = await promoteFromWaitlist(entry.id, payload);
+      const promoted = await promoteFromWaitlist(entry.recordId, payload);
       toast.success(`Promoted ${entry.pet?.name ?? 'booking'} from waitlist.`);
       const normalised = {
         ...promoted,
@@ -43,7 +43,7 @@ const WaitlistManager = () => {
         kennelId:
           promoted.kennelId ??
           promoted.segments?.[0]?.kennelId ??
-          promoted.segments?.[0]?.kennel?.id ??
+          promoted.segments?.[0]?.kennel?.recordId ??
           null,
         kennelName: promoted.kennelName ?? promoted.segments?.[0]?.kennel?.name ?? '',
       };
@@ -77,7 +77,7 @@ const WaitlistManager = () => {
             const kennelId = entry.kennelId ?? entry.segments?.[0]?.kennelId ?? null;
 
             return (
-              <li key={entry.id} className="rounded-xl border border-border/60 bg-surface/60 p-4">
+              <li key={entry.recordId} className="rounded-xl border border-border/60 bg-surface/60 p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold">{entry.pet?.name ?? entry.petName}</p>
@@ -94,7 +94,7 @@ const WaitlistManager = () => {
                 <div className="mt-4 flex gap-2">
                   <Button
                     size="sm"
-                    disabled={processingId === entry.id}
+                    disabled={processingId === entry.recordId}
                     onClick={() =>
                       handlePromote(entry, {
                         kennelId: kennelId ?? undefined,
@@ -103,12 +103,12 @@ const WaitlistManager = () => {
                       })
                     }
                   >
-                    {processingId === entry.id ? 'Promoting…' : 'Promote to Booking'}
+                    {processingId === entry.recordId ? 'Promoting…' : 'Promote to Booking'}
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
-                    disabled={processingId === entry.id}
+                    disabled={processingId === entry.recordId}
                     onClick={() =>
                       handlePromote(entry, {
                         startDate: startIso,

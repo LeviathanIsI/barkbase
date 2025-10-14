@@ -92,8 +92,7 @@ const PetDetail = () => {
   }), []);
 
   const tabs = useMemo(() => [
-    {
-      id: 'overview',
+    { recordId: 'overview',
       label: 'Overview',
       render: (record) => (
         <SectionCard title="Health & Care">
@@ -115,8 +114,7 @@ const PetDetail = () => {
         </SectionCard>
       ),
     },
-    {
-      id: 'bookings',
+    { recordId: 'bookings',
       label: 'Bookings',
       render: (record) => {
         const allBookings = record?.bookings || [];
@@ -128,7 +126,7 @@ const PetDetail = () => {
               )}
               {allBookings.map((booking) => (
                 <div
-                  key={booking.id}
+                  key={booking.recordId}
                   className="flex items-center justify-between border-b border-border pb-3 last:border-0"
                 >
                   <div>
@@ -148,8 +146,7 @@ const PetDetail = () => {
         );
       },
     },
-    {
-      id: 'vaccinations',
+    { recordId: 'vaccinations',
       label: 'Vaccinations',
       render: (record) => {
         const vaccines = record?.vaccinations || [];
@@ -161,7 +158,7 @@ const PetDetail = () => {
               )}
               {vaccines.map((vaccine) => (
                 <div
-                  key={vaccine.id}
+                  key={vaccine.recordId}
                   className="flex items-center justify-between border-b border-border pb-3 last:border-0"
                 >
                   <div>
@@ -182,8 +179,7 @@ const PetDetail = () => {
   ], []);
 
   const asideSections = useMemo(() => [
-    {
-      id: 'owners',
+    { recordId: 'owners',
       title: `Owners (${(pet.owners || []).length})`,
       render: (record) => {
         const recordOwners = record?.owners || [];
@@ -194,7 +190,7 @@ const PetDetail = () => {
         return (
           <div className="space-y-2">
             {recordOwners.map((owner) => (
-              <div key={owner.id} className="flex items-center gap-3 rounded-md border border-border px-3 py-2">
+              <div key={owner.recordId} className="flex items-center gap-3 rounded-md border border-border px-3 py-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-100 text-purple-600">
                   <User className="h-4 w-4" />
                 </div>
@@ -210,8 +206,7 @@ const PetDetail = () => {
         );
       },
     },
-    {
-      id: 'activity',
+    { recordId: 'activity',
       title: 'Recent Activity',
       render: (record) => {
         const recent = (record?.bookings || []).slice(0, 3);
@@ -222,7 +217,7 @@ const PetDetail = () => {
         return (
           <div className="space-y-2">
             {recent.map((booking) => (
-              <div key={booking.id} className="rounded-md border border-border p-3">
+              <div key={booking.recordId} className="rounded-md border border-border p-3">
                 <div className="mb-1 flex items-center gap-2">
                   <Calendar className="h-3.5 w-3.5 text-muted" />
                   <span className="text-xs font-medium text-muted">

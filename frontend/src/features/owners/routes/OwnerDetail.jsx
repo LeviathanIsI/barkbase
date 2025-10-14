@@ -50,7 +50,7 @@ const OwnerDetail = () => {
   const associationLabels = [
     { value: '', label: 'No label' },
     ...(associationsQuery.data || []).map(assoc => ({
-      value: assoc.id,
+      value: assoc.recordId,
       label: assoc.label,
     })),
   ];
@@ -79,7 +79,7 @@ const OwnerDetail = () => {
       for (const { recordId, label } of associations) {
         // label is now the association definition ID
         // Find the association definition to check if it's a primary association
-        const associationDef = associationsQuery.data?.find(a => a.id === label);
+        const associationDef = associationsQuery.data?.find(a => a.recordId === label);
         const isPrimary = associationDef?.label === 'Primary';
 
         await addPetMutation.mutateAsync({ petId: recordId, isPrimary });
@@ -115,7 +115,7 @@ const OwnerDetail = () => {
 
       const newPet = await createPetMutation.mutateAsync(petData);
       // Automatically associate the new pet with this owner
-      await addPetMutation.mutateAsync({ petId: newPet.id, isPrimary: false });
+      await addPetMutation.mutateAsync({ petId: newPet.recordId, isPrimary: false });
       queryClient.invalidateQueries({ queryKey: [...queryKeys.owners(tenantKey), ownerId] });
       queryClient.invalidateQueries({ queryKey: queryKeys.pets(tenantKey) });
       toast.success('Pet created and associated successfully');
@@ -152,7 +152,7 @@ const OwnerDetail = () => {
 
   const fullName = `${owner.firstName} ${owner.lastName}`;
   // Backend already transforms pets array, so owner.pets is already an array of pet objects
-  const pets = owner.pets?.filter(pet => pet && pet.id) || [];
+  const pets = owner.pets?.filter(pet => pet && pet.recordId) || [];
   const bookings = owner.bookings || [];
   const payments = owner.payments || [];
   const lifetimeValue = payments.reduce((sum, p) => sum + (p.amountCents || 0), 0) / 100;
@@ -209,8 +209,7 @@ const OwnerDetail = () => {
   );
 
   const tabs = useMemo(() => [
-    {
-      id: 'overview',
+    { recordId: 'overview',
       label: 'Overview',
       render: (record) => {
         const timelineBookings = (record?.bookings || []).slice(0, 10);
@@ -222,7 +221,7 @@ const OwnerDetail = () => {
               )}
               {timelineBookings.map((booking) => (
                 <div
-                  key={booking.id}
+                  key={booking.recordId}
                   className="flex gap-4 border-b border-border pb-4 last:border-0"
                 >
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-600">
@@ -247,8 +246,7 @@ const OwnerDetail = () => {
         );
       },
     },
-    {
-      id: 'bookings',
+    { recordId: 'bookings',
       label: 'Bookings',
       render: (record) => {
         const allBookings = record?.bookings || [];
@@ -260,7 +258,7 @@ const OwnerDetail = () => {
               )}
               {allBookings.map((booking) => (
                 <div
-                  key={booking.id}
+                  key={booking.recordId}
                   className="flex items-center justify-between border-b border-border pb-3 last:border-0"
                 >
                   <div>
@@ -278,8 +276,7 @@ const OwnerDetail = () => {
         );
       },
     },
-    {
-      id: 'payments',
+    { recordId: 'payments',
       label: 'Payments',
       render: (record) => {
         const allPayments = record?.payments || [];
@@ -291,7 +288,7 @@ const OwnerDetail = () => {
               )}
               {allPayments.map((payment) => (
                 <div
-                  key={payment.id}
+                  key={payment.recordId}
                   className="flex items-center justify-between border-b border-border pb-3 last:border-0"
                 >
                   <div>
@@ -313,8 +310,7 @@ const OwnerDetail = () => {
   ], [bookings, payments]);
 
   const asideSections = useMemo(() => [
-    {
-      id: 'pets',
+    { recordId: 'pets',
       title: `Pets (${pets.length})`,
       header: (
         <Button size="xs" variant="ghost" onClick={() => setAddPetModalOpen(true)}>
@@ -331,7 +327,7 @@ const OwnerDetail = () => {
           <div className="space-y-2">
             {recordPets.map((pet) => (
               <div
-                key={pet.id}
+                key={pet.recordId}
                 className="flex items-center gap-3 rounded-md border border-border px-3 py-2 transition hover:bg-gray-50"
               >
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-600">
@@ -342,7 +338,7 @@ const OwnerDetail = () => {
                   <p className="text-xs text-muted">{pet.breed || 'Unknown breed'}</p>
                 </div>
                 <button
-                  onClick={() => handleRemovePet(pet.id)}
+                  onClick={() => handleRemovePet(pet.recordId)}
                   className="rounded-full p-1 text-muted transition hover:bg-red-50 hover:text-red-600"
                   title="Remove pet"
                 >
@@ -354,8 +350,7 @@ const OwnerDetail = () => {
         );
       },
     },
-    {
-      id: 'metrics',
+    { recordId: 'metrics',
       title: 'Key Metrics',
       render: () => (
         <div className="space-y-3">
@@ -383,8 +378,7 @@ const OwnerDetail = () => {
         </div>
       ),
     },
-    {
-      id: 'activity',
+    { recordId: 'activity',
       title: 'Recent Activity',
       render: (record) => {
         const recent = (record?.bookings || []).slice(0, 3);
@@ -395,7 +389,7 @@ const OwnerDetail = () => {
         return (
           <div className="space-y-2">
             {recent.map((booking) => (
-              <div key={booking.id} className="rounded-md border border-border p-3">
+              <div key={booking.recordId} className="rounded-md border border-border p-3">
                 <div className="mb-1 flex items-center gap-2">
                   <Calendar className="h-3.5 w-3.5 text-muted" />
                   <span className="text-xs font-medium text-muted">
@@ -436,7 +430,7 @@ const OwnerDetail = () => {
       title="Associate Pet"
       objectType="pet"
       availableRecords={allPets}
-      currentAssociations={pets.map(p => p.id)}
+      currentAssociations={pets.map(p => p.recordId)}
       onAssociate={handleAssociatePet}
       onCreateNew={handleCreatePet}
       associationLabels={associationLabels}

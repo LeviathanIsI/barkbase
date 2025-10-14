@@ -40,7 +40,7 @@ const QuickCheckIn = () => {
         bookingId: values.bookingId,
         kennelId: values.kennelId || undefined,
       });
-      const booking = pendingBookings.find((item) => item.id === values.bookingId);
+      const booking = pendingBookings.find((item) => item.recordId === values.bookingId);
       toast.success(`Checked in ${booking?.pet?.name ?? 'pet'} successfully.`);
       reset();
     } catch (error) {
@@ -63,8 +63,8 @@ const QuickCheckIn = () => {
           >
             <option value="">Choose a booking</option>
             {pendingBookings.map((booking) => (
-              <option key={booking.id} value={booking.id}>
-                {booking.pet?.name ?? booking.petName} · {new Date(booking.dateRange.start).toLocaleDateString()}
+              <option key={booking.recordId} value={booking.recordId}>
+                {booking.pet?.name ?? booking.petName} ï¿½ {new Date(booking.dateRange.start).toLocaleDateString()}
               </option>
             ))}
           </select>
@@ -80,7 +80,7 @@ const QuickCheckIn = () => {
             >
               <option value="">Keep current assignment</option>
               {kennelOptions.map((kennel) => (
-                <option key={kennel.id} value={kennel.id}>
+                <option key={kennel.recordId} value={kennel.recordId}>
                   {kennel.name}
                 </option>
               ))}
@@ -102,7 +102,7 @@ const QuickCheckIn = () => {
         </label>
         <div className="flex flex-wrap items-center gap-2">
           <Button type="submit" disabled={formState.isSubmitting || quickCheckIn.isPending}>
-            {quickCheckIn.isPending ? 'Checking in…' : 'Complete Check-In'}
+            {quickCheckIn.isPending ? 'Checking inï¿½' : 'Complete Check-In'}
           </Button>
           <Button type="button" variant="ghost" onClick={() => reset()}>
             Reset

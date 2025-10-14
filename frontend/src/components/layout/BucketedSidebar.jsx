@@ -38,28 +38,26 @@ import { useNavBucketTracking } from '@/hooks/useTelemetry';
 
 // Navigation structure with buckets
 const navigationBuckets = [
-  {
-    id: 'home',
+  { recordId: 'home',
     label: 'Home',
     icon: LayoutDashboard,
     items: [
       { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     ],
   },
-  {
-    id: 'kennel',
+  { recordId: 'kennel',
     label: 'Kennel',
     icon: CalendarCheck2,
     items: [
       { to: '/bookings', label: 'Reservations', icon: CalendarCheck2 },
       { to: '/calendar', label: 'Calendar', icon: Calendar },
+      { to: '/kennels', label: 'Kennel Setup', icon: Building2 },
       { to: '/runs', label: 'Run Assignment', icon: Home },
       { to: '/feeding-meds', label: 'Feeding & Meds', icon: Pill },
       { to: '/daycare/checkin', label: 'Daycare Check-in', icon: UserCheck },
     ],
   },
-  {
-    id: 'pack',
+  { recordId: 'pack',
     label: 'The Pack',
     icon: PawPrint,
     items: [
@@ -67,8 +65,7 @@ const navigationBuckets = [
       { to: '/owners', label: 'Owners', icon: Users },
     ],
   },
-  {
-    id: 'money',
+  { recordId: 'money',
     label: 'Money',
     icon: CreditCard,
     items: [
@@ -78,8 +75,7 @@ const navigationBuckets = [
       { to: '/pricing-rules', label: 'Pricing', icon: DollarSign },
     ],
   },
-  {
-    id: 'handlers',
+  { recordId: 'handlers',
     label: 'Handlers',
     icon: Workflow,
     items: [
@@ -89,8 +85,7 @@ const navigationBuckets = [
       { to: '/automations/custom-code', label: 'Custom Code', icon: Code, featureFlag: 'customCode' },
     ],
   },
-  {
-    id: 'helpdesk',
+  { recordId: 'helpdesk',
     label: 'Help Desk',
     icon: TicketIcon,
     items: [
@@ -99,8 +94,7 @@ const navigationBuckets = [
       { to: '/support/logs', label: 'Activity Logs', icon: FileSearch },
     ],
   },
-  {
-    id: 'settings',
+  { recordId: 'settings',
     label: 'Settings',
     icon: SettingsIcon,
     items: [
@@ -259,12 +253,12 @@ const BucketedSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         {visibleBuckets.map((bucket) => {
-          const isOpen = openBucket === bucket.id;
+          const isOpen = openBucket === bucket.recordId;
           const isActive = bucket.items.some((item) => location.pathname.startsWith(item.to));
           const BucketIcon = bucket.icon;
 
           // If bucket has only one item, render it directly without flyout
-          if (bucket.items.length === 1 && bucket.id === 'home') {
+          if (bucket.items.length === 1 && bucket.recordId === 'home') {
             const item = bucket.items[0];
             const ItemIcon = item.icon;
             return (
@@ -287,11 +281,11 @@ const BucketedSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
           }
 
           return (
-            <div key={bucket.id} className="mb-1">
+            <div key={bucket.recordId} className="mb-1">
               {/* Bucket Header */}
               <button
-                onClick={() => toggleBucket(bucket.id)}
-                onKeyDown={(e) => handleKeyDown(e, bucket.id)}
+                onClick={() => toggleBucket(bucket.recordId)}
+                onKeyDown={(e) => handleKeyDown(e, bucket.recordId)}
                 className={cn(
                   'group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-primary/10',
                   isActive ? 'text-primary' : 'text-muted hover:text-primary',
@@ -322,7 +316,7 @@ const BucketedSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
 
                     // Handle nested groups (e.g., Objects submenu)
                     if (item.isGroup && item.children) {
-                      const groupKey = `${bucket.id}-${item.label}`;
+                      const groupKey = `${bucket.recordId}-${item.label}`;
                       const groupOpen = openGroups[groupKey] || false;
 
                       const toggleGroup = () => {

@@ -30,7 +30,7 @@ const getAssociationById = async (tenantId, associationId) => {
   const db = forTenant(tenantId);
 
   const association = await db.associationDefinition.findFirst({
-    where: { id: associationId },
+    where: { recordId: associationId },
   });
 
   if (!association) {
@@ -91,7 +91,7 @@ const updateAssociation = async (tenantId, associationId, data) => {
 
   // Verify association exists
   const existing = await db.associationDefinition.findFirst({
-    where: { id: associationId },
+    where: { recordId: associationId },
   });
 
   if (!existing) {
@@ -129,7 +129,7 @@ const updateAssociation = async (tenantId, associationId, data) => {
   }
 
   const updated = await db.associationDefinition.update({
-    where: { id: associationId },
+    where: { recordId: associationId },
     data: {
       ...(data.label !== undefined && { label: data.label }),
       ...(data.reverseLabel !== undefined && { reverseLabel: data.reverseLabel }),
@@ -149,7 +149,7 @@ const deleteAssociation = async (tenantId, associationId) => {
 
   // Verify association exists
   const association = await db.associationDefinition.findFirst({
-    where: { id: associationId },
+    where: { recordId: associationId },
   });
 
   if (!association) {
@@ -166,7 +166,7 @@ const deleteAssociation = async (tenantId, associationId) => {
 
   // Soft delete by archiving
   await db.associationDefinition.update({
-    where: { id: associationId },
+    where: { recordId: associationId },
     data: {
       archived: true,
       archivedAt: new Date(),
@@ -183,7 +183,7 @@ const incrementUsageCount = async (tenantId, associationId) => {
   const db = forTenant(tenantId);
 
   await db.associationDefinition.update({
-    where: { id: associationId },
+    where: { recordId: associationId },
     data: {
       usageCount: { increment: 1 },
     },

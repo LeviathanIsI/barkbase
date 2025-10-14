@@ -30,12 +30,12 @@ const ObjectSetup = ({
 
   // Default tabs if none provided
   const defaultTabs = [
-    { id: 'setup', label: 'Setup', path: '' },
-    { id: 'associations', label: 'Associations', path: '/associations' },
-    { id: 'lifecycle', label: 'Lifecycle Stage', path: '/lifecycle' },
-    { id: 'customization', label: 'Record Customization', path: '/customization' },
-    { id: 'preview', label: 'Preview Customization', path: '/preview' },
-    { id: 'index', label: 'Index Customization', path: '/index' },
+    { recordId: 'setup', label: 'Setup', path: '' },
+    { recordId: 'associations', label: 'Associations', path: '/associations' },
+    { recordId: 'lifecycle', label: 'Lifecycle Stage', path: '/lifecycle' },
+    { recordId: 'customization', label: 'Record Customization', path: '/customization' },
+    { recordId: 'preview', label: 'Preview Customization', path: '/preview' },
+    { recordId: 'index', label: 'Index Customization', path: '/index' },
   ];
 
   const activeTabs = tabs.length > 0 ? tabs : defaultTabs;
@@ -64,7 +64,7 @@ const ObjectSetup = ({
 
             return (
               <NavLink
-                key={tab.id}
+                key={tab.recordId}
                 to={tabPath}
                 className={cn(
                   'px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap',

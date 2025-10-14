@@ -63,8 +63,7 @@ const ensureProtocol = (value) => {
   return `https://${value}`;
 };
 
-const holidaySchema = z.object({
-  id: z.string(),
+const holidaySchema = z.object({ recordId: z.string(),
   name: z
     .string()
     .trim()
@@ -190,23 +189,19 @@ const formSchema = z.object({
 });
 
 const TAB_ITEMS = [
-  {
-    id: 'business',
+  { recordId: 'business',
     title: 'Business Profile',
     description: 'Logo, contact information, and on-brand details shared with customers.',
   },
-  {
-    id: 'scheduling',
+  { recordId: 'scheduling',
     title: 'Scheduling & Availability',
     description: 'Daily operating hours and holiday closures that drive booking rules.',
   },
-  {
-    id: 'regional',
+  { recordId: 'regional',
     title: 'Locale & Formatting',
     description: 'Time zone, locale, and formatting preferences for staff and owners.',
   },
-  {
-    id: 'billing',
+  { recordId: 'billing',
     title: 'Currency & Billing',
     description: 'Currencies offered to customers and default billing preferences.',
   },
@@ -319,8 +314,7 @@ const normalizeHoliday = (holiday) => {
   try {
     const startDate = formatISO(parseISO(start), { representation: 'date' });
     const endDate = end ? formatISO(parseISO(end), { representation: 'date' }) : startDate;
-    return {
-      id: holiday.id ?? generateId(),
+    return { recordId: holiday.recordId ?? generateId(),
       name: holiday.name ?? 'Holiday',
       startDate,
       endDate,
@@ -434,12 +428,12 @@ const Subheading = ({ title, description }) => (
 const TabNav = ({ active, onSelect }) => (
   <div className="mb-8 flex flex-wrap gap-2 border-b border-border/70">
     {TAB_ITEMS.map((tab) => {
-      const isActive = active === tab.id;
+      const isActive = active === tab.recordId;
       return (
         <button
-          key={tab.id}
+          key={tab.recordId}
           type="button"
-          onClick={() => onSelect(tab.id)}
+          onClick={() => onSelect(tab.recordId)}
           className={`rounded-t-lg px-4 py-2 text-sm font-medium transition-colors ${
             isActive
               ? 'border border-border border-b-0 bg-surface text-primary shadow-sm'
@@ -687,7 +681,7 @@ const SchedulingSection = ({
         <div className="space-y-3">
           {holidays.map((holiday) => (
             <div
-              key={holiday.id}
+              key={holiday.recordId}
               className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/70 bg-surface/70 px-4 py-3"
             >
               <div>
@@ -695,7 +689,7 @@ const SchedulingSection = ({
                 <p className="text-xs text-muted">{formatHolidayRange(holiday.startDate, holiday.endDate)}</p>
                 {holiday.recurring ? <Pill label="Repeats each year" tone="success" /> : null}
               </div>
-              <Button type="button" variant="ghost" size="sm" onClick={() => onRemoveHoliday(holiday.id)}>
+              <Button type="button" variant="ghost" size="sm" onClick={() => onRemoveHoliday(holiday.recordId)}>
                 <Trash2 className="mr-2 h-4 w-4" />
                 Remove
               </Button>
@@ -886,8 +880,8 @@ const AccountDefaults = () => {
     setValue(`operatingHours.${day}.${field}`, value, { shouldDirty: true });
   };
 
-  const handleHolidayRemove = (id) => {
-    const filtered = holidays.filter((holiday) => holiday.id !== id);
+  const handleHolidayRemove = (recordId) => {
+    const filtered = holidays.filter((holiday) => holiday.recordId !== recordId);
     setValue('holidays', filtered, { shouldDirty: true });
   };
 
@@ -919,8 +913,7 @@ const AccountDefaults = () => {
     const endDate = dates.to ?? dates.from;
     const end = formatISO(endDate, { representation: 'date' });
 
-    const nextHoliday = {
-      id: generateId(),
+    const nextHoliday = { recordId: generateId(),
       name: name.trim(),
       startDate: start,
       endDate: end,
@@ -1002,7 +995,7 @@ const AccountDefaults = () => {
 
       <TabNav active={activeTab} onSelect={setActiveTab} />
       <p className="mb-6 text-sm text-muted">
-        {TAB_ITEMS.find((tab) => tab.id === activeTab)?.description}
+        {TAB_ITEMS.find((tab) => tab.recordId === activeTab)?.description}
       </p>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-10">

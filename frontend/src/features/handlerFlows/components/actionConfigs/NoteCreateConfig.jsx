@@ -23,7 +23,7 @@ const NoteCreateConfig = ({ node, onUpdate }) => {
     }
 
     setErrors([]);
-    onUpdate(node.id, {
+    onUpdate(node.recordId, {
       actionType: 'note.create',
       config: newConfig,
       label: node.data.label || 'Create Note',

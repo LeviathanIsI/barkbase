@@ -3,7 +3,7 @@ const { addDays } = require('date-fns');
 const { parse } = require('cookie');
 const app = require('../app');
 const prisma = require('../config/prisma');
-const tenantContext = require('../middleware/tenantContext');
+const { tenantContext } = require('../middleware/tenantContext');
 
 const loginAs = async (tenantSlug, email, password = 'Passw0rd!') => {
   const response = await request(app)
@@ -35,9 +35,9 @@ describe('Booking CRUD', () => {
   beforeEach(async () => {
     session = await loginAs('acme', 'owner@acme.test');
     tenant = await prisma.tenant.findUnique({ where: { slug: 'acme' } });
-    pet = await prisma.pet.findFirst({ where: { tenantId: tenant.id } });
-    owner = await prisma.owner.findFirst({ where: { tenantId: tenant.id } });
-    kennel = await prisma.kennel.findFirst({ where: { tenantId: tenant.id } });
+    pet = await prisma.pet.findFirst({ where: { tenantId: tenant.recordId } });
+    owner = await prisma.owner.findFirst({ where: { tenantId: tenant.recordId } });
+    kennel = await prisma.kennel.findFirst({ where: { tenantId: tenant.recordId } });
   });
 
   it('creates, updates, and deletes a booking', async () => {
@@ -51,14 +51,14 @@ describe('Booking CRUD', () => {
       .set('Cookie', session.cookieHeader)
       .set('X-CSRF-Token', session.csrfToken)
       .send({
-        petId: pet.id,
-        ownerId: owner.id,
+        petId: pet.recordId,
+        ownerId: owner.recordId,
         status: 'CONFIRMED',
         checkIn: checkIn.toISOString(),
         checkOut: checkOut.toISOString(),
         segments: [
           {
-            kennelId: kennel.id,
+            kennelId: kennel.recordId,
             startDate: checkIn.toISOString(),
             endDate: checkOut.toISOString(),
             status: 'CONFIRMED',
@@ -68,7 +68,7 @@ describe('Booking CRUD', () => {
       });
 
     expect(createResponse.status).toBe(201);
-    const bookingId = createResponse.body.id;
+    const bookingId = createResponse.body.recordId;
 
     const updateResponse = await request(app)
       .put(`/api/v1/bookings/${bookingId}`)
@@ -80,7 +80,7 @@ describe('Booking CRUD', () => {
         status: 'CANCELLED',
         segments: [
           {
-            kennelId: kennel.id,
+            kennelId: kennel.recordId,
             startDate: checkIn.toISOString(),
             endDate: checkOut.toISOString(),
             status: 'CANCELLED',
@@ -100,7 +100,7 @@ describe('Booking CRUD', () => {
 
     expect(deleteResponse.status).toBe(204);
 
-    const exists = await prisma.booking.findUnique({ where: { id: bookingId } });
+    const exists = await prisma.booking.findUnique({ where: { recordId: bookingId } });
     expect(exists).toBeNull();
   });
 
@@ -115,14 +115,14 @@ describe('Booking CRUD', () => {
       .set('Cookie', session.cookieHeader)
       .set('X-CSRF-Token', session.csrfToken)
       .send({
-        petId: pet.id,
-        ownerId: owner.id,
+        petId: pet.recordId,
+        ownerId: owner.recordId,
         status: 'CONFIRMED',
         checkIn: checkIn.toISOString(),
         checkOut: checkOut.toISOString(),
         segments: [
           {
-            kennelId: kennel.id,
+            kennelId: kennel.recordId,
             startDate: checkIn.toISOString(),
             endDate: checkOut.toISOString(),
             status: 'CONFIRMED',
@@ -136,7 +136,7 @@ describe('Booking CRUD', () => {
 
   it('returns 402 when monthly booking allowance is exceeded', async () => {
     await prisma.tenant.update({
-      where: { id: tenant.id },
+      where: { recordId: tenant.recordId },
       data: {
         featureFlags: {
           ...(tenant.featureFlags ?? {}),
@@ -152,14 +152,14 @@ describe('Booking CRUD', () => {
     const checkOut = addDays(checkIn, 1);
 
     const payload = {
-      petId: pet.id,
-      ownerId: owner.id,
+      petId: pet.recordId,
+      ownerId: owner.recordId,
       status: 'CONFIRMED',
       checkIn: checkIn.toISOString(),
       checkOut: checkOut.toISOString(),
       segments: [
         {
-          kennelId: kennel.id,
+          kennelId: kennel.recordId,
           startDate: checkIn.toISOString(),
           endDate: checkOut.toISOString(),
           status: 'CONFIRMED',
@@ -192,7 +192,7 @@ describe('Booking CRUD', () => {
 
   it('requires plan feature for waitlist promotion', async () => {
     await prisma.tenant.update({
-      where: { id: tenant.id },
+      where: { recordId: tenant.recordId },
       data: {
         featureFlags: {
           ...(tenant.featureFlags ?? {}),
@@ -214,14 +214,14 @@ describe('Booking CRUD', () => {
       .set('Cookie', session.cookieHeader)
       .set('X-CSRF-Token', session.csrfToken)
       .send({
-        petId: pet.id,
-        ownerId: owner.id,
+        petId: pet.recordId,
+        ownerId: owner.recordId,
         status: 'PENDING',
         checkIn: checkIn.toISOString(),
         checkOut: checkOut.toISOString(),
         segments: [
           {
-            kennelId: kennel.id,
+            kennelId: kennel.recordId,
             startDate: checkIn.toISOString(),
             endDate: checkOut.toISOString(),
             status: 'PENDING',
@@ -233,7 +233,7 @@ describe('Booking CRUD', () => {
     expect(createResponse.status).toBe(201);
 
     const promoteResponse = await request(app)
-      .post(`/api/v1/bookings/waitlist/${createResponse.body.id}/promote`)
+      .post(`/api/v1/bookings/waitlist/${createResponse.body.recordId}/promote`)
       .set('X-Tenant', 'acme')
       .set('Authorization', `Bearer ${session.token}`)
       .set('Cookie', session.cookieHeader)

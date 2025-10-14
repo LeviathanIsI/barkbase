@@ -3,11 +3,16 @@ import { useAuthStore } from '@/stores/auth';
 import { useTenantStore } from '@/stores/tenant';
 import { getTenantSlugCookie } from '@/lib/cookies';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
+// In development, use empty string to leverage Vite proxy (/api -> http://localhost:4000/api)
+// In production, VITE_API_URL should be set to the backend URL
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
 
 const AuthLoader = () => {
   const user = useAuthStore((state) => state.user);
+  const memberships = useAuthStore((state) => state.memberships);
   const accessToken = useAuthStore((state) => state.accessToken);
+  const refreshToken = useAuthStore((state) => state.refreshToken);
+  const rememberMe = useAuthStore((state) => state.rememberMe);
   const updateTokens = useAuthStore((state) => state.updateTokens);
   const clearAuth = useAuthStore((state) => state.clearAuth);
   const hasAttemptedRef = useRef(false);
@@ -19,14 +24,30 @@ const AuthLoader = () => {
     }
 
     // If user info is persisted but no access token, try to refresh
-    // This happens when the page is refreshed (tokens are not persisted for security)
+    // This happens when the page is refreshed
+    // If rememberMe is enabled and we have a refreshToken in localStorage, use it directly
+    // Otherwise, rely on the httpOnly cookie
     if (user && !accessToken) {
       hasAttemptedRef.current = true;
 
       const attemptRefresh = async () => {
+        // Try to get tenant slug from user's first membership
+        // Check both memberships array at root level and nested under user
+        const userTenantSlug = 
+          memberships?.[0]?.tenant?.slug ?? 
+          user?.memberships?.[0]?.tenant?.slug;
         const tenantSlug =
-          useTenantStore.getState().tenant?.slug ?? getTenantSlugCookie() ?? 'default';
+          userTenantSlug ??
+          useTenantStore.getState().tenant?.slug ??
+          getTenantSlugCookie() ??
+          'default';
 
+        console.log('[AuthLoader] =================================');
+        console.log('[AuthLoader] User info present:', !!user);
+        console.log('[AuthLoader] User tenant slug from memberships:', userTenantSlug);
+        console.log('[AuthLoader] Access token present:', !!accessToken);
+        console.log('[AuthLoader] Refresh token present:', !!refreshToken);
+        console.log('[AuthLoader] Remember me enabled:', rememberMe);
         console.log('[AuthLoader] Attempting token refresh for tenant:', tenantSlug);
 
         const headers = new Headers();
@@ -40,10 +61,20 @@ const AuthLoader = () => {
           const timeoutId = setTimeout(() => controller.abort(), 5000);
 
           console.log('[AuthLoader] Sending refresh request to:', `${API_BASE_URL}/api/v1/auth/refresh`);
+          console.log('[AuthLoader] Remember Me enabled:', rememberMe);
+          console.log('[AuthLoader] Refresh token in localStorage:', !!refreshToken);
+
+          // If rememberMe is enabled and we have a refreshToken, send it in the request body
+          const body = rememberMe && refreshToken ? JSON.stringify({ refreshToken }) : undefined;
+          if (body) {
+            headers.set('Content-Type', 'application/json');
+          }
+
           const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
             method: 'POST',
             credentials: 'include',
             headers,
+            body,
             signal: controller.signal,
           });
 
@@ -95,7 +126,7 @@ const AuthLoader = () => {
       // User has both user info and token, mark as attempted
       hasAttemptedRef.current = true;
     }
-  }, [user, accessToken, updateTokens, clearAuth]);
+  }, [user, memberships, accessToken, refreshToken, rememberMe, updateTokens, clearAuth]);
 
   return null;
 };

@@ -2,7 +2,9 @@ import { useAuthStore } from '@/stores/auth';
 import { useTenantStore } from '@/stores/tenant';
 import { enqueueRequest } from '@/lib/offlineQueue';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
+// In development, use empty string to leverage Vite proxy (/api -> http://localhost:4000/api)
+// In production, VITE_API_URL should be set to the backend URL
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
 let forcingLogout = false;
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -95,9 +97,19 @@ const isTransientError = (error) => {
 
 const tryRefresh = async () => {
   const tenantSlug = useTenantStore.getState().tenant?.slug ?? 'default';
+  const authState = useAuthStore.getState();
+  const { rememberMe, refreshToken } = authState;
+  
   const headers = new Headers();
   if (tenantSlug) {
     headers.set('X-Tenant', tenantSlug);
+  }
+
+  // If rememberMe is enabled and we have a refreshToken in localStorage, send it
+  let body;
+  if (rememberMe && refreshToken) {
+    headers.set('Content-Type', 'application/json');
+    body = JSON.stringify({ refreshToken });
   }
 
   try {
@@ -105,6 +117,7 @@ const tryRefresh = async () => {
       method: 'POST',
       credentials: 'include',
       headers,
+      body,
     });
 
     if (!response.ok) {
@@ -287,6 +300,13 @@ export const uploadClient = async (path, formData, options = {}) => {
 
   return asJson(response);
 };
+
+// HTTP method helpers for convenience
+apiClient.get = (path, options = {}) => apiClient(path, { ...options, method: 'GET' });
+apiClient.post = (path, body, options = {}) => apiClient(path, { ...options, method: 'POST', body });
+apiClient.put = (path, body, options = {}) => apiClient(path, { ...options, method: 'PUT', body });
+apiClient.patch = (path, body, options = {}) => apiClient(path, { ...options, method: 'PATCH', body });
+apiClient.delete = (path, options = {}) => apiClient(path, { ...options, method: 'DELETE' });
 
 export default apiClient;
 

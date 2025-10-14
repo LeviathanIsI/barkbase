@@ -4,7 +4,7 @@ const start = async (req, res, next) => {
   try {
     const info = await migrationService.startUpgrade({
       tenantId: req.tenantId,
-      actorId: req.user?.id ?? null,
+      actorId: req.user?.recordId ?? null,
     });
     return res.status(200).json(info);
   } catch (error) {

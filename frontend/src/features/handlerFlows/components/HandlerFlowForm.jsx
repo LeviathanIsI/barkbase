@@ -23,8 +23,7 @@ export const buildFlowPayload = ({ name, eventType, delay, email }) => {
       version: 1,
     },
     steps: [
-      {
-        id: conditionId,
+      { recordId: conditionId,
         kind: 'condition',
         name: 'Check booking total',
         config: {
@@ -33,8 +32,7 @@ export const buildFlowPayload = ({ name, eventType, delay, email }) => {
         nextId: delayId,
         altNextId: null,
       },
-      {
-        id: delayId,
+      { recordId: delayId,
         kind: 'delay',
         name: `Wait ${delay}`,
         config: {
@@ -43,8 +41,7 @@ export const buildFlowPayload = ({ name, eventType, delay, email }) => {
         nextId: emailId,
         altNextId: null,
       },
-      {
-        id: emailId,
+      { recordId: emailId,
         kind: 'action',
         name: 'Send confirmation email',
         config: {

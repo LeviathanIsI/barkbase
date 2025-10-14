@@ -129,3 +129,25 @@ create policy "tenant read" on "IncidentReport" for select using ("tenantId" = c
 create policy "tenant write" on "IncidentReport" for insert with check ("tenantId" = current_setting('app.tenant_id', true));
 create policy "tenant update" on "IncidentReport" for update using ("tenantId" = current_setting('app.tenant_id', true)) with check ("tenantId" = current_setting('app.tenant_id', true));
 
+-- Add the correct create_membership function definition
+CREATE OR REPLACE FUNCTION app.create_membership(p_tenant_id text, p_user_id text, p_role text)
+ RETURNS text
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare
+  v_id text := gen_random_uuid()::text;
+begin
+  perform set_config('app.tenant_id', p_tenant_id, true);
+
+  insert into "Membership" ("id","tenantId","userId","role")
+  values (v_id, p_tenant_id, p_user_id, p_role::"Role")
+  on conflict ("userId","tenantId") do update
+    set role = excluded.role
+  returning "id" into v_id;
+
+  return v_id;
+end
+$function$;
+

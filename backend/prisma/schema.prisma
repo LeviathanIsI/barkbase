@@ -87,7 +87,7 @@ enum KennelType {
 }
 
 model Tenant {
-  id              String      @id @default(cuid())
+  recordId        String      @id @default(cuid())
   slug            String      @unique
   name            String
   themeJson       Json?
@@ -127,30 +127,48 @@ model Tenant {
   handlerRunLogs  HandlerRunLog[]
   handlerJobs     HandlerJob[]
   handlerEvents   HandlerEvent[]
+  communications  Communication[]
+  notes           Note[]
+  customerSegments CustomerSegment[]
+  customerSegmentMembers CustomerSegmentMember[]
+  customerTags    CustomerTag[]
+  customerTagMembers CustomerTagMember[]
+  campaigns       Campaign[]
+  tasks           Task[]
+
   @@index([slug])
 }
 
 
 model User {
-  id             String    @id @default(cuid())
-  email          String    @unique
-  passwordHash   String
-  lastLoginAt    DateTime?
-  isActive       Boolean   @default(true)
-  emailVerified  Boolean   @default(false)
+  recordId        String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String
+  name            String?
+  phone           String?
+  avatarUrl       String?
+  timezone        String?
+  language        String    @default("en")
+  preferences     Json?
+  lastLoginAt     DateTime?
+  isActive        Boolean   @default(true)
+  emailVerified   Boolean   @default(false)
   twoFactorSecret String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   memberships    Membership[]
   createdInvites Invite[]   @relation("UserCreatedInvites")
   auditLogs      AuditLog[]
   verificationTokens EmailVerificationToken[]
+  communications Communication[]
+  notes          Note[]
+  campaigns      Campaign[]
 }
 
 
 model Membership {
-  id           String   @id @default(cuid())
+  recordId     String   @id @default(cuid())
   userId       String
   tenantId     String
   role         Role     @default(STAFF)
@@ -159,8 +177,8 @@ model Membership {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [recordId], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
   staff  Staff?
 
   @@unique([userId, tenantId])
@@ -168,7 +186,7 @@ model Membership {
 }
 
 model Invite {
-  id           String   @id @default(cuid())
+  recordId     String   @id @default(cuid())
   tenantId     String
   email        String
   token        String   @unique
@@ -179,8 +197,8 @@ model Invite {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  tenant       Tenant   @relation("TenantInvites", fields: [tenantId], references: [id], onDelete: Cascade)
-  createdBy    User?    @relation("UserCreatedInvites", fields: [createdById], references: [id], onDelete: SetNull)
+  tenant       Tenant   @relation("TenantInvites", fields: [tenantId], references: [recordId], onDelete: Cascade)
+  createdBy    User?    @relation("UserCreatedInvites", fields: [createdById], references: [recordId], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([email])
@@ -188,19 +206,19 @@ model Invite {
 }
 
 model EmailVerificationToken {
-  id        String   @id @default(cuid())
+  recordId  String   @id @default(cuid())
   userId    String
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [recordId], onDelete: Cascade)
 
   @@index([userId, expiresAt])
 }
 
 model AuditLog {
-  id          String   @id @default(cuid())
+  recordId          String   @id @default(cuid())
   tenantId    String
   actorId     String?
   action      String
@@ -209,15 +227,15 @@ model AuditLog {
   diff        Json?
   createdAt   DateTime @default(now())
 
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  actor       User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  tenant      Tenant   @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  actor       User?    @relation(fields: [actorId], references: [recordId], onDelete: SetNull)
 
   @@index([tenantId, createdAt])
   @@index([tenantId, entityType])
 }
 
 model UsageCounter {
-  id          String   @id @default(cuid())
+  recordId          String   @id @default(cuid())
   tenantId    String
   date        DateTime
   bookings    Int      @default(0)
@@ -226,14 +244,14 @@ model UsageCounter {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant      Tenant   @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
 
   @@unique([tenantId, date])
   @@index([tenantId, date])
 }
 
 model Staff {
-  id            String   @id @default(cuid())
+  recordId            String   @id @default(cuid())
   tenantId      String
   membershipId  String   @unique
   title         String?
@@ -242,17 +260,19 @@ model Staff {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  membership    Membership  @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  tenant        Tenant      @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  membership    Membership  @relation(fields: [membershipId], references: [recordId], onDelete: Cascade)
   checkIns      CheckIn[]
   checkOuts     CheckOut[]
+  assignedTasks Task[]
+  completedTasks Task[]      @relation("TaskCompletedBy")
 
   @@index([tenantId])
 }
 
 
 model Owner {
-  id           String   @id @default(cuid())
+  recordId     String   @id @default(cuid())
   tenantId     String
   firstName    String
   lastName     String
@@ -262,17 +282,20 @@ model Owner {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant       Tenant   @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
   pets         PetOwner[]
   bookings     Booking[]
   payments     Payment[]
+  communications Communication[]
+  segmentMemberships CustomerSegmentMember[]
+  tagMemberships CustomerTagMember[]
 
   @@index([tenantId, lastName])
   @@unique([tenantId, email])
 }
 
 model Pet {
-  id                 String       @id @default(cuid())
+  recordId                 String       @id @default(cuid())
   tenantId           String
   name               String
   breed              String?
@@ -285,7 +308,7 @@ model Pet {
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
-  tenant             Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant             Tenant           @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
   owners             PetOwner[]
   vaccinations       Vaccination[]
   bookings           Booking[]
@@ -295,34 +318,40 @@ model Pet {
 }
 
 model PetOwner {
-  id        String @id @default(cuid())
+  recordId        String @id @default(cuid())
   tenantId  String
   petId     String
   ownerId   String
   isPrimary Boolean @default(false)
 
-  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  pet       Pet    @relation(fields: [petId], references: [id], onDelete: Cascade)
-  owner     Owner  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  tenant    Tenant @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  pet       Pet    @relation(fields: [petId], references: [recordId], onDelete: Cascade)
+  owner     Owner  @relation(fields: [ownerId], references: [recordId], onDelete: Cascade)
 
   @@unique([tenantId, petId, ownerId])
   @@index([tenantId, ownerId])
 }
 
 model Kennel {
-  id         String     @id @default(cuid())
+  recordId         String     @id @default(cuid())
   tenantId   String
   name       String
   type       KennelType
   size       String?
   capacity   Int        @default(1)
   location   String?
+  building   String?
+  zone       String?
   amenities  String     @default("{}")
+  hourlyRate Int?
+  dailyRate  Int?
+  weeklyRate Int?
+  notes      String?
   isActive   Boolean    @default(true)
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
-  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant     Tenant     @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
   bookings   BookingSegment[]
 
   @@unique([tenantId, name])
@@ -331,7 +360,7 @@ model Kennel {
 }
 
 model Booking {
-  id                 String          @id @default(cuid())
+  recordId                 String          @id @default(cuid())
   tenantId           String
   petId              String
   ownerId            String
@@ -347,9 +376,9 @@ model Booking {
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 
-  tenant             Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  pet                Pet              @relation(fields: [petId], references: [id], onDelete: Cascade)
-  owner              Owner            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  tenant             Tenant           @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  pet                Pet              @relation(fields: [petId], references: [recordId], onDelete: Cascade)
+  owner              Owner            @relation(fields: [ownerId], references: [recordId], onDelete: Cascade)
   segments           BookingSegment[]
   services           BookingService[]
   payments           Payment[]
@@ -362,7 +391,7 @@ model Booking {
 }
 
 model BookingSegment {
-  id         String        @id @default(cuid())
+  recordId         String        @id @default(cuid())
   tenantId   String
   bookingId  String
   kennelId   String
@@ -371,16 +400,16 @@ model BookingSegment {
   status     BookingStatus @default(CONFIRMED)
   notes      String?
 
-  tenant     Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  booking    Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  kennel     Kennel        @relation(fields: [kennelId], references: [id], onDelete: Cascade)
+  tenant     Tenant        @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  booking    Booking       @relation(fields: [bookingId], references: [recordId], onDelete: Cascade)
+  kennel     Kennel        @relation(fields: [kennelId], references: [recordId], onDelete: Cascade)
 
   @@index([tenantId, startDate])
   @@index([tenantId, kennelId, startDate])
 }
 
 model Service {
-  id          String          @id @default(cuid())
+  recordId          String          @id @default(cuid())
   tenantId    String
   name        String
   description String?
@@ -390,29 +419,29 @@ model Service {
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
-  tenant      Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant      Tenant          @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
   bookings    BookingService[]
 
   @@unique([tenantId, name])
 }
 
 model BookingService {
-  id         String   @id @default(cuid())
+  recordId         String   @id @default(cuid())
   tenantId   String
   bookingId  String
   serviceId  String
   quantity   Int      @default(1)
   priceCents Int      @default(0)
 
-  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  service    Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  tenant     Tenant   @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  booking    Booking  @relation(fields: [bookingId], references: [recordId], onDelete: Cascade)
+  service    Service  @relation(fields: [serviceId], references: [recordId], onDelete: Cascade)
 
   @@index([tenantId, bookingId])
 }
 
 model Vaccination {
-  id            String   @id @default(cuid())
+  recordId            String   @id @default(cuid())
   tenantId      String
   petId         String
   type          String
@@ -423,14 +452,14 @@ model Vaccination {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  pet           Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+  tenant        Tenant   @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  pet           Pet      @relation(fields: [petId], references: [recordId], onDelete: Cascade)
 
   @@index([tenantId, expiresAt])
 }
 
 model Payment {
-  id           String        @id @default(cuid())
+  recordId           String        @id @default(cuid())
   tenantId     String
   bookingId    String?
   ownerId      String
@@ -445,9 +474,9 @@ model Payment {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
-  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  booking      Booking?      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  owner        Owner         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  tenant       Tenant        @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  booking      Booking?      @relation(fields: [bookingId], references: [recordId], onDelete: Cascade)
+  owner        Owner         @relation(fields: [ownerId], references: [recordId], onDelete: Cascade)
 
   @@index([tenantId, status])
   @@index([tenantId, createdAt])
@@ -456,7 +485,7 @@ model Payment {
 }
 
 model CheckIn {
-  id               String   @id @default(cuid())
+  recordId               String   @id @default(cuid())
   tenantId         String
   bookingId        String
   staffId          String?
@@ -468,16 +497,16 @@ model CheckIn {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  booking          Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  staff            Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  tenant           Tenant   @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  booking          Booking  @relation(fields: [bookingId], references: [recordId], onDelete: Cascade)
+  staff            Staff?   @relation(fields: [staffId], references: [recordId], onDelete: SetNull)
 
   @@index([tenantId, bookingId])
   @@index([tenantId, time])
 }
 
 model CheckOut {
-  id               String   @id @default(cuid())
+  recordId               String   @id @default(cuid())
   tenantId         String
   bookingId        String
   staffId          String?
@@ -488,17 +517,17 @@ model CheckOut {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  tenant           Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  booking          Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  staff            Staff?          @relation(fields: [staffId], references: [id], onDelete: SetNull)
-  incidentReport   IncidentReport? @relation(fields: [incidentReportId], references: [id], onDelete: SetNull)
+  tenant           Tenant          @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  booking          Booking         @relation(fields: [bookingId], references: [recordId], onDelete: Cascade)
+  staff            Staff?          @relation(fields: [staffId], references: [recordId], onDelete: SetNull)
+  incidentReport   IncidentReport? @relation(fields: [incidentReportId], references: [recordId], onDelete: SetNull)
 
   @@index([tenantId, bookingId])
   @@index([tenantId, time])
 }
 
 model IncidentReport {
-  id            String            @id @default(cuid())
+  recordId            String            @id @default(cuid())
   tenantId      String
   petId         String
   bookingId     String?
@@ -510,9 +539,9 @@ model IncidentReport {
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
-  tenant        Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  pet           Pet               @relation(fields: [petId], references: [id], onDelete: Cascade)
-  booking       Booking?          @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  tenant        Tenant            @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  pet           Pet               @relation(fields: [petId], references: [recordId], onDelete: Cascade)
+  booking       Booking?          @relation(fields: [bookingId], references: [recordId], onDelete: Cascade)
   checkOuts     CheckOut[]
 
   @@index([tenantId, petId])
@@ -521,7 +550,7 @@ model IncidentReport {
 }
 
 model CustomProperty {
-  id          String    @id @default(cuid())
+  recordId          String    @id @default(cuid())
   tenantId    String
   objectType  String
   name        String
@@ -536,7 +565,7 @@ model CustomProperty {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant      Tenant    @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
 
   @@unique([tenantId, objectType, name])
   @@index([tenantId, objectType])
@@ -544,7 +573,7 @@ model CustomProperty {
 }
 
 model AssociationDefinition {
-  id              String    @id @default(cuid())
+  recordId              String    @id @default(cuid())
   tenantId        String
   label           String    // Label shown from fromObject perspective
   reverseLabel    String?   // Label shown from toObject perspective (null if single label)
@@ -560,7 +589,7 @@ model AssociationDefinition {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant          Tenant    @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
 
   @@unique([tenantId, fromObjectType, toObjectType, label])
   @@index([tenantId, fromObjectType, toObjectType])
@@ -569,7 +598,7 @@ model AssociationDefinition {
 
 // Handler Flow models (workflows/automations)
 model HandlerFlow {
-  id              String    @id @default(cuid())
+  recordId              String    @id @default(cuid())
   tenantId        String
   name            String
   description     String?
@@ -580,7 +609,7 @@ model HandlerFlow {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant          Tenant        @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
   runs            HandlerRun[]
 
   @@index([tenantId, status])
@@ -588,7 +617,7 @@ model HandlerFlow {
 }
 
 model HandlerRun {
-  id              String    @id @default(cuid())
+  recordId              String    @id @default(cuid())
   flowId          String
   tenantId        String
   status          String    @default("queued") // 'queued' | 'running' | 'paused' | 'succeeded' | 'failed' | 'canceled'
@@ -604,8 +633,8 @@ model HandlerRun {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  flow            HandlerFlow     @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  tenant          Tenant          @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  flow            HandlerFlow     @relation(fields: [flowId], references: [recordId], onDelete: Cascade)
   logs            HandlerRunLog[]
   jobs            HandlerJob[]
 
@@ -616,7 +645,7 @@ model HandlerRun {
 }
 
 model HandlerEvent {
-  id             String   @id @default(cuid())
+  recordId             String   @id @default(cuid())
   tenantId       String
   eventType      String
   idempotencyKey String
@@ -624,14 +653,14 @@ model HandlerEvent {
   runs           Json?
   createdAt      DateTime @default(now())
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
 
   @@index([tenantId, createdAt])
   @@unique([tenantId, idempotencyKey])
 }
 
 model HandlerRunLog {
-  id        String   @id @default(cuid())
+  recordId  String   @id @default(cuid())
   runId     String
   tenantId  String
   ts        DateTime @default(now())
@@ -640,15 +669,15 @@ model HandlerRunLog {
   message   String
   details   Json?
 
-  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  run       HandlerRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  tenant    Tenant     @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  run       HandlerRun @relation(fields: [runId], references: [recordId], onDelete: Cascade)
 
   @@index([tenantId, runId, ts])
   @@index([runId])
 }
 
 model HandlerJob {
-  id          String    @id @default(cuid())
+  recordId          String    @id @default(cuid())
   tenantId    String
   runId       String
   nodeId      String?
@@ -660,12 +689,211 @@ model HandlerJob {
   payload     Json?
   createdAt   DateTime  @default(now())
 
-  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  run         HandlerRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  tenant      Tenant     @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  run         HandlerRun @relation(fields: [runId], references: [recordId], onDelete: Cascade)
 
   @@index([tenantId, dueAt])
   @@index([dueAt, lockedBy])
   @@index([runId])
+}
+
+// CRM Models
+enum CommunicationType {
+  EMAIL
+  SMS
+  CALL
+  NOTE
+  SYSTEM
+}
+
+enum CommunicationDirection {
+  INBOUND
+  OUTBOUND
+  INTERNAL
+}
+
+enum NoteVisibility {
+  ALL
+  STAFF
+  ADMIN
+  PRIVATE
+}
+
+model Communication {
+  recordId      String                 @id @default(cuid())
+  tenantId      String
+  ownerId       String
+  userId        String?
+  type          CommunicationType
+  direction     CommunicationDirection
+  subject       String?
+  content       String                 @db.Text
+  metadata      Json?
+  attachments   Json?
+  createdAt     DateTime               @default(now())
+
+  tenant        Tenant                 @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  owner         Owner                  @relation(fields: [ownerId], references: [recordId], onDelete: Cascade)
+  user          User?                  @relation(fields: [userId], references: [recordId], onDelete: SetNull)
+
+  @@index([tenantId, ownerId, createdAt])
+  @@index([tenantId, type])
+}
+
+model Note {
+  recordId      String         @id @default(cuid())
+  tenantId      String
+  entityType    String         // owner, pet, booking
+  entityId      String
+  category      String?
+  content       String         @db.Text
+  visibility    NoteVisibility @default(ALL)
+  isPinned      Boolean        @default(false)
+  authorId      String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  author        User           @relation(fields: [authorId], references: [recordId], onDelete: Cascade)
+
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, authorId])
+}
+
+model CustomerSegment {
+  recordId      String                    @id @default(cuid())
+  tenantId      String
+  name          String
+  description   String?
+  conditions    Json                      // Query conditions
+  isAutomatic   Boolean                   @default(false)
+  isActive      Boolean                   @default(true)
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  tenant        Tenant                    @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  members       CustomerSegmentMember[]
+  campaigns     Campaign[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, isActive])
+}
+
+model CustomerSegmentMember {
+  recordId      String          @id @default(cuid())
+  tenantId      String
+  segmentId     String
+  ownerId       String
+  addedAt       DateTime        @default(now())
+
+  tenant        Tenant          @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  segment       CustomerSegment @relation(fields: [segmentId], references: [recordId], onDelete: Cascade)
+  owner         Owner           @relation(fields: [ownerId], references: [recordId], onDelete: Cascade)
+
+  @@unique([segmentId, ownerId])
+  @@index([tenantId, ownerId])
+}
+
+model CustomerTag {
+  recordId      String              @id @default(cuid())
+  tenantId      String
+  name          String
+  color         String?
+  description   String?
+  createdAt     DateTime            @default(now())
+
+  tenant        Tenant              @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  customers     CustomerTagMember[]
+
+  @@unique([tenantId, name])
+}
+
+model CustomerTagMember {
+  recordId      String       @id @default(cuid())
+  tenantId      String
+  tagId         String
+  ownerId       String
+  addedAt       DateTime     @default(now())
+
+  tenant        Tenant       @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  tag           CustomerTag  @relation(fields: [tagId], references: [recordId], onDelete: Cascade)
+  owner         Owner        @relation(fields: [ownerId], references: [recordId], onDelete: Cascade)
+
+  @@unique([tagId, ownerId])
+  @@index([tenantId, ownerId])
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+model Campaign {
+  recordId      String          @id @default(cuid())
+  tenantId      String
+  name          String
+  description   String?
+  type          CommunicationType
+  segmentId     String?
+  content       Json            // Email/SMS content with variables
+  scheduledAt   DateTime?
+  sentAt        DateTime?
+  status        CampaignStatus  @default(DRAFT)
+  metrics       Json?           // Open rates, click rates, etc
+  createdBy     String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  tenant        Tenant          @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  segment       CustomerSegment? @relation(fields: [segmentId], references: [recordId], onDelete: SetNull)
+  creator       User            @relation(fields: [createdBy], references: [recordId], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([tenantId, scheduledAt])
+}
+
+enum TaskType {
+  FEEDING
+  MEDICATION
+  EXERCISE
+  CLEANING
+  HEALTH_CHECK
+  SPECIAL_CARE
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model Task {
+  recordId      String   @id @default(cuid())
+  tenantId      String
+  type          TaskType
+  relatedType   String   // 'pet', 'kennel', 'booking'
+  relatedId     String
+  assignedTo    String?
+  scheduledFor  DateTime
+  completedAt   DateTime?
+  completedBy   String?
+  notes         String?
+  priority      Priority @default(NORMAL)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  tenant        Tenant @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  staff         Staff? @relation(fields: [assignedTo], references: [recordId])
+  completedByStaff Staff? @relation("TaskCompletedBy", fields: [completedBy], references: [recordId])
+  
+  @@index([tenantId, scheduledFor])
+  @@index([tenantId, type])
+  @@index([tenantId, assignedTo])
 }
 
 

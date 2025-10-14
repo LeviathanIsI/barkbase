@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const tenantContext = require('../middleware/tenantContext');
+const { tenantContext } = require('../middleware/tenantContext');
 const { requireAuth } = require('../middleware/requireAuth');
 const validate = require('../middleware/validate');
 const controller = require('../controllers/tenant.controller');
@@ -55,14 +55,12 @@ router.post(
 router.put(
   '/theme',
   requireAuth(['OWNER', 'ADMIN']),
-  requirePlanFeature('themeCustom', { message: 'Custom theming requires an upgraded plan' }),
   validate(tenantSchemas.theme),
   controller.updateTheme,
 );
 router.put(
   '/current/theme',
   requireAuth(['OWNER', 'ADMIN']),
-  requirePlanFeature('themeCustom', { message: 'Custom theming requires an upgraded plan' }),
   validate(tenantSchemas.theme),
   controller.updateTheme,
 );

@@ -16,7 +16,7 @@ async function runAction({
   const actionType = config.actionType;
 
   if (!actionType) {
-    throw new Error(`Action node ${node.id} missing actionType`);
+    throw new Error(`Action node ${node.recordId} missing actionType`);
   }
 
   let result;
@@ -25,7 +25,7 @@ async function runAction({
     const idempotencyCheck = await checkIdempotency({
       tenantId,
       runId,
-      nodeId: node.id,
+      nodeId: node.recordId,
       config,
     });
 
@@ -39,7 +39,7 @@ async function runAction({
         ...context,
         actions: [
           ...(context.actions || []),
-          { nodeId: node.id, actionType, result: idempotencyCheck.result, idempotent: true },
+          { nodeId: node.recordId, actionType, result: idempotencyCheck.result, idempotent: true },
         ],
       };
 
@@ -77,7 +77,7 @@ async function runAction({
     await recordExecution({
       tenantId,
       runId,
-      nodeId: node.id,
+      nodeId: node.recordId,
       config,
       result,
     });
@@ -86,7 +86,7 @@ async function runAction({
   const updatedContext = {
     ...context,
     ...contextUpdates,
-    actions: [...(context.actions || []), { nodeId: node.id, actionType, result }],
+    actions: [...(context.actions || []), { nodeId: node.recordId, actionType, result }],
   };
 
   return { result, context: updatedContext };

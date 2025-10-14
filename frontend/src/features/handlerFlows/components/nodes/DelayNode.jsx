@@ -1,9 +1,9 @@
 import BaseNode from './BaseNode';
 import Badge from '@/components/ui/Badge';
 
-const DelayNode = ({ id, data }) => {
+const DelayNode = ({ recordId, data }) => {
   return (
-    <BaseNode id={id} data={data} variant="delay">
+    <BaseNode id={ recordId} data={data} variant="delay">
       <div className="flex items-center gap-2">
         <Badge variant="success" className="text-xs uppercase">Delay</Badge>
       </div>

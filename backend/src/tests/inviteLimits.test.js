@@ -2,7 +2,7 @@ const request = require('supertest');
 const { parse } = require('cookie');
 const app = require('../app');
 const prisma = require('../config/prisma');
-const tenantContext = require('../middleware/tenantContext');
+const { tenantContext } = require('../middleware/tenantContext');
 
 const loginAs = async (tenantSlug, email, password = 'Passw0rd!') => {
   const response = await request(app)
@@ -31,7 +31,7 @@ describe('Invite limits', () => {
 
   const invite = (overrides = {}) =>
     request(app)
-      .post(`/api/v1/tenants/${tenant.id}/invites`)
+      .post(`/api/v1/tenants/${tenant.recordId}/invites`)
       .set('X-Tenant', 'acme')
       .set('Authorization', `Bearer ${session.token}`)
       .set('Cookie', session.cookieHeader)
@@ -44,7 +44,7 @@ describe('Invite limits', () => {
 
   it('blocks invites when seat capacity is exhausted', async () => {
     await prisma.tenant.update({
-      where: { id: tenant.id },
+      where: { recordId: tenant.recordId },
       data: {
         featureFlags: {
           ...(tenant.featureFlags ?? {}),
@@ -63,7 +63,7 @@ describe('Invite limits', () => {
 
   it('blocks invites when monthly invite allowance is exceeded', async () => {
     await prisma.tenant.update({
-      where: { id: tenant.id },
+      where: { recordId: tenant.recordId },
       data: {
         featureFlags: {
           ...(tenant.featureFlags ?? {}),

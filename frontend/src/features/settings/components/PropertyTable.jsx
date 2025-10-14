@@ -78,7 +78,7 @@ const PropertyTable = ({
     ) {
       return;
     }
-    navigate(`/settings/properties/${objectType}/${property.id}`);
+    navigate(`/settings/properties/${objectType}/${property.recordId}`);
   };
 
   return (
@@ -104,7 +104,7 @@ const PropertyTable = ({
 
             return (
               <tr
-                key={property.id}
+                key={property.recordId}
                 className="group cursor-pointer hover:bg-surface/50 transition-colors"
                 onClick={(e) => handleRowClick(property, e)}
               >

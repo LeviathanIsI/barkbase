@@ -67,12 +67,12 @@ async function tenantContext(req, res, next) {
     const cached = resolveFromCache(cacheKey);
     if (cached) {
       req.tenant = cached;
-      req.tenantId = cached.id;
+      req.tenantId = cached.recordId;
       req.tenantSlug = cached.slug;
       req.tenantPlan = cached.plan;
       req.tenantFeatures = resolveTenantFeatures(cached);
       req.tenantDb = getDbForTenant(cached);
-      req.tenantScopedClient = forTenant(cached.id, req.tenantDb);
+      req.tenantScopedClient = forTenant(cached.recordId, req.tenantDb);
       return next();
     }
 
@@ -87,12 +87,12 @@ async function tenantContext(req, res, next) {
     saveToCache(cacheKey, tenant);
 
     req.tenant = tenant;
-    req.tenantId = tenant.id;
+    req.tenantId = tenant.recordId;
     req.tenantSlug = tenant.slug;
     req.tenantPlan = tenant.plan;
     req.tenantFeatures = resolveTenantFeatures(tenant);
     req.tenantDb = getDbForTenant(tenant);
-    req.tenantScopedClient = forTenant(tenant.id, req.tenantDb);
+    req.tenantScopedClient = forTenant(tenant.recordId, req.tenantDb);
     return next();
   } catch (error) {
     if (isConnectionError(error)) {
@@ -119,6 +119,8 @@ async function tenantContext(req, res, next) {
   }
 }
 
-module.exports = tenantContext;
-module.exports.clearCache = clearTenantCache;
+module.exports = {
+  tenantContext,
+  clearCache: clearTenantCache
+};
 

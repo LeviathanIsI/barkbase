@@ -22,7 +22,7 @@ const StatusUpdateConfig = ({ node, onUpdate }) => {
     }
 
     setErrors([]);
-    onUpdate(node.id, {
+    onUpdate(node.recordId, {
       actionType: 'status.update',
       config: newConfig,
       label: node.data.label || 'Update Status',

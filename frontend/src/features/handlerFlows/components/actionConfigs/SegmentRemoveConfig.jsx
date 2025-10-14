@@ -22,7 +22,7 @@ const SegmentRemoveConfig = ({ node, onUpdate }) => {
     }
 
     setErrors([]);
-    onUpdate(node.id, {
+    onUpdate(node.recordId, {
       actionType: 'segment.remove',
       config: newConfig,
       label: node.data.label || 'Remove from Segment',

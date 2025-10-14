@@ -21,8 +21,8 @@ const buildRequestSummary = (req, res, responseTime) => {
 const buildContextSummary = (req) => {
   const contextBits = [];
 
-  if (req.id) {
-    contextBits.push(`request id ${req.id}`);
+  if (req.recordId) {
+    contextBits.push(`request id ${req.recordId}`);
   }
 
   const ip = req.ip || req.socket?.remoteAddress;
@@ -39,8 +39,8 @@ const buildContextSummary = (req) => {
     contextBits.push(`tenant ${req.tenantSlug}`);
   }
 
-  if (req.user?.id) {
-    contextBits.push(`user ${req.user.id}`);
+  if (req.user?.recordId) {
+    contextBits.push(`user ${req.user.recordId}`);
   }
 
   if (contextBits.length === 0) {
@@ -87,7 +87,7 @@ const formatErrorMessage = (req, res, _err, responseTime) => {
 const attachRequestId = (req, res) => {
   const existingId = req.headers['x-request-id'];
   const requestId = existingId || randomUUID();
-  req.id = requestId;
+  req.recordId = requestId;
   if (res && typeof res.setHeader === 'function') {
     res.setHeader('x-request-id', requestId);
   }
