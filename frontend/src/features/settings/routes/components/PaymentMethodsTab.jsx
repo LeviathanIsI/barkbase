@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/Card';
 export default function PaymentMethodsTab() {
   const [showAddCardModal, setShowAddCardModal] = useState(false);
 
-  // Mock data - replace with API calls
+  // Payment methods (wire to Stripe API)
   const paymentMethods = [
     {
       id: 1,

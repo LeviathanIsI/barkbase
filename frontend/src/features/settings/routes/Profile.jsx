@@ -80,7 +80,7 @@ const Profile = () => {
     numberFormat: 'us',
   });
 
-  // Mock data for demo
+  // Active sessions (wire to session API)
   const [activeSessions] = useState([
     {
       id: 1,

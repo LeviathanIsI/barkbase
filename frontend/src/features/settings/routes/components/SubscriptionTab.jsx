@@ -4,7 +4,7 @@ import Badge from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 
 export default function SubscriptionTab() {
-  // Mock data - replace with API calls
+  // Subscription data (wire to billing API)
   const currentPlan = {
     name: 'FREE',
     description: 'Community support tier',

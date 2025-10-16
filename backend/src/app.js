@@ -54,6 +54,7 @@ const messageRoutes = require("./routes/message.routes");
 const billingRoutes = require("./routes/billing.routes");
 const packageRoutes = require("./routes/package.routes");
 const taskRoutes = require("./routes/task.routes");
+const servicesRoutes = require("./routes/services.routes");
 
 const app = express();
 
@@ -156,6 +157,7 @@ app.use("/api/v1/messages", messageRoutes);
 app.use("/api/v1/billing", billingRoutes);
 app.use("/api/v1/packages", packageRoutes);
 app.use("/api/v1/tasks", taskRoutes);
+app.use("/api/v1/services", servicesRoutes);
 app.use("/users", userRoutes);
 
 app.get("/health", (_req, res) => {

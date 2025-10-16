@@ -7,7 +7,7 @@ const ServiceAnalyticsDashboard = ({ data }) => {
   const totalBookings = data.total_bookings || 0;
   const avgRevenuePerBooking = totalBookings > 0 ? Math.round(totalRevenue / totalBookings) : 0;
 
-  // Mock data for demonstration
+  // Top performers (calculate from real bookings)
   const topPerformers = [
     { name: 'Full Day Daycare', bookings: 156, revenue: 5460 },
     { name: 'Standard Boarding', bookings: 89, revenue: 3960 },

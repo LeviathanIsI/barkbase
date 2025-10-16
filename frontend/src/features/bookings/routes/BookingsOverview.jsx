@@ -22,6 +22,7 @@ import WaitlistManagement from '../components/WaitlistManagement';
 import AuditLogModal from '../components/AuditLogModal';
 import SmartSearchPanel from '../components/SmartSearchPanel';
 import FilterSortPanel from '../components/FilterSortPanel';
+import { useBookingsQuery } from '../api';
 
 const BookingsOverview = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -39,105 +40,11 @@ const BookingsOverview = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedBookings, setSelectedBookings] = useState(new Set());
 
-  // Mock data - in real app this would come from API
-  const [bookings, setBookings] = useState([
-    {
-      id: 'BK-20251015-001',
-      bookingId: 'BK-20251015-001',
-      pet: {
-        name: 'Max',
-        breed: 'Golden Retriever',
-        age: 3,
-        weight: 75
-      },
-      owner: {
-        name: 'Sarah Johnson',
-        phone: '+1 (555) 123-4567',
-        email: 'sarah.j@email.com'
-      },
-      service: 'Boarding',
-      checkInDate: '2025-10-16',
-      checkOutDate: '2025-10-18',
-      status: 'confirmed',
-      kennel: 'K-1',
-      totalAmount: 314.65,
-      paymentStatus: 'paid',
-      specialNotes: [
-        'Medication: Apoquel 16mg daily with food',
-        'Anxious during thunderstorms'
-      ],
-      customerHistory: {
-        totalVisits: 12,
-        lastVisit: '2025-09-28',
-        lifetimeValue: 3847.50,
-        averageRating: 5.0
-      }
-    },
-    {
-      id: 'BK-20251015-002',
-      bookingId: 'BK-20251015-002',
-      pet: {
-        name: 'Bella',
-        breed: 'Labrador',
-        age: 2,
-        weight: 65
-      },
-      owner: {
-        name: 'Mike Thompson',
-        phone: '+1 (555) 234-5678',
-        email: 'mike.w@email.com'
-      },
-      service: 'Daycare',
-      checkInDate: '2025-10-15',
-      checkOutDate: '2025-10-15',
-      status: 'pending',
-      totalAmount: 45.00,
-      paymentStatus: 'pending',
-      late: true,
-      lateBy: '30 mins',
-      specialNotes: ['Regular daycare visitor'],
-      customerHistory: {
-        totalVisits: 8,
-        lastVisit: '2025-10-10',
-        lifetimeValue: 1245.00,
-        averageRating: 4.5
-      }
-    },
-    {
-      id: 'BK-20251015-003',
-      bookingId: 'BK-20251015-003',
-      pet: {
-        name: 'Charlie',
-        breed: 'Beagle',
-        age: 1,
-        weight: 25
-      },
-      owner: {
-        name: 'Tom Brown',
-        phone: '+1 (555) 456-7890',
-        email: 'tom.b@email.com'
-      },
-      service: 'Daycare',
-      checkInDate: '2025-10-15',
-      checkOutDate: '2025-10-15',
-      status: 'checked_in',
-      checkInTime: '08:30 AM',
-      checkOutTime: '03:45 PM',
-      totalAmount: 40.00,
-      paymentStatus: 'paid',
-      activities: [
-        { time: '10:00 AM', activity: 'Morning play group' },
-        { time: '12:00 PM', activity: 'Lunch' },
-        { time: '2:00 PM', activity: 'Afternoon rest' }
-      ],
-      customerHistory: {
-        totalVisits: 3,
-        lastVisit: '2025-10-14',
-        lifetimeValue: 387.50,
-        averageRating: 4.8
-      }
-    }
-  ]);
+  // Real data from API - NO MORE HARDCODED MOCK
+  const { data: bookingsData, isLoading: bookingsLoading } = useBookingsQuery();
+  const bookings = bookingsData?.data || [];
+
+  // Removed all hardcoded mock bookings - using real API data above
 
   const [filters, setFilters] = useState({
     status: ['confirmed', 'pending', 'checked_in', 'checked_out'],

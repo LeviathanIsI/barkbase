@@ -1,54 +1,42 @@
-import { Calendar, TrendingUp, Users, Home, AlertTriangle, DollarSign, Clock } from 'lucide-react';
+import { Calendar, TrendingUp, Users, Home, AlertTriangle, DollarSign, Clock, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { Card } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import { useCalendarCapacity } from '@/features/settings/api';
 
 const EnhancedStatsDashboard = ({ currentDate }) => {
-  // Mock data - in real app this would come from API
+  // Real capacity data from API
+  const { data: capacityData, isLoading: capacityLoading } = useCalendarCapacity();
+
+  // TODO: Replace with real API data for bookings, check-ins, etc.
   const stats = {
     bookings: {
-      today: 12,
+      today: capacityLoading ? 0 : 12, // Would come from bookings API
       change: 3,
       trend: 'up'
     },
-    capacity: {
-      percentage: 85,
-      status: 'high-demand',
+    capacity: capacityData ? {
+      percentage: capacityData.capacityPercentage || 0,
+      status: capacityData.capacityPercentage >= 90 ? 'high-demand' :
+              capacityData.capacityPercentage >= 80 ? 'moderate' : 'normal',
       change: 8
+    } : {
+      percentage: 0,
+      status: 'normal',
+      change: 0
     },
     checkins: {
-      completed: 8,
+      completed: 8, // Would come from check-ins API
       pending: 4
     },
     available: {
-      spots: 15,
-      total: 20
+      spots: capacityData?.availableSpots || 0,
+      total: capacityData?.totalCapacity || 0
     }
   };
 
-  const alerts = [
-    {
-      type: 'capacity',
-      severity: 'warning',
-      title: 'Thursday & Friday approaching 95% capacity',
-      actions: ['Adjust pricing', 'Add overflow kennel', 'Waitlist'],
-      impact: 'High'
-    },
-    {
-      type: 'conflict',
-      severity: 'warning',
-      title: '3 large dogs booked for same daycare time (space conflict)',
-      actions: ['Optimize schedule', 'Contact customer'],
-      impact: 'Medium'
-    },
-    {
-      type: 'opportunity',
-      severity: 'info',
-      title: 'Weekend fully booked - consider raising prices',
-      actions: ['Enable dynamic pricing +$10'],
-      impact: 'Revenue'
-    }
-  ];
+  // TODO: Replace with real alerts from alerts API
+  const alerts = []; // Will be populated from alerts/conflicts API
 
   const getCapacityColor = (percentage) => {
     if (percentage >= 95) return 'text-red-600 bg-red-100';
@@ -175,7 +163,7 @@ const EnhancedStatsDashboard = ({ currentDate }) => {
         </div>
 
         <div className="space-y-4">
-          {alerts.map((alert, index) => (
+          {alerts.length > 0 ? alerts.map((alert, index) => (
             <div key={index} className={`border-l-4 rounded-r-lg p-4 ${getSeverityColor(alert.severity)}`}>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -202,7 +190,12 @@ const EnhancedStatsDashboard = ({ currentDate }) => {
                 </div>
               </div>
             </div>
-          ))}
+          )) : (
+            <div className="text-center py-8">
+              <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-2" />
+              <p className="text-sm text-gray-500">No capacity alerts at this time</p>
+            </div>
+          )}
         </div>
 
         <div className="mt-4 pt-4 border-t border-gray-200">

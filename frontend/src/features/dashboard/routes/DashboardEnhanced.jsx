@@ -46,29 +46,29 @@ const DashboardEnhanced = () => {
 
   const vaccinations = vaccinationsQuery.data ?? [];
 
-  // Mock data for the dashboard metrics
+  // Real data for dashboard metrics - trends will be calculated when historical data is available
   const metrics = [
     {
       title: "Today's Occupancy",
       value: statsQuery.data?.activeBookings ?? 0,
-      subtitle: "vs yesterday",
-      trend: "+12%",
+      subtitle: "active bookings",
+      trend: null, // Will be calculated from historical data
       icon: Users,
       gradient: "blue"
     },
     {
       title: "Revenue Today",
       value: `$${statsQuery.data?.revenueToday ?? 0}`,
-      subtitle: "vs yesterday",
-      trend: "+8%",
+      subtitle: "today's revenue",
+      trend: null, // Will be calculated from historical data
       icon: DollarSign,
       gradient: "orange"
     },
     {
       title: "Pending Check-ins",
       value: statsQuery.data?.pendingCheckins ?? 0,
-      subtitle: "next 2 hours",
-      trend: "-5%",
+      subtitle: "awaiting check-in",
+      trend: null, // Will be calculated from historical data
       icon: Clock,
       gradient: "purple"
     },
@@ -76,7 +76,7 @@ const DashboardEnhanced = () => {
       title: "Available Spots",
       value: statsQuery.data?.availableSpots ?? 0,
       subtitle: "across all facilities",
-      trend: "+3%",
+      trend: null, // Will be calculated from historical data
       icon: MapPin,
       gradient: "gray"
     }
@@ -126,38 +126,23 @@ const DashboardEnhanced = () => {
         {/* Today's Schedule */}
         <Card title="Today's Schedule" description="Upcoming check-ins, check-outs, and activities">
           <div className="space-y-4">
-            <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
-              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                <Clock className="h-5 w-5 text-blue-600" />
+            {statsQuery.isLoading ? (
+              Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg animate-pulse">
+                  <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+                  <div className="flex-1">
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                  </div>
+                  <div className="w-16 h-6 bg-gray-200 rounded"></div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">Schedule data will be available once bookings API is connected</p>
               </div>
-              <div className="flex-1">
-                <p className="font-semibold text-[#263238]">Check-in: Bella (Golden Retriever)</p>
-                <p className="text-sm text-[#64748B]">9:00 AM - Sarah Johnson</p>
-              </div>
-              <Badge variant="success" className="text-xs">Confirmed</Badge>
-            </div>
-
-            <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-lg">
-              <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                <CheckCircle className="h-5 w-5 text-orange-600" />
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold text-[#263238]">Check-out: Max (German Shepherd)</p>
-                <p className="text-sm text-[#64748B]">2:00 PM - Mike Wilson</p>
-              </div>
-              <Badge variant="warning" className="text-xs">Pending</Badge>
-            </div>
-
-            <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg">
-              <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                <Calendar className="h-5 w-5 text-purple-600" />
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold text-[#263238]">Feeding Round</p>
-                <p className="text-sm text-[#64748B]">11:00 AM - All facilities</p>
-              </div>
-              <Badge variant="info" className="text-xs">Scheduled</Badge>
-            </div>
+            )}
           </div>
         </Card>
 
@@ -202,38 +187,23 @@ const DashboardEnhanced = () => {
         {/* Recent Bookings */}
         <Card title="Recent Bookings" description="Latest reservations and check-ins">
           <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                <span className="text-sm font-semibold text-green-600">BJ</span>
+            {statsQuery.isLoading ? (
+              Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="flex items-center gap-3 animate-pulse">
+                  <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+                  <div className="flex-1">
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                  </div>
+                  <div className="w-16 h-6 bg-gray-200 rounded"></div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <Users className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">Recent bookings will be available once bookings API is connected</p>
               </div>
-              <div className="flex-1">
-                <p className="font-semibold text-[#263238]">Bella Johnson</p>
-                <p className="text-sm text-[#64748B]">Golden Retriever • 3 nights</p>
-              </div>
-              <Badge variant="success" className="text-xs">Checked In</Badge>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                <span className="text-sm font-semibold text-blue-600">MW</span>
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold text-[#263238]">Mike Wilson</p>
-                <p className="text-sm text-[#64748B]">German Shepherd • Check-out today</p>
-              </div>
-              <Badge variant="warning" className="text-xs">Pending</Badge>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                <span className="text-sm font-semibold text-purple-600">AS</span>
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold text-[#263238]">Anna Smith</p>
-                <p className="text-sm text-[#64748B]">Siamese Cat • 5 nights</p>
-              </div>
-              <Badge variant="info" className="text-xs">Confirmed</Badge>
-            </div>
+            )}
           </div>
         </Card>
 

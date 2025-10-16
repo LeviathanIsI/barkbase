@@ -8,6 +8,7 @@ import {
   BarChart3,
   DollarSign,
   Gift,
+  CheckCircle,
   FileText,
   CreditCard,
   Users,
@@ -42,7 +43,7 @@ const navigationSections = [
     title: 'OPERATIONS',
     items: [
       { to: '/calendar', label: "Today's Schedule", icon: Calendar },
-      { to: '/daycare/checkin', label: 'Check In/Out', icon: LogIn },
+      { to: '/daycare/checkin', label: 'Tasks & Reminders', icon: CheckCircle },
       { to: '/bookings', label: 'Bookings', icon: BookOpen },
       { to: '/facilities', label: 'Capacity View', icon: BarChart3 },
     ],

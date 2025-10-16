@@ -126,8 +126,8 @@ const PaymentSetupWizard = ({ isOpen, onClose, onComplete }) => {
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
                 <h4 className="text-lg font-semibold text-blue-900 mb-2">Your Choice, Your Terms</h4>
                 <p className="text-blue-800 mb-4">
-                  Unlike competitors, we DON'T force you into expensive payment processors.
-                  Choose the one that works best for YOU.
+                  Choose a payment processor that fits your business needs.
+                  Compare features, rates, and setup requirements.
                 </p>
                 <div className="flex items-center gap-2 text-blue-700">
                   <Info className="w-4 h-4" />
@@ -237,8 +237,8 @@ const PaymentSetupWizard = ({ isOpen, onClose, onComplete }) => {
                   <div>
                     <p className="font-medium">💡 Money-Saving Tip</p>
                     <p className="text-sm">
-                      Most facilities save money with Stripe (2.9% vs 3.5%+ forced processors).
-                      You can always switch later.
+                      Compare processing rates and features between providers.
+                      You can always switch payment processors later.
                     </p>
                   </div>
                 </div>

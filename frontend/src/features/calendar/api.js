@@ -8,8 +8,17 @@ const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'defa
 
 export const useCalendarViewQuery = ({ from, to }) => {
   const tenantKey = useTenantKey();
-  const accessToken = useAuthStore((state) => state.accessToken);
-  const isAuthReady = Boolean(accessToken);
+  // Safely access auth store with error handling
+  let accessToken = null;
+  let isAuthReady = false;
+  try {
+    accessToken = useAuthStore((state) => state.accessToken);
+    isAuthReady = Boolean(accessToken);
+  } catch (error) {
+    // Auth store not available yet
+    console.warn('useAuthStore not available in useCalendarViewQuery');
+  }
+
   const tenantInitialized = useTenantStore((state) => state.initialized);
   const tenantSlug = useTenantStore((state) => state.tenant?.slug);
   const params = new URLSearchParams();
@@ -26,8 +35,17 @@ export const useCalendarViewQuery = ({ from, to }) => {
 
 export const useOccupancyQuery = ({ from, to }) => {
   const tenantKey = useTenantKey();
-  const accessToken = useAuthStore((state) => state.accessToken);
-  const isAuthReady = Boolean(accessToken);
+  // Safely access auth store with error handling
+  let accessToken = null;
+  let isAuthReady = false;
+  try {
+    accessToken = useAuthStore((state) => state.accessToken);
+    isAuthReady = Boolean(accessToken);
+  } catch (error) {
+    // Auth store not available yet
+    console.warn('useAuthStore not available in useOccupancyQuery');
+  }
+
   const tenantInitialized = useTenantStore((state) => state.initialized);
   const tenantSlug = useTenantStore((state) => state.tenant?.slug);
   const params = new URLSearchParams();

@@ -2,40 +2,41 @@ import { DollarSign, Calendar, Users, TrendingUp, Target, AlertTriangle } from '
 import { Card } from '@/components/ui/Card';
 
 const QuickInsightsDashboard = () => {
+  // Placeholder data until real API data is available
   const metrics = [
     {
       title: 'Revenue',
-      value: '$18,450',
-      change: '+15%',
-      changeType: 'positive',
-      subtitle: 'vs last month',
+      value: 'N/A',
+      change: '',
+      changeType: 'neutral',
+      subtitle: 'No data yet',
       icon: DollarSign,
       color: 'green'
     },
     {
       title: 'Bookings',
-      value: '247',
-      change: '+12%',
-      changeType: 'positive',
-      subtitle: 'vs last month',
+      value: 'N/A',
+      change: '',
+      changeType: 'neutral',
+      subtitle: 'No data yet',
       icon: Calendar,
       color: 'blue'
     },
     {
       title: 'Customers',
-      value: '89',
-      change: '8 new',
-      changeType: 'positive',
-      subtitle: 'customers',
+      value: 'N/A',
+      change: '',
+      changeType: 'neutral',
+      subtitle: 'No data yet',
       icon: Users,
       color: 'purple'
     },
     {
       title: 'Growth',
-      value: '+15%',
-      change: '↗',
-      changeType: 'positive',
-      subtitle: 'vs last month',
+      value: 'N/A',
+      change: '',
+      changeType: 'neutral',
+      subtitle: 'No data yet',
       icon: TrendingUp,
       color: 'orange'
     }
@@ -44,37 +45,37 @@ const QuickInsightsDashboard = () => {
   const detailedMetrics = [
     {
       title: 'Avg Booking Value',
-      value: '$74.50',
-      change: '+$5.20',
-      changeType: 'positive',
-      subtitle: 'vs last month',
+      value: 'N/A',
+      change: '',
+      changeType: 'neutral',
+      subtitle: 'No data yet',
       icon: Target,
       color: 'blue'
     },
     {
       title: 'Capacity',
-      value: '73%',
-      change: 'Avg daily',
+      value: 'N/A',
+      change: '',
       changeType: 'neutral',
-      subtitle: 'utilization',
+      subtitle: 'No data yet',
       icon: Users,
       color: 'purple'
     },
     {
       title: 'Top Service',
-      value: 'Boarding',
-      change: '62%',
+      value: 'N/A',
+      change: '',
       changeType: 'neutral',
-      subtitle: 'of revenue',
+      subtitle: 'No data yet',
       icon: TrendingUp,
       color: 'green'
     },
     {
       title: 'No-Shows',
-      value: '2',
-      change: '0.8%',
+      value: 'N/A',
+      change: '',
       changeType: 'neutral',
-      subtitle: 'rate',
+      subtitle: 'No data yet',
       icon: AlertTriangle,
       color: 'orange'
     }
@@ -85,18 +86,14 @@ const QuickInsightsDashboard = () => {
       type: 'positive',
       title: 'What\'s working',
       items: [
-        'Weekend bookings up 18% - Keep promoting weekend stays',
-        'Average booking value +7% - Upsells working well',
-        'Rebooking rate at 73% (↗ 8%) - Customers love you!'
+        'No data available yet'
       ]
     },
     {
       type: 'warning',
       title: 'Needs attention',
       items: [
-        'Monday-Tuesday only 60% full - Run midweek promotion',
-        '12 customers haven\'t rebooked in 60+ days - Win-back',
-        'Thanksgiving week only 45% booked - Holiday marketing'
+        'No data available yet'
       ]
     }
   ];

@@ -10,6 +10,7 @@ import ServiceAnalyticsDashboard from './components/ServiceAnalyticsDashboard';
 import SmartRecommendations from './components/SmartRecommendations';
 import CompetitorPricingIntelligence from './components/CompetitorPricingIntelligence';
 import BulkImportModal from './components/BulkImportModal';
+import { useServicesQuery } from '../api';
 
 const OBJECT_TYPES = [
   { recordId: 'boarding', label: 'Boarding' },
@@ -28,146 +29,13 @@ const ServicesOverview = () => {
     tabParam && OBJECT_TYPES.find(t => t.recordId === tabParam) ? tabParam : 'boarding'
   );
   const [searchQuery, setSearchQuery] = useState('');
-  const [services, setServices] = useState({});
-  const [loading, setLoading] = useState({});
   const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingService, setEditingService] = useState(null);
 
-  // Mock data for demonstration
-  const mockServices = {
-    boarding: {
-      total_revenue: 13450,
-      total_bookings: 178,
-      services: [
-        {
-          recordId: 'standard-boarding',
-          name: 'Standard Boarding',
-          description: 'Overnight accommodations in standard runs',
-          category: 'Boarding',
-          basePrice: 45,
-          unit: 'per night',
-          sizePricing: {
-            small: 45,
-            medium: 50,
-            large: 55
-          },
-          discounts: [
-            { nights: 7, discount: 10 },
-            { nights: 14, discount: 15 }
-          ],
-          addOns: ['Extra playtime', 'Webcam access'],
-          bookingsThisMonth: 89,
-          revenueThisMonth: 3960,
-          avgStay: 3.2,
-          rating: 4.8,
-          multiPetDiscount: { discount: 5, unit: 'per additional pet' }
-        },
-        {
-          recordId: 'suite-boarding',
-          name: 'Suite Boarding (Premium)',
-          description: 'Luxury accommodations with extra space',
-          category: 'Boarding',
-          basePrice: 75,
-          unit: 'per night',
-          flatRate: true,
-          amenities: [
-            '2x space of standard run',
-            'Elevated bed & comfort items',
-            'Daily report card with photos',
-            '24/7 webcam access'
-          ],
-          bookingsThisMonth: 34,
-          revenueThisMonth: 2550,
-          growth: 35,
-          rating: 5.0
-        }
-      ]
-    },
-    daycare: {
-      total_revenue: 5460,
-      total_bookings: 156,
-      services: [
-        {
-          recordId: 'full-day-daycare',
-          name: 'Full Day Daycare',
-          description: 'Drop off by 9am, pick up by 6pm',
-          category: 'Daycare',
-          basePrice: 35,
-          unit: 'per day',
-          packages: [
-            { name: '5-day pass', price: 160, savings: 15 },
-            { name: '10-day pass', price: 300, savings: 50 },
-            { name: '20-day pass', price: 560, savings: 140 }
-          ],
-          unlimitedMembership: { monthlyPrice: 450, avgVisits: 20 },
-          bookingsThisMonth: 156,
-          revenueThisMonth: 5460,
-          isMostPopular: true
-        }
-      ]
-    },
-    grooming: {
-      total_revenue: 3375,
-      total_bookings: 45,
-      services: [
-        {
-          recordId: 'full-groom',
-          name: 'Full Groom',
-          description: 'Bath, haircut, nails, ears, and teeth brushing',
-          category: 'Grooming',
-          sizePricing: {
-            small: 55,
-            medium: 70,
-            large: 85,
-            xlarge: 100
-          },
-          breedSurcharges: [
-            { breeds: ['Doodles', 'Poodles'], surcharge: 15 },
-            { breeds: ['Double-coated'], surcharge: 10 }
-          ],
-          duration: '2-4 hours',
-          bookingsThisMonth: 45,
-          revenueThisMonth: 3375
-        }
-      ]
-    },
-    'add-ons': {
-      total_revenue: 372,
-      total_bookings: 124,
-      services: [
-        {
-          recordId: 'daily-photos',
-          name: 'Daily Photo Updates',
-          description: 'Photos sent throughout the day',
-          category: 'Add-ons',
-          basePrice: 5,
-          unit: 'per day',
-          bundledWith: ['Suite Boarding'],
-          bookingsThisMonth: 67,
-          revenueThisMonth: 335
-        },
-        {
-          recordId: 'medication-admin',
-          name: 'Medication Administration',
-          description: 'Professional medication dosing',
-          category: 'Add-ons',
-          basePrice: 3,
-          unit: 'per dose',
-          bookingsThisMonth: 124,
-          revenueThisMonth: 372
-        }
-      ]
-    }
-  };
-
-  // Initialize mock data
-  useEffect(() => {
-    if (!services[selectedCategory]) {
-      setServices(prev => ({ ...prev, [selectedCategory]: mockServices[selectedCategory] || { services: [] } }));
-    }
-  }, [selectedCategory]);
+  // Real API data
+  const { data: servicesData, isLoading: servicesLoading } = useServicesQuery();
 
   const handleBrowseTemplates = () => {
     setIsTemplatesModalOpen(true);
@@ -186,37 +54,57 @@ const ServicesOverview = () => {
     console.log('Watch tutorial');
   };
 
-  // Flatten and filter services
-  const { filteredServices, categoryStats } = useMemo(() => {
-    const currentData = services[selectedCategory];
-    if (!currentData || !currentData.services) {
-      return { filteredServices: [], categoryStats: {} };
+  // Process and filter services from API
+  const { filteredServices, categoryStats, hasServices } = useMemo(() => {
+    if (!servicesData || servicesLoading) {
+      return {
+        filteredServices: [],
+        categoryStats: { totalRevenue: 0, totalBookings: 0, serviceCount: 0 },
+        hasServices: false
+      };
     }
 
-    let filtered = currentData.services;
+    // Filter services by selected category
+    let categoryServices = servicesData;
+    if (selectedCategory !== 'all') {
+      // Map selectedCategory to actual category names (case-insensitive)
+      const categoryMap = {
+        boarding: 'BOARDING',
+        daycare: 'DAYCARE',
+        grooming: 'GROOMING',
+        training: 'TRAINING',
+        'add-ons': 'ADD_ONS',
+        memberships: 'MEMBERSHIPS'
+      };
+      const apiCategory = categoryMap[selectedCategory] || selectedCategory.toUpperCase();
+      categoryServices = servicesData.filter(service => service.category === apiCategory);
+    }
 
-    // Search filter
+    // Apply search filter
+    let filtered = categoryServices;
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (service) =>
-          service.name.toLowerCase().includes(query) ||
-          service.description.toLowerCase().includes(query)
+          service.name?.toLowerCase().includes(query) ||
+          service.description?.toLowerCase().includes(query)
       );
     }
+
+    // Calculate stats (these would need to be calculated from actual data or come from separate API)
+    const totalRevenue = 0; // Would need separate API for revenue stats
+    const totalBookings = 0; // Would need separate API for booking stats
 
     return {
       filteredServices: filtered,
       categoryStats: {
-        totalRevenue: currentData.total_revenue || 0,
-        totalBookings: currentData.total_bookings || 0,
+        totalRevenue,
+        totalBookings,
         serviceCount: filtered.length
-      }
+      },
+      hasServices: categoryServices.length > 0
     };
-  }, [services, selectedCategory, searchQuery]);
-
-  const currentData = services[selectedCategory];
-  const hasServices = currentData && currentData.services && currentData.services.length > 0;
+  }, [servicesData, servicesLoading, selectedCategory, searchQuery]);
 
   return (
     <div className="space-y-6">

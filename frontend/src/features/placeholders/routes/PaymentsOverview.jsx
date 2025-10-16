@@ -10,6 +10,7 @@ import PaymentSettings from '../components/PaymentSettings';
 import PaymentDetailModal from '../components/PaymentDetailModal';
 import RefundModal from '../components/RefundModal';
 import QuickIntegrations from '../components/QuickIntegrations';
+import { usePaymentsQuery, usePaymentSummaryQuery } from '../../payments/api';
 
 const PaymentsOverview = () => {
   const [isSetup, setIsSetup] = useState(true); // Change to false to see setup wizard
@@ -38,31 +39,55 @@ const PaymentsOverview = () => {
     setShowPaymentDetail(true);
   };
 
+  // Real payment data
+  const { data: paymentsData, isLoading: paymentsLoading } = usePaymentsQuery();
+  const { data: paymentSummaryData, isLoading: summaryLoading } = usePaymentSummaryQuery();
+
   const handleProcessRefund = (payment) => {
     setSelectedPayment(payment);
     setShowRefundModal(true);
   };
 
-  // Mock payment data
-  const mockPaymentData = {
+  // Use real data or provide structure for when API returns data
+  const paymentData = paymentSummaryData || {
     processor: {
-      name: 'Stripe',
-      status: 'active',
-      rate: '2.9% + 30¢',
-      account: 'sarah@happypawsboarding.com'
+      name: 'Not Configured',
+      status: 'inactive',
+      rate: 'Not configured'
     },
     stats: {
-      revenueCollected: 18450.00,
-      previousPeriod: 2340,
-      processedAmount: 16825.00,
-      pendingAmount: 1625.00,
-      successRate: 98.2,
-      refunds: 127.50,
-      failedPayments: 3,
-      avgPayment: 74.50,
-      feesPaid: 456.33,
-      feeRate: 2.47
+      revenueCollected: 0,
+      previousPeriod: 0,
+      processedAmount: 0,
+      pendingAmount: 0,
+      successRate: 0,
+      refunds: 0,
+      failedPayments: 0,
+      avgPayment: 0,
+      feesPaid: 0,
+      feeRate: 0
     }
+  };
+
+  // Ensure stats object exists even if API returns partial data
+  const safeStats = paymentData.stats || {
+    revenueCollected: 0,
+    previousPeriod: 0,
+    processedAmount: 0,
+    pendingAmount: 0,
+    successRate: 0,
+    refunds: 0,
+    failedPayments: 0,
+    avgPayment: 0,
+    feesPaid: 0,
+    feeRate: 0
+  };
+
+  // Ensure processor object exists even if API returns partial data
+  const safeProcessor = paymentData.processor || {
+    name: 'Not Configured',
+    status: 'inactive',
+    rate: 'Not configured'
   };
 
   if (!isSetup) {
@@ -89,8 +114,8 @@ const PaymentsOverview = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Revenue Collected</p>
-                <p className="text-2xl font-bold text-gray-900">$18,450</p>
-                <p className="text-xs text-green-600">+15% vs last month</p>
+                <p className="text-2xl font-bold text-gray-900">${safeStats.revenueCollected.toLocaleString()}</p>
+                <p className="text-xs text-gray-600">Revenue collected</p>
               </div>
             </div>
           </Card>
@@ -102,8 +127,8 @@ const PaymentsOverview = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Success Rate</p>
-                <p className="text-2xl font-bold text-gray-900">98.2%</p>
-                <p className="text-xs text-gray-600">Very good</p>
+                <p className="text-2xl font-bold text-gray-900">{safeStats.successRate}%</p>
+                <p className="text-xs text-gray-600">Success rate</p>
               </div>
             </div>
           </Card>
@@ -115,8 +140,8 @@ const PaymentsOverview = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Outstanding</p>
-                <p className="text-2xl font-bold text-gray-900">$1,625</p>
-                <p className="text-xs text-gray-600">3 invoices</p>
+                <p className="text-2xl font-bold text-gray-900">${safeStats.pendingAmount.toLocaleString()}</p>
+                <p className="text-xs text-gray-600">Pending payments</p>
               </div>
             </div>
           </Card>
@@ -246,8 +271,8 @@ const PaymentsOverview = () => {
             </div>
             <div>
               <p className="text-sm text-gray-600">Revenue Collected</p>
-              <p className="text-2xl font-bold text-gray-900">${mockPaymentData.stats.revenueCollected.toLocaleString()}</p>
-              <p className="text-xs text-green-600">+${mockPaymentData.stats.previousPeriod.toLocaleString()} (+15%)</p>
+              <p className="text-2xl font-bold text-gray-900">${safeStats.revenueCollected.toLocaleString()}</p>
+              <p className="text-xs text-green-600">+${safeStats.previousPeriod.toLocaleString()} (+15%)</p>
             </div>
           </div>
         </Card>
@@ -259,7 +284,7 @@ const PaymentsOverview = () => {
             </div>
             <div>
               <p className="text-sm text-gray-600">Processed</p>
-              <p className="text-2xl font-bold text-gray-900">${mockPaymentData.stats.processedAmount.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">${safeStats.processedAmount.toLocaleString()}</p>
               <p className="text-xs text-gray-600">Card/online payments</p>
             </div>
           </div>
@@ -272,7 +297,7 @@ const PaymentsOverview = () => {
             </div>
             <div>
               <p className="text-sm text-gray-600">Pending</p>
-              <p className="text-2xl font-bold text-gray-900">${mockPaymentData.stats.pendingAmount.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">${safeStats.pendingAmount.toLocaleString()}</p>
               <p className="text-xs text-gray-600">Outstanding balance</p>
             </div>
           </div>
@@ -285,7 +310,7 @@ const PaymentsOverview = () => {
             </div>
             <div>
               <p className="text-sm text-gray-600">Success Rate</p>
-              <p className="text-2xl font-bold text-gray-900">{mockPaymentData.stats.successRate}%</p>
+              <p className="text-2xl font-bold text-gray-900">{safeStats.successRate}%</p>
               <p className="text-xs text-gray-600">Very good</p>
             </div>
           </div>
@@ -301,8 +326,8 @@ const PaymentsOverview = () => {
             </div>
             <div>
               <p className="text-sm text-gray-600">Refunds</p>
-              <p className="text-2xl font-bold text-gray-900">${mockPaymentData.stats.refunds.toFixed(2)}</p>
-              <p className="text-xs text-gray-600">0.7% of revenue</p>
+              <p className="text-2xl font-bold text-gray-900">${safeStats.refunds.toFixed(2)}</p>
+              <p className="text-xs text-gray-600">Total refunds</p>
             </div>
           </div>
         </Card>
@@ -314,8 +339,8 @@ const PaymentsOverview = () => {
             </div>
             <div>
               <p className="text-sm text-gray-600">Failed Payments</p>
-              <p className="text-2xl font-bold text-gray-900">{mockPaymentData.stats.failedPayments}</p>
-              <p className="text-xs text-gray-600">1.2% rate</p>
+              <p className="text-2xl font-bold text-gray-900">{safeStats.failedPayments}</p>
+              <p className="text-xs text-gray-600">Failed payments</p>
             </div>
           </div>
         </Card>
@@ -327,7 +352,7 @@ const PaymentsOverview = () => {
             </div>
             <div>
               <p className="text-sm text-gray-600">Avg Payment</p>
-              <p className="text-2xl font-bold text-gray-900">${mockPaymentData.stats.avgPayment.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-gray-900">${safeStats.avgPayment.toFixed(2)}</p>
               <p className="text-xs text-gray-600">Per booking</p>
             </div>
           </div>
@@ -340,8 +365,8 @@ const PaymentsOverview = () => {
             </div>
             <div>
               <p className="text-sm text-gray-600">Fees Paid</p>
-              <p className="text-2xl font-bold text-gray-900">${mockPaymentData.stats.feesPaid.toFixed(2)}</p>
-              <p className="text-xs text-green-600">{mockPaymentData.stats.feeRate}% effective rate</p>
+              <p className="text-2xl font-bold text-gray-900">${safeStats.feesPaid.toFixed(2)}</p>
+              <p className="text-xs text-green-600">{safeStats.feeRate}% effective rate</p>
             </div>
           </div>
         </Card>
@@ -355,19 +380,19 @@ const PaymentsOverview = () => {
               <CheckCircle className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <p className="font-medium text-gray-900">Connected: {mockPaymentData.processor.name}</p>
+              <p className="font-medium text-gray-900">Connected: {safeProcessor.name}</p>
               <p className="text-sm text-gray-600">Status: Active • Processing smoothly</p>
             </div>
           </div>
           <div className="text-right">
             <p className="text-sm text-gray-600">Your rate</p>
-            <p className="font-medium">{mockPaymentData.processor.rate}</p>
+            <p className="font-medium">{safeProcessor.rate}</p>
           </div>
         </div>
 
         <div className="flex gap-3 mt-4">
           <Button variant="outline" size="sm">
-            Manage {mockPaymentData.processor.name} Settings
+            Manage {safeProcessor.name} Settings
           </Button>
           <Button variant="outline" size="sm">
             View Transactions
@@ -375,20 +400,6 @@ const PaymentsOverview = () => {
           <Button variant="outline" size="sm">
             Change Processor
           </Button>
-        </div>
-      </Card>
-
-      {/* Savings Banner */}
-      <Card className="p-4 bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="font-semibold text-green-900">💰 Your Savings vs Forced Processors</h4>
-            <p className="text-sm text-green-700">You saved ~$187 this month by choosing your preferred processor</p>
-          </div>
-          <div className="text-right">
-            <p className="text-2xl font-bold text-green-900">$187</p>
-            <p className="text-xs text-green-700">Monthly savings</p>
-          </div>
         </div>
       </Card>
 

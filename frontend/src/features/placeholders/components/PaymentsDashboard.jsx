@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Search, Filter, Download, Mail, CheckCircle, Clock, XCircle, RefreshCw, Eye, DollarSign, AlertTriangle } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { usePaymentsQuery } from '../../payments/api';
 
 const PaymentsDashboard = ({ onViewPayment, onProcessRefund }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -9,61 +10,16 @@ const PaymentsDashboard = ({ onViewPayment, onProcessRefund }) => {
   const [methodFilter, setMethodFilter] = useState('all');
   const [selectedPayments, setSelectedPayments] = useState([]);
 
-  // Mock payment data
-  const payments = [
-    {
-      id: 'TXN-20251015-001',
-      amount: 314.65,
-      status: 'successful',
-      customer: 'Sarah Johnson',
-      pet: 'Max (Golden Retriever)',
-      service: 'Standard Boarding (5 nights)',
-      method: 'Visa ****4242',
-      date: 'Oct 15, 2025 @ 3:43 PM',
-      bookingId: 'BK-20251015-001',
-      fee: 9.42,
-      net: 305.23
-    },
-    {
-      id: 'TXN-20251015-002',
-      amount: 189.00,
-      status: 'pending',
-      customer: 'Tom Brown',
-      pet: 'Charlie',
-      service: 'Daycare (Full day)',
-      method: 'Card on file (Visa ****8765)',
-      date: 'Today @ 3:45 PM',
-      bookingId: 'BK-20251014-005',
-      fee: 0,
-      net: 189.00
-    },
-    {
-      id: 'TXN-20251015-003',
-      amount: 125.00,
-      status: 'failed',
-      customer: 'Mike Thompson',
-      pet: 'Buddy',
-      service: 'Grooming',
-      method: 'Declined',
-      date: 'Oct 15, 2025 @ 11:23 AM',
-      bookingId: 'BK-20251015-008',
-      fee: 0,
-      net: 0
-    },
-    {
-      id: 'TXN-20251014-087',
-      amount: -45.00,
-      status: 'refunded',
-      customer: 'Emma Davis',
-      pet: 'Luna',
-      service: 'Refund - Cancellation',
-      method: 'Visa ****4242',
-      date: 'Oct 14, 2025 @ 4:15 PM',
-      bookingId: 'BK-20251010-034',
-      fee: 0,
-      net: -45.00
-    }
-  ];
+  // Build query parameters
+  const queryParams = {};
+  if (searchTerm) queryParams.search = searchTerm;
+  if (statusFilter !== 'all') queryParams.status = statusFilter;
+  if (methodFilter !== 'all') queryParams.method = methodFilter;
+
+  const { data: paymentsData, isLoading } = usePaymentsQuery(queryParams);
+
+  // Use real API data with fallback
+  const payments = paymentsData?.data || [];
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -285,15 +241,17 @@ const PaymentsDashboard = ({ onViewPayment, onProcessRefund }) => {
       </div>
 
       {/* Load More */}
-      <div className="text-center">
-        <Button variant="outline">
-          Load More (showing 4 of 247)
-        </Button>
-        <Button variant="outline" className="ml-2">
-          <Download className="w-4 h-4 mr-1" />
-          Export All
-        </Button>
-      </div>
+      {payments.length > 0 && (
+        <div className="text-center">
+          <Button variant="outline" disabled>
+            Load More (showing {payments.length} payments)
+          </Button>
+          <Button variant="outline" className="ml-2" disabled>
+            <Download className="w-4 h-4 mr-1" />
+            Export All
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

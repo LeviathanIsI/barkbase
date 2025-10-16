@@ -4,83 +4,35 @@ import Button from '@/components/ui/Button';
 const BookingDetailModal = ({ booking, isOpen, onClose }) => {
   if (!isOpen || !booking) return null;
 
-  // Mock data for demonstration
-  const mockBooking = {
-    id: 'BK-20251013-001',
-    pet: {
-      name: 'Max',
-      breed: 'Golden Retriever',
-      age: 3,
-      weight: 75,
-      neutered: true,
-      color: 'Golden',
-      microchip: '982000123456789'
-    },
-    owner: {
-      name: 'Sarah Johnson',
-      phone: '(555) 123-4567',
-      email: 'sarah.j@email.com',
-      address: '123 Main St, Anytown, USA'
-    },
+  // Use real booking data
+  const displayBooking = {
+    id: booking.recordId || 'Unknown',
+    pet: booking.pet || {},
+    owner: booking.owner || {},
     service: {
-      type: 'Standard Boarding',
-      duration: '5 nights',
-      checkIn: 'Mon, Oct 13 @ 2:00 PM',
-      checkOut: 'Wed, Oct 18 @ 11:00 AM',
-      status: 'In Progress'
+      type: 'Boarding',
+      duration: `${Math.ceil((new Date(booking.checkOut) - new Date(booking.checkIn)) / (1000 * 60 * 60 * 24))} nights`,
+      checkIn: new Date(booking.checkIn).toLocaleString(),
+      checkOut: new Date(booking.checkOut).toLocaleString(),
+      status: booking.status || 'Unknown'
     },
-    kennel: {
-      name: 'K-1',
-      type: 'Large indoor run',
-      size: 'Large'
-    },
+    kennel: booking.segments?.[0]?.kennel || { name: 'Unassigned', type: 'N/A', size: 'N/A' },
     care: {
-      medication: {
-        required: true,
-        name: 'Apoquel 16mg',
-        schedule: 'Once daily with food',
-        lastGiven: 'Today @ 8:00 AM',
-        nextDose: 'Tomorrow @ 8:00 AM',
-        administeredBy: 'Staff: Jenny'
-      },
-      feeding: {
-        schedule: '2 cups twice daily (8 AM & 6 PM)',
-        specialDiet: 'Grain-free',
-        lastFed: 'Today @ 8:00 AM'
-      },
-      notes: [
-        'Friendly with other dogs',
-        'Anxious during thunderstorms',
-        'Loves tennis balls'
-      ],
-      vaccinations: {
-        current: true,
-        expires: 'Apr 2026'
-      }
-    },
-    pricing: {
-      baseRate: 50,
-      nights: 5,
-      subtotal: 250,
-      addons: [
-        { name: 'Medication admin', amount: 3, days: 5, total: 15 },
-        { name: 'Daily photo updates', amount: 25, total: 25 }
-      ],
-      tax: 8.5,
-      taxAmount: 24.65,
-      total: 314.65
+      medication: { required: false },
+      feeding: { schedule: booking.specialInstructions || 'Standard' },
+      notes: booking.notes ? [booking.notes] : [],
+      vaccinations: { current: true }
     },
     payment: {
-      status: 'Paid in full',
-      method: 'Visa ending in 4242',
-      date: 'Oct 13, 2025'
+      total: booking.totalCents || 0,
+      paid: booking.amountPaidCents || 0,
+      balance: (booking.totalCents || 0) - (booking.amountPaidCents || 0)
     },
-    booking: {
-      id: 'BK-20251013-001',
-      bookedDate: 'Oct 5, 2025',
-      status: 'Confirmed'
-    }
+    checkInPhotos: [],
+    timeline: []
   };
+
+  // displayBooking already has real data from the booking prop
 
   const getStatusColor = (status) => {
     switch (status) {

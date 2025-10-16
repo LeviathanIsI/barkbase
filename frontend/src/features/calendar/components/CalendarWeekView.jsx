@@ -3,6 +3,9 @@ import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks }
 import { ChevronLeft, ChevronRight, Calendar, Home, Scissors, Pill } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import Skeleton from '@/components/ui/Skeleton';
+import { useKennels } from '@/features/kennels/api';
+import { useBookingsQuery } from '@/features/bookings/api';
 
 const CalendarWeekView = ({ currentDate, onDateChange, onBookingClick, filters }) => {
   const [currentWeek, setCurrentWeek] = useState(currentDate);
@@ -11,75 +14,36 @@ const CalendarWeekView = ({ currentDate, onDateChange, onBookingClick, filters }
   const weekEnd = endOfWeek(currentWeek, { weekStartsOn: 1 });
   const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
-  // Mock data - in real app this would come from API
-  const mockKennels = [
-    { id: 'K-1', name: 'K-1', type: 'Large', size: 'Large' },
-    { id: 'K-2', name: 'K-2', type: 'Medium', size: 'Medium' },
-    { id: 'K-3', name: 'K-3', type: 'Large', size: 'Large' },
-    { id: 'K-4', name: 'K-4', type: 'Small', size: 'Small' },
-    { id: 'K-5', name: 'K-5', type: 'Large', size: 'Large' }
-  ];
+  // Fetch real data
+  const { data: kennelsData, isLoading: kennelsLoading } = useKennels();
+  const { data: bookingsData, isLoading: bookingsLoading } = useBookingsQuery({
+    from: format(weekStart, 'yyyy-MM-dd'),
+    to: format(weekEnd, 'yyyy-MM-dd')
+  });
 
-  const mockBookings = [
-    {
-      id: 1,
-      pet: { name: 'Max', breed: 'Golden Retriever' },
-      owner: { name: 'Sarah Johnson' },
-      service: 'boarding',
-      kennelId: 'K-1',
-      startDate: '2025-10-13',
-      endDate: '2025-10-18',
-      status: 'confirmed',
-      checkIn: '2025-10-13T14:00:00',
-      checkOut: '2025-10-18T11:00:00',
-      medication: true
-    },
-    {
-      id: 2,
-      pet: { name: 'Bella', breed: 'Labrador' },
-      owner: { name: 'Mike Thompson' },
-      service: 'boarding',
-      kennelId: 'K-3',
-      startDate: '2025-10-14',
-      endDate: '2025-10-16',
-      status: 'confirmed',
-      checkIn: '2025-10-14T10:00:00',
-      checkOut: '2025-10-16T15:00:00'
-    },
-    {
-      id: 3,
-      pet: { name: 'Luna', breed: 'Poodle' },
-      owner: { name: 'Emily Davis' },
-      service: 'boarding',
-      kennelId: 'K-5',
-      startDate: '2025-10-15',
-      endDate: '2025-10-19',
-      status: 'confirmed',
-      checkIn: '2025-10-15T16:00:00',
-      checkOut: '2025-10-19T18:00:00'
-    },
-    {
-      id: 4,
-      pet: { name: 'Buddy', breed: 'Husky' },
-      owner: { name: 'Jessica Lee' },
-      service: 'boarding',
-      kennelId: 'K-2',
-      startDate: '2025-10-13',
-      endDate: '2025-10-15',
-      status: 'confirmed',
-      checkIn: '2025-10-13T17:30:00',
-      checkOut: '2025-10-15T12:00:00'
-    }
-  ];
+  const kennels = kennelsData || [];
+  const bookings = bookingsData?.data || [];
+
+  const isLoading = kennelsLoading || bookingsLoading;
 
   const getBookingsForDayAndKennel = (day, kennelId) => {
-    return mockBookings.filter(booking => {
-      const dayStr = format(day, 'yyyy-MM-dd');
-      return booking.kennelId === kennelId &&
-             booking.startDate <= dayStr &&
-             booking.endDate >= dayStr;
+    const dayStr = format(day, 'yyyy-MM-dd');
+    return bookings.filter(booking => {
+      const checkInDate = format(new Date(booking.checkIn), 'yyyy-MM-dd');
+      const checkOutDate = format(new Date(booking.checkOut), 'yyyy-MM-dd');
+      // Check if this booking overlaps with the day and is assigned to this kennel
+      const assignedToKennel = booking.segments?.some(seg => seg.kennelId === kennelId);
+      return assignedToKennel && checkInDate <= dayStr && checkOutDate >= dayStr;
     });
   };
+
+  if (isLoading) {
+    return (
+      <Card className="p-6">
+        <Skeleton className="h-96" />
+      </Card>
+    );
+  }
 
   const getServiceIcon = (service) => {
     switch (service) {
@@ -101,9 +65,11 @@ const CalendarWeekView = ({ currentDate, onDateChange, onBookingClick, filters }
   };
 
   const getCapacityPercentage = (day) => {
-    const dayBookings = mockBookings.filter(booking => {
-      const dayStr = format(day, 'yyyy-MM-dd');
-      return booking.startDate <= dayStr && booking.endDate >= dayStr;
+    const dayStr = format(day, 'yyyy-MM-dd');
+    const dayBookings = bookings.filter(booking => {
+      const checkInDate = format(new Date(booking.checkIn), 'yyyy-MM-dd');
+      const checkOutDate = format(new Date(booking.checkOut), 'yyyy-MM-dd');
+      return checkInDate <= dayStr && checkOutDate >= dayStr;
     });
     return Math.round((dayBookings.length / 5) * 100); // 5 kennels total
   };
@@ -182,7 +148,7 @@ const CalendarWeekView = ({ currentDate, onDateChange, onBookingClick, filters }
             })}
 
             {/* Kennel Rows */}
-            {mockKennels.map((kennel) => (
+            {kennels.map((kennel) => (
               <div key={kennel.id} className="contents">
                 {/* Kennel Header */}
                 <div className="bg-gray-50 border-r border-gray-200 p-4 font-medium text-gray-900 border-t">

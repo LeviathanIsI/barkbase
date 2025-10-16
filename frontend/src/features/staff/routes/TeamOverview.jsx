@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Users, Calendar, MessageSquare, BarChart3, Clock, Settings, UserPlus, Search, Filter, MoreVertical, CheckCircle, AlertTriangle, XCircle, TrendingUp, Target, Star, Smartphone } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card, PageHeader } from '@/components/ui/Card';
@@ -13,15 +13,18 @@ import InternalMessaging from '../components/InternalMessaging';
 import TeamAnalytics from '../components/TeamAnalytics';
 import MobileAppPreview from '../components/MobileAppPreview';
 import RolesPermissionsBuilder from '../components/RolesPermissionsBuilder';
+import { useStaffQuery } from '../../settings/api';
 
 const TeamOverview = () => {
-  const [hasStaff, setHasStaff] = useState(true); // Change to false to see empty state
   const [currentView, setCurrentView] = useState('overview'); // overview, profile, schedule, tasks, timeclock, reviews, messages, analytics, mobile, permissions
   const [showStaffWizard, setShowStaffWizard] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
+
+  // Real API data
+  const { data: staffData, isLoading: staffLoading } = useStaffQuery();
 
   // Set document title
   useState(() => {
@@ -37,7 +40,6 @@ const TeamOverview = () => {
 
   const handleStaffWizardComplete = (staffData) => {
     setShowStaffWizard(false);
-    setHasStaff(true);
     setCurrentView('overview');
   };
 
@@ -51,81 +53,52 @@ const TeamOverview = () => {
     setSelectedStaff(null);
   };
 
-  // Mock team data
-  const teamStats = {
-    totalStaff: 8,
-    activeMembers: 7,
-    roles: 4,
-    avgTasksPerStaff: 12,
-    clockedIn: 4,
-    scheduled: 6,
-    onPto: 1,
-    utilization: 78
-  };
-
-  const mockStaff = [
-    {
-      id: 1,
-      name: 'Jenny Martinez',
-      email: 'jenny.martinez@email.com',
-      phone: '(555) 234-5678',
-      role: 'Kennel Attendant',
-      status: 'clocked-in',
-      shift: '8:00 AM - 5:00 PM',
-      tasksPending: 3,
-      tasksCompleted: 8,
-      areas: ['Dog boarding', 'Daycare', 'Reception'],
-      rating: 4.9,
-      reviews: 12,
-      tenure: '2 years, 7 months',
-      photo: null
-    },
-    {
-      id: 2,
-      name: 'Mike Thompson',
-      email: 'mike.t@email.com',
-      phone: '(555) 345-6789',
-      role: 'Manager',
-      status: 'clocked-in',
-      shift: '7:00 AM - 4:00 PM',
-      tasksPending: 5,
-      tasksCompleted: 12,
-      areas: ['All areas'],
-      rating: 5.0,
-      reviews: 24,
-      tenure: '5 years, 1 month',
-      photo: null
-    },
-    {
-      id: 3,
-      name: 'Sarah Johnson',
-      email: 'sarah.j@email.com',
-      phone: '(555) 456-7890',
-      role: 'Groomer',
-      status: 'off',
-      ptoReason: 'Vacation',
-      returnDate: 'Oct 17, 2025',
-      areas: ['Grooming'],
-      rating: 4.8,
-      reviews: 18,
-      tenure: '1 year, 8 months',
-      photo: null
-    },
-    {
-      id: 4,
-      name: 'David Martinez',
-      email: 'david.m@email.com',
-      phone: '(555) 567-8901',
-      role: 'Kennel Attendant',
-      status: 'scheduled',
-      shift: '2:00 PM - 10:00 PM',
-      areas: ['Dog boarding', 'Cat boarding'],
-      rating: 4.2,
-      reviews: 9,
-      tenure: '6 months',
-      photo: null
+  // Process staff data from API
+  const { staff, teamStats, hasStaff } = useMemo(() => {
+    if (!staffData || staffLoading) {
+      return {
+        staff: [],
+        teamStats: {
+          totalStaff: 0,
+          activeMembers: 0,
+          roles: 0,
+          avgTasksPerStaff: 0,
+          clockedIn: 0,
+          scheduled: 0,
+          onPto: 0,
+          utilization: 0
+        },
+        hasStaff: false
+      };
     }
-  ];
+
+    const staffArray = staffData || [];
+    const totalStaff = staffArray.length;
+    const activeMembers = staffArray.filter(s => s.isActive !== false).length;
+    const roles = [...new Set(staffArray.map(s => s.role))].length;
+
+    // Calculate stats (these would need additional API calls for real data)
+    const clockedIn = 0; // Would need time clock API
+    const scheduled = 0; // Would need schedule API
+    const onPto = 0; // Would need PTO API
+    const utilization = 0; // Would need utilization API
+    const avgTasksPerStaff = 0; // Would need task API
+
+    return {
+      staff: staffArray,
+      teamStats: {
+        totalStaff,
+        activeMembers,
+        roles,
+        avgTasksPerStaff,
+        clockedIn,
+        scheduled,
+        onPto,
+        utilization
+      },
+      hasStaff: staffArray.length > 0
+    };
+  }, [staffData, staffLoading]);
 
   if (!hasStaff) {
     return (

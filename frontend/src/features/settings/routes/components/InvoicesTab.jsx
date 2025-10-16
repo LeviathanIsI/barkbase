@@ -22,65 +22,6 @@ export default function InvoicesTab() {
     description: `Invoice for ${inv.owner?.firstName || 'Owner'} - ${inv.booking?.pet?.name || 'Pet'}`,
     downloadUrl: inv.pdfUrl || '#'
   })) || [];
-  
-  const mockInvoices = [
-    {
-      id: 'INV-2024-001',
-      date: 'Jan 1, 2025',
-      amount: 0,
-      status: 'paid',
-      description: 'Free Plan - January 2025',
-      downloadUrl: '#'
-    },
-    {
-      id: 'INV-2023-012',
-      date: 'Dec 1, 2024',
-      amount: 0,
-      status: 'paid',
-      description: 'Free Plan - December 2024',
-      downloadUrl: '#'
-    },
-    // Add more mock invoices...
-    {
-      id: 'INV-2023-011',
-      date: 'Nov 1, 2024',
-      amount: 0,
-      status: 'paid',
-      description: 'Free Plan - November 2024',
-      downloadUrl: '#'
-    },
-    {
-      id: 'INV-2023-010',
-      date: 'Oct 1, 2024',
-      amount: 0,
-      status: 'paid',
-      description: 'Free Plan - October 2024',
-      downloadUrl: '#'
-    },
-    {
-      id: 'INV-2023-009',
-      date: 'Sep 1, 2024',
-      amount: 0,
-      status: 'paid',
-      description: 'Free Plan - September 2024',
-      downloadUrl: '#'
-    },
-    {
-      id: 'INV-2023-008',
-      date: 'Aug 1, 2024',
-      amount: 0,
-      status: 'paid',
-      description: 'Free Plan - August 2024',
-      downloadUrl: '#'
-    }
-  ];
-
-  const taxSettings = {
-    businessTaxId: '', // Not provided
-    taxExempt: false,
-    country: 'United States',
-    state: 'California'
-  };
 
   const getStatusBadge = (status) => {
     switch (status) {

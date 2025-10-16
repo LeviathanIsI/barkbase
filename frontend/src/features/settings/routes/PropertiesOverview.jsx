@@ -11,6 +11,7 @@ import GroupsTab from './components/GroupsTab';
 import UsageAnalytics from './components/UsageAnalytics';
 import BulkActions from './components/BulkActions';
 import ImportExportModal from './components/ImportExportModal';
+import { usePropertiesQuery } from '../api';
 
 const OBJECT_TYPES = [
   { recordId: 'pets', label: 'Pets' },
@@ -54,8 +55,6 @@ const PropertiesOverview = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGroup, setSelectedGroup] = useState('all');
   const [selectedType, setSelectedType] = useState('all');
-  const [properties, setProperties] = useState({});
-  const [loading, setLoading] = useState({});
   const [selectedView, setSelectedView] = useState('properties');
   const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -63,115 +62,8 @@ const PropertiesOverview = () => {
   const [selectedProperties, setSelectedProperties] = useState([]);
   const [isImportExportModalOpen, setIsImportExportModalOpen] = useState(false);
 
-  // Mock data for demonstration
-  const mockProperties = {
-    pets: {
-      groups: [
-        {
-          name: 'Basic Information',
-          properties: [
-            {
-              recordId: 'dietary_restrictions',
-              name: 'dietary_restrictions',
-              label: 'Dietary Restrictions',
-              type: 'multi_enum',
-              description: 'Track food allergies and special feeding requirements',
-              required: true,
-              options: ['None / No restrictions', 'Grain-free diet', 'Chicken allergy', 'Beef allergy'],
-              usageCount: 127,
-              usagePercentage: 43,
-              group: 'Basic Information'
-            },
-            {
-              recordId: 'behavioral_flags',
-              name: 'behavioral_flags',
-              label: 'Behavioral Flags',
-              type: 'multi_enum',
-              description: 'Important temperament and handling notes',
-              required: false,
-              options: ['Dog-reactive', 'Cat-reactive', 'Food aggressive', 'Escape artist', 'Fear aggressive'],
-              usageCount: 64,
-              usagePercentage: 22,
-              group: 'Basic Information'
-            },
-            {
-              recordId: 'daycare_group',
-              name: 'daycare_group',
-              label: 'Daycare Group',
-              type: 'enum',
-              description: 'Which play group the pet belongs to',
-              required: true,
-              options: ['Small dogs (<25 lbs)', 'Large dogs (25+ lbs)', 'Puppies (<6 months)', 'Shy/timid', 'Seniors'],
-              usageCount: 213,
-              usagePercentage: 72,
-              group: 'Basic Information',
-              missingCount: 83
-            },
-            {
-              recordId: 'preferred_run',
-              name: 'preferred_run',
-              label: 'Preferred Run Location',
-              type: 'enum',
-              description: 'Customer preferences for accommodation',
-              required: false,
-              options: ['No preference', 'Quiet area', 'Near window', 'Indoor only', 'Outdoor preferred'],
-              usageCount: 89,
-              usagePercentage: 30,
-              group: 'Basic Information'
-            },
-            {
-              recordId: 'vaccination_exception',
-              name: 'vaccination_exception',
-              label: 'Vaccination Exception Reason',
-              type: 'text',
-              description: 'Document why pet doesn\'t have standard vaccines',
-              required: false,
-              usageCount: 15,
-              usagePercentage: 5,
-              group: 'Medical & Health'
-            },
-            {
-              recordId: 'emergency_contact',
-              name: 'emergency_contact',
-              label: 'Emergency Contact Priority',
-              type: 'string',
-              description: 'Backup contacts when owner unavailable',
-              required: false,
-              usageCount: 45,
-              usagePercentage: 15,
-              group: 'Emergency Contacts'
-            },
-            {
-              recordId: 'grooming_preferences',
-              name: 'grooming_preferences',
-              label: 'Grooming Preferences',
-              type: 'enum',
-              description: 'Preferred grooming services and styles',
-              required: false,
-              options: ['Full groom', 'Bath only', 'Nail trim', 'Brush out', 'No grooming'],
-              usageCount: 23,
-              usagePercentage: 8,
-              group: 'Services'
-            },
-            {
-              recordId: 'room_preference',
-              name: 'room_preference',
-              label: 'Preferred Run/Room Type',
-              type: 'enum',
-              description: 'Customer accommodation preferences',
-              required: false,
-              options: ['Standard', 'Suite', 'Outdoor', 'Quiet area', 'Premium suite'],
-              usageCount: 156,
-              usagePercentage: 53,
-              group: 'Accommodations'
-            }
-          ]
-        }
-      ],
-      total_properties: 8,
-      total_pets: 295
-    }
-  };
+  // Real API data
+  const { data: propertiesData, isLoading: propertiesLoading } = usePropertiesQuery(selectedObject);
 
   // Set document title
   useEffect(() => {
@@ -180,13 +72,6 @@ const PropertiesOverview = () => {
       document.title = 'BarkBase';
     };
   }, []);
-
-  // Initialize mock data
-  useEffect(() => {
-    if (!properties[selectedObject]) {
-      setProperties(prev => ({ ...prev, [selectedObject]: mockProperties[selectedObject] || { groups: [], total_properties: 0 } }));
-    }
-  }, [selectedObject]);
 
   const handleBrowseTemplates = () => {
     setIsTemplatesModalOpen(true);
@@ -205,18 +90,23 @@ const PropertiesOverview = () => {
     console.log('Watch tutorial');
   };
 
-  // Flatten and filter properties
-  const { filteredProperties, availableGroups } = useMemo(() => {
-    const currentData = properties[selectedObject];
-    if (!currentData || !currentData.groups) {
-      return { filteredProperties: [], availableGroups: [] };
+  // Process API data and filter properties
+  const { filteredProperties, availableGroups, currentData, hasProperties } = useMemo(() => {
+    if (!propertiesData || propertiesLoading) {
+      return {
+        filteredProperties: [],
+        availableGroups: [],
+        currentData: null,
+        hasProperties: false
+      };
     }
 
-    // Flatten all properties from groups
-    const allProperties = currentData.groups.flatMap((group) => group.properties || []);
+    // The API returns a flat array of properties, not grouped
+    // We'll need to group them by some logic or just work with flat array
+    const allProperties = propertiesData || [];
 
-    // Get unique groups
-    const groups = [...new Set(allProperties.map((p) => p.group))].sort();
+    // Get unique groups (if properties have a group field)
+    const groups = [...new Set(allProperties.map((p) => p.group || 'General'))].sort();
 
     // Apply filters
     let filtered = allProperties;
@@ -226,15 +116,15 @@ const PropertiesOverview = () => {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (prop) =>
-          prop.label.toLowerCase().includes(query) ||
-          prop.name.toLowerCase().includes(query) ||
+          prop.label?.toLowerCase().includes(query) ||
+          prop.name?.toLowerCase().includes(query) ||
           prop.description?.toLowerCase().includes(query)
       );
     }
 
     // Group filter
     if (selectedGroup !== 'all') {
-      filtered = filtered.filter((prop) => prop.group === selectedGroup);
+      filtered = filtered.filter((prop) => (prop.group || 'General') === selectedGroup);
     }
 
     // Type filter
@@ -245,12 +135,18 @@ const PropertiesOverview = () => {
     return {
       filteredProperties: filtered,
       availableGroups: groups,
+      currentData: {
+        total_properties: allProperties.length,
+        groups: groups.map(group => ({
+          name: group,
+          properties: allProperties.filter(p => (p.group || 'General') === group)
+        }))
+      },
+      hasProperties: allProperties.length > 0,
     };
-  }, [properties, selectedObject, searchQuery, selectedGroup, selectedType]);
+  }, [propertiesData, propertiesLoading, selectedObject, searchQuery, selectedGroup, selectedType]);
 
-  const currentData = properties[selectedObject];
-  const isLoading = loading[selectedObject];
-  const hasProperties = currentData && currentData.total_properties > 0;
+  const isLoading = propertiesLoading;
 
   return (
     <div className="space-y-6">

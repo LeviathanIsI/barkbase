@@ -175,23 +175,15 @@ const Signup = lazy(() => import("@/features/public/routes/Signup"));
 const VerifyEmail = lazy(() => import("@/features/public/routes/VerifyEmail"));
 
 // Placeholder routes for BarkBase features
-const FeedingMeds = lazy(() =>
-  import("@/features/placeholders/routes/FeedingMeds")
-);
-const DaycareCheckin = lazy(() =>
-  import("@/features/placeholders/routes/DaycareCheckin")
-);
+// Removed: FeedingMeds and DaycareCheckin - using Tasks feature instead
 const RunAssignment = lazy(() =>
   import("@/features/daycare/routes/RunAssignment")
 );
 const Messages = lazy(() => import("@/features/messaging/routes/Messages"));
 const Tasks = lazy(() => import("@/features/tasks/routes/Tasks"));
-const Facilities = lazy(() =>
-  import("@/features/placeholders/routes/Facilities")
-);
-const ServicesAddons = lazy(() =>
-  import("@/features/placeholders/routes/ServicesAddons")
-);
+// Real features imported below
+const Services = lazy(() => import("@/features/services/routes/Services"));
+const Facilities = lazy(() => import("@/features/facilities/routes/Facilities"));
 const Packages = lazy(() => import("@/features/packages/routes/Packages"));
 const Invoices = lazy(() => import("@/features/invoices/routes/Invoices"));
 // Removed placeholder routes: PricingRules, FollowUps, Webhooks, CustomCode, Tickets, KnowledgeBase, AuditLogs
@@ -280,13 +272,13 @@ export const router = createBrowserRouter([
               { path: "reports", element: <Reports /> },
               // Operations
               { path: "runs", element: <RunAssignment /> },
-              { path: "feeding-meds", element: <FeedingMeds /> },
+              { path: "feeding-meds", element: <Tasks /> },
               { path: "tasks", element: <Tasks /> },
-              { path: "daycare/checkin", element: <DaycareCheckin /> },
+              { path: "daycare/checkin", element: <Tasks /> },
               { path: "daycare/runs", element: <RunAssignment /> },
               // Records
               { path: "facilities", element: <Facilities /> },
-              { path: "services", element: <ServicesAddons /> },
+              { path: "services", element: <Services /> },
               { path: "packages", element: <Packages /> },
               // Billing
               { path: "invoices", element: <Invoices /> },
