@@ -193,7 +193,11 @@ const TeamMemberCard = ({ member, isSelected, onSelect, onEdit }) => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => console.log('View full permissions')}
+            onClick={() => {
+              if (onEdit) {
+                onEdit(member);
+              }
+            }}
             className="flex-1"
           >
             <Eye className="w-3 h-3 mr-1" />

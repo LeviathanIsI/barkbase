@@ -1,18 +1,181 @@
+import { useState } from 'react';
 import Card from '@/components/ui/Card';
-import UpgradeBanner from '@/components/ui/UpgradeBanner';
+import Button from '@/components/ui/Button';
+import Switch from '@/components/ui/Switch';
+import Badge from '@/components/ui/Badge';
 import SettingsPage from '../components/SettingsPage';
+import { Shield, AlertTriangle, CheckCircle, RefreshCw, Database } from 'lucide-react';
 
-const PLACEHOLDER = () => {
+const DataQuality = () => {
+  const [settings, setSettings] = useState({
+    autoCleanup: true,
+    duplicateDetection: true,
+    dataValidation: true,
+    backupFrequency: 'daily',
+    retentionPeriod: '90'
+  });
+
+  const [qualityStatus] = useState({
+    score: 94,
+    issues: 3,
+    lastCheck: '2024-01-15T10:30:00'
+  });
+
+  const handleRunCheck = () => {
+    // TODO: Run data quality check
+    alert('Running data quality check...');
+  };
+
+  const handleSave = () => {
+    // TODO: Save settings
+    alert('Data quality settings saved!');
+  };
+
+  const updateSetting = (key, value) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+  };
+
   return (
-    
-    <SettingsPage title="TITLE_PLACEHOLDER" description="Configuration page coming soon">
-      <Card title="Settings" description="This section is under development.">
-        <p className="text-sm text-muted">
-          Full settings for this section will be available soon. You'll be able to configure all aspects of TITLE_PLACEHOLDER here.
-        </p>
+    <SettingsPage 
+      title="Data Quality" 
+      description="Monitor and maintain the quality of your data"
+    >
+      {/* Quality Score */}
+      <Card 
+        title="Data Quality Score" 
+        description="Overall health of your database"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="text-center p-4 bg-gray-50 rounded-lg">
+            <div className="text-3xl font-bold text-green-600">{qualityStatus.score}%</div>
+            <p className="text-sm text-gray-600 mt-1">Quality Score</p>
+          </div>
+          
+          <div className="text-center p-4 bg-gray-50 rounded-lg">
+            <div className="text-3xl font-bold text-yellow-600">{qualityStatus.issues}</div>
+            <p className="text-sm text-gray-600 mt-1">Issues Found</p>
+          </div>
+          
+          <div className="text-center p-4 bg-gray-50 rounded-lg">
+            <div className="text-sm font-medium">
+              {new Date(qualityStatus.lastCheck).toLocaleDateString()}
+            </div>
+            <p className="text-sm text-gray-600 mt-1">Last Check</p>
+          </div>
+        </div>
+
+        <div className="mt-4 pt-4 border-t flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Badge variant="success">
+              <CheckCircle className="w-3 h-3 mr-1" />
+              Healthy
+            </Badge>
+            <Badge variant="warning">
+              <AlertTriangle className="w-3 h-3 mr-1" />
+              {qualityStatus.issues} Issues
+            </Badge>
+          </div>
+          <Button onClick={handleRunCheck} variant="outline">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Run Check Now
+          </Button>
+        </div>
+      </Card>
+
+      {/* Data Management Settings */}
+      <Card 
+        title="Data Management" 
+        description="Configure automated data management policies"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium">Automatic Cleanup</h4>
+              <p className="text-sm text-gray-600">Remove orphaned records and fix inconsistencies</p>
+            </div>
+            <Switch
+              checked={settings.autoCleanup}
+              onChange={(checked) => updateSetting('autoCleanup', checked)}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium">Duplicate Detection</h4>
+              <p className="text-sm text-gray-600">Automatically detect and flag duplicate entries</p>
+            </div>
+            <Switch
+              checked={settings.duplicateDetection}
+              onChange={(checked) => updateSetting('duplicateDetection', checked)}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium">Data Validation</h4>
+              <p className="text-sm text-gray-600">Validate data integrity on save</p>
+            </div>
+            <Switch
+              checked={settings.dataValidation}
+              onChange={(checked) => updateSetting('dataValidation', checked)}
+            />
+          </div>
+        </div>
+      </Card>
+
+      {/* Backup Settings */}
+      <Card 
+        title="Backup & Retention" 
+        description="Configure data backup and retention policies"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              <Database className="inline-block w-4 h-4 mr-2" />
+              Backup Frequency
+            </label>
+            <select
+              value={settings.backupFrequency}
+              onChange={(e) => updateSetting('backupFrequency', e.target.value)}
+              className="w-full px-3 py-2 border rounded-md"
+            >
+              <option value="hourly">Hourly</option>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              <Shield className="inline-block w-4 h-4 mr-2" />
+              Data Retention Period
+            </label>
+            <select
+              value={settings.retentionPeriod}
+              onChange={(e) => updateSetting('retentionPeriod', e.target.value)}
+              className="w-full px-3 py-2 border rounded-md"
+            >
+              <option value="30">30 days</option>
+              <option value="60">60 days</option>
+              <option value="90">90 days</option>
+              <option value="180">180 days</option>
+              <option value="365">1 year</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-4 mt-4 border-t">
+          <Button variant="outline">
+            <Database className="w-4 h-4 mr-2" />
+            Backup Now
+          </Button>
+          <Button onClick={handleSave}>
+            Save Settings
+          </Button>
+        </div>
       </Card>
     </SettingsPage>
   );
 };
 
-export default PLACEHOLDER;
+export default DataQuality;

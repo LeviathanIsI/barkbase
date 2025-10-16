@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useAuthStore } from '@/stores/auth';
 import { useTenantStore } from '@/stores/tenant';
 import { getTenantSlugCookie } from '@/lib/cookies';
+import apiClient from '@/lib/apiClient';
 
 // In development, use empty string to leverage Vite proxy (/api -> http://localhost:4000/api)
 // In production, VITE_API_URL should be set to the backend URL
@@ -112,6 +113,24 @@ const AuthLoader = () => {
               accessTokenExpiresIn: payload.expiresIn,
             },
           });
+
+          // Load tenant data after successful token refresh
+          try {
+            console.log('[AuthLoader] Loading tenant data after token refresh');
+            const tenantSlug = userTenantSlug || getTenantSlugCookie() || 'default';
+            const tenantPayload = await apiClient('/api/v1/tenants/current', {
+              headers: {
+                'X-Tenant': tenantSlug,
+                Accept: 'application/json',
+              },
+            });
+            useTenantStore.getState().setTenant({ ...tenantPayload, slug: tenantPayload.slug ?? tenantSlug });
+            console.log('[AuthLoader] Tenant data loaded successfully');
+          } catch (error) {
+            console.warn('[AuthLoader] Failed to load tenant data after refresh:', error.message);
+            // Continue anyway - tenant data might be loaded later
+          }
+
           console.log('[AuthLoader] Token refresh complete');
         } catch (error) {
           // Network error, timeout, or other issue - clear auth state

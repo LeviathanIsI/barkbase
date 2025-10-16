@@ -4,7 +4,7 @@ import { resolvePlanFeatures } from '@/features';
 import apiClient from '@/lib/apiClient';
 
 const defaultTenant = { recordId: null,
-  slug: 'default',
+  slug: process.env.NODE_ENV === 'development' ? 'testing' : 'default',
   name: 'BarkBase',
   plan: process.env.NODE_ENV === 'development' ? 'ENTERPRISE' : 'FREE',
   storageProvider: 'SUPABASE',

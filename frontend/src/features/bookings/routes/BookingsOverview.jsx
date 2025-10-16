@@ -42,13 +42,13 @@ const BookingsOverview = () => {
 
   // Real data from API - NO MORE HARDCODED MOCK
   const { data: bookingsData, isLoading: bookingsLoading } = useBookingsQuery();
-  const bookings = bookingsData?.data || [];
+  const bookings = bookingsData || [];
 
   // Removed all hardcoded mock bookings - using real API data above
 
   const [filters, setFilters] = useState({
-    status: ['confirmed', 'pending', 'checked_in', 'checked_out'],
-    services: ['boarding', 'daycare', 'grooming'],
+    status: [], // Empty = show all statuses
+    services: [], // Empty = show all services
     dateRange: null,
     paymentStatus: [],
     specialFlags: []
@@ -97,19 +97,27 @@ const BookingsOverview = () => {
     // Search filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
+      const petName = booking.pet?.name || '';
+      const ownerName = booking.owner?.name || '';
+      const bookingId = booking.recordId || booking.bookingId || '';
       const matchesSearch =
-        booking.pet.name.toLowerCase().includes(term) ||
-        booking.owner.name.toLowerCase().includes(term) ||
-        booking.bookingId.toLowerCase().includes(term) ||
-        booking.service.toLowerCase().includes(term);
+        petName.toLowerCase().includes(term) ||
+        ownerName.toLowerCase().includes(term) ||
+        bookingId.toLowerCase().includes(term);
       if (!matchesSearch) return false;
     }
 
-    // Status filter
-    if (!filters.status.includes(booking.status)) return false;
+    // Status filter (only apply if filters are selected, empty array = show all)
+    if (filters.status.length > 0) {
+      const bookingStatus = (booking.status || '').toLowerCase();
+      if (!filters.status.map(s => s.toLowerCase()).includes(bookingStatus)) return false;
+    }
 
-    // Service filter
-    if (!filters.services.includes(booking.service.toLowerCase())) return false;
+    // Service filter (only apply if filters are selected, empty array = show all)
+    if (filters.services.length > 0) {
+      // Since backend doesn't provide a single service field yet, we'll skip for now
+      // This would need to be implemented when services are properly linked
+    }
 
     return true;
   });

@@ -1,18 +1,178 @@
+import { useState } from 'react';
 import Card from '@/components/ui/Card';
-import UpgradeBanner from '@/components/ui/UpgradeBanner';
+import Button from '@/components/ui/Button';
+import Switch from '@/components/ui/Switch';
+import Select from '@/components/ui/Select';
 import SettingsPage from '../components/SettingsPage';
+import { Mail, Calendar, FileText, Download, Clock } from 'lucide-react';
 
-const PLACEHOLDER = () => {
+const Reporting = () => {
+  const [settings, setSettings] = useState({
+    dailyReport: true,
+    weeklyReport: false,
+    monthlyReport: true,
+    reportTime: '08:00',
+    reportEmail: 'reports@example.com',
+    includeCharts: true,
+    includeDetails: true,
+    format: 'pdf'
+  });
+
+  const handleSave = async () => {
+    try {
+      const response = await fetch('/api/v1/settings/reporting', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(settings)
+      });
+      
+      if (response.ok) {
+        alert('Report settings saved successfully!');
+      } else {
+        alert('Failed to save settings. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error saving report settings:', error);
+      alert('An error occurred. Please try again.');
+    }
+  };
+
+  const updateSetting = (key, value) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+  };
+
   return (
-    
-    <SettingsPage title="TITLE_PLACEHOLDER" description="Configuration page coming soon">
-      <Card title="Settings" description="This section is under development.">
-        <p className="text-sm text-muted">
-          Full settings for this section will be available soon. You'll be able to configure all aspects of TITLE_PLACEHOLDER here.
-        </p>
+    <SettingsPage 
+      title="Reporting Settings" 
+      description="Configure automated reports and analytics"
+    >
+      {/* Report Schedule */}
+      <Card 
+        title="Report Schedule" 
+        description="Set up when and how often reports are generated"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium">Daily Summary Report</h4>
+              <p className="text-sm text-gray-600">Receive daily activity summary</p>
+            </div>
+            <Switch
+              checked={settings.dailyReport}
+              onChange={(checked) => updateSetting('dailyReport', checked)}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium">Weekly Analytics Report</h4>
+              <p className="text-sm text-gray-600">Comprehensive weekly business metrics</p>
+            </div>
+            <Switch
+              checked={settings.weeklyReport}
+              onChange={(checked) => updateSetting('weeklyReport', checked)}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium">Monthly Financial Report</h4>
+              <p className="text-sm text-gray-600">Monthly revenue and expense breakdown</p>
+            </div>
+            <Switch
+              checked={settings.monthlyReport}
+              onChange={(checked) => updateSetting('monthlyReport', checked)}
+            />
+          </div>
+
+          <div className="pt-4 border-t">
+            <label className="block text-sm font-medium mb-2">
+              <Clock className="inline-block w-4 h-4 mr-2" />
+              Report Delivery Time
+            </label>
+            <input
+              type="time"
+              value={settings.reportTime}
+              onChange={(e) => updateSetting('reportTime', e.target.value)}
+              className="px-3 py-2 border rounded-md"
+            />
+          </div>
+        </div>
+      </Card>
+
+      {/* Report Settings */}
+      <Card 
+        title="Report Settings" 
+        description="Configure report format and content"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              <Mail className="inline-block w-4 h-4 mr-2" />
+              Email Reports To
+            </label>
+            <input
+              type="email"
+              value={settings.reportEmail}
+              onChange={(e) => updateSetting('reportEmail', e.target.value)}
+              placeholder="reports@example.com"
+              className="w-full px-3 py-2 border rounded-md"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              <FileText className="inline-block w-4 h-4 mr-2" />
+              Report Format
+            </label>
+            <Select
+              value={settings.format}
+              onChange={(e) => updateSetting('format', e.target.value)}
+            >
+              <option value="pdf">PDF Document</option>
+              <option value="excel">Excel Spreadsheet</option>
+              <option value="csv">CSV File</option>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <h4 className="font-medium">Report Content</h4>
+            
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={settings.includeCharts}
+                onChange={(e) => updateSetting('includeCharts', e.target.checked)}
+                className="rounded"
+              />
+              <span className="text-sm">Include charts and graphs</span>
+            </label>
+
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={settings.includeDetails}
+                onChange={(e) => updateSetting('includeDetails', e.target.checked)}
+                className="rounded"
+              />
+              <span className="text-sm">Include detailed transaction logs</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-4 mt-4 border-t">
+          <Button variant="outline">
+            <Download className="w-4 h-4 mr-2" />
+            Export Current Settings
+          </Button>
+          <Button onClick={handleSave}>
+            Save Settings
+          </Button>
+        </div>
       </Card>
     </SettingsPage>
   );
 };
 
-export default PLACEHOLDER;
+export default Reporting;

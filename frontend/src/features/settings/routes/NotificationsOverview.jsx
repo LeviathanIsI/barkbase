@@ -107,9 +107,24 @@ const NotificationsOverview = () => {
     }
   });
 
-  const handleSave = () => {
-    // TODO: Save preferences to API
-    console.log('Saving notification preferences:', preferences);
+  const handleSave = async () => {
+    try {
+      // Save preferences to API
+      const response = await fetch('/api/v1/settings/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(preferences)
+      });
+      
+      if (response.ok) {
+        alert('Notification preferences saved successfully!');
+      } else {
+        alert('Failed to save preferences. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error saving preferences:', error);
+      alert('An error occurred. Please try again.');
+    }
   };
 
   const handleReset = () => {

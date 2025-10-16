@@ -1,7 +1,6 @@
 import { Calendar, TrendingUp, Users, Home, AlertTriangle, DollarSign, Clock, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { Card } from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
 import { useCalendarCapacity } from '@/features/settings/api';
 
 const EnhancedStatsDashboard = ({ currentDate }) => {
@@ -72,86 +71,66 @@ const EnhancedStatsDashboard = ({ currentDate }) => {
       {/* Stats Cards with Action Buttons */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Calendar className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Today's Bookings</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.bookings.today}</p>
-                <p className="text-xs text-green-600 flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3" />
-                  +{stats.bookings.change} from yesterday
-                </p>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Calendar className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Today's Bookings</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.bookings.today}</p>
+              <p className="text-xs text-green-600 flex items-center gap-1">
+                <TrendingUp className="h-3 w-3" />
+                +{stats.bookings.change} from yesterday
+              </p>
             </div>
           </div>
-          <Button size="sm" variant="outline" className="w-full">
-            View List
-          </Button>
         </Card>
 
         <Card className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${getCapacityColor(stats.capacity.percentage)}`}>
-                <TrendingUp className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Capacity</p>
-                <p className={`text-2xl font-bold ${stats.capacity.percentage >= 90 ? 'text-orange-600' : 'text-gray-900'}`}>
-                  {stats.capacity.percentage}%
-                </p>
-                <p className="text-xs text-gray-600">
-                  {stats.capacity.status === 'high-demand' ? '⚠️ High demand' : 'Week-over-week'}
-                </p>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${getCapacityColor(stats.capacity.percentage)}`}>
+              <TrendingUp className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Capacity</p>
+              <p className={`text-2xl font-bold ${stats.capacity.percentage >= 90 ? 'text-orange-600' : 'text-gray-900'}`}>
+                {stats.capacity.percentage}%
+              </p>
+              <p className="text-xs text-gray-600">
+                {stats.capacity.status === 'high-demand' ? '⚠️ High demand' : 'Week-over-week'}
+              </p>
             </div>
           </div>
-          <Button size="sm" variant="outline" className="w-full">
-            Details
-          </Button>
         </Card>
 
         <Card className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Users className="h-5 w-5 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Check-ins Today</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.checkins.completed}</p>
-                <p className="text-xs text-orange-600">
-                  {stats.checkins.pending} pending
-                </p>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+              <Users className="h-5 w-5 text-orange-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Check-ins Today</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.checkins.completed}</p>
+              <p className="text-xs text-orange-600">
+                {stats.checkins.pending} pending
+              </p>
             </div>
           </div>
-          <Button size="sm" variant="outline" className="w-full">
-            Process
-          </Button>
         </Card>
 
         <Card className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Home className="h-5 w-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Available Spots</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.available.spots}</p>
-                <p className="text-xs text-gray-600">
-                  Across all kennels
-                </p>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+              <Home className="h-5 w-5 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Available Spots</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.available.spots}</p>
+              <p className="text-xs text-gray-600">
+                Across all kennels
+              </p>
             </div>
           </div>
-          <Button size="sm" variant="outline" className="w-full">
-            Book Now
-          </Button>
         </Card>
       </div>
 
@@ -199,11 +178,8 @@ const EnhancedStatsDashboard = ({ currentDate }) => {
         </div>
 
         <div className="mt-4 pt-4 border-t border-gray-200">
-          <div className="flex items-center justify-between text-sm text-gray-600">
+          <div className="text-sm text-gray-600">
             <span>Last updated: 2 minutes ago</span>
-            <Button variant="outline" size="sm">
-              View All Alerts
-            </Button>
           </div>
         </div>
       </div>

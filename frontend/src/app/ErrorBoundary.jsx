@@ -23,8 +23,32 @@ class ErrorBoundary extends Component {
     // Log error details for debugging
     console.error('React Error Boundary caught an error:', error, errorInfo);
 
-    // TODO: Send to error monitoring service (Sentry, LogRocket, etc.)
-    // Example: Sentry.captureException(error, { extra: errorInfo });
+    // Send to error monitoring service when configured
+    if (window.Sentry) {
+      window.Sentry.captureException(error, { 
+        extra: errorInfo,
+        tags: {
+          component: 'ErrorBoundary'
+        }
+      });
+    }
+    
+    // Also send to backend error logging endpoint
+    try {
+      fetch('/api/v1/errors/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          error: error.toString(),
+          errorInfo,
+          timestamp: new Date().toISOString(),
+          url: window.location.href,
+          userAgent: navigator.userAgent
+        })
+      });
+    } catch (logError) {
+      console.error('Failed to log error to backend:', logError);
+    }
 
     this.setState({
       errorInfo,

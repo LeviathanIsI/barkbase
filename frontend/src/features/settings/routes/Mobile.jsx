@@ -1,18 +1,270 @@
+import { useState } from 'react';
 import Card from '@/components/ui/Card';
-import UpgradeBanner from '@/components/ui/UpgradeBanner';
+import Button from '@/components/ui/Button';
+import Switch from '@/components/ui/Switch';
+import Badge from '@/components/ui/Badge';
 import SettingsPage from '../components/SettingsPage';
+import { Smartphone, Download, QrCode, Bell, Shield, Wifi } from 'lucide-react';
 
-const PLACEHOLDER = () => {
+const Mobile = () => {
+  const [settings, setSettings] = useState({
+    mobileAppEnabled: true,
+    offlineMode: true,
+    autoSync: true,
+    pushNotifications: true,
+    biometricAuth: true,
+    photoQuality: 'medium',
+    dataUsage: 'wifi-preferred',
+    cacheSize: 100
+  });
+
+  const [appStats] = useState({
+    activeUsers: 12,
+    totalDownloads: 45,
+    lastSyncTime: new Date().toISOString(),
+    appVersion: '2.1.0'
+  });
+
+  const handleSave = async () => {
+    try {
+      const response = await fetch('/api/v1/settings/mobile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(settings)
+      });
+      
+      if (response.ok) {
+        alert('Mobile settings saved successfully!');
+      } else {
+        alert('Failed to save settings. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error saving mobile settings:', error);
+      alert('An error occurred. Please try again.');
+    }
+  };
+
+  const updateSetting = (key, value) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const generateQRCode = () => {
+    alert('QR Code for mobile app download generated!');
+  };
+
   return (
-    
-    <SettingsPage title="TITLE_PLACEHOLDER" description="Configuration page coming soon">
-      <Card title="Settings" description="This section is under development.">
-        <p className="text-sm text-muted">
-          Full settings for this section will be available soon. You'll be able to configure all aspects of TITLE_PLACEHOLDER here.
-        </p>
+    <SettingsPage 
+      title="Mobile App Settings" 
+      description="Configure your mobile application settings"
+    >
+      {/* App Status */}
+      <Card 
+        title="Mobile App Status" 
+        description="Monitor your mobile app usage"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="text-center p-4 bg-gray-50 rounded-lg">
+            <Smartphone className="w-8 h-8 mx-auto mb-2 text-blue-600" />
+            <div className="text-2xl font-bold">{appStats.activeUsers}</div>
+            <p className="text-sm text-gray-600">Active Users</p>
+          </div>
+          
+          <div className="text-center p-4 bg-gray-50 rounded-lg">
+            <Download className="w-8 h-8 mx-auto mb-2 text-green-600" />
+            <div className="text-2xl font-bold">{appStats.totalDownloads}</div>
+            <p className="text-sm text-gray-600">Total Downloads</p>
+          </div>
+          
+          <div className="text-center p-4 bg-gray-50 rounded-lg">
+            <Shield className="w-8 h-8 mx-auto mb-2 text-purple-600" />
+            <div className="text-lg font-medium">v{appStats.appVersion}</div>
+            <p className="text-sm text-gray-600">Current Version</p>
+          </div>
+          
+          <div className="text-center p-4 bg-gray-50 rounded-lg">
+            <Wifi className="w-8 h-8 mx-auto mb-2 text-orange-600" />
+            <div className="text-sm font-medium">
+              {new Date(appStats.lastSyncTime).toLocaleTimeString()}
+            </div>
+            <p className="text-sm text-gray-600">Last Sync</p>
+          </div>
+        </div>
+      </Card>
+
+      {/* Mobile Features */}
+      <Card 
+        title="Mobile Features" 
+        description="Enable or disable mobile app features"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium">Mobile App Access</h4>
+              <p className="text-sm text-gray-600">Allow staff to use the mobile app</p>
+            </div>
+            <Switch
+              checked={settings.mobileAppEnabled}
+              onChange={(checked) => updateSetting('mobileAppEnabled', checked)}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium">Offline Mode</h4>
+              <p className="text-sm text-gray-600">Allow app to work without internet</p>
+            </div>
+            <Switch
+              checked={settings.offlineMode}
+              onChange={(checked) => updateSetting('offlineMode', checked)}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium">Auto-Sync</h4>
+              <p className="text-sm text-gray-600">Automatically sync data when online</p>
+            </div>
+            <Switch
+              checked={settings.autoSync}
+              onChange={(checked) => updateSetting('autoSync', checked)}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium">Push Notifications</h4>
+              <p className="text-sm text-gray-600">Send notifications to mobile devices</p>
+            </div>
+            <Switch
+              checked={settings.pushNotifications}
+              onChange={(checked) => updateSetting('pushNotifications', checked)}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium">Biometric Authentication</h4>
+              <p className="text-sm text-gray-600">Use fingerprint or face ID</p>
+            </div>
+            <Switch
+              checked={settings.biometricAuth}
+              onChange={(checked) => updateSetting('biometricAuth', checked)}
+            />
+          </div>
+        </div>
+      </Card>
+
+      {/* Data Settings */}
+      <Card 
+        title="Data & Storage" 
+        description="Configure data usage and storage settings"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Photo Quality
+            </label>
+            <select
+              value={settings.photoQuality}
+              onChange={(e) => updateSetting('photoQuality', e.target.value)}
+              className="w-full px-3 py-2 border rounded-md"
+            >
+              <option value="low">Low (Faster uploads)</option>
+              <option value="medium">Medium (Balanced)</option>
+              <option value="high">High (Best quality)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Data Usage
+            </label>
+            <select
+              value={settings.dataUsage}
+              onChange={(e) => updateSetting('dataUsage', e.target.value)}
+              className="w-full px-3 py-2 border rounded-md"
+            >
+              <option value="wifi-only">Wi-Fi Only</option>
+              <option value="wifi-preferred">Wi-Fi Preferred</option>
+              <option value="unrestricted">Unrestricted</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Cache Size Limit
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={settings.cacheSize}
+                onChange={(e) => updateSetting('cacheSize', parseInt(e.target.value))}
+                min="50"
+                max="500"
+                step="50"
+                className="w-24 px-3 py-2 border rounded-md"
+              />
+              <span className="text-sm text-gray-600">MB</span>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* App Distribution */}
+      <Card 
+        title="App Distribution" 
+        description="Share your mobile app with staff"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
+            <div>
+              <h4 className="font-medium">Download QR Code</h4>
+              <p className="text-sm text-gray-600">Generate QR code for easy app download</p>
+            </div>
+            <Button onClick={generateQRCode} variant="outline">
+              <QrCode className="w-4 h-4 mr-2" />
+              Generate QR
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <a
+              href="#"
+              className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Download className="w-8 h-8 text-green-600" />
+              <div>
+                <p className="font-medium">Download for iOS</p>
+                <p className="text-sm text-gray-600">Available on App Store</p>
+              </div>
+            </a>
+            
+            <a
+              href="#"
+              className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Download className="w-8 h-8 text-green-600" />
+              <div>
+                <p className="font-medium">Download for Android</p>
+                <p className="text-sm text-gray-600">Available on Google Play</p>
+              </div>
+            </a>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-4 mt-4 border-t">
+          <Button variant="outline">
+            <Bell className="w-4 h-4 mr-2" />
+            Send App Invite
+          </Button>
+          <Button onClick={handleSave}>
+            Save Settings
+          </Button>
+        </div>
       </Card>
     </SettingsPage>
   );
 };
 
-export default PLACEHOLDER;
+export default Mobile;

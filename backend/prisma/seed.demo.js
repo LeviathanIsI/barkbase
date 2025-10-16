@@ -660,11 +660,121 @@ async function createSegmentsTagsCampaigns(db, tenantId, owners, users, tenantSe
   return { segments, segmentMembers, tags, tagMembers, campaigns };
 }
 
+async function createSegmentsTagsCampaignsScoped(rootClient, tenantId, owners, users, tenantSeed) {
+  faker.seed(tenantSeed + 9);
+  const segments = [];
+  const segmentMembers = [];
+  const tags = [];
+  const tagMembers = [];
+  const campaigns = [];
+
+  for (const name of ['High Value', 'New Customers', 'Dormant']) {
+    try {
+      const seg = await rootClient.$transaction(
+        async (tx) => {
+          await tx.$executeRaw`select app.set_tenant_id(${tenantId})`;
+          return tx.customerSegment.create({
+            data: { tenantId, name, conditions: { rule: 'demo' }, isAutomatic: name !== 'High Value' },
+          });
+        },
+        { timeout: 15000 },
+      );
+      segments.push(seg);
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  for (const seg of segments) {
+    for (const owner of owners.slice(0, 4)) {
+      try {
+        const sm = await rootClient.$transaction(
+          async (tx) => {
+            await tx.$executeRaw`select app.set_tenant_id(${tenantId})`;
+            return tx.customerSegmentMember.create({
+              data: { tenantId, segmentId: seg.recordId, ownerId: owner.recordId },
+            });
+          },
+          { timeout: 15000 },
+        );
+        segmentMembers.push(sm);
+      } catch (_) {
+        // ignore
+      }
+    }
+  }
+
+  for (const name of ['VIP', 'Needs Follow-up', 'Allergies', 'Trainer']) {
+    try {
+      const t = await rootClient.$transaction(
+        async (tx) => {
+          await tx.$executeRaw`select app.set_tenant_id(${tenantId})`;
+          return tx.customerTag.create({ data: { tenantId, name, color: '#'+faker.number.hex({length:6}) } });
+        },
+        { timeout: 15000 },
+      );
+      tags.push(t);
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  for (const tag of tags) {
+    for (const owner of owners.slice(0, 3)) {
+      try {
+        const tm = await rootClient.$transaction(
+          async (tx) => {
+            await tx.$executeRaw`select app.set_tenant_id(${tenantId})`;
+            return tx.customerTagMember.create({ data: { tenantId, tagId: tag.recordId, ownerId: owner.recordId } });
+          },
+          { timeout: 15000 },
+        );
+        tagMembers.push(tm);
+      } catch (_) {
+        // ignore
+      }
+    }
+  }
+
+  for (const c of ['Welcome Series', 'Holiday Promo']) {
+    try {
+      const camp = await rootClient.$transaction(
+        async (tx) => {
+          await tx.$executeRaw`select app.set_tenant_id(${tenantId})`;
+          // Prefer Prisma, but fallback to raw if schema mismatch (e.g., missing createdBy column)
+          try {
+            return await tx.campaign.create({
+              data: {
+                tenantId,
+                name: c,
+                type: 'EMAIL',
+                content: { html: `<p>${c}</p>` },
+                status: pick(['DRAFT', 'SCHEDULED', 'ACTIVE']),
+                createdBy: users[0].recordId,
+              },
+            });
+          } catch (_) {
+            const rows = await tx.$queryRaw`insert into "Campaign" ("tenantId", "name", "type", "content", "status", "createdAt", "updatedAt") values (${tenantId}, ${c}, 'EMAIL', '{}'::jsonb, 'DRAFT', now(), now()) returning *`;
+            return rows?.[0] ?? null;
+          }
+        },
+        { timeout: 15000 },
+      );
+      if (camp) campaigns.push(camp);
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  return { segments, segmentMembers, tags, tagMembers, campaigns };
+}
+
 async function createNotifications(db, tenantId, bookings) {
   const items = [];
   for (const b of bookings.slice(0, 8)) {
-    items.push(
-      await db.notificationQueue.create({
+    let nq = null;
+    if (hasModel(db, 'notificationQueue')) {
+      nq = await db.notificationQueue.create({
         data: {
           tenantId,
           recipientId: b.ownerId,
@@ -674,12 +784,28 @@ async function createNotifications(db, tenantId, bookings) {
           body: 'Your booking has been confirmed.',
           status: 'pending',
         },
-      }),
-    );
+      });
+    } else {
+      try {
+        const rows = await db.$queryRaw`insert into "NotificationQueue" ("tenantId", "recipientId", "recipientType", "type", "title", "body", "data", "status", "createdAt") values (${tenantId}, ${b.ownerId}, 'owner', 'BOOKING_CONFIRMED', 'Booking Confirmed', 'Your booking has been confirmed.', '{}'::jsonb, 'pending', now()) returning *`;
+        nq = rows?.[0] ?? null;
+      } catch (_) {
+        nq = null;
+      }
+    }
+    if (nq) items.push(nq);
+
     if (hasModel(db, 'bookingNotification')) {
       items.push(
         await db.bookingNotification.create({ data: { tenantId, bookingId: b.recordId, type: 'CONFIRMATION' } }),
       );
+    } else {
+      try {
+        const rows2 = await db.$queryRaw`insert into "BookingNotification" ("tenantId", "bookingId", "type", "sentAt") values (${tenantId}, ${b.recordId}, 'CONFIRMATION', now()) returning *`;
+        if (rows2?.[0]) items.push(rows2[0]);
+      } catch (_) {
+        // ignore
+      }
     }
   }
   return items;
@@ -688,32 +814,56 @@ async function createNotifications(db, tenantId, bookings) {
 async function createPermissionsAndTemplates(db, tenantId, users) {
   const roles = [];
   for (const r of ['Receptionist', 'Groomer']) {
-    roles.push(await db.customRole.create({ data: { tenantId, name: r, description: `${r} role` } }));
+    try {
+      if (db.customRole && typeof db.customRole.create === 'function') {
+        roles.push(await db.customRole.create({ data: { tenantId, name: r, description: `${r} role` } }));
+      }
+    } catch (_) {
+      // ignore if table/column missing
+    }
   }
   const sets = [];
   for (const p of ['Standard Permissions', 'Finance Permissions']) {
-    sets.push(await db.permissionSet.create({ data: { tenantId, name: p, permissions: { scope: 'demo' } } }));
+    try {
+      if (db.permissionSet && typeof db.permissionSet.create === 'function') {
+        sets.push(await db.permissionSet.create({ data: { tenantId, name: p, permissions: { scope: 'demo' } } }));
+      }
+    } catch (_) {
+      // ignore
+    }
   }
   const userRoles = [];
   if (roles.length && hasModel(db, 'userRole')) {
-    userRoles.push(
-      await db.userRole.create({ data: { userId: users[0].recordId, roleId: roles[0].recordId } }),
-    );
+    try {
+      userRoles.push(
+        await db.userRole.create({ data: { userId: users[0].recordId, roleId: roles[0].recordId } }),
+      );
+    } catch (_) {
+      // ignore
+    }
   }
   const userPerms = [];
   if (hasModel(db, 'userPermission')) {
-    userPerms.push(
-      await db.userPermission.create({ data: { userId: users[0].recordId, permission: 'payments.refund', granted: true } }),
-    );
+    try {
+      userPerms.push(
+        await db.userPermission.create({ data: { userId: users[0].recordId, permission: 'payments.refund', granted: true } }),
+      );
+    } catch (_) {
+      // ignore
+    }
   }
 
   const templates = [];
   if (hasModel(db, 'messageTemplate')) {
-    templates.push(
-      await db.messageTemplate.create({
-        data: { tenantId, name: 'Booking Confirmation', type: 'EMAIL', subject: 'Your booking', body: 'Thanks for booking!' },
-      }),
-    );
+    try {
+      templates.push(
+        await db.messageTemplate.create({
+          data: { tenantId, name: 'Booking Confirmation', type: 'EMAIL', subject: 'Your booking', body: 'Thanks for booking!' },
+        }),
+      );
+    } catch (_) {
+      // ignore
+    }
   }
 
   return { roles, sets, userRoles, userPerms, templates };
@@ -825,17 +975,23 @@ async function createIntegrations(db, tenantId) {
 
 async function createMisc(db, tenantId, users) {
   const keys = [];
-  keys.push(
-    await db.idempotencyKey.create({
-      data: {
-        tenantId,
-        key: `seed-${tenantId}-key-1`,
-        endpoint: '/api/bookings',
-        status: 'completed',
-        expiresAt: addDays(new Date(), 7),
-      },
-    }),
-  );
+  if (hasModel(db, 'idempotencyKey')) {
+    try {
+      keys.push(
+        await db.idempotencyKey.create({
+          data: {
+            tenantId,
+            key: `seed-${tenantId}-key-1`,
+            endpoint: '/api/bookings',
+            status: 'completed',
+            expiresAt: addDays(new Date(), 7),
+          },
+        }),
+      );
+    } catch (_) {
+      // ignore
+    }
+  }
 
   const audits = [];
   if (hasModel(db, 'enhancedAuditLog')) {
@@ -905,7 +1061,7 @@ async function seedTenant(def) {
   await createCrmAndNotesScoped(prisma, tenantId, owners, users, bookings, def.seed);
 
   // Segments/Tags/Campaigns
-  await runTenantTx((tx) => createSegmentsTagsCampaigns(tx, tenantId, owners, users, def.seed));
+  await createSegmentsTagsCampaignsScoped(prisma, tenantId, owners, users, def.seed);
 
   // Notifications
   await runTenantTx((tx) => createNotifications(tx, tenantId, bookings));

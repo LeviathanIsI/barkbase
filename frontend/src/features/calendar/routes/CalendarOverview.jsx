@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon, Grid3x3, Home, AlertTriangle, Users, Clock, CheckCircle, Plus, Settings, BarChart3, List, Brain, CheckSquare } from 'lucide-react';
 import Button from '@/components/ui/Button';
@@ -8,16 +9,20 @@ import CapacityOverviewSection from '../components/CapacityOverviewSection';
 import CalendarWeekView from '../components/CalendarWeekView';
 import KennelLayoutView from '../components/KennelLayoutView';
 import BookingDetailModal from '../components/BookingDetailModal';
-import CapacityHeatmapView from '../components/CapacityHeatmapView';
+import NewBookingModal from '@/features/bookings/components/NewBookingModal';
+import SlidePanel from '@/components/ui/SlidePanel';
 import FilterOptionsPanel from '../components/FilterOptionsPanel';
 import QuickActionsBar from '../components/QuickActionsBar';
 import CheckInOutDashboard from '../components/CheckInOutDashboard';
 
 const CalendarOverview = () => {
+  const navigate = useNavigate();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [activeView, setActiveView] = useState('calendar'); // calendar, kennels, heatmap, checkinout
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showNewBookingModal, setShowNewBookingModal] = useState(false);
+  const [showKennelsPanel, setShowKennelsPanel] = useState(false);
+  const [showCheckInOutPanel, setShowCheckInOutPanel] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     services: ['boarding', 'daycare', 'grooming'],
@@ -39,10 +44,6 @@ const CalendarOverview = () => {
     setShowBookingModal(true);
   };
 
-  const handleViewChange = (view) => {
-    setActiveView(view);
-  };
-
   const handleFilterChange = (newFilters) => {
     setFilters(newFilters);
   };
@@ -56,45 +57,24 @@ const CalendarOverview = () => {
         subtitle="Complete operations dashboard for kennel management"
         actions={
           <div className="flex items-center gap-2">
-            {/* View Toggle Buttons */}
-            <div className="flex items-center bg-gray-100 rounded-lg p-1">
-              <Button
-                variant={activeView === 'calendar' ? 'primary' : 'ghost'}
-                size="sm"
-                onClick={() => handleViewChange('calendar')}
-                className="px-3"
-              >
-                <CalendarIcon className="h-4 w-4 mr-2" />
-                Calendar
-              </Button>
-              <Button
-                variant={activeView === 'kennels' ? 'primary' : 'ghost'}
-                size="sm"
-                onClick={() => handleViewChange('kennels')}
-                className="px-3"
-              >
-                <Home className="h-4 w-4 mr-2" />
-                Kennels
-              </Button>
-              <Button
-                variant={activeView === 'heatmap' ? 'primary' : 'ghost'}
-                size="sm"
-                onClick={() => handleViewChange('heatmap')}
-                className="px-3"
-              >
-                <BarChart3 className="h-4 w-4 mr-2" />
-                Analytics
-              </Button>
-              <Button
-                variant={activeView === 'checkinout' ? 'primary' : 'ghost'}
-                size="sm"
-                onClick={() => handleViewChange('checkinout')}
-                className="px-3"
-              >
-                <Users className="h-4 w-4 mr-2" />
-                Check-in/out
-              </Button>
-            </div>
+            {/* Quick Access Buttons */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowKennelsPanel(true)}
+            >
+              <Home className="h-4 w-4 mr-2" />
+              Kennels
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCheckInOutPanel(true)}
+            >
+              <Users className="h-4 w-4 mr-2" />
+              Check-in/out
+            </Button>
 
             {/* Action Buttons */}
             <Button
@@ -106,7 +86,11 @@ const CalendarOverview = () => {
               Filters
             </Button>
 
-            <Button variant="secondary" size="sm">
+            <Button 
+              variant="secondary" 
+              size="sm"
+              onClick={() => setShowNewBookingModal(true)}
+            >
               <Plus className="h-4 w-4 mr-2" />
               New Booking
             </Button>
@@ -116,6 +100,14 @@ const CalendarOverview = () => {
 
       {/* Enhanced Stats Dashboard */}
       <EnhancedStatsDashboard currentDate={currentDate} />
+
+      {/* Main Calendar - Priority view for quick booking glance */}
+      <CalendarWeekView
+        currentDate={currentDate}
+        onDateChange={setCurrentDate}
+        onBookingClick={handleBookingClick}
+        filters={filters}
+      />
 
       {/* Capacity Overview Section */}
       <CapacityOverviewSection currentDate={currentDate} />
@@ -154,42 +146,8 @@ const CalendarOverview = () => {
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="space-y-6">
-        {activeView === 'calendar' && (
-          <CalendarWeekView
-            currentDate={currentDate}
-            onDateChange={setCurrentDate}
-            onBookingClick={handleBookingClick}
-            filters={filters}
-          />
-        )}
-
-        {activeView === 'kennels' && (
-          <KennelLayoutView
-            currentDate={currentDate}
-            onBookingClick={handleBookingClick}
-            filters={filters}
-          />
-        )}
-
-        {activeView === 'heatmap' && (
-          <CapacityHeatmapView
-            currentDate={currentDate}
-            filters={filters}
-          />
-        )}
-
-        {activeView === 'checkinout' && (
-          <CheckInOutDashboard
-            currentDate={currentDate}
-            onBookingClick={handleBookingClick}
-          />
-        )}
-      </div>
-
       {/* Quick Actions Bar */}
-      <QuickActionsBar />
+      <QuickActionsBar onNewBooking={() => setShowNewBookingModal(true)} />
 
       {/* Modals */}
       <BookingDetailModal
@@ -198,12 +156,42 @@ const CalendarOverview = () => {
         onClose={() => setShowBookingModal(false)}
       />
 
+      <NewBookingModal
+        isOpen={showNewBookingModal}
+        onClose={() => setShowNewBookingModal(false)}
+      />
+
+      {/* Note: FilterOptionsPanel now uses SlidePanel - see UI_PATTERNS.md */}
       <FilterOptionsPanel
         isOpen={showFilters}
         onClose={() => setShowFilters(false)}
         filters={filters}
         onFiltersChange={handleFilterChange}
       />
+
+      {/* Flyout Panels */}
+      <SlidePanel
+        open={showKennelsPanel}
+        onClose={() => setShowKennelsPanel(false)}
+        title="Kennel Layout"
+      >
+        <KennelLayoutView
+          currentDate={currentDate}
+          onBookingClick={handleBookingClick}
+          filters={filters}
+        />
+      </SlidePanel>
+
+      <SlidePanel
+        open={showCheckInOutPanel}
+        onClose={() => setShowCheckInOutPanel(false)}
+        title="Check-in / Check-out"
+      >
+        <CheckInOutDashboard
+          currentDate={currentDate}
+          onBookingClick={handleBookingClick}
+        />
+      </SlidePanel>
     </div>
   );
 };

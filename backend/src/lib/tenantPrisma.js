@@ -167,7 +167,7 @@ const forTenant = (tenantId, client = prisma) => {
         if (modelName === '$withTenantGuc') {
           return async (fn) =>
             client.$transaction(async (tx) => {
-              await tx.$executeRaw`select app.set_tenant_id(${tenantId})`;
+              await tx.$executeRaw`SELECT set_config('app.current_tenant_id', ${tenantId}, true)`;
               return fn(tx);
             });
         }

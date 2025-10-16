@@ -1,19 +1,30 @@
 import { useState } from 'react';
-import { CheckCircle, Circle, Plus, AlertTriangle, Calendar } from 'lucide-react';
+import { CheckCircle, Circle, Plus, AlertTriangle, Calendar, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card, PageHeader } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
-import { useTodaysTasksQuery, useOverdueTasksQuery, useCompleteTaskMutation } from '../api';
+import { useTodaysTasksQuery, useOverdueTasksQuery, useCompleteTaskMutation, useCreateTaskMutation } from '../api';
 import toast from 'react-hot-toast';
 
 const Tasks = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [filterType, setFilterType] = useState('all');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [taskForm, setTaskForm] = useState({
+    type: 'FEEDING',
+    relatedType: 'PET',
+    relatedId: '',
+    assignedTo: '',
+    scheduledFor: '',
+    notes: '',
+    priority: 'NORMAL'
+  });
 
   const { data: todaysTasks, isLoading: todaysLoading } = useTodaysTasksQuery();
   const { data: overdueTasks, isLoading: overdueLoading } = useOverdueTasksQuery();
   const completeMutation = useCompleteTaskMutation();
+  const createMutation = useCreateTaskMutation();
 
   const isLoading = todaysLoading || overdueLoading;
 
@@ -23,6 +34,26 @@ const Tasks = () => {
       toast.success('Task completed');
     } catch (error) {
       toast.error('Failed to complete task');
+    }
+  };
+
+  const handleCreateTask = async (e) => {
+    e.preventDefault();
+    try {
+      await createMutation.mutateAsync(taskForm);
+      toast.success('Task created successfully');
+      setShowCreateModal(false);
+      setTaskForm({
+        type: 'FEEDING',
+        relatedType: 'PET',
+        relatedId: '',
+        assignedTo: '',
+        scheduledFor: '',
+        notes: '',
+        priority: 'NORMAL'
+      });
+    } catch (error) {
+      toast.error('Failed to create task');
     }
   };
 
@@ -78,7 +109,7 @@ const Tasks = () => {
               onChange={(e) => setSelectedDate(e.target.value)}
               className="rounded-lg border border-border bg-surface px-3 py-2 text-sm"
             />
-            <Button>
+            <Button onClick={() => setShowCreateModal(true)}>
               <Plus className="h-4 w-4 mr-2" />
               New Task
             </Button>
@@ -183,6 +214,128 @@ const Tasks = () => {
           )}
         </div>
       </Card>
+
+      {/* Task Creation Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Create New Task</h3>
+              <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateTask} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Task Type <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={taskForm.type}
+                  onChange={(e) => setTaskForm({ ...taskForm, type: e.target.value })}
+                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  required
+                >
+                  <option value="FEEDING">Feeding</option>
+                  <option value="MEDICATION">Medication</option>
+                  <option value="GROOMING">Grooming</option>
+                  <option value="EXERCISE">Exercise</option>
+                  <option value="CHECKUP">Checkup</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Related Type <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={taskForm.relatedType}
+                  onChange={(e) => setTaskForm({ ...taskForm, relatedType: e.target.value })}
+                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  required
+                >
+                  <option value="PET">Pet</option>
+                  <option value="BOOKING">Booking</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Related ID <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={taskForm.relatedId}
+                  onChange={(e) => setTaskForm({ ...taskForm, relatedId: e.target.value })}
+                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="Enter pet or booking ID"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Scheduled For <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="datetime-local"
+                  value={taskForm.scheduledFor}
+                  onChange={(e) => setTaskForm({ ...taskForm, scheduledFor: e.target.value })}
+                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Priority
+                </label>
+                <select
+                  value={taskForm.priority}
+                  onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })}
+                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="LOW">Low</option>
+                  <option value="NORMAL">Normal</option>
+                  <option value="HIGH">High</option>
+                  <option value="URGENT">Urgent</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Notes
+                </label>
+                <textarea
+                  value={taskForm.notes}
+                  onChange={(e) => setTaskForm({ ...taskForm, notes: e.target.value })}
+                  rows={3}
+                  className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="Additional notes..."
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 border-t border-gray-200 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowCreateModal(false)}
+                  disabled={createMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={createMutation.isPending}
+                >
+                  {createMutation.isPending ? 'Creating...' : 'Create Task'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

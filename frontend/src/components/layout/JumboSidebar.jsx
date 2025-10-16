@@ -40,10 +40,10 @@ const navigationSections = [
     ],
   },
   {
-    title: 'OPERATIONS',
+    title: 'INTAKE',
     items: [
       { to: '/calendar', label: "Today's Schedule", icon: Calendar },
-      { to: '/daycare/checkin', label: 'Tasks & Reminders', icon: CheckCircle },
+      { to: '/tasks', label: 'Tasks & Reminders', icon: CheckCircle },
       { to: '/bookings', label: 'Bookings', icon: BookOpen },
       { to: '/facilities', label: 'Capacity View', icon: BarChart3 },
     ],

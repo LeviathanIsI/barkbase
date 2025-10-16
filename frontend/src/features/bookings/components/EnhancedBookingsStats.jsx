@@ -32,9 +32,9 @@ const EnhancedBookingsStats = ({ bookings, currentDate }) => {
       icon: DollarSign,
       color: 'blue'
     } : null,
-    stats.revenueMTD > 0 ? {
+    stats.revenue > 0 ? {
       type: 'info',
-      message: `Revenue today: $${stats.revenueMTD}`,
+      message: `Total revenue: $${stats.revenue.toFixed(2)}`,
       icon: TrendingUp,
       color: 'green'
     } : null
@@ -160,7 +160,7 @@ const EnhancedBookingsStats = ({ bookings, currentDate }) => {
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-600">Revenue (MTD)</p>
-                <p className="text-2xl font-bold text-gray-900">${stats.revenueMTD.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-gray-900">${stats.revenue.toFixed(2)}</p>
                 <p className="text-xs text-gray-600">
                   Month to date
                 </p>

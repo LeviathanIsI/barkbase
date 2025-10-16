@@ -1,4 +1,4 @@
-// Prisma schema for BarkBase kennel management system with multi-tenant isolation
+// This schema is designed to match the exact Supabase schema structure
 
 generator client {
   provider = "prisma-client-js"
@@ -6,10 +6,11 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DEV_DATABASE_URL")
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
+// Enums matching Supabase exactly
 enum TenantPlan {
   FREE
   PRO
@@ -64,88 +65,128 @@ enum KennelType {
   MEDICAL
 }
 
+enum CommunicationType {
+  EMAIL
+  SMS
+  CALL
+  NOTE
+  SYSTEM
+}
+
+enum CommunicationDirection {
+  INBOUND
+  OUTBOUND
+  INTERNAL
+}
+
+enum NoteVisibility {
+  ALL
+  STAFF
+  ADMIN
+  PRIVATE
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskType {
+  FEEDING
+  MEDICATION
+  EXERCISE
+  CLEANING
+  HEALTH_CHECK
+  SPECIAL_CARE
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// Models matching Supabase tables exactly
 model Tenant {
-  recordId     String     @id @default(cuid()) @map("recordId")
-  slug         String     @unique
-  name         String
-  themeJson    Json?
-  featureFlags Json?
-  plan         TenantPlan @default(FREE)
-  customDomain String?    @unique
-  settings     Json?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  recordId        String      @id @default(cuid())
+  slug            String      @unique
+  name            String
+  themeJson       Json?
+  featureFlags    Json?
+  plan            TenantPlan  @default(FREE)
+  customDomain    String?     @unique
+  settings        Json?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
-  memberships            Membership[]
-  invites                Invite[]                @relation("TenantInvites")
-  owners                 Owner[]
-  pets                   Pet[]
-  petOwners              PetOwner[]
-  kennels                Kennel[]
-  bookings               Booking[]
-  bookingSegments        BookingSegment[]
-  bookingServices        BookingService[]
-  services               Service[]
-  payments               Payment[]
-  staff                  Staff[]
-  vaccinations           Vaccination[]
-  auditLogs              AuditLog[]
-  usageCounters          UsageCounter[]
-  checkIns               CheckIn[]
-  checkOuts              CheckOut[]
-  incidentReports        IncidentReport[]
-  communications         Communication[]
-  notes                  Note[]
-  customerSegments       CustomerSegment[]
+  // Relations
+  memberships     Membership[]
+  invites         Invite[]
+  owners          Owner[]
+  pets            Pet[]
+  petOwners       PetOwner[]
+  kennels         Kennel[]
+  bookings        Booking[]
+  bookingSegments BookingSegment[]
+  bookingServices BookingService[]
+  services        Service[]
+  payments        Payment[]
+  staff           Staff[]
+  vaccinations    Vaccination[]
+  auditLogs       AuditLog[]
+  usageCounters   UsageCounter[]
+  checkIns        CheckIn[]
+  checkOuts       CheckOut[]
+  incidentReports IncidentReport[]
+  communications  Communication[]
+  notes           Note[]
+  runs            Run[]
+  runAssignments  RunAssignment[]
+  messages        Message[]
+  customerSegments CustomerSegment[]
   customerSegmentMembers CustomerSegmentMember[]
-  customerTags           CustomerTag[]
-  customerTagMembers     CustomerTagMember[]
-  campaigns              Campaign[]
-  tasks                  Task[]
-  customRoles            CustomRole[]
-  permissionSets         PermissionSet[]
-  runs                   Run[]
-  runAssignments         RunAssignment[]
-  messages               Message[]
-
-  @@index([slug])
+  customerTags    CustomerTag[]
+  customerTagMembers CustomerTagMember[]
+  campaigns       Campaign[]
+  tasks           Task[]
 }
 
 model User {
-  recordId        String    @id @default(cuid()) @map("recordId")
+  recordId        String    @id @default(cuid())
   email           String    @unique
   passwordHash    String
-  name            String?
-  phone           String?
-  avatarUrl       String?
-  timezone        String?
-  language        String    @default("en")
-  preferences     Json?
   lastLoginAt     DateTime?
   isActive        Boolean   @default(true)
   emailVerified   Boolean   @default(false)
   twoFactorSecret String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+  name            String?
+  phone           String?
+  avatarUrl       String?
+  timezone        String?   @default("America/New_York")
+  language        String    @default("en")
+  preferences     Json?     @default("{}")
 
-  memberships        Membership[]
-  createdInvites     Invite[]                 @relation("UserCreatedInvites")
-  auditLogs          AuditLog[]
+  // Relations
+  memberships    Membership[]
+  createdInvites Invite[]
+  auditLogs      AuditLog[]
   verificationTokens EmailVerificationToken[]
-  communications     Communication[]
-  notes              Note[]
-  campaigns          Campaign[]
-  userRoles          UserRole[]
-  userPermissions    UserPermission[]
-  createdRoles       CustomRole[]             @relation("RoleCreator")
-  assignedRoles      UserRole[]               @relation("UserRoleAssigner")
-  grantedPermissions UserPermission[]         @relation("PermissionGranter")
-  sentMessages       Message[]                @relation("SentMessages")
-  receivedMessages   Message[]                @relation("ReceivedMessages")
+  communications Communication[]
+  notes          Note[]
+  campaigns      Campaign[]
+  sentMessages   Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
 }
 
 model Membership {
-  recordId     String   @id @default(cuid()) @map("recordId")
+  recordId     String   @id @default(cuid())
   userId       String
   tenantId     String
   role         Role     @default(STAFF)
@@ -162,19 +203,19 @@ model Membership {
 }
 
 model Invite {
-  recordId    String    @id @default(cuid()) @map("recordId")
-  tenantId    String
-  email       String
-  token       String    @unique
-  role        Role      @default(STAFF)
-  expiresAt   DateTime
-  acceptedAt  DateTime?
-  createdById String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  recordId     String    @id @default(cuid())
+  tenantId     String
+  email        String
+  token        String    @unique
+  role         Role      @default(STAFF)
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  createdById  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  tenant    Tenant @relation("TenantInvites", fields: [tenantId], references: [recordId], onDelete: Cascade)
-  createdBy User?  @relation("UserCreatedInvites", fields: [createdById], references: [recordId], onDelete: SetNull)
+  tenant    Tenant @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  createdBy User?  @relation(fields: [createdById], references: [recordId], onDelete: SetNull)
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -182,7 +223,7 @@ model Invite {
 }
 
 model EmailVerificationToken {
-  recordId  String   @id @default(cuid()) @map("recordId")
+  recordId  String   @id @default(cuid())
   userId    String
   token     String   @unique
   expiresAt DateTime
@@ -194,7 +235,7 @@ model EmailVerificationToken {
 }
 
 model AuditLog {
-  recordId   String   @id @default(cuid()) @map("recordId")
+  recordId   String   @id @default(cuid())
   tenantId   String
   actorId    String?
   action     String
@@ -211,14 +252,14 @@ model AuditLog {
 }
 
 model UsageCounter {
-  recordId   String   @id @default(cuid()) @map("recordId")
-  tenantId   String
-  date       DateTime
-  bookings   Int      @default(0)
-  activePets Int      @default(0)
-  staffSeats Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  recordId     String   @id @default(cuid())
+  tenantId     String
+  date         DateTime
+  bookings     Int      @default(0)
+  activePets   Int      @default(0)
+  staffSeats   Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
 
@@ -227,7 +268,7 @@ model UsageCounter {
 }
 
 model Staff {
-  recordId     String   @id @default(cuid()) @map("recordId")
+  recordId     String   @id @default(cuid())
   tenantId     String
   membershipId String   @unique
   title        String?
@@ -236,52 +277,57 @@ model Staff {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  tenant         Tenant     @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  membership     Membership @relation(fields: [membershipId], references: [recordId], onDelete: Cascade)
-  checkIns       CheckIn[]
-  checkOuts      CheckOut[]
-  assignedTasks  Task[]
-  completedTasks Task[]     @relation("TaskCompletedBy")
+  tenant        Tenant     @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  membership    Membership @relation(fields: [membershipId], references: [recordId], onDelete: Cascade)
+  checkIns      CheckIn[]
+  checkOuts     CheckOut[]
+  assignedTasks Task[]     @relation("TaskAssignedTo")
+  completedTasks Task[]    @relation("TaskCompletedBy")
 
   @@index([tenantId])
 }
 
 model Owner {
-  recordId  String   @id @default(cuid()) @map("recordId")
-  tenantId  String
-  firstName String
-  lastName  String
-  email     String?
-  phone     String?
-  address   Json
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  recordId     String    @id @default(cuid())
+  tenantId     String
+  firstName    String
+  lastName     String
+  email        String?
+  phone        String?
+  address      Json
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  tenant             Tenant                  @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  pets               PetOwner[]
-  bookings           Booking[]
-  payments           Payment[]
-  communications     Communication[]
-  segmentMemberships CustomerSegmentMember[]
-  tagMemberships     CustomerTagMember[]
+  tenant         Tenant          @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  pets           PetOwner[]
+  bookings       Booking[]
+  payments       Payment[]
+  communications Communication[]
+  segmentMembers CustomerSegmentMember[]
+  tagMembers     CustomerTagMember[]
 
   @@unique([tenantId, email])
   @@index([tenantId, lastName])
 }
 
 model Pet {
-  recordId      String    @id @default(cuid()) @map("recordId")
-  tenantId      String
-  name          String
-  breed         String?
-  birthdate     DateTime?
-  photoUrl      String?
-  medicalNotes  String?
-  dietaryNotes  String?
-  behaviorFlags Json
-  status        String    @default("active")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  recordId        String    @id @default(cuid())
+  tenantId        String
+  name            String
+  species         String?
+  breed           String?
+  birthdate       DateTime?
+  photoUrl        String?
+  medicalNotes    String?
+  dietaryNotes    String?
+  behaviorFlags   Json
+  status          String    @default("active")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  weight          Float?
+  allergies       String?
+  lastVetVisit    DateTime?
+  nextAppointment DateTime?
 
   tenant          Tenant           @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
   owners          PetOwner[]
@@ -294,7 +340,7 @@ model Pet {
 }
 
 model PetOwner {
-  recordId  String  @id @default(cuid()) @map("recordId")
+  recordId  String  @id @default(cuid())
   tenantId  String
   petId     String
   ownerId   String
@@ -309,23 +355,23 @@ model PetOwner {
 }
 
 model Kennel {
-  recordId   String     @id @default(cuid()) @map("recordId")
-  tenantId   String
-  name       String
-  type       KennelType
-  size       String?
-  capacity   Int        @default(1)
-  location   String?
-  building   String?
-  zone       String?
-  amenities  String     @default("{}")
-  hourlyRate Int?
-  dailyRate  Int?
-  weeklyRate Int?
-  notes      String?
-  isActive   Boolean    @default(true)
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  recordId    String     @id @default(cuid())
+  tenantId    String
+  name        String
+  type        KennelType
+  size        String?
+  capacity    Int        @default(1)
+  location    String?
+  amenities   String     @default("{}")
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  building    String?
+  zone        String?
+  hourlyRate  Int?
+  dailyRate   Int?
+  weeklyRate  Int?
+  notes       String?
 
   tenant   Tenant           @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
   bookings BookingSegment[]
@@ -336,21 +382,21 @@ model Kennel {
 }
 
 model Booking {
-  recordId            String        @id @default(cuid()) @map("recordId")
+  recordId            String          @id @default(cuid())
   tenantId            String
   petId               String
   ownerId             String
-  status              BookingStatus @default(PENDING)
+  status              BookingStatus   @default(PENDING)
   checkIn             DateTime
   checkOut            DateTime
-  depositCents        Int           @default(0)
-  totalCents          Int           @default(0)
-  balanceDueCents     Int           @default(0)
+  depositCents        Int             @default(0)
+  totalCents          Int             @default(0)
+  balanceDueCents     Int             @default(0)
   notes               String?
   specialInstructions String?
-  source              String?       @default("portal")
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
+  source              String?         @default("portal")
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
 
   tenant          Tenant           @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
   pet             Pet              @relation(fields: [petId], references: [recordId], onDelete: Cascade)
@@ -367,7 +413,7 @@ model Booking {
 }
 
 model BookingSegment {
-  recordId  String        @id @default(cuid()) @map("recordId")
+  recordId  String        @id @default(cuid())
   tenantId  String
   bookingId String
   kennelId  String
@@ -385,7 +431,7 @@ model BookingSegment {
 }
 
 model Service {
-  recordId    String          @id @default(cuid()) @map("recordId")
+  recordId    String          @id @default(cuid())
   tenantId    String
   name        String
   description String?
@@ -402,7 +448,7 @@ model Service {
 }
 
 model BookingService {
-  recordId   String @id @default(cuid()) @map("recordId")
+  recordId   String @id @default(cuid())
   tenantId   String
   bookingId  String
   serviceId  String
@@ -417,7 +463,7 @@ model BookingService {
 }
 
 model Vaccination {
-  recordId       String    @id @default(cuid()) @map("recordId")
+  recordId       String    @id @default(cuid())
   tenantId       String
   petId          String
   type           String
@@ -425,9 +471,9 @@ model Vaccination {
   expiresAt      DateTime
   documentUrl    String?
   notes          String?
-  reminderSentAt DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+  reminderSentAt DateTime?
 
   tenant Tenant @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
   pet    Pet    @relation(fields: [petId], references: [recordId], onDelete: Cascade)
@@ -436,7 +482,7 @@ model Vaccination {
 }
 
 model Payment {
-  recordId    String        @id @default(cuid()) @map("recordId")
+  recordId    String        @id @default(cuid())
   tenantId    String
   bookingId   String?
   ownerId     String
@@ -462,7 +508,7 @@ model Payment {
 }
 
 model CheckIn {
-  recordId        String   @id @default(cuid()) @map("recordId")
+  recordId        String   @id @default(cuid())
   tenantId        String
   bookingId       String
   staffId         String?
@@ -483,16 +529,16 @@ model CheckIn {
 }
 
 model CheckOut {
-  recordId         String   @id @default(cuid()) @map("recordId")
+  recordId         String          @id @default(cuid())
   tenantId         String
   bookingId        String
   staffId          String?
-  time             DateTime @default(now())
+  time             DateTime        @default(now())
   incidentReportId String?
-  extraCharges     String   @default("{}")
+  extraCharges     String          @default("{}")
   signatureUrl     String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 
   tenant         Tenant          @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
   booking        Booking         @relation(fields: [bookingId], references: [recordId], onDelete: Cascade)
@@ -504,7 +550,7 @@ model CheckOut {
 }
 
 model IncidentReport {
-  recordId     String           @id @default(cuid()) @map("recordId")
+  recordId     String           @id @default(cuid())
   tenantId     String
   petId        String
   bookingId    String?
@@ -526,79 +572,39 @@ model IncidentReport {
   @@index([tenantId, occurredAt])
 }
 
-// CRM Models
-enum CommunicationType {
-  EMAIL
-  SMS
-  CALL
-  NOTE
-  SYSTEM
-}
-
-enum CommunicationDirection {
-  INBOUND
-  OUTBOUND
-  INTERNAL
-}
-
-enum NoteVisibility {
-  ALL
-  STAFF
-  ADMIN
-  PRIVATE
-}
-
 model Communication {
-  recordId    String                 @id @default(cuid())
-  tenantId    String
-  ownerId     String
-  userId      String?
-  type        CommunicationType
-  direction   CommunicationDirection
-  subject     String?
-  content     String                 @db.Text
-  metadata    Json?
-  attachments Json?
-  createdAt   DateTime               @default(now())
+  recordId  String                 @id @default(cuid())
+  tenantId  String
+  ownerId   String
+  userId    String
+  type      CommunicationType
+  direction CommunicationDirection
+  subject   String?
+  content   String
+  metadata  Json?
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
   owner  Owner  @relation(fields: [ownerId], references: [recordId], onDelete: Cascade)
-  user   User?  @relation(fields: [userId], references: [recordId], onDelete: SetNull)
+  user   User   @relation(fields: [userId], references: [recordId], onDelete: Cascade)
 
   @@index([tenantId, ownerId, createdAt])
   @@index([tenantId, type])
 }
 
-model Note {
-  recordId   String         @id @default(cuid())
-  tenantId   String
-  entityType String // owner, pet, booking
-  entityId   String
-  category   String?
-  content    String         @db.Text
-  visibility NoteVisibility @default(ALL)
-  isPinned   Boolean        @default(false)
-  authorId   String
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
-
-  tenant Tenant @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  author User   @relation(fields: [authorId], references: [recordId], onDelete: Cascade)
-
-  @@index([tenantId, entityType, entityId])
-  @@index([tenantId, authorId])
-}
-
 model CustomerSegment {
-  recordId    String   @id @default(cuid())
+  recordId    String                  @id @default(cuid())
   tenantId    String
   name        String
   description String?
-  conditions  Json // Query conditions
-  isAutomatic Boolean  @default(false)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  conditions  Json
+  isAutomatic Boolean                 @default(false)
+  isActive    Boolean                 @default(true)
+  color       String?
+  icon        String?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @default(now())
 
   tenant    Tenant                  @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
   members   CustomerSegmentMember[]
@@ -614,6 +620,7 @@ model CustomerSegmentMember {
   segmentId String
   ownerId   String
   addedAt   DateTime @default(now())
+  isManual  Boolean  @default(false)
 
   tenant  Tenant          @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
   segment CustomerSegment @relation(fields: [segmentId], references: [recordId], onDelete: Cascade)
@@ -624,12 +631,12 @@ model CustomerSegmentMember {
 }
 
 model CustomerTag {
-  recordId    String   @id @default(cuid())
+  recordId    String              @id @default(cuid())
   tenantId    String
   name        String
   color       String?
   description String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime            @default(now())
 
   tenant    Tenant              @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
   customers CustomerTagMember[]
@@ -652,60 +659,55 @@ model CustomerTagMember {
   @@index([tenantId, ownerId])
 }
 
-enum CampaignStatus {
-  DRAFT
-  SCHEDULED
-  ACTIVE
-  PAUSED
-  COMPLETED
-  CANCELLED
-}
-
 model Campaign {
   recordId    String            @id @default(cuid())
   tenantId    String
   name        String
   description String?
   type        CommunicationType
+  status      CampaignStatus    @default(DRAFT)
   segmentId   String?
-  content     Json // Email/SMS content with variables
+  content     Json
   scheduledAt DateTime?
   sentAt      DateTime?
-  status      CampaignStatus    @default(DRAFT)
-  metrics     Json? // Open rates, click rates, etc
-  createdBy   String
+  metrics     Json?
+  createdById String
   createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  updatedAt   DateTime          @default(now())
 
-  tenant  Tenant           @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  segment CustomerSegment? @relation(fields: [segmentId], references: [recordId], onDelete: SetNull)
-  creator User             @relation(fields: [createdBy], references: [recordId], onDelete: Cascade)
+  tenant    Tenant           @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  segment   CustomerSegment? @relation(fields: [segmentId], references: [recordId], onDelete: SetNull)
+  createdBy User             @relation(fields: [createdById], references: [recordId], onDelete: Cascade)
 
   @@index([tenantId, status])
   @@index([tenantId, scheduledAt])
 }
 
-enum TaskType {
-  FEEDING
-  MEDICATION
-  EXERCISE
-  CLEANING
-  HEALTH_CHECK
-  SPECIAL_CARE
-}
+model Note {
+  recordId   String         @id @default(cuid())
+  tenantId   String
+  entityType String
+  entityId   String
+  category   String?
+  content    String
+  visibility NoteVisibility @default(ALL)
+  isPinned   Boolean        @default(false)
+  authorId   String
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @default(now())
 
-enum Priority {
-  LOW
-  NORMAL
-  HIGH
-  URGENT
+  tenant Tenant @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [recordId], onDelete: Cascade)
+
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, authorId])
 }
 
 model Task {
   recordId     String    @id @default(cuid())
   tenantId     String
   type         TaskType
-  relatedType  String // 'pet', 'kennel', 'booking'
+  relatedType  String
   relatedId    String
   assignedTo   String?
   scheduledFor DateTime
@@ -717,7 +719,7 @@ model Task {
   updatedAt    DateTime  @updatedAt
 
   tenant           Tenant @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  staff            Staff? @relation(fields: [assignedTo], references: [recordId])
+  staff            Staff? @relation("TaskAssignedTo", fields: [assignedTo], references: [recordId])
   completedByStaff Staff? @relation("TaskCompletedBy", fields: [completedBy], references: [recordId])
 
   @@index([tenantId, scheduledFor])
@@ -725,89 +727,16 @@ model Task {
   @@index([tenantId, assignedTo])
 }
 
-// Permission Management Models
-model CustomRole {
-  recordId    String   @id @default(cuid())
-  tenantId    String
-  name        String
-  description String?
-  isSystem    Boolean  @default(false) // System roles can't be deleted
-  isActive    Boolean  @default(true)
-  permissions Json     @default("{}")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  createdBy   String?
-
-  tenant    Tenant     @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  creator   User?      @relation("RoleCreator", fields: [createdBy], references: [recordId], onDelete: SetNull)
-  userRoles UserRole[]
-
-  @@unique([tenantId, name])
-  @@index([tenantId, isActive])
-  @@map("CustomRole")
-}
-
-model PermissionSet {
-  recordId    String   @id @default(cuid())
-  tenantId    String
-  name        String
-  description String?
-  permissions Json     @default("{}")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  tenant Tenant @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-
-  @@unique([tenantId, name])
-  @@index([tenantId])
-  @@map("PermissionSet")
-}
-
-model UserRole {
-  recordId   String   @id @default(cuid())
-  userId     String
-  roleId     String
-  assignedAt DateTime @default(now())
-  assignedBy String?
-
-  user           User       @relation(fields: [userId], references: [recordId], onDelete: Cascade)
-  role           CustomRole @relation(fields: [roleId], references: [recordId], onDelete: Cascade)
-  assignedByUser User?      @relation("UserRoleAssigner", fields: [assignedBy], references: [recordId], onDelete: SetNull)
-
-  @@unique([userId, roleId])
-  @@index([userId])
-  @@index([roleId])
-  @@map("UserRole")
-}
-
-model UserPermission {
-  recordId   String    @id @default(cuid())
-  userId     String
-  permission String
-  granted    Boolean
-  expiresAt  DateTime?
-  grantedAt  DateTime  @default(now())
-  grantedBy  String?
-
-  user          User  @relation(fields: [userId], references: [recordId], onDelete: Cascade)
-  grantedByUser User? @relation("PermissionGranter", fields: [grantedBy], references: [recordId], onDelete: SetNull)
-
-  @@unique([userId, permission])
-  @@index([userId])
-  @@index([expiresAt])
-  @@map("UserPermission")
-}
-
 model Run {
-  recordId     String   @id @default(cuid())
+  recordId     String          @id @default(cuid())
   tenantId     String
   name         String
   capacity     Int
   scheduleTime String
   color        String?
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  isActive     Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @default(now())
 
   tenant      Tenant          @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
   assignments RunAssignment[]
@@ -840,7 +769,7 @@ model Message {
   conversationId String
   senderId       String
   recipientId    String?
-  content        String    @db.Text
+  content        String
   isRead         Boolean   @default(false)
   readAt         DateTime?
   createdAt      DateTime  @default(now())

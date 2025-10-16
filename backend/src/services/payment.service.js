@@ -73,7 +73,12 @@ const recordPayment = (tenantId, payload) =>
 
 const capturePayment = async (tenantId, paymentId, { metadata = {}, captureAmountCents, force = false } = {}) => {
   const tenantDb = forTenant(tenantId);
-  const payment = await tenantDb.payment.findFirst({ where: { recordId: paymentId } });
+
+  // Check if payment exists using RLS
+  const payment = await tenantDb.$withTenantGuc(async (tx) => {
+    const txDb = forTenant(tenantId, tx);
+    return txDb.payment.findFirst({ where: { recordId: paymentId } });
+  });
 
   if (!payment) {
     throw Object.assign(new Error('Payment not found'), { statusCode: 404 });
@@ -100,9 +105,12 @@ const capturePayment = async (tenantId, paymentId, { metadata = {}, captureAmoun
     data.amountCents = captureAmountCents;
   }
 
-  return tenantDb.payment.update({
-    where: { recordId: paymentId },
-    data,
+  return tenantDb.$withTenantGuc(async (tx) => {
+    const txDb = forTenant(tenantId, tx);
+    return txDb.payment.update({
+      where: { recordId: paymentId },
+      data,
+    });
   });
 };
 

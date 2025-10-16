@@ -17,8 +17,8 @@ const AppProviders = ({ children, fallback = null }) => (
     <QueryProvider>
       <OfflineBoundary />
       <AuthLoader />
-      <TokenRefresher />
       <TenantLoader />
+      <TokenRefresher />
       <Suspense fallback={fallback}>{children}</Suspense>
       <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
     </QueryProvider>

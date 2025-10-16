@@ -36,15 +36,15 @@ const BookingCard = ({ booking, onCheckIn, onCheckOut, onEdit, onCancel, onConta
           <input
             type="checkbox"
             checked={isSelected}
-            onChange={() => onSelect(booking.id)}
+            onChange={() => onSelect(booking.recordId || booking.id)}
             className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
           />
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-lg font-semibold text-gray-900">{booking.bookingId}</h3>
-              <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm border ${getStatusColor(booking.status)}`}>
-                {getStatusIcon(booking.status)}
-                <span>{getStatusBadgeText(booking.status)}</span>
+              <h3 className="text-lg font-semibold text-gray-900">#{(booking.recordId || booking.id || '').slice(0, 8)}</h3>
+              <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm border ${getStatusColor((booking.status || '').toLowerCase())}`}>
+                {getStatusIcon((booking.status || '').toLowerCase())}
+                <span>{getStatusBadgeText(booking.status || 'pending')}</span>
               </div>
             </div>
           </div>
@@ -55,37 +55,49 @@ const BookingCard = ({ booking, onCheckIn, onCheckOut, onEdit, onCancel, onConta
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
         <div className="flex items-center gap-4 mb-2">
           <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-            {booking.pet.name[0]}
+            {booking.pet?.name?.[0] || 'P'}
           </div>
           <div className="flex-1">
-            <h4 className="text-lg font-semibold text-gray-900">{booking.pet.name}</h4>
-            <p className="text-gray-600">{booking.pet.breed} • {booking.pet.age} yrs • {booking.pet.weight} lbs</p>
+            <h4 className="text-lg font-semibold text-gray-900">{booking.pet?.name || 'Unknown Pet'}</h4>
+            <p className="text-gray-600">
+              {booking.pet?.breed || 'Unknown breed'}
+              {booking.pet?.age ? ` • ${booking.pet.age} yrs` : ''}
+              {booking.pet?.weight ? ` • ${booking.pet.weight} lbs` : ''}
+            </p>
           </div>
         </div>
 
         <div className="flex items-center justify-between">
           <div>
-            <div className="font-medium text-gray-900">{booking.owner.name}</div>
+            <div className="font-medium text-gray-900">{booking.owner?.name || 'Unknown Owner'}</div>
             <div className="flex items-center gap-4 text-sm text-gray-600">
-              <div className="flex items-center gap-1">
-                <Phone className="w-4 h-4" />
-                <span>{booking.owner.phone}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Mail className="w-4 h-4" />
-                <span>{booking.owner.email}</span>
-              </div>
+              {booking.owner?.phone && (
+                <div className="flex items-center gap-1">
+                  <Phone className="w-4 h-4" />
+                  <span>{booking.owner.phone}</span>
+                </div>
+              )}
+              {booking.owner?.email && (
+                <div className="flex items-center gap-1">
+                  <Mail className="w-4 h-4" />
+                  <span>{booking.owner.email}</span>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => onContact(booking)}>
-              <Phone className="w-3 h-3 mr-1" />
-              Call
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => onContact(booking)}>
-              <MessageCircle className="w-3 h-3 mr-1" />
-              SMS
-            </Button>
+            {booking.owner?.phone && (
+              <Button size="sm" variant="outline" onClick={() => onContact?.(booking)}>
+                <Phone className="w-3 h-3 mr-1" />
+                Call
+              </Button>
+            )}
+            {booking.owner?.phone && (
+              <Button size="sm" variant="outline" onClick={() => onContact?.(booking)}>
+                <MessageCircle className="w-3 h-3 mr-1" />
+                SMS
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -95,14 +107,14 @@ const BookingCard = ({ booking, onCheckIn, onCheckOut, onEdit, onCancel, onConta
         <div>
           <p className="text-xs text-gray-500 uppercase tracking-wide">Check-in</p>
           <p className="text-lg font-semibold text-gray-900">
-            {format(new Date(booking.checkInDate), 'MMM d, yyyy')}
+            {booking.checkIn ? format(new Date(booking.checkIn), 'MMM d, yyyy') : 'Not set'}
           </p>
           <p className="text-sm text-gray-600">2:00 PM</p>
         </div>
         <div>
           <p className="text-xs text-gray-500 uppercase tracking-wide">Check-out</p>
           <p className="text-lg font-semibold text-gray-900">
-            {format(new Date(booking.checkOutDate), 'MMM d, yyyy')}
+            {booking.checkOut ? format(new Date(booking.checkOut), 'MMM d, yyyy') : 'Not set'}
           </p>
           <p className="text-sm text-gray-600">11:00 AM</p>
         </div>
@@ -112,8 +124,12 @@ const BookingCard = ({ booking, onCheckIn, onCheckOut, onEdit, onCancel, onConta
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-gray-500 uppercase tracking-wide">Service</p>
-            <p className="text-lg font-semibold text-gray-900">{booking.service}</p>
-            <p className="text-sm text-gray-600">{booking.kennel} • Pre-assigned</p>
+            <p className="text-lg font-semibold text-gray-900">
+              {booking.services?.[0]?.service?.name || 'Boarding'}
+            </p>
+            <p className="text-sm text-gray-600">
+              {booking.segments?.[0]?.kennel?.name || 'Kennel'} • Pre-assigned
+            </p>
           </div>
         </div>
       </div>
@@ -149,9 +165,11 @@ const BookingCard = ({ booking, onCheckIn, onCheckOut, onEdit, onCancel, onConta
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-gray-500 uppercase tracking-wide">Total</p>
-            <p className="text-lg font-semibold text-green-900">${booking.totalAmount.toFixed(2)}</p>
+            <p className="text-lg font-semibold text-green-900">
+              ${((booking.totalCents || booking.totalAmount || 0) / 100).toFixed(2)}
+            </p>
             <p className="text-sm text-green-700">
-              Status: {booking.paymentStatus === 'paid' ? '✅ Paid in full' : '⚠️ Payment required'}
+              Status: {booking.paymentStatus === 'paid' || booking.balanceDueCents === 0 ? '✅ Paid in full' : '⚠️ Payment required'}
             </p>
           </div>
         </div>

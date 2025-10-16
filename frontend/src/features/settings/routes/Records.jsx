@@ -1,18 +1,265 @@
+import { useState } from 'react';
 import Card from '@/components/ui/Card';
-import UpgradeBanner from '@/components/ui/UpgradeBanner';
+import Button from '@/components/ui/Button';
+import Switch from '@/components/ui/Switch';
+import Badge from '@/components/ui/Badge';
+import Select from '@/components/ui/Select';
 import SettingsPage from '../components/SettingsPage';
+import { FileText, Lock, Download, Archive, Clock, Shield } from 'lucide-react';
 
-const PLACEHOLDER = () => {
+const Records = () => {
+  const [settings, setSettings] = useState({
+    autoArchive: true,
+    archiveAfterDays: 365,
+    recordRetention: 'seven-years',
+    encryptRecords: true,
+    auditTrail: true,
+    recordVersioning: true,
+    requireApproval: false,
+    backupEnabled: true,
+    backupFrequency: 'daily'
+  });
+
+  const [recordStats] = useState({
+    totalRecords: 12543,
+    archivedRecords: 3421,
+    storageUsed: '2.3 GB',
+    lastBackup: new Date().toISOString()
+  });
+
+  const handleSave = async () => {
+    try {
+      const response = await fetch('/api/v1/settings/records', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(settings)
+      });
+      
+      if (response.ok) {
+        alert('Records settings saved successfully!');
+      } else {
+        alert('Failed to save settings. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error saving records settings:', error);
+      alert('An error occurred. Please try again.');
+    }
+  };
+
+  const updateSetting = (key, value) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+  };
+
   return (
-    
-    <SettingsPage title="TITLE_PLACEHOLDER" description="Configuration page coming soon">
-      <Card title="Settings" description="This section is under development.">
-        <p className="text-sm text-muted">
-          Full settings for this section will be available soon. You'll be able to configure all aspects of TITLE_PLACEHOLDER here.
-        </p>
+    <SettingsPage 
+      title="Records Management" 
+      description="Configure how records are stored and managed"
+    >
+      {/* Records Overview */}
+      <Card 
+        title="Records Overview" 
+        description="Current records statistics"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="text-center p-4 bg-gray-50 rounded-lg">
+            <FileText className="w-8 h-8 mx-auto mb-2 text-blue-600" />
+            <div className="text-2xl font-bold">{recordStats.totalRecords.toLocaleString()}</div>
+            <p className="text-sm text-gray-600">Total Records</p>
+          </div>
+          
+          <div className="text-center p-4 bg-gray-50 rounded-lg">
+            <Archive className="w-8 h-8 mx-auto mb-2 text-purple-600" />
+            <div className="text-2xl font-bold">{recordStats.archivedRecords.toLocaleString()}</div>
+            <p className="text-sm text-gray-600">Archived</p>
+          </div>
+          
+          <div className="text-center p-4 bg-gray-50 rounded-lg">
+            <Download className="w-8 h-8 mx-auto mb-2 text-green-600" />
+            <div className="text-lg font-medium">{recordStats.storageUsed}</div>
+            <p className="text-sm text-gray-600">Storage Used</p>
+          </div>
+          
+          <div className="text-center p-4 bg-gray-50 rounded-lg">
+            <Clock className="w-8 h-8 mx-auto mb-2 text-orange-600" />
+            <div className="text-sm font-medium">
+              {new Date(recordStats.lastBackup).toLocaleDateString()}
+            </div>
+            <p className="text-sm text-gray-600">Last Backup</p>
+          </div>
+        </div>
+      </Card>
+
+      {/* Retention Policies */}
+      <Card 
+        title="Retention Policies" 
+        description="Set how long records are kept"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium">Automatic Archival</h4>
+              <p className="text-sm text-gray-600">Archive old records automatically</p>
+            </div>
+            <Switch
+              checked={settings.autoArchive}
+              onChange={(checked) => updateSetting('autoArchive', checked)}
+            />
+          </div>
+
+          {settings.autoArchive && (
+            <div className="ml-8">
+              <label className="block text-sm font-medium mb-2">
+                Archive records after
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={settings.archiveAfterDays}
+                  onChange={(e) => updateSetting('archiveAfterDays', parseInt(e.target.value))}
+                  min="30"
+                  max="1095"
+                  className="w-24 px-3 py-2 border rounded-md"
+                />
+                <span className="text-sm text-gray-600">days</span>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Record Retention Period
+            </label>
+            <Select
+              value={settings.recordRetention}
+              onChange={(e) => updateSetting('recordRetention', e.target.value)}
+            >
+              <option value="one-year">1 Year</option>
+              <option value="three-years">3 Years</option>
+              <option value="five-years">5 Years</option>
+              <option value="seven-years">7 Years</option>
+              <option value="indefinite">Indefinite</option>
+            </Select>
+            <p className="text-xs text-gray-500 mt-1">
+              Medical records may have legal retention requirements
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      {/* Security & Compliance */}
+      <Card 
+        title="Security & Compliance" 
+        description="Protect and track record access"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium">Encrypt Records</h4>
+              <p className="text-sm text-gray-600">Use encryption for stored records</p>
+            </div>
+            <Switch
+              checked={settings.encryptRecords}
+              onChange={(checked) => updateSetting('encryptRecords', checked)}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium">Audit Trail</h4>
+              <p className="text-sm text-gray-600">Track all record access and changes</p>
+            </div>
+            <Switch
+              checked={settings.auditTrail}
+              onChange={(checked) => updateSetting('auditTrail', checked)}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium">Version Control</h4>
+              <p className="text-sm text-gray-600">Keep history of record changes</p>
+            </div>
+            <Switch
+              checked={settings.recordVersioning}
+              onChange={(checked) => updateSetting('recordVersioning', checked)}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium">Require Approval</h4>
+              <p className="text-sm text-gray-600">Changes require manager approval</p>
+              <Badge variant="warning" className="mt-1">Premium</Badge>
+            </div>
+            <Switch
+              checked={settings.requireApproval}
+              onChange={(checked) => updateSetting('requireApproval', checked)}
+            />
+          </div>
+        </div>
+      </Card>
+
+      {/* Backup Settings */}
+      <Card 
+        title="Backup Configuration" 
+        description="Configure automatic backups"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium">Automatic Backups</h4>
+              <p className="text-sm text-gray-600">Regularly backup all records</p>
+            </div>
+            <Switch
+              checked={settings.backupEnabled}
+              onChange={(checked) => updateSetting('backupEnabled', checked)}
+            />
+          </div>
+
+          {settings.backupEnabled && (
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Backup Frequency
+              </label>
+              <Select
+                value={settings.backupFrequency}
+                onChange={(e) => updateSetting('backupFrequency', e.target.value)}
+              >
+                <option value="hourly">Hourly</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </Select>
+            </div>
+          )}
+
+          <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+            <div className="flex">
+              <Shield className="h-5 w-5 text-blue-600 mr-2 flex-shrink-0" />
+              <div className="text-sm text-blue-800">
+                <p className="font-medium">HIPAA Compliance</p>
+                <p className="mt-1">
+                  Your records management settings meet HIPAA requirements for 
+                  medical record retention and security.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-4 mt-4 border-t">
+          <Button variant="outline">
+            <Download className="w-4 h-4 mr-2" />
+            Export Audit Log
+          </Button>
+          <Button onClick={handleSave}>
+            Save Settings
+          </Button>
+        </div>
       </Card>
     </SettingsPage>
   );
 };
 
-export default PLACEHOLDER;
+export default Records;

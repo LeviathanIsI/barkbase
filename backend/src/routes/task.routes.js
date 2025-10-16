@@ -1,6 +1,11 @@
 const router = require('express').Router();
 const taskService = require('../services/task.service');
 const { logger } = require('../lib/logger');
+const { tenantContext } = require('../middleware/tenantContext');
+const { requireAuth } = require('../middleware/requireAuth');
+
+// Ensure requests have tenant context and authenticated user
+router.use(tenantContext, requireAuth());
 
 /**
  * Create a task

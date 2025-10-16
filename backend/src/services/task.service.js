@@ -6,17 +6,20 @@ const { forTenant } = require('../lib/tenantPrisma');
 async function createTask({ tenantId, type, relatedType, relatedId, assignedTo, scheduledFor, notes, priority = 'NORMAL' }) {
   const tenantDb = forTenant(tenantId);
 
-  const task = await tenantDb.task.create({
-    data: {
-      tenantId,
-      type,
-      relatedType,
-      relatedId,
-      assignedTo,
-      scheduledFor: new Date(scheduledFor),
-      notes,
-      priority
-    }
+  const task = await tenantDb.$withTenantGuc(async (tx) => {
+    const txDb = forTenant(tenantId, tx);
+    return txDb.task.create({
+      data: {
+        tenantId,
+        type,
+        relatedType,
+        relatedId,
+        assignedTo,
+        scheduledFor: new Date(scheduledFor),
+        notes,
+        priority
+      }
+    });
   });
 
   return task;
@@ -57,12 +60,15 @@ async function getTodaysTasks(tenantId, filters = {}) {
     }
   }
 
-  const tasks = await tenantDb.task.findMany({
-    where,
-    orderBy: [
-      { priority: 'desc' },
-      { scheduledFor: 'asc' }
-    ]
+  const tasks = await tenantDb.$withTenantGuc(async (tx) => {
+    const txDb = forTenant(tenantId, tx);
+    return txDb.task.findMany({
+      where,
+      orderBy: [
+        { priority: 'desc' },
+        { scheduledFor: 'asc' }
+      ]
+    });
   });
 
   return tasks;
@@ -76,15 +82,18 @@ async function getOverdueTasks(tenantId) {
 
   const now = new Date();
 
-  const tasks = await tenantDb.task.findMany({
-    where: {
-      scheduledFor: { lt: now },
-      completedAt: null
-    },
-    orderBy: [
-      { priority: 'desc' },
-      { scheduledFor: 'asc' }
-    ]
+  const tasks = await tenantDb.$withTenantGuc(async (tx) => {
+    const txDb = forTenant(tenantId, tx);
+    return txDb.task.findMany({
+      where: {
+        scheduledFor: { lt: now },
+        completedAt: null
+      },
+      orderBy: [
+        { priority: 'desc' },
+        { scheduledFor: 'asc' }
+      ]
+    });
   });
 
   return tasks;
@@ -123,9 +132,12 @@ async function getPetTasks(tenantId, petId, includeCompleted = false) {
     where.completedAt = null;
   }
 
-  const tasks = await tenantDb.task.findMany({
-    where,
-    orderBy: { scheduledFor: 'desc' }
+  const tasks = await tenantDb.$withTenantGuc(async (tx) => {
+    const txDb = forTenant(tenantId, tx);
+    return txDb.task.findMany({
+      where,
+      orderBy: { scheduledFor: 'desc' }
+    });
   });
 
   return tasks;
@@ -146,9 +158,12 @@ async function getBookingTasks(tenantId, bookingId, includeCompleted = false) {
     where.completedAt = null;
   }
 
-  const tasks = await tenantDb.task.findMany({
-    where,
-    orderBy: { scheduledFor: 'asc' }
+  const tasks = await tenantDb.$withTenantGuc(async (tx) => {
+    const txDb = forTenant(tenantId, tx);
+    return txDb.task.findMany({
+      where,
+      orderBy: { scheduledFor: 'asc' }
+    });
   });
 
   return tasks;

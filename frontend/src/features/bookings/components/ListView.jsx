@@ -60,7 +60,7 @@ const ListView = ({
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {bookings.map((booking) => (
             <BookingCard
-              key={booking.id}
+              key={booking.recordId || booking.id}
               booking={booking}
               onCheckIn={() => {/* Handle check-in */}}
               onCheckOut={() => {/* Handle check-out */}}
@@ -68,7 +68,7 @@ const ListView = ({
               onCancel={() => {/* Handle cancel */}}
               onContact={() => {/* Handle contact */}}
               onViewDetails={onBookingClick}
-              isSelected={selectedBookings.has(booking.id)}
+              isSelected={selectedBookings.has(booking.recordId || booking.id)}
               onSelect={onBookingSelect}
             />
           ))}

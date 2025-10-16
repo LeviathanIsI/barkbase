@@ -129,6 +129,18 @@ create policy "tenant read" on "IncidentReport" for select using ("tenantId" = c
 create policy "tenant write" on "IncidentReport" for insert with check ("tenantId" = current_setting('app.tenant_id', true));
 create policy "tenant update" on "IncidentReport" for update using ("tenantId" = current_setting('app.tenant_id', true)) with check ("tenantId" = current_setting('app.tenant_id', true));
 
+-- Create the set_tenant_id function for RLS
+CREATE OR REPLACE FUNCTION app.set_tenant_id(p_tenant_id text)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+begin
+  perform set_config('app.tenant_id', p_tenant_id, true);
+end
+$function$;
+
 -- Add the correct create_membership function definition
 CREATE OR REPLACE FUNCTION app.create_membership(p_tenant_id text, p_user_id text, p_role text)
  RETURNS text

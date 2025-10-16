@@ -14,24 +14,44 @@ const planLimitError = (message, meta = {}) =>
 const ensureUsageCounter = async ({ tenantId, periodStart, tx, snapshot }) => {
   const client = tx ?? prisma;
   try {
-    // Always set tenant RLS context on the client we are using
-    await client.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
-
-    await client.usageCounter.upsert({
-      where: { tenantId_date: { tenantId, date: periodStart } },
-      create: {
-        tenantId,
-        date: periodStart,
-        bookings: snapshot.bookings.used,
-        activePets: snapshot.activePets.used,
-        staffSeats: snapshot.seats.used,
-      },
-      update: {
-        bookings: snapshot.bookings.used,
-        activePets: snapshot.activePets.used,
-        staffSeats: snapshot.seats.used,
-      },
-    });
+    // Use proper tenant scoping instead of manual RLS context
+    if (!tx) {
+      // If no transaction provided, use the tenant-scoped client
+      const tenantDb = require('./tenantPrisma').forTenant(tenantId);
+      await tenantDb.usageCounter.upsert({
+        where: { tenantId_date: { tenantId, date: periodStart } },
+        create: {
+          tenantId,
+          date: periodStart,
+          bookings: snapshot.bookings.used,
+          activePets: snapshot.activePets.used,
+          staffSeats: snapshot.seats.used,
+        },
+        update: {
+          bookings: snapshot.bookings.used,
+          activePets: snapshot.activePets.used,
+          staffSeats: snapshot.seats.used,
+        },
+      });
+    } else {
+      // If transaction provided, use manual RLS context (for compatibility)
+      await client.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
+      await client.usageCounter.upsert({
+        where: { tenantId_date: { tenantId, date: periodStart } },
+        create: {
+          tenantId,
+          date: periodStart,
+          bookings: snapshot.bookings.used,
+          activePets: snapshot.activePets.used,
+          staffSeats: snapshot.seats.used,
+        },
+        update: {
+          bookings: snapshot.bookings.used,
+          activePets: snapshot.activePets.used,
+          staffSeats: snapshot.seats.used,
+        },
+      });
+    }
   } catch (_error) {
     // Advisory only: ignore failures (e.g., RLS or race conditions)
   }

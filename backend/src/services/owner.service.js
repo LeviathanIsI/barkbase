@@ -9,53 +9,58 @@ const listOwners = async (tenantId, options = {}) => {
   const { page, limit, skip } = parsePageLimit(options, { defaultLimit: 50, maxLimit: 200 });
   const whereClause = buildWhere(options.search, ['firstName', 'lastName', 'email', 'phone']);
 
-  const [owners, total] = await Promise.all([
-    db.owner.findMany({
-      where: whereClause,
-      skip,
-      take: limit,
-      orderBy: [
-        { lastName: 'asc' },
-        { firstName: 'asc' },
-      ],
-      include: {
-        pets: {
-          include: {
-            pet: {
-              select: { recordId: true,
-                name: true,
-                breed: true,
+  const result = await db.$withTenantGuc(async (tx) => {
+    const txDb = forTenant(tenantId, tx);
+    const [owners, total] = await Promise.all([
+      txDb.owner.findMany({
+        where: whereClause,
+        skip,
+        take: limit,
+        orderBy: [
+          { lastName: 'asc' },
+          { firstName: 'asc' },
+        ],
+        include: {
+          pets: {
+            include: {
+              pet: {
+                select: { recordId: true,
+                  name: true,
+                  breed: true,
+                },
               },
             },
           },
-        },
-        bookings: {
-          select: { recordId: true,
-            checkIn: true,
-            checkOut: true,
-            status: true,
+          bookings: {
+            select: { recordId: true,
+              checkIn: true,
+              checkOut: true,
+              status: true,
+            },
+            orderBy: {
+              checkIn: 'desc',
+            },
           },
-          orderBy: {
-            checkIn: 'desc',
+          payments: {
+            select: { recordId: true,
+              amountCents: true,
+              status: true,
+            },
           },
         },
-        payments: {
-          select: { recordId: true,
-            amountCents: true,
-            status: true,
-          },
-        },
-      },
-    }),
-    db.owner.count({ where: whereClause }),
-  ]);
+      }),
+      txDb.owner.count({ where: whereClause }),
+    ]);
 
-  const data = owners.map((owner) => ({
+    return { owners, total };
+  });
+
+  const data = result.owners.map((owner) => ({
     ...owner,
     pets: owner.pets.map((po) => po.pet),
   }));
 
-  return toPageResult({ items: data, total, page, limit });
+  return toPageResult({ items: data, total: result.total, page, limit });
 };
 
 /**
@@ -131,11 +136,15 @@ const createOwner = async (tenantId, ownerData) => {
     }
   }
 
-  const owner = await db.owner.create({
-    data: {
-      email,
-      ...otherData,
-    },
+  const owner = await db.$withTenantGuc(async (tx) => {
+    const txDb = forTenant(tenantId, tx);
+    return txDb.owner.create({
+      data: {
+        email,
+        ...otherData,
+        tenantId, // Explicitly set tenantId for RLS
+      },
+    });
   });
 
   return owner;
@@ -161,7 +170,7 @@ const updateOwner = async (tenantId, ownerId, ownerData) => {
     const duplicate = await db.owner.findFirst({
       where: {
         email: ownerData.email,
-        id: { not: ownerId },
+        recordId: { not: ownerId },
       },
     });
 

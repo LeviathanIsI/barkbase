@@ -4,7 +4,7 @@ import { enqueueRequest } from '@/lib/offlineQueue';
 
 // In development, use empty string to leverage Vite proxy (/api -> http://localhost:4000/api)
 // In production, VITE_API_URL should be set to the backend URL
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
 let forcingLogout = false;
 let refreshPromise = null;
 
@@ -100,7 +100,7 @@ const tryRefresh = async () => {
   if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
-  const tenantSlug = useTenantStore.getState().tenant?.slug ?? 'default';
+  const tenantSlug = useTenantStore.getState().tenant?.slug ?? (process.env.NODE_ENV === 'development' ? 'testing' : 'default');
   const authState = useAuthStore.getState();
   const { rememberMe, refreshToken } = authState;
   
@@ -174,7 +174,7 @@ export const apiClient = async (path, options = {}) => {
 
   const methodUpper = method?.toUpperCase?.() ?? method ?? 'GET';
   const authState = useAuthStore.getState();
-  const tenantSlug = useTenantStore.getState().tenant?.slug ?? 'default';
+  const tenantSlug = useTenantStore.getState().tenant?.slug ?? (process.env.NODE_ENV === 'development' ? 'testing' : 'default');
 
   const tenantHeaders = tenantSlug ? { 'X-Tenant': tenantSlug } : {};
   const queueHeaders = { ...tenantHeaders, ...headers };
@@ -325,7 +325,7 @@ export const apiClient = async (path, options = {}) => {
 
 export const uploadClient = async (path, formData, options = {}) => {
   const token = useAuthStore.getState().accessToken;
-  const tenantSlug = useTenantStore.getState().tenant?.slug ?? 'default';
+  const tenantSlug = useTenantStore.getState().tenant?.slug ?? (process.env.NODE_ENV === 'development' ? 'testing' : 'default');
   const tenantHeaders = tenantSlug ? { 'X-Tenant': tenantSlug } : {};
   const requestInit = {
     method: options.method ?? 'POST',

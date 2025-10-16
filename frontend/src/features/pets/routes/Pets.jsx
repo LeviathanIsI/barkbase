@@ -5,7 +5,7 @@ import Button from '@/components/ui/Button';
 import { Card, PageHeader } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
-import { usePetsQuery } from '../api';
+import { usePetsQuery, useCreatePetMutation } from '../api';
 import { useExpiringVaccinationsQuery } from '../api-vaccinations';
 import { PetFormModal } from '../components';
 import EmptyStatePets from '../components/EmptyStatePets';
@@ -19,7 +19,8 @@ const Pets = () => {
   const [showImportModal, setShowImportModal] = useState(false);
 
   const { data: pets = [], isLoading: isLoadingData, error } = usePetsQuery();
-  
+  const createPetMutation = useCreatePetMutation();
+
   // Prevent flash of loading state - only show loading if it takes more than 100ms
   const [showLoading, setShowLoading] = useState(false);
   
@@ -438,13 +439,23 @@ const Pets = () => {
         )}
       </Card>
 
+        </>
+      )}
+
       <PetFormModal
         open={petFormModalOpen}
         onClose={() => setPetFormModalOpen(false)}
-        onSubmit={() => {}}
+        onSubmit={async (data) => {
+          try {
+            await createPetMutation.mutateAsync(data);
+            setPetFormModalOpen(false);
+          } catch (error) {
+            console.error('Failed to create pet:', error);
+            // Error handling will be shown in the form
+          }
+        }}
+        isLoading={createPetMutation.isPending}
       />
-        </>
-      )}
     </div>
   );
 };

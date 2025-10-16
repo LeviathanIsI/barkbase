@@ -230,9 +230,29 @@ const Profile = () => {
       toast.error('Password must be at least 8 characters');
       return;
     }
-    // TODO: Implement password change API call
-    toast.success('Password updated successfully');
-    setShowPasswordModal(false);
+    try {
+      const response = await fetch('/api/v1/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword
+        })
+      });
+      
+      if (response.ok) {
+        toast.success('Password updated successfully');
+        setShowPasswordModal(false);
+        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      } else {
+        const error = await response.json();
+        toast.error(error.message || 'Failed to update password');
+      }
+    } catch (error) {
+      console.error('Password change error:', error);
+      toast.error('An error occurred while updating your password');
+    }
     setPasswordForm({ current: '', new: '', confirm: '' });
   };
 

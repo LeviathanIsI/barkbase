@@ -5,7 +5,7 @@ import Button from '@/components/ui/Button';
 import { Card, PageHeader } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
-import { useOwnersQuery } from '../api';
+import { useOwnersQuery, useCreateOwnerMutation } from '../api';
 import OwnerFormModal from '../components/OwnerFormModal';
 import { formatCurrency } from '@/lib/utils';
 
@@ -16,6 +16,7 @@ const Owners = () => {
   const [statusFilter, setStatusFilter] = useState('ALL');
 
   const { data: ownersData, isLoading, error } = useOwnersQuery();
+  const createOwnerMutation = useCreateOwnerMutation();
   const owners = useMemo(() => ownersData?.data ?? [], [ownersData]);
 
   // Calculate enhanced owner data with metrics
@@ -309,7 +310,16 @@ const Owners = () => {
       <OwnerFormModal
         open={formModalOpen}
         onClose={() => setFormModalOpen(false)}
-        onSubmit={() => {}}
+        onSubmit={async (data) => {
+          try {
+            await createOwnerMutation.mutateAsync(data);
+            setFormModalOpen(false);
+          } catch (error) {
+            console.error('Failed to create owner:', error);
+            // Error handling will be shown in the form
+          }
+        }}
+        isLoading={createOwnerMutation.isPending}
       />
     </div>
   );

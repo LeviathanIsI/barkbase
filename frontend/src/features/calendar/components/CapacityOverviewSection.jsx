@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 import { Building, Settings, TrendingUp, AlertTriangle, DollarSign, Calendar, Users, Home } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -7,6 +8,7 @@ import Skeleton from '@/components/ui/Skeleton';
 import { useCapacityQuery } from '../api-capacity';
 
 const CapacityOverviewSection = ({ currentDate }) => {
+  const navigate = useNavigate();
   const [isConfigured, setIsConfigured] = useState(true);
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
@@ -107,11 +109,22 @@ const CapacityOverviewSection = ({ currentDate }) => {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="flex items-center gap-2">
+            <Button 
+              size="lg" 
+              className="flex items-center gap-2"
+              onClick={() => navigate('/kennels')}
+            >
               <Settings className="w-5 h-5" />
               Configure Kennels
             </Button>
-            <Button variant="outline" size="lg" className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="lg" 
+              className="flex items-center gap-2"
+              onClick={() => {
+                alert('Quick Setup Wizard coming soon! For now, please use Configure Kennels.');
+              }}
+            >
               <Building className="w-5 h-5" />
               Quick Setup Wizard (5 minutes)
             </Button>
@@ -257,15 +270,26 @@ const CapacityOverviewSection = ({ currentDate }) => {
       {/* Action Buttons - Always show */}
       <div className="border-t border-gray-200 pt-6">
         <div className="flex gap-3">
-          <Button variant="outline">
+          <Button 
+            variant="outline"
+            onClick={() => {
+              alert('Schedule optimization feature coming soon! This will suggest optimal booking times based on capacity.');
+            }}
+          >
             <TrendingUp className="w-4 h-4 mr-2" />
             Optimize Schedule
           </Button>
-          <Button variant="outline">
+          <Button 
+            variant="outline"
+            onClick={() => navigate('/settings/pricing')}
+          >
             <DollarSign className="w-4 h-4 mr-2" />
             Adjust Pricing
           </Button>
-          <Button variant="outline">
+          <Button 
+            variant="outline"
+            onClick={() => navigate('/reports')}
+          >
             <Calendar className="w-4 h-4 mr-2" />
             View Analytics
           </Button>

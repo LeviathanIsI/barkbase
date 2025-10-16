@@ -171,7 +171,10 @@ const ReportCategories = ({ onGenerateReport, onExportReport }) => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => console.log('Schedule report:', report.name)}
+            onClick={() => {
+              // TODO: Implement scheduling
+              alert(`Scheduling feature for "${report.name}" coming soon!`);
+            }}
           >
             Schedule Email
           </Button>
@@ -189,7 +192,10 @@ const ReportCategories = ({ onGenerateReport, onExportReport }) => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => console.log('Send birthday cards')}
+            onClick={() => {
+              // TODO: Implement birthday cards
+              alert('Birthday card automation coming soon!');
+            }}
           >
             Send Birthday Cards
           </Button>
@@ -198,7 +204,10 @@ const ReportCategories = ({ onGenerateReport, onExportReport }) => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => console.log('Preview report:', report.name)}
+            onClick={() => {
+              // TODO: Implement preview
+              alert(`Preview for "${report.name}" coming soon!`);
+            }}
             className="flex items-center gap-1"
           >
             <Eye className="w-3 h-3" />
@@ -209,7 +218,10 @@ const ReportCategories = ({ onGenerateReport, onExportReport }) => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => console.log('See examples')}
+            onClick={() => {
+              // TODO: Implement examples
+              alert('Report examples coming soon!');
+            }}
           >
             See Examples
           </Button>
@@ -218,7 +230,10 @@ const ReportCategories = ({ onGenerateReport, onExportReport }) => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => console.log('Upgrade to unlock:', report.name)}
+            onClick={() => {
+              // TODO: Implement upgrade flow
+              alert(`Upgrade to unlock "${report.name}" - Coming soon!`);
+            }}
             className="flex items-center gap-1"
           >
             <Lock className="w-3 h-3" />
