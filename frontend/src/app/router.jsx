@@ -1,6 +1,7 @@
 import AppShell from "@/components/layout/AppShell";
 import { lazy } from "react";
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import NotFound from "./NotFound";
 import ProtectedRoute from "./ProtectedRoute";
 import RouteError from "./RouteError";
@@ -8,6 +9,28 @@ import RouteError from "./RouteError";
 if (import.meta && import.meta.env && import.meta.env.DEV) {
   // eslint-disable-next-line no-console
   console.info("[Router] configured");
+}
+
+function RoutePersistence() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('lastPath', location.pathname + location.search);
+    } catch {}
+  }, [location]);
+
+  useEffect(() => {
+    try {
+      const last = localStorage.getItem('lastPath');
+      if (last && window.location.pathname === '/') {
+        navigate(last, { replace: true });
+      }
+    } catch {}
+  }, []);
+
+  return null;
 }
 
 const Dashboard = lazy(() =>
@@ -144,57 +167,34 @@ const SettingsReporting = lazy(() =>
 );
 
 // Facility Management
-const FacilityAccommodations = lazy(() =>
-  import("@/features/settings/routes/facility/Accommodations")
-);
-const FacilityInventory = lazy(() =>
-  import("@/features/settings/routes/facility/Inventory")
-);
-const FacilityLocations = lazy(() =>
-  import("@/features/settings/routes/facility/Locations")
-);
-const FacilitySchedules = lazy(() =>
-  import("@/features/settings/routes/facility/Schedules")
+const FacilitySettings = lazy(() =>
+  import("@/features/settings/routes/facility/FacilitySettings")
 );
 const PublicHome = lazy(() => import("@/features/public/routes/Home"));
 const Signup = lazy(() => import("@/features/public/routes/Signup"));
 const VerifyEmail = lazy(() => import("@/features/public/routes/VerifyEmail"));
 
 // Placeholder routes for BarkBase features
-const RunAssignment = lazy(() =>
-  import("@/features/placeholders/routes/RunAssignment")
-);
 const FeedingMeds = lazy(() =>
   import("@/features/placeholders/routes/FeedingMeds")
 );
 const DaycareCheckin = lazy(() =>
   import("@/features/placeholders/routes/DaycareCheckin")
 );
+const RunAssignment = lazy(() =>
+  import("@/features/daycare/routes/RunAssignment")
+);
+const Messages = lazy(() => import("@/features/messaging/routes/Messages"));
+const Tasks = lazy(() => import("@/features/tasks/routes/Tasks"));
 const Facilities = lazy(() =>
   import("@/features/placeholders/routes/Facilities")
 );
 const ServicesAddons = lazy(() =>
   import("@/features/placeholders/routes/ServicesAddons")
 );
-const Packages = lazy(() => import("@/features/placeholders/routes/Packages"));
-const Invoices = lazy(() => import("@/features/placeholders/routes/Invoices"));
-const PricingRules = lazy(() =>
-  import("@/features/placeholders/routes/PricingRules")
-);
-const FollowUps = lazy(() =>
-  import("@/features/placeholders/routes/FollowUps")
-);
-const Webhooks = lazy(() => import("@/features/placeholders/routes/Webhooks"));
-const CustomCode = lazy(() =>
-  import("@/features/placeholders/routes/CustomCode")
-);
-const Tickets = lazy(() => import("@/features/placeholders/routes/Tickets"));
-const KnowledgeBase = lazy(() =>
-  import("@/features/placeholders/routes/KnowledgeBase")
-);
-const AuditLogs = lazy(() =>
-  import("@/features/placeholders/routes/AuditLogs")
-);
+const Packages = lazy(() => import("@/features/packages/routes/Packages"));
+const Invoices = lazy(() => import("@/features/invoices/routes/Invoices"));
+// Removed placeholder routes: PricingRules, FollowUps, Webhooks, CustomCode, Tickets, KnowledgeBase, AuditLogs
 
 // Object setup pages
 const PetsSetup = lazy(() => import("@/features/objects/routes/PetsSetup"));
@@ -241,6 +241,8 @@ const CustomerDetail = lazy(() =>
 const SegmentList = lazy(() =>
   import("@/features/segments/components/SegmentList")
 );
+const Roles = lazy(() => import("@/features/roles/routes/Roles"));
+const RoleEditor = lazy(() => import("@/features/roles/routes/RoleEditor"));
 
 export const router = createBrowserRouter([
   {
@@ -255,7 +257,12 @@ export const router = createBrowserRouter([
           // Full-screen workflow builder (outside AppShell)
           { path: "handler-flows/builder", element: <WorkflowBuilder /> },
           {
-            element: <AppShell />,
+            element: (
+              <>
+                <RoutePersistence />
+                <AppShell />
+              </>
+            ),
             errorElement: <RouteError />,
             children: [
               { index: true, element: <Dashboard /> },
@@ -274,14 +281,15 @@ export const router = createBrowserRouter([
               // Operations
               { path: "runs", element: <RunAssignment /> },
               { path: "feeding-meds", element: <FeedingMeds /> },
+              { path: "tasks", element: <Tasks /> },
               { path: "daycare/checkin", element: <DaycareCheckin /> },
+              { path: "daycare/runs", element: <RunAssignment /> },
               // Records
               { path: "facilities", element: <Facilities /> },
               { path: "services", element: <ServicesAddons /> },
               { path: "packages", element: <Packages /> },
               // Billing
               { path: "invoices", element: <Invoices /> },
-              { path: "pricing-rules", element: <PricingRules /> },
               // Automations
               { path: "handler-flows", element: <HandlerFlows /> },
               { path: "handler-flows/:flowId", element: <HandlerFlowDetail /> },
@@ -289,13 +297,9 @@ export const router = createBrowserRouter([
                 path: "handler-flows/runs/:runId",
                 element: <HandlerRunDetail />,
               },
-              { path: "automations/follow-ups", element: <FollowUps /> },
-              { path: "automations/webhooks", element: <Webhooks /> },
-              { path: "automations/custom-code", element: <CustomCode /> },
-              // Support
-              { path: "support/tickets", element: <Tickets /> },
-              { path: "support/knowledge-base", element: <KnowledgeBase /> },
-              { path: "support/logs", element: <AuditLogs /> },
+              // Removed placeholder routes: follow-ups, webhooks, custom-code, tickets, knowledge-base, logs
+              // Communication
+              { path: "messages", element: <Messages /> },
               // Admin/Staff
               { path: "staff", element: <Staff /> },
               { path: "tenants", element: <TenantSettings /> },
@@ -323,7 +327,7 @@ export const router = createBrowserRouter([
 
                   // Your Preferences
                   { path: "profile", element: <SettingsProfile /> },
-                  { path: "general", element: <SettingsGeneral /> },
+                  // Removed: general settings consolidated into Business
                   { path: "notifications", element: <SettingsNotifications /> },
                   { path: "security", element: <SettingsSecurity /> },
 
@@ -332,6 +336,9 @@ export const router = createBrowserRouter([
                   { path: "business", element: <SettingsBusiness /> },
                   { path: "branding", element: <SettingsBranding /> },
                   { path: "team", element: <SettingsTeam /> },
+                  { path: "team/roles", element: <Roles /> },
+                  { path: "team/roles/new", element: <RoleEditor /> },
+                  { path: "team/roles/:roleId", element: <RoleEditor /> },
                   {
                     path: "account-security",
                     element: <SettingsAccountSecurity />,
@@ -342,10 +349,7 @@ export const router = createBrowserRouter([
                   { path: "members", element: <SettingsMembers /> },
 
                   // Facility Management
-                  { path: "facility/accommodations", element: <FacilityAccommodations /> },
-                  { path: "facility/inventory", element: <FacilityInventory /> },
-                  { path: "facility/locations", element: <FacilityLocations /> },
-                  { path: "facility/schedules", element: <FacilitySchedules /> },
+                  { path: "facility", element: <FacilitySettings /> },
 
                   // Data Management
                   { path: "custom-fields", element: <SettingsCustomFields /> },

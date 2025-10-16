@@ -6,9 +6,8 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
 import { useBookingCheckOutMutation, useIncidentsQuery } from '../api';
-
-const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
-const formatCurrency = (cents = 0) => currency.format((cents ?? 0) / 100);
+import { useGenerateInvoiceMutation } from '@/features/invoices/api';
+import { formatCurrency } from '@/lib/utils';
 
 const SignatureCanvas = forwardRef(({ onChange }, ref) => {
   const canvasRef = useRef(null);
@@ -197,6 +196,7 @@ const CheckOutModal = ({ booking, open, onClose }) => {
 
   const signatureRef = useRef(null);
   const mutation = useBookingCheckOutMutation();
+  const generateInvoiceMutation = useGenerateInvoiceMutation();
   const incidentQuery = useIncidentsQuery({ bookingId: booking?.recordId, petId: booking?.pet?.recordId ?? booking?.petId });
 
   useEffect(() => {
@@ -274,6 +274,15 @@ const CheckOutModal = ({ booking, open, onClose }) => {
       setIsSubmitting(true);
       const result = await mutation.mutateAsync({ bookingId: booking.recordId, payload });
       toast.success(`Checked out ${booking?.pet?.name ?? 'pet'} successfully.`);
+
+      // Auto-generate invoice after successful checkout
+      try {
+        await generateInvoiceMutation.mutateAsync(booking.recordId);
+        toast.success('Invoice generated successfully');
+      } catch (invoiceError) {
+        console.error('Failed to generate invoice:', invoiceError);
+        toast.error('Checkout successful, but invoice generation failed');
+      }
 
       if (sendReceipt) {
         const ownerName = `${booking.owner?.firstName ?? ''} ${booking.owner?.lastName ?? ''}`.trim();

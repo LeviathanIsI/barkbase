@@ -5,8 +5,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DEV_DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DEV_DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -65,47 +65,51 @@ enum KennelType {
 }
 
 model Tenant {
-  recordId              String      @id @default(cuid()) @map("recordId")
-  slug            String      @unique
-  name            String
-  themeJson       Json?
-  featureFlags    Json?
-  plan            TenantPlan  @default(FREE)
-  customDomain    String?     @unique
-  settings        Json?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  recordId     String     @id @default(cuid()) @map("recordId")
+  slug         String     @unique
+  name         String
+  themeJson    Json?
+  featureFlags Json?
+  plan         TenantPlan @default(FREE)
+  customDomain String?    @unique
+  settings     Json?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
-  memberships     Membership[]
-  invites         Invite[]    @relation("TenantInvites")
-  owners          Owner[]
-  pets            Pet[]
-  petOwners       PetOwner[]
-  kennels         Kennel[]
-  bookings        Booking[]
-  bookingSegments BookingSegment[]
-  bookingServices BookingService[]
-  services        Service[]
-  payments        Payment[]
-  staff           Staff[]
-  vaccinations    Vaccination[]
-  auditLogs       AuditLog[]
-  usageCounters   UsageCounter[]
-  checkIns        CheckIn[]
-  checkOuts       CheckOut[]
-  incidentReports IncidentReport[]
-  communications  Communication[]
-  notes           Note[]
-  customerSegments CustomerSegment[]
+  memberships            Membership[]
+  invites                Invite[]                @relation("TenantInvites")
+  owners                 Owner[]
+  pets                   Pet[]
+  petOwners              PetOwner[]
+  kennels                Kennel[]
+  bookings               Booking[]
+  bookingSegments        BookingSegment[]
+  bookingServices        BookingService[]
+  services               Service[]
+  payments               Payment[]
+  staff                  Staff[]
+  vaccinations           Vaccination[]
+  auditLogs              AuditLog[]
+  usageCounters          UsageCounter[]
+  checkIns               CheckIn[]
+  checkOuts              CheckOut[]
+  incidentReports        IncidentReport[]
+  communications         Communication[]
+  notes                  Note[]
+  customerSegments       CustomerSegment[]
   customerSegmentMembers CustomerSegmentMember[]
-  customerTags    CustomerTag[]
-  customerTagMembers CustomerTagMember[]
-  campaigns       Campaign[]
-  tasks           Task[]
+  customerTags           CustomerTag[]
+  customerTagMembers     CustomerTagMember[]
+  campaigns              Campaign[]
+  tasks                  Task[]
+  customRoles            CustomRole[]
+  permissionSets         PermissionSet[]
+  runs                   Run[]
+  runAssignments         RunAssignment[]
+  messages               Message[]
 
   @@index([slug])
 }
-
 
 model User {
   recordId        String    @id @default(cuid()) @map("recordId")
@@ -124,18 +128,24 @@ model User {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  memberships    Membership[]
-  createdInvites Invite[]   @relation("UserCreatedInvites")
-  auditLogs      AuditLog[]
+  memberships        Membership[]
+  createdInvites     Invite[]                 @relation("UserCreatedInvites")
+  auditLogs          AuditLog[]
   verificationTokens EmailVerificationToken[]
-  communications Communication[]
-  notes          Note[]
-  campaigns      Campaign[]
+  communications     Communication[]
+  notes              Note[]
+  campaigns          Campaign[]
+  userRoles          UserRole[]
+  userPermissions    UserPermission[]
+  createdRoles       CustomRole[]             @relation("RoleCreator")
+  assignedRoles      UserRole[]               @relation("UserRoleAssigner")
+  grantedPermissions UserPermission[]         @relation("PermissionGranter")
+  sentMessages       Message[]                @relation("SentMessages")
+  receivedMessages   Message[]                @relation("ReceivedMessages")
 }
 
-
 model Membership {
-  recordId           String   @id @default(cuid()) @map("recordId")
+  recordId     String   @id @default(cuid()) @map("recordId")
   userId       String
   tenantId     String
   role         Role     @default(STAFF)
@@ -152,27 +162,27 @@ model Membership {
 }
 
 model Invite {
-  recordId           String   @id @default(cuid()) @map("recordId")
-  tenantId     String
-  email        String
-  token        String   @unique
-  role         Role     @default(STAFF)
-  expiresAt    DateTime
-  acceptedAt   DateTime?
-  createdById  String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  recordId    String    @id @default(cuid()) @map("recordId")
+  tenantId    String
+  email       String
+  token       String    @unique
+  role        Role      @default(STAFF)
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  tenant       Tenant   @relation("TenantInvites", fields: [tenantId], references: [recordId], onDelete: Cascade)
-  createdBy    User?    @relation("UserCreatedInvites", fields: [createdById], references: [recordId], onDelete: SetNull)
+  tenant    Tenant @relation("TenantInvites", fields: [tenantId], references: [recordId], onDelete: Cascade)
+  createdBy User?  @relation("UserCreatedInvites", fields: [createdById], references: [recordId], onDelete: SetNull)
 
+  @@unique([tenantId, email])
   @@index([tenantId])
   @@index([email])
-  @@unique([tenantId, email])
 }
 
 model EmailVerificationToken {
-  recordId        String   @id @default(cuid()) @map("recordId")
+  recordId  String   @id @default(cuid()) @map("recordId")
   userId    String
   token     String   @unique
   expiresAt DateTime
@@ -184,122 +194,122 @@ model EmailVerificationToken {
 }
 
 model AuditLog {
-  recordId          String   @id @default(cuid()) @map("recordId")
-  tenantId    String
-  actorId     String?
-  action      String
-  entityType  String
-  entityId    String?
-  diff        Json?
-  createdAt   DateTime @default(now())
+  recordId   String   @id @default(cuid()) @map("recordId")
+  tenantId   String
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String?
+  diff       Json?
+  createdAt  DateTime @default(now())
 
-  tenant      Tenant   @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  actor       User?    @relation(fields: [actorId], references: [recordId], onDelete: SetNull)
+  tenant Tenant @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  actor  User?  @relation(fields: [actorId], references: [recordId], onDelete: SetNull)
 
   @@index([tenantId, createdAt])
   @@index([tenantId, entityType])
 }
 
 model UsageCounter {
-  recordId          String   @id @default(cuid()) @map("recordId")
-  tenantId    String
-  date        DateTime
-  bookings    Int      @default(0)
-  activePets  Int      @default(0)
-  staffSeats  Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  recordId   String   @id @default(cuid()) @map("recordId")
+  tenantId   String
+  date       DateTime
+  bookings   Int      @default(0)
+  activePets Int      @default(0)
+  staffSeats Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  tenant      Tenant   @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
 
   @@unique([tenantId, date])
   @@index([tenantId, date])
 }
 
 model Staff {
-  recordId            String   @id @default(cuid()) @map("recordId")
-  tenantId      String
-  membershipId  String   @unique
-  title         String?
-  phone         String?
-  schedule      Json
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  recordId     String   @id @default(cuid()) @map("recordId")
+  tenantId     String
+  membershipId String   @unique
+  title        String?
+  phone        String?
+  schedule     Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  tenant        Tenant      @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  membership    Membership  @relation(fields: [membershipId], references: [recordId], onDelete: Cascade)
-  checkIns      CheckIn[]
-  checkOuts     CheckOut[]
-  assignedTasks Task[]
-  completedTasks Task[]      @relation("TaskCompletedBy")
+  tenant         Tenant     @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  membership     Membership @relation(fields: [membershipId], references: [recordId], onDelete: Cascade)
+  checkIns       CheckIn[]
+  checkOuts      CheckOut[]
+  assignedTasks  Task[]
+  completedTasks Task[]     @relation("TaskCompletedBy")
 
   @@index([tenantId])
 }
 
-
 model Owner {
-  recordId           String   @id @default(cuid()) @map("recordId")
-  tenantId     String
-  firstName    String
-  lastName     String
-  email        String?
-  phone        String?
-  address      Json
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  recordId  String   @id @default(cuid()) @map("recordId")
+  tenantId  String
+  firstName String
+  lastName  String
+  email     String?
+  phone     String?
+  address   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  tenant       Tenant   @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  pets         PetOwner[]
-  bookings     Booking[]
-  payments     Payment[]
-  communications Communication[]
+  tenant             Tenant                  @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  pets               PetOwner[]
+  bookings           Booking[]
+  payments           Payment[]
+  communications     Communication[]
   segmentMemberships CustomerSegmentMember[]
-  tagMemberships CustomerTagMember[]
+  tagMemberships     CustomerTagMember[]
 
-  @@index([tenantId, lastName])
   @@unique([tenantId, email])
+  @@index([tenantId, lastName])
 }
 
 model Pet {
-  recordId                 String       @id @default(cuid()) @map("recordId")
-  tenantId           String
-  name               String
-  breed              String?
-  birthdate          DateTime?
-  photoUrl           String?
-  medicalNotes       String?
-  dietaryNotes       String?
-  behaviorFlags      Json
-  status             String      @default("active")
-  createdAt          DateTime    @default(now())
-  updatedAt          DateTime    @updatedAt
+  recordId      String    @id @default(cuid()) @map("recordId")
+  tenantId      String
+  name          String
+  breed         String?
+  birthdate     DateTime?
+  photoUrl      String?
+  medicalNotes  String?
+  dietaryNotes  String?
+  behaviorFlags Json
+  status        String    @default("active")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-  tenant             Tenant           @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  owners             PetOwner[]
-  vaccinations       Vaccination[]
-  bookings           Booking[]
-  incidentReports    IncidentReport[]
+  tenant          Tenant           @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  owners          PetOwner[]
+  vaccinations    Vaccination[]
+  bookings        Booking[]
+  incidentReports IncidentReport[]
+  runAssignments  RunAssignment[]
 
   @@index([tenantId, name])
 }
 
 model PetOwner {
-  recordId        String @id @default(cuid()) @map("recordId")
+  recordId  String  @id @default(cuid()) @map("recordId")
   tenantId  String
   petId     String
   ownerId   String
   isPrimary Boolean @default(false)
 
-  tenant    Tenant @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  pet       Pet    @relation(fields: [petId], references: [recordId], onDelete: Cascade)
-  owner     Owner  @relation(fields: [ownerId], references: [recordId], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  pet    Pet    @relation(fields: [petId], references: [recordId], onDelete: Cascade)
+  owner  Owner  @relation(fields: [ownerId], references: [recordId], onDelete: Cascade)
 
   @@unique([tenantId, petId, ownerId])
   @@index([tenantId, ownerId])
 }
 
 model Kennel {
-  recordId         String     @id @default(cuid()) @map("recordId")
+  recordId   String     @id @default(cuid()) @map("recordId")
   tenantId   String
   name       String
   type       KennelType
@@ -317,8 +327,8 @@ model Kennel {
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
-  tenant     Tenant     @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  bookings   BookingSegment[]
+  tenant   Tenant           @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  bookings BookingSegment[]
 
   @@unique([tenantId, name])
   @@index([tenantId, type])
@@ -326,56 +336,56 @@ model Kennel {
 }
 
 model Booking {
-  recordId                 String          @id @default(cuid()) @map("recordId")
-  tenantId           String
-  petId              String
-  ownerId            String
-  status             BookingStatus   @default(PENDING)
-  checkIn            DateTime
-  checkOut           DateTime
-  depositCents       Int             @default(0)
-  totalCents         Int             @default(0)
-  balanceDueCents    Int             @default(0)
-  notes              String?
+  recordId            String        @id @default(cuid()) @map("recordId")
+  tenantId            String
+  petId               String
+  ownerId             String
+  status              BookingStatus @default(PENDING)
+  checkIn             DateTime
+  checkOut            DateTime
+  depositCents        Int           @default(0)
+  totalCents          Int           @default(0)
+  balanceDueCents     Int           @default(0)
+  notes               String?
   specialInstructions String?
-  source             String?         @default("portal")
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
+  source              String?       @default("portal")
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
-  tenant             Tenant           @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  pet                Pet              @relation(fields: [petId], references: [recordId], onDelete: Cascade)
-  owner              Owner            @relation(fields: [ownerId], references: [recordId], onDelete: Cascade)
-  segments           BookingSegment[]
-  services           BookingService[]
-  payments           Payment[]
-  checkIns           CheckIn[]
-  checkOuts          CheckOut[]
-  incidentReports    IncidentReport[]
+  tenant          Tenant           @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  pet             Pet              @relation(fields: [petId], references: [recordId], onDelete: Cascade)
+  owner           Owner            @relation(fields: [ownerId], references: [recordId], onDelete: Cascade)
+  segments        BookingSegment[]
+  services        BookingService[]
+  payments        Payment[]
+  checkIns        CheckIn[]
+  checkOuts       CheckOut[]
+  incidentReports IncidentReport[]
 
   @@index([tenantId, status, checkIn])
   @@index([tenantId, petId])
 }
 
 model BookingSegment {
-  recordId         String        @id @default(cuid()) @map("recordId")
-  tenantId   String
-  bookingId  String
-  kennelId   String
-  startDate  DateTime
-  endDate    DateTime
-  status     BookingStatus @default(CONFIRMED)
-  notes      String?
+  recordId  String        @id @default(cuid()) @map("recordId")
+  tenantId  String
+  bookingId String
+  kennelId  String
+  startDate DateTime
+  endDate   DateTime
+  status    BookingStatus @default(CONFIRMED)
+  notes     String?
 
-  tenant     Tenant        @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  booking    Booking       @relation(fields: [bookingId], references: [recordId], onDelete: Cascade)
-  kennel     Kennel        @relation(fields: [kennelId], references: [recordId], onDelete: Cascade)
+  tenant  Tenant  @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  booking Booking @relation(fields: [bookingId], references: [recordId], onDelete: Cascade)
+  kennel  Kennel  @relation(fields: [kennelId], references: [recordId], onDelete: Cascade)
 
   @@index([tenantId, startDate])
   @@index([tenantId, kennelId, startDate])
 }
 
 model Service {
-  recordId          String          @id @default(cuid()) @map("recordId")
+  recordId    String          @id @default(cuid()) @map("recordId")
   tenantId    String
   name        String
   description String?
@@ -385,94 +395,95 @@ model Service {
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
-  tenant      Tenant          @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  bookings    BookingService[]
+  tenant   Tenant           @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  bookings BookingService[]
 
   @@unique([tenantId, name])
 }
 
 model BookingService {
-  recordId         String   @id @default(cuid()) @map("recordId")
+  recordId   String @id @default(cuid()) @map("recordId")
   tenantId   String
   bookingId  String
   serviceId  String
-  quantity   Int      @default(1)
-  priceCents Int      @default(0)
+  quantity   Int    @default(1)
+  priceCents Int    @default(0)
 
-  tenant     Tenant   @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  booking    Booking  @relation(fields: [bookingId], references: [recordId], onDelete: Cascade)
-  service    Service  @relation(fields: [serviceId], references: [recordId], onDelete: Cascade)
+  tenant  Tenant  @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  booking Booking @relation(fields: [bookingId], references: [recordId], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [recordId], onDelete: Cascade)
 
   @@index([tenantId, bookingId])
 }
 
 model Vaccination {
-  recordId            String   @id @default(cuid()) @map("recordId")
-  tenantId      String
-  petId         String
-  type          String
+  recordId       String    @id @default(cuid()) @map("recordId")
+  tenantId       String
+  petId          String
+  type           String
   administeredAt DateTime
-  expiresAt     DateTime
-  documentUrl   String?
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  expiresAt      DateTime
+  documentUrl    String?
+  notes          String?
+  reminderSentAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  tenant        Tenant   @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  pet           Pet      @relation(fields: [petId], references: [recordId], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  pet    Pet    @relation(fields: [petId], references: [recordId], onDelete: Cascade)
 
   @@index([tenantId, expiresAt])
 }
 
 model Payment {
-  recordId           String        @id @default(cuid()) @map("recordId")
-  tenantId     String
-  bookingId    String?
-  ownerId      String
-  amountCents  Int
-  currency     String        @default("USD")
-  status       PaymentStatus @default(PENDING)
-  method       String?
-  externalId   String?
-  intentId     String?
-  capturedAt   DateTime?
-  metadata     Json
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  recordId    String        @id @default(cuid()) @map("recordId")
+  tenantId    String
+  bookingId   String?
+  ownerId     String
+  amountCents Int
+  currency    String        @default("USD")
+  status      PaymentStatus @default(PENDING)
+  method      String?
+  externalId  String?
+  intentId    String?
+  capturedAt  DateTime?
+  metadata    Json
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
-  tenant       Tenant        @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  booking      Booking?      @relation(fields: [bookingId], references: [recordId], onDelete: Cascade)
-  owner        Owner         @relation(fields: [ownerId], references: [recordId], onDelete: Cascade)
+  tenant  Tenant   @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  booking Booking? @relation(fields: [bookingId], references: [recordId], onDelete: Cascade)
+  owner   Owner    @relation(fields: [ownerId], references: [recordId], onDelete: Cascade)
 
+  @@unique([tenantId, externalId])
   @@index([tenantId, status])
   @@index([tenantId, createdAt])
   @@index([tenantId, intentId])
-  @@unique([tenantId, externalId])
 }
 
 model CheckIn {
-  recordId               String   @id @default(cuid()) @map("recordId")
-  tenantId         String
-  bookingId        String
-  staffId          String?
-  time             DateTime @default(now())
-  weight           Float?
-  photos           String   @default("[]")
-  notes            String?
-  conditionRating  Int?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  recordId        String   @id @default(cuid()) @map("recordId")
+  tenantId        String
+  bookingId       String
+  staffId         String?
+  time            DateTime @default(now())
+  weight          Float?
+  photos          String   @default("[]")
+  notes           String?
+  conditionRating Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  tenant           Tenant   @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  booking          Booking  @relation(fields: [bookingId], references: [recordId], onDelete: Cascade)
-  staff            Staff?   @relation(fields: [staffId], references: [recordId], onDelete: SetNull)
+  tenant  Tenant  @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  booking Booking @relation(fields: [bookingId], references: [recordId], onDelete: Cascade)
+  staff   Staff?  @relation(fields: [staffId], references: [recordId], onDelete: SetNull)
 
   @@index([tenantId, bookingId])
   @@index([tenantId, time])
 }
 
 model CheckOut {
-  recordId               String   @id @default(cuid()) @map("recordId")
+  recordId         String   @id @default(cuid()) @map("recordId")
   tenantId         String
   bookingId        String
   staffId          String?
@@ -483,32 +494,32 @@ model CheckOut {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  tenant           Tenant          @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  booking          Booking         @relation(fields: [bookingId], references: [recordId], onDelete: Cascade)
-  staff            Staff?          @relation(fields: [staffId], references: [recordId], onDelete: SetNull)
-  incidentReport   IncidentReport? @relation(fields: [incidentReportId], references: [recordId], onDelete: SetNull)
+  tenant         Tenant          @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  booking        Booking         @relation(fields: [bookingId], references: [recordId], onDelete: Cascade)
+  staff          Staff?          @relation(fields: [staffId], references: [recordId], onDelete: SetNull)
+  incidentReport IncidentReport? @relation(fields: [incidentReportId], references: [recordId], onDelete: SetNull)
 
   @@index([tenantId, bookingId])
   @@index([tenantId, time])
 }
 
 model IncidentReport {
-  recordId            String            @id @default(cuid()) @map("recordId")
-  tenantId      String
-  petId         String
-  bookingId     String?
-  occurredAt    DateTime          @default(now())
-  severity      IncidentSeverity
-  narrative     String
-  photos        String            @default("[]")
-  vetContacted  Boolean           @default(false)
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  recordId     String           @id @default(cuid()) @map("recordId")
+  tenantId     String
+  petId        String
+  bookingId    String?
+  occurredAt   DateTime         @default(now())
+  severity     IncidentSeverity
+  narrative    String
+  photos       String           @default("[]")
+  vetContacted Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
-  tenant        Tenant            @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  pet           Pet               @relation(fields: [petId], references: [recordId], onDelete: Cascade)
-  booking       Booking?          @relation(fields: [bookingId], references: [recordId], onDelete: Cascade)
-  checkOuts     CheckOut[]
+  tenant    Tenant     @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  pet       Pet        @relation(fields: [petId], references: [recordId], onDelete: Cascade)
+  booking   Booking?   @relation(fields: [bookingId], references: [recordId], onDelete: Cascade)
+  checkOuts CheckOut[]
 
   @@index([tenantId, petId])
   @@index([tenantId, bookingId])
@@ -538,104 +549,104 @@ enum NoteVisibility {
 }
 
 model Communication {
-  recordId      String                 @id @default(cuid())
-  tenantId      String
-  ownerId       String
-  userId        String?
-  type          CommunicationType
-  direction     CommunicationDirection
-  subject       String?
-  content       String                 @db.Text
-  metadata      Json?
-  attachments   Json?
-  createdAt     DateTime               @default(now())
+  recordId    String                 @id @default(cuid())
+  tenantId    String
+  ownerId     String
+  userId      String?
+  type        CommunicationType
+  direction   CommunicationDirection
+  subject     String?
+  content     String                 @db.Text
+  metadata    Json?
+  attachments Json?
+  createdAt   DateTime               @default(now())
 
-  tenant        Tenant                 @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  owner         Owner                  @relation(fields: [ownerId], references: [recordId], onDelete: Cascade)
-  user          User?                  @relation(fields: [userId], references: [recordId], onDelete: SetNull)
+  tenant Tenant @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  owner  Owner  @relation(fields: [ownerId], references: [recordId], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [recordId], onDelete: SetNull)
 
   @@index([tenantId, ownerId, createdAt])
   @@index([tenantId, type])
 }
 
 model Note {
-  recordId      String         @id @default(cuid())
-  tenantId      String
-  entityType    String         // owner, pet, booking
-  entityId      String
-  category      String?
-  content       String         @db.Text
-  visibility    NoteVisibility @default(ALL)
-  isPinned      Boolean        @default(false)
-  authorId      String
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  recordId   String         @id @default(cuid())
+  tenantId   String
+  entityType String // owner, pet, booking
+  entityId   String
+  category   String?
+  content    String         @db.Text
+  visibility NoteVisibility @default(ALL)
+  isPinned   Boolean        @default(false)
+  authorId   String
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
 
-  tenant        Tenant         @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  author        User           @relation(fields: [authorId], references: [recordId], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [recordId], onDelete: Cascade)
 
   @@index([tenantId, entityType, entityId])
   @@index([tenantId, authorId])
 }
 
 model CustomerSegment {
-  recordId      String                    @id @default(cuid())
-  tenantId      String
-  name          String
-  description   String?
-  conditions    Json                      // Query conditions
-  isAutomatic   Boolean                   @default(false)
-  isActive      Boolean                   @default(true)
-  createdAt     DateTime                  @default(now())
-  updatedAt     DateTime                  @updatedAt
+  recordId    String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  conditions  Json // Query conditions
+  isAutomatic Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  tenant        Tenant                    @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  members       CustomerSegmentMember[]
-  campaigns     Campaign[]
+  tenant    Tenant                  @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  members   CustomerSegmentMember[]
+  campaigns Campaign[]
 
   @@unique([tenantId, name])
   @@index([tenantId, isActive])
 }
 
 model CustomerSegmentMember {
-  recordId      String          @id @default(cuid())
-  tenantId      String
-  segmentId     String
-  ownerId       String
-  addedAt       DateTime        @default(now())
+  recordId  String   @id @default(cuid())
+  tenantId  String
+  segmentId String
+  ownerId   String
+  addedAt   DateTime @default(now())
 
-  tenant        Tenant          @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  segment       CustomerSegment @relation(fields: [segmentId], references: [recordId], onDelete: Cascade)
-  owner         Owner           @relation(fields: [ownerId], references: [recordId], onDelete: Cascade)
+  tenant  Tenant          @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  segment CustomerSegment @relation(fields: [segmentId], references: [recordId], onDelete: Cascade)
+  owner   Owner           @relation(fields: [ownerId], references: [recordId], onDelete: Cascade)
 
   @@unique([segmentId, ownerId])
   @@index([tenantId, ownerId])
 }
 
 model CustomerTag {
-  recordId      String              @id @default(cuid())
-  tenantId      String
-  name          String
-  color         String?
-  description   String?
-  createdAt     DateTime            @default(now())
+  recordId    String   @id @default(cuid())
+  tenantId    String
+  name        String
+  color       String?
+  description String?
+  createdAt   DateTime @default(now())
 
-  tenant        Tenant              @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  customers     CustomerTagMember[]
+  tenant    Tenant              @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  customers CustomerTagMember[]
 
   @@unique([tenantId, name])
 }
 
 model CustomerTagMember {
-  recordId      String       @id @default(cuid())
-  tenantId      String
-  tagId         String
-  ownerId       String
-  addedAt       DateTime     @default(now())
+  recordId String   @id @default(cuid())
+  tenantId String
+  tagId    String
+  ownerId  String
+  addedAt  DateTime @default(now())
 
-  tenant        Tenant       @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  tag           CustomerTag  @relation(fields: [tagId], references: [recordId], onDelete: Cascade)
-  owner         Owner        @relation(fields: [ownerId], references: [recordId], onDelete: Cascade)
+  tenant Tenant      @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  tag    CustomerTag @relation(fields: [tagId], references: [recordId], onDelete: Cascade)
+  owner  Owner       @relation(fields: [ownerId], references: [recordId], onDelete: Cascade)
 
   @@unique([tagId, ownerId])
   @@index([tenantId, ownerId])
@@ -651,24 +662,24 @@ enum CampaignStatus {
 }
 
 model Campaign {
-  recordId      String          @id @default(cuid())
-  tenantId      String
-  name          String
-  description   String?
-  type          CommunicationType
-  segmentId     String?
-  content       Json            // Email/SMS content with variables
-  scheduledAt   DateTime?
-  sentAt        DateTime?
-  status        CampaignStatus  @default(DRAFT)
-  metrics       Json?           // Open rates, click rates, etc
-  createdBy     String
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  recordId    String            @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  type        CommunicationType
+  segmentId   String?
+  content     Json // Email/SMS content with variables
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  status      CampaignStatus    @default(DRAFT)
+  metrics     Json? // Open rates, click rates, etc
+  createdBy   String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
-  tenant        Tenant          @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  segment       CustomerSegment? @relation(fields: [segmentId], references: [recordId], onDelete: SetNull)
-  creator       User            @relation(fields: [createdBy], references: [recordId], onDelete: Cascade)
+  tenant  Tenant           @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  segment CustomerSegment? @relation(fields: [segmentId], references: [recordId], onDelete: SetNull)
+  creator User             @relation(fields: [createdBy], references: [recordId], onDelete: Cascade)
 
   @@index([tenantId, status])
   @@index([tenantId, scheduledAt])
@@ -691,25 +702,155 @@ enum Priority {
 }
 
 model Task {
-  recordId      String   @id @default(cuid())
-  tenantId      String
-  type          TaskType
-  relatedType   String   // 'pet', 'kennel', 'booking'
-  relatedId     String
-  assignedTo    String?
-  scheduledFor  DateTime
-  completedAt   DateTime?
-  completedBy   String?
-  notes         String?
-  priority      Priority @default(NORMAL)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  tenant        Tenant @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
-  staff         Staff? @relation(fields: [assignedTo], references: [recordId])
+  recordId     String    @id @default(cuid())
+  tenantId     String
+  type         TaskType
+  relatedType  String // 'pet', 'kennel', 'booking'
+  relatedId    String
+  assignedTo   String?
+  scheduledFor DateTime
+  completedAt  DateTime?
+  completedBy  String?
+  notes        String?
+  priority     Priority  @default(NORMAL)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  tenant           Tenant @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  staff            Staff? @relation(fields: [assignedTo], references: [recordId])
   completedByStaff Staff? @relation("TaskCompletedBy", fields: [completedBy], references: [recordId])
-  
+
   @@index([tenantId, scheduledFor])
   @@index([tenantId, type])
   @@index([tenantId, assignedTo])
+}
+
+// Permission Management Models
+model CustomRole {
+  recordId    String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  isSystem    Boolean  @default(false) // System roles can't be deleted
+  isActive    Boolean  @default(true)
+  permissions Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String?
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  creator   User?      @relation("RoleCreator", fields: [createdBy], references: [recordId], onDelete: SetNull)
+  userRoles UserRole[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, isActive])
+  @@map("CustomRole")
+}
+
+model PermissionSet {
+  recordId    String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  permissions Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("PermissionSet")
+}
+
+model UserRole {
+  recordId   String   @id @default(cuid())
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+  assignedBy String?
+
+  user           User       @relation(fields: [userId], references: [recordId], onDelete: Cascade)
+  role           CustomRole @relation(fields: [roleId], references: [recordId], onDelete: Cascade)
+  assignedByUser User?      @relation("UserRoleAssigner", fields: [assignedBy], references: [recordId], onDelete: SetNull)
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+  @@map("UserRole")
+}
+
+model UserPermission {
+  recordId   String    @id @default(cuid())
+  userId     String
+  permission String
+  granted    Boolean
+  expiresAt  DateTime?
+  grantedAt  DateTime  @default(now())
+  grantedBy  String?
+
+  user          User  @relation(fields: [userId], references: [recordId], onDelete: Cascade)
+  grantedByUser User? @relation("PermissionGranter", fields: [grantedBy], references: [recordId], onDelete: SetNull)
+
+  @@unique([userId, permission])
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("UserPermission")
+}
+
+model Run {
+  recordId     String   @id @default(cuid())
+  tenantId     String
+  name         String
+  capacity     Int
+  scheduleTime String
+  color        String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant      Tenant          @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  assignments RunAssignment[]
+
+  @@index([tenantId, isActive])
+  @@map("runs")
+}
+
+model RunAssignment {
+  recordId  String   @id @default(cuid())
+  tenantId  String
+  runId     String
+  petId     String
+  date      DateTime @db.Date
+  notes     String?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  run    Run    @relation(fields: [runId], references: [recordId], onDelete: Cascade)
+  pet    Pet    @relation(fields: [petId], references: [recordId], onDelete: Cascade)
+
+  @@unique([runId, petId, date])
+  @@index([tenantId, date])
+  @@map("run_assignments")
+}
+
+model Message {
+  recordId       String    @id @default(cuid())
+  tenantId       String
+  conversationId String
+  senderId       String
+  recipientId    String?
+  content        String    @db.Text
+  isRead         Boolean   @default(false)
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  tenant    Tenant @relation(fields: [tenantId], references: [recordId], onDelete: Cascade)
+  sender    User   @relation("SentMessages", fields: [senderId], references: [recordId])
+  recipient User?  @relation("ReceivedMessages", fields: [recipientId], references: [recordId])
+
+  @@index([tenantId, conversationId])
+  @@index([tenantId, senderId])
+  @@index([tenantId, recipientId])
+  @@map("messages")
 }

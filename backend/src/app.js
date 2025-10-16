@@ -46,6 +46,14 @@ const userRoutes = require("./routes/user.routes");
 const communicationRoutes = require("./routes/communication.routes");
 const noteRoutes = require("./routes/note.routes");
 const segmentRoutes = require("./routes/segment.routes");
+const roleRoutes = require("./routes/roles.routes");
+const userPermissionRoutes = require("./routes/userPermissions.routes");
+const invoiceRoutes = require("./routes/invoice.routes");
+const runRoutes = require("./routes/run.routes");
+const messageRoutes = require("./routes/message.routes");
+const billingRoutes = require("./routes/billing.routes");
+const packageRoutes = require("./routes/package.routes");
+const taskRoutes = require("./routes/task.routes");
 
 const app = express();
 
@@ -140,6 +148,14 @@ app.use("/api/v1/facility", facilityRoutes);
 app.use("/api/v1/communications", communicationRoutes);
 app.use("/api/v1/notes", noteRoutes);
 app.use("/api/v1/segments", segmentRoutes);
+app.use("/api/v1/roles", roleRoutes);
+app.use("/api/v1/user-permissions", userPermissionRoutes);
+app.use("/api/v1/invoices", invoiceRoutes);
+app.use("/api/v1/runs", runRoutes);
+app.use("/api/v1/messages", messageRoutes);
+app.use("/api/v1/billing", billingRoutes);
+app.use("/api/v1/packages", packageRoutes);
+app.use("/api/v1/tasks", taskRoutes);
 app.use("/users", userRoutes);
 
 app.get("/health", (_req, res) => {

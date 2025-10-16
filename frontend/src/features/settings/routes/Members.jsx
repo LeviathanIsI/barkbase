@@ -1,13 +1,16 @@
+import { useState } from 'react';
 import toast from 'react-hot-toast';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
+import { Shield, Settings } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth';
 import { useTenantStore } from '@/stores/tenant';
 import { can } from '@/lib/acl';
 import InviteMember from '../components/InviteMember';
 import SettingsPage from '../components/SettingsPage';
+import UserRoleManager from '../components/UserRoleManager';
 import {
   useMembersQuery,
   useUpdateMemberRoleMutation,
@@ -22,6 +25,7 @@ const roleOptions = [
 ];
 
 const Members = () => {
+  const [managingRoles, setManagingRoles] = useState(null);
   const role = useAuthStore((state) => state.role);
   const tenant = useTenantStore((state) => state.tenant);
   const membersQuery = useMembersQuery();
@@ -34,6 +38,9 @@ const Members = () => {
     features: tenant?.features,
     featureFlags: tenant?.featureFlags,
   }, 'manageMembers');
+
+  // Use legacy role system for now
+  const canManageRoles = role === 'OWNER' || role === 'ADMIN';
 
   const members = membersQuery.data?.members ?? [];
   const invites = membersQuery.data?.invites ?? [];
@@ -57,12 +64,13 @@ const Members = () => {
   };
 
   return (
-    <SettingsPage
-      title="Workspace Members"
-      description="Manage who can access this tenant and their roles."
-      actions={canManage ? <InviteMember /> : null}
-      contentClassName="grid gap-6 xl:grid-cols-[2fr,1fr]"
-    >
+    <>
+      <SettingsPage
+        title="Workspace Members"
+        description="Manage who can access this tenant and their roles."
+        actions={canManage ? <InviteMember /> : null}
+        contentClassName="grid gap-6 xl:grid-cols-[2fr,1fr]"
+      >
         <Card
           title="Active Members"
           description="Update roles or remove members. Owners retain full control over billing and invites."
@@ -81,7 +89,8 @@ const Members = () => {
                 <thead className="bg-surface/70 text-left text-xs uppercase text-muted">
                   <tr>
                     <th className="px-3 py-2">Email</th>
-                    <th className="px-3 py-2">Role</th>
+                    <th className="px-3 py-2">Legacy Role</th>
+                    <th className="px-3 py-2">Roles</th>
                     <th className="px-3 py-2">Status</th>
                     {canManage ? <th className="px-3 py-2 text-right">Actions</th> : null}
                   </tr>
@@ -107,6 +116,29 @@ const Members = () => {
                         ) : (
                           <Badge variant="neutral">{member.role}</Badge>
                         )}
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          {member.user?.roles?.length > 0 ? (
+                            member.user.roles.map(role => (
+                              <Badge key={role.recordId} variant="outline" className="text-xs">
+                                {role.name}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-xs text-muted">No roles assigned</span>
+                          )}
+                          {canManageRoles && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => setManagingRoles(member.user)}
+                              className="h-6 w-6"
+                            >
+                              <Shield className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
                       </td>
                       <td className="px-3 py-2">
                         {member.user?.isActive ? (
@@ -155,7 +187,15 @@ const Members = () => {
             </ul>
           )}
         </Card>
-    </SettingsPage>
+      </SettingsPage>
+
+      {managingRoles && (
+        <UserRoleManager 
+          user={managingRoles} 
+          onClose={() => setManagingRoles(null)} 
+        />
+      )}
+    </>
   );
 };
 

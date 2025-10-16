@@ -48,6 +48,11 @@ const updateStatus = async (req, res, next) => {
       req.tenantId,
       req.params.bookingId,
       req.body.status,
+      {
+        userId: req.user?.recordId,
+        ipAddress: req.ip,
+        userAgent: req.headers?.['user-agent'],
+      },
     );
     return res.json(booking);
   } catch (error) {

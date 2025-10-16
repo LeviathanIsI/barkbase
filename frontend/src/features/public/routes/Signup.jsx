@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
 import { apiClient } from '@/lib/apiClient';
 import { useAuthStore } from '@/stores/auth';
 import { useTenantStore } from '@/stores/tenant';
@@ -126,59 +127,43 @@ const Signup = () => {
               tabIndex={-1}
               autoComplete="off"
             />
-            <label className="text-sm font-medium text-text">
-              Workspace name
-              <input
-                type="text"
-                value={tenantName}
-                onChange={(event) => setTenantName(event.target.value)}
-                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                placeholder="Acme Boarding"
-                required
-              />
-            </label>
-            <label className="text-sm font-medium text-text">
-              Workspace slug
-              <input
-                type="text"
-                value={tenantSlug}
-                onChange={(event) => setTenantSlug(event.target.value.toLowerCase())}
-                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                placeholder={slugHint || 'acme-boarding'}
-                pattern="^[a-z0-9]+(?:-[a-z0-9]+)*$"
-                title="Lowercase letters, numbers, and hyphens only"
-                required
-              />
-              <span className="mt-1 block text-xs text-muted">
-                This becomes your tenant slug (e.g. {tenantSlug || slugHint || 'acme-boarding'}.barkbase.app)
-              </span>
-            </label>
-            <label className="text-sm font-medium text-text">
-              Email
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                autoComplete="email"
-                required
-              />
-            </label>
-            <label className="text-sm font-medium text-text">
-              Password
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                placeholder="Use at least 12 characters, incl. symbol"
-                minLength={12}
-                required
-              />
-              <span className="mt-1 block text-xs text-muted">
-                Must include upper & lower case letters, a number, and a symbol.
-              </span>
-            </label>
+            <Input
+              label="Workspace name"
+              type="text"
+              value={tenantName}
+              onChange={(event) => setTenantName(event.target.value)}
+              placeholder="Acme Boarding"
+              required
+            />
+            <Input
+              label="Workspace slug"
+              type="text"
+              value={tenantSlug}
+              onChange={(event) => setTenantSlug(event.target.value.toLowerCase())}
+              placeholder={slugHint || 'acme-boarding'}
+              pattern="^[a-z0-9]+(?:-[a-z0-9]+)*$"
+              title="Lowercase letters, numbers, and hyphens only"
+              helper={`This becomes your tenant slug (e.g. ${tenantSlug || slugHint || 'acme-boarding'}.barkbase.app)`}
+              required
+            />
+            <Input
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              autoComplete="email"
+              required
+            />
+            <Input
+              label="Password"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Use at least 12 characters, incl. symbol"
+              minLength={12}
+              helper="Must include upper & lower case letters, a number, and a symbol."
+              required
+            />
             <label className="flex items-start gap-2 rounded-lg border border-border/70 bg-surface/80 p-3 text-sm">
               <input
                 type="checkbox"

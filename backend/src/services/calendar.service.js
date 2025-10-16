@@ -478,6 +478,53 @@ const reassignKennel = async (tenantId, segmentId, { kennelId, startDate = null,
   return updated;
 };
 
+/**
+ * Get capacity data for a date range
+ */
+const getCapacityForDateRange = async (tenantId, startDateStr, endDateStr) => {
+  const tenantDb = forTenant(tenantId);
+  const dates = [];
+  const current = new Date(startDateStr);
+  const endDate = new Date(endDateStr);
+
+  // Get total kennels count once
+  const totalKennels = await tenantDb.kennel.count({
+    where: {
+      isActive: true
+    }
+  });
+
+  while (current <= endDate) {
+    const dayStart = startOfDay(new Date(current));
+    const dayEnd = endOfDay(new Date(current));
+
+    // Count booked kennels for this day
+    const bookedKennels = await tenantDb.bookingSegment.count({
+      where: {
+        startDate: { lte: dayEnd },
+        endDate: { gte: dayStart },
+        status: { in: ['CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'] }
+      }
+    });
+
+    const availableKennels = Math.max(0, totalKennels - bookedKennels);
+    const utilizationPercent = totalKennels > 0 ? Math.round((bookedKennels / totalKennels) * 100) : 0;
+
+    dates.push({
+      date: dayStart.toISOString().split('T')[0],
+      totalKennels,
+      bookedKennels,
+      availableKennels,
+      utilizationPercent,
+      isOverbooked: bookedKennels > totalKennels
+    });
+
+    current.setDate(current.getDate() + 1);
+  }
+
+  return dates;
+};
+
 module.exports = {
   getCalendarView,
   getOccupancy,
@@ -485,4 +532,5 @@ module.exports = {
   suggestBestKennel,
   assignKennel,
   reassignKennel,
+  getCapacityForDateRange,
 };

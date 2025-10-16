@@ -1,0 +1,28 @@
+{
+  "threshold": 5,
+  "reporters": ["html", "console", "json"],
+  "ignore": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/coverage/**",
+    "**/*.min.js",
+    "**/*.min.css",
+    "**/package-lock.json",
+    "**/pnpm-lock.yaml",
+    "**/*.md"
+  ],
+  "absolute": true,
+  "gitignore": true,
+  "format": [
+    "javascript",
+    "jsx",
+    "typescript",
+    "tsx"
+  ],
+  "minLines": 10,
+  "minTokens": 50,
+  "output": "./jscpd-report",
+  "exitCode": 1
+}
+

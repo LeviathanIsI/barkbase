@@ -1,12 +1,6 @@
 import { Users, Mail, Phone, PawPrint, Calendar, DollarSign } from 'lucide-react';
 import { cn } from '@/lib/cn';
-
-const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount);
-};
+import { formatCurrency } from '@/lib/utils';
 
 const OwnerCard = ({
   owner,

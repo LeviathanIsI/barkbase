@@ -1,607 +1,451 @@
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
-import { PawPrint, Plus, FileDown, Settings, ChevronDown, Download, Trash2, RefreshCw, X } from 'lucide-react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
-import DataTable from '@/components/ui/DataTable';
+import { PawPrint, Plus, Search, Filter, Grid3x3, List, Heart, AlertTriangle, Users, Calendar, Upload, Download, FileText, Syringe, ShieldAlert } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import { Card, PageHeader } from '@/components/ui/Card';
+import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
-import { useTenantStore } from '@/stores/tenant';
-import { queryKeys } from '@/lib/queryKeys';
-import { cn } from '@/lib/cn';
-import {
-  usePetsQuery,
-  useCreatePetMutation,
-  useDeletePetMutation,
-  useUpdatePetMutation,
-} from '../api';
+import { usePetsQuery } from '../api';
+import { useExpiringVaccinationsQuery } from '../api-vaccinations';
 import { PetFormModal } from '../components';
+import EmptyStatePets from '../components/EmptyStatePets';
 
 const Pets = () => {
   const navigate = useNavigate();
-  const petsQuery = usePetsQuery();
-  const pets = useMemo(() => petsQuery.data ?? [], [petsQuery.data]);
-  const tenantKey = useTenantStore((state) => state.tenant?.slug ?? 'default');
-  const queryClient = useQueryClient();
-  const [activeView, setActiveView] = useState('all-pets');
-  const [activeFilters, setActiveFilters] = useState({});
-  const [showActionsDropdown, setShowActionsDropdown] = useState(false);
-  const [importModalOpen, setImportModalOpen] = useState(false);
   const [petFormModalOpen, setPetFormModalOpen] = useState(false);
-  const [selectedPet, setSelectedPet] = useState(null);
-  const actionsDropdownRef = useRef(null);
-  const createPetMutation = useCreatePetMutation();
-  const updatePetMutation = useUpdatePetMutation(selectedPet?.recordId);
-  const deletePetMutation = useDeletePetMutation();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [viewMode, setViewMode] = useState('grid');
+  const [showImportModal, setShowImportModal] = useState(false);
 
-  useEffect(() => {
-    if (petsQuery.isError) {
-      toast.error(petsQuery.error?.message ?? 'Unable to load pets', { recordId: 'pets-error' });
+  const { data: pets = [], isLoading: isLoadingData, error } = usePetsQuery();
+  
+  // Prevent flash of loading state - only show loading if it takes more than 100ms
+  const [showLoading, setShowLoading] = useState(false);
+  
+  useState(() => {
+    let timeout;
+    if (isLoadingData) {
+      timeout = setTimeout(() => setShowLoading(true), 100);
+    } else {
+      setShowLoading(false);
     }
-  }, [petsQuery.isError, petsQuery.error]);
+    return () => clearTimeout(timeout);
+  }, [isLoadingData]);
+  
+  const isLoading = isLoadingData && showLoading;
 
-  // Close actions dropdown on outside click
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (actionsDropdownRef.current && !actionsDropdownRef.current.contains(event.target)) {
-        setShowActionsDropdown(false);
-      }
-    };
-
-    if (showActionsDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showActionsDropdown]);
-
-  // Calculate views
-  const views = useMemo(() => {
-    const activePets = pets.filter((p) => p.status === 'active' || !p.status);
-    const inactivePets = pets.filter((p) => p.status === 'inactive');
-
-    return [
-      { recordId: 'all-pets', label: 'All Pets' },
-      { recordId: 'active', label: 'Active' },
-      { recordId: 'inactive', label: 'Inactive' },
-      { recordId: 'recent', label: 'Recently Added', canClose: true },
-    ];
-  }, [pets]);
-
-  // Filter groups for the filter bar
-  const filterGroups = [
-    { recordId: 'owner',
-      label: 'Pet Owner',
-      options: [
-        ...Array.from(new Set(pets.flatMap(p => p.owners || []).map(o => o.name || o.email)))
-          .filter(Boolean)
-          .sort()
-          .map(name => ({ value: name, label: name }))
-      ],
-    },
-    { recordId: 'breed',
-      label: 'Breed',
-      options: [
-        ...Array.from(new Set(pets.map(p => p.breed).filter(Boolean)))
-          .sort()
-          .map(breed => ({ value: breed, label: breed }))
-      ],
-    },
-    { recordId: 'status',
-      label: 'Status',
-      options: [
-        { value: 'active', label: 'Active' },
-        { value: 'inactive', label: 'Inactive' },
-      ],
-    },
-    { recordId: 'bookings',
-      label: 'Booking Count',
-      options: [
-        { value: 'zero', label: '0 bookings' },
-        { value: '1-5', label: '1-5 bookings' },
-        { value: '6-10', label: '6-10 bookings' },
-        { value: '11-20', label: '11-20 bookings' },
-        { value: '21+', label: '21+ bookings' },
-      ],
-    },
-  ];
-
-  // Filter data based on active view and filters
+  // Filter pets based on search and status
   const filteredPets = useMemo(() => {
-    let result = pets;
-
-    // Apply view filter
-    if (activeView === 'active') {
-      result = result.filter((p) => p.status === 'active' || !p.status);
-    } else if (activeView === 'inactive') {
-      result = result.filter((p) => p.status === 'inactive');
-    } else if (activeView === 'recent') {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      result = result.filter((p) => new Date(p.createdAt || 0) >= thirtyDaysAgo);
-    }
-
-    // Apply active filters
-    if (activeFilters.owner) {
-      result = result.filter((p) => {
-        const ownerNames = (p.owners || []).map(o => o.name || o.email);
-        return ownerNames.includes(activeFilters.owner);
-      });
-    }
-
-    if (activeFilters.breed) {
-      result = result.filter((p) => p.breed === activeFilters.breed);
-    }
-
-    if (activeFilters.status) {
-      result = result.filter((p) => (p.status || 'active') === activeFilters.status);
-    }
-
-    if (activeFilters.bookings) {
-      result = result.filter((p) => {
-        const count = p.bookings?.length || 0;
-        switch (activeFilters.bookings) {
-          case 'zero':
-            return count === 0;
-          case '1-5':
-            return count >= 1 && count <= 5;
-          case '6-10':
-            return count >= 6 && count <= 10;
-          case '11-20':
-            return count >= 11 && count <= 20;
-          case '21+':
-            return count >= 21;
-          default:
-            return true;
-        }
-      });
-    }
-
-    return result;
-  }, [pets, activeView, activeFilters]);
-
-  const columns = [
-    {
-      header: 'Name',
-      accessor: 'name',
-      sortable: true,
-      cell: (row) => (
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-            <PawPrint className="h-4 w-4" />
-          </div>
-          <div>
-            <button className="font-medium text-blue-600 hover:underline">
-              {row.name}
-            </button>
-            <p className="text-xs text-gray-500">{row.breed || 'Unknown breed'}</p>
-          </div>
-        </div>
-      ),
-    },
-    {
-      header: 'Breed',
-      accessor: 'breed',
-      sortable: true,
-      cell: (row) => <span className="text-gray-700">{row.breed || '--'}</span>,
-    },
-    {
-      header: 'Owners',
-      accessor: 'owners',
-      cell: (row) => {
-        const owners = row.owners || [];
-        if (owners.length === 0) return <span className="text-gray-500">--</span>;
-        return (
-          <div className="flex flex-col gap-0.5">
-            {owners.slice(0, 2).map((owner) => (
-              <button
-                key={owner.recordId}
-                className="text-left text-sm text-blue-600 hover:underline"
-              >
-                {owner.name || owner.email}
-              </button>
-            ))}
-            {owners.length > 2 && (
-              <span className="text-xs text-gray-500">+{owners.length - 2} more</span>
-            )}
-          </div>
+    return pets.filter(pet => {
+      const matchesSearch = !searchTerm ||
+        pet.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pet.breed?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pet.owners?.some(owner =>
+          owner.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          owner.email?.toLowerCase().includes(searchTerm.toLowerCase())
         );
-      },
-    },
-    {
-      header: 'Medical Notes',
-      accessor: 'medicalNotes',
-      cell: (row) => {
-        const notes = row.medicalNotes || '';
-        if (!notes) return <span className="text-gray-500">--</span>;
-        if (notes.length > 50) {
-          return (
-            <button className="text-left text-sm text-blue-600 hover:underline">
-              {notes.substring(0, 50)}...
-            </button>
-          );
-        }
-        return <span className="text-sm text-gray-700">{notes}</span>;
-      },
-    },
-    {
-      header: 'Dietary Notes',
-      accessor: 'dietaryNotes',
-      cell: (row) => {
-        const notes = row.dietaryNotes || '';
-        if (!notes) return <span className="text-gray-500">--</span>;
-        if (notes.length > 50) {
-          return (
-            <button className="text-left text-sm text-blue-600 hover:underline">
-              {notes.substring(0, 50)}...
-            </button>
-          );
-        }
-        return <span className="text-sm text-gray-700">{notes}</span>;
-      },
-    },
-    {
-      header: 'Bookings',
-      accessor: 'bookingCount',
-      sortable: true,
-      cell: (row) => {
-        const count = row.bookings?.length || 0;
-        const lastBooking = row.bookings?.[0];
-        return (
-          <div>
-            <button className="font-medium text-blue-600 hover:underline">
-              {count} {count === 1 ? 'record' : 'records'}
-            </button>
-            {lastBooking && (
-              <p className="text-xs text-gray-500">
-                Last: {new Date(lastBooking.checkIn).toLocaleDateString()}
-              </p>
-            )}
-          </div>
-        );
-      },
-    },
-    {
-      header: 'Status',
-      accessor: 'status',
-      sortable: true,
-      cell: (row) => {
-        const status = row.status || 'active';
-        const statusStyles = {
-          active: 'bg-green-100 text-green-800',
-          inactive: 'bg-gray-100 text-gray-800',
-        };
-        return (
-          <span className={cn('inline-flex rounded-full px-2 py-0.5 text-xs font-medium', statusStyles[status])}>
-            {status.charAt(0).toUpperCase() + status.slice(1)}
-          </span>
-        );
-      },
-    },
-  ];
 
-  const handleRowClick = (pet) => {
-    navigate(`/pets/${pet.recordId}`);
-  };
+      const matchesStatus = statusFilter === 'ALL' || (pet.status || 'active') === statusFilter;
 
-  const handleFilterChange = (filterId, value) => {
-    setActiveFilters((prev) => ({
-      ...prev,
-      [filterId]: value,
-    }));
-  };
-
-  const handleFilterClear = (filterId) => {
-    setActiveFilters((prev) => {
-      const updated = { ...prev };
-      delete updated[filterId];
-      return updated;
+      return matchesSearch && matchesStatus;
     });
-  };
+  }, [pets, searchTerm, statusFilter]);
 
-  const handleExport = () => {
-    // Export visible data to CSV
-    const headers = columns.map(col => col.header);
-    const rows = filteredPets.map(pet =>
-      columns.map(col => {
-        const value = pet[col.accessor];
-        if (col.accessor === 'owners') {
-          const owners = pet.owners || [];
-          return owners.map(o => o.name || o.email).join('; ');
-        }
-        if (col.accessor === 'bookingCount') {
-          return pet.bookings?.length || 0;
-        }
-        return value || '';
-      })
-    );
-
-    const csv = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
-
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `pets-export-${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-
-    toast.success('Pets exported successfully');
-  };
-
-  const handleExportAll = () => {
-    // Export all pets to CSV
-    const headers = columns.map(col => col.header);
-    const rows = pets.map(pet =>
-      columns.map(col => {
-        const value = pet[col.accessor];
-        if (col.accessor === 'owners') {
-          const owners = pet.owners || [];
-          return owners.map(o => o.name || o.email).join('; ');
-        }
-        if (col.accessor === 'bookingCount') {
-          return pet.bookings?.length || 0;
-        }
-        return value || '';
-      })
-    );
-
-    const csv = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
-
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `all-pets-export-${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-
-    toast.success('All pets exported successfully');
-    setShowActionsDropdown(false);
-  };
-
-  const handleRefresh = () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.pets(tenantKey) });
-    toast.success('Pets data refreshed');
-    setShowActionsDropdown(false);
-  };
-
-  const handleDeleteAll = () => {
-    if (window.confirm('Are you sure you want to delete all pets? This action cannot be undone.')) {
-      toast.error('Bulk delete not yet implemented');
-    }
-    setShowActionsDropdown(false);
-  };
-
-  const handleImport = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const text = e.target?.result;
-      const lines = text.split('\n').filter(line => line.trim());
-      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-
-      const petsToCreate = lines.slice(1).map(line => {
-        const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
-        const pet = {};
-        headers.forEach((header, idx) => {
-          const value = values[idx];
-          switch (header.toLowerCase()) {
-            case 'name':
-              pet.name = value;
-              break;
-            case 'breed':
-              pet.breed = value;
-              break;
-            case 'status':
-              pet.status = value;
-              break;
-            case 'medical notes':
-            case 'medicalnotes':
-              pet.medicalNotes = value;
-              break;
-            case 'dietary notes':
-            case 'dietarynotes':
-              pet.dietaryNotes = value;
-              break;
-          }
-        });
-        return pet;
-      });
-
-      try {
-        for (const pet of petsToCreate) {
-          if (pet.name) {
-            await createPetMutation.mutateAsync(pet);
-          }
-        }
-        toast.success(`Successfully imported ${petsToCreate.length} pets`);
-        setImportModalOpen(false);
-      } catch (error) {
-        toast.error(`Import failed: ${error.message}`);
-      }
+  // Get real expiring vaccinations data
+  const { data: expiringVaccsData } = useExpiringVaccinationsQuery(30);
+  
+  // Calculate stats
+  const stats = useMemo(() => {
+    const activePets = pets.filter(p => (p.status || 'active') === 'active');
+    const expiringVaccinations = expiringVaccsData?.length || 0;
+    
+    return {
+      total: pets.length,
+      active: activePets.length,
+      inactive: pets.filter(p => p.status === 'inactive').length,
+      withBookings: pets.filter(p => p.bookings?.length > 0).length,
+      expiringVaccinations
     };
-    reader.readAsText(file);
-  };
+  }, [pets, expiringVaccsData]);
 
-  const handleCreatePet = () => {
-    setSelectedPet(null);
-    setPetFormModalOpen(true);
-  };
-
-  const handlePetFormSubmit = async (data) => {
-    try {
-      if (selectedPet) {
-        await updatePetMutation.mutateAsync(data);
-        toast.success('Pet updated successfully');
-      } else {
-        // Add required fields for pet creation - only send fields that have values
-        const petData = {
-          name: data.name,
-          ownerIds: [], // Empty array - owners can be assigned later
-          behaviorFlags: [], // Empty array for behavior flags
-        };
-
-        // Only add optional fields if they have values
-        if (data.breed) petData.breed = data.breed;
-        if (data.birthdate) petData.birthdate = data.birthdate;
-        if (data.medicalNotes) petData.medicalNotes = data.medicalNotes;
-        if (data.dietaryNotes) petData.dietaryNotes = data.dietaryNotes;
-        if (data.status) petData.status = data.status;
-
-        console.log('Sending pet data:', petData);
-        await createPetMutation.mutateAsync(petData);
-        toast.success('Pet created successfully');
-      }
-      queryClient.invalidateQueries({ queryKey: queryKeys.pets(tenantKey) });
-      setPetFormModalOpen(false);
-      setSelectedPet(null);
-    } catch (error) {
-      console.error('Pet creation error:', error);
-      toast.error(error?.message || 'Failed to save pet');
-    }
-  };
-
-  if (petsQuery.isLoading) {
+  if (error) {
     return (
-      <div className="p-8">
-        <Skeleton className="h-12 w-64 mb-4" />
-        <Skeleton className="h-96 w-full" />
+      <div>
+        <PageHeader title="Pets" breadcrumb="Home > Clients > Pets" />
+        <Card>
+          <div className="text-center py-12">
+            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-[#263238] mb-2">Error Loading Pets</h3>
+            <p className="text-[#64748B]">Unable to load pets data. Please try again.</p>
+          </div>
+        </Card>
       </div>
     );
   }
 
-  return (
-    <>
-      <DataTable
-        title="Pets"
-        recordCount={pets.length}
-        columns={columns}
-        data={filteredPets}
-        views={views}
-        activeView={activeView}
-        onViewChange={setActiveView}
-        filterGroups={filterGroups}
-        activeFilters={activeFilters}
-        onFilterChange={handleFilterChange}
-        onFilterClear={handleFilterClear}
-        searchPlaceholder="Search name, breed, owner, notes..."
-        onRowClick={handleRowClick}
-        enableSelection
-        onExport={handleExport}
-        headerActions={
-          <>
-            <div ref={actionsDropdownRef} className="relative">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowActionsDropdown(!showActionsDropdown)}
-              >
-                Actions
-                <ChevronDown className="h-4 w-4 ml-2" />
-              </Button>
-              {showActionsDropdown && (
-                <div className="absolute right-0 top-full z-50 mt-1 min-w-[180px] rounded-md border border-border bg-white shadow-lg">
-                  <div className="py-1">
-                    <button
-                      onClick={handleExportAll}
-                      className="flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                    >
-                      <Download className="h-4 w-4" />
-                      Export all
-                    </button>
-                    <button
-                      onClick={handleRefresh}
-                      className="flex w-full items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                      Refresh data
-                    </button>
-                    <button
-                      onClick={handleDeleteAll}
-                      className="flex w-full items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Delete all
-                    </button>
-                  </div>
-                </div>
-              )}
+  const PetCard = ({ pet }) => {
+    const primaryOwner = pet.owners?.[0];
+    const bookingCount = pet.bookings?.length || 0;
+    const lastBooking = pet.bookings?.[0];
+    const status = pet.status || 'active';
+    
+    // Mock vaccination expiration check (in real app, would check actual dates)
+    const hasExpiringVaccinations = Math.random() > 0.7; // 30% chance for demo
+    const hasMedicalAlerts = pet.medicalNotes || pet.dietaryNotes;
+
+    return (
+      <Card
+        className="hover:shadow-lg transition-all cursor-pointer relative"
+        onClick={() => navigate(`/pets/${pet.recordId}`)}
+      >
+        {/* Alerts Badge */}
+        {(hasExpiringVaccinations || hasMedicalAlerts) && (
+          <div className="absolute top-3 right-3 flex gap-1">
+            {hasExpiringVaccinations && (
+              <div className="w-6 h-6 bg-yellow-100 rounded-full flex items-center justify-center" title="Vaccination expiring soon">
+                <ShieldAlert className="h-4 w-4 text-yellow-600" />
+              </div>
+            )}
+            {hasMedicalAlerts && (
+              <div className="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center" title="Special care notes">
+                <Heart className="h-4 w-4 text-orange-600" />
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-start gap-3 mb-4">
+          <div className="w-12 h-12 bg-gradient-to-r from-[#4B5DD3] to-[#3A4BC2] rounded-full flex items-center justify-center flex-shrink-0">
+            <PawPrint className="h-6 w-6 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-[#263238] truncate">{pet.name}</h3>
+            <p className="text-sm text-[#64748B] truncate">{pet.breed || 'Unknown breed'}</p>
+            {pet.age && <p className="text-xs text-[#64748B]">{pet.age} years old</p>}
+          </div>
+          <Badge variant={status === 'active' ? 'success' : 'neutral'} className="flex-shrink-0">
+            {status === 'active' ? 'Active' : 'Inactive'}
+          </Badge>
+        </div>
+
+        <div className="space-y-2">
+          {primaryOwner && (
+            <div className="flex items-center gap-2 text-sm">
+              <Users className="h-4 w-4 text-[#64748B] flex-shrink-0" />
+              <span className="text-[#64748B] truncate">{primaryOwner.name || primaryOwner.email}</span>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setImportModalOpen(true)}>
-              Import
-            </Button>
-            <Button size="sm" onClick={handleCreatePet}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Pet
-            </Button>
-          </>
+          )}
+
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-[#64748B]" />
+              <span className="text-[#64748B]">{bookingCount} booking{bookingCount !== 1 ? 's' : ''}</span>
+            </div>
+            {lastBooking && (
+              <span className="text-xs text-[#64748B]">
+                Last: {new Date(lastBooking.checkIn).toLocaleDateString()}
+              </span>
+            )}
+          </div>
+
+          {hasExpiringVaccinations && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded px-2 py-1">
+              <p className="text-xs text-yellow-800 flex items-center gap-1">
+                <Syringe className="h-3 w-3" />
+                Vaccination expiring soon
+              </p>
+            </div>
+          )}
+
+          {hasMedicalAlerts && (
+            <div className="bg-orange-50 border border-orange-200 rounded px-2 py-1">
+              <p className="text-xs text-orange-800 flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                Special care required
+              </p>
+            </div>
+          )}
+        </div>
+      </Card>
+    );
+  };
+
+  const PetRow = ({ pet }) => {
+    const primaryOwner = pet.owners?.[0];
+    const bookingCount = pet.bookings?.length || 0;
+    const status = pet.status || 'active';
+
+    return (
+      <tr className="border-b border-[#F5F6FA] hover:bg-[#F5F6FA]/50 cursor-pointer" onClick={() => navigate(`/pets/${pet.recordId}`)}>
+        <td className="py-4 px-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-r from-[#4B5DD3] to-[#3A4BC2] rounded-full flex items-center justify-center">
+              <PawPrint className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <p className="font-semibold text-[#263238]">{pet.name}</p>
+              <p className="text-sm text-[#64748B]">{pet.breed || 'Unknown breed'}</p>
+            </div>
+          </div>
+        </td>
+        <td className="py-4 px-4">
+          <p className="text-[#263238]">{primaryOwner?.name || primaryOwner?.email || '--'}</p>
+        </td>
+        <td className="py-4 px-4">
+          <Badge variant={status === 'active' ? 'success' : 'neutral'}>
+            {status === 'active' ? 'Active' : 'Inactive'}
+          </Badge>
+        </td>
+        <td className="py-4 px-4">
+          <p className="text-[#263238]">{bookingCount}</p>
+        </td>
+        <td className="py-4 px-4">
+          {pet.medicalNotes && <Heart className="h-4 w-4 text-orange-500 inline mr-2" title="Medical notes" />}
+          {pet.dietaryNotes && <AlertTriangle className="h-4 w-4 text-blue-500 inline" title="Dietary notes" />}
+        </td>
+      </tr>
+    );
+  };
+
+  // Show empty state if no pets exist at all (not just filtered)
+  const showEmptyState = !isLoading && pets.length === 0;
+
+  return (
+    <div>
+      {/* Page Header */}
+      <PageHeader
+        breadcrumb="Home > Clients > Pets"
+        title="Pets"
+        actions={
+          !showEmptyState && !isLoading && (
+            <>
+              <Button variant="outline" size="sm">
+                <Upload className="h-4 w-4 mr-2" />
+                Import
+              </Button>
+              <Button variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+              <Button variant="outline" size="sm">
+                <Syringe className="h-4 w-4 mr-2" />
+                Vaccination Report
+              </Button>
+              <Button variant="outline" size="sm">
+                <Filter className="h-4 w-4 mr-2" />
+                Advanced Filters
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => setPetFormModalOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Pet
+              </Button>
+            </>
+          )
         }
       />
 
-      {/* Import Modal */}
-      {importModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Import Pets</h2>
-              <button
-                onClick={() => setImportModalOpen(false)}
-                className="rounded p-1 hover:bg-gray-100"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="mb-4">
-              <p className="mb-2 text-sm text-gray-600">
-                Upload a CSV file with the following columns:
-              </p>
-              <ul className="mb-4 list-disc pl-5 text-sm text-gray-600">
-                <li>Name (required)</li>
-                <li>Breed</li>
-                <li>Status (active/inactive)</li>
-                <li>Medical Notes</li>
-                <li>Dietary Notes</li>
-              </ul>
+      {/* Show Empty State if no pets exist */}
+      {showEmptyState ? (
+        <EmptyStatePets
+          onAddPet={() => setPetFormModalOpen(true)}
+          onImport={() => setShowImportModal(true)}
+        />
+      ) : (
+        <>
+
+      {/* Summary Cards */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5 mb-6">
+        {isLoading ? (
+          Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-lg" />
+          ))
+        ) : (
+          <>
+            <Card>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-[#64748B]">Total Pets</p>
+                  <p className="text-2xl font-bold text-[#263238]">{stats.total}</p>
+                </div>
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <PawPrint className="h-6 w-6 text-blue-600" />
+                </div>
+              </div>
+            </Card>
+
+            <Card>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-[#64748B]">Active Pets</p>
+                  <p className="text-2xl font-bold text-[#263238]">{stats.active}</p>
+                </div>
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                  <Heart className="h-6 w-6 text-green-600" />
+                </div>
+              </div>
+            </Card>
+
+            <Card>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-[#64748B]">With Bookings</p>
+                  <p className="text-2xl font-bold text-[#263238]">{stats.withBookings}</p>
+                </div>
+                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <Calendar className="h-6 w-6 text-purple-600" />
+                </div>
+              </div>
+            </Card>
+
+            <Card className={stats.expiringVaccinations > 0 ? 'border-yellow-300 bg-yellow-50' : ''}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-[#64748B]">Expiring Vaccines</p>
+                  <p className="text-2xl font-bold text-[#263238]">{stats.expiringVaccinations}</p>
+                  {stats.expiringVaccinations > 0 && (
+                    <p className="text-xs text-yellow-700 mt-1">Needs attention</p>
+                  )}
+                </div>
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                  stats.expiringVaccinations > 0 ? 'bg-yellow-200' : 'bg-yellow-100'
+                }`}>
+                  <Syringe className={`h-6 w-6 ${
+                    stats.expiringVaccinations > 0 ? 'text-yellow-700' : 'text-yellow-600'
+                  }`} />
+                </div>
+              </div>
+            </Card>
+
+            <Card>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-[#64748B]">Inactive</p>
+                  <p className="text-2xl font-bold text-[#263238]">{stats.inactive}</p>
+                </div>
+                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                  <Users className="h-6 w-6 text-gray-600" />
+                </div>
+              </div>
+            </Card>
+          </>
+        )}
+      </div>
+
+      {/* Filters and View Toggle */}
+      <Card className="mb-6">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <div className="flex items-center gap-4 flex-1">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#64748B]" />
               <input
-                type="file"
-                accept=".csv"
-                onChange={handleImport}
-                className="block w-full text-sm text-gray-500 file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-primary/90"
+                type="text"
+                placeholder="Search pets..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-[#E0E0E0] rounded-md focus:outline-none focus:ring-2 focus:ring-[#4B5DD3] focus:border-transparent"
               />
             </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" size="sm" onClick={() => setImportModalOpen(false)}>
-                Cancel
-              </Button>
+
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-2 border border-[#E0E0E0] rounded-md focus:outline-none focus:ring-2 focus:ring-[#4B5DD3] focus:border-transparent"
+            >
+              <option value="ALL">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="text-sm text-[#64748B]">
+              Showing {filteredPets.length} of {pets.length} pets
+            </div>
+            <div className="flex border border-[#E0E0E0] rounded-md">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 ${viewMode === 'grid' ? 'bg-[#4B5DD3] text-white' : 'text-[#64748B] hover:bg-gray-100'}`}
+              >
+                <Grid3x3 className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 ${viewMode === 'list' ? 'bg-[#4B5DD3] text-white' : 'text-[#64748B] hover:bg-gray-100'}`}
+              >
+                <List className="h-4 w-4" />
+              </button>
             </div>
           </div>
         </div>
-      )}
+      </Card>
 
-      {/* Pet Form Modal */}
+      {/* Pets Display */}
+      <Card>
+        {isLoading ? (
+          viewMode === 'grid' ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-48 rounded-lg" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          )
+        ) : filteredPets.length === 0 ? (
+          <div className="text-center py-12">
+            <PawPrint className="h-12 w-12 text-[#64748B] mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-[#263238] mb-2">No Pets Found</h3>
+            <p className="text-[#64748B] mb-4">
+              {searchTerm || statusFilter !== 'ALL'
+                ? 'Try adjusting your search or filters.'
+                : 'Get started by adding your first pet.'}
+            </p>
+            <Button onClick={() => setPetFormModalOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Pet
+            </Button>
+          </div>
+        ) : viewMode === 'grid' ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {filteredPets.map((pet) => (
+              <PetCard key={pet.recordId} pet={pet} />
+            ))}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[#E0E0E0]">
+                  <th className="text-left py-3 px-4 font-semibold text-[#263238]">Pet</th>
+                  <th className="text-left py-3 px-4 font-semibold text-[#263238]">Owner</th>
+                  <th className="text-left py-3 px-4 font-semibold text-[#263238]">Status</th>
+                  <th className="text-left py-3 px-4 font-semibold text-[#263238]">Bookings</th>
+                  <th className="text-left py-3 px-4 font-semibold text-[#263238]">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredPets.map((pet) => (
+                  <PetRow key={pet.recordId} pet={pet} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
       <PetFormModal
         open={petFormModalOpen}
-        onClose={() => {
-          setPetFormModalOpen(false);
-          setSelectedPet(null);
-        }}
-        onSubmit={handlePetFormSubmit}
-        pet={selectedPet}
-        isLoading={createPetMutation.isPending || updatePetMutation.isPending}
+        onClose={() => setPetFormModalOpen(false)}
+        onSubmit={() => {}}
       />
-    </>
+        </>
+      )}
+    </div>
   );
 };
 

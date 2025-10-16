@@ -1,4 +1,4 @@
-import { TicketIcon } from 'lucide-react';
+import { Ticket } from 'lucide-react';
 import ObjectSetup from '@/components/shared/ObjectSetup';
 
 const TicketsSetup = () => {
@@ -7,7 +7,7 @@ const TicketsSetup = () => {
       objectName="tickets"
       objectLabel="Tickets"
       description="Configure ticket records, workflows, and support settings"
-      icon={TicketIcon}
+      icon={Ticket}
     >
       {/* Setup tab content - will be implemented later */}
       <div className="space-y-6">

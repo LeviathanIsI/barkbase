@@ -170,14 +170,14 @@ const Header = ({ onMenuToggle }) => {
   };
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-border/70 bg-surface/95 px-4 backdrop-blur">
+    <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-border/30 gradient-indigo px-6 text-white shadow-sm">
       <Button variant="ghost" size="icon" className="lg:hidden" onClick={onMenuToggle}>
-        <Menu className="h-5 w-5" />
+        <Menu className="h-5 w-5 text-white" />
       </Button>
       <div className="flex flex-1 items-center justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-wide text-muted">{tenant?.customDomain ?? tenant?.slug}</p>
-          <h1 className="text-lg font-semibold text-text">{tenant?.name ?? 'BarkBase'}</h1>
+          <p className="text-xs uppercase tracking-wide text-white/80">{tenant?.customDomain ?? tenant?.slug}</p>
+          <h1 className="text-lg font-semibold text-white">{tenant?.name ?? 'BarkBase'}</h1>
         </div>
         <div className="flex items-center gap-3">
           <Badge variant="neutral" className="uppercase">
@@ -185,6 +185,9 @@ const Header = ({ onMenuToggle }) => {
           </Badge>
           {import.meta.env.DEV ? (
             <div className="flex items-center gap-2">
+              <Badge variant="success" className="text-xs bg-green-500 text-white">
+                ENTERPRISE
+              </Badge>
               <Badge variant="warning" className="text-xs">
                 DEV
               </Badge>

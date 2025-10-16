@@ -1,36 +1,57 @@
-import { useState, useEffect } from 'react';
-import { Plus, Search, Filter, Building2, MapPin } from 'lucide-react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
-import Card from '@/components/ui/Card';
+import { useState, useMemo } from 'react';
+import { Plus, Search, Building, MapPin, Settings, Home, AlertTriangle } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import Input from '@/components/ui/Input';
+import { Card, PageHeader } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
-import Select from '@/components/ui/Select';
-import KennelList from '../components/KennelList';
+import Skeleton from '@/components/ui/Skeleton';
 import KennelForm from '../components/KennelForm';
 import { useKennels, useDeleteKennel } from '../api';
 import { useTerminology } from '@/lib/terminology';
-import { toast } from 'sonner';
+import toast from 'react-hot-toast';
 
 const Kennels = () => {
   const terminology = useTerminology();
   const [showForm, setShowForm] = useState(false);
   const [selectedKennel, setSelectedKennel] = useState(null);
-  const [filters, setFilters] = useState({
-    search: '',
-    type: '',
-    building: '',
-    isActive: ''
-  });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
 
-  const { data: kennels = [], isLoading, error } = useKennels(filters);
+  const { data: kennels = [], isLoading, error } = useKennels();
   const deleteMutation = useDeleteKennel();
 
-  useEffect(() => {
-    if (error) {
-      toast.error('Failed to load kennels');
-    }
-  }, [error]);
+  // Calculate enhanced kennel data with metrics
+  const kennelsWithMetrics = useMemo(() => {
+    return kennels.map((kennel) => ({
+      ...kennel,
+      utilizationRate: kennel.capacity > 0 ? Math.round((kennel.occupied || 0) / kennel.capacity * 100) : 0,
+      status: kennel.isActive ? 'Active' : 'Inactive',
+    }));
+  }, [kennels]);
+
+  // Filter kennels based on search and status
+  const filteredKennels = useMemo(() => {
+    return kennelsWithMetrics.filter(kennel => {
+      const matchesSearch = !searchTerm ||
+        kennel.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        kennel.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        kennel.building?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesStatus = statusFilter === 'ALL' ||
+        (statusFilter === 'ACTIVE' && kennel.isActive) ||
+        (statusFilter === 'INACTIVE' && !kennel.isActive);
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [kennelsWithMetrics, searchTerm, statusFilter]);
+
+  // Calculate stats
+  const stats = {
+    total: kennels.length,
+    active: kennels.filter(k => k.isActive).length,
+    totalCapacity: kennels.reduce((sum, k) => sum + (k.capacity || 0), 0),
+    occupiedCapacity: kennels.reduce((sum, k) => sum + (k.occupied || 0), 0),
+    buildings: [...new Set(kennels.map(k => k.building).filter(Boolean))].length || 1,
+  };
 
   const handleEdit = (kennel) => {
     setSelectedKennel(kennel);
@@ -60,164 +81,225 @@ const Kennels = () => {
     toast.success(selectedKennel ? 'Kennel updated successfully' : 'Kennel created successfully');
   };
 
-  // Get unique buildings and types for filters
-  const buildings = [...new Set(kennels.map(k => k.building).filter(Boolean))];
-  const types = [...new Set(kennels.map(k => k.type))];
-
-  // Filter kennels based on search and filters
-  const filteredKennels = kennels.filter(kennel => {
-    const matchesSearch = !filters.search || 
-      kennel.name.toLowerCase().includes(filters.search.toLowerCase()) ||
-      kennel.location?.toLowerCase().includes(filters.search.toLowerCase());
-    
-    const matchesType = !filters.type || kennel.type === filters.type;
-    const matchesBuilding = !filters.building || kennel.building === filters.building;
-    const matchesActive = filters.isActive === '' || kennel.isActive === (filters.isActive === 'true');
-    
-    return matchesSearch && matchesType && matchesBuilding && matchesActive;
-  });
-
-  // Group kennels by building/zone
-  const groupedKennels = filteredKennels.reduce((acc, kennel) => {
-    const key = kennel.building || 'Other';
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(kennel);
-    return acc;
-  }, {});
-
-  return (
-    <DashboardLayout
-      title={`${terminology.kennel} Management`}
-      description={`Manage your facility's ${terminology.kennel.toLowerCase()}s, rooms, and accommodations`}
-      actions={
-        <Button onClick={() => setShowForm(true)} leftIcon={<Plus className="h-4 w-4" />}>
-          Add {terminology.kennel}
-        </Button>
-      }
-    >
-      {/* Filters */}
-      <Card className="mb-6">
-        <div className="grid gap-4 md:grid-cols-4">
-          <Input
-            placeholder={`Search ${terminology.kennel.toLowerCase()}s...`}
-            value={filters.search}
-            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-            leftIcon={<Search className="h-4 w-4" />}
-          />
-          <Select
-            value={filters.type}
-            onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value }))}
-          >
-            <option value="">All Types</option>
-            {types.map(type => (
-              <option key={type} value={type}>
-                {terminology[type.toLowerCase()] || type}
-              </option>
-            ))}
-          </Select>
-          <Select
-            value={filters.building}
-            onChange={(e) => setFilters(prev => ({ ...prev, building: e.target.value }))}
-          >
-            <option value="">All Buildings</option>
-            {buildings.map(building => (
-              <option key={building} value={building}>{building}</option>
-            ))}
-          </Select>
-          <Select
-            value={filters.isActive}
-            onChange={(e) => setFilters(prev => ({ ...prev, isActive: e.target.value }))}
-          >
-            <option value="">All Status</option>
-            <option value="true">Active</option>
-            <option value="false">Inactive</option>
-          </Select>
-        </div>
-      </Card>
-
-      {/* Summary Stats */}
-      <div className="grid gap-4 md:grid-cols-4 mb-6">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted">Total {terminology.kennel}s</p>
-              <p className="text-2xl font-semibold">{kennels.length}</p>
-            </div>
-            <Building2 className="h-8 w-8 text-muted/20" />
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted">Active</p>
-              <p className="text-2xl font-semibold">{kennels.filter(k => k.isActive).length}</p>
-            </div>
-            <Badge variant="success" className="h-6">Active</Badge>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted">Total Capacity</p>
-              <p className="text-2xl font-semibold">{kennels.reduce((sum, k) => sum + k.capacity, 0)}</p>
-            </div>
-            <div className="text-sm text-muted">pets</div>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted">Buildings</p>
-              <p className="text-2xl font-semibold">{buildings.length || 1}</p>
-            </div>
-            <MapPin className="h-8 w-8 text-muted/20" />
+  if (error) {
+    return (
+      <div>
+        <PageHeader title="Kennels" breadcrumb="Home > Operations > Kennels" />
+        <Card>
+          <div className="text-center py-12">
+            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-[#263238] mb-2">Error Loading Kennels</h3>
+            <p className="text-[#64748B]">Unable to load kennel data. Please try again.</p>
           </div>
         </Card>
       </div>
+    );
+  }
 
-      {/* Kennels List */}
-      {isLoading ? (
-        <Card>
-          <div className="flex items-center justify-center h-64">
-            <div className="text-muted">Loading {terminology.kennel.toLowerCase()}s...</div>
+  const KennelCard = ({ kennel }) => {
+    return (
+      <Card className="hover:shadow-lg transition-all duration-200">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 bg-gradient-to-r from-[#4B5DD3] to-[#3A4BC2] rounded-lg flex items-center justify-center">
+                <Building className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-[#263238]">{kennel.name}</h3>
+                <p className="text-sm text-[#64748B]">{kennel.location || 'No location'}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 text-sm text-[#64748B]">
+              <div className="flex items-center gap-1">
+                <Home className="h-4 w-4" />
+                <span>{kennel.building || 'No building'}</span>
+              </div>
+              <Badge variant={kennel.isActive ? 'success' : 'neutral'}>
+                {kennel.status}
+              </Badge>
+            </div>
           </div>
-        </Card>
-      ) : filteredKennels.length === 0 ? (
-        <Card>
-          <div className="flex flex-col items-center justify-center h-64 space-y-4">
-            <Building2 className="h-12 w-12 text-muted/20" />
-            <p className="text-muted">
-              {filters.search || filters.type || filters.building || filters.isActive !== '' 
-                ? `No ${terminology.kennel.toLowerCase()}s match your filters`
-                : `No ${terminology.kennel.toLowerCase()}s found. Add your first one!`
-              }
-            </p>
-            {kennels.length === 0 && (
-              <Button onClick={() => setShowForm(true)} leftIcon={<Plus className="h-4 w-4" />}>
-                Add First {terminology.kennel}
-              </Button>
-            )}
+
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => handleEdit(kennel)}>
+              <Settings className="h-4 w-4" />
+            </Button>
           </div>
-        </Card>
-      ) : (
-        <div className="space-y-6">
-          {Object.entries(groupedKennels).map(([building, buildingKennels]) => (
-            <div key={building}>
-              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
-                {building}
-                <Badge variant="secondary">{buildingKennels.length}</Badge>
-              </h3>
-              <KennelList
-                kennels={buildingKennels}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                terminology={terminology}
+        </div>
+
+        <div className="grid grid-cols-3 gap-4 mb-4">
+          <div className="text-center">
+            <p className="text-2xl font-bold text-[#4B5DD3]">{kennel.capacity || 0}</p>
+            <p className="text-xs text-[#64748B]">Capacity</p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-bold text-[#4CAF50]">{kennel.occupied || 0}</p>
+            <p className="text-xs text-[#64748B]">Occupied</p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-bold text-[#FF9800]">{kennel.utilizationRate}%</p>
+            <p className="text-xs text-[#64748B]">Utilization</p>
+          </div>
+        </div>
+
+        <div className="w-full bg-[#F5F6FA] rounded-full h-2 mb-2">
+          <div
+            className="bg-gradient-to-r from-[#4B5DD3] to-[#3A4BC2] h-2 rounded-full transition-all duration-300"
+            style={{ width: `${kennel.utilizationRate}%` }}
+          />
+        </div>
+
+        <div className="flex items-center justify-between text-xs text-[#64748B]">
+          <span>Type: {kennel.type}</span>
+          <span>{(kennel.capacity || 0) - (kennel.occupied || 0)} spots available</span>
+        </div>
+      </Card>
+    );
+  };
+
+  return (
+    <div>
+      {/* Page Header */}
+      <PageHeader
+        breadcrumb="Home > Operations > Kennels"
+        title="Kennel Management"
+        actions={
+          <>
+            <Button variant="outline" size="sm">
+              Settings
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setShowForm(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Kennel
+            </Button>
+          </>
+        }
+      />
+
+      {/* Summary Cards */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-lg" />
+          ))
+        ) : (
+          <>
+            <Card>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-[#64748B]">Total Kennels</p>
+                  <p className="text-2xl font-bold text-[#263238]">{stats.total}</p>
+                </div>
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Building className="h-6 w-6 text-blue-600" />
+                </div>
+              </div>
+            </Card>
+
+            <Card>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-[#64748B]">Active Kennels</p>
+                  <p className="text-2xl font-bold text-[#263238]">{stats.active}</p>
+                </div>
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                  <Home className="h-6 w-6 text-green-600" />
+                </div>
+              </div>
+            </Card>
+
+            <Card>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-[#64748B]">Total Capacity</p>
+                  <p className="text-2xl font-bold text-[#263238]">{stats.totalCapacity}</p>
+                  <p className="text-xs text-[#64748B] mt-1">{stats.occupiedCapacity} occupied</p>
+                </div>
+                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <MapPin className="h-6 w-6 text-purple-600" />
+                </div>
+              </div>
+            </Card>
+
+            <Card>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-[#64748B]">Buildings</p>
+                  <p className="text-2xl font-bold text-[#263238]">{stats.buildings}</p>
+                </div>
+                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <Building className="h-6 w-6 text-orange-600" />
+                </div>
+              </div>
+            </Card>
+          </>
+        )}
+      </div>
+
+      {/* Filters and Search */}
+      <Card className="mb-6">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <div className="flex items-center gap-4 flex-1">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#64748B]" />
+              <input
+                type="text"
+                placeholder="Search kennels..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-[#E0E0E0] rounded-md focus:outline-none focus:ring-2 focus:ring-[#4B5DD3] focus:border-transparent"
               />
             </div>
-          ))}
+
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-2 border border-[#E0E0E0] rounded-md focus:outline-none focus:ring-2 focus:ring-[#4B5DD3] focus:border-transparent"
+            >
+              <option value="ALL">All Status</option>
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+            </select>
+          </div>
+
+          <div className="text-sm text-[#64748B]">
+            Showing {filteredKennels.length} of {kennels.length} kennels
+          </div>
         </div>
-      )}
+      </Card>
+
+      {/* Kennels Grid */}
+      <Card>
+        {isLoading ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-48 rounded-lg" />
+            ))}
+          </div>
+        ) : filteredKennels.length === 0 ? (
+          <div className="text-center py-12">
+            <Building className="h-12 w-12 text-[#64748B] mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-[#263238] mb-2">No Kennels Found</h3>
+            <p className="text-[#64748B] mb-4">
+              {searchTerm || statusFilter !== 'ALL'
+                ? 'Try adjusting your search or filters.'
+                : 'Get started by adding your first kennel.'}
+            </p>
+            <Button onClick={() => setShowForm(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Kennel
+            </Button>
+          </div>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {filteredKennels.map((kennel) => (
+              <KennelCard key={kennel.recordId} kennel={kennel} />
+            ))}
+          </div>
+        )}
+      </Card>
 
       {/* Kennel Form Modal */}
       {showForm && (
@@ -228,7 +310,7 @@ const Kennels = () => {
           terminology={terminology}
         />
       )}
-    </DashboardLayout>
+    </div>
   );
 };
 

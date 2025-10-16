@@ -6,6 +6,7 @@ import { enqueueRequest } from '@/lib/offlineQueue';
 // In production, VITE_API_URL should be set to the backend URL
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
 let forcingLogout = false;
+let refreshPromise = null;
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -96,6 +97,9 @@ const isTransientError = (error) => {
 };
 
 const tryRefresh = async () => {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
   const tenantSlug = useTenantStore.getState().tenant?.slug ?? 'default';
   const authState = useAuthStore.getState();
   const { rememberMe, refreshToken } = authState;
@@ -112,30 +116,49 @@ const tryRefresh = async () => {
     body = JSON.stringify({ refreshToken });
   }
 
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+        headers,
+        body,
+      });
+
+      if (response.status === 429 && attempt < 1) {
+        await wait(300 + Math.floor(Math.random() * 200));
+        continue;
+      }
+
+      if (!response.ok) {
+        return false;
+      }
+
+      const payload = await asJson(response);
+      if (!payload?.accessToken) {
+        return false;
+      }
+
+      useAuthStore.getState().updateTokens({ accessToken: payload.accessToken, role: payload.role });
+      return true;
+    } catch (error) {
+      if (isTransientError(error) && attempt < 1) {
+        await wait(300 + Math.floor(Math.random() * 200));
+        continue;
+      }
+      if (error.name === 'AbortError') {
+        throw error;
+      }
+      return false;
+    }
+  }
+  return false;
+  })();
+
   try {
-    const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
-      method: 'POST',
-      credentials: 'include',
-      headers,
-      body,
-    });
-
-    if (!response.ok) {
-      return false;
-    }
-
-    const payload = await asJson(response);
-    if (!payload?.accessToken) {
-      return false;
-    }
-
-    useAuthStore.getState().updateTokens({ accessToken: payload.accessToken, role: payload.role });
-    return true;
-  } catch (error) {
-    if (error.name === 'AbortError') {
-      throw error;
-    }
-    return false;
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
   }
 };
 
@@ -145,6 +168,7 @@ export const apiClient = async (path, options = {}) => {
     body,
     headers = {},
     signal,
+    params,
     ...rest
   } = options;
 
@@ -195,7 +219,25 @@ export const apiClient = async (path, options = {}) => {
     ...rest,
   };
 
-  const url = `${API_BASE_URL}${path}`;
+  // serialize params if provided
+  let url = `${API_BASE_URL}${path}`;
+  if (params && typeof params === 'object') {
+    const usp = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === undefined || value === null) return;
+      if (Array.isArray(value)) {
+        value.forEach((v) => usp.append(key, String(v)));
+      } else if (typeof value === 'boolean') {
+        usp.append(key, value ? 'true' : 'false');
+      } else {
+        usp.append(key, String(value));
+      }
+    });
+    const qs = usp.toString();
+    if (qs) {
+      url += (url.includes('?') ? '&' : '?') + qs;
+    }
+  }
   let lastError = null;
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -208,9 +250,13 @@ export const apiClient = async (path, options = {}) => {
       const response = await fetch(url, init);
 
       if (response.status === 401) {
+        // Don't logout immediately - try to refresh first
         const refreshed = await tryRefresh();
         if (!refreshed) {
-          triggerLogout();
+          // For GET requests, don't force logout; surface the 401 and let UI handle it
+          if (methodUpper !== 'GET' && !url.includes('/auth/refresh')) {
+            triggerLogout();
+          }
           throw new Error('Unauthorized');
         }
 

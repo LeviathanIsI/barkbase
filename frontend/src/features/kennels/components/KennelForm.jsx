@@ -7,7 +7,7 @@ import Textarea from '@/components/ui/Textarea';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { useCreateKennel, useUpdateKennel } from '../api';
-import { toast } from 'sonner';
+import toast from 'react-hot-toast';
 
 const AMENITY_OPTIONS = [
   'Climate Controlled',

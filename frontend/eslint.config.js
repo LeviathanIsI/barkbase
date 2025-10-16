@@ -27,6 +27,18 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // Prevent importing from deprecated/duplicate component locations
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/components/primitives/Badge'],
+              message: 'Use @/components/ui/Badge instead - primitives/Badge is a legacy shim.',
+            },
+          ],
+        },
+      ],
     },
   },
   {

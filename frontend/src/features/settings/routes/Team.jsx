@@ -1,4 +1,7 @@
-// Re-export Members component as Team for the new settings structure
-import Members from './Members';
+import TeamOverview from './TeamOverview';
 
-export default Members;
+const Team = () => {
+  return <TeamOverview />;
+};
+
+export default Team;

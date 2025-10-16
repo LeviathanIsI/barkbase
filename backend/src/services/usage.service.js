@@ -14,6 +14,9 @@ const planLimitError = (message, meta = {}) =>
 const ensureUsageCounter = async ({ tenantId, periodStart, tx, snapshot }) => {
   const client = tx ?? prisma;
   try {
+    // Always set tenant RLS context on the client we are using
+    await client.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
+
     await client.usageCounter.upsert({
       where: { tenantId_date: { tenantId, date: periodStart } },
       create: {
@@ -29,8 +32,8 @@ const ensureUsageCounter = async ({ tenantId, periodStart, tx, snapshot }) => {
         staffSeats: snapshot.seats.used,
       },
     });
-  } catch (error) {
-    // The usageCounter table is advisory; ignore upsert failures so primary queries still succeed.
+  } catch (_error) {
+    // Advisory only: ignore failures (e.g., RLS or race conditions)
   }
 };
 
@@ -142,17 +145,24 @@ const incrementBookingsUsage = async ({ tenantId, snapshot, tx, increment = 1, n
         staffSeats,
       };
 
-  await client.usageCounter.upsert({
-    where: { tenantId_date: { tenantId, date: periodStart } },
-    create: {
-      tenantId,
-      date: periodStart,
-      bookings: nextBookings,
-      activePets,
-      staffSeats,
-    },
-    update: updateData,
-  });
+  try {
+    // Always set tenant RLS context on the client
+    await client.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
+
+    await client.usageCounter.upsert({
+      where: { tenantId_date: { tenantId, date: periodStart } },
+      create: {
+        tenantId,
+        date: periodStart,
+        bookings: nextBookings,
+        activePets,
+        staffSeats,
+      },
+      update: updateData,
+    });
+  } catch (_error) {
+    // Advisory only: ignore failures
+  }
 };
 
 const assertSeatAndInviteCapacity = async ({

@@ -10,7 +10,7 @@ const Input = ({ label, helper, className, ...props }) => {
       )}
       <input
         className={cn(
-          'w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20',
+          'w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text placeholder:text-muted shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:shadow-md transition-all',
           'disabled:cursor-not-allowed disabled:opacity-50',
           className
         )}

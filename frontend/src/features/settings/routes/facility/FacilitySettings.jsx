@@ -1,0 +1,98 @@
+import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Home, BarChart3, MapPin, Star, FileText, Settings } from 'lucide-react';
+import Card from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
+import AccommodationsTab from './tabs/AccommodationsTab';
+import CapacityTab from './tabs/CapacityTab';
+import LocationsTab from './tabs/LocationsTab';
+import AmenitiesTab from './tabs/AmenitiesTab';
+import RulesTab from './tabs/RulesTab';
+import SetupTab from './tabs/SetupTab';
+
+const TABS = [
+  { id: 'accommodations', label: 'Accommodations', icon: Home },
+  { id: 'capacity', label: 'Capacity', icon: BarChart3 },
+  { id: 'locations', label: 'Locations', icon: MapPin },
+  { id: 'amenities', label: 'Amenities', icon: Star },
+  { id: 'rules', label: 'Rules', icon: FileText },
+  { id: 'setup', label: 'Setup', icon: Settings },
+];
+
+export default function FacilitySettings() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'accommodations';
+
+  const handleTabChange = (tabId) => {
+    setSearchParams({ tab: tabId });
+  };
+
+  const handleSave = async () => {
+    // TODO: Implement API call to save facility settings
+    console.log('Saving facility settings for tab:', activeTab);
+  };
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'accommodations':
+        return <AccommodationsTab />;
+      case 'capacity':
+        return <CapacityTab />;
+      case 'locations':
+        return <LocationsTab />;
+      case 'amenities':
+        return <AmenitiesTab />;
+      case 'rules':
+        return <RulesTab />;
+      case 'setup':
+        return <SetupTab />;
+      default:
+        return <AccommodationsTab />;
+    }
+  };
+
+  return (
+    <div className="p-6">
+      {/* Breadcrumb */}
+      <div className="text-sm text-gray-500 mb-2">Home &gt; Facility</div>
+
+      {/* Page Header */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-semibold text-gray-900">Facility</h1>
+        <p className="text-gray-600">Kennels, locations, and inventory</p>
+      </div>
+
+      {/* Sub-Tab Navigation */}
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="flex space-x-8">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => handleTabChange(tab.id)}
+              className={`
+                flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm
+                ${activeTab === tab.id
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }
+              `}
+            >
+              <tab.icon className="w-5 h-5" />
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        {renderTabContent()}
+      </div>
+
+      {/* Sticky Save Button */}
+      <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex justify-end mt-6">
+        <Button onClick={handleSave}>Save Changes</Button>
+      </div>
+    </div>
+  );
+}

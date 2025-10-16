@@ -31,10 +31,7 @@ const NAV_SECTIONS = [
   { recordId: "facility-management",
     title: "Facility Management",
     items: [
-      { label: "Accommodations", to: "/settings/facility/accommodations" },
-      { label: "Inventory Management", to: "/settings/facility/inventory" },
-      { label: "Facility Locations", to: "/settings/facility/locations" },
-      { label: "Training & Schedules", to: "/settings/facility/schedules" },
+      { label: "Facility Settings", to: "/settings/facility" },
     ],
   },
   { recordId: "data-management",

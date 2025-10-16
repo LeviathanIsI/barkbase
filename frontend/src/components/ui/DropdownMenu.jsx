@@ -1,7 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, createContext, useContext } from 'react';
 import { cn } from '@/lib/cn';
 
-const DropdownMenu = ({ trigger, children, align = 'right' }) => {
+// Context for dropdown menu state
+const DropdownMenuContext = createContext();
+
+const DropdownMenu = ({ children }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -25,24 +28,41 @@ const DropdownMenu = ({ trigger, children, align = 'right' }) => {
   };
 
   return (
-    <div ref={dropdownRef} className="relative inline-block" onKeyDown={handleKeyDown}>
-      <div onClick={() => setIsOpen(!isOpen)}>{trigger}</div>
-      {isOpen && (
-        <div
-          className={cn(
-            'absolute z-50 mt-2 w-56 rounded-lg border border-border bg-surface shadow-lg ring-1 ring-black/5',
-            align === 'right' ? 'right-0' : 'left-0'
-          )}
-        >
-          <div
-            className="py-1"
-            role="menu"
-            onClick={() => setIsOpen(false)}
-          >
-            {children}
-          </div>
-        </div>
+    <DropdownMenuContext.Provider value={{ isOpen, setIsOpen }}>
+      <div ref={dropdownRef} className="relative inline-block" onKeyDown={handleKeyDown}>
+        {children}
+      </div>
+    </DropdownMenuContext.Provider>
+  );
+};
+
+const DropdownMenuTrigger = ({ asChild, children }) => {
+  const { isOpen, setIsOpen } = useContext(DropdownMenuContext);
+
+  const triggerElement = asChild ? children : <button>{children}</button>;
+
+  return (
+    <div onClick={() => setIsOpen(!isOpen)} className="cursor-pointer">
+      {triggerElement}
+    </div>
+  );
+};
+
+const DropdownMenuContent = ({ children, align = 'right' }) => {
+  const { isOpen } = useContext(DropdownMenuContext);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className={cn(
+        'absolute z-50 mt-2 w-56 rounded-lg border border-border bg-surface shadow-lg ring-1 ring-black/5',
+        align === 'right' ? 'right-0' : 'left-0'
       )}
+    >
+      <div className="py-1" role="menu">
+        {children}
+      </div>
     </div>
   );
 };
@@ -69,5 +89,11 @@ const DropdownMenuSeparator = () => {
   return <div className="my-1 h-px bg-border" role="separator" />;
 };
 
-export { DropdownMenu, DropdownMenuItem, DropdownMenuSeparator };
+export {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator
+};
 export default DropdownMenu;

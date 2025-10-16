@@ -3,6 +3,8 @@ const { forTenant } = require('../lib/tenantPrisma');
 const { getIO } = require('../lib/socket');
 const { resolveTenantFeatures } = require('../lib/features');
 const { assertBookingsLimit, incrementBookingsUsage } = require('./usage.service');
+const { transitionBookingStatus } = require('../lib/bookingStateMachine');
+const { createAuditLog } = require('../lib/audit');
 
 const loadPlanFeatures = async (tenantId, features) => {
   if (features) {
@@ -252,7 +254,7 @@ const updateBooking = async (tenantId, bookingId, payload = {}) => {
   return booking;
 };
 
-const updateBookingStatus = async (tenantId, bookingId, status) => {
+const updateBookingStatus = async (tenantId, bookingId, status, options = {}) => {
   const tenantDb = forTenant(tenantId);
   const existing = await tenantDb.booking.findFirst({
     where: { recordId: bookingId },
@@ -262,10 +264,26 @@ const updateBookingStatus = async (tenantId, bookingId, status) => {
     throw Object.assign(new Error('Booking not found'), { statusCode: 404 });
   }
 
+  // Validate state transition
+  transitionBookingStatus(existing.status, status);
+
   const booking = await tenantDb.booking.update({
     where: { recordId: bookingId },
     data: { status },
     include: defaultIncludes,
+  });
+
+  // Create audit log
+  await createAuditLog({
+    tenantId,
+    userId: options.userId || null,
+    entityType: 'booking',
+    entityId: bookingId,
+    action: 'status_changed',
+    before: { status: existing.status },
+    after: { status },
+    ipAddress: options.ipAddress || null,
+    userAgent: options.userAgent || null,
   });
 
   emitBookingEvent(tenantId, 'booking:updated', booking);

@@ -83,10 +83,13 @@ const AuthLoader = () => {
           console.log('[AuthLoader] Refresh response status:', response.status);
 
           if (!response.ok) {
+            const status = response.status;
             const errorText = await response.text();
-            console.error('[AuthLoader] Refresh failed:', response.status, errorText);
-            // Refresh failed, clear persisted auth state
-            clearAuth();
+            console.warn('[AuthLoader] Refresh failed:', status, errorText);
+            // Only hard-clear on true auth denial
+            if (status === 401 || status === 403) {
+              clearAuth();
+            }
             return;
           }
 

@@ -9,7 +9,7 @@ import {
   UserCheck,
   PawPrint,
   Users,
-  Building2,
+  Building,
   Sparkles,
   Package,
   FileText,
@@ -20,7 +20,7 @@ import {
   Mail,
   Webhook,
   Code,
-  TicketIcon,
+  Ticket,
   BookOpen,
   FileSearch,
   Settings as SettingsIcon,
@@ -51,7 +51,7 @@ const navigationBuckets = [
     items: [
       { to: '/bookings', label: 'Reservations', icon: CalendarCheck2 },
       { to: '/calendar', label: 'Calendar', icon: Calendar },
-      { to: '/kennels', label: 'Kennel Setup', icon: Building2 },
+      { to: '/kennels', label: 'Kennel Setup', icon: Building },
       { to: '/runs', label: 'Run Assignment', icon: Home },
       { to: '/feeding-meds', label: 'Feeding & Meds', icon: Pill },
       { to: '/daycare/checkin', label: 'Daycare Check-in', icon: UserCheck },
@@ -87,9 +87,9 @@ const navigationBuckets = [
   },
   { recordId: 'helpdesk',
     label: 'Help Desk',
-    icon: TicketIcon,
+    icon: Ticket,
     items: [
-      { to: '/support/tickets', label: 'Tickets', icon: TicketIcon },
+      { to: '/support/tickets', label: 'Tickets', icon: Ticket },
       { to: '/support/knowledge-base', label: 'Knowledge Base', icon: BookOpen },
       { to: '/support/logs', label: 'Activity Logs', icon: FileSearch },
     ],
@@ -187,7 +187,7 @@ const BucketedSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
   return (
     <aside
       className={cn(
-        'border-r border-border/80 bg-surface/98 transition-all duration-200',
+        'border-r border-border/30 bg-surface transition-all duration-200 shadow-sm',
         !isMobile && 'lg:sticky lg:top-0 lg:h-screen lg:self-start',
         isMobile
           ? 'flex w-64 flex-col'
@@ -268,8 +268,8 @@ const BucketedSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
                 onClick={onNavigate}
                 className={({ isActive }) =>
                   cn(
-                    'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-primary/10 hover:text-primary mb-1',
-                    isActive && 'bg-primary/15 text-primary',
+                    'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted transition-all duration-200 hover:bg-primary/10 hover:text-primary hover:shadow-sm mb-1',
+                    isActive && 'bg-gradient-to-r from-primary to-primary/80 text-white shadow-md',
                     collapsed && !isMobile && 'justify-center',
                   )
                 }
@@ -287,8 +287,8 @@ const BucketedSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
                 onClick={() => toggleBucket(bucket.recordId)}
                 onKeyDown={(e) => handleKeyDown(e, bucket.recordId)}
                 className={cn(
-                  'group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-primary/10',
-                  isActive ? 'text-primary' : 'text-muted hover:text-primary',
+                  'group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 hover:bg-primary/10 hover:shadow-sm',
+                  isActive ? 'text-primary bg-primary/5' : 'text-muted hover:text-primary',
                   collapsed && !isMobile && 'justify-center',
                 )}
                 aria-expanded={isOpen}
@@ -353,8 +353,8 @@ const BucketedSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
                                     onClick={onNavigate}
                                     className={({ isActive }) =>
                                       cn(
-                                        'group flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-primary/10 hover:text-primary',
-                                        isActive && 'bg-primary/15 text-primary',
+                                        'group flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium text-muted transition-all duration-200 hover:bg-primary/10 hover:text-primary',
+                                        isActive && 'bg-primary/15 text-primary font-semibold',
                                       )
                                     }
                                   >
@@ -377,8 +377,8 @@ const BucketedSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
                         onClick={onNavigate}
                         className={({ isActive }) =>
                           cn(
-                            'group flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-primary/10 hover:text-primary',
-                            isActive && 'bg-primary/15 text-primary',
+                            'group flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted transition-all duration-200 hover:bg-primary/10 hover:text-primary',
+                            isActive && 'bg-primary/15 text-primary font-semibold',
                           )
                         }
                       >

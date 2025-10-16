@@ -2,11 +2,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
+import { useAuthStore } from '@/stores/auth';
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
 export const useCalendarViewQuery = ({ from, to }) => {
   const tenantKey = useTenantKey();
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const isAuthReady = Boolean(accessToken);
+  const tenantInitialized = useTenantStore((state) => state.initialized);
+  const tenantSlug = useTenantStore((state) => state.tenant?.slug);
   const params = new URLSearchParams();
   if (from) params.append('from', from);
   if (to) params.append('to', to);
@@ -14,13 +19,17 @@ export const useCalendarViewQuery = ({ from, to }) => {
   return useQuery({
     queryKey: queryKeys.calendar(tenantKey, { from, to }),
     queryFn: () => apiClient(`/api/v1/calendar?${params.toString()}`),
-    enabled: Boolean(from && to),
+    enabled: Boolean(from && to && isAuthReady && tenantInitialized && tenantSlug),
     staleTime: 30 * 1000,
   });
 };
 
 export const useOccupancyQuery = ({ from, to }) => {
   const tenantKey = useTenantKey();
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const isAuthReady = Boolean(accessToken);
+  const tenantInitialized = useTenantStore((state) => state.initialized);
+  const tenantSlug = useTenantStore((state) => state.tenant?.slug);
   const params = new URLSearchParams();
   if (from) params.append('from', from);
   if (to) params.append('to', to);
@@ -28,7 +37,7 @@ export const useOccupancyQuery = ({ from, to }) => {
   return useQuery({
     queryKey: queryKeys.occupancy(tenantKey, { from, to }),
     queryFn: () => apiClient(`/api/v1/calendar/occupancy?${params.toString()}`),
-    enabled: Boolean(from && to),
+    enabled: Boolean(from && to && isAuthReady && tenantInitialized && tenantSlug),
     staleTime: 30 * 1000,
   });
 };

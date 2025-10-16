@@ -201,10 +201,10 @@ const getSupabaseTenant = async (tenantId) => {
   if (!client) {
     return null;
   }
-  const { data, error } = await client
-    .from('tenants')
-    .select('id, slug, name, plan, settings')
-    .eq('id', tenantId)
+  const { data, error} = await client
+    .from('Tenant')
+    .select('recordId, slug, name, plan, settings')
+    .eq('recordId', tenantId)
     .maybeSingle();
   if (error) {
     throw new Error(error.message);
@@ -242,9 +242,9 @@ const persistTenantSettings = async (tenantId, settings) => {
   const client = getSupabaseClient();
   if (client) {
     const { data, error } = await client
-      .from('tenants')
+      .from('Tenant')
       .update({ settings })
-      .eq('id', tenantId)
+      .eq('recordId', tenantId)
       .select('settings')
       .single();
     if (error) {

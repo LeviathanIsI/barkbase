@@ -1,0 +1,439 @@
+import { useState, useEffect } from 'react';
+import { format } from 'date-fns';
+import { Calendar, List, Activity, Layout, Search, Settings } from 'lucide-react';
+import Button from '@/components/ui/Button';
+import { Card, PageHeader } from '@/components/ui/Card';
+import EnhancedBookingsStats from '../components/EnhancedBookingsStats';
+import QuickActionsBar from '../components/QuickActionsBar';
+import BookingCard from '../components/BookingCard';
+import ListView from '../components/ListView';
+import CalendarView from '../components/CalendarView';
+import TimelineView from '../components/TimelineView';
+import KanbanView from '../components/KanbanView';
+import NewBookingModal from '../components/NewBookingModal';
+import BookingDetailModal from '../components/BookingDetailModal';
+import BatchOperationsPanel from '../components/BatchOperationsPanel';
+import QuickStatsDashboard from '../components/QuickStatsDashboard';
+import OverbookingAlert from '../components/OverbookingAlert';
+import ExportReportingPanel from '../components/ExportReportingPanel';
+import ConflictsWarning from '../components/ConflictsWarning';
+import RecurringBookingModal from '../components/RecurringBookingModal';
+import WaitlistManagement from '../components/WaitlistManagement';
+import AuditLogModal from '../components/AuditLogModal';
+import SmartSearchPanel from '../components/SmartSearchPanel';
+import FilterSortPanel from '../components/FilterSortPanel';
+
+const BookingsOverview = () => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [activeView, setActiveView] = useState('list'); // list, calendar, timeline, kanban
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [showNewBookingModal, setShowNewBookingModal] = useState(false);
+  const [showBookingDetailModal, setShowBookingDetailModal] = useState(false);
+  const [showBatchOperations, setShowBatchOperations] = useState(false);
+  const [showOverbookingAlert, setShowOverbookingAlert] = useState(false);
+  const [showConflictsWarning, setShowConflictsWarning] = useState(false);
+  const [showRecurringModal, setShowRecurringModal] = useState(false);
+  const [showWaitlist, setShowWaitlist] = useState(false);
+  const [showAuditLog, setShowAuditLog] = useState(false);
+  const [showSmartSearch, setShowSmartSearch] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedBookings, setSelectedBookings] = useState(new Set());
+
+  // Mock data - in real app this would come from API
+  const [bookings, setBookings] = useState([
+    {
+      id: 'BK-20251015-001',
+      bookingId: 'BK-20251015-001',
+      pet: {
+        name: 'Max',
+        breed: 'Golden Retriever',
+        age: 3,
+        weight: 75
+      },
+      owner: {
+        name: 'Sarah Johnson',
+        phone: '+1 (555) 123-4567',
+        email: 'sarah.j@email.com'
+      },
+      service: 'Boarding',
+      checkInDate: '2025-10-16',
+      checkOutDate: '2025-10-18',
+      status: 'confirmed',
+      kennel: 'K-1',
+      totalAmount: 314.65,
+      paymentStatus: 'paid',
+      specialNotes: [
+        'Medication: Apoquel 16mg daily with food',
+        'Anxious during thunderstorms'
+      ],
+      customerHistory: {
+        totalVisits: 12,
+        lastVisit: '2025-09-28',
+        lifetimeValue: 3847.50,
+        averageRating: 5.0
+      }
+    },
+    {
+      id: 'BK-20251015-002',
+      bookingId: 'BK-20251015-002',
+      pet: {
+        name: 'Bella',
+        breed: 'Labrador',
+        age: 2,
+        weight: 65
+      },
+      owner: {
+        name: 'Mike Thompson',
+        phone: '+1 (555) 234-5678',
+        email: 'mike.w@email.com'
+      },
+      service: 'Daycare',
+      checkInDate: '2025-10-15',
+      checkOutDate: '2025-10-15',
+      status: 'pending',
+      totalAmount: 45.00,
+      paymentStatus: 'pending',
+      late: true,
+      lateBy: '30 mins',
+      specialNotes: ['Regular daycare visitor'],
+      customerHistory: {
+        totalVisits: 8,
+        lastVisit: '2025-10-10',
+        lifetimeValue: 1245.00,
+        averageRating: 4.5
+      }
+    },
+    {
+      id: 'BK-20251015-003',
+      bookingId: 'BK-20251015-003',
+      pet: {
+        name: 'Charlie',
+        breed: 'Beagle',
+        age: 1,
+        weight: 25
+      },
+      owner: {
+        name: 'Tom Brown',
+        phone: '+1 (555) 456-7890',
+        email: 'tom.b@email.com'
+      },
+      service: 'Daycare',
+      checkInDate: '2025-10-15',
+      checkOutDate: '2025-10-15',
+      status: 'checked_in',
+      checkInTime: '08:30 AM',
+      checkOutTime: '03:45 PM',
+      totalAmount: 40.00,
+      paymentStatus: 'paid',
+      activities: [
+        { time: '10:00 AM', activity: 'Morning play group' },
+        { time: '12:00 PM', activity: 'Lunch' },
+        { time: '2:00 PM', activity: 'Afternoon rest' }
+      ],
+      customerHistory: {
+        totalVisits: 3,
+        lastVisit: '2025-10-14',
+        lifetimeValue: 387.50,
+        averageRating: 4.8
+      }
+    }
+  ]);
+
+  const [filters, setFilters] = useState({
+    status: ['confirmed', 'pending', 'checked_in', 'checked_out'],
+    services: ['boarding', 'daycare', 'grooming'],
+    dateRange: null,
+    paymentStatus: [],
+    specialFlags: []
+  });
+
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Set document title
+  useEffect(() => {
+    document.title = 'Bookings | BarkBase';
+    return () => {
+      document.title = 'BarkBase';
+    };
+  }, []);
+
+  const handleBookingClick = (booking) => {
+    setSelectedBooking(booking);
+    setShowBookingDetailModal(true);
+  };
+
+  const handleViewChange = (view) => {
+    setActiveView(view);
+  };
+
+  const handleBookingSelect = (bookingId) => {
+    const newSelected = new Set(selectedBookings);
+    if (newSelected.has(bookingId)) {
+      newSelected.delete(bookingId);
+    } else {
+      newSelected.add(bookingId);
+    }
+    setSelectedBookings(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    const allIds = filteredBookings.map(b => b.id);
+    setSelectedBookings(new Set(allIds));
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedBookings(new Set());
+  };
+
+  // Filter and search bookings
+  const filteredBookings = bookings.filter(booking => {
+    // Search filter
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      const matchesSearch =
+        booking.pet.name.toLowerCase().includes(term) ||
+        booking.owner.name.toLowerCase().includes(term) ||
+        booking.bookingId.toLowerCase().includes(term) ||
+        booking.service.toLowerCase().includes(term);
+      if (!matchesSearch) return false;
+    }
+
+    // Status filter
+    if (!filters.status.includes(booking.status)) return false;
+
+    // Service filter
+    if (!filters.services.includes(booking.service.toLowerCase())) return false;
+
+    return true;
+  });
+
+  return (
+    <div className="space-y-6">
+      {/* Page Header with View Toggle */}
+      <PageHeader
+        breadcrumb="Home > Operations > Bookings"
+        title="Bookings"
+        subtitle="Complete booking management with conflict detection and automated workflows"
+        actions={
+          <div className="flex items-center gap-2">
+            {/* View Toggle */}
+            <div className="flex items-center bg-gray-100 rounded-lg p-1">
+              <Button
+                variant={activeView === 'list' ? 'primary' : 'ghost'}
+                size="sm"
+                onClick={() => handleViewChange('list')}
+                className="px-3"
+              >
+                <List className="h-4 w-4 mr-2" />
+                List
+              </Button>
+              <Button
+                variant={activeView === 'calendar' ? 'primary' : 'ghost'}
+                size="sm"
+                onClick={() => handleViewChange('calendar')}
+                className="px-3"
+              >
+                <Calendar className="h-4 w-4 mr-2" />
+                Calendar
+              </Button>
+              <Button
+                variant={activeView === 'timeline' ? 'primary' : 'ghost'}
+                size="sm"
+                onClick={() => handleViewChange('timeline')}
+                className="px-3"
+              >
+                <Activity className="h-4 w-4 mr-2" />
+                Timeline
+              </Button>
+              <Button
+                variant={activeView === 'kanban' ? 'primary' : 'ghost'}
+                size="sm"
+                onClick={() => handleViewChange('kanban')}
+                className="px-3"
+              >
+                <Layout className="h-4 w-4 mr-2" />
+                Kanban
+              </Button>
+            </div>
+
+            {/* Action Buttons */}
+            <Button variant="outline" size="sm" onClick={() => setShowFilters(true)}>
+              <Settings className="h-4 w-4 mr-2" />
+              Filters
+            </Button>
+          </div>
+        }
+      />
+
+      {/* Enhanced Stats Dashboard */}
+      <EnhancedBookingsStats bookings={bookings} currentDate={currentDate} />
+
+      {/* Quick Actions Bar */}
+      <QuickActionsBar
+        onNewBooking={() => setShowNewBookingModal(true)}
+        onBatchCheckIn={() => setShowBatchOperations(true)}
+        onSendReminders={() => {/* Handle reminders */}}
+        onPendingPayments={() => {/* Handle payments */}}
+        onAnalytics={() => {/* Handle analytics */}}
+      />
+
+      {/* Quick Stats Dashboard */}
+      <QuickStatsDashboard bookings={filteredBookings} />
+
+      {/* Conflicts Warning */}
+      <ConflictsWarning onViewConflicts={() => setShowConflictsWarning(true)} />
+
+      {/* Overbooking Alert */}
+      <OverbookingAlert onResolveOverbooking={() => setShowOverbookingAlert(true)} />
+
+      {/* Search and Filter Bar */}
+      <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search bookings, pets, owners..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div className="text-sm text-gray-600">
+            {filteredBookings.length} of {bookings.length} bookings
+          </div>
+
+          {selectedBookings.size > 0 && (
+            <div className="text-sm text-blue-600 font-medium">
+              {selectedBookings.size} selected
+            </div>
+          )}
+        </div>
+
+        {/* Batch Actions */}
+        {selectedBookings.size > 0 && (
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-blue-900">
+                {selectedBookings.size} bookings selected
+              </span>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={handleDeselectAll}>
+                  Deselect All
+                </Button>
+                <Button size="sm" onClick={() => setShowBatchOperations(true)}>
+                  Batch Actions
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Main Content Area */}
+      <div className="space-y-6">
+        {activeView === 'list' && (
+          <ListView
+            bookings={filteredBookings}
+            onBookingClick={handleBookingClick}
+            onBookingSelect={handleBookingSelect}
+            selectedBookings={selectedBookings}
+            onSelectAll={handleSelectAll}
+            onDeselectAll={handleDeselectAll}
+          />
+        )}
+
+        {activeView === 'calendar' && (
+          <CalendarView
+            bookings={filteredBookings}
+            currentDate={currentDate}
+            onDateChange={setCurrentDate}
+            onBookingClick={handleBookingClick}
+          />
+        )}
+
+        {activeView === 'timeline' && (
+          <TimelineView
+            bookings={filteredBookings}
+            currentDate={currentDate}
+            onBookingClick={handleBookingClick}
+          />
+        )}
+
+        {activeView === 'kanban' && (
+          <KanbanView
+            bookings={filteredBookings}
+            onBookingClick={handleBookingClick}
+            onBookingMove={(bookingId, newStatus) => {
+              // Handle status change
+              console.log('Move booking', bookingId, 'to', newStatus);
+            }}
+          />
+        )}
+      </div>
+
+      {/* Modals */}
+      <NewBookingModal
+        isOpen={showNewBookingModal}
+        onClose={() => setShowNewBookingModal(false)}
+      />
+
+      <BookingDetailModal
+        booking={selectedBooking}
+        isOpen={showBookingDetailModal}
+        onClose={() => setShowBookingDetailModal(false)}
+      />
+
+      <BatchOperationsPanel
+        selectedBookings={Array.from(selectedBookings).map(id => bookings.find(b => b.id === id)).filter(Boolean)}
+        isOpen={showBatchOperations}
+        onClose={() => setShowBatchOperations(false)}
+      />
+
+      <FilterSortPanel
+        isOpen={showFilters}
+        onClose={() => setShowFilters(false)}
+        filters={filters}
+        onFiltersChange={setFilters}
+      />
+
+      <ConflictsWarning
+        isOpen={showConflictsWarning}
+        onClose={() => setShowConflictsWarning(false)}
+      />
+
+      <OverbookingAlert
+        isOpen={showOverbookingAlert}
+        onClose={() => setShowOverbookingAlert(false)}
+      />
+
+      <RecurringBookingModal
+        isOpen={showRecurringModal}
+        onClose={() => setShowRecurringModal(false)}
+      />
+
+      <WaitlistManagement
+        isOpen={showWaitlist}
+        onClose={() => setShowWaitlist(false)}
+      />
+
+      <AuditLogModal
+        booking={selectedBooking}
+        isOpen={showAuditLog}
+        onClose={() => setShowAuditLog(false)}
+      />
+
+      <SmartSearchPanel
+        isOpen={showSmartSearch}
+        onClose={() => setShowSmartSearch(false)}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+      />
+
+      <ExportReportingPanel />
+    </div>
+  );
+};
+
+export default BookingsOverview;

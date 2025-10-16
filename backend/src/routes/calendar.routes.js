@@ -11,6 +11,7 @@ router.use(tenantContext, requireAuth());
 
 router.get('/', validate(schemas.calendarView, 'query'), controller.getCalendarView);
 router.get('/occupancy', validate(schemas.occupancy, 'query'), controller.getOccupancy);
+router.get('/capacity', controller.getCapacity);
 router.get('/suggest-kennel', validate(schemas.suggestKennel, 'query'), controller.suggestKennel);
 router.post('/bookings/:bookingId/assign', validate(schemas.assignKennel), controller.assignKennel);
 router.patch('/segments/:segmentId/reassign', validate(schemas.reassignKennel), controller.reassignKennel);

@@ -6,14 +6,14 @@ import apiClient from '@/lib/apiClient';
 const defaultTenant = { recordId: null,
   slug: 'default',
   name: 'BarkBase',
-  plan: 'FREE',
+  plan: process.env.NODE_ENV === 'development' ? 'ENTERPRISE' : 'FREE',
   storageProvider: 'SUPABASE',
   dbProvider: 'SUPABASE',
   migrationState: 'IDLE',
   migrationInfo: null,
   customDomain: null,
   featureFlags: {},
-  features: resolvePlanFeatures('FREE'),
+  features: resolvePlanFeatures(process.env.NODE_ENV === 'development' ? 'ENTERPRISE' : 'FREE'),
   usage: null,
   theme: getDefaultTheme(),
   terminology: {},
@@ -26,7 +26,8 @@ export const useTenantStore = create((set, get) => ({
   initialized: false,
   setTenant: (tenantPayload = {}) => {
     const mergedTheme = mergeTheme(tenantPayload.theme);
-    const plan = tenantPayload.plan ?? defaultTenant.plan;
+    // Override plan to ENTERPRISE for all users in development mode
+    const plan = process.env.NODE_ENV === 'development' ? 'ENTERPRISE' : (tenantPayload.plan ?? defaultTenant.plan);
     const featureFlags = tenantPayload.featureFlags ?? {};
     const features = tenantPayload.features ?? resolvePlanFeatures(plan, featureFlags);
     const usage = tenantPayload.usage ?? null;
@@ -51,6 +52,13 @@ export const useTenantStore = create((set, get) => ({
     };
     applyTheme(mergedTheme);
     set({ tenant, initialized: true });
+
+    // Development indicator
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🧪 DEVELOPMENT MODE: Enterprise access enabled for all users');
+      console.log('Current plan:', tenant.plan);
+      console.log('Available features:', Object.keys(tenant.features).filter(key => tenant.features[key]));
+    }
   },
   loadTenant: async (slug) => {
     const resolvedSlug = slug ?? get().tenant?.slug ?? defaultTenant.slug;
@@ -109,12 +117,14 @@ export const useTenantStore = create((set, get) => ({
     }
 
     const payload = await response.json();
+    // Override plan to ENTERPRISE for all users in development mode
+    const plan = process.env.NODE_ENV === 'development' ? 'ENTERPRISE' : payload.plan;
     const featureFlags = payload.featureFlags ?? tenant.featureFlags;
-    const features = payload.features ?? resolvePlanFeatures(payload.plan, featureFlags);
+    const features = payload.features ?? resolvePlanFeatures(plan, featureFlags);
     set({
       tenant: {
         ...tenant,
-        plan: payload.plan,
+        plan,
         storageProvider: payload.storageProvider ?? tenant.storageProvider,
         dbProvider: payload.dbProvider ?? tenant.dbProvider,
         migrationState: payload.migrationState ?? tenant.migrationState,
@@ -129,22 +139,25 @@ export const useTenantStore = create((set, get) => ({
   },
   // Development-only method to manually override plan for testing
   setDevPlan: (plan) => {
+    // In development, force enterprise access unless explicitly testing other plans
+    const effectivePlan = process.env.NODE_ENV === 'development' && plan !== 'FREE' && plan !== 'PRO' ? 'ENTERPRISE' : plan;
+
     const { tenant } = get();
-    const features = resolvePlanFeatures(plan, tenant.featureFlags);
+    const features = resolvePlanFeatures(effectivePlan, tenant.featureFlags);
 
     // Update usage limits based on plan
     const updatedUsage = tenant.usage ? {
       ...tenant.usage,
       bookings: {
         ...tenant.usage.bookings,
-        limit: plan === 'FREE' ? 100 : plan === 'PRO' ? 1000 : null, // null = unlimited for ENTERPRISE
+        limit: effectivePlan === 'FREE' ? 100 : effectivePlan === 'PRO' ? 1000 : null, // null = unlimited for ENTERPRISE
       },
     } : null;
 
     set({
       tenant: {
         ...tenant,
-        plan,
+        plan: effectivePlan,
         features,
         usage: updatedUsage,
       },

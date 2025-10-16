@@ -28,4 +28,20 @@ router.post(
   controller.uploadPhoto,
 );
 
+// Vaccination expiration alerts
+router.get(
+  '/vaccinations/expiring',
+  requireAuth(['OWNER', 'ADMIN', 'STAFF']),
+  async (req, res, next) => {
+    try {
+      const vaccinationService = require('../services/vaccination.service');
+      const daysAhead = parseInt(req.query.daysAhead) || 30;
+      const vaccinations = await vaccinationService.getExpiringVaccinations(req.tenantId, daysAhead);
+      res.json(vaccinations);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 module.exports = router;

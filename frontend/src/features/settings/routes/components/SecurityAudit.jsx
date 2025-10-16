@@ -1,0 +1,157 @@
+import { FileText, Download, Filter, Shield, Key, User, Lock, AlertTriangle, MapPin } from 'lucide-react';
+import Card from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
+
+const SecurityAudit = () => {
+  // Mock audit log data
+  const auditEvents = [
+    {
+      id: 1,
+      date: 'Today',
+      time: '9:05 AM',
+      event: 'Security settings viewed',
+      actor: 'Joshua Bradford (You)',
+      ip: '192.168.1.1',
+      icon: Shield
+    },
+    {
+      id: 2,
+      date: 'Jan 10, 2025',
+      time: '2:30 PM',
+      event: 'Password changed',
+      actor: 'Joshua Bradford (You)',
+      ip: '192.168.1.1',
+      icon: Key
+    },
+    {
+      id: 3,
+      date: 'Jan 5, 2025',
+      time: '11:00 AM',
+      event: 'Team member added',
+      details: 'Sarah Johnson invited as Manager',
+      actor: 'Joshua Bradford (You)',
+      ip: '192.168.1.1',
+      icon: User
+    },
+    {
+      id: 4,
+      date: 'Dec 28, 2024',
+      time: '3:45 PM',
+      event: '2FA enabled',
+      details: 'Method: Authenticator App',
+      actor: 'Joshua Bradford (You)',
+      ip: '192.168.1.1',
+      icon: Lock
+    }
+  ];
+
+  const getEventIcon = (event) => {
+    switch (event.toLowerCase()) {
+      case 'security settings viewed':
+        return Shield;
+      case 'password changed':
+        return Key;
+      case 'team member added':
+        return User;
+      case '2fa enabled':
+        return Lock;
+      default:
+        return FileText;
+    }
+  };
+
+  return (
+    <Card title="Security Audit Log" icon={FileText}>
+      <div className="space-y-4">
+        <p className="text-gray-600">
+          Track all security-related changes to your account.
+        </p>
+
+        {/* Filters */}
+        <div className="flex flex-wrap gap-4">
+          <select className="px-3 py-2 border border-gray-300 rounded-md text-sm">
+            <option value="all">All Events</option>
+            <option value="auth">Authentication</option>
+            <option value="access">Access Control</option>
+            <option value="settings">Settings Changes</option>
+          </select>
+          <select className="px-3 py-2 border border-gray-300 rounded-md text-sm">
+            <option value="90">Last 90 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="7">Last 7 days</option>
+          </select>
+          <Button variant="outline" size="sm">
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+        </div>
+
+        {/* Audit Events */}
+        <div className="space-y-4">
+          {['Today', 'Jan 10, 2025', 'Jan 5, 2025', 'Dec 28, 2024'].map((dateGroup) => (
+            <div key={dateGroup}>
+              <h3 className="font-medium text-gray-900 mb-3">{dateGroup}</h3>
+              <div className="space-y-3">
+                {auditEvents
+                  .filter(event => event.date === dateGroup)
+                  .map((event) => {
+                    const Icon = event.icon;
+                    return (
+                      <div key={event.id} className="flex items-start gap-4 p-4 border border-gray-200 rounded-lg">
+                        <div className="p-2 bg-blue-100 rounded-full">
+                          <Icon className="w-4 h-4 text-blue-600" />
+                        </div>
+
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium text-gray-900">{event.event}</span>
+                            <span className="text-sm text-gray-500">{event.time}</span>
+                          </div>
+
+                          {event.details && (
+                            <p className="text-sm text-gray-600 mb-2">{event.details}</p>
+                          )}
+
+                          <div className="flex items-center gap-4 text-sm text-gray-600">
+                            <span>By: {event.actor}</span>
+                            <div className="flex items-center gap-1">
+                              <MapPin className="w-3 h-3" />
+                              <span>IP: {event.ip}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Load More */}
+        <div className="text-center">
+          <Button variant="outline">
+            Show More (15 more events)
+          </Button>
+        </div>
+
+        {/* Retention Notice */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-medium text-blue-900 mb-1">
+                Audit logs retained for 90 days
+              </h4>
+              <p className="text-sm text-blue-800">
+                Upgrade to Pro for 1-year retention, Enterprise for 365 days
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+};
+
+export default SecurityAudit;

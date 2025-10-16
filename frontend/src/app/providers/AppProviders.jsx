@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import QueryProvider from './QueryProvider';
 import ThemeInitializer from './ThemeInitializer';
 import TenantLoader from './TenantLoader';
+import TokenRefresher from './TokenRefresher';
 import AuthLoader from './AuthLoader';
 import { useOfflineDetection } from '@/hooks/useOfflineDetection';
 
@@ -16,6 +17,7 @@ const AppProviders = ({ children, fallback = null }) => (
     <QueryProvider>
       <OfflineBoundary />
       <AuthLoader />
+      <TokenRefresher />
       <TenantLoader />
       <Suspense fallback={fallback}>{children}</Suspense>
       <Toaster position="top-right" toastOptions={{ duration: 4000 }} />

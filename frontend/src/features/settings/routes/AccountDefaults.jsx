@@ -404,19 +404,7 @@ const formatHolidayRange = (start, end) => {
   }
 };
 
-const Pill = ({ label, tone = 'neutral' }) => {
-  const toneClasses =
-    tone === 'success'
-      ? 'bg-success/10 text-success border-success/40'
-      : tone === 'warning'
-        ? 'bg-warning/10 text-warning border-warning/40'
-        : 'bg-surface/80 text-muted border-border/40';
-  return (
-    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${toneClasses}`}>
-      {label}
-    </span>
-  );
-};
+// Removed inline Pill component - now using Badge from @/components/ui/Badge
 
 const Subheading = ({ title, description }) => (
   <div className="space-y-1">
@@ -687,7 +675,7 @@ const SchedulingSection = ({
               <div>
                 <p className="text-sm font-medium text-text">{holiday.name}</p>
                 <p className="text-xs text-muted">{formatHolidayRange(holiday.startDate, holiday.endDate)}</p>
-                {holiday.recurring ? <Pill label="Repeats each year" tone="success" /> : null}
+                {holiday.recurring ? <Badge variant="success">Repeats each year</Badge> : null}
               </div>
               <Button type="button" variant="ghost" size="sm" onClick={() => onRemoveHoliday(holiday.recordId)}>
                 <Trash2 className="mr-2 h-4 w-4" />
@@ -987,8 +975,8 @@ const AccountDefaults = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Pill label={`Plan: ${plan}`} tone="neutral" />
-            <Pill label={tenant?.slug ?? 'default'} tone="neutral" />
+            <Badge variant="neutral">Plan: {plan}</Badge>
+            <Badge variant="neutral">{tenant?.slug ?? 'default'}</Badge>
           </div>
         </div>
       </header>
@@ -999,16 +987,7 @@ const AccountDefaults = () => {
       </p>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-10">
-        {activeTab === 'business' ? (
-          <BusinessSection
-            register={register}
-            control={control}
-            errors={errors}
-            businessInfo={businessInfo}
-            onLogoUpload={handleLogoUpload}
-            isLogoUploading={isLogoUploading}
-          />
-        ) : null}
+        {activeTab === 'business' ? null : null}
 
         {activeTab === 'scheduling' ? (
           <SchedulingSection

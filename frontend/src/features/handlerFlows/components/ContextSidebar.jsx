@@ -1,4 +1,4 @@
-import { X, ChevronRight, Mail, MessageSquare, Star, CheckSquare, Bell, Printer, Ticket, Edit3, FileText, RefreshCw, DollarSign, Copy, GitBranch, Clock, Timer, Code, Webhook as WebhookIcon, Settings, Search } from 'lucide-react';
+import { X, ChevronRight, Mail, MessageSquare, Star, CheckSquare, Bell, Printer, Ticket, Edit3, FileText, RefreshCw, DollarSign, Copy, GitBranch, Clock, Timer, Code, Webhook, Settings, Search } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import TriggerSelector from './TriggerSelector';
 import TriggerConfigurator from './TriggerConfigurator';

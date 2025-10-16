@@ -7,6 +7,7 @@ const schemas = require('../validators/booking.validator');
 const { auditLogger } = require('../middleware/auditLogger');
 const { tenantWriteLimiter } = require('../middleware/tenantRateLimit');
 const { requirePlanFeature } = require('../middleware/requirePlanFeature');
+const { ensureIdempotent } = require('../middleware/idempotency');
 
 const sanitizeCheckoutAudit = (req) => {
   const { signatureUrl, metadata, ...rest } = req.body ?? {};
@@ -26,6 +27,7 @@ router.get('/', requireAuth(['OWNER', 'ADMIN', 'STAFF', 'READONLY']), controller
 router.post(
   '/',
   requireAuth(['OWNER', 'ADMIN']),
+  ensureIdempotent({ ttlHours: 24 }),
   validate(schemas.create),
   auditLogger('booking.created', 'booking', (req) => req.body?.recordId),
   controller.create,

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import BucketedSidebar from './BucketedSidebar';
-import Header from './Header';
+import JumboSidebar from './JumboSidebar';
+import JumboHeader from './JumboHeader';
 import Button from '@/components/ui/Button';
 import { useUIStore } from '@/stores/ui';
 import { useTenantStore } from '@/stores/tenant';
@@ -33,48 +33,57 @@ const AppShell = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-background text-text">
-      <BucketedSidebar collapsed={collapsed} />
+    <div className="flex min-h-screen bg-[#F5F6FA] text-[#263238]">
+      {/* Jumbo Dark Sidebar */}
+      <JumboSidebar collapsed={collapsed} />
+
       <div className="flex w-full flex-col">
-        <Header onMenuToggle={handleMenuToggle} />
+        {/* Jumbo Blue Header */}
+        <JumboHeader onMenuToggle={handleMenuToggle} />
+
+        {/* Main Content Area */}
         <main className="flex flex-1 flex-col overflow-hidden">
           <div
             className={cn(
-              'flex-1 bg-background',
-              isSettingsRoute ? 'overflow-hidden' : 'overflow-y-auto px-4 py-6 lg:px-8',
+              'flex-1 bg-[#F5F6FA]',
+              isSettingsRoute ? 'overflow-hidden' : 'overflow-y-auto px-6 py-6 lg:px-8',
             )}
           >
             <Outlet />
           </div>
         </main>
       </div>
+
+      {/* Mobile Sidebar Overlay */}
       {mobileSidebarOpen && (
         <div className="fixed inset-0 z-50 flex gap-0 lg:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setMobileSidebarOpen(false)} aria-hidden="true" />
-          <div className="relative h-full w-64 bg-surface shadow-xl">
-            <BucketedSidebar collapsed={false} isMobile onNavigate={() => setMobileSidebarOpen(false)} />
+          <div className="relative h-full w-64 bg-[#1E1E2D] shadow-xl">
+            <JumboSidebar collapsed={false} isMobile onNavigate={() => setMobileSidebarOpen(false)} />
           </div>
         </div>
       )}
+
+      {/* Recovery Mode Modal */}
       {tenant?.recoveryMode ? (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-background/95 px-4 text-center">
-          <div className="max-w-lg space-y-6 rounded-2xl border border-warning/40 bg-surface/95 p-8 shadow-2xl">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-[#F5F6FA]/95 px-4 text-center">
+          <div className="max-w-lg space-y-6 rounded-2xl border border-[#FF9800]/40 bg-white/95 p-8 shadow-2xl">
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-warning">Recovery mode</p>
-              <h2 className="text-2xl font-semibold text-text">We detected database issues</h2>
-              <p className="text-sm text-muted">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#FF9800]">Recovery mode</p>
+              <h2 className="text-2xl font-semibold text-[#263238]">We detected database issues</h2>
+              <p className="text-sm text-[#64748B]">
                 BarkBase opened in read-only recovery mode. Download your most recent export or backup before making
                 changes. Support cannot restore local data—use your latest export/backup to recover.
               </p>
             </div>
             <div className="flex flex-col gap-3">
-              <Button onClick={handleRestore} disabled={!latestExportPath}>
+              <Button onClick={handleRestore} disabled={!latestExportPath} className="bg-[#4B5DD3] hover:bg-[#3A4BC2] text-white">
                 {latestExportPath ? 'Download latest export' : 'No export found yet'}
               </Button>
               <Button variant="outline" onClick={() => window.location.reload()}>
                 Reload after restore
               </Button>
-              <p className="text-xs text-muted">
+              <p className="text-xs text-[#64748B]">
                 Tip: You can generate fresh exports from another device if this copy is unusable.
               </p>
             </div>
