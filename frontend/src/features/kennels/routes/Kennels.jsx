@@ -84,7 +84,7 @@ const Kennels = () => {
   if (error) {
     return (
       <div>
-        <PageHeader title="Kennels" breadcrumb="Home > Operations > Kennels" />
+        <PageHeader title="Kennels" breadcrumb="Home > Settings > Kennels" />
         <Card>
           <div className="text-center py-12">
             <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
@@ -163,7 +163,7 @@ const Kennels = () => {
     <div>
       {/* Page Header */}
       <PageHeader
-        breadcrumb="Home > Operations > Kennels"
+        breadcrumb="Home > Settings > Kennels"
         title="Kennel Management"
         actions={
           <>

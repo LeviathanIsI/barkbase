@@ -226,7 +226,7 @@ const FeedingMeds = () => {
     <div>
       {/* Page Header */}
       <PageHeader
-        breadcrumb="Home > Operations > Feeding & Meds"
+        breadcrumb="Home > Intake > Feeding & Meds"
         title="Feeding & Medications"
         actions={
           <>

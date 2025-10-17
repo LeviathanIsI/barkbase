@@ -13,6 +13,7 @@ import NewBookingModal from '@/features/bookings/components/NewBookingModal';
 import SlidePanel from '@/components/ui/SlidePanel';
 import FilterOptionsPanel from '../components/FilterOptionsPanel';
 import QuickActionsBar from '../components/QuickActionsBar';
+import BookingHUD from '@/features/bookings/components/BookingHUD';
 import CheckInOutDashboard from '../components/CheckInOutDashboard';
 
 const CalendarOverview = () => {
@@ -52,7 +53,7 @@ const CalendarOverview = () => {
     <div className="space-y-6">
       {/* Page Header with Enhanced Navigation */}
       <PageHeader
-        breadcrumb="Home > Operations > Calendar"
+        breadcrumb="Home > Intake > Calendar"
         title="Calendar & Capacity"
         subtitle="Complete operations dashboard for kennel management"
         actions={
@@ -96,6 +97,15 @@ const CalendarOverview = () => {
             </Button>
           </div>
         }
+      />
+
+      {/* Booking HUD */}
+      <BookingHUD
+        date={currentDate}
+        stats={{}}
+        onNewBooking={() => setShowNewBookingModal(true)}
+        onOpenFilters={() => setShowFilters(true)}
+        onCheckInOut={() => setShowCheckInOutPanel(true)}
       />
 
       {/* Enhanced Stats Dashboard */}

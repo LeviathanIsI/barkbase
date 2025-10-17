@@ -217,7 +217,7 @@ const DaycareCheckinOverview = () => {
     <div className="space-y-6">
       {/* Page Header with View Toggle */}
       <PageHeader
-        breadcrumb="Home > Operations > Daycare Check-in"
+        breadcrumb="Home > Intake > Daycare Check-in"
         title="Daycare Check-in"
         subtitle="Streamlined check-in/out operations with QR codes and photo recognition"
         actions={

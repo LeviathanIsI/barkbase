@@ -90,7 +90,7 @@ const Tasks = () => {
   if (isLoading) {
     return (
       <div>
-        <PageHeader title="Tasks & Reminders" breadcrumb="Home > Operations > Tasks" />
+        <PageHeader title="Tasks & Reminders" breadcrumb="Home > Intake > Tasks" />
         <Skeleton className="h-96" />
       </div>
     );
@@ -100,7 +100,7 @@ const Tasks = () => {
     <div>
       <PageHeader
         title="Tasks & Reminders"
-        breadcrumb="Home > Operations > Tasks"
+        breadcrumb="Home > Intake > Tasks"
         actions={
           <div className="flex gap-2">
             <input

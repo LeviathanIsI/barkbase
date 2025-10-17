@@ -126,7 +126,7 @@ const BookingsOverview = () => {
     <div className="space-y-6">
       {/* Page Header with View Toggle */}
       <PageHeader
-        breadcrumb="Home > Operations > Bookings"
+        breadcrumb="Home > Intake > Bookings"
         title="Bookings"
         subtitle="Complete booking management with conflict detection and automated workflows"
         actions={
