@@ -14,6 +14,9 @@ import SlidePanel from '@/components/ui/SlidePanel';
 import FilterOptionsPanel from '../components/FilterOptionsPanel';
 import QuickActionsBar from '../components/QuickActionsBar';
 import BookingHUD from '@/features/bookings/components/BookingHUD';
+import { useLiveQuery } from '@/lib/useLiveQuery';
+import { qk } from '@/lib/queryKeys';
+import apiClient from '@/lib/apiClient';
 import CheckInOutDashboard from '../components/CheckInOutDashboard';
 
 const CalendarOverview = () => {
