@@ -25,4 +25,6 @@ export type QueryKey = ReturnType<
   typeof qk.bookings.list | typeof qk.bookings.id | typeof qk.kennels.list | typeof qk.tasks.list | typeof qk.facility.occupancy
 >;
 
+export default qk;
+
 
