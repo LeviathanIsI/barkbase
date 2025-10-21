@@ -377,7 +377,7 @@ const TeamOverview = () => {
       {currentView === "overview" && (
         <TeamDashboard
           stats={teamStats}
-          staff={mockStaff}
+          staff={staff}
           onViewProfile={handleViewStaffProfile}
           onAddStaff={handleAddStaff}
         />
@@ -388,7 +388,7 @@ const TeamOverview = () => {
       ) : currentView === "profile" && !selectedStaff ? (
         <TeamDashboard
           stats={teamStats}
-          staff={mockStaff}
+          staff={staff}
           onViewProfile={handleViewStaffProfile}
           onAddStaff={handleAddStaff}
         />
@@ -425,7 +425,7 @@ const TeamOverview = () => {
       ].includes(currentView) && (
         <TeamDashboard
           stats={teamStats}
-          staff={mockStaff}
+          staff={staff}
           onViewProfile={handleViewStaffProfile}
           onAddStaff={handleAddStaff}
         />

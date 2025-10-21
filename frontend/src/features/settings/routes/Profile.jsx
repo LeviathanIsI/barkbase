@@ -195,14 +195,43 @@ const Profile = () => {
   };
 
   // Profile photo upload
-  const handleProfilePhotoUpload = (file) => {
-    // TODO: Implement actual file upload
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setProfilePhoto(e.target.result);
-      toast.success('Profile photo updated successfully');
-    };
-    reader.readAsDataURL(file);
+  const handleProfilePhotoUpload = async (file) => {
+    try {
+      // Read file as data URL for preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setProfilePhoto(e.target.result);
+      };
+      reader.readAsDataURL(file);
+
+      // Upload to storage
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', 'profile');
+      
+      const response = await fetch('/api/v1/upload', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        toast.success('Profile photo updated successfully');
+        // Update profile with new photo URL
+        await fetch('/api/v1/users/me', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ profilePhoto: data.url })
+        });
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch (error) {
+      console.error('Profile photo upload error:', error);
+      toast.error('Failed to upload profile photo');
+    }
   };
 
   // Notification handlers
@@ -267,14 +296,40 @@ const Profile = () => {
   };
 
   // Session handlers
-  const handleSignOutSession = (sessionId) => {
-    // TODO: Implement session sign out
-    toast.success('Session signed out successfully');
+  const handleSignOutSession = async (sessionId) => {
+    try {
+      const response = await fetch(`/api/v1/auth/sessions/${sessionId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        toast.success('Session signed out successfully');
+      } else {
+        throw new Error('Sign out failed');
+      }
+    } catch (error) {
+      console.error('Session sign out error:', error);
+      toast.error('Failed to sign out session');
+    }
   };
 
-  const handleSignOutAllSessions = () => {
-    // TODO: Implement sign out all sessions
-    toast.success('Signed out of all other sessions');
+  const handleSignOutAllSessions = async () => {
+    try {
+      const response = await fetch('/api/v1/auth/sessions/all', {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        toast.success('Signed out of all other sessions');
+      } else {
+        throw new Error('Sign out all failed');
+      }
+    } catch (error) {
+      console.error('Sign out all sessions error:', error);
+      toast.error('Failed to sign out all sessions');
+    }
   };
 
   // Quick actions

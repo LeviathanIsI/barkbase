@@ -33,4 +33,7 @@ export const queryKeys = {
   onboarding: (tenantKey) => [tenantKey, 'onboarding'],
   properties: (tenantKey, params = {}) => [tenantKey, 'properties', params],
   services: (tenantKey) => [tenantKey, 'services'],
+  runs: (tenantKey, params = {}) => [tenantKey, 'runs', params],
+  tasks: (tenantKey, params = {}) => [tenantKey, 'tasks', params],
+  facilitySettings: (tenantKey) => [tenantKey, 'facility-settings'],
 };

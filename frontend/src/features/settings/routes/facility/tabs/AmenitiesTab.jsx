@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import { useTenantStore } from '@/stores/tenant';
 
 export default function AmenitiesTab() {
+  const navigate = useNavigate();
   const tenant = useTenantStore((state) => state.tenant);
 
   const [standardFeatures, setStandardFeatures] = useState(
@@ -152,7 +154,7 @@ export default function AmenitiesTab() {
         title="Add-On Services"
         description="Additional services available during booking."
         actions={
-          <Button variant="outline" onClick={() => {/* TODO: Link to Services & Pricing */}}>
+          <Button variant="outline" onClick={() => navigate('/settings/services')}>
             Manage Pricing →
           </Button>
         }

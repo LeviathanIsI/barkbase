@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Search, Filter, Download, Mail, CheckCircle, Clock, XCircle, RefreshCw, Eye, DollarSign, AlertTriangle } from 'lucide-react';
+import toast from 'react-hot-toast';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { usePaymentsQuery } from '../../payments/api';
@@ -16,27 +17,33 @@ const PaymentsDashboard = ({ onViewPayment, onProcessRefund }) => {
   if (statusFilter !== 'all') queryParams.status = statusFilter;
   if (methodFilter !== 'all') queryParams.method = methodFilter;
 
-  const { data: paymentsData, isLoading } = usePaymentsQuery(queryParams);
+  const { data: paymentsData, isLoading, error } = usePaymentsQuery(queryParams);
 
   // Use real API data with fallback
-  const payments = paymentsData?.data || [];
+  const payments = Array.isArray(paymentsData) ? paymentsData : (paymentsData?.data || []);
 
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'successful': return 'text-green-600 bg-green-100';
-      case 'pending': return 'text-yellow-600 bg-yellow-100';
-      case 'failed': return 'text-red-600 bg-red-100';
-      case 'refunded': return 'text-gray-600 bg-gray-100';
+    const s = (status || '').toUpperCase();
+    switch (s) {
+      case 'CAPTURED':
+      case 'SUCCESSFUL': return 'text-green-600 bg-green-100';
+      case 'PENDING':
+      case 'AUTHORIZED': return 'text-yellow-600 bg-yellow-100';
+      case 'FAILED': return 'text-red-600 bg-red-100';
+      case 'REFUNDED': return 'text-gray-600 bg-gray-100';
       default: return 'text-gray-600 bg-gray-100';
     }
   };
 
   const getStatusIcon = (status) => {
-    switch (status) {
-      case 'successful': return <CheckCircle className="w-4 h-4" />;
-      case 'pending': return <Clock className="w-4 h-4" />;
-      case 'failed': return <XCircle className="w-4 h-4" />;
-      case 'refunded': return <RefreshCw className="w-4 h-4" />;
+    const s = (status || '').toUpperCase();
+    switch (s) {
+      case 'CAPTURED':
+      case 'SUCCESSFUL': return <CheckCircle className="w-4 h-4" />;
+      case 'PENDING':
+      case 'AUTHORIZED': return <Clock className="w-4 h-4" />;
+      case 'FAILED': return <XCircle className="w-4 h-4" />;
+      case 'REFUNDED': return <RefreshCw className="w-4 h-4" />;
       default: return <AlertTriangle className="w-4 h-4" />;
     }
   };
@@ -77,19 +84,22 @@ const PaymentsDashboard = ({ onViewPayment, onProcessRefund }) => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="pl-3 pr-10 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white bg-no-repeat bg-right"
+              style={{ backgroundImage: "url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e\")", backgroundPosition: "right 0.5rem center", backgroundSize: "1.5em 1.5em" }}
             >
               <option value="all">Status: All</option>
-              <option value="successful">Successful</option>
-              <option value="pending">Pending</option>
-              <option value="failed">Failed</option>
-              <option value="refunded">Refunded</option>
+              <option value="PENDING">Pending</option>
+              <option value="AUTHORIZED">Authorized</option>
+              <option value="CAPTURED">Captured</option>
+              <option value="REFUNDED">Refunded</option>
+              <option value="FAILED">Failed</option>
             </select>
 
             <select
               value={methodFilter}
               onChange={(e) => setMethodFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="pl-3 pr-10 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white bg-no-repeat bg-right"
+              style={{ backgroundImage: "url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e\")", backgroundPosition: "right 0.5rem center", backgroundSize: "1.5em 1.5em" }}
             >
               <option value="all">Method: All</option>
               <option value="card">Credit Card</option>
@@ -119,15 +129,24 @@ const PaymentsDashboard = ({ onViewPayment, onProcessRefund }) => {
 
         {selectedPayments.length > 0 && (
           <div className="flex gap-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => toast.info('Bulk refund: Select individual payments to refund')}>
               <RefreshCw className="w-4 h-4 mr-1" />
               Process Refund ({selectedPayments.length})
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => {
+              const csv = payments.filter(p => selectedPayments.includes(p.id)).map(p => `${p.id},${p.customer},${p.amount},${p.status}`).join('\n');
+              const blob = new Blob([`ID,Customer,Amount,Status\n${csv}`], { type: 'text/csv' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `payments-export-${new Date().toISOString().split('T')[0]}.csv`;
+              a.click();
+              toast.success('Payments exported');
+            }}>
               <Download className="w-4 h-4 mr-1" />
               Export ({selectedPayments.length})
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => toast.info('Email feature coming soon')}>
               <Mail className="w-4 h-4 mr-1" />
               Email ({selectedPayments.length})
             </Button>
@@ -137,7 +156,26 @@ const PaymentsDashboard = ({ onViewPayment, onProcessRefund }) => {
 
       {/* Transaction Cards */}
       <div className="space-y-4">
-        {payments.map((payment) => (
+        {error && (
+          <Card className="p-12 text-center bg-red-50">
+            <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Error Loading Payments</h3>
+            <p className="text-gray-600">{error.message}</p>
+            <pre className="mt-4 text-xs text-left overflow-auto">{JSON.stringify({ paymentsData, error }, null, 2)}</pre>
+          </Card>
+        )}
+        {!error && isLoading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading payments...</p>
+          </div>
+        ) : !error && payments.length === 0 ? (
+          <Card className="p-12 text-center">
+            <DollarSign className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No payments found</h3>
+            <p className="text-gray-600">Payments will appear here once transactions are processed</p>
+          </Card>
+        ) : payments.map((payment) => (
           <Card key={payment.id} className="p-6">
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-4 flex-1">
@@ -154,52 +192,58 @@ const PaymentsDashboard = ({ onViewPayment, onProcessRefund }) => {
 
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <h4 className="font-semibold text-gray-900">{payment.id}</h4>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(payment.status)}`}>
-                      {payment.status.toUpperCase()}
+                    <h4 className="font-semibold text-gray-900">{payment.recordId || payment.id}</h4>
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(payment.status || 'unknown')}`}>
+                      {(payment.status || 'UNKNOWN').toUpperCase()}
                     </span>
                   </div>
 
                   <div className="grid gap-2 md:grid-cols-2 text-sm text-gray-600 mb-3">
                     <div className="flex items-center gap-2">
                       <DollarSign className="w-4 h-4" />
-                      <span>${payment.amount.toFixed(2)} • {payment.method}</span>
+                      <span>${((payment.amountCents || payment.amount || 0) / 100).toFixed(2)} {payment.currency || 'USD'} • {payment.method || 'N/A'}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4" />
-                      <span>{payment.date}</span>
+                      <span>{payment.capturedAt || payment.createdAt ? new Date(payment.capturedAt || payment.createdAt).toLocaleString() : 'N/A'}</span>
                     </div>
                   </div>
 
                   <div className="space-y-1 text-sm">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-gray-900">👤 {payment.customer}</span>
-                      <span className="text-gray-600">• {payment.pet}</span>
+                      <span className="font-medium text-gray-900">
+                        👤 {payment.ownerFirstName && payment.ownerLastName 
+                          ? `${payment.ownerFirstName} ${payment.ownerLastName}` 
+                          : payment.ownerEmail || 'Unknown Customer'}
+                      </span>
+                      {payment.ownerPhone && (
+                        <span className="text-gray-600">• {payment.ownerPhone}</span>
+                      )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-600">📋 {payment.service}</span>
-                      <span className="text-gray-600">• {payment.bookingId}</span>
-                    </div>
+                    {payment.petName && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-600">🐾 {payment.petName}</span>
+                        {payment.petBreed && <span className="text-gray-600">({payment.petBreed})</span>}
+                      </div>
+                    )}
+                    {payment.bookingCheckIn && payment.bookingCheckOut && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-600">
+                          📅 {new Date(payment.bookingCheckIn).toLocaleDateString()} - {new Date(payment.bookingCheckOut).toLocaleDateString()}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
-                  {payment.fee > 0 && (
-                    <div className="mt-3 p-3 bg-gray-50 rounded text-xs">
-                      <div className="flex justify-between">
-                        <span>Processing fee: -${payment.fee.toFixed(2)}</span>
-                        <span className="font-medium">Net: ${payment.net.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {payment.status === 'failed' && (
+                  {payment.status === 'FAILED' && (
                     <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded">
                       <p className="text-sm text-red-800">
-                        Reason: Insufficient funds • Next retry: Oct 16 @ 9:00 AM
+                        Payment failed - review details and retry or contact customer
                       </p>
                     </div>
                   )}
 
-                  {payment.status === 'refunded' && (
+                  {payment.status === 'REFUNDED' && (
                     <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
                       <p className="text-sm text-blue-800">
                         Refund issued • Expected in customer account: 5-10 business days
@@ -214,23 +258,51 @@ const PaymentsDashboard = ({ onViewPayment, onProcessRefund }) => {
                   <Eye className="w-3 h-3 mr-1" />
                   View
                 </Button>
-                {payment.status === 'successful' && (
+                {(payment.status === 'CAPTURED' || payment.status === 'successful') && (
                   <Button variant="outline" size="sm" onClick={() => onProcessRefund(payment)}>
                     <RefreshCw className="w-3 h-3 mr-1" />
                     Refund
                   </Button>
                 )}
-                {payment.status === 'pending' && (
-                  <Button size="sm">
+                {(payment.status === 'AUTHORIZED' || payment.status === 'PENDING') && payment.status !== 'CAPTURED' && (
+                  <Button size="sm" onClick={async () => {
+                    try {
+                      const response = await fetch(`/api/v1/payments/${payment.id}/charge`, {
+                        method: 'POST',
+                        credentials: 'include'
+                      });
+                      if (response.ok) {
+                        toast.success('Payment charged successfully');
+                      } else {
+                        toast.error('Failed to charge payment');
+                      }
+                    } catch (error) {
+                      toast.error('Error processing charge');
+                    }
+                  }}>
                     Charge Now
                   </Button>
                 )}
-                {payment.status === 'failed' && (
-                  <Button size="sm">
+                {payment.status === 'FAILED' && (
+                  <Button size="sm" onClick={async () => {
+                    try {
+                      const response = await fetch(`/api/v1/payments/${payment.id}/retry`, {
+                        method: 'POST',
+                        credentials: 'include'
+                      });
+                      if (response.ok) {
+                        toast.success('Payment retry initiated');
+                      } else {
+                        toast.error('Failed to retry payment');
+                      }
+                    } catch (error) {
+                      toast.error('Error retrying payment');
+                    }
+                  }}>
                     Retry
                   </Button>
                 )}
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={() => toast.info('Email receipt feature coming soon')}>
                   <Mail className="w-3 h-3 mr-1" />
                   Email
                 </Button>
@@ -243,10 +315,30 @@ const PaymentsDashboard = ({ onViewPayment, onProcessRefund }) => {
       {/* Load More */}
       {payments.length > 0 && (
         <div className="text-center">
-          <Button variant="outline" disabled>
+          <Button variant="outline" onClick={() => toast.info('Load more pagination coming soon')}>
             Load More (showing {payments.length} payments)
           </Button>
-          <Button variant="outline" className="ml-2" disabled>
+          <Button variant="outline" className="ml-2" onClick={async () => {
+            try {
+              const response = await fetch('/api/v1/payments/export/csv', {
+                method: 'GET',
+                credentials: 'include'
+              });
+              if (response.ok) {
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `all-payments-${new Date().toISOString().split('T')[0]}.csv`;
+                a.click();
+                toast.success('All payments exported');
+              } else {
+                toast.error('Failed to export');
+              }
+            } catch (error) {
+              toast.error('Export failed');
+            }
+          }}>
             <Download className="w-4 h-4 mr-1" />
             Export All
           </Button>
@@ -257,3 +349,4 @@ const PaymentsDashboard = ({ onViewPayment, onProcessRefund }) => {
 };
 
 export default PaymentsDashboard;
+

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Home, BarChart3, MapPin, Star, FileText, Settings } from 'lucide-react';
+import toast from 'react-hot-toast';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import AccommodationsTab from './tabs/AccommodationsTab';
@@ -9,6 +10,7 @@ import LocationsTab from './tabs/LocationsTab';
 import AmenitiesTab from './tabs/AmenitiesTab';
 import RulesTab from './tabs/RulesTab';
 import SetupTab from './tabs/SetupTab';
+import { useUpdateFacilitySettingsMutation } from '@/features/facilities/api';
 
 const TABS = [
   { id: 'accommodations', label: 'Accommodations', icon: Home },
@@ -22,14 +24,20 @@ const TABS = [
 export default function FacilitySettings() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'accommodations';
+  const updateSettings = useUpdateFacilitySettingsMutation();
 
   const handleTabChange = (tabId) => {
     setSearchParams({ tab: tabId });
   };
 
   const handleSave = async () => {
-    // TODO: Implement API call to save facility settings
-    console.log('Saving facility settings for tab:', activeTab);
+    try {
+      await updateSettings.mutateAsync({ tab: activeTab });
+      toast.success('Facility settings saved successfully');
+    } catch (error) {
+      console.error('Failed to save facility settings:', error);
+      toast.error('Failed to save settings');
+    }
   };
 
   const renderTabContent = () => {

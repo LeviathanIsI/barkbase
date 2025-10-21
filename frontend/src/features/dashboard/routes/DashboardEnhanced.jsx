@@ -1,4 +1,5 @@
 import { Suspense, lazy } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Calendar, Users, DollarSign, MapPin, Clock, CheckCircle,
   UserPlus, FileText, AlertTriangle, Bell
@@ -17,6 +18,7 @@ import {
 const DashboardCharts = lazy(() => import('../components/Charts'));
 
 const DashboardEnhanced = () => {
+  const navigate = useNavigate();
   const { isLoading } = useAuth();
 
   // Always call hooks at the top level
@@ -90,11 +92,11 @@ const DashboardEnhanced = () => {
         title="Dashboard"
         actions={
           <>
-            <Button variant="secondary" size="sm">
+            <Button variant="secondary" size="sm" onClick={() => navigate('/bookings?action=new')}>
               <UserPlus className="h-4 w-4 mr-2" />
               New Booking
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => navigate('/reports')}>
               <FileText className="h-4 w-4 mr-2" />
               Generate Report
             </Button>
@@ -165,19 +167,19 @@ const DashboardEnhanced = () => {
         {/* Quick Actions */}
         <Card title="Quick Actions" description="Common tasks and shortcuts">
           <div className="space-y-3">
-            <Button variant="primary" className="w-full justify-start">
+            <Button variant="primary" className="w-full justify-start" onClick={() => navigate('/daycare/checkin')}>
               <UserPlus className="h-4 w-4 mr-2" />
               Check In Pet
             </Button>
-            <Button variant="secondary" className="w-full justify-start">
+            <Button variant="secondary" className="w-full justify-start" onClick={() => navigate('/bookings?action=new')}>
               <Calendar className="h-4 w-4 mr-2" />
               New Booking
             </Button>
-            <Button variant="outline" className="w-full justify-start">
+            <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/tasks')}>
               <Users className="h-4 w-4 mr-2" />
               View Today's Schedule
             </Button>
-            <Button variant="outline" className="w-full justify-start">
+            <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/reports')}>
               <FileText className="h-4 w-4 mr-2" />
               Generate Report
             </Button>

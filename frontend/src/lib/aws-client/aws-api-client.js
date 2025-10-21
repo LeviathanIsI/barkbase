@@ -110,14 +110,18 @@ export class ApiClient {
         const { useAuthStore } = await import('@/stores/auth');
         const { useTenantStore } = await import('@/stores/tenant');
         const accessToken = useAuthStore.getState().accessToken;
-        const tenantId = useTenantStore.getState().tenant?.recordId;
+        const authTenantId = useAuthStore.getState().tenantId;
+        const tenant = useTenantStore.getState().tenant;
+        
+        // Get tenant ID from auth store first, then tenant store
+        const tenantId = authTenantId || tenant?.recordId || tenant?.id;
         
         const options = {
             method,
             headers: {
                 'Content-Type': 'application/json',
-                ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
                 ...(tenantId && { 'x-tenant-id': tenantId }),
+                ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
             },
         };
 

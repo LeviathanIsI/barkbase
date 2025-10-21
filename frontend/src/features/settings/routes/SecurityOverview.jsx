@@ -7,6 +7,7 @@ import {
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import toast from 'react-hot-toast';
 import PasswordStrengthMeter from './components/PasswordStrengthMeter';
 import ActiveSessions from './components/ActiveSessions';
 import TwoFactorAuth from './components/TwoFactorAuth';
@@ -32,8 +33,39 @@ const SecurityOverview = () => {
 
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
-    // TODO: Implement password update
-    console.log('Updating password:', passwordData);
+    
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+    
+    if (passwordData.newPassword.length < 8) {
+      toast.error('Password must be at least 8 characters');
+      return;
+    }
+    
+    try {
+      const response = await fetch('/api/v1/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword
+        })
+      });
+      
+      if (response.ok) {
+        toast.success('Password updated successfully');
+        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      } else {
+        const error = await response.json();
+        toast.error(error.message || 'Failed to update password');
+      }
+    } catch (error) {
+      console.error('Password change error:', error);
+      toast.error('An error occurred while updating your password');
+    }
   };
 
   return (

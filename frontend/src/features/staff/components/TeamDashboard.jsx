@@ -9,16 +9,20 @@ const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {
   const [roleFilter, setRoleFilter] = useState('all');
 
   const filteredStaff = staff.filter(member => {
+    const name = member.name || '';
+    const email = member.email || '';
+    const role = member.role || member.title || '';
+    
     const matchesSearch = !searchTerm ||
-      member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.role.toLowerCase().includes(searchTerm.toLowerCase());
+      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      role.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = statusFilter === 'all' ||
-      (statusFilter === 'active' && member.status !== 'off') ||
-      (statusFilter === 'inactive' && member.status === 'off');
+      (statusFilter === 'active' && member.isActive !== false) ||
+      (statusFilter === 'inactive' && member.isActive === false);
 
-    const matchesRole = roleFilter === 'all' || member.role.toLowerCase().includes(roleFilter.toLowerCase());
+    const matchesRole = roleFilter === 'all' || role.toLowerCase().includes(roleFilter.toLowerCase());
 
     return matchesSearch && matchesStatus && matchesRole;
   });
@@ -211,87 +215,54 @@ const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-4 flex-1">
                 <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-                  {member.name.split(' ').map(n => n[0]).join('')}
+                  {member.name ? member.name.split(' ').map(n => n[0]).join('') : (member.email ? member.email[0].toUpperCase() : '?')}
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-2">
-                    <h4 className="text-lg font-semibold text-gray-900 truncate">{member.name}</h4>
+                    <h4 className="text-lg font-semibold text-gray-900 truncate">{member.name || member.email || 'Staff Member'}</h4>
                     <div className="flex items-center gap-2">
-                      {getStatusIcon(member.status)}
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        member.status === 'clocked-in'
-                          ? 'bg-green-100 text-green-800'
-                          : member.status === 'scheduled'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-gray-100 text-gray-800'
+                        member.isActive === false ? 'bg-gray-100 text-gray-800' : 'bg-green-100 text-green-800'
                       }`}>
-                        {getStatusText(member.status)}
+                        {member.isActive === false ? 'INACTIVE' : 'ACTIVE'}
                       </span>
                     </div>
                   </div>
 
-                  <div className="grid gap-2 md:grid-cols-2 text-sm text-gray-600 mb-3">
+                  <div className="mb-2">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">🎯 {member.role}</span>
+                      <span className="font-medium text-base text-gray-900">🎯 {member.role || 'STAFF'}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span>📧 {member.email}</span>
-                    </div>
+                    {member.title && (
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-sm text-gray-600">{member.title}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid gap-2 md:grid-cols-2 text-sm text-gray-600 mb-3">
                     <div className="flex items-center gap-2">
-                      <span>📞 {member.phone}</span>
+                      <span>📧 {member.email || 'No email'}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span>📅 {member.tenure}</span>
+                      <span>📞 {member.phone || 'No phone'}</span>
                     </div>
                   </div>
 
-                  {member.status === 'clocked-in' && (
-                    <div className="mb-3">
-                      <p className="text-sm text-gray-600">
-                        TODAY'S SHIFT: {member.shift} (clocked in @ 7:58 AM)
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        CURRENT TASKS: {member.tasksPending} pending, {member.tasksCompleted} completed today
-                      </p>
+                  {member.createdAt && (
+                    <div className="mb-3 text-sm text-gray-600">
+                      <span>📅 Joined {new Date(member.createdAt).toLocaleDateString()}</span>
                     </div>
                   )}
 
-                  {member.status === 'scheduled' && (
+                  {member.schedule && (
                     <div className="mb-3">
                       <p className="text-sm text-gray-600">
-                        TODAY'S SHIFT: {member.shift} (starts in 4 hours)
+                        SCHEDULE: {typeof member.schedule === 'string' ? member.schedule : JSON.stringify(member.schedule)}
                       </p>
                     </div>
                   )}
-
-                  {member.status === 'off' && (
-                    <div className="mb-3">
-                      <p className="text-sm text-red-600">
-                        STATUS: On PTO ({member.ptoReason} - {member.returnDate})
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="mb-3">
-                    <p className="text-sm text-gray-600">
-                      AREAS: {member.areas.join(', ')}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-1">
-                      ⭐
-                      <span className="text-sm font-medium">{member.rating}/5.0</span>
-                      <span className="text-xs text-gray-500">({member.reviews} reviews)</span>
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      Performance: ⭐⭐⭐⭐⭐
-                    </div>
-                  </div>
                 </div>
               </div>
 

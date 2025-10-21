@@ -37,17 +37,34 @@ async function listPayments(event, tenantId) {
     const { status, limit = 50, offset = 0 } = event.queryStringParameters || {};
     const pool = getPool();
 
-    let query = `SELECT * FROM "Payment" WHERE "tenantId" = $1`;
+    let query = `
+        SELECT 
+            p.*,
+            o."firstName" as "ownerFirstName",
+            o."lastName" as "ownerLastName",
+            o."email" as "ownerEmail",
+            o."phone" as "ownerPhone",
+            b."recordId" as "bookingRecordId",
+            b."checkIn" as "bookingCheckIn",
+            b."checkOut" as "bookingCheckOut",
+            pet."name" as "petName",
+            pet."breed" as "petBreed"
+        FROM "Payment" p
+        LEFT JOIN "Owner" o ON p."ownerId" = o."recordId"
+        LEFT JOIN "Booking" b ON p."bookingId" = b."recordId"
+        LEFT JOIN "Pet" pet ON b."petId" = pet."recordId"
+        WHERE p."tenantId" = $1
+    `;
     const params = [tenantId];
     let paramCount = 2;
 
     if (status) {
-        query += ` AND "status" = $${paramCount}`;
+        query += ` AND p."status" = $${paramCount}`;
         params.push(status);
         paramCount++;
     }
 
-    query += ` ORDER BY "createdAt" DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
+    query += ` ORDER BY p."createdAt" DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
     params.push(parseInt(limit), parseInt(offset));
 
     const { rows } = await pool.query(query, params);

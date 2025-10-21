@@ -1,9 +1,10 @@
 import { Monitor, Smartphone, MapPin, Clock, LogOut, AlertTriangle } from 'lucide-react';
+import toast from 'react-hot-toast';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 
 const ActiveSessions = () => {
-  // Mock session data
+  // Mock session data - TODO: Replace with real session query
   const sessions = [
     {
       id: 1,
@@ -43,14 +44,40 @@ const ActiveSessions = () => {
     }
   ];
 
-  const handleSignOut = (sessionId) => {
-    console.log('Sign out session:', sessionId);
-    // TODO: Implement sign out functionality
+  const handleSignOut = async (sessionId) => {
+    try {
+      const response = await fetch(`/api/v1/auth/sessions/${sessionId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        toast.success('Session signed out successfully');
+      } else {
+        throw new Error('Sign out failed');
+      }
+    } catch (error) {
+      console.error('Session sign out error:', error);
+      toast.error('Failed to sign out session');
+    }
   };
 
-  const handleSignOutAll = () => {
-    console.log('Sign out all other sessions');
-    // TODO: Implement sign out all functionality
+  const handleSignOutAll = async () => {
+    try {
+      const response = await fetch('/api/v1/auth/sessions/all', {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        toast.success('Signed out of all other sessions');
+      } else {
+        throw new Error('Sign out all failed');
+      }
+    } catch (error) {
+      console.error('Sign out all sessions error:', error);
+      toast.error('Failed to sign out all sessions');
+    }
   };
 
   return (
