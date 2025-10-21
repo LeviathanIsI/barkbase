@@ -23,11 +23,14 @@ const RealtimeProvider = ({ children }) => {
   const [client, setClient] = useState(null);
   useEffect(() => {
     if (!accessToken || !tenant) return;
-    const url = import.meta.env.VITE_REALTIME_URL || 'ws://localhost:4000/realtime';
-    const c = new RealtimeClient(url, accessToken, tenant);
-    c.connect();
-    setClient(c);
-    return () => c.disconnect();
+    // Use AWS WebSocket URL or disable if not configured
+    const url = import.meta.env.VITE_REALTIME_URL || 'disabled';
+    const c = url === 'disabled' ? null : new RealtimeClient(url, accessToken, tenant?.recordId || 'default');
+    if (c) {
+      c.connect();
+      setClient(c);
+      return () => c.disconnect();
+    }
   }, [accessToken, tenant]);
   return children;
 };

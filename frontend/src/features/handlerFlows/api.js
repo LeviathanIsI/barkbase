@@ -1,20 +1,23 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import apiClient from '@/lib/apiClient';
+import { from } from '@/lib/apiClient';
 
-const flowsKey = ['handler-flows'];
-export const runLogsKey = (runId) => ['handler-runs', runId, 'logs'];
-export const flowKey = (flowId) => [...flowsKey, flowId];
+// NOTE: The 'handlerFlows' feature appears to be highly custom.
+// The table 'handler_flows' does not exist in the schema.
+// All API calls will be disabled until a proper backend is created for this feature.
+const disabledQuery = () => Promise.resolve(null);
 
-export const useHandlerFlowsQuery = () =>
-  useQuery({
-    queryKey: flowsKey,
-    queryFn: () => apiClient('/api/v1/handler-flows'),
+export const useHandlerFlowsQuery = (options = {}) => {
+  return useQuery({
+    queryKey: ['handlerFlows'],
+    queryFn: disabledQuery, // from('handler_flows').select('*').get()
+    enabled: false,
   });
+};
 
 export const useHandlerFlowQuery = (flowId) =>
   useQuery({
-    queryKey: flowKey(flowId),
-    queryFn: () => apiClient(`/api/v1/handler-flows/${flowId}`),
+    queryKey: ['handlerFlows', flowId],
+    queryFn: disabledQuery,
     enabled: Boolean(flowId),
   });
 
@@ -23,7 +26,7 @@ export const useCreateHandlerFlowMutation = () => {
   return useMutation({
     mutationFn: (payload) => apiClient('/api/v1/handler-flows', { method: 'POST', body: payload }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: flowsKey });
+      queryClient.invalidateQueries({ queryKey: ['handlerFlows'] });
     },
   });
 };
@@ -34,9 +37,9 @@ export const useUpdateHandlerFlowMutation = () => {
     mutationFn: ({ flowId, ...payload }) =>
       apiClient(`/api/v1/handler-flows/${flowId}`, { method: 'POST', body: payload }),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: flowsKey });
+      queryClient.invalidateQueries({ queryKey: ['handlerFlows'] });
       if (variables?.flowId) {
-        queryClient.invalidateQueries({ queryKey: flowKey(variables.flowId) });
+        queryClient.invalidateQueries({ queryKey: ['handlerFlows', variables.flowId] });
       }
     },
   });
@@ -47,9 +50,9 @@ export const usePublishHandlerFlowMutation = () => {
   return useMutation({
     mutationFn: ({ flowId }) => apiClient(`/api/v1/handler-flows/${flowId}/publish`, { method: 'POST' }),
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: flowsKey });
+      queryClient.invalidateQueries({ queryKey: ['handlerFlows'] });
       if (variables?.flowId) {
-        queryClient.invalidateQueries({ queryKey: flowKey(variables.flowId) });
+        queryClient.invalidateQueries({ queryKey: ['handlerFlows', variables.flowId] });
       }
     },
   });
@@ -75,8 +78,8 @@ export const useManualRunMutation = () =>
 
 export const useRunLogsQuery = (runId) =>
   useQuery({
-    queryKey: runLogsKey(runId),
-    queryFn: () => apiClient(`/api/v1/handler-runs/${runId}/logs`),
+    queryKey: ['handlerRuns', runId, 'logs'],
+    queryFn: disabledQuery,
     enabled: Boolean(runId),
     refetchInterval: (query) => (query.state.data?.length ? 5000 : false),
   });

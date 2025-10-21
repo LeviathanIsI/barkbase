@@ -1,0 +1,13 @@
+{
+  "name": "barkbase-react",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Data migration scripts and root dependencies.",
+  "scripts": {
+    "migrate:data": "node ./aws/scripts/migrate-data.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "pg": "^8.12.0"
+  }
+}

@@ -257,7 +257,6 @@ const KENNEL_ROLE_TEMPLATES = {
       EDIT_STAFF: true,
       DELETE_STAFF: true,
       VIEW_SCHEDULES: true,
-      MANAGE_SCHEDULES: true,
       VIEW_TIMESHEETS: true,
       APPROVE_TIMESHEETS: true,
       VIEW_MESSAGES: true,

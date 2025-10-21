@@ -1,53 +1,48 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/apiClient';
+import { from } from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
 import { useAuthStore } from '@/stores/auth';
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
-export const useKennelAvailability = (params = {}) => {
-  const tenantKey = useTenantKey();
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
-  const accessToken = useAuthStore((state) => state.accessToken);
-
-  const search = params.date ? `?date=${encodeURIComponent(params.date)}` : '';
-  return useQuery({
-    queryKey: queryKeys.kennels(tenantKey, params),
-    queryFn: () => apiClient(`/api/v1/kennels/availability${search}`),
-    staleTime: 30 * 1000,
-    enabled: isAuthenticated && !!accessToken,
-  });
-};
+// TODO: Refactor to a dedicated Lambda for availability logic
+// export const useKennelAvailability = (params = {}) => { ... };
 
 export const useKennels = (filters = {}) => {
   const tenantKey = useTenantKey();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
-  const accessToken = useAuthStore((state) => state.accessToken);
-
-  const params = new URLSearchParams();
-  Object.entries(filters).forEach(([key, value]) => {
-    if (value) params.append(key, value);
-  });
-  const search = params.toString() ? `?${params.toString()}` : '';
 
   return useQuery({
     queryKey: ['kennels', tenantKey, filters],
-    queryFn: () => apiClient(`/api/v1/kennels${search}`),
+    queryFn: async () => {
+      let query = from('kennels').select('*');
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) {
+          query = query.eq(key, value);
+        }
+      });
+      const { data, error } = await query.get();
+      if (error) throw new Error(error.message);
+      return data;
+    },
     staleTime: 5 * 60 * 1000,
-    enabled: isAuthenticated && !!accessToken,
+    enabled: isAuthenticated,
   });
 };
 
 export const useKennel = (kennelId) => {
   const tenantKey = useTenantKey();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
-  const accessToken = useAuthStore((state) => state.accessToken);
 
   return useQuery({
     queryKey: ['kennels', tenantKey, kennelId],
-    queryFn: () => apiClient(`/api/v1/kennels/${kennelId}`),
-    enabled: isAuthenticated && !!accessToken && !!kennelId,
+    queryFn: async () => {
+      const { data, error } = await from('kennels').select('*').eq('id', kennelId).get();
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    enabled: isAuthenticated && !!kennelId,
   });
 };
 
@@ -56,10 +51,13 @@ export const useCreateKennel = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data) => apiClient.post('/api/v1/kennels', data),
+    mutationFn: async (payload) => {
+      const { data, error } = await from('kennels').insert(payload);
+      if (error) throw new Error(error.message);
+      return data;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kennels', tenantKey] });
-      queryClient.invalidateQueries({ queryKey: queryKeys.kennels(tenantKey) });
     },
   });
 };
@@ -69,11 +67,14 @@ export const useUpdateKennel = (kennelId) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data) => apiClient.put(`/api/v1/kennels/${kennelId}`, data),
+    mutationFn: async (payload) => {
+      const { data, error } = await from('kennels').update(payload).eq('id', kennelId);
+      if (error) throw new Error(error.message);
+      return data;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kennels', tenantKey] });
       queryClient.invalidateQueries({ queryKey: ['kennels', tenantKey, kennelId] });
-      queryClient.invalidateQueries({ queryKey: queryKeys.kennels(tenantKey) });
     },
   });
 };
@@ -83,21 +84,16 @@ export const useDeleteKennel = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (kennelId) => apiClient.delete(`/api/v1/kennels/${kennelId}`),
+    mutationFn: async (kennelId) => {
+      const { error } = await from('kennels').delete().eq('id', kennelId);
+      if (error) throw new Error(error.message);
+      return kennelId;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kennels', tenantKey] });
-      queryClient.invalidateQueries({ queryKey: queryKeys.kennels(tenantKey) });
     },
   });
 };
 
-export const useCheckKennelAvailability = (kennelId) => {
-  const tenantKey = useTenantKey();
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
-  const accessToken = useAuthStore((state) => state.accessToken);
-
-  return useMutation({
-    mutationFn: ({ startDate, endDate }) => 
-      apiClient(`/api/v1/kennels/${kennelId}/availability?startDate=${startDate}&endDate=${endDate}`),
-  });
-};
+// TODO: Refactor to a dedicated Lambda for availability logic
+// export const useCheckKennelAvailability = (kennelId) => { ... };

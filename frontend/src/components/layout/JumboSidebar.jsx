@@ -194,21 +194,6 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
         )}
       </div>
 
-      {/* User Profile Section */}
-      {(!collapsed || isMobile) && (
-        <div className="border-b border-white/10 px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#4B5DD3] text-white text-sm font-semibold">
-              {user?.name ? user.name[0].toUpperCase() : 'U'}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-white truncate">{user?.name ?? 'Guest User'}</p>
-              <p className="text-xs text-white/70">{role ?? 'OWNER'}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         {navigationSections.map((section) => {

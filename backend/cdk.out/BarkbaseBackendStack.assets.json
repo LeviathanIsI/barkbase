@@ -1,0 +1,20 @@
+{
+  "version": "48.0.0",
+  "files": {
+    "6117dfff0f9093403e193f312419de883a44ba1d988d7ad0513f3b93e823f769": {
+      "displayName": "BarkbaseBackendStack Template",
+      "source": {
+        "path": "BarkbaseBackendStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "current_account-current_region-70828118": {
+          "bucketName": "cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}",
+          "objectKey": "6117dfff0f9093403e193f312419de883a44ba1d988d7ad0513f3b93e823f769.json",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-${AWS::Region}"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

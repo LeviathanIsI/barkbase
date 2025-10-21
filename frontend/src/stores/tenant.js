@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { applyTheme, getDefaultTheme, mergeTheme } from '@/lib/theme';
 import { resolvePlanFeatures } from '@/features';
-import apiClient from '@/lib/apiClient';
+import { from } from '@/lib/apiClient'; // Use the new client
 
 const defaultTenant = { recordId: null,
   slug: process.env.NODE_ENV === 'development' ? 'testing' : 'default',
@@ -64,12 +64,20 @@ export const useTenantStore = create((set, get) => ({
     const resolvedSlug = slug ?? get().tenant?.slug ?? defaultTenant.slug;
 
     try {
-      const payload = await apiClient('/api/v1/tenants/current', {
-        headers: {
-          'X-Tenant': resolvedSlug,
-          Accept: 'application/json',
-        },
-      });
+      // The old backend used a special '/current' endpoint with a header.
+      // The new approach will be to query the 'tenants' table by its slug.
+      // This assumes the API Gateway is configured for a route like /tenants?slug=...
+      const { data, error } = await from('tenants').select('*').eq('slug', resolvedSlug).get();
+      
+      if (error) throw new Error(error.message);
+
+      // The new API returns an array, so we take the first result.
+      const payload = data && data.length > 0 ? data[0] : null;
+
+      if (!payload) {
+        throw new Error('Tenant not found');
+      }
+
       get().setTenant({ ...payload, slug: payload.slug ?? resolvedSlug });
       return payload;
     } catch (error) {
@@ -103,39 +111,16 @@ export const useTenantStore = create((set, get) => ({
     set({ tenant: { ...tenant, terminology: { ...tenant.terminology, ...terminology } } });
   },
   refreshPlan: async () => {
+    // This custom endpoint needs a dedicated Lambda. Commenting out for now.
+    // TODO: Create a '/tenants/current/plan' Lambda
+    console.warn('refreshPlan is not implemented for the new AWS backend yet.');
+    return;
+    /*
     const { tenant } = get();
-    const response = await fetch(`${API_BASE_URL}/api/v1/tenants/current/plan`, {
-      credentials: 'include',
-      headers: {
-        'X-Tenant': tenant.slug ?? defaultTenant.slug,
-        Accept: 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to load plan (${response.status})`);
-    }
-
-    const payload = await response.json();
-    // Override plan to ENTERPRISE for all users in development mode
-    const plan = process.env.NODE_ENV === 'development' ? 'ENTERPRISE' : payload.plan;
-    const featureFlags = payload.featureFlags ?? tenant.featureFlags;
-    const features = payload.features ?? resolvePlanFeatures(plan, featureFlags);
-    set({
-      tenant: {
-        ...tenant,
-        plan,
-        storageProvider: payload.storageProvider ?? tenant.storageProvider,
-        dbProvider: payload.dbProvider ?? tenant.dbProvider,
-        migrationState: payload.migrationState ?? tenant.migrationState,
-        migrationInfo: payload.migrationInfo ?? tenant.migrationInfo ?? null,
-        featureFlags,
-        features,
-        usage: payload.usage ?? tenant.usage ?? null,
-        recoveryMode: Boolean(payload.recoveryMode),
-      },
-    });
-    return payload;
+    const { data, error } = await from('tenants').customAction('plan', { slug: tenant.slug });
+    if (error) throw new Error(error.message);
+    // ... logic to update store with payload
+    */
   },
   // Development-only method to manually override plan for testing
   setDevPlan: (plan) => {

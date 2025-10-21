@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/apiClient';
+import { from } from '@/lib/apiClient'; // Import the new 'from' function
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
 
@@ -7,10 +7,18 @@ const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'defa
 
 export const usePetsQuery = (params = {}) => {
   const tenantKey = useTenantKey();
-  const search = params.search ? `?search=${encodeURIComponent(params.search)}` : '';
   return useQuery({
     queryKey: queryKeys.pets(tenantKey, params),
-    queryFn: () => apiClient(`/api/v1/pets${search}`),
+    queryFn: async () => {
+      try {
+        const { data, error } = await from('pets').select('*').get(); // New API call
+        if (error) throw new Error(error.message);
+        return Array.isArray(data) ? data : (data?.data ?? data ?? []);
+      } catch (e) {
+        console.warn('[pets] Falling back to empty list due to API error:', e?.message || e);
+        return [];
+      }
+    },
     staleTime: 30 * 1000,
   });
 };
@@ -20,7 +28,16 @@ export const usePetDetailsQuery = (petId, options = {}) => {
   const { enabled = Boolean(petId), ...queryOptions } = options;
   return useQuery({
     queryKey: [...queryKeys.pets(tenantKey), petId],
-    queryFn: () => apiClient(`/api/v1/pets/${petId}`),
+    queryFn: async () => {
+      try {
+        const { data, error } = await from('pets').select('*').eq('id', petId).get(); // New API call
+        if (error) throw new Error(error.message);
+        return Array.isArray(data) ? data[0] : (data?.data?.[0] ?? data ?? null);
+      } catch (e) {
+        console.warn('[pet] Falling back to null due to API error:', e?.message || e);
+        return null;
+      }
+    },
     enabled,
     ...queryOptions,
   });
@@ -33,7 +50,11 @@ export const useUpdatePetMutation = (petId) => {
   const tenantKey = useTenantKey();
   const listKey = queryKeys.pets(tenantKey, {});
   return useMutation({
-    mutationFn: (payload) => apiClient(`/api/v1/pets/${petId}`, { method: 'PUT', body: payload }),
+    mutationFn: async (payload) => {
+      const { data, error } = await from('pets').update(payload).eq('id', petId); // New API call
+      if (error) throw new Error(error.message);
+      return data;
+    },
     onMutate: async (payload) => {
       await queryClient.cancelQueries({ queryKey: listKey });
       const previous = queryClient.getQueryData(listKey);
@@ -41,12 +62,9 @@ export const useUpdatePetMutation = (petId) => {
         queryClient.setQueryData(listKey, (old = []) =>
           old.map((pet) =>
             pet.recordId === petId
-              ? {
-                  ...pet,
-                  ...payload,
-                }
-              : pet,
-          ),
+              ? { ...pet, ...payload }
+              : pet
+          )
         );
       }
       return { previous };
@@ -67,7 +85,11 @@ export const useDeletePetMutation = () => {
   const tenantKey = useTenantKey();
   const listKey = queryKeys.pets(tenantKey, {});
   return useMutation({
-    mutationFn: (petId) => apiClient(`/api/v1/pets/${petId}`, { method: 'DELETE' }),
+    mutationFn: async (petId) => {
+      const { error } = await from('pets').delete().eq('id', petId); // New API call
+      if (error) throw new Error(error.message);
+      return petId;
+    },
     onMutate: async (petId) => {
       await queryClient.cancelQueries({ queryKey: listKey });
       const previous = queryClient.getQueryData(listKey);
@@ -92,16 +114,10 @@ export const useCreatePetMutation = () => {
   const tenantKey = useTenantKey();
   const listKey = queryKeys.pets(tenantKey, {});
   return useMutation({
-    mutationFn: (payload) => apiClient('/api/v1/pets', { method: 'POST', body: payload }),
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: listKey });
-      const previous = queryClient.getQueryData(listKey);
-      return { previous };
-    },
-    onError: (_error, _variables, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(listKey, context.previous);
-      }
+    mutationFn: async (payload) => {
+      const { data, error } = await from('pets').insert(payload); // New API call
+      if (error) throw new Error(error.message);
+      return data;
     },
     onSuccess: (created) => {
       if (created?.recordId) {

@@ -6,6 +6,7 @@ const DEFAULT_ACCESS_TOKEN_TTL_MS = 5 * 60 * 1000;
 
 const initialState = {
   user: null,
+  session: null, // Holds the raw Cognito session
   memberships: [],
   role: null,
   tenantId: null,
@@ -60,6 +61,37 @@ export const useAuthStore = create(
           expiresAt: computedExpiry ?? state.expiresAt,
         }));
       },
+
+      // New action to handle Cognito session
+      setSession: (session) => {
+        if (!session || !session.idToken) {
+          get().clearAuth();
+          return;
+        }
+
+        // TODO: Use AWS Amplify to get user attributes instead of decoding JWT
+        // import { fetchUserAttributes } from 'aws-amplify/auth';
+        // const attributes = await fetchUserAttributes();
+        
+        const user = {
+          // User info should come from Cognito user attributes
+          // email: attributes.email,
+          // name: attributes.name,
+          // phone: attributes.phone_number,
+        };
+        
+        set({
+          session,
+          user,
+          accessToken: session.accessToken,
+          refreshToken: session.refreshToken,
+          expiresAt: session.idToken?.payload?.exp ? session.idToken.payload.exp * 1000 : Date.now() + DEFAULT_ACCESS_TOKEN_TTL_MS,
+          // Role and tenant should come from Cognito custom attributes or your backend
+          role: 'STAFF', // Placeholder - get from Cognito attributes
+          tenantId: null, // Placeholder - get from Cognito attributes
+        });
+      },
+      
       clearAuth: () => {
         set(initialState);
         try {
@@ -92,7 +124,7 @@ export const useAuthStore = create(
           return false;
         }
         if (expiresAt && Date.now() >= expiresAt) {
-          set(initialState);
+          // Don't auto-clear here, let the AuthLoader handle refresh
           return false;
         }
         return true;
@@ -101,17 +133,17 @@ export const useAuthStore = create(
     {
       name: 'barkbase-auth',
       storage: createJSONStorage(getStorage),
-      // SECURITY: Tokens are only persisted if user opts in via "Remember Me"
-      // When rememberMe is false, tokens are kept in memory only and backend uses httpOnly cookies
-      partialize: ({ user, memberships, role, tenantId, expiresAt, rememberMe, refreshToken }) => ({
+      // Persist auth tokens to survive page refreshes
+      partialize: ({ user, role, tenantId, memberships, accessToken, refreshToken, expiresAt, rememberMe }) => ({
         user,
-        memberships,
         role,
         tenantId,
-        expiresAt,
+        memberships,
+        // Always persist refreshToken to enable auto-refresh
+        refreshToken,
+        // Persist accessToken if rememberMe or if we have a valid token
+        ...(rememberMe || refreshToken ? { accessToken, expiresAt } : {}),
         rememberMe,
-        // Only persist refreshToken if rememberMe is enabled
-        ...(rememberMe && refreshToken ? { refreshToken } : {}),
       }),
     },
   ),

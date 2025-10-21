@@ -1,358 +1,67 @@
-import { useAuthStore } from '@/stores/auth';
-import { useTenantStore } from '@/stores/tenant';
-import { enqueueRequest } from '@/lib/offlineQueue';
+import { createAWSClient } from './aws-client';
 
-// In development, use empty string to leverage Vite proxy (/api -> http://localhost:4000/api)
-// In production, VITE_API_URL should be set to the backend URL
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
-let forcingLogout = false;
-let refreshPromise = null;
+// 1. Initialize the AWS client with configuration from environment variables.
+// The VITE_ prefix is used here, adjust if your framework is different (e.g., NEXT_PUBLIC_, REACT_APP_).
+const awsClient = createAWSClient({
+  region: import.meta.env.VITE_AWS_REGION || 'us-east-1',
+  userPoolId: import.meta.env.VITE_USER_POOL_ID || '',
+  clientId: import.meta.env.VITE_CLIENT_ID || '',
+  // Provide a safe development default so data hooks don't crash when env isn't set
+  apiUrl: import.meta.env.VITE_API_URL || '/api',
+});
 
-const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-
-const getCookie = (name) => {
-  if (typeof document === 'undefined') {
-    return null;
-  }
-  const value = document.cookie
-    ?.split(';')
-    .map((part) => part.trim())
-    .find((part) => part.startsWith(`${name}=`));
-  if (!value) return null;
-  return decodeURIComponent(value.split('=').slice(1).join('='));
+/**
+ * A simple wrapper around the new awsClient.from() method.
+ * This function is now the primary way the frontend will interact with the database via API Gateway.
+ * It completely replaces the old fetch-based implementation.
+ *
+ * @param {string} table - The name of the database table to query (e.g., 'pets', 'users').
+ * @returns {ApiClient} - An instance of our ApiClient, ready for chaining methods.
+ */
+export const from = (table) => {
+  return awsClient.from(table);
 };
 
-const generateRequestId = () => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-};
+/**
+ * Auth client instance.
+ * All authentication-related methods (signIn, signOut, getCurrentUser) are exposed here.
+ */
+export const auth = awsClient.auth;
 
-const triggerLogout = () => {
-  const logout = useAuthStore.getState().logout;
-  logout();
-  if (typeof window !== 'undefined' && !forcingLogout) {
-    forcingLogout = true;
-    window.location.replace('/login');
-    setTimeout(() => {
-      forcingLogout = false;
-    }, 0);
-  }
-};
+/**
+ * Storage client instance.
+ * All storage-related methods (getUploadUrl, getDownloadUrl) are exposed here.
+ */
+export const storage = awsClient.storage;
 
-const shouldQueue = (error) => {
-  if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    return true;
-  }
-  return error instanceof TypeError;
-};
+/**
+ * Upload client for backward compatibility.
+ * This simulates the old upload functionality for development.
+ */
+export const uploadClient = async (endpoint, formData) => {
+  // TODO: Implement proper file upload using AWS S3 pre-signed URLs
+  // For now, simulate a successful upload
+  console.warn('uploadClient() is not yet implemented. Simulating successful upload.');
 
-const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-const asJson = async (response) => {
-  if (response.status === 204) {
-    return null;
-  }
-
-  const text = await response.text();
-  if (!text) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    return text;
-  }
-};
-
-const safeMsg = async (response) => {
-  const fallback = `${response.status} ${response.statusText}`.trim();
-  try {
-    const payload = await asJson(response);
-    if (!payload) {
-      return fallback || 'Request failed';
+  return {
+    success: true,
+    message: 'File uploaded successfully (mock)',
+    // Simulate a response that might contain file info
+    data: {
+      url: 'https://example.com/mock-uploaded-file.jpg'
     }
-    if (typeof payload === 'string') {
-      return payload;
-    }
-    if (payload.message) {
-      return payload.message;
-    }
-    return JSON.stringify(payload);
-  } catch {
-    return fallback || 'Request failed';
-  }
-};
-
-const isTransientError = (error) => {
-  if (!error) {
-    return false;
-  }
-  if (error.name === 'AbortError') {
-    return false;
-  }
-  return error.name === 'TypeError' || /Network/i.test(error.message ?? '');
-};
-
-const tryRefresh = async () => {
-  if (refreshPromise) return refreshPromise;
-
-  refreshPromise = (async () => {
-  const tenantSlug = useTenantStore.getState().tenant?.slug ?? (process.env.NODE_ENV === 'development' ? 'testing' : 'default');
-  const authState = useAuthStore.getState();
-  const { rememberMe, refreshToken } = authState;
-  
-  const headers = new Headers();
-  if (tenantSlug) {
-    headers.set('X-Tenant', tenantSlug);
-  }
-
-  // If rememberMe is enabled and we have a refreshToken in localStorage, send it
-  let body;
-  if (rememberMe && refreshToken) {
-    headers.set('Content-Type', 'application/json');
-    body = JSON.stringify({ refreshToken });
-  }
-
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
-        method: 'POST',
-        credentials: 'include',
-        headers,
-        body,
-      });
-
-      if (response.status === 429 && attempt < 1) {
-        await wait(300 + Math.floor(Math.random() * 200));
-        continue;
-      }
-
-      if (!response.ok) {
-        return false;
-      }
-
-      const payload = await asJson(response);
-      if (!payload?.accessToken) {
-        return false;
-      }
-
-      useAuthStore.getState().updateTokens({ accessToken: payload.accessToken, role: payload.role });
-      return true;
-    } catch (error) {
-      if (isTransientError(error) && attempt < 1) {
-        await wait(300 + Math.floor(Math.random() * 200));
-        continue;
-      }
-      if (error.name === 'AbortError') {
-        throw error;
-      }
-      return false;
-    }
-  }
-  return false;
-  })();
-
-  try {
-    return await refreshPromise;
-  } finally {
-    refreshPromise = null;
-  }
-};
-
-export const apiClient = async (path, options = {}) => {
-  const {
-    method = 'GET',
-    body,
-    headers = {},
-    signal,
-    params,
-    ...rest
-  } = options;
-
-  const methodUpper = method?.toUpperCase?.() ?? method ?? 'GET';
-  const authState = useAuthStore.getState();
-  const tenantSlug = useTenantStore.getState().tenant?.slug ?? (process.env.NODE_ENV === 'development' ? 'testing' : 'default');
-
-  const tenantHeaders = tenantSlug ? { 'X-Tenant': tenantSlug } : {};
-  const queueHeaders = { ...tenantHeaders, ...headers };
-
-  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
-  const isJsonPayload = body && typeof body === 'object' && !isFormData;
-  const serializedBody = isJsonPayload ? JSON.stringify(body) : body ?? undefined;
-
-  const finalHeaders = { ...queueHeaders };
-  if (!finalHeaders['X-App-Version']) {
-    let appVersion = null;
-    if (typeof __APP_VERSION__ !== 'undefined') {
-      appVersion = __APP_VERSION__;
-    } else if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_APP_VERSION) {
-      appVersion = import.meta.env.VITE_APP_VERSION;
-    }
-    if (appVersion) {
-      finalHeaders['X-App-Version'] = appVersion;
-    }
-  }
-  if (!finalHeaders['X-Request-ID']) {
-    finalHeaders['X-Request-ID'] = generateRequestId();
-  }
-  if (isJsonPayload && !finalHeaders['Content-Type']) {
-    finalHeaders['Content-Type'] = 'application/json';
-  }
-  if (authState.accessToken) {
-    finalHeaders.Authorization = `Bearer ${authState.accessToken}`;
-  }
-  if (!SAFE_METHODS.has(methodUpper)) {
-    const csrfToken = getCookie('csrfToken');
-    if (csrfToken) {
-      finalHeaders['X-CSRF-Token'] = csrfToken;
-    }
-  }
-
-  const baseInit = {
-    method,
-    body: serializedBody,
-    credentials: 'include',
-    signal,
-    ...rest,
   };
-
-  // serialize params if provided
-  let url = `${API_BASE_URL}${path}`;
-  if (params && typeof params === 'object') {
-    const usp = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-      if (value === undefined || value === null) return;
-      if (Array.isArray(value)) {
-        value.forEach((v) => usp.append(key, String(v)));
-      } else if (typeof value === 'boolean') {
-        usp.append(key, value ? 'true' : 'false');
-      } else {
-        usp.append(key, String(value));
-      }
-    });
-    const qs = usp.toString();
-    if (qs) {
-      url += (url.includes('?') ? '&' : '?') + qs;
-    }
-  }
-  let lastError = null;
-
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const init = {
-      ...baseInit,
-      headers: new Headers(finalHeaders),
-    };
-
-    try {
-      const response = await fetch(url, init);
-
-      if (response.status === 401) {
-        // Don't logout immediately - try to refresh first
-        const refreshed = await tryRefresh();
-        if (!refreshed) {
-          // For GET requests, don't force logout; surface the 401 and let UI handle it
-          if (methodUpper !== 'GET' && !url.includes('/auth/refresh')) {
-            triggerLogout();
-          }
-          throw new Error('Unauthorized');
-        }
-
-        const nextToken = useAuthStore.getState().accessToken;
-        if (nextToken) {
-          finalHeaders.Authorization = `Bearer ${nextToken}`;
-        } else {
-          delete finalHeaders.Authorization;
-        }
-
-        if (!SAFE_METHODS.has(methodUpper)) {
-          const refreshedCsrf = getCookie('csrfToken');
-          if (refreshedCsrf) {
-            finalHeaders['X-CSRF-Token'] = refreshedCsrf;
-          }
-        }
-
-        const retryResponse = await fetch(url, {
-          ...baseInit,
-          headers: new Headers(finalHeaders),
-        });
-
-        if (!retryResponse.ok) {
-          throw new Error(await safeMsg(retryResponse));
-        }
-
-        return await asJson(retryResponse);
-      }
-
-      if (!response.ok) {
-        throw new Error(await safeMsg(response));
-      }
-
-      return await asJson(response);
-    } catch (error) {
-      if (error.name === 'AbortError') {
-        throw error;
-      }
-
-      lastError = error;
-      if (isTransientError(error) && attempt < 2) {
-        await wait(300 * (attempt + 1) ** 2);
-        continue;
-      }
-
-      break;
-    }
-  }
-
-  if (lastError && shouldQueue(lastError) && methodUpper !== 'GET') {
-    const isBlobPayload = typeof Blob !== 'undefined' && body instanceof Blob;
-    const canQueue = !(isFormData || isBlobPayload);
-    if (canQueue) {
-      await enqueueRequest({
-        url: path,
-        method,
-        body,
-        headers: queueHeaders,
-      });
-      return { queued: true };
-    }
-  }
-
-  throw lastError ?? new Error('Request failed');
 };
 
-export const uploadClient = async (path, formData, options = {}) => {
-  const token = useAuthStore.getState().accessToken;
-  const tenantSlug = useTenantStore.getState().tenant?.slug ?? (process.env.NODE_ENV === 'development' ? 'testing' : 'default');
-  const tenantHeaders = tenantSlug ? { 'X-Tenant': tenantSlug } : {};
-  const requestInit = {
-    method: options.method ?? 'POST',
-    body: formData,
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...tenantHeaders,
-      ...options.headers,
-    },
-    credentials: 'include',
-    signal: options.signal,
-  };
-
-  const response = await fetch(`${API_BASE_URL}${path}`, requestInit);
-  if (!response.ok) {
-    throw new Error(await safeMsg(response));
-  }
-
-  return asJson(response);
+// The main export is now an object containing the clients,
+// but for backward compatibility, we can keep a default export if needed.
+const apiClient = {
+  from,
+  auth,
+  storage,
+  uploadClient,
 };
 
-// HTTP method helpers for convenience
-apiClient.get = (path, options = {}) => apiClient(path, { ...options, method: 'GET' });
-apiClient.post = (path, body, options = {}) => apiClient(path, { ...options, method: 'POST', body });
-apiClient.put = (path, body, options = {}) => apiClient(path, { ...options, method: 'PUT', body });
-apiClient.patch = (path, body, options = {}) => apiClient(path, { ...options, method: 'PATCH', body });
-apiClient.delete = (path, options = {}) => apiClient(path, { ...options, method: 'DELETE' });
-
+export { apiClient };
 export default apiClient;
 

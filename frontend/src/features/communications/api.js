@@ -1,24 +1,38 @@
-import { useQuery, useMutation, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/apiClient';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { from } from '@/lib/apiClient';
+import { queryKeys } from '@/lib/queryKeys';
+import { useTenantStore } from '@/stores/tenant';
 
-// Communication queries
-export const useCustomerCommunications = (ownerId, options = {}) => {
-  return useInfiniteQuery({
-    queryKey: ['communications', ownerId, options],
-    queryFn: ({ pageParam = 0 }) =>
-      apiClient.get(`/api/v1/communications/owner/${ownerId}`, {
-        params: {
-          ...options,
-          offset: pageParam,
-          limit: 50,
-        },
-      }),
-    getNextPageParam: (lastPage) => {
-      const { offset, limit, total } = lastPage;
-      const nextOffset = offset + limit;
-      return nextOffset < total ? nextOffset : undefined;
+const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
+
+export const useCommunicationsQuery = (ownerId) => {
+  const tenantKey = useTenantKey();
+  return useQuery({
+    queryKey: queryKeys.communications(tenantKey, ownerId),
+    queryFn: async () => {
+      const { data, error } = await from('communications').select('*').eq('ownerId', ownerId).get();
+      if (error) throw new Error(error.message);
+      return data;
     },
     enabled: !!ownerId,
+  });
+};
+
+export const useCreateCommunicationMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async (payload) => {
+      const { data, error } = await from('communications').insert(payload);
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: (data) => {
+      if (data?.ownerId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.communications(tenantKey, data.ownerId) });
+      }
+    },
   });
 };
 

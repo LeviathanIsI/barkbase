@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/Select';
 import { useRoles } from '@/features/roles/api';
-import { apiClient } from '@/lib/apiClient';
+import apiClient from '@/lib/apiClient';
 import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 

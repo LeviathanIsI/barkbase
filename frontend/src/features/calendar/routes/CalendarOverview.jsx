@@ -12,10 +12,8 @@ import BookingDetailModal from '../components/BookingDetailModal';
 import NewBookingModal from '@/features/bookings/components/NewBookingModal';
 import SlidePanel from '@/components/ui/SlidePanel';
 import FilterOptionsPanel from '../components/FilterOptionsPanel';
-import QuickActionsBar from '../components/QuickActionsBar';
 import BookingHUD from '@/features/bookings/components/BookingHUD';
 import { useLiveQuery } from '@/lib/useLiveQuery';
-import apiClient from '@/lib/apiClient';
 import CheckInOutDashboard from '../components/CheckInOutDashboard';
 
 const CalendarOverview = () => {
@@ -50,6 +48,9 @@ const CalendarOverview = () => {
   const handleFilterChange = (newFilters) => {
     setFilters(newFilters);
   };
+
+  // The useLiveQuery hook and direct apiClient calls are no longer used in this component.
+  // Data fetching is handled by the custom hooks in the respective `api.js` files.
 
   return (
     <div className="space-y-6">
@@ -105,9 +106,6 @@ const CalendarOverview = () => {
       <BookingHUD
         date={currentDate}
         stats={{}}
-        onNewBooking={() => setShowNewBookingModal(true)}
-        onOpenFilters={() => setShowFilters(true)}
-        onCheckInOut={() => setShowCheckInOutPanel(true)}
       />
 
       {/* Enhanced Stats Dashboard */}
@@ -158,8 +156,7 @@ const CalendarOverview = () => {
         </div>
       </div>
 
-      {/* Quick Actions Bar */}
-      <QuickActionsBar onNewBooking={() => setShowNewBookingModal(true)} />
+      {/* Quick Actions Bar removed to avoid duplicate actions (header and HUD already provide controls) */}
 
       {/* Modals */}
       <BookingDetailModal

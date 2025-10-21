@@ -5,7 +5,7 @@ import Badge from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import Skeleton from '@/components/ui/Skeleton';
 import { formatCurrency } from '@/lib/utils';
-import { apiClient } from '@/lib/apiClient';
+import apiClient from '@/lib/apiClient';
 
 export default function FinancialDashboard() {
   // Fetch real billing data

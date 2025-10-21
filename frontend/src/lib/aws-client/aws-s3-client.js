@@ -1,0 +1,64 @@
+// This class will handle interactions with our S3 pre-signed URL Lambdas.
+export class S3Client {
+    constructor(config, auth) {
+        this.apiUrl = config.apiUrl;
+        this.auth = auth;
+    }
+
+    /**
+     * Gets a pre-signed URL for uploading a file.
+     * @param {object} options - The file options.
+     * @param {string} options.fileName - The name of the file.
+     * @param {string} options.fileType - The MIME type of the file.
+     * @returns {Promise<{uploadUrl: string, key: string, publicUrl: string}>}
+     */
+    async getUploadUrl({ fileName, fileType }) {
+        const idToken = await this.auth.getIdToken(); // Assumes getIdToken is implemented to retrieve the token
+        const tenantId = this.auth.getTenantId(); // Assumes a method to get the current tenant
+
+        const response = await fetch(`${this.apiUrl}/upload-url`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${idToken}`,
+                'x-tenant-id': tenantId, // Pass tenantId for S3 key prefixing
+            },
+            body: JSON.stringify({ fileName, fileType }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to get upload URL');
+        }
+
+        return response.json();
+    }
+
+    /**
+     * Gets a pre-signed URL for downloading a private file.
+     * @param {string} key - The S3 key of the file to download.
+     * @returns {Promise<{downloadUrl: string}>}
+     */
+    async getDownloadUrl(key) {
+        const idToken = await this.auth.getIdToken();
+        const tenantId = this.auth.getTenantId();
+        
+        const url = new URL(`${this.apiUrl}/download-url`);
+        url.searchParams.append('key', key);
+
+        const response = await fetch(url.toString(), {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${idToken}`,
+                'x-tenant-id': tenantId,
+            },
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to get download URL');
+        }
+
+        return response.json();
+    }
+}

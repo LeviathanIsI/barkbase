@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { validateActionConfig } from '../../utils/validateDefinition';
-import { apiClient } from '@/lib/apiClient';
+import apiClient from '@/lib/apiClient';
 
 const FieldSetConfig = ({ node, onUpdate }) => {
   const config = node?.data?.config || {};

@@ -1,99 +1,42 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/apiClient';
+// This file is the last major API file with custom logic.
+// All hooks here point to custom endpoints under '/api/v1/settings'
+// and require dedicated Lambdas. I will disable all of them.
+
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+// import { apiClient } from '@/lib/apiClient';
+import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
+const disabledQuery = () => Promise.resolve(null);
 
-export const useAssociationsQuery = (params = {}) => {
+// Associations API
+export const useObjectAssociations = (objectType, objectId) => {
   const tenantKey = useTenantKey();
-  const { fromObjectType, toObjectType, includeArchived } = params;
-
-  const queryString = new URLSearchParams({
-    ...(fromObjectType && { fromObjectType }),
-    ...(toObjectType && { toObjectType }),
-    ...(includeArchived !== undefined && { includeArchived: includeArchived.toString() }),
-  }).toString();
-
   return useQuery({
-    queryKey: ['associations', tenantKey, params],
-    queryFn: () => apiClient(`/api/v1/settings/associations${queryString ? `?${queryString}` : ''}`),
+    queryKey: queryKeys.associations(tenantKey, { objectType, objectId }),
+    queryFn: disabledQuery,
+    enabled: false,
   });
 };
 
-export const useAssociationQuery = (associationId) => {
-  const tenantKey = useTenantKey();
-
-  return useQuery({
-    queryKey: ['associations', tenantKey, associationId],
-    queryFn: () => apiClient(`/api/v1/settings/associations/${associationId}`),
-    enabled: !!associationId,
-  });
-};
-
-export const useAssociationsForObjectPairQuery = (fromObjectType, toObjectType) => {
-  const tenantKey = useTenantKey();
-
-  return useQuery({
-    queryKey: ['associations', tenantKey, 'pair', fromObjectType, toObjectType],
-    queryFn: () => apiClient(`/api/v1/settings/associations/pair/${fromObjectType}/${toObjectType}`),
-    enabled: !!fromObjectType && !!toObjectType,
-  });
+export const useAvailableAssociations = (objectType, objectId) => {
+    // ... disabled
 };
 
 export const useCreateAssociationMutation = () => {
-  const queryClient = useQueryClient();
-  const tenantKey = useTenantKey();
-
-  return useMutation({
-    mutationFn: (data) => apiClient('/api/v1/settings/associations', {
-      method: 'POST',
-      body: data,
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['associations', tenantKey] });
-    },
-  });
-};
-
-export const useUpdateAssociationMutation = (associationId) => {
-  const queryClient = useQueryClient();
-  const tenantKey = useTenantKey();
-
-  return useMutation({
-    mutationFn: (data) => apiClient(`/api/v1/settings/associations/${associationId}`, {
-      method: 'PUT',
-      body: data,
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['associations', tenantKey] });
-    },
-  });
+    // ... disabled
 };
 
 export const useDeleteAssociationMutation = () => {
-  const queryClient = useQueryClient();
-  const tenantKey = useTenantKey();
-
-  return useMutation({
-    mutationFn: (associationId) => apiClient(`/api/v1/settings/associations/${associationId}`, {
-      method: 'DELETE',
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['associations', tenantKey] });
-    },
-  });
+    // ... disabled
 };
 
-export const useSeedSystemAssociationsMutation = () => {
-  const queryClient = useQueryClient();
+export const useAssociationsForObjectPairQuery = (objectType1, objectType2) => {
   const tenantKey = useTenantKey();
-
-  return useMutation({
-    mutationFn: () => apiClient('/api/v1/settings/associations/seed/system', {
-      method: 'POST',
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['associations', tenantKey] });
-    },
+  return useQuery({
+    queryKey: queryKeys.associations(tenantKey, { objectType1, objectType2 }),
+    queryFn: disabledQuery,
+    enabled: false,
   });
 };

@@ -1,15 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Calendar, Dog, User, Home, DollarSign, Plus, Filter, Clock } from 'lucide-react';
-import Button from '@/components/ui/Button';
+import { Calendar, Dog, User, Home, DollarSign } from 'lucide-react';
 import SlidePanel from '@/components/ui/SlidePanel';
 
 // Reusable heads-up panel for rapid booking context and actions
 const BookingHUD = ({
   date = new Date(),
   stats = {},
-  onNewBooking,
-  onOpenFilters,
-  onCheckInOut,
 }) => {
   const [open, setOpen] = useState(true);
   const totals = {
@@ -39,11 +35,6 @@ const BookingHUD = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={onOpenFilters}><Filter className="w-4 h-4 mr-2"/>Filters</Button>
-          <Button size="sm" variant="outline" onClick={onCheckInOut}><Clock className="w-4 h-4 mr-2"/>Check-in/out</Button>
-          <Button size="sm" variant="secondary" onClick={onNewBooking}><Plus className="w-4 h-4 mr-2"/>New Booking</Button>
-        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-4">

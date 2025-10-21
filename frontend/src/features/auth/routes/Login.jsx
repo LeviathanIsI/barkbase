@@ -1,76 +1,60 @@
-import { useState } from 'react';
-import { Navigate, useLocation, useNavigate, Link } from 'react-router-dom';
-import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
+import React, { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth';
 import { useTenantStore } from '@/stores/tenant';
-import { apiClient } from '@/lib/apiClient';
+import { auth } from '@/lib/apiClient'; // Import the new auth client
+import Card from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
 
 const Login = () => {
-  const setTenant = useTenantStore((state) => state.setTenant);
-  const setAuth = useAuthStore((state) => state.setAuth);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
   const navigate = useNavigate();
-  const location = useLocation();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(true); // Default to checked
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState(null);
+  const { setAuth } = useAuthStore();
+  const { setTenant } = useTenantStore();
+  const { register, handleSubmit, formState: { errors, isSubmitting }, setError, watch } = useForm();
+  const [rememberMe, setRememberMe] = useState(true); // Default to true
 
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  const email = watch('email');
+  const password = watch('password');
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setSubmitting(true);
-    setError(null);
-
+  const onSubmit = async (data) => {
     try {
-      const result = await apiClient('/api/v1/auth/login', {
-        method: 'POST',
-        body: { email, password, rememberMe },
-      });
-
-      // Update tenant store with full tenant info from login response
-      if (result.user?.memberships?.[0]?.tenant) {
-        setTenant(result.user.memberships[0].tenant);
-      }
-
+      const { email, password } = data;
+      console.log('Attempting sign in...');
+      
+      const result = await auth.signIn({ email, password });
+      
+      // Store auth tokens and user info
       setAuth({
         user: result.user,
-        tokens: result.tokens,
-        role: result.role ?? result.user?.role,
-        tenantId: result.tenantId ?? result.user?.tenantId,
-        memberships: result.user?.memberships,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        role: result.user.role,
+        tenantId: result.tenant.recordId,
+        memberships: [{ role: result.user.role, tenantId: result.tenant.recordId }],
         rememberMe,
       });
 
-      const from = location.state?.from;
-      const redirectTo = from
-        ? `${from.pathname ?? ''}${from.search ?? ''}${from.hash ?? ''}` || '/dashboard'
-        : '/dashboard';
-      navigate(redirectTo, { replace: true });
-    } catch (err) {
-      // Check if it's a "no workspace" error
-      if (err.message && err.message.includes('No workspace found')) {
-        setError(
-          <span>
-            {err.message}{' '}
-            <Link to="/signup" className="text-primary underline">
-              Create a new workspace
-            </Link>
-          </span>
-        );
-      } else {
-        setError(err.message ?? 'Unable to sign in');
-      }
-    } finally {
-      setSubmitting(false);
+      // Store tenant info
+      setTenant({
+        recordId: result.tenant.recordId,
+        slug: result.tenant.slug,
+        name: result.tenant.name,
+        plan: result.tenant.plan,
+      });
+      
+      console.log('Sign in successful, navigating to dashboard...');
+      navigate('/dashboard');
+
+    } catch (error) {
+      console.error('Login failed:', error);
+      setError('root.serverError', {
+        type: 'manual',
+        message: error.message || 'Invalid credentials. Please try again.',
+      });
     }
   };
-
+  
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
       <div className="mb-6 text-center">
@@ -78,28 +62,26 @@ const Login = () => {
         <h1 className="text-2xl font-semibold text-text">Welcome back</h1>
       </div>
       <Card className="max-w-md">
-        <form className="grid gap-4" onSubmit={handleSubmit}>
+        <form className="grid gap-4" onSubmit={handleSubmit(onSubmit)}>
           <label className="text-sm font-medium text-text">
             Email
             <input
               type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              {...register('email', { required: 'Email is required' })}
               className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
               autoComplete="email"
-              required
             />
+            {errors.email && <p className="text-sm text-danger">{errors.email.message}</p>}
           </label>
           <label className="text-sm font-medium text-text">
             Password
             <input
               type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              {...register('password', { required: 'Password is required' })}
               className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
               autoComplete="current-password"
-              required
             />
+            {errors.password && <p className="text-sm text-danger">{errors.password.message}</p>}
           </label>
           <label className="flex items-center gap-2 text-sm text-text">
             <input
@@ -110,9 +92,9 @@ const Login = () => {
             />
             <span>Remember me for 30 days</span>
           </label>
-          {error ? <p className="text-sm text-danger">{error}</p> : null}
-          <Button type="submit" disabled={submitting || !email || !password}>
-            {submitting ? 'Signing in…' : 'Sign In'}
+          {errors.root?.serverError ? <p className="text-sm text-danger">{errors.root.serverError.message}</p> : null}
+          <Button type="submit" disabled={isSubmitting || !email || !password}>
+            {isSubmitting ? 'Signing in…' : 'Sign In'}
           </Button>
           <p className="text-center text-xs text-muted">
             Don't have a workspace?{' '}

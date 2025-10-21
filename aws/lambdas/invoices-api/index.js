@@ -1,0 +1,30 @@
+const { getPool } = require('/opt/nodejs');
+
+const HEADERS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type,Authorization,x-tenant-id', 'Access-Control-Allow-Methods': 'OPTIONS,GET,POST,PATCH' };
+
+exports.handler = async (event) => {
+    const httpMethod = event.requestContext.http.method;
+    const tenantId = event.headers['x-tenant-id'];
+    if (!tenantId) return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ message: 'Missing x-tenant-id' }) };
+
+    try {
+        const pool = getPool();
+        if (httpMethod === 'GET') {
+            const { rows } = await pool.query(`SELECT * FROM "Invoice" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`, [tenantId]);
+            return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows) };
+        }
+        if (httpMethod === 'POST') {
+            const { bookingId, amountCents, dueDate, items } = JSON.parse(event.body);
+            const { rows } = await pool.query(
+                `INSERT INTO "Invoice" ("recordId", "tenantId", "bookingId", "amountCents", "dueDate", "items", "status", "updatedAt")
+                 VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'DRAFT', NOW()) RETURNING *`,
+                [tenantId, bookingId, amountCents, dueDate, JSON.stringify(items || [])]
+            );
+            return { statusCode: 201, headers: HEADERS, body: JSON.stringify(rows[0]) };
+        }
+        return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Not Found' }) };
+    } catch (error) {
+        return { statusCode: 500, headers: HEADERS, body: JSON.stringify({ message: error.message }) };
+    }
+};
+

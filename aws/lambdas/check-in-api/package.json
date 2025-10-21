@@ -1,0 +1,7 @@
+{
+  "name": "check-in-api",
+  "version": "1.0.0",
+  "description": "Lambda for handling booking check-ins",
+  "main": "index.js",
+  "dependencies": {}
+}

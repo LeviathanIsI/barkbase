@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/apiClient';
+import { from } from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
 import { useAuthStore } from '@/stores/auth';
@@ -36,6 +36,34 @@ export const useOnboardingDismissMutation = () => {
       }),
     onSuccess: (payload) => {
       queryClient.setQueryData(queryKeys.onboarding(tenantId), payload);
+    },
+  });
+};
+
+export const useTenantQuery = (slug) => {
+  return useQuery({
+    queryKey: queryKeys.tenants(slug),
+    queryFn: async () => {
+      const { data, error } = await from('tenants').select('*').eq('slug', slug).get();
+      if (error) throw new Error(error.message);
+      return data?.[0] ?? null; // Expecting one or none
+    },
+    enabled: !!slug,
+  });
+};
+
+export const useUpdateTenantMutation = (tenantId) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload) => {
+      const { data, error } = await from('tenants').update(payload).eq('id', tenantId);
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: (data) => {
+      if (data?.slug) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.tenants(data.slug) });
+      }
     },
   });
 };

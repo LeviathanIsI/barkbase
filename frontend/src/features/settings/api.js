@@ -1,22 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/apiClient';
+import { from } from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
-// Properties API
+// Properties API (Assuming this is a generic settings table)
+// TODO: A 'properties' table does not exist in the schema. This will need a new table & Lambda.
+const disabledQuery = () => Promise.resolve(null);
+
 export const usePropertiesQuery = (objectType, options = {}) => {
   const tenantKey = useTenantKey();
   return useQuery({
     queryKey: queryKeys.properties(tenantKey, { objectType }),
-    queryFn: () => apiClient(`/api/v1/settings/properties?object=${objectType}`),
-    enabled: Boolean(objectType),
-    staleTime: 5 * 60 * 1000,
-    ...options,
+    queryFn: disabledQuery, // from('properties').select('*').eq('objectType', objectType)
+    enabled: false,
   });
 };
 
+/*
 export const useCreatePropertyMutation = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
@@ -88,18 +90,25 @@ export const useDeletePropertyMutation = () => {
     },
   });
 };
+*/
 
-// Services API
+
+// Services API (already refactored in services/api.js, can be removed from here if redundant)
 export const useServicesQuery = (options = {}) => {
   const tenantKey = useTenantKey();
   return useQuery({
     queryKey: queryKeys.services(tenantKey),
-    queryFn: () => apiClient('/api/v1/services'),
+    queryFn: async () => {
+      const { data, error } = await from('services').select('*').get();
+      if (error) throw new Error(error.message);
+      return data;
+    },
     staleTime: 5 * 60 * 1000,
     ...options,
   });
 };
 
+/*
 export const useCreateServiceMutation = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
@@ -143,18 +152,25 @@ export const useDeleteServiceMutation = () => {
     },
   });
 };
+*/
 
-// Staff API
+
+// Staff API (already refactored in staff/api.js, can be removed from here if redundant)
 export const useStaffQuery = (options = {}) => {
   const tenantKey = useTenantKey();
   return useQuery({
     queryKey: queryKeys.staff(tenantKey),
-    queryFn: () => apiClient('/api/v1/staff'),
+    queryFn: async () => {
+      const { data, error } = await from('staff').select('*').get();
+      if (error) throw new Error(error.message);
+      return data;
+    },
     staleTime: 5 * 60 * 1000,
     ...options,
   });
 };
 
+/*
 export const useUpdateStaffStatusMutation = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
@@ -169,6 +185,8 @@ export const useUpdateStaffStatusMutation = () => {
     },
   });
 };
+*/
+
 
 // Calendar API
 export const useCalendarCapacity = (options = {}) => {
@@ -186,9 +204,8 @@ export const useCalendarCapacity = (options = {}) => {
 
   return useQuery({
     queryKey: [...queryKeys.calendar(tenantKey), 'capacity'],
-    queryFn: () => apiClient('/api/v1/calendar/capacity'),
-    staleTime: 5 * 60 * 1000,
-    enabled: isAuthenticated && !!accessToken,
+    queryFn: disabledQuery, // Needs custom Lambda
+    enabled: false,
     ...options,
   });
 };
@@ -217,9 +234,8 @@ export const useReportsDashboardQuery = (params = {}, options = {}) => {
 
   return useQuery({
     queryKey: queryKeys.reports.dashboard(tenantKey, params),
-    queryFn: () => apiClient(`/api/v1/reports/dashboard${queryString ? `?${queryString}` : ''}`),
-    staleTime: 5 * 60 * 1000,
-    enabled: isAuthenticated && !!accessToken,
+    queryFn: disabledQuery, // Needs custom Lambda
+    enabled: false,
     ...options,
   });
 };
@@ -240,9 +256,8 @@ export const useBookingsInsightsQuery = (options = {}) => {
 
   return useQuery({
     queryKey: [tenantKey, 'bookings-insights'],
-    queryFn: () => apiClient('/api/v1/dashboard/stats'),
-    staleTime: 5 * 60 * 1000,
-    enabled: isAuthenticated && !!accessToken,
+    queryFn: disabledQuery, // Needs custom Lambda
+    enabled: false,
     ...options,
   });
 };

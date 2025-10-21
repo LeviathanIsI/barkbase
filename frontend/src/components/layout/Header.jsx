@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Menu, Bell, WifiOff, Wifi, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Button from '@/components/ui/Button';
@@ -10,6 +10,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useUIStore } from '@/stores/ui';
 import { cn } from '@/lib/cn';
 import { can } from '@/lib/acl';
+import { auth } from '@/lib/apiClient'; // Import our new auth client
 
 // In development, use empty string to leverage Vite proxy (/api -> http://localhost:4000/api)
 // In production, VITE_API_URL should be set to the backend URL
@@ -27,6 +28,8 @@ const Header = ({ onMenuToggle }) => {
   const user = useAuthStore((state) => state.user);
   const role = useAuthStore((state) => state.role);
   const offline = useUIStore((state) => state.offline);
+  const navigate = useNavigate();
+  const { accessToken } = useAuthStore(); // Get accessToken for signOut
 
   const permissionContext = {
     role,
@@ -169,6 +172,19 @@ const Header = ({ onMenuToggle }) => {
     });
   };
 
+  const handleLogout = async () => {
+    try {
+      // Pass the accessToken to invalidate it on the backend
+      await auth.signOut({ accessToken });
+    } catch (error) {
+      console.error('Failed to sign out from Cognito, clearing session locally anyway.', error);
+    } finally {
+      // No matter what, clear the local session and redirect
+      useAuthStore.getState().clearAuth();
+      navigate('/login');
+    }
+  };
+
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-border/30 gradient-indigo px-6 text-white shadow-sm">
       <Button variant="ghost" size="icon" className="lg:hidden" onClick={onMenuToggle}>
@@ -287,6 +303,13 @@ const Header = ({ onMenuToggle }) => {
                     Audit Log
                   </Link>
                 ) : null}
+                <button
+                  type="button"
+                  className="block rounded-md px-3 py-2 text-sm text-text hover:bg-primary/10"
+                  onClick={handleLogout}
+                >
+                  Logout
+                </button>
               </div>
             ) : null}
           </div>

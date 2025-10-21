@@ -117,7 +117,7 @@ const KennelForm = ({ kennel, onClose, onSuccess, terminology }) => {
   const isLoading = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <Modal isOpen onClose={onClose} className="max-w-2xl">
+    <Modal open onClose={onClose} className="max-w-2xl">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold">
           {kennel ? `Edit ${terminology.kennel}` : `Add New ${terminology.kennel}`}

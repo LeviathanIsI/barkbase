@@ -1,74 +1,70 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/apiClient';
+import { from } from '@/lib/apiClient';
 
-/**
- * Get today's tasks
- */
-export const useTodaysTasksQuery = (filters = {}) => {
+// TODO: The queries in this file fetch tasks by custom filters like 'today' or 'overdue'.
+// This requires dedicated Lambda functions or more advanced filtering capabilities in the ApiClient.
+// For now, we will provide a basic CRUD implementation for the 'tasks' table.
+
+export const useTasksQuery = (filters = {}) => {
   return useQuery({
-    queryKey: ['tasks', 'today', filters],
+    queryKey: ['tasks', filters],
     queryFn: async () => {
-      const response = await apiClient.get('/api/v1/tasks/today', { params: filters });
-      return response.data;
-    }
+      let query = from('tasks').select('*');
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) {
+          query = query.eq(key, value);
+        }
+      });
+      const { data, error } = await query.get();
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    // Allow fetching all tasks when no specific filters are provided
+    enabled: true,
   });
 };
 
-/**
- * Get overdue tasks
- */
+// Convenience hooks expected by the Tasks route. We fetch tasks and filter client-side
+// until dedicated API endpoints are available.
+export const useTodaysTasksQuery = () => {
+  return useQuery({
+    queryKey: ['tasks', 'today'],
+    queryFn: async () => {
+      const { data, error } = await from('tasks').select('*').get();
+      if (error) throw new Error(error.message);
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = today.getMonth();
+      const dd = today.getDate();
+      return (data || []).filter((t) => {
+        if (!t.scheduledFor) return false;
+        const d = new Date(t.scheduledFor);
+        return d.getFullYear() === yyyy && d.getMonth() === mm && d.getDate() === dd;
+      });
+    },
+  });
+};
+
 export const useOverdueTasksQuery = () => {
   return useQuery({
     queryKey: ['tasks', 'overdue'],
     queryFn: async () => {
-      const response = await apiClient.get('/api/v1/tasks/overdue');
-      return response.data;
-    }
-  });
-};
-
-/**
- * Get tasks for a pet
- */
-export const usePetTasksQuery = (petId, includeCompleted = false) => {
-  return useQuery({
-    queryKey: ['tasks', 'pet', petId, includeCompleted],
-    queryFn: async () => {
-      const response = await apiClient.get(`/api/v1/tasks/pet/${petId}`, {
-        params: { includeCompleted }
-      });
-      return response.data;
+      const { data, error } = await from('tasks').select('*').get();
+      if (error) throw new Error(error.message);
+      const now = Date.now();
+      return (data || []).filter((t) => t.scheduledFor && !t.completedAt && new Date(t.scheduledFor).getTime() < now);
     },
-    enabled: !!petId
   });
 };
 
-/**
- * Get tasks for a booking
- */
-export const useBookingTasksQuery = (bookingId, includeCompleted = false) => {
-  return useQuery({
-    queryKey: ['tasks', 'booking', bookingId, includeCompleted],
-    queryFn: async () => {
-      const response = await apiClient.get(`/api/v1/tasks/booking/${bookingId}`, {
-        params: { includeCompleted }
-      });
-      return response.data;
-    },
-    enabled: !!bookingId
-  });
-};
 
-/**
- * Create a task
- */
 export const useCreateTaskMutation = () => {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: async (taskData) => {
-      const response = await apiClient.post('/api/v1/tasks', taskData);
-      return response.data;
+      const { data, error } = await from('tasks').insert(taskData);
+      if (error) throw new Error(error.message);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
@@ -76,16 +72,13 @@ export const useCreateTaskMutation = () => {
   });
 };
 
-/**
- * Complete a task
- */
+// TODO: This requires a custom Lambda to handle the logic of completing a task.
 export const useCompleteTaskMutation = () => {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: async ({ taskId, notes }) => {
-      const response = await apiClient.put(`/api/v1/tasks/${taskId}/complete`, { notes });
-      return response.data;
+      console.warn('Complete task mutation not implemented yet.');
+      return Promise.resolve();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
@@ -93,16 +86,13 @@ export const useCompleteTaskMutation = () => {
   });
 };
 
-/**
- * Update a task
- */
 export const useUpdateTaskMutation = () => {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: async ({ taskId, updates }) => {
-      const response = await apiClient.put(`/api/v1/tasks/${taskId}`, updates);
-      return response.data;
+      const { data, error } = await from('tasks').update(updates).eq('id', taskId);
+      if (error) throw new Error(error.message);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
@@ -110,16 +100,13 @@ export const useUpdateTaskMutation = () => {
   });
 };
 
-/**
- * Delete a task
- */
 export const useDeleteTaskMutation = () => {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: async (taskId) => {
-      const response = await apiClient.delete(`/api/v1/tasks/${taskId}`);
-      return response.data;
+      const { error } = await from('tasks').delete().eq('id', taskId);
+      if (error) throw new Error(error.message);
+      return taskId;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });

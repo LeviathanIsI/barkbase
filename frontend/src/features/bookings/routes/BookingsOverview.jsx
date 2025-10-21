@@ -4,7 +4,6 @@ import { Calendar, List, Activity, Layout, Search, Settings } from 'lucide-react
 import Button from '@/components/ui/Button';
 import { Card, PageHeader } from '@/components/ui/Card';
 import EnhancedBookingsStats from '../components/EnhancedBookingsStats';
-import QuickActionsBar from '../components/QuickActionsBar';
 import BookingCard from '../components/BookingCard';
 import ListView from '../components/ListView';
 import CalendarView from '../components/CalendarView';
@@ -183,14 +182,7 @@ const BookingsOverview = () => {
       {/* Enhanced Stats Dashboard */}
       <EnhancedBookingsStats bookings={bookings} currentDate={currentDate} />
 
-      {/* Quick Actions Bar */}
-      <QuickActionsBar
-        onNewBooking={() => setShowNewBookingModal(true)}
-        onBatchCheckIn={() => setShowBatchOperations(true)}
-        onSendReminders={() => {/* Handle reminders */}}
-        onPendingPayments={() => {/* Handle payments */}}
-        onAnalytics={() => {/* Handle analytics */}}
-      />
+      {/* Quick Actions Bar removed to avoid duplicate actions (header already has controls) */}
 
       {/* Quick Stats Dashboard */}
       <QuickStatsDashboard bookings={filteredBookings} />

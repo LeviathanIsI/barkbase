@@ -1,47 +1,19 @@
-import { openDB } from 'idb';
-import { apiClient } from '@/lib/apiClient';
-
-const DATABASE_NAME = 'barkbase-offline';
-const STORE_NAME = 'pending-requests';
-
-const dbPromise = openDB(DATABASE_NAME, 1, {
-  upgrade(db) {
-    if (!db.objectStoreNames.contains(STORE_NAME)) {
-      db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
-    }
-  },
-});
+// This file is part of the old backend's offline queue system.
+// Since we are moving to a serverless architecture where the client has a more direct
+// connection to the backend services, this specific implementation is no longer applicable.
+// A new offline strategy would need to be designed if required.
 
 export const enqueueRequest = async (request) => {
-  const db = await dbPromise;
-  await db.add(STORE_NAME, {
-    ...request,
-    createdAt: new Date().toISOString(),
-  });
+  console.warn('Offline queue is disabled.');
+  return Promise.resolve();
+};
+
+export const processQueue = async () => {
+  console.warn('Offline queue is disabled.');
+  return Promise.resolve();
 };
 
 export const flushQueue = async () => {
-  const db = await dbPromise;
-  const tx = db.transaction(STORE_NAME, 'readwrite');
-  const store = tx.store;
-  const requests = await store.getAll();
-
-  for (const item of requests) {
-    try {
-      await apiClient(item.url, {
-        method: item.method,
-        body: item.body,
-        headers: item.headers,
-      });
-      await store.delete(item.recordId);
-    } catch (error) {
-      // stop processing to retry later
-      if (import.meta.env.DEV) {
-        console.error('Failed to flush request', error);
-      }
-      break;
-    }
-  }
-
-  await tx.done;
+  console.warn('Offline queue is disabled.');
+  return Promise.resolve();
 };

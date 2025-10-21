@@ -3,9 +3,9 @@ import { Link, Navigate, useNavigate } from 'react-router-dom';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import { apiClient } from '@/lib/apiClient';
 import { useAuthStore } from '@/stores/auth';
 import { useTenantStore } from '@/stores/tenant';
+import { auth } from '@/lib/apiClient';
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -17,11 +17,12 @@ const Signup = () => {
   const [tenantSlug, setTenantSlug] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [honeypot, setHoneypot] = useState('');
   const [acknowledgeSupabaseHosting, setAcknowledgeSupabaseHosting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+
+  const slugHint = tenantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
@@ -33,44 +34,40 @@ const Signup = () => {
     setError(null);
 
     try {
-      const result = await apiClient('/api/v1/auth/signup', {
-        method: 'POST',
-        body: { tenantName, tenantSlug, email, password, honeypot, acknowledgeSupabaseHosting },
+      const signUpResponse = await auth.signUp({ 
+        email, 
+        password, 
+        tenantName,
+        tenantSlug: tenantSlug || slugHint,
+        name: email.split('@')[0]
       });
 
-      if (result.tokens) {
-        setTenant(result.tenant);
-        setAuth({
-          user: result.user,
-          tokens: result.tokens,
-          role: result.user?.role ?? 'OWNER',
-          tenantId: result.tenant.recordId,
-          memberships: result.user?.memberships,
-        });
-        navigate('/dashboard', { replace: true });
-        return;
-      }
+      console.log('Signup successful:', signUpResponse);
 
-      if (result.tenant) {
-        setTenant(result.tenant);
-      }
-      setSuccess({ tenant: result.tenant, email: result.user.email, verification: result.verification });
-      setTenantName('');
-      setTenantSlug('');
-      setEmail('');
-      setPassword('');
-      setAcknowledgeSupabaseHosting(false);
+      setAuth({
+        user: signUpResponse.user,
+        accessToken: signUpResponse.accessToken,
+        refreshToken: signUpResponse.refreshToken,
+        role: 'OWNER',
+        tenantId: signUpResponse.tenant.recordId,
+        memberships: [{ role: 'OWNER', tenantId: signUpResponse.tenant.recordId }],
+        rememberMe: true,
+      });
+
+      setTenant({
+        recordId: signUpResponse.tenant.recordId,
+        slug: signUpResponse.tenant.slug,
+        name: signUpResponse.tenant.name,
+        plan: signUpResponse.tenant.plan || 'FREE',
+      });
+
+      navigate('/dashboard');
     } catch (err) {
       setError(err.message ?? 'Unable to create workspace');
     } finally {
       setSubmitting(false);
     }
   };
-
-  const slugHint = tenantName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
 
   const loginHref = success?.tenant?.slug
     ? `/login?tenant=${encodeURIComponent(success.tenant.slug)}`
@@ -119,19 +116,11 @@ const Signup = () => {
           </div>
         ) : (
           <form className="grid gap-4" onSubmit={handleSubmit}>
-            <input
-              type="text"
-              value={honeypot}
-              onChange={(event) => setHoneypot(event.target.value)}
-              className="hidden"
-              tabIndex={-1}
-              autoComplete="off"
-            />
             <Input
               label="Workspace name"
               type="text"
               value={tenantName}
-              onChange={(event) => setTenantName(event.target.value)}
+              onChange={(e) => setTenantName(e.target.value)}
               placeholder="Acme Boarding"
               required
             />
@@ -139,7 +128,7 @@ const Signup = () => {
               label="Workspace slug"
               type="text"
               value={tenantSlug}
-              onChange={(event) => setTenantSlug(event.target.value.toLowerCase())}
+              onChange={(e) => setTenantSlug(e.target.value.toLowerCase())}
               placeholder={slugHint || 'acme-boarding'}
               pattern="^[a-z0-9]+(?:-[a-z0-9]+)*$"
               title="Lowercase letters, numbers, and hyphens only"
@@ -150,7 +139,7 @@ const Signup = () => {
               label="Email"
               type="email"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
               required
             />
@@ -158,7 +147,7 @@ const Signup = () => {
               label="Password"
               type="password"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="Use at least 12 characters, incl. symbol"
               minLength={12}
               helper="Must include upper & lower case letters, a number, and a symbol."
@@ -173,7 +162,7 @@ const Signup = () => {
                 required
               />
               <span className="text-left text-xs text-muted">
-                I understand BarkBase stores my workspace on Supabase-managed infrastructure and that plan limits control
+                I understand BarkBase stores my workspace on AWS-managed infrastructure and that plan limits control
                 retention and capacity. I will export data regularly if I need additional backups.
               </span>
             </label>

@@ -33,23 +33,35 @@ export class RealtimeClient {
   }
 
   connect() {
-    const wsUrl = `${this.url}?tenant=${encodeURIComponent(this.tenant)}`;
+    // If no URL provided or disabled, quietly no-op
+    if (!this.url || this.url === 'disabled') return;
+    
+    // AWS WebSocket URLs need tenantId and userId as query params
+    const wsUrl = `${this.url}?tenantId=${encodeURIComponent(this.tenant)}&userId=${encodeURIComponent(this.token || 'anonymous')}`;
+    
     try {
-      this.ws = new WebSocket(wsUrl, []);
+      this.ws = new WebSocket(wsUrl);
       this.ws.onopen = () => {
+        console.log('WebSocket connected to AWS');
         this.backoff = 1000;
-        this.send({ type: 'auth', payload: { token: this.token, tenant: this.tenant } });
         this.startHeartbeat();
       };
       this.ws.onmessage = (m) => this.onMessage(m.data);
-      this.ws.onclose = () => this.scheduleReconnect();
-      this.ws.onerror = () => this.scheduleReconnect();
-    } catch {
-      this.connectSSE();
+      this.ws.onclose = () => {
+        console.log('WebSocket disconnected');
+        this.scheduleReconnect();
+      };
+      this.ws.onerror = (err) => {
+        console.error('WebSocket error:', err);
+        this.scheduleReconnect();
+      };
+    } catch (error) {
+      console.warn('WebSocket not available, using polling fallback');
     }
   }
 
   private connectSSE() {
+    if (!this.url) return;
     try {
       this.sse = new EventSource(`${this.url.replace('ws', 'http')}/sse?tenant=${this.tenant}`);
       this.sse.onmessage = (e) => this.onMessage(e.data);

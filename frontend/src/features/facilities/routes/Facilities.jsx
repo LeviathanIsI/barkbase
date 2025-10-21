@@ -5,8 +5,8 @@ import BookingHUD from '@/features/bookings/components/BookingHUD';
 import Skeleton from '@/components/ui/Skeleton';
 import { useKennels } from '@/features/kennels/api';
 import FacilityMapView from '../components/FacilityMapView';
-import { useLiveQuery } from '@/lib/useLiveQuery';
-import apiClient from '@/lib/apiClient';
+// import { useLiveQuery } from '@/lib/useLiveQuery'; // No longer used
+// import apiClient from '@/lib/apiClient'; // No longer used
 
 const Facilities = () => {
   const { data: kennels, isLoading } = useKennels();
