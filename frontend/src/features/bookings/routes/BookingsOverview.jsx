@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
+import { } from 'react-router-dom';
 import { format } from 'date-fns';
 import { Calendar, List, Activity, Layout, Search, Settings } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card, PageHeader } from '@/components/ui/Card';
-import EnhancedBookingsStats from '../components/EnhancedBookingsStats';
 import BookingCard from '../components/BookingCard';
 import ListView from '../components/ListView';
 import CalendarView from '../components/CalendarView';
@@ -63,6 +63,8 @@ const BookingsOverview = () => {
     };
   }, []);
 
+  // Stats cards removed per request
+
   const handleBookingClick = (booking) => {
     setSelectedBooking(booking);
     setShowBookingDetailModal(true);
@@ -120,6 +122,8 @@ const BookingsOverview = () => {
 
     return true;
   });
+
+  // Removed top-level stat card actions
 
   return (
     <div className="space-y-6">
@@ -179,10 +183,7 @@ const BookingsOverview = () => {
         }
       />
 
-      {/* Enhanced Stats Dashboard */}
-      <EnhancedBookingsStats bookings={bookings} currentDate={currentDate} />
-
-      {/* Quick Actions Bar removed to avoid duplicate actions (header already has controls) */}
+      {/* Top stats cards were removed per request */}
 
       {/* Quick Stats Dashboard */}
       <QuickStatsDashboard bookings={filteredBookings} />

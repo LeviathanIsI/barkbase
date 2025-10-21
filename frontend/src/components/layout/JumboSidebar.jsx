@@ -46,6 +46,7 @@ const navigationSections = [
       { to: '/tasks', label: 'Tasks & Reminders', icon: CheckCircle },
       { to: '/bookings', label: 'Bookings', icon: BookOpen },
       { to: '/facilities', label: 'Capacity View', icon: BarChart3 },
+      { to: '/runs', label: 'Run Assignment', icon: Clock },
     ],
   },
   {
@@ -68,7 +69,6 @@ const navigationSections = [
     title: 'STAFF',
     items: [
       { to: '/staff', label: 'Team', icon: Users },
-      { to: '/runs', label: 'Schedule', icon: Clock },
     ],
   },
 ];

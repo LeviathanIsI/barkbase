@@ -1,19 +1,18 @@
-import { Calendar, Clock, Users, DollarSign, TrendingUp, AlertTriangle, Target } from 'lucide-react';
+import { Calendar, Clock, Users, AlertTriangle, Target } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 
 const QuickStatsDashboard = ({ bookings }) => {
   // Calculate quick stats
   const thisWeekBookings = bookings?.length || 0;
-  const thisWeekRevenue = (bookings?.reduce((sum, b) => sum + (b.totalCents || 0), 0) || 0) / 100;
-  const averageValue = thisWeekBookings > 0 ? thisWeekRevenue / thisWeekBookings : 0;
+  // Revenue metrics removed per request
   const cancellations = bookings?.filter(b => b.status === 'CANCELLED')?.length || 0;
   const noShows = bookings?.filter(b => b.status === 'NO_SHOW')?.length || 0;
 
   const upcomingCheckIns = bookings?.filter(b => b.status === 'CONFIRMED' && new Date(b.checkIn) > new Date())?.length || 0;
   const upcomingCheckOuts = bookings?.filter(b => b.status === 'CHECKED_IN')?.length || 0;
   const peakCapacity = 0; // Calculate from capacity API
-  const expectedRevenue = (bookings?.filter(b => b.status !== 'CANCELLED').reduce((sum, b) => sum + (b.totalCents || 0), 0) || 0) / 100;
+  // Expected revenue removed
 
   // TODO: Replace with real alerts from API
   const alerts = []; // Will be populated from alerts/conflicts API
@@ -32,15 +31,7 @@ const QuickStatsDashboard = ({ bookings }) => {
             <span className="font-semibold text-gray-900">{thisWeekBookings}</span>
           </div>
 
-          <div className="flex justify-between items-center">
-            <span className="text-gray-600">Total revenue:</span>
-            <span className="font-semibold text-gray-900">${thisWeekRevenue.toFixed(2)}</span>
-          </div>
-
-          <div className="flex justify-between items-center">
-            <span className="text-gray-600">Average value:</span>
-            <span className="font-semibold text-gray-900">${averageValue.toFixed(2)}</span>
-          </div>
+          {/* Revenue rows removed */}
 
           <div className="flex justify-between items-center">
             <span className="text-gray-600">Cancellations:</span>
@@ -86,10 +77,7 @@ const QuickStatsDashboard = ({ bookings }) => {
             </div>
           )}
 
-          <div className="flex justify-between items-center">
-            <span className="text-gray-600">Expected revenue:</span>
-            <span className="font-semibold text-gray-900">${expectedRevenue.toFixed(2)}</span>
-          </div>
+          {/* Expected revenue removed */}
         </div>
 
         {alerts.length > 0 && (
