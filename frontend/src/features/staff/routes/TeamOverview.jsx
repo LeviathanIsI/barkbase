@@ -6,7 +6,6 @@ import {
   CheckCircle,
   Clock,
   MessageSquare,
-  Settings,
   Smartphone,
   Star,
   Target,
@@ -19,7 +18,6 @@ import { useStaffQuery } from "../../settings/api";
 import InternalMessaging from "../components/InternalMessaging";
 import MobileAppPreview from "../components/MobileAppPreview";
 import PerformanceReviews from "../components/PerformanceReviews";
-import RolesPermissionsBuilder from "../components/RolesPermissionsBuilder";
 import ScheduleCalendarView from "../components/ScheduleCalendarView";
 import StaffProfileView from "../components/StaffProfileView";
 import StaffWizard from "../components/StaffWizard";
@@ -29,7 +27,7 @@ import TeamDashboard from "../components/TeamDashboard";
 import TimeClockSystem from "../components/TimeClockSystem";
 
 const TeamOverview = () => {
-  const [currentView, setCurrentView] = useState("overview"); // overview, profile, schedule, tasks, timeclock, reviews, messages, analytics, mobile, permissions
+  const [currentView, setCurrentView] = useState("overview"); // overview, profile, schedule, tasks, timeclock, reviews, messages, analytics, mobile
   const [showStaffWizard, setShowStaffWizard] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -353,15 +351,7 @@ const TeamOverview = () => {
                 <Smartphone className="h-4 w-4 mr-2" />
                 Mobile
               </Button>
-              <Button
-                variant={currentView === "permissions" ? "primary" : "ghost"}
-                size="sm"
-                onClick={() => setCurrentView("permissions")}
-                className="px-3"
-              >
-                <Settings className="h-4 w-4 mr-2" />
-                Permissions
-              </Button>
+              {/* Permissions moved to Settings */}
             </div>
 
             {/* Quick Actions */}
@@ -408,7 +398,7 @@ const TeamOverview = () => {
 
       {currentView === "mobile" && <MobileAppPreview />}
 
-      {currentView === "permissions" && <RolesPermissionsBuilder />}
+      {/* Permissions tab removed; manage roles in Settings */}
 
       {/* Default fallback */}
       {![
@@ -421,7 +411,6 @@ const TeamOverview = () => {
         "messages",
         "analytics",
         "mobile",
-        "permissions",
       ].includes(currentView) && (
         <TeamDashboard
           stats={teamStats}

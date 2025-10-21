@@ -1,8 +1,29 @@
 import { MessageSquare, Plus, Send } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { useState } from 'react';
+import { useConversationsQuery, useConversationMessagesQuery, useSendMessageMutation } from '@/features/messaging/api';
 
 const InternalMessaging = () => {
+  const [selectedConversation, setSelectedConversation] = useState(null);
+  const [messageText, setMessageText] = useState('');
+
+  const { data: conversationsData } = useConversationsQuery();
+  const conversations = Array.isArray(conversationsData) ? conversationsData : (conversationsData?.conversations || []);
+  const { data: messagesData } = useConversationMessagesQuery(selectedConversation?.conversationId);
+  const messages = Array.isArray(messagesData) ? messagesData : (messagesData?.messages || []);
+  const sendMutation = useSendMessageMutation();
+
+  const handleSend = async (e) => {
+    e.preventDefault();
+    if (!messageText.trim() || !selectedConversation) return;
+    await sendMutation.mutateAsync({
+      conversationId: selectedConversation.conversationId,
+      content: messageText,
+    });
+    setMessageText('');
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -17,96 +38,75 @@ const InternalMessaging = () => {
         </Button>
       </div>
 
-      {/* Channels */}
       <div className="grid gap-6 md:grid-cols-3">
+        {/* Conversation List */}
         <div className="space-y-4">
           <Card className="p-4">
-            <h3 className="font-medium text-gray-900 mb-3">Channels</h3>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 p-2 bg-blue-50 rounded cursor-pointer">
-                <span className="text-blue-600">📢</span>
-                <span className="flex-1">#general</span>
-                <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">12</span>
-              </div>
-              <div className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
-                <span className="text-gray-600">🏢</span>
-                <span className="flex-1">#operations</span>
-                <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">3</span>
-              </div>
-            </div>
-            <div className="mt-3 pt-3 border-t border-gray-200">
-              <Button variant="outline" size="sm" className="w-full">
-                <Plus className="w-3 h-3 mr-1" />
-                Create Channel
-              </Button>
-            </div>
-          </Card>
-
-          <Card className="p-4">
-            <h3 className="font-medium text-gray-900 mb-3">Direct Messages</h3>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
-                <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">J</div>
-                <span className="flex-1">Jenny Martinez</span>
-                <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">2</span>
-              </div>
-            </div>
-            <div className="mt-3 pt-3 border-t border-gray-200">
-              <Button variant="outline" size="sm" className="w-full">
-                <Plus className="w-3 h-3 mr-1" />
-                New Direct Message
-              </Button>
+            <h3 className="font-medium text-gray-900 mb-3">Conversations</h3>
+            <div className="space-y-1 max-h-80 overflow-y-auto">
+              {(conversations || []).map((c) => (
+                <div
+                  key={c.conversationId || c.id}
+                  className={`p-2 rounded cursor-pointer ${selectedConversation?.conversationId === (c.conversationId || c.id) ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                  onClick={() => setSelectedConversation({ conversationId: c.conversationId || c.id })}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-900">{c.title || c.name || 'Conversation'}</span>
+                    {c.unreadCount > 0 && (
+                      <span className="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded">{c.unreadCount}</span>
+                    )}
+                  </div>
+                  {c.lastMessage && (
+                    <div className="text-xs text-gray-600 truncate">{c.lastMessage}</div>
+                  )}
+                </div>
+              ))}
+              {(!conversations || conversations.length === 0) && (
+                <div className="text-sm text-gray-600">No conversations.</div>
+              )}
             </div>
           </Card>
         </div>
 
-        {/* Main Chat */}
+        {/* Messages */}
         <div className="md:col-span-2">
           <Card className="p-0 h-96 flex flex-col">
             <div className="p-4 border-b border-gray-200">
-              <h3 className="font-medium text-gray-900">#general</h3>
+              <h3 className="font-medium text-gray-900">{selectedConversation ? 'Conversation' : 'Select a conversation'}</h3>
             </div>
 
             <div className="flex-1 p-4 overflow-y-auto space-y-4">
-              <div className="flex gap-3">
-                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">M</div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-gray-900">Mike Thompson</span>
-                    <span className="text-xs text-gray-500">Today @ 8:15 AM</span>
-                  </div>
-                  <p className="text-gray-700">Morning team! We're at 85% capacity today. Let's have a great day!</p>
-                  <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                    <span>👍 3</span>
-                    <span>❤️ 2</span>
+              {(messages || []).map((m) => (
+                <div key={m.recordId || m.id} className="flex gap-3">
+                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium">{(m.senderName || m.senderEmail || 'U')[0]}</div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium text-gray-900">{m.senderName || m.senderEmail || 'User'}</span>
+                      <span className="text-xs text-gray-500">{new Date(m.createdAt || m.sentAt || Date.now()).toLocaleString()}</span>
+                    </div>
+                    <p className="text-gray-700">{m.content}</p>
                   </div>
                 </div>
-              </div>
-
-              <div className="flex gap-3">
-                <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white text-sm font-medium">J</div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium text-gray-900">Jenny Martinez</span>
-                    <span className="text-xs text-gray-500">Today @ 8:47 AM</span>
-                  </div>
-                  <p className="text-gray-700">@Mike - Max's owner just called. Can we accommodate 6 PM pickup?</p>
-                </div>
-              </div>
+              ))}
+              {(!messages || messages.length === 0) && (
+                <div className="text-sm text-gray-600">No messages.</div>
+              )}
             </div>
 
-            <div className="p-4 border-t border-gray-200">
+            <form onSubmit={handleSend} className="p-4 border-t border-gray-200">
               <div className="flex items-center gap-2">
                 <input
                   type="text"
                   placeholder="Type your message..."
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value)}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <Button>
+                <Button type="submit" disabled={!selectedConversation || !messageText.trim()}>
                   <Send className="w-4 h-4" />
                 </Button>
               </div>
-            </div>
+            </form>
           </Card>
         </div>
       </div>
