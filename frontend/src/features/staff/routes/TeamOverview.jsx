@@ -1,36 +1,49 @@
-import { useState, useMemo } from 'react';
-import { Users, Calendar, MessageSquare, BarChart3, Clock, Settings, UserPlus, Search, Filter, MoreVertical, CheckCircle, AlertTriangle, XCircle, TrendingUp, Target, Star, Smartphone } from 'lucide-react';
-import Button from '@/components/ui/Button';
-import { Card, PageHeader } from '@/components/ui/Card';
-import StaffWizard from '../components/StaffWizard';
-import TeamDashboard from '../components/TeamDashboard';
-import StaffProfileView from '../components/StaffProfileView';
-import ScheduleCalendarView from '../components/ScheduleCalendarView';
-import TaskManagementSystem from '../components/TaskManagementSystem';
-import TimeClockSystem from '../components/TimeClockSystem';
-import PerformanceReviews from '../components/PerformanceReviews';
-import InternalMessaging from '../components/InternalMessaging';
-import TeamAnalytics from '../components/TeamAnalytics';
-import MobileAppPreview from '../components/MobileAppPreview';
-import RolesPermissionsBuilder from '../components/RolesPermissionsBuilder';
-import { useStaffQuery } from '../../settings/api';
+import Button from "@/components/ui/Button";
+import { Card, PageHeader } from "@/components/ui/Card";
+import {
+  BarChart3,
+  Calendar,
+  CheckCircle,
+  Clock,
+  MessageSquare,
+  Settings,
+  Smartphone,
+  Star,
+  Target,
+  TrendingUp,
+  UserPlus,
+  Users,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { useStaffQuery } from "../../settings/api";
+import InternalMessaging from "../components/InternalMessaging";
+import MobileAppPreview from "../components/MobileAppPreview";
+import PerformanceReviews from "../components/PerformanceReviews";
+import RolesPermissionsBuilder from "../components/RolesPermissionsBuilder";
+import ScheduleCalendarView from "../components/ScheduleCalendarView";
+import StaffProfileView from "../components/StaffProfileView";
+import StaffWizard from "../components/StaffWizard";
+import TaskManagementSystem from "../components/TaskManagementSystem";
+import TeamAnalytics from "../components/TeamAnalytics";
+import TeamDashboard from "../components/TeamDashboard";
+import TimeClockSystem from "../components/TimeClockSystem";
 
 const TeamOverview = () => {
-  const [currentView, setCurrentView] = useState('overview'); // overview, profile, schedule, tasks, timeclock, reviews, messages, analytics, mobile, permissions
+  const [currentView, setCurrentView] = useState("overview"); // overview, profile, schedule, tasks, timeclock, reviews, messages, analytics, mobile, permissions
   const [showStaffWizard, setShowStaffWizard] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [roleFilter, setRoleFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
 
   // Real API data
   const { data: staffData, isLoading: staffLoading } = useStaffQuery();
 
   // Set document title
   useState(() => {
-    document.title = 'Team Management | BarkBase';
+    document.title = "Team Management | BarkBase";
     return () => {
-      document.title = 'BarkBase';
+      document.title = "BarkBase";
     };
   }, []);
 
@@ -40,16 +53,16 @@ const TeamOverview = () => {
 
   const handleStaffWizardComplete = (staffData) => {
     setShowStaffWizard(false);
-    setCurrentView('overview');
+    setCurrentView("overview");
   };
 
   const handleViewStaffProfile = (staff) => {
     setSelectedStaff(staff);
-    setCurrentView('profile');
+    setCurrentView("profile");
   };
 
   const handleBackToOverview = () => {
-    setCurrentView('overview');
+    setCurrentView("overview");
     setSelectedStaff(null);
   };
 
@@ -66,16 +79,16 @@ const TeamOverview = () => {
           clockedIn: 0,
           scheduled: 0,
           onPto: 0,
-          utilization: 0
+          utilization: 0,
         },
-        hasStaff: false
+        hasStaff: false,
       };
     }
 
     const staffArray = staffData || [];
     const totalStaff = staffArray.length;
-    const activeMembers = staffArray.filter(s => s.isActive !== false).length;
-    const roles = [...new Set(staffArray.map(s => s.role))].length;
+    const activeMembers = staffArray.filter((s) => s.isActive !== false).length;
+    const roles = [...new Set(staffArray.map((s) => s.role))].length;
 
     // Calculate stats (these would need additional API calls for real data)
     const clockedIn = 0; // Would need time clock API
@@ -94,9 +107,9 @@ const TeamOverview = () => {
         clockedIn,
         scheduled,
         onPto,
-        utilization
+        utilization,
       },
-      hasStaff: staffArray.length > 0
+      hasStaff: staffArray.length > 0,
     };
   }, [staffData, staffLoading]);
 
@@ -122,10 +135,13 @@ const TeamOverview = () => {
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Users className="w-8 h-8 text-blue-600" />
             </div>
-            <h3 className="text-2xl font-semibold text-blue-900 mb-2">Why Team Management Matters</h3>
+            <h3 className="text-2xl font-semibold text-blue-900 mb-2">
+              Why Team Management Matters
+            </h3>
             <p className="text-blue-800 max-w-2xl mx-auto">
-              Proper team setup enables automated shift scheduling, task assignment and tracking,
-              time clock and payroll integration, permission-based access control, and staff performance analytics.
+              Proper team setup enables automated shift scheduling, task
+              assignment and tracking, time clock and payroll integration,
+              permission-based access control, and staff performance analytics.
             </p>
           </div>
 
@@ -133,22 +149,30 @@ const TeamOverview = () => {
             <div className="flex items-start gap-3 p-4 bg-white rounded-lg">
               <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
               <div>
-                <div className="font-medium text-gray-900">Automated Scheduling</div>
-                <div className="text-sm text-gray-600">Visual calendar with coverage analysis</div>
+                <div className="font-medium text-gray-900">
+                  Automated Scheduling
+                </div>
+                <div className="text-sm text-gray-600">
+                  Visual calendar with coverage analysis
+                </div>
               </div>
             </div>
             <div className="flex items-start gap-3 p-4 bg-white rounded-lg">
               <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
               <div>
                 <div className="font-medium text-gray-900">Task Management</div>
-                <div className="text-sm text-gray-600">Assign, track, and complete daily tasks</div>
+                <div className="text-sm text-gray-600">
+                  Assign, track, and complete daily tasks
+                </div>
               </div>
             </div>
             <div className="flex items-start gap-3 p-4 bg-white rounded-lg">
               <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
               <div>
                 <div className="font-medium text-gray-900">Time Tracking</div>
-                <div className="text-sm text-gray-600">GPS-verified clock in/out system</div>
+                <div className="text-sm text-gray-600">
+                  GPS-verified clock in/out system
+                </div>
               </div>
             </div>
           </div>
@@ -156,7 +180,9 @@ const TeamOverview = () => {
           <div className="bg-blue-100 border border-blue-200 rounded-lg p-4">
             <div className="flex items-center gap-2 text-blue-800">
               <Clock className="w-5 h-5" />
-              <span className="font-medium">Setup time: 5 minutes per staff member</span>
+              <span className="font-medium">
+                Setup time: 5 minutes per staff member
+              </span>
             </div>
           </div>
         </Card>
@@ -164,27 +190,31 @@ const TeamOverview = () => {
         {/* Getting Started Options */}
         <div className="grid gap-6 md:grid-cols-2">
           {/* Quick Add */}
-          <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer" onClick={handleAddStaff}>
+          <Card
+            className="p-6 hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={handleAddStaff}
+          >
             <div className="flex items-center gap-4 mb-4">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                 <UserPlus className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <h4 className="text-lg font-semibold text-gray-900">Quick Add</h4>
+                <h4 className="text-lg font-semibold text-gray-900">
+                  Quick Add
+                </h4>
                 <p className="text-sm text-gray-600">Recommended</p>
               </div>
             </div>
             <p className="text-gray-700 mb-4">
-              Add staff member in under 2 minutes. Basic info, role, and working hours.
+              Add staff member in under 2 minutes. Basic info, role, and working
+              hours.
             </p>
             <ul className="text-sm text-gray-600 space-y-1 mb-4">
               <li>• Name, email, phone</li>
               <li>• Job title and permissions</li>
               <li>• Working hours and availability</li>
             </ul>
-            <Button className="w-full">
-              Add First Staff Member
-            </Button>
+            <Button className="w-full">Add First Staff Member</Button>
           </Card>
 
           {/* Bulk Import */}
@@ -194,12 +224,15 @@ const TeamOverview = () => {
                 <TrendingUp className="w-6 h-6 text-green-600" />
               </div>
               <div>
-                <h4 className="text-lg font-semibold text-gray-900">Bulk Import</h4>
+                <h4 className="text-lg font-semibold text-gray-900">
+                  Bulk Import
+                </h4>
                 <p className="text-sm text-gray-600">5+ staff members</p>
               </div>
             </div>
             <p className="text-gray-700 mb-4">
-              Add multiple staff at once via CSV/Excel. Perfect for existing teams.
+              Add multiple staff at once via CSV/Excel. Perfect for existing
+              teams.
             </p>
             <div className="space-y-3">
               <Button variant="outline" className="w-full">
@@ -215,13 +248,14 @@ const TeamOverview = () => {
         {/* Alternative Option */}
         <Card className="p-6 border-dashed border-2 border-gray-300">
           <div className="text-center">
-            <h4 className="text-lg font-semibold text-gray-900 mb-2">Send Invitations</h4>
+            <h4 className="text-lg font-semibold text-gray-900 mb-2">
+              Send Invitations
+            </h4>
             <p className="text-gray-600 mb-4">
-              Send email invitations to staff members. They'll complete their own profiles.
+              Send email invitations to staff members. They'll complete their
+              own profiles.
             </p>
-            <Button variant="outline">
-              Send Invite to Staff
-            </Button>
+            <Button variant="outline">Send Invite to Staff</Button>
           </div>
         </Card>
 
@@ -248,81 +282,81 @@ const TeamOverview = () => {
             {/* View Toggle */}
             <div className="flex items-center bg-gray-100 rounded-lg p-1">
               <Button
-                variant={currentView === 'overview' ? 'primary' : 'ghost'}
+                variant={currentView === "overview" ? "primary" : "ghost"}
                 size="sm"
-                onClick={() => setCurrentView('overview')}
+                onClick={() => setCurrentView("overview")}
                 className="px-3"
               >
                 <Users className="h-4 w-4 mr-2" />
                 Overview
               </Button>
               <Button
-                variant={currentView === 'schedule' ? 'primary' : 'ghost'}
+                variant={currentView === "schedule" ? "primary" : "ghost"}
                 size="sm"
-                onClick={() => setCurrentView('schedule')}
+                onClick={() => setCurrentView("schedule")}
                 className="px-3"
               >
                 <Calendar className="h-4 w-4 mr-2" />
                 Schedule
               </Button>
               <Button
-                variant={currentView === 'tasks' ? 'primary' : 'ghost'}
+                variant={currentView === "tasks" ? "primary" : "ghost"}
                 size="sm"
-                onClick={() => setCurrentView('tasks')}
+                onClick={() => setCurrentView("tasks")}
                 className="px-3"
               >
                 <Target className="h-4 w-4 mr-2" />
                 Tasks
               </Button>
               <Button
-                variant={currentView === 'timeclock' ? 'primary' : 'ghost'}
+                variant={currentView === "timeclock" ? "primary" : "ghost"}
                 size="sm"
-                onClick={() => setCurrentView('timeclock')}
+                onClick={() => setCurrentView("timeclock")}
                 className="px-3"
               >
                 <Clock className="h-4 w-4 mr-2" />
                 Time Clock
               </Button>
               <Button
-                variant={currentView === 'reviews' ? 'primary' : 'ghost'}
+                variant={currentView === "reviews" ? "primary" : "ghost"}
                 size="sm"
-                onClick={() => setCurrentView('reviews')}
+                onClick={() => setCurrentView("reviews")}
                 className="px-3"
               >
                 <Star className="h-4 w-4 mr-2" />
                 Reviews
               </Button>
               <Button
-                variant={currentView === 'messages' ? 'primary' : 'ghost'}
+                variant={currentView === "messages" ? "primary" : "ghost"}
                 size="sm"
-                onClick={() => setCurrentView('messages')}
+                onClick={() => setCurrentView("messages")}
                 className="px-3"
               >
                 <MessageSquare className="h-4 w-4 mr-2" />
                 Messages
               </Button>
               <Button
-                variant={currentView === 'analytics' ? 'primary' : 'ghost'}
+                variant={currentView === "analytics" ? "primary" : "ghost"}
                 size="sm"
-                onClick={() => setCurrentView('analytics')}
+                onClick={() => setCurrentView("analytics")}
                 className="px-3"
               >
                 <BarChart3 className="h-4 w-4 mr-2" />
                 Analytics
               </Button>
               <Button
-                variant={currentView === 'mobile' ? 'primary' : 'ghost'}
+                variant={currentView === "mobile" ? "primary" : "ghost"}
                 size="sm"
-                onClick={() => setCurrentView('mobile')}
+                onClick={() => setCurrentView("mobile")}
                 className="px-3"
               >
                 <Smartphone className="h-4 w-4 mr-2" />
                 Mobile
               </Button>
               <Button
-                variant={currentView === 'permissions' ? 'primary' : 'ghost'}
+                variant={currentView === "permissions" ? "primary" : "ghost"}
                 size="sm"
-                onClick={() => setCurrentView('permissions')}
+                onClick={() => setCurrentView("permissions")}
                 className="px-3"
               >
                 <Settings className="h-4 w-4 mr-2" />
@@ -340,7 +374,7 @@ const TeamOverview = () => {
       />
 
       {/* Main Content Area */}
-      {currentView === 'overview' && (
+      {currentView === "overview" && (
         <TeamDashboard
           stats={teamStats}
           staff={mockStaff}
@@ -349,12 +383,9 @@ const TeamOverview = () => {
         />
       )}
 
-      {currentView === 'profile' && selectedStaff ? (
-        <StaffProfileView
-          staff={selectedStaff}
-          onBack={handleBackToOverview}
-        />
-      ) : currentView === 'profile' && !selectedStaff ? (
+      {currentView === "profile" && selectedStaff ? (
+        <StaffProfileView staff={selectedStaff} onBack={handleBackToOverview} />
+      ) : currentView === "profile" && !selectedStaff ? (
         <TeamDashboard
           stats={teamStats}
           staff={mockStaff}
@@ -363,40 +394,35 @@ const TeamOverview = () => {
         />
       ) : null}
 
-      {currentView === 'schedule' && (
-        <ScheduleCalendarView />
-      )}
+      {currentView === "schedule" && <ScheduleCalendarView />}
 
-      {currentView === 'tasks' && (
-        <TaskManagementSystem />
-      )}
+      {currentView === "tasks" && <TaskManagementSystem />}
 
-      {currentView === 'timeclock' && (
-        <TimeClockSystem />
-      )}
+      {currentView === "timeclock" && <TimeClockSystem />}
 
-      {currentView === 'reviews' && (
-        <PerformanceReviews />
-      )}
+      {currentView === "reviews" && <PerformanceReviews />}
 
-      {currentView === 'messages' && (
-        <InternalMessaging />
-      )}
+      {currentView === "messages" && <InternalMessaging />}
 
-      {currentView === 'analytics' && (
-        <TeamAnalytics />
-      )}
+      {currentView === "analytics" && <TeamAnalytics />}
 
-      {currentView === 'mobile' && (
-        <MobileAppPreview />
-      )}
+      {currentView === "mobile" && <MobileAppPreview />}
 
-      {currentView === 'permissions' && (
-        <RolesPermissionsBuilder />
-      )}
+      {currentView === "permissions" && <RolesPermissionsBuilder />}
 
       {/* Default fallback */}
-      {(!['overview', 'profile', 'schedule', 'tasks', 'timeclock', 'reviews', 'messages', 'analytics', 'mobile', 'permissions'].includes(currentView)) && (
+      {![
+        "overview",
+        "profile",
+        "schedule",
+        "tasks",
+        "timeclock",
+        "reviews",
+        "messages",
+        "analytics",
+        "mobile",
+        "permissions",
+      ].includes(currentView) && (
         <TeamDashboard
           stats={teamStats}
           staff={mockStaff}

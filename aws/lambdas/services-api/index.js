@@ -10,7 +10,7 @@ exports.handler = async (event) => {
 
     try {
         const pool = getPool();
-        if (httpMethod === 'GET' && path === '/api/v1/services') {
+        if (httpMethod === 'GET' && (path === '/api/v1/services' || path.endsWith('/services'))) {
             const { rows } = await pool.query(`SELECT * FROM "Service" WHERE "tenantId" = $1 ORDER BY "name"`, [tenantId]);
             return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows) };
         }

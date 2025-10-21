@@ -27,10 +27,10 @@ exports.handler = async (event) => {
     try {
         const user = verifyAuth(event);
 
-        if (httpMethod === 'GET' && path === '/api/v1/bookings') {
+        if (httpMethod === 'GET' && (path === '/api/v1/bookings' || path.endsWith('/bookings'))) {
             return await listBookings(event, tenantId);
         }
-        if (httpMethod === 'POST' && path === '/api/v1/bookings') {
+        if (httpMethod === 'POST' && (path === '/api/v1/bookings' || path.endsWith('/bookings'))) {
             return await createBooking(event, tenantId, user);
         }
         if (httpMethod === 'GET' && event.pathParameters?.bookingId) {

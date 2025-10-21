@@ -81,7 +81,7 @@ export class ApiClient {
     // --- Private Helper Methods ---
 
     _buildUrl() {
-        let path = `/${this.table}`;
+        let path = `/api/v1/${this.table}`;
         // A simple convention: if one 'eq' filter is on 'id', use it as a path param.
         const idFilter = this._query.filters.find(f => f.startsWith('id=eq.'));
         if (idFilter) {
@@ -106,15 +106,18 @@ export class ApiClient {
     }
 
     async _execute(method, url) {
-        const idToken = await this.auth.getIdToken();
-        const tenantId = this.auth.getTenantId();
+        // Get auth tokens from Zustand store
+        const { useAuthStore } = await import('@/stores/auth');
+        const { useTenantStore } = await import('@/stores/tenant');
+        const accessToken = useAuthStore.getState().accessToken;
+        const tenantId = useTenantStore.getState().tenant?.recordId;
         
         const options = {
             method,
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${idToken}`,
-                'x-tenant-id': tenantId,
+                ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
+                ...(tenantId && { 'x-tenant-id': tenantId }),
             },
         };
 

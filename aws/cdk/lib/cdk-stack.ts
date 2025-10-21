@@ -84,12 +84,12 @@ export class CdkStack extends cdk.Stack {
       usersApiFunction
     );
     httpApi.addRoutes({
-      path: "/users",
+      path: "/api/v1/users",
       methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST],
       integration: usersIntegration,
     });
     httpApi.addRoutes({
-      path: "/users/{id}",
+      path: "/api/v1/users/{id}",
       methods: [
         apigw.HttpMethod.GET,
         apigw.HttpMethod.PUT,
@@ -117,12 +117,12 @@ export class CdkStack extends cdk.Stack {
       petsApiFunction
     );
     httpApi.addRoutes({
-      path: "/pets",
+      path: "/api/v1/pets",
       methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST],
       integration: petsIntegration,
     });
     httpApi.addRoutes({
-      path: "/pets/{id}",
+      path: "/api/v1/pets/{id}",
       methods: [
         apigw.HttpMethod.GET,
         apigw.HttpMethod.PUT,
@@ -166,7 +166,7 @@ export class CdkStack extends cdk.Stack {
       getUploadUrlFunction
     );
     httpApi.addRoutes({
-      path: "/upload-url",
+      path: "/api/v1/upload-url",
       methods: [apigw.HttpMethod.POST],
       integration: getUploadUrlIntegration,
     });
@@ -181,40 +181,12 @@ export class CdkStack extends cdk.Stack {
     bucket.grantRead(getDownloadUrlFunction);
     const getDownloadUrlIntegration = new HttpLambdaIntegration('GetDownloadUrlIntegration', getDownloadUrlFunction);
     httpApi.addRoutes({
-      path: '/download-url',
+      path: '/api/v1/download-url',
       methods: [apigw.HttpMethod.GET],
       integration: getDownloadUrlIntegration,
     });
 
-    // --- Check-In API ---
-    const checkInApiFunction = new lambda.Function(this, 'CheckInApiFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/check-in-api')),
-      layers: [dbLayer],
-      environment: dbEnvironment,
-    });
-    const checkInIntegration = new HttpLambdaIntegration('CheckInIntegration', checkInApiFunction);
-    httpApi.addRoutes({
-      path: '/bookings/{id}/checkin',
-      methods: [apigw.HttpMethod.POST],
-      integration: checkInIntegration,
-    });
-
-    // --- Check-Out API ---
-    const checkOutApiFunction = new lambda.Function(this, 'CheckOutApiFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/check-out-api')),
-      layers: [dbLayer],
-      environment: dbEnvironment,
-    });
-    const checkOutIntegration = new HttpLambdaIntegration('CheckOutIntegration', checkOutApiFunction);
-    httpApi.addRoutes({
-      path: '/bookings/{id}/checkout',
-      methods: [apigw.HttpMethod.POST],
-      integration: checkOutIntegration,
-    });
+    // Note: Check-in/Check-out are handled by bookings-api Lambda
 
     // Add JWT_SECRET to environment for auth
     const authEnvironment = { ...dbEnvironment, JWT_SECRET: process.env.JWT_SECRET || 'change-me-in-production' };
@@ -272,6 +244,7 @@ export class CdkStack extends cdk.Stack {
       allowPublicSubnet: true,
     });
     const tenantsIntegration = new HttpLambdaIntegration('TenantsIntegration', tenantsApiFunction);
+    httpApi.addRoutes({ path: '/api/v1/tenants', methods: [apigw.HttpMethod.GET], integration: tenantsIntegration });
     httpApi.addRoutes({ path: '/api/v1/tenants/current', methods: [apigw.HttpMethod.GET], integration: tenantsIntegration });
     httpApi.addRoutes({ path: '/api/v1/tenants/current/plan', methods: [apigw.HttpMethod.GET], integration: tenantsIntegration });
     httpApi.addRoutes({ path: '/api/v1/tenants/current/onboarding', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PATCH], integration: tenantsIntegration });

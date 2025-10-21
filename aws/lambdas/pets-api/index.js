@@ -25,10 +25,10 @@ exports.handler = async (event) => {
         if (httpMethod === 'GET' && event.pathParameters?.id) {
             return await getPetById(event, tenantId);
         }
-        if (httpMethod === 'GET' && path === '/pets') {
+        if (httpMethod === 'GET' && path === '/api/v1/pets') {
             return await listPets(event, tenantId);
         }
-        if (httpMethod === 'POST' && path === '/pets') {
+        if (httpMethod === 'POST' && path === '/api/v1/pets') {
             return await createPet(event, tenantId);
         }
         if (httpMethod === 'PUT' && event.pathParameters?.id) {

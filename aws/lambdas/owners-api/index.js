@@ -16,10 +16,10 @@ exports.handler = async (event) => {
     }
 
     try {
-        if (httpMethod === 'GET' && path === '/api/v1/owners') {
+        if (httpMethod === 'GET' && (path === '/api/v1/owners' || path.endsWith('/owners'))) {
             return await listOwners(event, tenantId);
         }
-        if (httpMethod === 'POST' && path === '/api/v1/owners') {
+        if (httpMethod === 'POST' && (path === '/api/v1/owners' || path.endsWith('/owners'))) {
             return await createOwner(event, tenantId);
         }
         if (httpMethod === 'GET' && event.pathParameters?.ownerId) {
