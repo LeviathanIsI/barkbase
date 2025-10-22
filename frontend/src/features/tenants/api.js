@@ -1,14 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { from } from '@/lib/apiClient';
+import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
 import { useAuthStore } from '@/stores/auth';
 
 export const saveTenantTheme = (payload) =>
-  apiClient('/api/v1/tenants/current/theme', {
-    method: 'PUT',
-    body: payload,
-  });
+  apiClient.put('/api/v1/tenants/current/theme', payload);
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
@@ -19,7 +16,7 @@ export const useOnboardingStatus = () => {
 
   return useQuery({
     queryKey: queryKeys.onboarding(tenantId),
-    queryFn: () => apiClient('/api/v1/tenants/current/onboarding'),
+    queryFn: () => apiClient.get('/api/v1/tenants/current/onboarding'),
     staleTime: 60 * 1000,
     enabled: isAuthenticated && !!accessToken,
   });
@@ -29,11 +26,7 @@ export const useOnboardingDismissMutation = () => {
   const queryClient = useQueryClient();
   const tenantId = useTenantKey();
   return useMutation({
-    mutationFn: (dismissed) =>
-      apiClient('/api/v1/tenants/current/onboarding', {
-        method: 'PATCH',
-        body: { dismissed },
-      }),
+    mutationFn: (dismissed) => apiClient.patch('/api/v1/tenants/current/onboarding', { dismissed }),
     onSuccess: (payload) => {
       queryClient.setQueryData(queryKeys.onboarding(tenantId), payload);
     },
@@ -44,9 +37,8 @@ export const useTenantQuery = (slug) => {
   return useQuery({
     queryKey: queryKeys.tenants(slug),
     queryFn: async () => {
-      const { data, error } = await from('tenants').select('*').eq('slug', slug).get();
-      if (error) throw new Error(error.message);
-      return data?.[0] ?? null; // Expecting one or none
+      const res = await apiClient.get('/api/v1/tenants', { params: { slug } });
+      return res?.data ?? null;
     },
     enabled: !!slug,
   });
@@ -56,9 +48,8 @@ export const useUpdateTenantMutation = (tenantId) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload) => {
-      const { data, error } = await from('tenants').update(payload).eq('id', tenantId);
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.put('/api/v1/tenants/current', payload);
+      return res.data;
     },
     onSuccess: (data) => {
       if (data?.slug) {

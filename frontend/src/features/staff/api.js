@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { from } from '@/lib/apiClient';
+import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
 
@@ -10,9 +10,8 @@ export const useStaffQuery = () => {
   return useQuery({
     queryKey: queryKeys.staff(tenantKey),
     queryFn: async () => {
-      const { data, error } = await from('staff').select('*').get();
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.get('/api/v1/staff');
+      return res.data;
     },
   });
 };
@@ -22,9 +21,8 @@ export const useStaffStatusMutation = () => {
   const tenantKey = useTenantKey();
   return useMutation({
     mutationFn: async ({ staffId, isActive }) => {
-      const { data, error } = await from('staff').update({ isActive }).eq('id', staffId);
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.put(`/api/v1/staff/${staffId}`, { isActive });
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.staff(tenantKey) });

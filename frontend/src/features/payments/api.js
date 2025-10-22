@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { from } from '@/lib/apiClient';
+import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
 
@@ -10,15 +10,8 @@ export const usePaymentsQuery = (params = {}, options = {}) => {
   return useQuery({
     queryKey: queryKeys.payments(tenantKey, params),
     queryFn: async () => {
-      let query = from('payments').select('*');
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          query = query.eq(key, value);
-        }
-      });
-      const { data, error } = await query.get();
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.get('/api/v1/payments', { params });
+      return res.data;
     },
     keepPreviousData: true,
     ...options,

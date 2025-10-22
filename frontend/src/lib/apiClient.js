@@ -10,17 +10,7 @@ const awsClient = createAWSClient({
   apiUrl: import.meta.env.VITE_API_URL || '/api',
 });
 
-/**
- * A simple wrapper around the new awsClient.from() method.
- * This function is now the primary way the frontend will interact with the database via API Gateway.
- * It completely replaces the old fetch-based implementation.
- *
- * @param {string} table - The name of the database table to query (e.g., 'pets', 'users').
- * @returns {ApiClient} - An instance of our ApiClient, ready for chaining methods.
- */
-export const from = (table) => {
-  return awsClient.from(table);
-};
+// Table-style client removed: frontend should use explicit REST endpoints via helpers below.
 
 /**
  * Auth client instance.
@@ -131,7 +121,6 @@ const del = async (path, options = {}) => {
 // The main export is now an object containing the clients,
 // but for backward compatibility, we can keep a default export if needed.
 const apiClient = {
-  from,
   auth,
   storage,
   uploadClient,

@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { applyTheme, getDefaultTheme, mergeTheme } from '@/lib/theme';
 import { resolvePlanFeatures } from '@/features';
-import { from } from '@/lib/apiClient'; // Use the new client
 import apiClient from '@/lib/apiClient';
 
 const defaultTenant = { recordId: null,

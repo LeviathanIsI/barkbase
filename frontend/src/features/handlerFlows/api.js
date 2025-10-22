@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { from } from '@/lib/apiClient';
+import apiClient from '@/lib/apiClient';
 
 // NOTE: The 'handlerFlows' feature appears to be highly custom.
 // The table 'handler_flows' does not exist in the schema.
@@ -9,7 +9,7 @@ const disabledQuery = () => Promise.resolve(null);
 export const useHandlerFlowsQuery = (options = {}) => {
   return useQuery({
     queryKey: ['handlerFlows'],
-    queryFn: disabledQuery, // from('handler_flows').select('*').get()
+    queryFn: disabledQuery, // implement REST when backend exists
     enabled: false,
   });
 };
