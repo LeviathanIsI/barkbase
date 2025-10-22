@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { from } from '@/lib/apiClient';
+import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
 import { useAuthStore } from '@/stores/auth';
@@ -15,7 +15,7 @@ export const useCalendarViewQuery = ({ from, to }) => {
   
   return useQuery({
     queryKey: queryKeys.calendar(tenantKey, { from, to }),
-    queryFn: disabledQuery, // apiClient(`/api/v1/calendar?${params.toString()}`),
+    queryFn: disabledQuery, // apiClient.get(`/api/v1/calendar`, { params: { from, to } })
     enabled: Boolean(from && to && isAuthenticated),
     staleTime: 30 * 1000,
   });

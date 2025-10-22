@@ -123,12 +123,6 @@ export const useTenantStore = create((set, get) => ({
     // TODO: Create a '/tenants/current/plan' Lambda
     console.warn('refreshPlan is not implemented for the new AWS backend yet.');
     return;
-    /*
-    const { tenant } = get();
-    const { data, error } = await from('tenants').customAction('plan', { slug: tenant.slug });
-    if (error) throw new Error(error.message);
-    // ... logic to update store with payload
-    */
   },
   // Development-only method to manually override plan for testing
   setDevPlan: (plan) => {
