@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { from } from '@/lib/apiClient'; // Import the new 'from' function
 import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
@@ -12,9 +11,8 @@ export const usePetsQuery = (params = {}) => {
     queryKey: queryKeys.pets(tenantKey, params),
     queryFn: async () => {
       try {
-        const { data, error } = await from('pets').select('*').get(); // New API call
-        if (error) throw new Error(error.message);
-        return Array.isArray(data) ? data : (data?.data ?? data ?? []);
+        const res = await apiClient.get('/api/v1/pets');
+        return Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data ?? []);
       } catch (e) {
         console.warn('[pets] Falling back to empty list due to API error:', e?.message || e);
         return [];
@@ -95,9 +93,8 @@ export const useUpdatePetMutation = (petId) => {
   const listKey = queryKeys.pets(tenantKey, {});
   return useMutation({
     mutationFn: async (payload) => {
-      const { data, error } = await from('pets').update(payload).eq('id', petId); // New API call
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.put(`/api/v1/pets/${petId}`, payload);
+      return res.data;
     },
     onMutate: async (payload) => {
       await queryClient.cancelQueries({ queryKey: listKey });
@@ -130,8 +127,7 @@ export const useDeletePetMutation = () => {
   const listKey = queryKeys.pets(tenantKey, {});
   return useMutation({
     mutationFn: async (petId) => {
-      const { error } = await from('pets').delete().eq('id', petId); // New API call
-      if (error) throw new Error(error.message);
+      await apiClient.delete(`/api/v1/pets/${petId}`);
       return petId;
     },
     onMutate: async (petId) => {
@@ -159,9 +155,8 @@ export const useCreatePetMutation = () => {
   const listKey = queryKeys.pets(tenantKey, {});
   return useMutation({
     mutationFn: async (payload) => {
-      const { data, error } = await from('pets').insert(payload); // New API call
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.post('/api/v1/pets', payload);
+      return res.data;
     },
     onSuccess: (created) => {
       if (created?.recordId) {

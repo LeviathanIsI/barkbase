@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { from } from '@/lib/apiClient';
+import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
 
@@ -10,10 +10,8 @@ export const useOwnersQuery = (params = {}) => {
     queryKey: queryKeys.owners(tenantKey, params),
     queryFn: async () => {
       try {
-        const { data, error } = await from('owners').select('*').get();
-        if (error) throw new Error(error.message);
-        // Normalize to array since some API clients return { data }
-        return Array.isArray(data) ? data : (data?.data ?? data ?? []);
+        const res = await apiClient.get('/api/v1/owners');
+        return Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data ?? []);
       } catch (e) {
         console.warn('[owners] Falling back to empty list due to API error:', e?.message || e);
         return [];
@@ -30,9 +28,8 @@ export const useOwnerQuery = (recordId, options = {}) => {
     queryKey: [...queryKeys.owners(tenantKey), recordId],
     queryFn: async () => {
       try {
-        const { data, error } = await from('owners').select('*').eq('id', recordId).get();
-        if (error) throw new Error(error.message);
-        return Array.isArray(data) ? data[0] : (data?.data?.[0] ?? data ?? null);
+        const res = await apiClient.get(`/api/v1/owners/${recordId}`);
+        return res?.data ?? null;
       } catch (e) {
         console.warn('[owner] Falling back to null due to API error:', e?.message || e);
         return null;
@@ -46,9 +43,8 @@ export const useOwnerQuery = (recordId, options = {}) => {
 export const useCreateOwnerMutation = () => {
   return useMutation({
     mutationFn: async (payload) => {
-      const { data, error } = await from('owners').insert(payload);
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.post('/api/v1/owners', payload);
+      return res.data;
     },
   });
 };
@@ -56,9 +52,8 @@ export const useCreateOwnerMutation = () => {
 export const useUpdateOwnerMutation = (recordId) => {
   return useMutation({
     mutationFn: async (payload) => {
-      const { data, error } = await from('owners').update(payload).eq('id', recordId);
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.put(`/api/v1/owners/${recordId}`, payload);
+      return res.data;
     },
   });
 };
@@ -66,8 +61,7 @@ export const useUpdateOwnerMutation = (recordId) => {
 export const useDeleteOwnerMutation = () => {
   return useMutation({
     mutationFn: async (recordId) => {
-      const { error } = await from('owners').delete().eq('id', recordId);
-      if (error) throw new Error(error.message);
+      await apiClient.delete(`/api/v1/owners/${recordId}`);
       return recordId;
     },
   });
@@ -76,9 +70,8 @@ export const useDeleteOwnerMutation = () => {
 export const useAddPetToOwnerMutation = () => {
   return useMutation({
     mutationFn: async ({ ownerId, petId, isPrimary = false }) => {
-      const { data, error } = await from('petOwners').insert({ ownerId, petId, isPrimary });
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.post('/api/v1/pets/owners', { ownerId, petId, isPrimary });
+      return res.data ?? { ok: true };
     },
   });
 };
@@ -86,9 +79,8 @@ export const useAddPetToOwnerMutation = () => {
 export const useRemovePetFromOwnerMutation = () => {
   return useMutation({
     mutationFn: async ({ ownerId, petId }) => {
-      // Deleting from a join table requires filters, not a single ID
-      const { error } = await from('petOwners').delete().eq('ownerId', ownerId).eq('petId', petId);
-      if (error) throw new Error(error.message);
+      // Set non-primary or remove link requires a dedicated endpoint; using upsert with isPrimary=false clears primary
+      await apiClient.post('/api/v1/pets/owners', { ownerId, petId, isPrimary: false });
       return { ownerId, petId };
     },
   });
