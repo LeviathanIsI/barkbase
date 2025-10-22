@@ -32,7 +32,8 @@ const PetDetail = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantStore((state) => state.tenant?.slug ?? 'default');
 
-  const petQuery = usePetQuery(petId);
+  const tenant = useTenantStore((state) => state.tenant);
+  const petQuery = usePetQuery(petId, { enabled: Boolean(petId && tenant?.recordId) });
   const deletePetMutation = useDeletePetMutation();
   const updatePetMutation = useUpdatePetMutation(petId);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -47,6 +48,9 @@ const PetDetail = () => {
   const updateVaccinationMutation = useUpdateVaccinationMutation(petId);
 
   const pet = petQuery.data;
+  if (petQuery.data) {
+    console.log('[PetDetail] pet payload', petQuery.data);
+  }
   const { data: vaccinations = [], isLoading: vaccLoading } = usePetVaccinationsQuery(petId);
 
 
@@ -77,6 +81,13 @@ const PetDetail = () => {
     if (expiresAt < now) return 'expired';
     if (daysUntilExpiry <= 30) return 'expiring';
     return 'up to date';
+  };
+
+  const getStatusDisplay = (status) => {
+    if (status === 'up to date') return { label: 'Up to date', intent: 'active' };
+    if (status === 'expiring') return { label: 'Due soon', intent: 'warning' };
+    if (status === 'expired' || status === 'missing') return { label: 'Due', intent: 'canceled' };
+    return { label: 'Due', intent: 'inactive' };
   };
 
   const getVaccinationForType = (type) => {
@@ -288,9 +299,6 @@ const PetDetail = () => {
                                   <p className="text-sm text-muted">
                                     Expires {new Date(vaccination.expiresAt).toLocaleDateString()}
                                   </p>
-                                  <p className="text-xs text-muted">
-                                    Type in DB: "{vaccination.type}" | ID: {vaccination.recordId.slice(0, 8)}...
-                                  </p>
                                 </div>
                               ) : (
                                 <p className="text-sm text-muted">Not recorded</p>
@@ -298,11 +306,12 @@ const PetDetail = () => {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <StatusPill
-                              status={status === 'up to date' ? 'active' :
-                                     status === 'expiring' ? 'warning' :
-                                     status === 'expired' ? 'error' : 'inactive'}
-                            />
+                            {(() => {
+                              const { label, intent } = getStatusDisplay(status);
+                              return (
+                                <StatusPill intent={intent}>{label}</StatusPill>
+                              );
+                            })()}
                             <Button
                               size="sm"
                               variant="ghost"
@@ -319,49 +328,7 @@ const PetDetail = () => {
                     })}
                   </div>
 
-                  {/* All existing vaccinations */}
-                  {vaccinations.length > 0 && (
-                    <div className="border-t border-border pt-4">
-                      <h3 className="text-sm font-medium text-text mb-3">All Vaccinations in Database</h3>
-                      <div className="space-y-3">
-                        {vaccinations.map((vaccine) => {
-                          const status = getVaccinationStatus(vaccine);
-                          return (
-                            <div
-                              key={vaccine.recordId}
-                              className="flex items-center justify-between border-b border-border pb-3 last:border-0"
-                            >
-                              <div>
-                                <p className="font-medium">{vaccine.type}</p>
-                                <p className="text-sm text-muted flex items-center gap-2">
-                                  <Syringe className="h-3.5 w-3.5" />
-                                  Administered {new Date(vaccine.administeredAt).toLocaleDateString()}
-                                  (expires {vaccine.expiresAt ? new Date(vaccine.expiresAt).toLocaleDateString() : 'N/A'})
-                                </p>
-                                <p className="text-xs text-muted">
-                                  Record ID: {vaccine.recordId.slice(0, 8)}...
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <StatusPill
-                                  status={status === 'up to date' ? 'active' :
-                                         status === 'expiring' ? 'warning' :
-                                         status === 'expired' ? 'error' : 'inactive'}
-                                />
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleEditVaccination(vaccine)}
-                                >
-                                  Edit
-                                </Button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
+                  
 
                   {/* Add custom vaccine button */}
                   <div className="border-t border-border pt-4">
@@ -380,7 +347,7 @@ const PetDetail = () => {
         );
       },
     },
-  ], []);
+  ], [vaccinations, vaccLoading]);
 
   if (petQuery.isLoading) {
     return (

@@ -41,6 +41,9 @@ exports.handler = async (event) => {
         if (httpMethod === 'GET' && event.pathParameters?.id) {
             return await getPetById(event, tenantId);
         }
+        if (httpMethod === 'POST' && path === '/api/v1/pets/owners') {
+            return await upsertPetOwner(event, tenantId);
+        }
         if (httpMethod === 'GET' && path === '/api/v1/pets') {
             return await listPets(event, tenantId);
         }
@@ -125,10 +128,50 @@ const getPetById = async (event, tenantId) => {
         };
     }
 
+    const pet = rows[0];
+    console.log('[pets-api] getPetById', { tenantId, petId, petFound: Boolean(pet) });
+
+    // Enrich pet with owners (primary first) and keep Pet.primaryOwnerId in sync
+    let owners = [];
+    try {
+        const result = await pool.query(
+            `SELECT 
+                o."recordId" AS "recordId",
+                o."firstName" AS "firstName",
+                o."lastName" AS "lastName",
+                o."email" AS "email",
+                o."phone" AS "phone",
+                po."isPrimary" AS "isPrimary"
+             FROM "PetOwner" po
+             JOIN "Owner" o ON o."recordId" = po."ownerId" AND o."tenantId" = po."tenantId"
+             WHERE po."tenantId" = $1 AND po."petId" = $2
+             ORDER BY po."isPrimary" DESC, o."lastName" ASC, o."firstName" ASC`,
+            [tenantId, petId]
+        );
+        console.log('[pets-api] owners rows', result.rows.length);
+        owners = result.rows.map((o) => ({
+            ...o,
+            name: [o.firstName, o.lastName].filter(Boolean).join(' ').trim() || o.email || 'Owner',
+        }));
+
+        // If Pet.primaryOwnerId differs from joined primary, update it for consistency
+        const primary = owners.find(o => o.isPrimary);
+        if (primary && pet.primaryOwnerId !== primary.recordId) {
+            await pool.query(
+              'UPDATE "Pet" SET "primaryOwnerId" = $1, "updatedAt" = NOW() WHERE "recordId" = $2 AND "tenantId" = $3',
+              [primary.recordId, petId, tenantId]
+            );
+            pet.primaryOwnerId = primary.recordId;
+        }
+    } catch (e) {
+        console.error('[pets-api] owners join failed', e?.message || e);
+        owners = [];
+    }
+
     return {
         statusCode: 200,
         headers: HEADERS,
-        body: JSON.stringify(rows[0]),
+        body: JSON.stringify({ ...pet, owners }),
     };
 };
 
@@ -362,4 +405,65 @@ const updatePetVaccination = async (event, tenantId) => {
         headers: HEADERS,
         body: JSON.stringify(rows[0]),
     };
+};
+
+// Upsert PetOwner row and maintain single primary owner invariant
+const upsertPetOwner = async (event, tenantId) => {
+    const body = JSON.parse(event.body || '{}');
+    const { petId, ownerId, isPrimary = false } = body;
+    if (!petId || !ownerId) {
+        return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ message: 'petId and ownerId are required' }) };
+    }
+
+    const pool = getPool();
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // If setting primary, clear others for this pet
+        if (isPrimary) {
+            await client.query(
+                'UPDATE "PetOwner" SET "isPrimary" = false WHERE "tenantId" = $1 AND "petId" = $2',
+                [tenantId, petId]
+            );
+        }
+
+        // Upsert PetOwner
+        await client.query(
+            `INSERT INTO "PetOwner" ("recordId", "tenantId", "petId", "ownerId", "isPrimary")
+             VALUES (gen_random_uuid(), $1, $2, $3, $4)
+             ON CONFLICT ("tenantId", "petId", "ownerId")
+             DO UPDATE SET "isPrimary" = EXCLUDED."isPrimary"`,
+            [tenantId, petId, ownerId, !!isPrimary]
+        );
+
+        // Sync Pet.primaryOwnerId
+        if (isPrimary) {
+            await client.query(
+                'UPDATE "Pet" SET "primaryOwnerId" = $1, "updatedAt" = NOW() WHERE "recordId" = $2 AND "tenantId" = $3',
+                [ownerId, petId, tenantId]
+            );
+        } else {
+            // If no primaries remain, clear primaryOwnerId
+            const { rows } = await client.query(
+                'SELECT 1 FROM "PetOwner" WHERE "tenantId" = $1 AND "petId" = $2 AND "isPrimary" = true LIMIT 1',
+                [tenantId, petId]
+            );
+            if (rows.length === 0) {
+                await client.query(
+                    'UPDATE "Pet" SET "primaryOwnerId" = NULL, "updatedAt" = NOW() WHERE "recordId" = $1 AND "tenantId" = $2',
+                    [petId, tenantId]
+                );
+            }
+        }
+
+        await client.query('COMMIT');
+        return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ ok: true }) };
+    } catch (e) {
+        await client.query('ROLLBACK');
+        console.error('[pets-api] upsertPetOwner failed', e?.message || e);
+        return { statusCode: 500, headers: HEADERS, body: JSON.stringify({ message: 'Failed to upsert pet owner' }) };
+    } finally {
+        client.release();
+    }
 };

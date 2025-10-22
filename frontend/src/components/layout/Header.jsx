@@ -65,11 +65,11 @@ const Header = ({ onMenuToggle }) => {
   })();
 
   const migrationState = tenant?.migrationState ?? 'IDLE';
-  const storageLabel = 'Storage: Supabase Cloud';
+  const storageLabel = 'Storage: AWS Cloud';
   const storageModalContent = {
-    title: 'Supabase-managed storage',
+    title: 'AWS-managed storage',
     paragraphs: [
-      "Your workspace runs on BarkBase’s Supabase cluster with daily snapshots and point-in-time recovery.",
+      "Your workspace runs on BarkBase’s AWS stack with daily snapshots and point-in-time recovery.",
       'Exports remain available if you want an extra copy outside of the managed retention window.',
     ],
     bullets: [
@@ -238,7 +238,7 @@ const Header = ({ onMenuToggle }) => {
           ) : null}
           {showExportNudge ? (
             <div className="hidden md:flex items-center gap-2 text-xs font-medium text-warning/80">
-              <span>Supabase keeps daily snapshots—grab an export if you need an extra copy.</span>
+              <span>AWS keeps daily snapshots—grab an export if you need an extra copy.</span>
               <button
                 type="button"
                 className="text-warning/60 hover:text-warning"

@@ -161,13 +161,15 @@ CREATE TABLE "Pet" (
     "dietaryNotes" TEXT,
     "behaviorFlags" JSONB NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'active',
+    "primaryOwnerId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "weight" DOUBLE PRECISION,
     "allergies" TEXT,
     "lastVetVisit" TIMESTAMP(3),
     "nextAppointment" TIMESTAMP(3),
-    CONSTRAINT "Pet_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT "Pet_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "Pet_primaryOwnerId_fkey" FOREIGN KEY ("primaryOwnerId") REFERENCES "Owner"("recordId") ON DELETE SET NULL ON UPDATE CASCADE
 );
 CREATE INDEX "Pet_tenantId_name_idx" ON "Pet"("tenantId", "name");
 
@@ -183,6 +185,9 @@ CREATE TABLE "PetOwner" (
 );
 CREATE UNIQUE INDEX "PetOwner_tenantId_petId_ownerId_key" ON "PetOwner"("tenantId", "petId", "ownerId");
 CREATE INDEX "PetOwner_tenantId_ownerId_idx" ON "PetOwner"("tenantId", "ownerId");
+-- Ensure only one primary owner per pet
+CREATE UNIQUE INDEX IF NOT EXISTS "PetOwner_one_primary_per_pet"
+  ON "PetOwner"("tenantId", "petId") WHERE "isPrimary" = true;
 
 CREATE TABLE "Kennel" (
     "recordId" TEXT NOT NULL PRIMARY KEY,

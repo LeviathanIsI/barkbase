@@ -2,13 +2,14 @@ import { create } from 'zustand';
 import { applyTheme, getDefaultTheme, mergeTheme } from '@/lib/theme';
 import { resolvePlanFeatures } from '@/features';
 import { from } from '@/lib/apiClient'; // Use the new client
+import apiClient from '@/lib/apiClient';
 
 const defaultTenant = { recordId: null,
   slug: process.env.NODE_ENV === 'development' ? 'testing' : 'default',
   name: 'BarkBase',
   plan: process.env.NODE_ENV === 'development' ? 'ENTERPRISE' : 'FREE',
-  storageProvider: 'SUPABASE',
-  dbProvider: 'SUPABASE',
+  storageProvider: 'AWS',
+  dbProvider: 'AWS',
   migrationState: 'IDLE',
   migrationInfo: null,
   customDomain: null,
@@ -64,15 +65,9 @@ export const useTenantStore = create((set, get) => ({
     const resolvedSlug = slug ?? get().tenant?.slug ?? defaultTenant.slug;
 
     try {
-      // The old backend used a special '/current' endpoint with a header.
-      // The new approach will be to query the 'tenants' table by its slug.
-      // This assumes the API Gateway is configured for a route like /tenants?slug=...
-      const { data, error } = await from('tenants').select('*').eq('slug', resolvedSlug).get();
-      
-      if (error) throw new Error(error.message);
-
-      // The new API returns an array, so we take the first result.
-      const payload = data && data.length > 0 ? data[0] : null;
+      // Backend exposes GET /api/v1/tenants?slug=<slug>
+      const res = await apiClient.get('/api/v1/tenants', { params: { slug: resolvedSlug } });
+      const payload = res?.data ?? null;
 
       if (!payload) {
         throw new Error('Tenant not found');
@@ -92,9 +87,9 @@ export const useTenantStore = create((set, get) => ({
   loadTenantById: async (tenantId) => {
     if (!tenantId) throw new Error('tenantId is required');
     try {
-      const { data, error } = await from('tenants').select('*').eq('recordId', tenantId).get();
-      if (error) throw new Error(error.message);
-      const payload = data && data.length > 0 ? data[0] : null;
+      // Backend exposes GET /api/v1/tenants/current using x-tenant-id header
+      const res = await apiClient.get('/api/v1/tenants/current');
+      const payload = res?.data ?? null;
       if (!payload) throw new Error('Tenant not found');
       get().setTenant(payload);
       return payload;

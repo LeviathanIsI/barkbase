@@ -17,7 +17,7 @@ const Signup = () => {
   const [tenantSlug, setTenantSlug] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [acknowledgeSupabaseHosting, setAcknowledgeSupabaseHosting] = useState(false);
+  const [acknowledgeAwsHosting, setAcknowledgeAwsHosting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -156,8 +156,8 @@ const Signup = () => {
             <label className="flex items-start gap-2 rounded-lg border border-border/70 bg-surface/80 p-3 text-sm">
               <input
                 type="checkbox"
-                checked={acknowledgeSupabaseHosting}
-                onChange={(event) => setAcknowledgeSupabaseHosting(event.target.checked)}
+                checked={acknowledgeAwsHosting}
+                onChange={(event) => setAcknowledgeAwsHosting(event.target.checked)}
                 className="mt-1 h-4 w-4"
                 required
               />
@@ -168,7 +168,7 @@ const Signup = () => {
             </label>
             {error ? <p className="text-sm text-danger">{error}</p> : null}
             <div className="flex items-center justify-between gap-3">
-              <Button type="submit" disabled={submitting || !acknowledgeSupabaseHosting}>
+              <Button type="submit" disabled={submitting || !acknowledgeAwsHosting}>
                 {submitting ? 'Creating workspace…' : 'Create workspace'}
               </Button>
               <Link to="/login" className="text-sm text-primary underline">

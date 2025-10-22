@@ -54,7 +54,7 @@ const UpgradeWizard = ({ open, onClose }) => {
       <div className="space-y-6">
         <div className="space-y-2">
           <p className="text-sm text-muted">
-            BarkBase now hosts every workspace on Supabase. Upgrading increases your managed storage limit and extends
+            BarkBase now hosts every workspace on AWS. Upgrading increases your managed storage limit and extends
             audit retention—no more manual backups or custom S3 buckets.
           </p>
           <div className="flex items-center gap-2 text-xs text-muted">
@@ -81,7 +81,7 @@ const UpgradeWizard = ({ open, onClose }) => {
               </div>
               <dl className="mt-3 space-y-2 text-xs text-muted">
                 <div className="flex items-center justify-between">
-                  <dt>Supabase storage</dt>
+                  <dt>AWS storage</dt>
                   <dd className="font-medium text-text">{formatStorage(tier.storageMb)}</dd>
                 </div>
                 <div className="flex items-center justify-between">
@@ -96,9 +96,9 @@ const UpgradeWizard = ({ open, onClose }) => {
         <div className="rounded-xl border border-primary/40 bg-primary/5 p-4 text-sm text-muted">
           <p className="font-medium text-text">How upgrades work</p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li>We lift your Supabase project quotas within minutes of checkout.</li>
+            <li>We lift your AWS quotas within minutes of checkout.</li>
             <li>Backups remain automated—no migration downtime or credential juggling.</li>
-            <li>Need even more space? Contact support for custom Supabase limits.</li>
+            <li>Need even more space? Contact support for custom AWS limits.</li>
           </ul>
         </div>
       </div>

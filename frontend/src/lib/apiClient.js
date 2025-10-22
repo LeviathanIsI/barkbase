@@ -101,6 +101,33 @@ const post = async (path, body) => {
   return { data: await res.json() };
 };
 
+const put = async (path, body) => {
+  const url = buildUrl(path);
+  const headers = await buildHeaders();
+  const res = await fetch(url, { method: 'PUT', headers, body: JSON.stringify(body) });
+  if (!res.ok) {
+    throw new Error(await res.text());
+  }
+  return { data: await res.json() };
+};
+
+const del = async (path, options = {}) => {
+  const url = buildUrl(path, options.params);
+  const headers = await buildHeaders();
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers,
+    body: options?.data ? JSON.stringify(options.data) : undefined,
+  });
+  if (!res.ok) {
+    throw new Error(await res.text());
+  }
+  if (res.status === 204) {
+    return { data: null };
+  }
+  return { data: await res.json() };
+};
+
 // The main export is now an object containing the clients,
 // but for backward compatibility, we can keep a default export if needed.
 const apiClient = {
@@ -110,6 +137,8 @@ const apiClient = {
   uploadClient,
   get,
   post,
+  put,
+  delete: del,
 };
 
 export { apiClient };

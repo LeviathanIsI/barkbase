@@ -31,9 +31,9 @@ export const usePetDetailsQuery = (petId, options = {}) => {
     queryKey: [...queryKeys.pets(tenantKey), petId],
     queryFn: async () => {
       try {
-        const { data, error } = await from('pets').select('*').eq('id', petId).get(); // New API call
-        if (error) throw new Error(error.message);
-        return Array.isArray(data) ? data[0] : (data?.data?.[0] ?? data ?? null);
+        // Call REST endpoint which enriches the pet with owners[] and primaryOwnerId
+        const res = await apiClient.get(`/api/v1/pets/${petId}`);
+        return res?.data ?? null;
       } catch (e) {
         console.warn('[pet] Falling back to null due to API error:', e?.message || e);
         return null;
@@ -58,7 +58,9 @@ export const usePetVaccinationsQuery = (petId, options = {}) => {
         // Try direct API call to the Lambda endpoint
         const res = await apiClient.get(`/api/v1/pets/${petId}/vaccinations`);
         console.log('Vaccinations API response:', res);
-        return res.data || [];
+        // Normalize to an array whether backend returns [..] or { data: [..] }
+        const list = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
+        return list;
 
         // TEMPORARY: If API fails, return your rabies vaccine data here
         // Replace with your actual rabies vaccine data from the database
