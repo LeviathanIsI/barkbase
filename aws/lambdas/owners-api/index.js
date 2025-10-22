@@ -43,26 +43,47 @@ async function listOwners(event, tenantId) {
     const { search, limit = 50, offset = 0 } = event.queryStringParameters || {};
     const pool = getPool();
 
-    let query = `SELECT * FROM "Owner" WHERE "tenantId" = $1`;
     const params = [tenantId];
-    let paramCount = 2;
-
+    let whereClause = `WHERE o."tenantId" = $1`;
     if (search) {
-        query += ` AND ("name" ILIKE $${paramCount} OR "email" ILIKE $${paramCount})`;
         params.push(`%${search}%`);
-        paramCount++;
+        whereClause += ` AND (o."name" ILIKE $${params.length} OR o."email" ILIKE $${params.length})`;
     }
-
-    query += ` ORDER BY "name" ASC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
     params.push(parseInt(limit), parseInt(offset));
+
+    const query = `
+        SELECT
+            o.*,
+            COALESCE(bk.total_bookings, 0)  AS "totalBookings",
+            bk.last_booking                AS "lastBooking",
+            COALESCE(pay.total_paid, 0)    AS "lifetimeValue",
+            COALESCE(pets.pet_names, ARRAY[]::text[]) AS "petNames"
+        FROM "Owner" o
+        LEFT JOIN (
+            SELECT "ownerId", COUNT(*) AS total_bookings, MAX("checkIn") AS last_booking
+            FROM "Booking"
+            GROUP BY "ownerId"
+        ) bk ON bk."ownerId" = o."recordId"
+        LEFT JOIN (
+            SELECT "ownerId", SUM("amountCents") AS total_paid
+            FROM "Payment"
+            WHERE "status" IN ('CAPTURED','SUCCESSFUL')
+            GROUP BY "ownerId"
+        ) pay ON pay."ownerId" = o."recordId"
+        LEFT JOIN (
+            SELECT po."ownerId", array_agg(p."name" ORDER BY p."name") AS pet_names
+            FROM "PetOwner" po
+            JOIN "Pet" p ON p."recordId" = po."petId"
+            GROUP BY po."ownerId"
+        ) pets ON pets."ownerId" = o."recordId"
+        ${whereClause}
+        ORDER BY o."name" ASC
+        LIMIT $${params.length - 1} OFFSET $${params.length}
+    `;
 
     const { rows } = await pool.query(query, params);
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(rows)
-    };
+    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows) };
 }
 
 async function createOwner(event, tenantId) {

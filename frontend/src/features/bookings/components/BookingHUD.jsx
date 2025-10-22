@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Calendar, Dog, User, Home, DollarSign } from 'lucide-react';
+import { Calendar, Dog, User, Home } from 'lucide-react';
 import SlidePanel from '@/components/ui/SlidePanel';
 
 // Reusable heads-up panel for rapid booking context and actions
@@ -13,7 +13,7 @@ const BookingHUD = ({
     checkIns: stats.checkIns ?? 0,
     checkOuts: stats.checkOuts ?? 0,
     occupancyPct: stats.occupancyPct ?? 0,
-    revenueToday: stats.revenueToday ?? 0,
+    // revenue removed per request
   };
 
   useEffect(() => {
@@ -37,12 +37,11 @@ const BookingHUD = ({
 
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
         <HUDCard icon={Dog} label="Pets Today" value={totals.petsToday} color="text-blue-600"/>
         <HUDCard icon={Home} label="Check-ins" value={totals.checkIns} color="text-emerald-600"/>
         <HUDCard icon={Home} label="Check-outs" value={totals.checkOuts} color="text-amber-600"/>
         <HUDCard icon={User} label="Occupancy" value={`${Math.round(totals.occupancyPct)}%`} color="text-violet-600"/>
-        <HUDCard icon={DollarSign} label="Revenue" value={`$${(totals.revenueToday/100).toFixed(2)}`} color="text-green-700"/>
       </div>
     </div>
   );

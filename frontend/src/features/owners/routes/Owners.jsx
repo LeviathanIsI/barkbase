@@ -17,28 +17,18 @@ const Owners = () => {
 
   const { data: ownersData, isLoading, error } = useOwnersQuery();
   const createOwnerMutation = useCreateOwnerMutation();
-  const owners = useMemo(() => ownersData?.data ?? [], [ownersData]);
+  const owners = useMemo(() => Array.isArray(ownersData) ? ownersData : (ownersData?.data ?? []), [ownersData]);
 
   // Calculate enhanced owner data with metrics
   const ownersWithMetrics = useMemo(() => {
     return owners.map((owner) => {
-      const bookings = owner.bookings || [];
-      const payments = owner.payments || [];
-      const totalBookings = bookings.length;
-
-      // Calculate lifetime value from payments (keep in cents for formatCurrency)
-      const lifetimeValue = payments.reduce((sum, payment) => {
-        return sum + (payment.amountCents || 0);
-      }, 0);
-
-      // Get last booking date
-      const lastBooking = bookings.length > 0
-        ? bookings.sort((a, b) => new Date(b.checkIn) - new Date(a.checkIn))[0].checkIn
-        : null;
-
-      // Get pets array
-      const pets = owner.pets || [];
-      const fullName = `${owner.firstName || ''} ${owner.lastName || ''}`.trim();
+      const totalBookings = owner.totalBookings ?? 0;
+      const lifetimeValue = owner.lifetimeValue ?? 0;
+      const lastBooking = owner.lastBooking || null;
+      // Pet names array from backend; we keep existing shape used by table
+      const pets = owner.pets || (owner.petNames ? owner.petNames.map((name) => ({ name })) : []);
+      const nameFromParts = `${owner.firstName || ''} ${owner.lastName || ''}`.trim();
+      const fullName = nameFromParts || owner.name || owner.fullName || owner.email || 'Owner';
 
       return {
         ...owner,
