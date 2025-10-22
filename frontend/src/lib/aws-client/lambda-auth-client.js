@@ -1,114 +1,80 @@
-/**
- * Lambda JWT Auth Client
- * Replaces Cognito authentication with custom Lambda JWT auth
- */
+import { CognitoUserPool, CognitoUser, AuthenticationDetails } from 'amazon-cognito-identity-js';
+
 export class LambdaAuthClient {
   constructor(config) {
     this.apiUrl = config.apiUrl || '/api';
+    this.region = config.region;
+    this.userPoolId = config.userPoolId;
+    this.clientId = config.clientId;
+    this.pool = new CognitoUserPool({ UserPoolId: this.userPoolId, ClientId: this.clientId });
   }
 
-  /**
-   * Sign in with email and password
-   */
   async signIn({ email, password }) {
-    const response = await fetch(`${this.apiUrl}/api/v1/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    });
+    const authDetails = new AuthenticationDetails({ Username: email, Password: password });
+    const user = new CognitoUser({ Username: email, Pool: this.pool });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Login failed' }));
-      throw new Error(error.message || 'Invalid credentials');
-    }
-
-    const data = await response.json();
-    
-    return {
-      accessToken: data.accessToken,
-      refreshToken: data.refreshToken,
-      user: data.user,
-      tenant: data.tenant,
-    };
-  }
-
-  /**
-   * Sign up - create new tenant/workspace
-   */
-  async signUp({ email, password, tenantName, tenantSlug, name }) {
-    const response = await fetch(`${this.apiUrl}/api/v1/auth/signup`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password, tenantName, tenantSlug, name }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Signup failed' }));
-      throw new Error(error.message || 'Could not create account');
-    }
-
-    const data = await response.json();
-    
-    return {
-      accessToken: data.accessToken,
-      refreshToken: data.refreshToken,
-      user: data.user,
-      tenant: data.tenant,
-    };
-  }
-
-  /**
-   * Refresh access token
-   */
-  async refreshSession({ refreshToken }) {
-    const response = await fetch(`${this.apiUrl}/api/v1/auth/refresh`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ refreshToken }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to refresh session');
-    }
-
-    const data = await response.json();
-    
-    return {
-      accessToken: data.accessToken,
-      role: data.role,
-    };
-  }
-
-  /**
-   * Sign out
-   */
-  async signOut(accessToken) {
-    try {
-      await fetch(`${this.apiUrl}/api/v1/auth/logout`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
+    const session = await new Promise((resolve, reject) => {
+      user.authenticateUser(authDetails, {
+        onSuccess: resolve,
+        onFailure: reject,
       });
-    } catch (error) {
-      console.error('Logout error:', error);
-      // Ignore errors on logout
-    }
+    });
+
+    return {
+      accessToken: session.getAccessToken().getJwtToken(),
+      refreshToken: session.getRefreshToken().getToken(),
+      user: { email },
+      tenant: null,
+    };
   }
 
-  /**
-   * Get current user (not implemented - user info comes from login)
-   */
-  async getCurrentUser() {
-    // This would require a /me endpoint on the backend
-    throw new Error('Not implemented - user info comes from login response');
+  async signUp({ email, password }) {
+    const result = await new Promise((resolve, reject) => {
+      this.pool.signUp(email, password, [{ Name: 'email', Value: email }], null, (err, data) => {
+        if (err) return reject(err);
+        resolve(data);
+      });
+    });
+    return { user: { username: result.userSub, email } };
+  }
+
+  async refreshSession({ refreshToken }) {
+    const cognitoUser = await this._getCurrentUser();
+    if (!cognitoUser) throw new Error('No user');
+    const CognitoRefreshToken = (await import('amazon-cognito-identity-js')).CognitoRefreshToken;
+    const rt = new CognitoRefreshToken({ RefreshToken: refreshToken });
+    const session = await new Promise((resolve, reject) => {
+      cognitoUser.refreshSession(rt, (err, newSession) => {
+        if (err) return reject(err);
+        resolve(newSession);
+      });
+    });
+    return { accessToken: session.getAccessToken().getJwtToken(), role: null };
+  }
+
+  async signOut() {
+    const cognitoUser = await this._getCurrentUser();
+    if (cognitoUser) cognitoUser.signOut();
+  }
+
+  async getIdToken() {
+    const cognitoUser = await this._getCurrentUser();
+    if (!cognitoUser) return null;
+    const session = await this._getSession(cognitoUser);
+    return session.getIdToken().getJwtToken();
+  }
+
+  async _getCurrentUser() {
+    return this.pool.getCurrentUser();
+  }
+
+  async _getSession(cognitoUser) {
+    return await new Promise((resolve, reject) => {
+      cognitoUser.getSession((err, session) => {
+        if (err) return reject(err);
+        resolve(session);
+      });
+    });
   }
 }
 

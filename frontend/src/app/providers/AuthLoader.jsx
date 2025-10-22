@@ -26,25 +26,10 @@ const AuthLoader = () => {
       if (refreshToken) {
         console.log('[AuthLoader] Attempting to refresh access token...');
         try {
-          const response = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ refreshToken }),
-          });
-
-          if (!response.ok) {
-            throw new Error('Refresh failed');
-          }
-
-          const data = await response.json();
-          
-          updateTokens({
-            accessToken: data.accessToken,
-            role: data.role,
-            expiresAt: Date.now() + (15 * 60 * 1000), // 15 minutes
-          });
+          // Frontend now uses Cognito refresh in the auth client
+          const { auth } = await import('@/lib/apiClient');
+          const data = await auth.refreshSession({ refreshToken });
+          updateTokens({ accessToken: data.accessToken, role: data.role, expiresAt: Date.now() + (15 * 60 * 1000) });
           
           console.log('[AuthLoader] Access token refreshed successfully');
         } catch (error) {
