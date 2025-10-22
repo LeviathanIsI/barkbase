@@ -130,6 +130,21 @@ export class CdkStack extends cdk.Stack {
       ],
       integration: petsIntegration,
     });
+    httpApi.addRoutes({
+      path: "/api/v1/pets/{id}/vaccinations",
+      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST],
+      integration: petsIntegration,
+    });
+    httpApi.addRoutes({
+      path: "/api/v1/pets/{id}/vaccinations/{vaccinationId}",
+      methods: [apigw.HttpMethod.PUT],
+      integration: petsIntegration,
+    });
+    httpApi.addRoutes({
+      path: "/api/v1/pets/vaccinations/expiring",
+      methods: [apigw.HttpMethod.GET],
+      integration: petsIntegration,
+    });
 
     // S3 Bucket
     const bucketName = process.env.S3_BUCKET || "your-bucket-name-goes-here";
@@ -621,6 +636,21 @@ export class CdkStack extends cdk.Stack {
     });
     const userPermissionsIntegration = new HttpLambdaIntegration('UserPermissionsIntegration', userPermissionsApiFunction);
     httpApi.addRoutes({ path: '/api/v1/user-permissions', methods: [apigw.HttpMethod.GET], integration: userPermissionsIntegration });
+
+    // Migration API (for running database migrations)
+    const migrationApiFunction = new lambda.Function(this, 'MigrationApiFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/migration-api')),
+      layers: [dbLayer],
+      environment: dbEnvironment,
+      vpc: vpc,
+      securityGroups: [lambdaSG],
+      timeout: cdk.Duration.seconds(60), // Longer timeout for migrations
+      allowPublicSubnet: true,
+    });
+    const migrationIntegration = new HttpLambdaIntegration('MigrationIntegration', migrationApiFunction);
+    httpApi.addRoutes({ path: '/api/v1/migration', methods: [apigw.HttpMethod.POST], integration: migrationIntegration });
 
     // === WEBSOCKET API FOR REAL-TIME ===
 

@@ -53,6 +53,54 @@ export const uploadClient = async (endpoint, formData) => {
   };
 };
 
+// Lightweight REST helpers for feature APIs that call concrete endpoints
+const buildUrl = (path, params) => {
+  const base = import.meta.env.VITE_API_URL || '/api';
+  const url = new URL(path, base);
+  if (params && typeof params === 'object') {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url.searchParams.append(key, String(value));
+      }
+    });
+  }
+  return url.toString();
+};
+
+const buildHeaders = async () => {
+  const { useAuthStore } = await import('@/stores/auth');
+  const { useTenantStore } = await import('@/stores/tenant');
+  const accessToken = useAuthStore.getState().accessToken;
+  const authTenantId = useAuthStore.getState().tenantId;
+  const tenant = useTenantStore.getState().tenant;
+  const tenantId = authTenantId || tenant?.recordId || null;
+  return {
+    'Content-Type': 'application/json',
+    ...(tenantId && { 'x-tenant-id': tenantId }),
+    ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
+  };
+};
+
+const get = async (path, { params } = {}) => {
+  const url = buildUrl(path, params);
+  const headers = await buildHeaders();
+  const res = await fetch(url, { method: 'GET', headers });
+  if (!res.ok) {
+    throw new Error(await res.text());
+  }
+  return { data: await res.json() };
+};
+
+const post = async (path, body) => {
+  const url = buildUrl(path);
+  const headers = await buildHeaders();
+  const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+  if (!res.ok) {
+    throw new Error(await res.text());
+  }
+  return { data: await res.json() };
+};
+
 // The main export is now an object containing the clients,
 // but for backward compatibility, we can keep a default export if needed.
 const apiClient = {
@@ -60,6 +108,8 @@ const apiClient = {
   auth,
   storage,
   uploadClient,
+  get,
+  post,
 };
 
 export { apiClient };

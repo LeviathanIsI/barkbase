@@ -2,7 +2,7 @@ const { getPool } = require('/opt/nodejs');
 
 const HEADERS = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization,x-tenant-id,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
     'Access-Control-Allow-Methods': 'OPTIONS,POST,GET,PUT,DELETE'
 };
 
@@ -13,6 +13,10 @@ exports.handler = async (event) => {
     const path = event.requestContext.http.path;
     const tenantId = event.headers['x-tenant-id'];
 
+    if (httpMethod === 'OPTIONS') {
+        return { statusCode: 200, headers: HEADERS, body: '' };
+    }
+
     if (!tenantId) {
         return {
             statusCode: 400,
@@ -22,6 +26,18 @@ exports.handler = async (event) => {
     }
 
     try {
+        if (httpMethod === 'GET' && path === '/api/v1/pets/vaccinations/expiring') {
+            return await listExpiringVaccinations(event, tenantId);
+        }
+        if (httpMethod === 'POST' && path.endsWith('/vaccinations') && event.pathParameters?.id) {
+            return await createPetVaccination(event, tenantId);
+        }
+        if (httpMethod === 'PUT' && event.pathParameters?.id && event.pathParameters?.vaccinationId && path.includes('/vaccinations/')) {
+            return await updatePetVaccination(event, tenantId);
+        }
+        if (httpMethod === 'GET' && path.endsWith('/vaccinations') && event.pathParameters?.id) {
+            return await listPetVaccinations(event, tenantId);
+        }
         if (httpMethod === 'GET' && event.pathParameters?.id) {
             return await getPetById(event, tenantId);
         }
@@ -52,6 +68,44 @@ exports.handler = async (event) => {
             body: JSON.stringify({ message: 'Internal Server Error', error: error.message }),
         };
     }
+};
+
+const listExpiringVaccinations = async (event, tenantId) => {
+    const daysAhead = parseInt(event.queryStringParameters?.daysAhead || '90', 10);
+
+    const pool = getPool();
+    const { rows } = await pool.query(
+        `
+        SELECT 
+            v."recordId",
+            v."type",
+            v."administeredAt",
+            v."expiresAt",
+            v."petId",
+            p."name"       AS "petName",
+            p."species"    AS "petSpecies",
+            p."breed"      AS "petBreed",
+            o."recordId"   AS "ownerId",
+            o."firstName"  AS "ownerFirstName",
+            o."lastName"   AS "ownerLastName",
+            o."email"      AS "ownerEmail",
+            o."phone"      AS "ownerPhone"
+        FROM "Vaccination" v
+        JOIN "Pet" p ON p."recordId" = v."petId" AND p."tenantId" = v."tenantId"
+        LEFT JOIN "PetOwner" po ON po."petId" = p."recordId" AND po."tenantId" = v."tenantId" AND po."isPrimary" = true
+        LEFT JOIN "Owner" o ON o."recordId" = po."ownerId" AND o."tenantId" = v."tenantId"
+        WHERE v."tenantId" = $1
+          AND v."expiresAt" <= NOW() + ($2 || ' days')::interval
+        ORDER BY v."expiresAt" ASC
+        `,
+        [tenantId, daysAhead]
+    );
+
+    return {
+        statusCode: 200,
+        headers: HEADERS,
+        body: JSON.stringify(rows),
+    };
 };
 
 const getPetById = async (event, tenantId) => {
@@ -214,5 +268,98 @@ const deletePet = async (event, tenantId) => {
         statusCode: 204, // No Content
         headers: HEADERS,
         body: '',
+    };
+};
+
+const listPetVaccinations = async (event, tenantId) => {
+    const petId = event.pathParameters.id;
+    const pool = getPool();
+    const { rows } = await pool.query(
+        `SELECT v."recordId", v."type", v."administeredAt", v."expiresAt", v."documentUrl", v."notes"
+         FROM "Vaccination" v
+         WHERE v."tenantId" = $1 AND v."petId" = $2
+         ORDER BY v."administeredAt" DESC`,
+        [tenantId, petId]
+    );
+
+    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows) };
+};
+
+const createPetVaccination = async (event, tenantId) => {
+    const petId = event.pathParameters.id;
+    const body = JSON.parse(event.body);
+    const { type, administeredAt, expiresAt, documentUrl, notes } = body;
+
+    if (!type || !administeredAt || !expiresAt) {
+        return {
+            statusCode: 400,
+            headers: HEADERS,
+            body: JSON.stringify({ message: 'Type, administeredAt, and expiresAt are required' }),
+        };
+    }
+
+    const pool = getPool();
+    const { rows } = await pool.query(
+        `INSERT INTO "Vaccination" (
+            "recordId", "tenantId", "petId", "type", "administeredAt", "expiresAt", "documentUrl", "notes", "updatedAt"
+        ) VALUES (
+            gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW()
+        ) RETURNING *`,
+        [tenantId, petId, type, administeredAt, expiresAt, documentUrl, notes]
+    );
+
+    return {
+        statusCode: 201,
+        headers: HEADERS,
+        body: JSON.stringify(rows[0]),
+    };
+};
+
+const updatePetVaccination = async (event, tenantId) => {
+    const vaccinationId = event.pathParameters.vaccinationId;
+    const body = JSON.parse(event.body);
+    const { type, administeredAt, expiresAt, documentUrl, notes } = body;
+
+    // Build dynamic update query
+    const fields = [];
+    const values = [];
+    let paramCount = 1;
+
+    const updatableFields = ['type', 'administeredAt', 'expiresAt', 'documentUrl', 'notes'];
+
+    for (const field of updatableFields) {
+        if (body[field] !== undefined) {
+            fields.push(`"${field}" = $${paramCount++}`);
+            values.push(body[field]);
+        }
+    }
+
+    if (fields.length === 0) {
+        return {
+            statusCode: 400,
+            headers: HEADERS,
+            body: JSON.stringify({ message: 'No valid fields provided for update' }),
+        };
+    }
+
+    const setClause = fields.join(', ');
+    const query = `UPDATE "Vaccination" SET ${setClause}, "updatedAt" = NOW() WHERE "recordId" = $${paramCount} AND "tenantId" = $${paramCount + 1} RETURNING *`;
+    values.push(vaccinationId, tenantId);
+
+    const pool = getPool();
+    const { rows } = await pool.query(query, values);
+
+    if (rows.length === 0) {
+        return {
+            statusCode: 404,
+            headers: HEADERS,
+            body: JSON.stringify({ message: 'Vaccination not found or you do not have permission to update it' }),
+        };
+    }
+
+    return {
+        statusCode: 200,
+        headers: HEADERS,
+        body: JSON.stringify(rows[0]),
     };
 };

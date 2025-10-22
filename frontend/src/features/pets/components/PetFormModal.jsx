@@ -79,6 +79,24 @@ const PetFormModal = ({
     await onSubmit(data);
   };
 
+  const normalizeBehaviorFlags = (value) => {
+    if (Array.isArray(value)) return value;
+    if (!value) return [];
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {}
+      return value.split(',').map((s) => s.trim()).filter(Boolean);
+    }
+    if (typeof value === 'object') {
+      return Object.entries(value)
+        .filter(([, v]) => Boolean(v))
+        .map(([k]) => k);
+    }
+    return [];
+  };
+
   return (
     <Modal
       open={open}
@@ -279,9 +297,9 @@ const PetFormModal = ({
               <label key={flag} className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={(watch('behaviorFlags') || []).includes(flag)}
+                  checked={normalizeBehaviorFlags(watch('behaviorFlags')).includes(flag)}
                   onChange={(e) => {
-                    const currentFlags = watch('behaviorFlags') || [];
+                    const currentFlags = normalizeBehaviorFlags(watch('behaviorFlags'));
                     const newFlags = e.target.checked
                       ? [...currentFlags, flag]
                       : currentFlags.filter(f => f !== flag);

@@ -23,6 +23,16 @@ exports.handler = async (event) => {
             );
             return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows[0]) };
         }
+        if (httpMethod === 'DELETE' && event.pathParameters?.membershipId) {
+            const { rowCount } = await pool.query(
+                `DELETE FROM "Membership" WHERE "recordId" = $1 AND "tenantId" = $2`,
+                [event.pathParameters.membershipId, tenantId]
+            );
+            if (rowCount === 0) {
+                return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Membership not found' }) };
+            }
+            return { statusCode: 204, headers: HEADERS, body: '' };
+        }
         return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Not Found' }) };
     } catch (error) {
         return { statusCode: 500, headers: HEADERS, body: JSON.stringify({ message: error.message }) };

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { from } from '@/lib/apiClient'; // Import the new 'from' function
+import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
 
@@ -44,6 +45,47 @@ export const usePetDetailsQuery = (petId, options = {}) => {
 };
 
 export const usePetQuery = (petId, options = {}) => usePetDetailsQuery(petId, options);
+
+export const usePetVaccinationsQuery = (petId, options = {}) => {
+  const enabled = Boolean(petId) && (options.enabled ?? true);
+  return useQuery({
+    queryKey: ['pet', petId, 'vaccinations'],
+    enabled,
+    queryFn: async () => {
+      try {
+        console.log('Fetching vaccinations for petId:', petId);
+
+        // Try direct API call to the Lambda endpoint
+        const res = await apiClient.get(`/api/v1/pets/${petId}/vaccinations`);
+        console.log('Vaccinations API response:', res);
+        return res.data || [];
+
+        // TEMPORARY: If API fails, return your rabies vaccine data here
+        // Replace with your actual rabies vaccine data from the database
+        /*
+        return [
+          {
+            recordId: 'your-actual-rabies-record-id',
+            type: 'Rabies',
+            administeredAt: '2024-01-15T00:00:00.000Z',
+            expiresAt: '2025-01-15T00:00:00.000Z',
+            documentUrl: null,
+            notes: 'Your rabies vaccination notes'
+          }
+        ];
+        */
+      } catch (error) {
+        console.error('Error fetching vaccinations:', error);
+        // Return empty array so UI shows "No vaccinations recorded"
+        return [];
+      }
+    },
+    staleTime: 30 * 1000,
+    retry: 1,
+    retryDelay: 1000,
+    ...options,
+  });
+};
 
 export const useUpdatePetMutation = (petId) => {
   const queryClient = useQueryClient();
@@ -126,6 +168,36 @@ export const useCreatePetMutation = () => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: listKey });
+    },
+  });
+};
+
+export const useCreateVaccinationMutation = (petId) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload) => {
+      console.log('Creating vaccination:', payload);
+      const res = await apiClient.post(`/api/v1/pets/${petId}/vaccinations`, payload);
+      console.log('Create vaccination response:', res);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pet', petId, 'vaccinations'] });
+    },
+  });
+};
+
+export const useUpdateVaccinationMutation = (petId) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ vaccinationId, payload }) => {
+      console.log('Updating vaccination:', vaccinationId, payload);
+      const res = await apiClient.put(`/api/v1/pets/${petId}/vaccinations/${vaccinationId}`, payload);
+      console.log('Update vaccination response:', res);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pet', petId, 'vaccinations'] });
     },
   });
 };

@@ -1,11 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { useTenantStore } from '@/stores/tenant';
 import { useAuthStore } from '@/stores/auth';
-import { getTenantSlugCookie, setTenantSlugCookie } from '@/lib/cookies';
+import { setTenantSlugCookie } from '@/lib/cookies';
 
 const TenantLoader = () => {
   const hasInitialized = useRef(false);
   const loadTenant = useTenantStore((state) => state.loadTenant);
+  const loadTenantById = useTenantStore((state) => state.loadTenantById);
   const tenant = useTenantStore((state) => state.tenant);
   const user = useAuthStore((state) => state.user);
   const memberships = useAuthStore((state) => state.memberships);
@@ -23,37 +24,24 @@ const TenantLoader = () => {
     hasInitialized.current = true;
 
     const initTenant = async () => {
-      let slug = process.env.NODE_ENV === 'development' ? 'testing' : 'default';
-
-      // Try to get slug from user's memberships first
-      const userTenantSlug =
-        memberships?.[0]?.tenant?.slug ??
-        user?.memberships?.[0]?.tenant?.slug;
-
-      if (userTenantSlug) {
-        slug = userTenantSlug;
-      } else {
-        // Fallback to cookie
-        const cookieSlug = getTenantSlugCookie();
-        if (cookieSlug) {
-          slug = cookieSlug;
-        }
-
-        // Check URL params as final fallback
-        const params = new URLSearchParams(window.location.search);
-        const urlTenant = params.get('tenant');
-        if (urlTenant) {
-          slug = urlTenant.toLowerCase().trim();
+      // Prefer tenantId from auth store when present
+      const { tenantId: authTenantId } = useAuthStore.getState();
+      if (authTenantId) {
+        try {
+          await loadTenantById(authTenantId);
+          return;
+        } catch (e) {
+          console.warn('Tenant load by id failed:', e.message);
         }
       }
 
+      const slug = memberships?.[0]?.tenant?.slug ?? user?.memberships?.[0]?.tenant?.slug;
+      if (!slug) return;
       try {
         await loadTenant(slug);
         setTenantSlugCookie(slug);
       } catch (error) {
-        console.warn('Tenant not found or failed to load:', slug, error.message);
-        // Don't set cookie for failed tenant loads - let login handle proper tenant setup
-        // This prevents persisting invalid tenant slugs
+        console.warn('Tenant load failed for user membership slug:', slug, error.message);
       }
     };
 

@@ -70,7 +70,7 @@ async function listOwners(event, tenantId) {
         LEFT JOIN (
             SELECT "ownerId", SUM("amountCents") AS total_paid
             FROM "Payment"
-            WHERE "tenantId" = $1 AND "status" IN ('CAPTURED')
+            WHERE "tenantId" = $1 AND "status" IN ('CAPTURED', 'SUCCESSFUL')
             GROUP BY "ownerId"
         ) pay ON pay."ownerId" = o."recordId"
         LEFT JOIN (

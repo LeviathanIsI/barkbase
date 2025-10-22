@@ -261,3 +261,87 @@ export const useBookingsInsightsQuery = (options = {}) => {
     ...options,
   });
 };
+
+// Members API
+export const useMembersQuery = () => {
+  const tenantKey = useTenantKey();
+  return useQuery({
+    queryKey: ['members', tenantKey],
+    queryFn: async () => {
+      const response = await fetch('/api/v1/memberships', {
+        headers: { 'x-tenant-id': tenantKey },
+      });
+      if (!response.ok) throw new Error('Failed to fetch members');
+      return response.json();
+    },
+  });
+};
+
+export const useUpdateMemberRoleMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async ({ membershipId, role }) => {
+      const response = await fetch(`/api/v1/memberships/${membershipId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-id': tenantKey,
+        },
+        body: JSON.stringify({ role }),
+      });
+      if (!response.ok) throw new Error('Failed to update member role');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['members'] });
+    },
+  });
+};
+
+export const useRemoveMemberMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async (membershipId) => {
+      const response = await fetch(`/api/v1/memberships/${membershipId}`, {
+        method: 'DELETE',
+        headers: { 'x-tenant-id': tenantKey },
+      });
+      if (!response.ok) throw new Error('Failed to remove member');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['members'] });
+    },
+  });
+};
+
+// Invites API
+export const useInviteMemberMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async (inviteData) => {
+      const response = await fetch('/api/v1/invites', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-tenant-id': tenantKey,
+        },
+        body: JSON.stringify(inviteData),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to send invite');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidate members query to refetch with new invites
+      queryClient.invalidateQueries({ queryKey: ['members'] });
+    },
+  });
+};

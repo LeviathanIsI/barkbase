@@ -89,6 +89,20 @@ export const useTenantStore = create((set, get) => ({
       throw error;
     }
   },
+  loadTenantById: async (tenantId) => {
+    if (!tenantId) throw new Error('tenantId is required');
+    try {
+      const { data, error } = await from('tenants').select('*').eq('recordId', tenantId).get();
+      if (error) throw new Error(error.message);
+      const payload = data && data.length > 0 ? data[0] : null;
+      if (!payload) throw new Error('Tenant not found');
+      get().setTenant(payload);
+      return payload;
+    } catch (error) {
+      set((state) => ({ tenant: { ...state.tenant }, initialized: true }));
+      throw error;
+    }
+  },
   updateTheme: (overrides) => {
     const { tenant } = get();
     const mergedTheme = mergeTheme({ ...tenant.theme, ...overrides });

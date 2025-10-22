@@ -44,6 +44,7 @@ const Kennels = lazy(() => import("@/features/kennels/routes/Kennels"));
 const OwnerDetail = lazy(() => import("@/features/owners/routes/OwnerDetail"));
 const PetDetail = lazy(() => import("@/features/pets/routes/PetDetail"));
 const Payments = lazy(() => import("@/features/payments/routes/Payments"));
+const Vaccinations = lazy(() => import("@/features/vaccinations/routes/Vaccinations"));
 const Reports = lazy(() => import("@/features/reports/routes/Reports"));
 const Admin = lazy(() => import("@/features/admin/routes/Admin"));
 const TenantSettings = lazy(() =>
@@ -272,7 +273,7 @@ export const router = createBrowserRouter([
               { path: "reports", element: <Reports /> },
               // Operations
               { path: "runs", element: <RunAssignment /> },
-              { path: "feeding-meds", element: <Tasks /> },
+              { path: "vaccinations", element: <Vaccinations /> },
               { path: "tasks", element: <Tasks /> },
               { path: "daycare/checkin", element: <Tasks /> },
               { path: "daycare/runs", element: <RunAssignment /> },

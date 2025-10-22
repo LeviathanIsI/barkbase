@@ -17,11 +17,14 @@ import {
   usePetQuery,
   useDeletePetMutation,
   useUpdatePetMutation,
+  usePetVaccinationsQuery,
+  useCreateVaccinationMutation,
+  useUpdateVaccinationMutation,
 } from '../api';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTenantStore } from '@/stores/tenant';
 import { queryKeys } from '@/lib/queryKeys';
-import { PetFormModal } from '../components';
+import { PetFormModal, VaccinationFormModal } from '../components';
 
 const PetDetail = () => {
   const { petId } = useParams();
@@ -34,7 +37,88 @@ const PetDetail = () => {
   const updatePetMutation = useUpdatePetMutation(petId);
   const [editModalOpen, setEditModalOpen] = useState(false);
 
+  // Vaccination modal state
+  const [vaccinationModalOpen, setVaccinationModalOpen] = useState(false);
+  const [editingVaccination, setEditingVaccination] = useState(null);
+  const [selectedVaccineType, setSelectedVaccineType] = useState('');
+
+  // Vaccination mutations
+  const createVaccinationMutation = useCreateVaccinationMutation(petId);
+  const updateVaccinationMutation = useUpdateVaccinationMutation(petId);
+
   const pet = petQuery.data;
+  const { data: vaccinations = [], isLoading: vaccLoading } = usePetVaccinationsQuery(petId);
+
+
+  // Helper functions for vaccinations
+  const getDefaultVaccines = (species) => {
+    if (species === 'Dog') {
+      return ['Rabies', 'DAPP', 'DHPP', 'Bordetella', 'Influenza', 'Leptospirosis'];
+    } else if (species === 'Cat') {
+      return ['Rabies', 'FVRCP', 'FeLV'];
+    }
+    // If no species is set, show common vaccines
+    return ['Rabies', 'DAPP', 'DHPP'];
+  };
+
+  const normalizeVaccineType = (type) => {
+    const normalized = type?.toLowerCase()?.trim();
+    if (normalized === 'dhpp' || normalized === 'dapp/dhpp') return 'dapp';
+    if (normalized === 'fvr' || normalized === 'fvr/c') return 'fvrcp';
+    return normalized;
+  };
+
+  const getVaccinationStatus = (vaccination) => {
+    if (!vaccination) return 'missing';
+    const now = new Date();
+    const expiresAt = new Date(vaccination.expiresAt);
+    const daysUntilExpiry = Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24));
+
+    if (expiresAt < now) return 'expired';
+    if (daysUntilExpiry <= 30) return 'expiring';
+    return 'up to date';
+  };
+
+  const getVaccinationForType = (type) => {
+    const normalizedType = normalizeVaccineType(type);
+    // Find all vaccinations of this type and return the most recent one (by administeredAt)
+    const matchingVaccinations = vaccinations.filter(v => normalizeVaccineType(v.type) === normalizedType);
+    const found = matchingVaccinations.sort((a, b) => new Date(b.administeredAt) - new Date(a.administeredAt))[0];
+    return found;
+  };
+
+  const handleAddVaccination = (vaccineType) => {
+    setSelectedVaccineType(vaccineType);
+    setEditingVaccination(null);
+    setVaccinationModalOpen(true);
+  };
+
+  const handleEditVaccination = (vaccination) => {
+    setEditingVaccination(vaccination);
+    setSelectedVaccineType('');
+    setVaccinationModalOpen(true);
+  };
+
+  const handleVaccinationSubmit = async (data) => {
+    try {
+      if (editingVaccination) {
+        await updateVaccinationMutation.mutateAsync({
+          vaccinationId: editingVaccination.recordId,
+          payload: data
+        });
+        toast.success('Vaccination updated successfully');
+      } else {
+        await createVaccinationMutation.mutateAsync(data);
+        toast.success('Vaccination added successfully');
+      }
+      setVaccinationModalOpen(false);
+      setEditingVaccination(null);
+      setSelectedVaccineType('');
+    } catch (error) {
+      console.error('Failed to save vaccination:', error);
+      toast.error(error?.message || 'Failed to save vaccination');
+    }
+  };
 
   const asideSections = useMemo(() => {
     if (!pet) return [];
@@ -173,28 +257,124 @@ const PetDetail = () => {
     { recordId: 'vaccinations',
       label: 'Vaccinations',
       render: (record) => {
-        const vaccines = record?.vaccinations || [];
+        const defaultVaccines = getDefaultVaccines(record.species);
         return (
-          <SectionCard title="Vaccination Records" variant="spacious">
-            <div className="space-y-3">
-              {vaccines.length === 0 && (
-                <p className="text-sm text-muted">No vaccinations recorded</p>
+          <SectionCard title="Vaccinations" variant="spacious">
+            <div className="space-y-4">
+              {vaccLoading && (
+                <p className="text-sm text-muted">Loading vaccinations…</p>
               )}
-              {vaccines.map((vaccine) => (
-                <div
-                  key={vaccine.recordId}
-                  className="flex items-center justify-between border-b border-border pb-3 last:border-0"
-                >
-                  <div>
-                    <p className="font-medium">{vaccine.type}</p>
-                    <p className="text-sm text-muted flex items-center gap-2">
-                      <Syringe className="h-3.5 w-3.5" />
-                      {new Date(vaccine.date).toLocaleDateString()}
-                    </p>
+              {!vaccLoading && (
+                <>
+                  {/* Default vaccine cards */}
+                  <div className="grid gap-3">
+                    {defaultVaccines.map((vaccineType) => {
+                      const vaccination = getVaccinationForType(vaccineType);
+                      const status = getVaccinationStatus(vaccination);
+
+                      return (
+                        <div
+                          key={vaccineType}
+                          className="flex items-center justify-between p-4 border border-border rounded-lg bg-surface hover:bg-surface-hover transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                              <Syringe className="h-5 w-5" />
+                            </div>
+                            <div>
+                              <p className="font-medium">{vaccineType}</p>
+                              {vaccination ? (
+                                <div>
+                                  <p className="text-sm text-muted">
+                                    Expires {new Date(vaccination.expiresAt).toLocaleDateString()}
+                                  </p>
+                                  <p className="text-xs text-muted">
+                                    Type in DB: "{vaccination.type}" | ID: {vaccination.recordId.slice(0, 8)}...
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-muted">Not recorded</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <StatusPill
+                              status={status === 'up to date' ? 'active' :
+                                     status === 'expiring' ? 'warning' :
+                                     status === 'expired' ? 'error' : 'inactive'}
+                            />
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => vaccination
+                                ? handleEditVaccination(vaccination)
+                                : handleAddVaccination(vaccineType)
+                              }
+                            >
+                              {vaccination ? 'Edit' : 'Add'}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <StatusPill status={vaccine.status ?? 'up to date'} />
-                </div>
-              ))}
+
+                  {/* All existing vaccinations */}
+                  {vaccinations.length > 0 && (
+                    <div className="border-t border-border pt-4">
+                      <h3 className="text-sm font-medium text-text mb-3">All Vaccinations in Database</h3>
+                      <div className="space-y-3">
+                        {vaccinations.map((vaccine) => {
+                          const status = getVaccinationStatus(vaccine);
+                          return (
+                            <div
+                              key={vaccine.recordId}
+                              className="flex items-center justify-between border-b border-border pb-3 last:border-0"
+                            >
+                              <div>
+                                <p className="font-medium">{vaccine.type}</p>
+                                <p className="text-sm text-muted flex items-center gap-2">
+                                  <Syringe className="h-3.5 w-3.5" />
+                                  Administered {new Date(vaccine.administeredAt).toLocaleDateString()}
+                                  (expires {vaccine.expiresAt ? new Date(vaccine.expiresAt).toLocaleDateString() : 'N/A'})
+                                </p>
+                                <p className="text-xs text-muted">
+                                  Record ID: {vaccine.recordId.slice(0, 8)}...
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <StatusPill
+                                  status={status === 'up to date' ? 'active' :
+                                         status === 'expiring' ? 'warning' :
+                                         status === 'expired' ? 'error' : 'inactive'}
+                                />
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleEditVaccination(vaccine)}
+                                >
+                                  Edit
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Add custom vaccine button */}
+                  <div className="border-t border-border pt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => handleAddVaccination('')}
+                      className="w-full"
+                    >
+                      + Add Custom Vaccine
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           </SectionCard>
         );
@@ -281,6 +461,20 @@ const PetDetail = () => {
         pet={pet}
         onSubmit={handleEditSubmit}
         isLoading={updatePetMutation.isPending}
+      />
+
+      <VaccinationFormModal
+        open={vaccinationModalOpen}
+        onClose={() => {
+          setVaccinationModalOpen(false);
+          setEditingVaccination(null);
+          setSelectedVaccineType('');
+        }}
+        vaccination={editingVaccination}
+        petSpecies={pet?.species}
+        selectedVaccineType={selectedVaccineType}
+        onSubmit={handleVaccinationSubmit}
+        isLoading={createVaccinationMutation.isPending || updateVaccinationMutation.isPending}
       />
     </>
   );
