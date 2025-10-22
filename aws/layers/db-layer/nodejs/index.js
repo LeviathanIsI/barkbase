@@ -91,10 +91,7 @@ module.exports = {
  * Priority: JWT authorizer claims -> x-tenant-id header (temporary fallback).
  */
 function getTenantIdFromEvent(event) {
-	const claims = event?.requestContext?.authorizer?.jwt?.claims || {};
-	const claimTenant = claims["tenantId"] || claims["custom:tenantId"] || null;
-	if (claimTenant) return claimTenant;
-	// Temporary dual support during rollout
-	const headerTenant = (event?.headers?.['x-tenant-id'] || event?.headers?.['X-Tenant-Id'] || '').trim();
-	return headerTenant || null;
+    const claims = event?.requestContext?.authorizer?.jwt?.claims || {};
+    const claimTenant = claims["tenantId"] || claims["custom:tenantId"] || null;
+    return claimTenant;
 }

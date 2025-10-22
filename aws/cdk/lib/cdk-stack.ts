@@ -12,6 +12,8 @@ import * as kms from "aws-cdk-lib/aws-kms";
 import * as logs from "aws-cdk-lib/aws-logs";
 import * as cw from "aws-cdk-lib/aws-cloudwatch";
 import * as wafv2 from "aws-cdk-lib/aws-wafv2";
+import * as sns from "aws-cdk-lib/aws-sns";
+import * as actions from "aws-cdk-lib/aws-cloudwatch-actions";
 import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 // import * as acm from "aws-cdk-lib/aws-certificatemanager";
@@ -163,8 +165,6 @@ export class CdkStack extends cdk.Stack {
           "X-Amz-Date",
           "Authorization",
           "X-Api-Key",
-          // Keep for staged rollout; remove after claim-only tenancy is fully deployed
-          "x-tenant-id",
         ],
         allowMethods: [
           apigw.CorsHttpMethod.OPTIONS,
@@ -186,7 +186,7 @@ export class CdkStack extends cdk.Stack {
       path: "/api/v1/users",
       methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST],
       integration: usersIntegration,
-      // authorizer: httpAuthorizer, // Enable after Cognito tokens are used in frontend
+      authorizer: httpAuthorizer,
     });
     httpApi.addRoutes({
       path: "/api/v1/users/{id}",
@@ -196,7 +196,7 @@ export class CdkStack extends cdk.Stack {
         apigw.HttpMethod.DELETE,
       ],
       integration: usersIntegration,
-      // authorizer: httpAuthorizer,
+      authorizer: httpAuthorizer,
     });
 
     // Pets API
@@ -220,7 +220,7 @@ export class CdkStack extends cdk.Stack {
       path: "/api/v1/pets",
       methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST],
       integration: petsIntegration,
-      // authorizer: httpAuthorizer,
+      authorizer: httpAuthorizer,
     });
     httpApi.addRoutes({
       path: "/api/v1/pets/{id}",
@@ -230,17 +230,19 @@ export class CdkStack extends cdk.Stack {
         apigw.HttpMethod.DELETE,
       ],
       integration: petsIntegration,
-      // authorizer: httpAuthorizer,
+      authorizer: httpAuthorizer,
     });
     httpApi.addRoutes({
       path: "/api/v1/pets/{id}/vaccinations",
       methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST],
       integration: petsIntegration,
+      authorizer: httpAuthorizer,
     });
     httpApi.addRoutes({
       path: "/api/v1/pets/{id}/vaccinations/{vaccinationId}",
       methods: [apigw.HttpMethod.PUT],
       integration: petsIntegration,
+      authorizer: httpAuthorizer,
     });
     httpApi.addRoutes({
       path: "/api/v1/pets/vaccinations/expiring",
@@ -294,7 +296,7 @@ export class CdkStack extends cdk.Stack {
       path: "/api/v1/upload-url",
       methods: [apigw.HttpMethod.POST],
       integration: getUploadUrlIntegration,
-      // authorizer: httpAuthorizer,
+      authorizer: httpAuthorizer,
     });
 
     // --- S3 Download URL Generator ---
@@ -312,7 +314,7 @@ export class CdkStack extends cdk.Stack {
       path: '/api/v1/download-url',
       methods: [apigw.HttpMethod.GET],
       integration: getDownloadUrlIntegration,
-      // authorizer: httpAuthorizer,
+      authorizer: httpAuthorizer,
     });
 
     // === Phase 5: Frontend hosting (S3 + CloudFront) ===
@@ -338,6 +340,19 @@ export class CdkStack extends cdk.Stack {
         { httpStatus: 404, responseHttpStatus: 200, responsePagePath: '/index.html', ttl: cdk.Duration.minutes(5) },
       ],
     });
+
+    // Optional: attach WAF to CloudFront (GLOBAL scope)
+    // const cfWebAcl = new wafv2.CfnWebACL(this, 'CloudFrontWebAcl', {
+    //   defaultAction: { allow: {} },
+    //   scope: 'CLOUDFRONT',
+    //   visibilityConfig: { cloudWatchMetricsEnabled: true, metricName: 'cfWebAcl', sampledRequestsEnabled: true },
+    //   name: `${id}-cf-waf`,
+    //   rules: [/* managed rules */],
+    // });
+    // new wafv2.CfnWebACLAssociation(this, 'CloudFrontWebAclAssociation', {
+    //   resourceArn: `arn:aws:cloudfront::${this.account}:distribution/${distribution.distributionId}`,
+    //   webAclArn: cfWebAcl.attrArn,
+    // });
 
     new cdk.CfnOutput(this, 'SiteBucketName', { value: siteBucket.bucketName });
     new cdk.CfnOutput(this, 'CloudFrontDistributionId', { value: distribution.distributionId });
@@ -427,6 +442,7 @@ export class CdkStack extends cdk.Stack {
     dashboardApiFunction.tracing = lambda.Tracing.ACTIVE;
 
     // CloudWatch Alarms
+    const alarmTopic = new sns.Topic(this, 'OpsAlarmTopic');
     new cw.Alarm(this, 'Api5xxAlarm', {
       metric: new cw.Metric({
         namespace: 'AWS/ApiGateway',
@@ -439,7 +455,7 @@ export class CdkStack extends cdk.Stack {
       evaluationPeriods: 1,
       datapointsToAlarm: 1,
       alarmDescription: 'HTTP API 5XX errors > 5 in 5 minutes',
-    });
+    }).addAlarmAction(new actions.SnsAction(alarmTopic));
 
     new cw.Alarm(this, 'BookingsErrorsAlarm', {
       metric: bookingsApiFunction.metricErrors({ period: cdk.Duration.minutes(5), statistic: 'sum' }),
@@ -447,7 +463,7 @@ export class CdkStack extends cdk.Stack {
       evaluationPeriods: 1,
       datapointsToAlarm: 1,
       alarmDescription: 'Bookings Lambda errors > 5 in 5 minutes',
-    });
+    }).addAlarmAction(new actions.SnsAction(alarmTopic));
 
     new cw.Alarm(this, 'BookingsP95LatencyAlarm', {
       metric: bookingsApiFunction.metricDuration({ period: cdk.Duration.minutes(5), statistic: 'p95' }),
@@ -455,7 +471,7 @@ export class CdkStack extends cdk.Stack {
       evaluationPeriods: 1,
       datapointsToAlarm: 1,
       alarmDescription: 'Bookings Lambda p95 > 2s',
-    });
+    }).addAlarmAction(new actions.SnsAction(alarmTopic));
 
     new cw.Alarm(this, 'RdsConnectionsHigh', {
       metric: dbInstance.metricDatabaseConnections({ period: cdk.Duration.minutes(5), statistic: 'avg' }),
@@ -463,7 +479,7 @@ export class CdkStack extends cdk.Stack {
       evaluationPeriods: 1,
       datapointsToAlarm: 1,
       alarmDescription: 'RDS connections high (avg > 80)',
-    });
+    }).addAlarmAction(new actions.SnsAction(alarmTopic));
 
     // Basic WAF for HTTP API: AWS managed rules + rate limit
     const webAcl = new wafv2.CfnWebACL(this, 'HttpApiWebAcl', {
@@ -547,11 +563,11 @@ export class CdkStack extends cdk.Stack {
       deploymentConfig: codedeploy.LambdaDeploymentConfig.CANARY_10PERCENT_5MINUTES,
     });
     const bookingsIntegration = new HttpLambdaIntegration('BookingsIntegration', bookingsAlias);
-    httpApi.addRoutes({ path: '/api/v1/bookings', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: bookingsIntegration /*, authorizer: httpAuthorizer*/ });
-    httpApi.addRoutes({ path: '/api/v1/bookings/{bookingId}', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PUT, apigw.HttpMethod.DELETE], integration: bookingsIntegration /*, authorizer: httpAuthorizer*/ });
-    httpApi.addRoutes({ path: '/api/v1/bookings/{bookingId}/status', methods: [apigw.HttpMethod.PATCH], integration: bookingsIntegration /*, authorizer: httpAuthorizer*/ });
-    httpApi.addRoutes({ path: '/api/v1/bookings/{bookingId}/checkin', methods: [apigw.HttpMethod.POST], integration: bookingsIntegration /*, authorizer: httpAuthorizer*/ });
-    httpApi.addRoutes({ path: '/api/v1/bookings/{bookingId}/checkout', methods: [apigw.HttpMethod.POST], integration: bookingsIntegration /*, authorizer: httpAuthorizer*/ });
+    httpApi.addRoutes({ path: '/api/v1/bookings', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: bookingsIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/bookings/{bookingId}', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PUT, apigw.HttpMethod.DELETE], integration: bookingsIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/bookings/{bookingId}/status', methods: [apigw.HttpMethod.PATCH], integration: bookingsIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/bookings/{bookingId}/checkin', methods: [apigw.HttpMethod.POST], integration: bookingsIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/bookings/{bookingId}/checkout', methods: [apigw.HttpMethod.POST], integration: bookingsIntegration, authorizer: httpAuthorizer });
 
     // Tenants API
     const tenantsApiFunction = new lambda.Function(this, 'TenantsApiFunction', {
@@ -568,12 +584,12 @@ export class CdkStack extends cdk.Stack {
     // Public by slug
     httpApi.addRoutes({ path: '/api/v1/tenants', methods: [apigw.HttpMethod.GET], integration: tenantsIntegration });
     // Authenticated current tenant endpoints (to enable authorizer later)
-    httpApi.addRoutes({ path: '/api/v1/tenants/current', methods: [apigw.HttpMethod.GET], integration: tenantsIntegration /*, authorizer: httpAuthorizer*/ });
-    httpApi.addRoutes({ path: '/api/v1/tenants/current/plan', methods: [apigw.HttpMethod.GET], integration: tenantsIntegration });
-    httpApi.addRoutes({ path: '/api/v1/tenants/current/onboarding', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PATCH], integration: tenantsIntegration });
-    httpApi.addRoutes({ path: '/api/v1/tenants/theme', methods: [apigw.HttpMethod.PUT], integration: tenantsIntegration });
-    httpApi.addRoutes({ path: '/api/v1/tenants/current/theme', methods: [apigw.HttpMethod.PUT], integration: tenantsIntegration });
-    httpApi.addRoutes({ path: '/api/v1/tenants/features', methods: [apigw.HttpMethod.PUT], integration: tenantsIntegration });
+    httpApi.addRoutes({ path: '/api/v1/tenants/current', methods: [apigw.HttpMethod.GET], integration: tenantsIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/tenants/current/plan', methods: [apigw.HttpMethod.GET], integration: tenantsIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/tenants/current/onboarding', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PATCH], integration: tenantsIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/tenants/theme', methods: [apigw.HttpMethod.PUT], integration: tenantsIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/tenants/current/theme', methods: [apigw.HttpMethod.PUT], integration: tenantsIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/tenants/features', methods: [apigw.HttpMethod.PUT], integration: tenantsIntegration, authorizer: httpAuthorizer });
 
     // Owners API
     const ownersApiFunction = new lambda.Function(this, 'OwnersApiFunction', {
@@ -587,8 +603,8 @@ export class CdkStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(30),
     });
     const ownersIntegration = new HttpLambdaIntegration('OwnersIntegration', ownersApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/owners', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: ownersIntegration /*, authorizer: httpAuthorizer*/ });
-    httpApi.addRoutes({ path: '/api/v1/owners/{ownerId}', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PUT, apigw.HttpMethod.DELETE], integration: ownersIntegration /*, authorizer: httpAuthorizer*/ });
+    httpApi.addRoutes({ path: '/api/v1/owners', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: ownersIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/owners/{ownerId}', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PUT, apigw.HttpMethod.DELETE], integration: ownersIntegration, authorizer: httpAuthorizer });
 
     // Payments API
     const paymentsApiFunction = new lambda.Function(this, 'PaymentsApiFunction', {
@@ -617,9 +633,9 @@ export class CdkStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(30),
     });
     const reportsIntegration = new HttpLambdaIntegration('ReportsIntegration', reportsApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/reports/dashboard', methods: [apigw.HttpMethod.GET], integration: reportsIntegration /*, authorizer: httpAuthorizer*/ });
-    httpApi.addRoutes({ path: '/api/v1/reports/revenue', methods: [apigw.HttpMethod.GET], integration: reportsIntegration /*, authorizer: httpAuthorizer*/ });
-    httpApi.addRoutes({ path: '/api/v1/reports/occupancy', methods: [apigw.HttpMethod.GET], integration: reportsIntegration /*, authorizer: httpAuthorizer*/ });
+    httpApi.addRoutes({ path: '/api/v1/reports/dashboard', methods: [apigw.HttpMethod.GET], integration: reportsIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/reports/revenue', methods: [apigw.HttpMethod.GET], integration: reportsIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/reports/occupancy', methods: [apigw.HttpMethod.GET], integration: reportsIntegration, authorizer: httpAuthorizer });
 
     // Kennels API
     const kennelsApiFunction = new lambda.Function(this, 'KennelsApiFunction', {
@@ -904,7 +920,7 @@ export class CdkStack extends cdk.Stack {
       allowPublicSubnet: true,
     });
     const facilityIntegration = new HttpLambdaIntegration('FacilityIntegration', facilityApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/facility', methods: [apigw.HttpMethod.GET], integration: facilityIntegration /*, authorizer: httpAuthorizer*/ });
+    httpApi.addRoutes({ path: '/api/v1/facility', methods: [apigw.HttpMethod.GET], integration: facilityIntegration, authorizer: httpAuthorizer });
 
     // Account Defaults API
     const accountDefaultsApiFunction = new lambda.Function(this, 'AccountDefaultsApiFunction', {
@@ -919,7 +935,7 @@ export class CdkStack extends cdk.Stack {
       allowPublicSubnet: true,
     });
     const accountDefaultsIntegration = new HttpLambdaIntegration('AccountDefaultsIntegration', accountDefaultsApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/account-defaults', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PUT], integration: accountDefaultsIntegration /*, authorizer: httpAuthorizer*/ });
+    httpApi.addRoutes({ path: '/api/v1/account-defaults', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PUT], integration: accountDefaultsIntegration, authorizer: httpAuthorizer });
 
     // User Permissions API
     const userPermissionsApiFunction = new lambda.Function(this, 'UserPermissionsApiFunction', {
@@ -934,7 +950,7 @@ export class CdkStack extends cdk.Stack {
       allowPublicSubnet: true,
     });
     const userPermissionsIntegration = new HttpLambdaIntegration('UserPermissionsIntegration', userPermissionsApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/user-permissions', methods: [apigw.HttpMethod.GET], integration: userPermissionsIntegration /*, authorizer: httpAuthorizer*/ });
+    httpApi.addRoutes({ path: '/api/v1/user-permissions', methods: [apigw.HttpMethod.GET], integration: userPermissionsIntegration, authorizer: httpAuthorizer });
 
     // Migration API (for running database migrations)
     const migrationApiFunction = new lambda.Function(this, 'MigrationApiFunction', {
