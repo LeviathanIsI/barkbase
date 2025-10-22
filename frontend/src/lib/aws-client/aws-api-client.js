@@ -113,8 +113,8 @@ export class ApiClient {
         const authTenantId = useAuthStore.getState().tenantId;
         const tenant = useTenantStore.getState().tenant;
         
-        // Get tenant ID from auth store first, then tenant store
-        const tenantId = authTenantId || tenant?.recordId || tenant?.id;
+        // Only ever send a UUID recordId for x-tenant-id
+        const tenantId = authTenantId || tenant?.recordId || null;
         
         const options = {
             method,
