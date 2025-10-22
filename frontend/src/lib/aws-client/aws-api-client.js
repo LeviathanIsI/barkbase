@@ -132,8 +132,13 @@ export class ApiClient {
         const response = await fetch(url, options);
         
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || `API request failed with status ${response.status}`);
+            let errorText = '';
+            try {
+                errorText = await response.text();
+            } catch (e) {
+                // ignore
+            }
+            throw new Error(errorText || `API request failed with status ${response.status}`);
         }
 
         if (response.status === 204) { // No Content

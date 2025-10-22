@@ -64,11 +64,13 @@ async function listOwners(event, tenantId) {
         LEFT JOIN (
             SELECT "ownerId", COUNT(*) AS total_bookings, MAX("checkIn") AS last_booking
             FROM "Booking"
+            WHERE "tenantId" = $1
             GROUP BY "ownerId"
         ) bk ON bk."ownerId" = o."recordId"
         LEFT JOIN (
             SELECT "ownerId", SUM("amountCents") AS total_paid
             FROM "Payment"
+            WHERE "tenantId" = $1 AND "status" IN ('CAPTURED','SUCCESSFUL')
             WHERE "status" IN ('CAPTURED','SUCCESSFUL')
             GROUP BY "ownerId"
         ) pay ON pay."ownerId" = o."recordId"
@@ -76,6 +78,7 @@ async function listOwners(event, tenantId) {
             SELECT po."ownerId", array_agg(p."name" ORDER BY p."name") AS pet_names
             FROM "PetOwner" po
             JOIN "Pet" p ON p."recordId" = po."petId"
+            WHERE po."tenantId" = $1 AND p."tenantId" = $1
             GROUP BY po."ownerId"
         ) pets ON pets."ownerId" = o."recordId"
         ${whereClause}
@@ -89,19 +92,19 @@ async function listOwners(event, tenantId) {
 }
 
 async function createOwner(event, tenantId) {
-    const { name, email, phone, address, emergencyContact, notes } = JSON.parse(event.body);
+    const { firstName, lastName, email, phone, address, emergencyContact, notes } = JSON.parse(event.body);
 
-    if (!name) {
-        return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ message: 'Name is required' }) };
+    if (!firstName && !lastName) {
+        return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ message: 'firstName or lastName is required' }) };
     }
 
     const pool = getPool();
 
     const { rows } = await pool.query(
-        `INSERT INTO "Owner" ("recordId", "tenantId", "name", "email", "phone", "address", "emergencyContact", "notes", "updatedAt")
-         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, NOW())
+        `INSERT INTO "Owner" ("recordId", "tenantId", "firstName", "lastName", "email", "phone", "address", "emergencyContact", "notes", "updatedAt")
+         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, NOW())
          RETURNING *`,
-        [tenantId, name, email, phone, address, emergencyContact, notes]
+        [tenantId, firstName || null, lastName || null, email, phone, address, emergencyContact, notes]
     );
 
     return {
@@ -152,7 +155,7 @@ async function updateOwner(event, tenantId) {
     const values = [];
     let paramCount = 1;
 
-    const updatableFields = ['name', 'email', 'phone', 'address', 'emergencyContact', 'notes'];
+    const updatableFields = ['firstName', 'lastName', 'email', 'phone', 'address', 'emergencyContact', 'notes'];
     
     for (const field of updatableFields) {
         if (body[field] !== undefined) {
