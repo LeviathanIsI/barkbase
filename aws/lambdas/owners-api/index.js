@@ -47,13 +47,15 @@ async function listOwners(event, tenantId) {
     let whereClause = `WHERE o."tenantId" = $1`;
     if (search) {
         params.push(`%${search}%`);
-        whereClause += ` AND (o."name" ILIKE $${params.length} OR o."email" ILIKE $${params.length})`;
+        // Search by concatenated first + last name or email
+        whereClause += ` AND ((COALESCE(o."firstName", '') || ' ' || COALESCE(o."lastName", '')) ILIKE $${params.length} OR o."email" ILIKE $${params.length})`;
     }
     params.push(parseInt(limit), parseInt(offset));
 
     const query = `
         SELECT
             o.*,
+            (COALESCE(o."firstName", '') || ' ' || COALESCE(o."lastName", '')) AS "fullName",
             COALESCE(bk.total_bookings, 0)  AS "totalBookings",
             bk.last_booking                AS "lastBooking",
             COALESCE(pay.total_paid, 0)    AS "lifetimeValue",
@@ -77,7 +79,7 @@ async function listOwners(event, tenantId) {
             GROUP BY po."ownerId"
         ) pets ON pets."ownerId" = o."recordId"
         ${whereClause}
-        ORDER BY o."name" ASC
+        ORDER BY o."lastName" NULLS LAST, o."firstName" NULLS LAST
         LIMIT $${params.length - 1} OFFSET $${params.length}
     `;
 
