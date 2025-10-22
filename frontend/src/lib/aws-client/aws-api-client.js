@@ -108,19 +108,12 @@ export class ApiClient {
     async _execute(method, url) {
         // Get auth tokens from Zustand store
         const { useAuthStore } = await import('@/stores/auth');
-        const { useTenantStore } = await import('@/stores/tenant');
         const accessToken = useAuthStore.getState().accessToken;
-        const authTenantId = useAuthStore.getState().tenantId;
-        const tenant = useTenantStore.getState().tenant;
-        
-        // Only ever send a UUID recordId for x-tenant-id
-        const tenantId = authTenantId || tenant?.recordId || null;
-        
+
         const options = {
             method,
             headers: {
                 'Content-Type': 'application/json',
-                ...(tenantId && { 'x-tenant-id': tenantId }),
                 ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
             },
         };

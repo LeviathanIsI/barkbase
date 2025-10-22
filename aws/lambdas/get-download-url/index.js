@@ -25,8 +25,9 @@ exports.handler = async (event) => {
         }
 
         // Authorization check: Ensure the requested key belongs to the user's tenant.
-        // This will come from the authorizer context later.
-        const tenantId = event.headers['x-tenant-id'];
+        const tenantId = event.requestContext?.authorizer?.jwt?.claims?.tenantId
+            || event.requestContext?.authorizer?.jwt?.claims?.['custom:tenantId']
+            || event.headers['x-tenant-id'];
         if (!tenantId) {
              return {
                 statusCode: 401,

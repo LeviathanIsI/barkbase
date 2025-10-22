@@ -86,7 +86,7 @@ export const useTenantStore = create((set, get) => ({
   loadTenantById: async (tenantId) => {
     if (!tenantId) throw new Error('tenantId is required');
     try {
-      // Backend exposes GET /api/v1/tenants/current using x-tenant-id header
+      // Backend exposes GET /api/v1/tenants/current using JWT claims for tenancy
       const res = await apiClient.get('/api/v1/tenants/current');
       const payload = res?.data ?? null;
       if (!payload) throw new Error('Tenant not found');

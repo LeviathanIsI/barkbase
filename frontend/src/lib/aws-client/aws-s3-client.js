@@ -14,14 +14,12 @@ export class S3Client {
      */
     async getUploadUrl({ fileName, fileType }) {
         const idToken = await this.auth.getIdToken(); // Assumes getIdToken is implemented to retrieve the token
-        const tenantId = this.auth.getTenantId(); // Assumes a method to get the current tenant
 
         const response = await fetch(`${this.apiUrl}/upload-url`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${idToken}`,
-                'x-tenant-id': tenantId, // Pass tenantId for S3 key prefixing
             },
             body: JSON.stringify({ fileName, fileType }),
         });
@@ -41,7 +39,6 @@ export class S3Client {
      */
     async getDownloadUrl(key) {
         const idToken = await this.auth.getIdToken();
-        const tenantId = this.auth.getTenantId();
         
         const url = new URL(`${this.apiUrl}/download-url`);
         url.searchParams.append('key', key);
@@ -50,7 +47,6 @@ export class S3Client {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${idToken}`,
-                'x-tenant-id': tenantId,
             },
         });
 

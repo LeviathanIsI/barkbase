@@ -1,4 +1,4 @@
-const { getPool } = require('/opt/nodejs');
+const { getPool, getTenantIdFromEvent } = require('/opt/nodejs');
 
 const HEADERS = {
     'Access-Control-Allow-Origin': '*',
@@ -11,7 +11,7 @@ exports.handler = async (event) => {
     
     const httpMethod = event.requestContext.http.method;
     const path = event.requestContext.http.path;
-    const tenantId = event.headers['x-tenant-id'];
+    const tenantId = getTenantIdFromEvent(event);
     const slug = event.queryStringParameters?.slug;
 
     console.log('Path:', path, 'Method:', httpMethod, 'Slug:', slug, 'TenantId:', tenantId);

@@ -266,9 +266,7 @@ export const useMembersQuery = () => {
   return useQuery({
     queryKey: ['members', tenantKey],
     queryFn: async () => {
-      const response = await fetch('/api/v1/memberships', {
-        headers: { 'x-tenant-id': tenantKey },
-      });
+      const response = await fetch('/api/v1/memberships');
       if (!response.ok) throw new Error('Failed to fetch members');
       return response.json();
     },
@@ -283,10 +281,7 @@ export const useUpdateMemberRoleMutation = () => {
     mutationFn: async ({ membershipId, role }) => {
       const response = await fetch(`/api/v1/memberships/${membershipId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': tenantKey,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role }),
       });
       if (!response.ok) throw new Error('Failed to update member role');
@@ -306,7 +301,6 @@ export const useRemoveMemberMutation = () => {
     mutationFn: async (membershipId) => {
       const response = await fetch(`/api/v1/memberships/${membershipId}`, {
         method: 'DELETE',
-        headers: { 'x-tenant-id': tenantKey },
       });
       if (!response.ok) throw new Error('Failed to remove member');
       return response.json();
@@ -326,10 +320,7 @@ export const useInviteMemberMutation = () => {
     mutationFn: async (inviteData) => {
       const response = await fetch('/api/v1/invites', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-tenant-id': tenantKey,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(inviteData),
       });
       if (!response.ok) {

@@ -1,0 +1,69 @@
+name: Infra Deploy
+
+on:
+  pull_request:
+    paths:
+      - 'aws/cdk/**'
+      - 'aws/lambdas/**'
+      - 'aws/layers/**'
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: 'Stage to deploy (dev|stage|prod)'
+        required: true
+        default: 'dev'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  cdk-check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: aws/cdk
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: aws/cdk/package-lock.json
+      - run: npm ci --no-audit --prefer-offline
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-2' }}
+      - name: CDK Synth
+        run: npm run build && npx cdk synth -c stage=dev
+      - name: CDK Diff
+        run: npx cdk diff -c stage=dev
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: aws/cdk
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: aws/cdk/package-lock.json
+      - run: npm ci --no-audit --prefer-offline
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-2' }}
+      - name: CDK Deploy (dev on main push / manual stage)
+        env:
+          STAGE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.stage || 'dev' }}
+        run: npm run build && npx cdk deploy --require-approval never -c stage=$STAGE

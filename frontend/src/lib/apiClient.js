@@ -59,14 +59,9 @@ const buildUrl = (path, params) => {
 
 const buildHeaders = async () => {
   const { useAuthStore } = await import('@/stores/auth');
-  const { useTenantStore } = await import('@/stores/tenant');
   const accessToken = useAuthStore.getState().accessToken;
-  const authTenantId = useAuthStore.getState().tenantId;
-  const tenant = useTenantStore.getState().tenant;
-  const tenantId = authTenantId || tenant?.recordId || null;
   return {
     'Content-Type': 'application/json',
-    ...(tenantId && { 'x-tenant-id': tenantId }),
     ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
   };
 };

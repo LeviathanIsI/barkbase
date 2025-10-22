@@ -206,10 +206,8 @@ async function signup(event) {
 
 async function refresh(event) {
     const { refreshToken } = JSON.parse(event.body || '{}');
-    const tenantId = event.headers['x-tenant-id'];
-
-    if (!refreshToken || !tenantId) {
-        return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ message: 'Missing refresh token or tenant ID' }) };
+    if (!refreshToken) {
+        return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ message: 'Missing refresh token' }) };
     }
 
     try {
@@ -220,7 +218,7 @@ async function refresh(event) {
         const result = await pool.query(
             `SELECT "recordId", "role", "userId" FROM "Membership" 
              WHERE "recordId" = $1 AND "tenantId" = $2 AND "refreshToken" = $3`,
-            [payload.membershipId, tenantId, refreshToken]
+            [payload.membershipId, payload.tenantId, refreshToken]
         );
 
         if (result.rows.length === 0) {
@@ -231,7 +229,7 @@ async function refresh(event) {
 
         // Issue new access token
         const accessToken = jwt.sign(
-            { sub: membership.userId, tenantId, membershipId: membership.recordId, role: membership.role },
+            { sub: membership.userId, tenantId: payload.tenantId, membershipId: membership.recordId, role: membership.role },
             JWT_SECRET,
             { expiresIn: JWT_ACCESS_TTL }
         );

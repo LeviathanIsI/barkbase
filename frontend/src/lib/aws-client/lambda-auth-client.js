@@ -64,12 +64,11 @@ export class LambdaAuthClient {
   /**
    * Refresh access token
    */
-  async refreshSession({ refreshToken, tenantId }) {
+  async refreshSession({ refreshToken }) {
     const response = await fetch(`${this.apiUrl}/api/v1/auth/refresh`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-tenant-id': tenantId,
       },
       body: JSON.stringify({ refreshToken }),
     });

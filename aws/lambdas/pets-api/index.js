@@ -1,4 +1,4 @@
-const { getPool } = require('/opt/nodejs');
+const { getPool, getTenantIdFromEvent } = require('/opt/nodejs');
 
 const HEADERS = {
     'Access-Control-Allow-Origin': '*',
@@ -11,7 +11,7 @@ exports.handler = async (event) => {
 
     const httpMethod = event.requestContext.http.method;
     const path = event.requestContext.http.path;
-    const tenantId = event.headers['x-tenant-id'];
+    const tenantId = getTenantIdFromEvent(event);
 
     if (httpMethod === 'OPTIONS') {
         return { statusCode: 200, headers: HEADERS, body: '' };
@@ -19,9 +19,9 @@ exports.handler = async (event) => {
 
     if (!tenantId) {
         return {
-            statusCode: 400,
+            statusCode: 401,
             headers: HEADERS,
-            body: JSON.stringify({ message: 'Missing x-tenant-id header' }),
+            body: JSON.stringify({ message: 'Missing tenant context' }),
         };
     }
 
