@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { from } from '@/lib/apiClient';
+import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
 import { useAuthStore } from '@/stores/auth';
@@ -16,15 +16,8 @@ export const useKennels = (filters = {}) => {
   return useQuery({
     queryKey: ['kennels', tenantKey, filters],
     queryFn: async () => {
-      let query = from('kennels').select('*');
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value) {
-          query = query.eq(key, value);
-        }
-      });
-      const { data, error } = await query.get();
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.get('/api/v1/kennels', { params: filters });
+      return res.data;
     },
     staleTime: 5 * 60 * 1000,
     enabled: isAuthenticated,
@@ -38,9 +31,8 @@ export const useKennel = (kennelId) => {
   return useQuery({
     queryKey: ['kennels', tenantKey, kennelId],
     queryFn: async () => {
-      const { data, error } = await from('kennels').select('*').eq('id', kennelId).get();
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.get(`/api/v1/kennels/${kennelId}`);
+      return res.data;
     },
     enabled: isAuthenticated && !!kennelId,
   });
@@ -52,9 +44,8 @@ export const useCreateKennel = () => {
 
   return useMutation({
     mutationFn: async (payload) => {
-      const { data, error } = await from('kennels').insert(payload);
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.post('/api/v1/kennels', payload);
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kennels', tenantKey] });
@@ -68,9 +59,8 @@ export const useUpdateKennel = (kennelId) => {
 
   return useMutation({
     mutationFn: async (payload) => {
-      const { data, error } = await from('kennels').update(payload).eq('id', kennelId);
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.put(`/api/v1/kennels/${kennelId}`, payload);
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['kennels', tenantKey] });
@@ -85,8 +75,7 @@ export const useDeleteKennel = () => {
 
   return useMutation({
     mutationFn: async (kennelId) => {
-      const { error } = await from('kennels').delete().eq('id', kennelId);
-      if (error) throw new Error(error.message);
+      await apiClient.delete(`/api/v1/kennels/${kennelId}`);
       return kennelId;
     },
     onSuccess: () => {

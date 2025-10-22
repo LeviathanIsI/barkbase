@@ -1,26 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { from } from '@/lib/apiClient';
+import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
-// TODO: Create a dedicated Lambda for this custom action
-// export const promoteFromWaitlist = (bookingId, payload = {}) =>
-//   from('bookings').customAction('promote', { bookingId, payload });
+// TODO: Create/add endpoints for additional booking actions as needed
 
 export const useBookingsQuery = (params = {}) => {
   const tenantKey = useTenantKey();
   return useQuery({
     queryKey: queryKeys.bookings(tenantKey, params),
     queryFn: async () => {
-      let query = from('bookings').select('*');
-      if (params?.status) {
-        query = query.eq('status', params.status);
-      }
-      const { data, error } = await query.get();
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.get('/api/v1/bookings', { params });
+      return res.data;
     },
     staleTime: 30 * 1000,
   });
@@ -31,9 +24,8 @@ export const useCreateBookingMutation = () => {
   const tenantKey = useTenantKey();
   return useMutation({
     mutationFn: async (payload) => {
-      const { data, error } = await from('bookings').insert(payload);
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.post('/api/v1/bookings', payload);
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.bookings(tenantKey, {}) });
@@ -46,9 +38,8 @@ export const useUpdateBookingMutation = (bookingId) => {
   const tenantKey = useTenantKey();
   return useMutation({
     mutationFn: async (payload) => {
-      const { data, error } = await from('bookings').update(payload).eq('id', bookingId);
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.put(`/api/v1/bookings/${bookingId}`, payload);
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.bookings(tenantKey, {}) });
@@ -61,8 +52,7 @@ export const useDeleteBookingMutation = () => {
   const tenantKey = useTenantKey();
   return useMutation({
     mutationFn: async (bookingId) => {
-      const { error } = await from('bookings').delete().eq('id', bookingId);
-      if (error) throw new Error(error.message);
+      await apiClient.delete(`/api/v1/bookings/${bookingId}`);
       return bookingId;
     },
     onSuccess: () => {
@@ -83,10 +73,8 @@ export const useBookingCheckInMutation = () => {
   const tenantKey = useTenantKey();
   return useMutation({
     mutationFn: async ({ bookingId, payload }) => {
-      // This now calls our dedicated Lambda endpoint
-      const { data, error } = await from('bookings').customAction('checkin', { id: bookingId, body: payload });
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.post(`/api/v1/bookings/${bookingId}/checkin`, payload);
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.bookings(tenantKey, {}) });
@@ -100,9 +88,8 @@ export const useBookingCheckOutMutation = () => {
   const tenantKey = useTenantKey();
   return useMutation({
     mutationFn: async ({ bookingId, payload }) => {
-      const { data, error } = await from('bookings').customAction('checkout', { id: bookingId, body: payload });
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.post(`/api/v1/bookings/${bookingId}/checkout`, payload);
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.bookings(tenantKey, {}) });

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { from } from '@/lib/apiClient';
+import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
 
@@ -15,15 +15,8 @@ export const useTasksQuery = (filters = {}) => {
     queryKey: queryKeys.tasks(tenantKey, filters),
     queryFn: async () => {
       try {
-        let query = from('tasks').select('*');
-        Object.entries(filters).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && value !== '') {
-            query = query.eq(key, value);
-          }
-        });
-        const { data, error } = await query.get();
-        if (error) throw new Error(error.message);
-        return Array.isArray(data) ? data : (data?.data ?? data ?? []);
+        const res = await apiClient.get('/api/v1/tasks', { params: filters });
+        return Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data ?? []);
       } catch (e) {
         console.warn('[tasks] Falling back to empty list due to API error:', e?.message || e);
         return [];
@@ -41,9 +34,8 @@ export const useTodaysTasksQuery = () => {
     queryKey: queryKeys.tasks(tenantKey, { type: 'today' }),
     queryFn: async () => {
       try {
-        const { data, error } = await from('tasks').select('*').get();
-        if (error) throw new Error(error.message);
-        const tasks = Array.isArray(data) ? data : (data?.data ?? data ?? []);
+        const res = await apiClient.get('/api/v1/tasks');
+        const tasks = Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data ?? []);
         const today = new Date();
         const yyyy = today.getFullYear();
         const mm = today.getMonth();
@@ -68,9 +60,8 @@ export const useOverdueTasksQuery = () => {
     queryKey: queryKeys.tasks(tenantKey, { type: 'overdue' }),
     queryFn: async () => {
       try {
-        const { data, error } = await from('tasks').select('*').get();
-        if (error) throw new Error(error.message);
-        const tasks = Array.isArray(data) ? data : (data?.data ?? data ?? []);
+        const res = await apiClient.get('/api/v1/tasks');
+        const tasks = Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data ?? []);
         const now = Date.now();
         return tasks.filter((t) => t.scheduledFor && !t.completedAt && new Date(t.scheduledFor).getTime() < now);
       } catch (e) {
@@ -88,9 +79,8 @@ export const useCreateTaskMutation = () => {
   const tenantKey = useTenantKey();
   return useMutation({
     mutationFn: async (taskData) => {
-      const { data, error } = await from('tasks').insert(taskData);
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.post('/api/v1/tasks', taskData);
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks(tenantKey, {}) });
@@ -104,13 +94,8 @@ export const useCompleteTaskMutation = () => {
   const tenantKey = useTenantKey();
   return useMutation({
     mutationFn: async ({ taskId, notes }) => {
-      // For now, update the task with completedAt timestamp
-      const { data, error } = await from('tasks').update({
-        completedAt: new Date().toISOString(),
-        notes
-      }).eq('id', taskId);
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.post(`/api/v1/tasks/${taskId}/complete`, { notes });
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks(tenantKey, {}) });
@@ -123,9 +108,8 @@ export const useUpdateTaskMutation = (taskId) => {
   const tenantKey = useTenantKey();
   return useMutation({
     mutationFn: async (updates) => {
-      const { data, error } = await from('tasks').update(updates).eq('id', taskId);
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.put(`/api/v1/tasks/${taskId}`, updates);
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks(tenantKey, {}) });
@@ -138,8 +122,7 @@ export const useDeleteTaskMutation = () => {
   const tenantKey = useTenantKey();
   return useMutation({
     mutationFn: async (taskId) => {
-      const { error } = await from('tasks').delete().eq('id', taskId);
-      if (error) throw new Error(error.message);
+      await apiClient.delete(`/api/v1/tasks/${taskId}`);
       return taskId;
     },
     onSuccess: () => {

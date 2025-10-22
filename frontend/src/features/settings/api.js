@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { from } from '@/lib/apiClient';
+import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
 
@@ -13,7 +13,7 @@ export const usePropertiesQuery = (objectType, options = {}) => {
   const tenantKey = useTenantKey();
   return useQuery({
     queryKey: queryKeys.properties(tenantKey, { objectType }),
-    queryFn: disabledQuery, // from('properties').select('*').eq('objectType', objectType)
+    queryFn: disabledQuery, // implement GET /api/v1/settings/properties?objectType=...
     enabled: false,
   });
 };
@@ -93,15 +93,14 @@ export const useDeletePropertyMutation = () => {
 */
 
 
-// Services API (already refactored in services/api.js, can be removed from here if redundant)
+// Services API (prefer using features/services/api.js)
 export const useServicesQuery = (options = {}) => {
   const tenantKey = useTenantKey();
   return useQuery({
     queryKey: queryKeys.services(tenantKey),
     queryFn: async () => {
-      const { data, error } = await from('services').select('*').get();
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.get('/api/v1/services');
+      return res.data;
     },
     staleTime: 5 * 60 * 1000,
     ...options,
@@ -155,15 +154,14 @@ export const useDeleteServiceMutation = () => {
 */
 
 
-// Staff API (already refactored in staff/api.js, can be removed from here if redundant)
+// Staff API (prefer using features/staff/api.js)
 export const useStaffQuery = (options = {}) => {
   const tenantKey = useTenantKey();
   return useQuery({
     queryKey: queryKeys.staff(tenantKey),
     queryFn: async () => {
-      const { data, error } = await from('staff').select('*').get();
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.get('/api/v1/staff');
+      return res.data;
     },
     staleTime: 5 * 60 * 1000,
     ...options,

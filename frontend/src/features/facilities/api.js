@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { from } from '@/lib/apiClient';
+import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
 
@@ -11,8 +11,8 @@ export const useFacilitySettingsQuery = () => {
     queryKey: queryKeys.facilitySettings(tenantKey),
     queryFn: async () => {
       try {
-        const { data, error } = await from('facility_settings').select('*').limit(1).get();
-        if (error) throw new Error(error.message);
+        const res = await apiClient.get('/api/v1/facility/settings');
+        const data = res?.data;
         return Array.isArray(data) ? data[0] : data;
       } catch (e) {
         console.warn('[facilitySettings] Falling back to null due to API error:', e?.message || e);
@@ -29,9 +29,8 @@ export const useUpdateFacilitySettingsMutation = () => {
   
   return useMutation({
     mutationFn: async (settings) => {
-      const { data, error } = await from('facility_settings').upsert(settings);
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.put('/api/v1/facility/settings', settings);
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.facilitySettings(tenantKey) });

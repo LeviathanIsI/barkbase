@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { from } from '@/lib/apiClient';
+import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
 
@@ -10,9 +10,8 @@ export const useCommunicationsQuery = (ownerId) => {
   return useQuery({
     queryKey: queryKeys.communications(tenantKey, ownerId),
     queryFn: async () => {
-      const { data, error } = await from('communications').select('*').eq('ownerId', ownerId).get();
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.get('/api/v1/communications', { params: { ownerId } });
+      return res.data;
     },
     enabled: !!ownerId,
   });
@@ -24,9 +23,8 @@ export const useCreateCommunicationMutation = () => {
 
   return useMutation({
     mutationFn: async (payload) => {
-      const { data, error } = await from('communications').insert(payload);
-      if (error) throw new Error(error.message);
-      return data;
+      const res = await apiClient.post('/api/v1/communications', payload);
+      return res.data;
     },
     onSuccess: (data) => {
       if (data?.ownerId) {
