@@ -16,6 +16,26 @@ const AuthLoader = () => {
     hasAttemptedRef.current = true;
 
     const attemptRefresh = async () => {
+      // Handle Cognito Hosted UI callback first (exchange code for tokens)
+      try {
+        const url = typeof window !== 'undefined' ? new URL(window.location.href) : null;
+        const hasAuthCode = url?.searchParams?.get('code');
+        if (hasAuthCode) {
+          const { auth } = await import('@/lib/apiClient');
+          const session = await auth.handleCallback();
+          if (session?.accessToken) {
+            updateTokens({
+              accessToken: session.accessToken,
+              refreshToken: session.refreshToken,
+              tokens: { accessTokenExpiresIn: session.expiresIn },
+            });
+          }
+          // handleCallback already cleans the URL
+        }
+      } catch (err) {
+        console.error('[AuthLoader] OAuth callback handling failed:', err);
+      }
+
       // If we have a valid access token, no need to refresh
       if (accessToken && expiresAt && Date.now() < expiresAt) {
         console.log('[AuthLoader] Valid access token found, no refresh needed');

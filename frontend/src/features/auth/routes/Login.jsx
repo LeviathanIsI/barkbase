@@ -20,37 +20,22 @@ const Login = () => {
   const onSubmit = async (data) => {
     try {
       const { email, password } = data;
-      console.log('Attempting sign in...');
-      
+      // Supports both modes: hosted (redirect) and password (returns tokens)
       const result = await auth.signIn({ email, password });
-      
-      // Store auth tokens and user info
-      setAuth({
-        user: result.user,
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-        role: result.user.role,
-        tenantId: result.tenant.recordId,
-        memberships: [{ role: result.user.role, tenantId: result.tenant.recordId }],
-        rememberMe,
-      });
-
-      // Store tenant info
-      setTenant({
-        recordId: result.tenant.recordId,
-        slug: result.tenant.slug,
-        name: result.tenant.name,
-        plan: result.tenant.plan,
-      });
-      
-      console.log('Sign in successful, navigating to dashboard...');
-      navigate('/dashboard');
-
+      if (result?.accessToken) {
+        setAuth({
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+          rememberMe,
+        });
+        navigate('/dashboard');
+      }
+      return;
     } catch (error) {
       console.error('Login failed:', error);
       setError('root.serverError', {
         type: 'manual',
-        message: error.message || 'Invalid credentials. Please try again.',
+        message: error.message || 'Unable to sign in. Please try again.',
       });
     }
   };
@@ -93,7 +78,7 @@ const Login = () => {
             <span>Remember me for 30 days</span>
           </label>
           {errors.root?.serverError ? <p className="text-sm text-danger">{errors.root.serverError.message}</p> : null}
-          <Button type="submit" disabled={isSubmitting || !email || !password}>
+          <Button type="submit" disabled={isSubmitting || !email}>
             {isSubmitting ? 'Signing in…' : 'Sign In'}
           </Button>
           <p className="text-center text-xs text-muted">

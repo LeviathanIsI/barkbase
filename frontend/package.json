@@ -11,6 +11,7 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "3.914.0",
     "@dnd-kit/core": "^6.3.1",
     "@hookform/resolvers": "^3.9.0",
     "@tanstack/react-query": "^5.90.2",
@@ -27,8 +28,7 @@
     "recharts": "^3.2.1",
     "socket.io-client": "^4.8.1",
     "zod": "^3.24.1",
-    "zustand": "^5.0.8",
-    "amazon-cognito-identity-js": "^6.3.10"
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",

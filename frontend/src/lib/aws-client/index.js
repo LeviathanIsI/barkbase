@@ -1,4 +1,6 @@
 import { LambdaAuthClient } from './lambda-auth-client';
+import { CognitoPasswordClient } from './cognito-password-client';
+import { DbAuthClient } from './db-auth-client';
 import { S3Client } from './aws-s3-client';
 import { ApiClient } from './aws-api-client';
 
@@ -10,7 +12,12 @@ import { ApiClient } from './aws-api-client';
  * @param {string} config.apiUrl - The base URL for the API Gateway.
  */
 export const createAWSClient = (config) => {
-  const auth = new LambdaAuthClient(config);
+  const mode = (import.meta.env.VITE_AUTH_MODE || 'hosted').toLowerCase();
+  const auth = mode === 'password'
+    ? new CognitoPasswordClient(config)
+    : mode === 'db'
+      ? new DbAuthClient(config)
+      : new LambdaAuthClient(config);
 
   return {
     auth,

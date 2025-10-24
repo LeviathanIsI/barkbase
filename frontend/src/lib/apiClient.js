@@ -8,6 +8,10 @@ const awsClient = createAWSClient({
   clientId: import.meta.env.VITE_CLIENT_ID || '',
   // Provide a safe development default so data hooks don't crash when env isn't set
   apiUrl: import.meta.env.VITE_API_URL || '/api',
+  // Hosted UI (PKCE) config
+  cognitoDomain: import.meta.env.VITE_COGNITO_DOMAIN || '',
+  redirectUri: import.meta.env.VITE_REDIRECT_URI || (typeof window !== 'undefined' ? window.location.origin : ''),
+  logoutUri: import.meta.env.VITE_LOGOUT_URI || (typeof window !== 'undefined' ? window.location.origin : ''),
 });
 
 // Table-style client removed: frontend should use explicit REST endpoints via helpers below.

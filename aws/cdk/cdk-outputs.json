@@ -1,0 +1,12 @@
+{
+  "Barkbase-dev": {
+    "UserPoolClientId": "2csen8hj7b53ec2q9bc0siubja",
+    "ApiUrl": "https://smvidb1rd0.execute-api.us-east-2.amazonaws.com/",
+    "UserPoolId": "us-east-2_v94gByGOq",
+    "WebSocketUrl": "wss://nn9mlzmgug.execute-api.us-east-2.amazonaws.com/production",
+    "CloudFrontDistributionId": "EYT2Z7NQK4GJB",
+    "SiteBucketName": "barkbase-dev-sitebucket397a1860-glbrchyif0bh",
+    "CloudFrontDomainName": "d35n2u5q4fhsrd.cloudfront.net",
+    "CognitoDomain": "https://barkbase-c8c5d9c1.auth.us-east-2.amazoncognito.com"
+  }
+}

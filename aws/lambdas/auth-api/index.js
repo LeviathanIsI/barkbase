@@ -42,83 +42,88 @@ exports.handler = async (event) => {
 };
 
 async function login(event) {
-    const { email, password } = JSON.parse(event.body);
+    try {
+        const { email, password } = JSON.parse(event.body || '{}');
 
-    if (!email || !password) {
-        return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ message: 'Email and password required' }) };
+        if (!email || !password) {
+            return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ message: 'Email and password required' }) };
+        }
+
+        const pool = getPool();
+        console.log('[auth] Login attempt for email:', String(email).toLowerCase());
+
+        // Smoke test the DB first to surface connectivity issues clearly
+        try {
+            await pool.query('SELECT 1');
+            console.log('[auth] DB connectivity OK');
+        } catch (dbErr) {
+            console.error('DB connectivity check failed:', dbErr?.message || dbErr);
+            return { statusCode: 500, headers: HEADERS, body: JSON.stringify({ message: 'Database unavailable' }) };
+        }
+
+        const userResult = await pool.query(
+            `SELECT u."recordId", u."email", u."passwordHash", u."name",
+                    m."recordId" as "membershipId", m."role", m."tenantId",
+                    t."recordId" as "tenantRecordId", t."slug", t."name" as "tenantName", t."plan"
+             FROM public."User" u
+             INNER JOIN public."Membership" m ON u."recordId" = m."userId"
+             INNER JOIN public."Tenant" t ON m."tenantId" = t."recordId"
+             WHERE LOWER(u."email") = LOWER($1)
+             ORDER BY m."updatedAt" DESC
+             LIMIT 1`,
+            [email]
+        );
+        console.log('[auth] Query rows:', userResult.rows.length);
+
+        if (userResult.rows.length === 0) {
+            return { statusCode: 401, headers: HEADERS, body: JSON.stringify({ message: 'Invalid credentials' }) };
+        }
+
+        const user = userResult.rows[0];
+        const tenant = {
+            recordId: user.tenantRecordId,
+            slug: user.slug,
+            name: user.tenantName,
+            plan: user.plan
+        };
+
+        const validPassword = await bcrypt.compare(password, user.passwordHash || '');
+        console.log('[auth] Password match:', !!validPassword);
+        if (!validPassword) {
+            return { statusCode: 401, headers: HEADERS, body: JSON.stringify({ message: 'Invalid credentials' }) };
+        }
+
+        const accessToken = jwt.sign(
+            { sub: user.recordId, tenantId: tenant.recordId, membershipId: user.membershipId, role: user.role },
+            JWT_SECRET,
+            { expiresIn: JWT_ACCESS_TTL }
+        );
+
+        const refreshToken = jwt.sign(
+            { sub: user.recordId, tenantId: tenant.recordId, membershipId: user.membershipId },
+            JWT_SECRET,
+            { expiresIn: JWT_REFRESH_TTL }
+        );
+
+        await pool.query(
+            `UPDATE "Membership" SET "refreshToken" = $1, "updatedAt" = NOW() WHERE "recordId" = $2`,
+            [refreshToken, user.membershipId]
+        );
+
+        return {
+            statusCode: 200,
+            headers: HEADERS,
+            body: JSON.stringify({
+                accessToken,
+                refreshToken,
+                user: { recordId: user.recordId, email: user.email, role: user.role },
+                tenant: { recordId: tenant.recordId, slug: tenant.slug, name: tenant.name, plan: tenant.plan }
+            })
+        };
+    } catch (err) {
+        console.error('Login handler failed:', err?.message || err);
+        return { statusCode: 500, headers: HEADERS, body: JSON.stringify({ message: 'Internal Server Error' }) };
     }
-
-    const pool = getPool();
-
-    // Get user with ALL their memberships
-    const userResult = await pool.query(
-        `SELECT u."recordId", u."email", u."passwordHash", u."name",
-                m."recordId" as "membershipId", m."role", m."tenantId",
-                t."recordId" as "tenantRecordId", t."slug", t."name" as "tenantName", t."plan"
-         FROM "User" u
-         INNER JOIN "Membership" m ON u."recordId" = m."userId"
-         INNER JOIN "Tenant" t ON m."tenantId" = t."recordId"
-         WHERE u."email" = $1
-         LIMIT 1`,
-        [email.toLowerCase()]
-    );
-
-    if (userResult.rows.length === 0) {
-        return { statusCode: 401, headers: HEADERS, body: JSON.stringify({ message: 'Invalid credentials' }) };
-    }
-
-    const user = userResult.rows[0];
-    const tenant = {
-        recordId: user.tenantRecordId,
-        slug: user.slug,
-        name: user.tenantName,
-        plan: user.plan
-    };
-
-    // Verify password
-    const validPassword = await bcrypt.compare(password, user.passwordHash);
-    if (!validPassword) {
-        return { statusCode: 401, headers: HEADERS, body: JSON.stringify({ message: 'Invalid credentials' }) };
-    }
-
-    // Generate tokens
-    const accessToken = jwt.sign(
-        { sub: user.recordId, tenantId: tenant.recordId, membershipId: user.membershipId, role: user.role },
-        JWT_SECRET,
-        { expiresIn: JWT_ACCESS_TTL }
-    );
-
-    const refreshToken = jwt.sign(
-        { sub: user.recordId, tenantId: tenant.recordId, membershipId: user.membershipId },
-        JWT_SECRET,
-        { expiresIn: JWT_REFRESH_TTL }
-    );
-
-    // Store refresh token
-    await pool.query(
-        `UPDATE "Membership" SET "refreshToken" = $1, "updatedAt" = NOW() WHERE "recordId" = $2`,
-        [refreshToken, user.membershipId]
-    );
-
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify({
-            accessToken,
-            refreshToken,
-            user: {
-                recordId: user.recordId,
-                email: user.email,
-                role: user.role
-            },
-            tenant: {
-                recordId: tenant.recordId,
-                slug: tenant.slug,
-                name: tenant.name,
-                plan: tenant.plan
-            }
-        })
-    };
 }
 
 async function signup(event) {

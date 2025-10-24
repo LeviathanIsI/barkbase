@@ -20,6 +20,11 @@ export const useOwnersQuery = (params = {}) => {
   });
 };
 
+// Backward-compatible alias expected by some consumers
+export const useOwners = (params = {}) => {
+  return useOwnersQuery(params);
+};
+
 export const useOwnerQuery = (recordId, options = {}) => {
   const tenantKey = useTenantStore((state) => state.tenant?.slug ?? 'default');
   const { enabled = !!recordId, ...queryOptions } = options;
@@ -38,6 +43,11 @@ export const useOwnerQuery = (recordId, options = {}) => {
     enabled,
     ...queryOptions,
   });
+};
+
+// Backward-compatible alias expected by consumers
+export const useOwner = (recordId, options = {}) => {
+  return useOwnerQuery(recordId, options);
 };
 
 export const useCreateOwnerMutation = () => {

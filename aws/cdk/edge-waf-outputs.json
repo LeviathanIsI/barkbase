@@ -1,0 +1,5 @@
+{
+  "Barkbase-EdgeWaf-dev": {
+    "WebAclArn": "arn:aws:wafv2:us-east-1:211125574375:global/webacl/Barkbase-EdgeWaf-dev-cf-waf/43df528f-c730-4365-a6dd-38792d5e73bf"
+  }
+}

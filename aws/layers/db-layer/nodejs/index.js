@@ -1,6 +1,5 @@
 const pg = require('pg');
 const { Pool } = pg;
-const jwt = require('jsonwebtoken');
 const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
 
 const secretsClient = new SecretsManagerClient({});
@@ -19,6 +18,7 @@ async function getDbConfig() {
 	const secretId = process.env.DB_SECRET_ID || null;
 	if (secretId) {
 		if (!cachedSecret || cachedSecretId !== secretId) {
+			console.log('[db-layer] Fetching DB secret from Secrets Manager:', secretId);
 			const res = await secretsClient.send(new GetSecretValueCommand({ SecretId: secretId }));
 			const parsed = JSON.parse(res.SecretString || '{}');
 			cachedSecret = parsed;
@@ -27,6 +27,14 @@ async function getDbConfig() {
 		user = cachedSecret.username || user;
 		password = cachedSecret.password || password;
 	}
+
+	console.log('[db-layer] DB config resolved', {
+		host,
+		port,
+		database,
+		usingSecret: !!secretId,
+		userPresent: !!user,
+	});
 
 	return {
 		host,
@@ -41,23 +49,36 @@ async function getDbConfig() {
 	};
 }
 
-// Use a self-invoking function to create a singleton pool
-const getPool = (() => {
-	let pool;
+// Singleton pool with lazy async initialization compatible with existing callers
+let poolInstance = null;
+let poolInitPromise = null;
 
-	return () => {
-		if (!pool) {
-			console.log('Creating new database connection pool.');
-			pool = new Pool(async () => await getDbConfig());
+async function ensurePool() {
+    if (poolInstance) return poolInstance;
+    if (!poolInitPromise) {
+        poolInitPromise = (async () => {
+            console.log('Initializing database connection pool...');
+            const config = await getDbConfig();
+            const created = new Pool(config);
+            created.on('error', (err) => {
+                console.error('Unexpected error on idle client', err);
+            });
+            poolInstance = created;
+            return created;
+        })();
+    }
+    return await poolInitPromise;
+}
 
-			pool.on('error', (err, client) => {
-				console.error('Unexpected error on idle client', err);
-				// We don't exit here because the pool will attempt to recover.
-			});
-		}
-		return pool;
-	};
-})();
+function getPool() {
+    // Return a light wrapper that awaits the real pool under the hood.
+    // This keeps existing call sites unchanged: await pool.query(...)
+    return {
+        query: async (...args) => (await ensurePool()).query(...args),
+        connect: async () => (await ensurePool()).connect(),
+        end: async () => (await ensurePool()).end(),
+    };
+}
 
 async function testConnection() {
 	const pool = getPool();
