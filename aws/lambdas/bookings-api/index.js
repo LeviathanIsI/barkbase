@@ -18,7 +18,7 @@ function verifyAuth(event) {
 exports.handler = async (event) => {
     const httpMethod = event.requestContext.http.method;
     const path = event.requestContext.http.path;
-    const tenantId = getTenantIdFromEvent(event);
+    const tenantId = await getTenantIdFromEvent(event);
 
     if (!tenantId) {
         return { statusCode: 401, headers: HEADERS, body: JSON.stringify({ message: 'Missing tenant context' }) };
@@ -61,16 +61,30 @@ exports.handler = async (event) => {
 };
 
 async function listBookings(event, tenantId) {
-    const { status, startDate, endDate, limit = 50, offset = 0 } = event.queryStringParameters || {};
+    const { status, startDate, endDate, from, to, limit = 50, offset = 0 } = event.queryStringParameters || {};
     const pool = getPool();
+    
+    const dateFrom = from || startDate;
+    const dateTo = to || endDate;
     
     let query = `
         SELECT b.*, 
                json_build_object('recordId', p."recordId", 'name', p."name", 'species', p."species") as pet,
-               json_build_object('recordId', o."recordId", 'name', o."name", 'email', o."email") as owner
+               json_build_object('recordId', o."recordId", 'firstName', o."firstName", 'lastName', o."lastName", 'email', o."email") as owner,
+               COALESCE(
+                   json_agg(
+                       json_build_object(
+                           'kennelId', bs."kennelId",
+                           'kennel', json_build_object('recordId', k."recordId", 'name', k."name")
+                       )
+                   ) FILTER (WHERE bs."recordId" IS NOT NULL),
+                   '[]'::json
+               ) as segments
         FROM "Booking" b
         LEFT JOIN "Pet" p ON b."petId" = p."recordId"
         LEFT JOIN "Owner" o ON b."ownerId" = o."recordId"
+        LEFT JOIN "BookingSegment" bs ON b."recordId" = bs."bookingId"
+        LEFT JOIN "Kennel" k ON bs."kennelId" = k."recordId"
         WHERE b."tenantId" = $1
     `;
     const params = [tenantId];
@@ -82,19 +96,20 @@ async function listBookings(event, tenantId) {
         paramCount++;
     }
 
-    if (startDate) {
-        query += ` AND b."startDate" >= $${paramCount}`;
-        params.push(startDate);
+    if (dateFrom) {
+        query += ` AND b."checkOut" >= $${paramCount}`;
+        params.push(dateFrom);
         paramCount++;
     }
 
-    if (endDate) {
-        query += ` AND b."endDate" <= $${paramCount}`;
-        params.push(endDate);
+    if (dateTo) {
+        query += ` AND b."checkIn" <= $${paramCount}`;
+        params.push(dateTo);
         paramCount++;
     }
 
-    query += ` ORDER BY b."startDate" DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
+    query += ` GROUP BY b."recordId", p."recordId", o."recordId"`;
+    query += ` ORDER BY b."checkIn" DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
     params.push(parseInt(limit), parseInt(offset));
 
     const { rows } = await pool.query(query, params);

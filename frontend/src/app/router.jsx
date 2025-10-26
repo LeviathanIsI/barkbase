@@ -38,6 +38,7 @@ const Dashboard = lazy(() =>
 );
 const Bookings = lazy(() => import("@/features/bookings/routes/Bookings"));
 const Calendar = lazy(() => import("@/features/calendar/routes/Calendar"));
+const Schedule = lazy(() => import("@/features/schedule/routes/Schedule"));
 const Pets = lazy(() => import("@/features/pets/routes/Pets"));
 const Owners = lazy(() => import("@/features/owners/routes/Owners"));
 const Kennels = lazy(() => import("@/features/kennels/routes/Kennels"));
@@ -261,6 +262,7 @@ export const router = createBrowserRouter([
               { index: true, element: <Dashboard /> },
               { path: "dashboard", element: <Dashboard /> },
               { path: "bookings", element: <Bookings /> },
+              { path: "schedule", element: <Schedule /> },
               { path: "calendar", element: <Calendar /> },
               { path: "kennels", element: <Kennels /> },
               { path: "pets", element: <Pets /> },

@@ -11,7 +11,7 @@ exports.handler = async (event) => {
 
     const httpMethod = event.requestContext.http.method;
     const path = event.requestContext.http.path;
-    const tenantId = getTenantIdFromEvent(event);
+    const tenantId = await getTenantIdFromEvent(event);
 
     if (httpMethod === 'OPTIONS') {
         return { statusCode: 200, headers: HEADERS, body: '' };

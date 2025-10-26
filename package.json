@@ -7,6 +7,8 @@
     "migrate:data": "node ./aws/scripts/migrate-data.js"
   },
   "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.917.0",
+    "bcrypt": "^6.0.0",
     "dotenv": "^16.4.5",
     "pg": "^8.16.3"
   }

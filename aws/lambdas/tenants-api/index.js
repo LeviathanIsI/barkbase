@@ -11,7 +11,7 @@ exports.handler = async (event) => {
     
     const httpMethod = event.requestContext.http.method;
     const path = event.requestContext.http.path;
-    const tenantId = getTenantIdFromEvent(event);
+    const tenantId = await getTenantIdFromEvent(event);
     const slug = event.queryStringParameters?.slug;
 
     console.log('Path:', path, 'Method:', httpMethod, 'Slug:', slug, 'TenantId:', tenantId);

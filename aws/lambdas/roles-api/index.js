@@ -3,7 +3,7 @@ const HEADERS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Head
 
 exports.handler = async (event) => {
     const httpMethod = event.requestContext.http.method;
-    const tenantId = getTenantIdFromEvent(event);
+    const tenantId = await getTenantIdFromEvent(event);
     if (!tenantId) return { statusCode: 401, headers: HEADERS, body: JSON.stringify({ message: 'Missing tenant context' }) };
 
     try {

@@ -107,12 +107,57 @@ module.exports = {
 	getTenantIdFromEvent,
 };
 
+// Cache for Cognito sub -> tenantId lookups (in-memory per Lambda instance)
+const tenantIdCache = new Map();
+
 /**
  * Extract tenantId from API Gateway HTTP API event.
- * Priority: JWT authorizer claims -> x-tenant-id header (temporary fallback).
+ * Priority: JWT claims -> Database lookup by Cognito sub
  */
-function getTenantIdFromEvent(event) {
+async function getTenantIdFromEvent(event) {
     const claims = event?.requestContext?.authorizer?.jwt?.claims || {};
+    
+    // First check if tenantId is in JWT claims (for custom attributes)
     const claimTenant = claims["tenantId"] || claims["custom:tenantId"] || null;
-    return claimTenant;
+    if (claimTenant) {
+        return claimTenant;
+    }
+
+    // Extract Cognito sub (user ID) from JWT
+    const cognitoSub = claims["sub"] || null;
+    if (!cognitoSub) {
+        console.warn('[getTenantIdFromEvent] No tenantId in claims and no Cognito sub found');
+        return null;
+    }
+
+    // Check cache first
+    if (tenantIdCache.has(cognitoSub)) {
+        return tenantIdCache.get(cognitoSub);
+    }
+
+    // Query database to get tenantId
+    try {
+        const pool = getPool();
+        const result = await pool.query(
+            `SELECT m."tenantId" 
+             FROM "Membership" m
+             INNER JOIN "User" u ON u."recordId" = m."userId"
+             WHERE u."cognitoSub" = $1
+             LIMIT 1`,
+            [cognitoSub]
+        );
+
+        if (result.rows.length === 0) {
+            console.warn(`[getTenantIdFromEvent] No tenant found for Cognito sub: ${cognitoSub}`);
+            return null;
+        }
+
+        const tenantId = result.rows[0].tenantId;
+        tenantIdCache.set(cognitoSub, tenantId); // Cache for future requests
+        console.log(`[getTenantIdFromEvent] Found tenantId ${tenantId} for Cognito sub ${cognitoSub}`);
+        return tenantId;
+    } catch (error) {
+        console.error('[getTenantIdFromEvent] Database query failed:', error);
+        return null;
+    }
 }

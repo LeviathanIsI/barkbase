@@ -34,7 +34,7 @@ const navigationSections = [
   {
     title: "INTAKE",
     items: [
-      { to: "/calendar", label: "Today's Schedule", icon: Calendar },
+      { to: "/schedule", label: "Today's Schedule", icon: Calendar },
       { to: "/tasks", label: "Tasks & Reminders", icon: CheckCircle },
       { to: "/bookings", label: "Bookings", icon: BookOpen },
       { to: "/facilities", label: "Capacity View", icon: BarChart3 },

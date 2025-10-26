@@ -2,7 +2,7 @@ const { getPool, getTenantIdFromEvent } = require('/opt/nodejs');
 const HEADERS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type,Authorization', 'Access-Control-Allow-Methods': 'OPTIONS,GET' };
 
 exports.handler = async (event) => {
-    const tenantId = getTenantIdFromEvent(event);
+    const tenantId = await getTenantIdFromEvent(event);
     if (!tenantId) return { statusCode: 401, headers: HEADERS, body: JSON.stringify({ message: 'Missing tenant context' }) };
 
     try {

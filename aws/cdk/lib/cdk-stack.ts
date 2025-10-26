@@ -80,9 +80,10 @@ export class CdkStack extends cdk.Stack {
       maxConnectionsPercent: 90,
     });
 
-    // Shared environment variables (via RDS Proxy and Secrets)
+    // Shared environment variables
+    // Using direct connection to public RDS instance (not proxy)
     const dbEnvironment = {
-      DB_HOST: dbProxy.endpoint,
+      DB_HOST: "barkbase-dev-public.ctuea6sg4d0d.us-east-2.rds.amazonaws.com",
       DB_PORT: "5432",
       DB_NAME: dbName,
       DB_SECRET_ID: dbSecret.secretArn,
@@ -106,15 +107,42 @@ export class CdkStack extends cdk.Stack {
       ),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
+      
       timeout: cdk.Duration.seconds(30),
     });
+    dbSecret.grantRead(usersApiFunction);
+
+    // === Cognito Pre-SignUp Trigger (auto-confirm for dev) ===
+    const preSignUpFunction = new lambda.Function(this, "CognitoPreSignUpFunction", {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: "index.handler",
+      code: lambda.Code.fromAsset(
+        path.join(__dirname, "../../lambdas/cognito-pre-signup")
+      ),
+      timeout: cdk.Duration.seconds(10),
+    });
+
+    // === Cognito Post-Confirmation Trigger ===
+    const postConfirmationFunction = new lambda.Function(this, "CognitoPostConfirmationFunction", {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: "index.handler",
+      code: lambda.Code.fromAsset(
+        path.join(__dirname, "../../lambdas/cognito-post-confirmation")
+      ),
+      layers: [dbLayer],
+      environment: dbEnvironment,
+      // No VPC - connects to public database
+      timeout: cdk.Duration.seconds(30),
+    });
+
+    dbSecret.grantRead(postConfirmationFunction);
 
     // === Authentication (Cognito) ===
     const userPool = new cognito.UserPool(this, "BarkbaseUserPool", {
       selfSignUpEnabled: true,
       signInAliases: { email: true },
+      autoVerify: { email: true }, // Auto-verify email addresses
       standardAttributes: {
         email: { required: true, mutable: true },
       },
@@ -126,6 +154,10 @@ export class CdkStack extends cdk.Stack {
         requireSymbols: false,
       },
       accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
+      lambdaTriggers: {
+        preSignUp: preSignUpFunction,
+        postConfirmation: postConfirmationFunction,
+      },
     });
 
     // Hosted UI domain for Cognito (unique per stack)
@@ -225,11 +257,15 @@ export class CdkStack extends cdk.Stack {
         path.join(__dirname, "../../lambdas/pets-api")
       ),
       layers: [dbLayer],
-      environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      environment: {
+        ...dbEnvironment,
+        FORCE_REFRESH: "v2", // Force Lambda refresh after IAM policy update
+      },
+      // No VPC - connects to public database
+      
       timeout: cdk.Duration.seconds(30),
     });
+    dbSecret.grantRead(petsApiFunction);
     const petsIntegration = new HttpLambdaIntegration(
       "PetsIntegration",
       petsApiFunction
@@ -266,6 +302,7 @@ export class CdkStack extends cdk.Stack {
       path: "/api/v1/pets/vaccinations/expiring",
       methods: [apigw.HttpMethod.GET],
       integration: petsIntegration,
+      authorizer: httpAuthorizer,
     });
 
     // S3 Bucket (private with KMS-SSE)
@@ -300,8 +337,7 @@ export class CdkStack extends cdk.Stack {
         ),
         environment: s3Environment,
         timeout: cdk.Duration.seconds(30),
-        vpc,
-        securityGroups: [lambdaSG],
+        
       }
     );
     bucket.grantWrite(getUploadUrlFunction);
@@ -323,8 +359,7 @@ export class CdkStack extends cdk.Stack {
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/get-download-url')),
       environment: s3Environment,
-      vpc,
-      securityGroups: [lambdaSG],
+      
     });
     bucket.grantRead(getDownloadUrlFunction);
     const getDownloadUrlIntegration = new HttpLambdaIntegration('GetDownloadUrlIntegration', getDownloadUrlFunction);
@@ -464,8 +499,8 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/auth-api')),
       layers: [dbLayer],
       environment: authEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
+      
       timeout: cdk.Duration.seconds(30),
     });
     // Allow auth function to read database credentials from Secrets Manager
@@ -484,10 +519,11 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/bookings-api')),
       layers: [dbLayer],
       environment: authEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
+      
       timeout: cdk.Duration.seconds(30),
     });
+    dbSecret.grantRead(bookingsApiFunction);
     const bookingsAlias = new lambda.Alias(this, 'BookingsLiveAlias', {
       aliasName: 'live',
       version: bookingsApiFunction.currentVersion,
@@ -540,10 +576,11 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/tenants-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
+      
       timeout: cdk.Duration.seconds(30),
     });
+    dbSecret.grantRead(tenantsApiFunction);
     const tenantsIntegration = new HttpLambdaIntegration('TenantsIntegration', tenantsApiFunction);
     // Public by slug
     httpApi.addRoutes({ path: '/api/v1/tenants', methods: [apigw.HttpMethod.GET], integration: tenantsIntegration });
@@ -562,10 +599,11 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/owners-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
+      
       timeout: cdk.Duration.seconds(30),
     });
+    dbSecret.grantRead(ownersApiFunction);
     const ownersIntegration = new HttpLambdaIntegration('OwnersIntegration', ownersApiFunction);
     httpApi.addRoutes({ path: '/api/v1/owners', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: ownersIntegration, authorizer: httpAuthorizer });
     httpApi.addRoutes({ path: '/api/v1/owners/{ownerId}', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PUT, apigw.HttpMethod.DELETE], integration: ownersIntegration, authorizer: httpAuthorizer });
@@ -577,8 +615,7 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/payments-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
     });
     const paymentsIntegration = new HttpLambdaIntegration('PaymentsIntegration', paymentsApiFunction);
@@ -592,8 +629,7 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/reports-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
     });
     const reportsIntegration = new HttpLambdaIntegration('ReportsIntegration', reportsApiFunction);
@@ -608,13 +644,13 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/kennels-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
     });
+    dbSecret.grantRead(kennelsApiFunction);
     const kennelsIntegration = new HttpLambdaIntegration('KennelsIntegration', kennelsApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/kennels', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: kennelsIntegration });
-    httpApi.addRoutes({ path: '/api/v1/kennels/{kennelId}', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PUT, apigw.HttpMethod.DELETE], integration: kennelsIntegration });
+    httpApi.addRoutes({ path: '/api/v1/kennels', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: kennelsIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/kennels/{kennelId}', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PUT, apigw.HttpMethod.DELETE], integration: kennelsIntegration, authorizer: httpAuthorizer });
 
     // Staff API
     const staffApiFunction = new lambda.Function(this, 'StaffApiFunction', {
@@ -623,13 +659,13 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/staff-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
     });
+    dbSecret.grantRead(staffApiFunction);
     const staffIntegration = new HttpLambdaIntegration('StaffIntegration', staffApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/staff', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: staffIntegration });
-    httpApi.addRoutes({ path: '/api/v1/staff/{staffId}', methods: [apigw.HttpMethod.GET], integration: staffIntegration });
+    httpApi.addRoutes({ path: '/api/v1/staff', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: staffIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/staff/{staffId}', methods: [apigw.HttpMethod.GET], integration: staffIntegration, authorizer: httpAuthorizer });
 
     // Dashboard API
     const dashboardApiFunction = new lambda.Function(this, 'DashboardApiFunction', {
@@ -638,26 +674,27 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/dashboard-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
     });
+    dbSecret.grantRead(dashboardApiFunction);
     const dashboardIntegration = new HttpLambdaIntegration('DashboardIntegration', dashboardApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/dashboard/overview', methods: [apigw.HttpMethod.GET], integration: dashboardIntegration });
+    httpApi.addRoutes({ path: '/api/v1/dashboard/overview', methods: [apigw.HttpMethod.GET], integration: dashboardIntegration, authorizer: httpAuthorizer });
 
-    // Calendar API
-    const calendarApiFunction = new lambda.Function(this, 'CalendarApiFunction', {
+    // Schedule API
+    const scheduleApiFunction = new lambda.Function(this, 'ScheduleApiFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/calendar-api')),
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/schedule-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
     });
-    const calendarIntegration = new HttpLambdaIntegration('CalendarIntegration', calendarApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/calendar', methods: [apigw.HttpMethod.GET], integration: calendarIntegration });
+    dbSecret.grantRead(scheduleApiFunction);
+    const scheduleIntegration = new HttpLambdaIntegration('ScheduleIntegration', scheduleApiFunction);
+    httpApi.addRoutes({ path: '/api/v1/schedule', methods: [apigw.HttpMethod.GET], integration: scheduleIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/schedule/capacity', methods: [apigw.HttpMethod.GET], integration: scheduleIntegration, authorizer: httpAuthorizer });
 
     // Incidents API
     const incidentsApiFunction = new lambda.Function(this, 'IncidentsApiFunction', {
@@ -666,8 +703,7 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/incidents-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
     });
     const incidentsIntegration = new HttpLambdaIntegration('IncidentsIntegration', incidentsApiFunction);
@@ -680,8 +716,7 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/services-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
     });
     const servicesIntegration = new HttpLambdaIntegration('ServicesIntegration', servicesApiFunction);
@@ -695,8 +730,7 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/invites-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
       allowPublicSubnet: true,
     });
@@ -710,8 +744,7 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/invoices-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
       allowPublicSubnet: true,
     });
@@ -725,8 +758,7 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/packages-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
       allowPublicSubnet: true,
     });
@@ -740,14 +772,14 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/tasks-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
       allowPublicSubnet: true,
     });
+    dbSecret.grantRead(tasksApiFunction);
     const tasksIntegration = new HttpLambdaIntegration('TasksIntegration', tasksApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/tasks', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: tasksIntegration });
-    httpApi.addRoutes({ path: '/api/v1/tasks/{taskId}', methods: [apigw.HttpMethod.PATCH], integration: tasksIntegration });
+    httpApi.addRoutes({ path: '/api/v1/tasks', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: tasksIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/tasks/{taskId}', methods: [apigw.HttpMethod.PATCH], integration: tasksIntegration, authorizer: httpAuthorizer });
 
     // Messages API
     const messagesApiFunction = new lambda.Function(this, 'MessagesApiFunction', {
@@ -756,8 +788,7 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/messages-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
       allowPublicSubnet: true,
     });
@@ -771,14 +802,14 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/runs-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
       allowPublicSubnet: true,
     });
+    dbSecret.grantRead(runsApiFunction);
     const runsIntegration = new HttpLambdaIntegration('RunsIntegration', runsApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/runs', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: runsIntegration });
-    httpApi.addRoutes({ path: '/api/v1/runs/{runId}', methods: [apigw.HttpMethod.PUT], integration: runsIntegration });
+    httpApi.addRoutes({ path: '/api/v1/runs', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: runsIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/runs/{runId}', methods: [apigw.HttpMethod.PUT], integration: runsIntegration, authorizer: httpAuthorizer });
 
     // Memberships API
     const membershipsApiFunction = new lambda.Function(this, 'MembershipsApiFunction', {
@@ -787,8 +818,7 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/memberships-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
       allowPublicSubnet: true,
     });
@@ -803,8 +833,7 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/admin-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
       allowPublicSubnet: true,
     });
@@ -818,8 +847,7 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/billing-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
       allowPublicSubnet: true,
     });
@@ -833,8 +861,7 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/communication-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
       allowPublicSubnet: true,
     });
@@ -848,8 +875,7 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/notes-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
       allowPublicSubnet: true,
     });
@@ -863,8 +889,7 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/roles-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
       allowPublicSubnet: true,
     });
@@ -878,8 +903,7 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/facility-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
       allowPublicSubnet: true,
     });
@@ -893,8 +917,7 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/account-defaults-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
       allowPublicSubnet: true,
     });
@@ -908,8 +931,7 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/user-permissions-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
       allowPublicSubnet: true,
     });
@@ -923,8 +945,7 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/migration-api')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(60), // Longer timeout for migrations
     });
     const migrationIntegration = new HttpLambdaIntegration('MigrationIntegration', migrationApiFunction);
@@ -939,10 +960,10 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/websocket-connect')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
     });
+    dbSecret.grantRead(wsConnectFunction);
 
     // WebSocket Disconnect Handler
     const wsDisconnectFunction = new lambda.Function(this, 'WebSocketDisconnectFunction', {
@@ -951,10 +972,10 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/websocket-disconnect')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
     });
+    dbSecret.grantRead(wsDisconnectFunction);
 
     // WebSocket Message Handler
     const wsMessageFunction = new lambda.Function(this, 'WebSocketMessageFunction', {
@@ -963,10 +984,10 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/websocket-message')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
     });
+    dbSecret.grantRead(wsMessageFunction);
 
     // WebSocket Broadcast Function (invoked by other Lambdas)
     const wsBroadcastFunction = new lambda.Function(this, 'WebSocketBroadcastFunction', {
@@ -975,10 +996,10 @@ export class CdkStack extends cdk.Stack {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/websocket-broadcast')),
       layers: [dbLayer],
       environment: dbEnvironment,
-      vpc: vpc,
-      securityGroups: [lambdaSG],
+      // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
     });
+    dbSecret.grantRead(wsBroadcastFunction);
 
     // Create WebSocket API
     const webSocketApi = new apigw.WebSocketApi(this, 'BarkbaseWebSocketApi', {
@@ -1033,3 +1054,4 @@ export class CdkStack extends cdk.Stack {
     });
   }
 }
+

@@ -16,13 +16,19 @@ const CapacityOverviewSection = ({ currentDate }) => {
   const days = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
   // Fetch real capacity data for this week
-  const { data: weekCapacityData, isLoading } = useCapacityQuery(
-    format(weekStart, 'yyyy-MM-dd'),
-    format(weekEnd, 'yyyy-MM-dd')
-  );
+  const startDateStr = format(weekStart, 'yyyy-MM-dd');
+  const endDateStr = format(weekEnd, 'yyyy-MM-dd');
+  
+  console.log('[CapacityOverview] Fetching capacity for:', startDateStr, 'to', endDateStr);
+  
+  const { data: weekCapacityData, isLoading } = useCapacityQuery(startDateStr, endDateStr);
+  
+  console.log('[CapacityOverview] weekCapacityData:', weekCapacityData);
+  console.log('[CapacityOverview] isLoading:', isLoading);
 
   const capacityData = useMemo(() => {
     if (!weekCapacityData || weekCapacityData.length === 0) {
+      console.log('[CapacityOverview] No capacity data or empty array');
       return {
         overall: 0,
         trend: 0,
@@ -31,8 +37,16 @@ const CapacityOverviewSection = ({ currentDate }) => {
       };
     }
 
-    const daily = weekCapacityData.map(d => d.utilizationPercent);
-    const overall = Math.round(daily.reduce((sum, val) => sum + val, 0) / daily.length);
+    console.log('[CapacityOverview] First capacity record:', weekCapacityData[0]);
+    // PostgreSQL returns lowercase column names unless quoted
+    const daily = weekCapacityData.map(d => {
+      const util = d.utilizationPercent || d.utilizationpercent || d.utilizationPercent || 0;
+      console.log('[CapacityOverview] Day data:', d, 'util:', util);
+      return parseFloat(util);
+    });
+    console.log('[CapacityOverview] daily array:', daily);
+    const overall = Math.round(daily.reduce((sum, val) => sum + (val || 0), 0) / daily.length);
+    console.log('[CapacityOverview] overall:', overall);
 
     return {
       overall,

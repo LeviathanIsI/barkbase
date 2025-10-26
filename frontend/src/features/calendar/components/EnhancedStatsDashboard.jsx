@@ -1,36 +1,33 @@
 import { Calendar, TrendingUp, Users, Home, AlertTriangle, DollarSign, Clock, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { Card } from '@/components/ui/Card';
-import { useCalendarCapacity } from '@/features/settings/api';
+import { useCapacity } from '@/features/schedule/api/api';
 
-const EnhancedStatsDashboard = ({ currentDate }) => {
+const EnhancedStatsDashboard = ({ currentDate, stats: todayStats = {} }) => {
   // Real capacity data from API
-  const { data: capacityData, isLoading: capacityLoading } = useCalendarCapacity();
+  const dateStr = currentDate.toISOString().split('T')[0];
+  const { data: capacityData, isLoading: capacityLoading } = useCapacity(dateStr, dateStr);
 
-  // TODO: Replace with real API data for bookings, check-ins, etc.
+  // Use real stats passed from parent or defaults
   const stats = {
     bookings: {
-      today: capacityLoading ? 0 : 12, // Would come from bookings API
-      change: 3,
+      today: todayStats.totalBookings || 0,
+      change: 3, // Would need historical data
       trend: 'up'
     },
-    capacity: capacityData ? {
-      percentage: capacityData.capacityPercentage || 0,
-      status: capacityData.capacityPercentage >= 90 ? 'high-demand' :
-              capacityData.capacityPercentage >= 80 ? 'moderate' : 'normal',
-      change: 8
-    } : {
-      percentage: 0,
-      status: 'normal',
-      change: 0
+    capacity: {
+      percentage: todayStats.occupancyPct || 0,
+      status: (todayStats.occupancyPct || 0) >= 90 ? 'high-demand' :
+              (todayStats.occupancyPct || 0) >= 80 ? 'moderate' : 'normal',
+      change: 8 // Would need historical data
     },
     checkins: {
-      completed: 8, // Would come from check-ins API
-      pending: 4
+      completed: todayStats.checkInsCompleted || 0,
+      pending: todayStats.checkInsPending || 0
     },
     available: {
-      spots: capacityData?.availableSpots || 0,
-      total: capacityData?.totalCapacity || 0
+      spots: todayStats.availableSpots || 0,
+      total: todayStats.totalCapacity || 0
     }
   };
 

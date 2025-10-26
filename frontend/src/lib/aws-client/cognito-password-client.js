@@ -1,10 +1,66 @@
-import { CognitoIdentityProviderClient, InitiateAuthCommand } from '@aws-sdk/client-cognito-identity-provider';
+import { 
+  CognitoIdentityProviderClient, 
+  InitiateAuthCommand,
+  SignUpCommand,
+  ConfirmSignUpCommand
+} from '@aws-sdk/client-cognito-identity-provider';
 
 export class CognitoPasswordClient {
   constructor(config) {
     this.region = config.region;
     this.clientId = config.clientId;
     this.client = new CognitoIdentityProviderClient({ region: this.region });
+  }
+
+  async signUp({ email, password, name, tenantName }) {
+    if (!this.clientId) throw new Error('Cognito clientId not configured');
+    if (!email || !password) throw new Error('Email and password are required');
+    
+    const command = new SignUpCommand({
+      ClientId: this.clientId,
+      Username: email,
+      Password: password,
+      UserAttributes: [
+        { Name: 'email', Value: email },
+        { Name: 'name', Value: name || email.split('@')[0] }
+      ]
+    });
+    
+    const res = await this.client.send(command);
+    
+    // Since we auto-confirm users (via Pre-SignUp trigger), 
+    // immediately sign them in to get tokens
+    const signInResult = await this.signIn({ email, password });
+    
+    return {
+      user: {
+        id: res.UserSub,
+        email: email,
+        emailVerified: true,
+      },
+      accessToken: signInResult.accessToken,
+      refreshToken: signInResult.refreshToken,
+      tenant: {
+        recordId: 'temp', // Will be fetched from API
+        name: tenantName || `${name || email.split('@')[0]}'s Organization`,
+        slug: 'temp',
+        plan: 'FREE'
+      },
+    };
+  }
+
+  async confirmSignUp({ email, code }) {
+    if (!this.clientId) throw new Error('Cognito clientId not configured');
+    if (!email || !code) throw new Error('Email and confirmation code are required');
+    
+    const command = new ConfirmSignUpCommand({
+      ClientId: this.clientId,
+      Username: email,
+      ConfirmationCode: code,
+    });
+    
+    await this.client.send(command);
+    return { success: true };
   }
 
   async signIn({ email, password }) {

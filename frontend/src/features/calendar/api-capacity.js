@@ -5,21 +5,29 @@ import apiClient from '@/lib/apiClient';
  * Get capacity data for a date range
  */
 export const useCapacityQuery = (startDate, endDate) => {
+  console.log('[useCapacityQuery] Called with:', { startDate, endDate, enabled: !!startDate && !!endDate });
+  
   return useQuery({
-    queryKey: ['calendar', 'capacity', startDate, endDate],
+    queryKey: ['schedule', 'capacity', startDate, endDate],
     queryFn: async () => {
       try {
-        const response = await apiClient.get('/api/v1/calendar/capacity', {
+        console.log('[useCapacityQuery] Fetching from API...');
+        const response = await apiClient.get('/api/v1/schedule/capacity', {
           params: { startDate, endDate }
         });
-        return response.data || [];
+        console.log('[useCapacityQuery] API response:', response);
+        // apiClient.get returns { data: ... }, so we need to extract data
+        const data = response.data || [];
+        console.log('[useCapacityQuery] Extracted data:', data);
+        return data;
       } catch (error) {
-        console.error('Failed to fetch capacity data:', error);
+        console.error('[useCapacityQuery] Failed to fetch capacity data:', error);
         return []; // Return empty array on error
       }
     },
     enabled: !!startDate && !!endDate,
-    initialData: [] // Provide initial data to prevent undefined
+    staleTime: 0, // Always fetch fresh data
+    cacheTime: 0, // Don't cache
   });
 };
 

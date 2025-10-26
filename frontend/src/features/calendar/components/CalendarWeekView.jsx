@@ -22,7 +22,7 @@ const CalendarWeekView = ({ currentDate, onDateChange, onBookingClick, filters }
   });
 
   const kennels = kennelsData || [];
-  const bookings = bookingsData?.data || [];
+  const bookings = bookingsData || [];
 
   const isLoading = kennelsLoading || bookingsLoading;
 
@@ -149,7 +149,7 @@ const CalendarWeekView = ({ currentDate, onDateChange, onBookingClick, filters }
 
             {/* Kennel Rows */}
             {kennels.map((kennel) => (
-              <div key={kennel.id} className="contents">
+              <div key={kennel.recordId || kennel.id} className="contents">
                 {/* Kennel Header */}
                 <div className="bg-gray-50 border-r border-gray-200 p-4 font-medium text-gray-900 border-t">
                   <div className="font-semibold">{kennel.name}</div>
@@ -158,13 +158,13 @@ const CalendarWeekView = ({ currentDate, onDateChange, onBookingClick, filters }
 
                 {/* Day Columns */}
                 {days.map((day) => {
-                  const dayBookings = getBookingsForDayAndKennel(day, kennel.id);
+                  const dayBookings = getBookingsForDayAndKennel(day, kennel.recordId || kennel.id);
                   const capacityPercent = getCapacityPercentage(day);
                   const isFull = capacityPercent >= 100;
 
                   return (
                     <div
-                      key={`${kennel.id}-${day.toISOString()}`}
+                      key={`${kennel.recordId || kennel.id}-${day.toISOString()}`}
                       className={`min-h-[120px] border-r border-t border-gray-200 p-2 ${
                         isFull ? 'bg-red-50' : capacityPercent >= 90 ? 'bg-orange-50' : 'bg-white'
                       }`}
@@ -180,28 +180,28 @@ const CalendarWeekView = ({ currentDate, onDateChange, onBookingClick, filters }
                       ) : (
                         <div className="space-y-1">
                           {dayBookings.map((booking) => {
-                            const ServiceIcon = getServiceIcon(booking.service);
-                            const isCheckInDay = booking.startDate === format(day, 'yyyy-MM-dd');
-                            const isCheckOutDay = booking.endDate === format(day, 'yyyy-MM-dd');
+                            const ServiceIcon = getServiceIcon(booking.serviceType);
+                            const isCheckInDay = format(new Date(booking.checkIn), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
+                            const isCheckOutDay = format(new Date(booking.checkOut), 'yyyy-MM-dd') === format(day, 'yyyy-MM-dd');
 
                             return (
                               <div
-                                key={booking.id}
+                                key={booking.recordId || booking.id}
                                 onClick={() => onBookingClick(booking)}
                                 className={`rounded border p-2 text-xs cursor-pointer hover:shadow-sm transition-shadow ${getStatusColor(booking.status)}`}
                               >
                                 <div className="flex items-center justify-between mb-1">
                                   <div className="flex items-center gap-1">
                                     <ServiceIcon className="w-3 h-3" />
-                                    <span className="font-medium">{booking.pet.name}</span>
+                                    <span className="font-medium">{booking.petName || booking.pet?.name}</span>
                                   </div>
                                   {booking.medication && <Pill className="w-3 h-3 text-orange-600" />}
                                 </div>
-                                <div className="text-xs opacity-75">{booking.owner.name}</div>
+                                <div className="text-xs opacity-75">{booking.ownerName || booking.owner?.name}</div>
                                 <div className="flex items-center gap-1 mt-1">
                                   {isCheckInDay && <span className="text-xs">🔴</span>}
                                   {isCheckOutDay && <span className="text-xs">🟡</span>}
-                                  <span className="text-xs">{format(day, 'HH:mm')}</span>
+                                  <span className="text-xs">{format(new Date(booking.checkIn), 'HH:mm')}</span>
                                 </div>
                               </div>
                             );
