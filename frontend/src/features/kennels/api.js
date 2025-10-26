@@ -24,6 +24,21 @@ export const useKennels = (filters = {}) => {
   });
 };
 
+export const useKennelsWithOccupancy = () => {
+  const tenantKey = useTenantKey();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+
+  return useQuery({
+    queryKey: ['kennels', tenantKey, 'occupancy'],
+    queryFn: async () => {
+      const res = await apiClient.get('/api/v1/kennels/occupancy');
+      return res.data;
+    },
+    staleTime: 1 * 60 * 1000, // 1 minute - occupancy changes frequently
+    enabled: isAuthenticated,
+  });
+};
+
 export const useKennel = (kennelId) => {
   const tenantKey = useTenantKey();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());

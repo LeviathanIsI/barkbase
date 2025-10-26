@@ -650,6 +650,7 @@ export class CdkStack extends cdk.Stack {
     dbSecret.grantRead(kennelsApiFunction);
     const kennelsIntegration = new HttpLambdaIntegration('KennelsIntegration', kennelsApiFunction);
     httpApi.addRoutes({ path: '/api/v1/kennels', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: kennelsIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/kennels/occupancy', methods: [apigw.HttpMethod.GET], integration: kennelsIntegration, authorizer: httpAuthorizer });
     httpApi.addRoutes({ path: '/api/v1/kennels/{kennelId}', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PUT, apigw.HttpMethod.DELETE], integration: kennelsIntegration, authorizer: httpAuthorizer });
 
     // Staff API
@@ -779,7 +780,8 @@ export class CdkStack extends cdk.Stack {
     dbSecret.grantRead(tasksApiFunction);
     const tasksIntegration = new HttpLambdaIntegration('TasksIntegration', tasksApiFunction);
     httpApi.addRoutes({ path: '/api/v1/tasks', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: tasksIntegration, authorizer: httpAuthorizer });
-    httpApi.addRoutes({ path: '/api/v1/tasks/{taskId}', methods: [apigw.HttpMethod.PATCH], integration: tasksIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/tasks/{taskId}', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PUT, apigw.HttpMethod.DELETE], integration: tasksIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/tasks/{taskId}/complete', methods: [apigw.HttpMethod.POST], integration: tasksIntegration, authorizer: httpAuthorizer });
 
     // Messages API
     const messagesApiFunction = new lambda.Function(this, 'MessagesApiFunction', {

@@ -16,6 +16,26 @@ exports.handler = async (event) => {
     }
 
     try {
+        // GET /api/v1/kennels/occupancy - Get kennels with real-time occupancy
+        if (httpMethod === 'GET' && path.includes('/occupancy')) {
+            const pool = getPool();
+            const { rows } = await pool.query(
+                `SELECT 
+                    k.*,
+                    COALESCE(COUNT(DISTINCT bs."bookingId"), 0)::int as occupied
+                FROM "Kennel" k
+                LEFT JOIN "BookingSegment" bs ON k."recordId" = bs."kennelId" 
+                    AND bs."startDate" <= CURRENT_DATE 
+                    AND bs."endDate" >= CURRENT_DATE
+                    AND bs."status" NOT IN ('CANCELLED')
+                WHERE k."tenantId" = $1
+                GROUP BY k."recordId"
+                ORDER BY k."name"`,
+                [tenantId]
+            );
+            return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows) };
+        }
+        
         if (httpMethod === 'GET' && (path === '/api/v1/kennels' || path.endsWith('/kennels'))) {
             const pool = getPool();
             const { rows } = await pool.query(`SELECT * FROM "Kennel" WHERE "tenantId" = $1 ORDER BY "name"`, [tenantId]);

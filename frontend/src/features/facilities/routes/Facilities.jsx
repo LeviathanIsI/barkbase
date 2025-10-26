@@ -3,24 +3,20 @@ import { Building, MapPin } from 'lucide-react';
 import { Card, PageHeader } from '@/components/ui/Card';
 import BookingHUD from '@/features/bookings/components/BookingHUD';
 import Skeleton from '@/components/ui/Skeleton';
-import { useKennels } from '@/features/kennels/api';
+import { useKennelsWithOccupancy } from '@/features/kennels/api';
 import FacilityMapView from '../components/FacilityMapView';
-// import { useLiveQuery } from '@/lib/useLiveQuery'; // No longer used
-// import apiClient from '@/lib/apiClient'; // No longer used
 
 const Facilities = () => {
-  const { data: kennels, isLoading } = useKennels();
+  const { data: kennels, isLoading } = useKennelsWithOccupancy();
 
-  // Add mock occupancy data for demonstration
-  // TODO: Replace with real occupancy from booking data
-  const kennelsWithOccupancy = kennels?.map((kennel) => ({
+  // Map kennel types to building names for visual grouping
+  const kennelsWithBuilding = kennels?.map((kennel) => ({
     ...kennel,
-    capacity: kennel.capacity || 1,
-    occupied: Math.floor(Math.random() * ((kennel.capacity || 1) + 1)), // Random for demo
-    building: kennel.type === 'suite' ? 'Suites Wing' : 
-              kennel.type === 'daycare' ? 'Daycare Area' : 
+    building: kennel.type === 'SUITE' ? 'Suites Wing' : 
+              kennel.type === 'DAYCARE' ? 'Daycare Area' : 
+              kennel.type === 'CABIN' ? 'Luxury Cabins' :
+              kennel.type === 'MEDICAL' ? 'Medical Ward' :
               'Standard Kennels',
-    type: kennel.type || 'kennel'
   })) || [];
 
   if (isLoading) {
@@ -60,21 +56,8 @@ const Facilities = () => {
   }
 
   return (
-    <div>
-      <BookingHUD
-        date={new Date()}
-        stats={{}}
-        onNewBooking={() => {}}
-        onOpenFilters={() => {}}
-        onCheckInOut={() => {}}
-      />
-      <PageHeader
-        title="Capacity View"
-        subtitle="Visual map of facility layout with real-time availability"
-        breadcrumb="Home > Intake > Capacity View"
-      />
-
-      <FacilityMapView kennels={kennelsWithOccupancy} editable />
+    <div className="h-screen w-full overflow-hidden">
+      <FacilityMapView kennels={kennelsWithBuilding} />
     </div>
   );
 };

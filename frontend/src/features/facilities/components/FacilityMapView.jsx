@@ -1,577 +1,460 @@
 import { useState, useEffect, useRef } from 'react';
-import { MapPin, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { TransformWrapper, TransformComponent, useControls } from 'react-zoom-pan-pinch';
+import { Bed, Home, Scissors, Dumbbell, Sun, HeartPulse, ZoomIn, ZoomOut, Maximize2, RotateCcw, Info } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import SlidePanel from '@/components/ui/SlidePanel';
-import KennelMapCard from './KennelMapCard';
-import Badge from '@/components/ui/Badge';
-import { cn } from '@/lib/cn';
+import { Card } from '@/components/ui/Card';
+import FacilityDetailsModal from './FacilityDetailsModal';
 
 /**
- * FacilityMapView - Visual map representation of facility layout
- * Shows kennels positioned to match actual facility layout with availability indicators
+ * Get icon component for facility type
  */
-const FacilityMapView = ({ kennels = [], editable = false }) => {
-  const [selectedKennel, setSelectedKennel] = useState(null);
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [isPanning, setIsPanning] = useState(false);
-  const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
-  const [selectedArea, setSelectedArea] = useState(null);
-  const containerRef = useRef(null);
-  const [layout, setLayout] = useState({}); // building -> { x, y }
-  const dragRef = useRef({ name: null, lastClientX: 0, lastClientY: 0 });
-  const [isDraggingBuilding, setIsDraggingBuilding] = useState(false);
+const getFacilityIcon = (type) => {
+  const iconMap = {
+    'SUITE': Bed,
+    'KENNEL': Bed,
+    'CABIN': Home,
+    'DAYCARE': Sun,
+    'GROOMING': Scissors,
+    'TRAINING': Dumbbell,
+    'MEDICAL': HeartPulse,
+    'ISOLATION': HeartPulse,
+  };
+  
+  const IconComponent = iconMap[type?.toUpperCase()] || Bed;
+  return <IconComponent className="h-5 w-5" />;
+};
 
-  // Add richer mock buildings/kennels for visualization
-  const mockKennels = [
-    // Training Center - 3 rings, medium capacity
-    { recordId: 'demo-tr-1', name: 'Training Ring A', type: 'training', capacity: 10, occupied: 6, building: 'Training Center' },
-    { recordId: 'demo-tr-2', name: 'Training Ring B', type: 'training', capacity: 8, occupied: 3, building: 'Training Center' },
-    { recordId: 'demo-tr-3', name: 'Training Ring C', type: 'training', capacity: 6, occupied: 2, building: 'Training Center' },
+/**
+ * Get border color class based on occupancy rate
+ */
+const getBorderColor = (occupancyRate) => {
+  if (occupancyRate >= 95) return 'border-gray-400';
+  if (occupancyRate >= 80) return 'border-red-500';
+  if (occupancyRate >= 50) return 'border-yellow-500';
+  return 'border-green-500';
+};
 
-    // Grooming - individual tables/rooms
-    { recordId: 'demo-gr-1', name: 'Groom 1', type: 'grooming', capacity: 1, occupied: 1, building: 'Grooming' },
-    { recordId: 'demo-gr-2', name: 'Groom 2', type: 'grooming', capacity: 1, occupied: 0, building: 'Grooming' },
-    { recordId: 'demo-gr-3', name: 'Groom 3', type: 'grooming', capacity: 1, occupied: 1, building: 'Grooming' },
-    { recordId: 'demo-gr-4', name: 'Groom 4', type: 'grooming', capacity: 1, occupied: 0, building: 'Grooming' },
+/**
+ * Get background color class based on occupancy rate
+ */
+const getBgColor = (occupancyRate) => {
+  if (occupancyRate >= 95) return 'bg-gray-50';
+  if (occupancyRate >= 80) return 'bg-red-50';
+  if (occupancyRate >= 50) return 'bg-yellow-50';
+  return 'bg-green-50';
+};
 
-    // Outdoor Runs - many small slots
-    { recordId: 'demo-or-1', name: 'Run 1', type: 'run', capacity: 1, occupied: 1, building: 'Outdoor Runs' },
-    { recordId: 'demo-or-2', name: 'Run 2', type: 'run', capacity: 1, occupied: 0, building: 'Outdoor Runs' },
-    { recordId: 'demo-or-3', name: 'Run 3', type: 'run', capacity: 1, occupied: 0, building: 'Outdoor Runs' },
-    { recordId: 'demo-or-4', name: 'Run 4', type: 'run', capacity: 1, occupied: 1, building: 'Outdoor Runs' },
-    { recordId: 'demo-or-5', name: 'Run 5', type: 'run', capacity: 1, occupied: 0, building: 'Outdoor Runs' },
-    { recordId: 'demo-or-6', name: 'Run 6', type: 'run', capacity: 1, occupied: 1, building: 'Outdoor Runs' },
-    { recordId: 'demo-or-7', name: 'Run 7', type: 'run', capacity: 1, occupied: 0, building: 'Outdoor Runs' },
-    { recordId: 'demo-or-8', name: 'Run 8', type: 'run', capacity: 1, occupied: 0, building: 'Outdoor Runs' },
+/**
+ * Calculate proportional size based on capacity
+ * Min 200px, max 400px
+ */
+const getProportionalSize = (capacity) => {
+  const minSize = 200;
+  const maxSize = 400;
+  const minCapacity = 1;
+  const maxCapacity = 30;
+  
+  const normalized = Math.min(Math.max(capacity, minCapacity), maxCapacity);
+  const size = minSize + ((normalized - minCapacity) / (maxCapacity - minCapacity)) * (maxSize - minSize);
+  
+  return Math.round(size);
+};
 
-    // Isolation Ward - few rooms, low capacity
-    { recordId: 'demo-iso-1', name: 'Iso A', type: 'isolation', capacity: 1, occupied: 1, building: 'Isolation Ward' },
-    { recordId: 'demo-iso-2', name: 'Iso B', type: 'isolation', capacity: 2, occupied: 1, building: 'Isolation Ward' },
-    { recordId: 'demo-iso-3', name: 'Iso C', type: 'isolation', capacity: 1, occupied: 0, building: 'Isolation Ward' },
-  ];
+/**
+ * Draggable Facility Card Component (React 18 Compatible, Transform-Aware)
+ */
+const DraggableFacilityCard = ({ facility, position, onPositionChange, onClick, scale = 1, isPanDisabled, setIsPanDisabled }) => {
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const cardRef = useRef(null);
+  
+  const occupancyRate = facility.capacity > 0 
+    ? (facility.occupied / facility.capacity) * 100 
+    : 0;
+  const available = Math.max(0, facility.capacity - facility.occupied);
+  const borderColor = getBorderColor(occupancyRate);
+  const bgColor = getBgColor(occupancyRate);
+  const size = getProportionalSize(facility.capacity);
+  
+  const isFull = occupancyRate >= 95;
+  
+  const handleMouseDown = (e) => {
+    if (e.target.closest('.click-area')) return; // Don't drag when clicking details area
+    
+    setIsDragging(true);
+    setIsPanDisabled(true); // Disable canvas panning while dragging card
+    
+    // Calculate offset from card position to mouse position (in canvas coordinates)
+    const rect = cardRef.current.getBoundingClientRect();
+    setDragOffset({
+      x: (e.clientX - rect.left) / scale,
+      y: (e.clientY - rect.top) / scale
+    });
+    
+    e.stopPropagation();
+    e.preventDefault();
+  };
+  
+  useEffect(() => {
+    if (!isDragging) return;
+    
+    const handleMouseMove = (e) => {
+      if (!cardRef.current) return;
+      
+      // Get the canvas container to calculate relative position
+      const canvasElement = cardRef.current.parentElement;
+      const canvasRect = canvasElement.getBoundingClientRect();
+      
+      // Convert screen coordinates to canvas coordinates (accounting for scale and pan)
+      const canvasX = (e.clientX - canvasRect.left) / scale;
+      const canvasY = (e.clientY - canvasRect.top) / scale;
+      
+      // Apply the offset to position the card correctly under the mouse
+      const newX = canvasX - dragOffset.x;
+      const newY = canvasY - dragOffset.y;
+      
+      onPositionChange({ x: Math.max(0, newX), y: Math.max(0, newY) });
+    };
+    
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      setIsPanDisabled(false); // Re-enable canvas panning
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, dragOffset, scale, onPositionChange, setIsPanDisabled]);
+  
+  return (
+    <div
+      ref={cardRef}
+      className={`
+        absolute p-4 rounded-lg border-2 ${borderColor} ${bgColor}
+        transition-shadow duration-200
+        hover:shadow-lg
+        group
+        ${isDragging ? 'cursor-grabbing shadow-2xl scale-105' : 'cursor-grab'}
+      `}
+      style={{
+        width: `${size}px`,
+        minHeight: `${Math.round(size * 0.75)}px`,
+        left: `${position.x}px`,
+        top: `${position.y}px`,
+        userSelect: 'none',
+        touchAction: 'none',
+      }}
+      onMouseDown={handleMouseDown}
+    >
+      {/* Drag Handle + Full Badge */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2 flex-1">
+          <div className={`p-2 rounded-lg ${borderColor} bg-white`}>
+            {getFacilityIcon(facility.type)}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-gray-900 truncate text-sm">
+              {facility.name}
+            </h3>
+            <p className="text-xs text-gray-500 capitalize">
+              {(facility.type || 'kennel').toLowerCase()}
+            </p>
+          </div>
+        </div>
+        {isFull && (
+          <span className="px-2 py-1 text-xs font-bold bg-gray-400 text-white rounded-full">
+            FULL
+          </span>
+        )}
+      </div>
+      
+      {/* Capacity Display */}
+      <div
+        className="cursor-pointer click-area"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick(facility);
+        }}
+      >
+        <p className="text-2xl font-bold text-gray-900">
+          {available}<span className="text-base text-gray-500">/{facility.capacity}</span>
+        </p>
+        <p className="text-xs text-gray-600 mt-1">
+          {available === 0 ? 'Fully booked' : `${available} available`}
+        </p>
+      </div>
+      
+      {/* Progress Bar */}
+      <div className="mt-3 w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+        <div
+          className={`h-full transition-all ${
+            isFull
+              ? 'bg-gray-400'
+              : occupancyRate >= 80
+              ? 'bg-red-500'
+              : occupancyRate >= 50
+              ? 'bg-yellow-500'
+              : 'bg-green-500'
+          }`}
+          style={{ width: `${Math.min(occupancyRate, 100)}%` }}
+        />
+      </div>
+      
+      {/* Hover Indicator */}
+      <div className="mt-3 text-xs text-gray-400 group-hover:text-primary transition-colors click-area">
+        Click for details →
+      </div>
+    </div>
+  );
+};
 
-  const allKennels = [ ...(kennels || []), ...mockKennels ];
-
-  // Group kennels by building/type
-  const groupedKennels = (allKennels || []).reduce((acc, kennel) => {
+/**
+ * Main Facility Map View Component with Interactive Canvas
+ */
+const FacilityMapView = ({ kennels = [] }) => {
+  const [selectedFacility, setSelectedFacility] = useState(null);
+  const [facilityPositions, setFacilityPositions] = useState({});
+  const [isPanDisabled, setIsPanDisabled] = useState(false);
+  const [currentScale, setCurrentScale] = useState(1);
+  
+  // Group kennels by building to show facility-level aggregation
+  const groupedKennels = (kennels || []).reduce((acc, kennel) => {
     if (!kennel) return acc;
     const building = kennel.building || kennel.type || 'Other';
-    if (!acc[building]) acc[building] = [];
-    acc[building].push(kennel);
+    if (!acc[building]) {
+      acc[building] = {
+        name: building,
+        type: kennel.type,
+        building: building,
+        capacity: 0,
+        occupied: 0,
+        kennels: []
+      };
+    }
+    acc[building].capacity += kennel.capacity || 0;
+    acc[building].occupied += kennel.occupied || 0;
+    acc[building].kennels.push(kennel);
     return acc;
   }, {});
 
-  // Fallback stats if no underlying kennels yet (used to size boxes)
-  const fallbackBuildingStats = {
-    'Suites Wing': { capacity: 24, occupied: 12 },
-    'Standard Kennels': { capacity: 32, occupied: 18 },
-    'Daycare': { capacity: 30, occupied: 12 },
-    'Training': { capacity: 18, occupied: 7 },
-    'Grooming': { capacity: 4, occupied: 2 },
-    'Outdoor Runs': { capacity: 12, occupied: 5 },
-    'Isolation Ward': { capacity: 6, occupied: 2 }
-  };
-
-  const getBuildingStats = (name) => {
-    const items = groupedKennels[name] || [];
-    if (!items.length) return fallbackBuildingStats[name] || { capacity: 0, occupied: 0 };
-    return items.reduce(
-      (acc, k) => ({ capacity: acc.capacity + (k?.capacity || 0), occupied: acc.occupied + (k?.occupied || 0) }),
-      { capacity: 0, occupied: 0 }
-    );
-  };
-
-  const occupancyBadge = (capacity, occupied) => {
-    const available = Math.max(0, (capacity || 0) - (occupied || 0));
-    const rate = capacity > 0 ? (occupied / capacity) * 100 : 0;
-    let cls = 'bg-green-100 text-green-800 border-green-300';
-    if (rate >= 95) cls = 'bg-red-100 text-red-800 border-red-300';
-    else if (rate >= 80) cls = 'bg-orange-100 text-orange-800 border-orange-300';
-    else if (rate >= 50) cls = 'bg-yellow-100 text-yellow-800 border-yellow-300';
-    return (
-      <div className="absolute -top-5 left-1/2 -translate-x-1/2">
-        <div className={`relative px-3 py-1 rounded-full border text-xs font-bold shadow ${cls}`}>
-          {available} open
-          {/* pin tail */}
-          <div className="absolute left-1/2 -bottom-1 w-2 h-2 bg-inherit border-inherit border rotate-45 -translate-x-1/2" />
-        </div>
-      </div>
-    );
-  };
-
-  // Helpers to render building outlines
-  const getStrokeClass = (borderClass) => borderClass.replace('border-', 'stroke-');
-  const pickVariant = (name) => {
-    const variants = ['house', 'warehouse', 'notched', 'u', 'long'];
-    const hash = (name || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-    return variants[hash % variants.length];
-  };
-
-  const BuildingOutline = ({ variant, strokeClass }) => {
-    const common = {
-      fill: 'none',
-      vectorEffect: 'non-scaling-stroke'
-    };
-    switch (variant) {
-      case 'warehouse':
-        // Gable roof rectangle
-        return (
-          <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <polyline {...common} className={cn(strokeClass, 'stroke-2')} points="5,35 50,12 95,35" />
-            <rect {...common} className={cn(strokeClass, 'stroke-2')} x="5" y="35" width="90" height="60" />
-          </svg>
-        );
-      case 'notched':
-        // Rectangle with an entrance notch on top edge
-        return (
-          <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <path {...common} className={cn(strokeClass, 'stroke-2')} d="M5 35 L40 35 L50 25 L60 35 L95 35 L95 95 L5 95 Z" />
-          </svg>
-        );
-      case 'u':
-        // U-shaped footprint
-        return (
-          <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <path {...common} className={cn(strokeClass, 'stroke-2')} d="M5 35 L95 35 L95 95 L65 95 L65 60 L35 60 L35 95 L5 95 Z" />
-          </svg>
-        );
-      case 'long':
-        // Long hall with slight bay
-        return (
-          <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <path {...common} className={cn(strokeClass, 'stroke-2')} d="M5 45 L80 45 L95 55 L95 95 L5 95 Z" />
-          </svg>
-        );
-      case 'house':
-      default:
-        // Simple house silhouette
-        return (
-          <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <polygon {...common} className={cn(strokeClass, 'stroke-2')} points="10,30 50,8 90,30 90,95 10,95" />
-            <line {...common} className={cn(strokeClass, 'stroke-2')} x1="10" y1="30" x2="90" y2="30" />
-          </svg>
-        );
-    }
-  };
-
-  const handleKennelClick = (kennel) => {
-    setSelectedKennel(kennel);
-  };
-
-  const totalKennels = Object.values(groupedKennels).flat().length;
-  const gridSize = 40;
-
-  // Wheel zoom handler
-  const handleWheel = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const delta = e.deltaY;
-    const step = 0.05;
-    const next = delta > 0 ? Math.max(0.4, zoom - step) : Math.min(2.5, zoom + step);
-    // Zoom towards the cursor position (anchor zoom)
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (rect) {
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
-      const worldX = (mouseX - pan.x) / zoom;
-      const worldY = (mouseY - pan.y) / zoom;
-      const newPanX = mouseX - worldX * next;
-      const newPanY = mouseY - worldY * next;
-      setPan({ x: newPanX, y: newPanY });
-    }
-    setZoom(next);
-  };
-
-  // Mouse drag panning
-  const handleMouseDown = (e) => {
-    setIsPanning(true);
-    setLastPos({ x: e.clientX, y: e.clientY });
-  };
-  const handleMouseMove = (e) => {
-    if (!isPanning || isDraggingBuilding) return;
-    const dx = e.clientX - lastPos.x;
-    const dy = e.clientY - lastPos.y;
-    setPan((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
-    setLastPos({ x: e.clientX, y: e.clientY });
-  };
-  const handleMouseUp = () => setIsPanning(false);
-
-  const openAreaDetails = (name) => {
-    const stats = getBuildingStats(name);
-    const items = groupedKennels[name] || [];
-    setSelectedArea({ name, stats, items });
-  };
-
-  // Force wheel listener to be non-passive to fully block page scroll when zooming
+  // Convert to array of aggregated facilities
+  const aggregatedFacilities = Object.values(groupedKennels);
+  
+  // Load saved positions from localStorage
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const blockScroll = (e) => {
-      e.preventDefault();
-    };
-    el.addEventListener('wheel', blockScroll, { passive: false });
-    el.addEventListener('touchmove', blockScroll, { passive: false });
-    const captureBlock = (e) => {
-      if (containerRef.current && containerRef.current.contains(e.target)) {
-        e.preventDefault();
+    try {
+      const saved = localStorage.getItem('facility-positions');
+      if (saved) {
+        setFacilityPositions(JSON.parse(saved));
+      } else {
+        // Initialize with default grid positions
+        const defaultPositions = {};
+        aggregatedFacilities.forEach((facility, index) => {
+          const row = Math.floor(index / 3);
+          const col = index % 3;
+          defaultPositions[facility.name] = {
+            x: col * 320 + 50,
+            y: row * 250 + 50
+          };
+        });
+        setFacilityPositions(defaultPositions);
       }
-    };
-    window.addEventListener('wheel', captureBlock, { passive: false, capture: true });
-    window.addEventListener('touchmove', captureBlock, { passive: false, capture: true });
-    return () => {
-      el.removeEventListener('wheel', blockScroll, { passive: false });
-      el.removeEventListener('touchmove', blockScroll, { passive: false });
-      window.removeEventListener('wheel', captureBlock, { passive: false, capture: true });
-      window.removeEventListener('touchmove', captureBlock, { passive: false, capture: true });
-    };
-  }, []);
-
-  // Initialize layout from localStorage or grid defaults
-  useEffect(() => {
-    const key = 'bb.facilityLayout.v1';
-    const saved = localStorage.getItem(key);
-    if (saved) {
-      try { setLayout(JSON.parse(saved) || {}); } catch {}
+    } catch (error) {
+      console.error('Failed to load facility positions:', error);
     }
-  }, []);
-
-  useEffect(() => {
-    const key = 'bb.facilityLayout.v1';
-    localStorage.setItem(key, JSON.stringify(layout));
-  }, [layout]);
+  }, [aggregatedFacilities.length]);
+  
+  // Save positions to localStorage
+  const savePositions = (positions) => {
+    try {
+      localStorage.setItem('facility-positions', JSON.stringify(positions));
+    } catch (error) {
+      console.error('Failed to save facility positions:', error);
+    }
+  };
+  
+  const handlePositionChange = (facilityName, newPosition) => {
+    const newPositions = {
+      ...facilityPositions,
+      [facilityName]: newPosition
+    };
+    setFacilityPositions(newPositions);
+    savePositions(newPositions);
+  };
+  
+  const handleFacilityClick = (facility) => {
+    setSelectedFacility(facility);
+  };
+  
+  const handleCloseModal = () => {
+    setSelectedFacility(null);
+  };
+  
+  const handleBook = () => {
+    alert('Booking functionality coming soon!');
+    setSelectedFacility(null);
+  };
+  
+  const handleResetView = (resetTransform) => {
+    resetTransform();
+  };
+  
+  const handleResetLayout = () => {
+    // Reset to default grid positions
+    const defaultPositions = {};
+    aggregatedFacilities.forEach((facility, index) => {
+      const row = Math.floor(index / 3);
+      const col = index % 3;
+      defaultPositions[facility.name] = {
+        x: col * 320 + 50,
+        y: row * 250 + 50
+      };
+    });
+    setFacilityPositions(defaultPositions);
+    savePositions(defaultPositions);
+  };
 
   return (
-    <div className="space-y-4">
-      {/* Debug Info */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm">
-        <p>Debug: {totalKennels} kennels loaded, {Object.keys(groupedKennels).length} building groups</p>
-      </div>
-
-      {/* Map Controls */}
-      <div className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-4">
-        <div className="flex items-center gap-2">
-          <MapPin className="w-5 h-5 text-blue-600" />
-          <h3 className="font-semibold text-gray-900">Facility Map View</h3>
-          <Badge variant="info" className="ml-2">Live</Badge>
+    <div className="relative w-full h-screen bg-gray-50">
+      {/* Canvas Controls */}
+      <TransformWrapper
+        initialScale={1}
+        minScale={0.5}
+        maxScale={2}
+        centerOnInit={false}
+        wheel={{ step: 0.1 }}
+        panning={{ disabled: isPanDisabled }}
+        onTransformed={(ref) => {
+          setCurrentScale(ref.state.scale);
+        }}
+      >
+        {({ zoomIn, zoomOut, resetTransform, state }) => (
+          <>
+            {/* Control Panel */}
+            <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => zoomIn()}
+                className="bg-white shadow-lg"
+                title="Zoom In"
+              >
+                <ZoomIn className="h-4 w-4" />
+              </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+                onClick={() => zoomOut()}
+                className="bg-white shadow-lg"
+                title="Zoom Out"
+          >
+                <ZoomOut className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+                onClick={() => handleResetView(resetTransform)}
+                className="bg-white shadow-lg"
+                title="Reset View"
+          >
+                <Maximize2 className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+                onClick={handleResetLayout}
+                className="bg-white shadow-lg"
+                title="Reset Layout"
+          >
+                <RotateCcw className="h-4 w-4" />
+          </Button>
         </div>
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
-            disabled={zoom <= 0.5}
-          >
-            <ZoomOut className="w-4 h-4" />
-          </Button>
-          <span className="text-sm text-gray-600 w-12 text-center">{Math.round(zoom * 100)}%</span>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => setZoom(Math.min(2, zoom + 0.1))}
-            disabled={zoom >= 2}
-          >
-            <ZoomIn className="w-4 h-4" />
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => setZoom(1)}
-          >
-            <Maximize2 className="w-4 h-4" />
-          </Button>
-        </div>
+            
+            {/* Instructions */}
+            <div className="absolute top-4 left-4 z-10 bg-white p-3 rounded-lg shadow-lg max-w-xs">
+              <p className="text-xs text-gray-600 mb-1">
+                <strong>Pan:</strong> Click and drag background
+              </p>
+              <p className="text-xs text-gray-600 mb-1">
+                <strong>Zoom:</strong> Scroll or use buttons
+              </p>
+              <p className="text-xs text-gray-600">
+                <strong>Move Facilities:</strong> Drag facility cards
+              </p>
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-4 bg-white border border-gray-200 rounded-lg p-4 text-sm">
-        <span className="font-medium text-gray-700">Status:</span>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded-full bg-green-500"></div>
-          <span className="text-gray-600">Available (&lt;50%)</span>
+            <div className="absolute bottom-4 left-4 z-10 bg-white p-3 rounded-lg shadow-lg">
+              <p className="text-xs font-semibold text-gray-700 mb-2">Status:</p>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded border-2 border-green-500 bg-green-50"></div>
+                  <span className="text-xs text-gray-600">Available (&lt;50%)</span>
         </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-          <span className="text-gray-600">Moderate (50-80%)</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded border-2 border-yellow-500 bg-yellow-50"></div>
+                  <span className="text-xs text-gray-600">Moderate (50-80%)</span>
         </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded-full bg-orange-500"></div>
-          <span className="text-gray-600">High (80-95%)</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded border-2 border-red-500 bg-red-50"></div>
+                  <span className="text-xs text-gray-600">High (80-95%)</span>
         </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded-full bg-red-500"></div>
-          <span className="text-gray-600">Critical (95-100%)</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-3 h-3 rounded-full bg-gray-400"></div>
-          <span className="text-gray-600">Full</span>
-        </div>
-      </div>
-
-      {/* Map Canvas */}
-      <div
-        className="bg-white border border-gray-200 rounded-lg overflow-hidden"
-        onWheel={handleWheel}
-        style={{ overscrollBehavior: 'contain' }}
-        ref={containerRef}
-      >
-        <div
-          className={cn(
-            'relative select-none',
-            isPanning ? 'cursor-grabbing' : 'cursor-grab'
-          )}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          style={{
-            width: '100%',
-            height: 'calc(100vh - 220px)',
-            backgroundColor: '#ffffff',
-            backgroundImage:
-              'linear-gradient(to right, #eef2ff 1px, transparent 1px), linear-gradient(to bottom, #eef2ff 1px, transparent 1px)',
-            backgroundSize: `${gridSize}px ${gridSize}px`,
-            backgroundPosition: `${pan.x % gridSize}px ${pan.y % gridSize}px`
-          }}
-        >
-          {/* Pannable + Zoomable world */}
-          <div
-            className="absolute"
-            style={{
-              left: pan.x,
-              top: pan.y,
-              transform: `scale(${zoom})`,
-              transformOrigin: 'top left',
-              width: '2000px',
-              height: '1400px'
-            }}
-          >
-            {/* Dynamic Building Blocks - auto layout */}
-            {(() => {
-              const defaultOrder = [
-                'Suites Wing',
-                'Standard Kennels',
-                'Daycare',
-                'Training',
-                'Grooming',
-                'Outdoor Runs',
-                'Isolation Ward'
-              ];
-              const buildingNames = Array.from(
-                new Set([ ...defaultOrder, ...Object.keys(groupedKennels) ])
-              );
-
-              const cols = 3;
-              const gap = 80;
-              const originX = 80;
-              const originY = 60;
-              const colWidth = (2000 - originX * 2 - gap * (cols - 1)) / cols;
-              const rowHeight = 300;
-
-              return buildingNames.map((name, i) => {
-                const stats = getBuildingStats(name);
-                // Size scales with capacity (bounded)
-                const baseW = Math.max(220, Math.min(colWidth, 160 + stats.capacity * 8));
-                const baseH = Math.max(120, Math.min(rowHeight, 100 + stats.capacity * 6));
-
-              const col = i % cols;
-              const row = Math.floor(i / cols);
-              const defaultX = originX + col * (colWidth + gap) + (colWidth - baseW) / 2;
-              const defaultY = originY + row * (rowHeight + gap);
-              const x = layout[name]?.x ?? defaultX;
-              const y = layout[name]?.y ?? defaultY;
-
-                const rate = stats.capacity > 0 ? stats.occupied / stats.capacity : 0;
-                const border = rate >= 0.95 ? 'border-red-500' : rate >= 0.8 ? 'border-orange-500' : rate >= 0.5 ? 'border-yellow-500' : 'border-green-500';
-
-                const onDragStart = (e) => {
-                  if (!editable) return;
-                  e.stopPropagation();
-                  setIsDraggingBuilding(true);
-                  dragRef.current = { name, lastClientX: e.clientX, lastClientY: e.clientY };
-                };
-                const onDragMove = (e) => {
-                  if (!editable) return;
-                  e.stopPropagation();
-                  if (dragRef.current.name !== name) return;
-                  const dx = e.clientX - dragRef.current.lastClientX;
-                  const dy = e.clientY - dragRef.current.lastClientY;
-                  dragRef.current.lastClientX = e.clientX;
-                  dragRef.current.lastClientY = e.clientY;
-                  setLayout((prev) => ({
-                    ...prev,
-                    [name]: { x: (prev[name]?.x ?? x) + dx, y: (prev[name]?.y ?? y) + dy }
-                  }));
-                };
-                const onDragEnd = (e) => {
-                  if (editable) e.stopPropagation();
-                  dragRef.current = { name: null, lastClientX: 0, lastClientY: 0 };
-                  setIsDraggingBuilding(false);
-                };
-
-                return (
-                  <div
-                    key={name}
-                    className={cn('absolute', editable ? 'cursor-move' : '')}
-                    style={{ left: x, top: y, width: baseW, height: baseH }}
-                    onMouseDown={onDragStart}
-                    onMouseMove={onDragMove}
-                    onMouseUp={onDragEnd}
-                    onMouseLeave={onDragEnd}
-                  >
-                    {/* Availability pin (clickable) */}
-                    <button
-                      type="button"
-                      onClick={() => openAreaDetails(name)}
-                      className="absolute -top-6 left-1/2 -translate-x-1/2 z-10"
-                    >
-                      {occupancyBadge(stats.capacity, stats.occupied)}
-                    </button>
-                    <div className={cn('relative w-full h-full rounded-md shadow-sm border-2 bg-transparent', border)}>
-                      <div className="absolute left-3 top-2 text-gray-700 font-semibold uppercase tracking-wide text-sm">{name}</div>
-                    </div>
-                  </div>
-                );
-              });
-            })()}
-
-            {/* Empty State */}
-            {(kennels || []).length === 0 && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center text-gray-400">
-                  <MapPin className="w-16 h-16 mx-auto mb-4" />
-                  <p className="text-lg font-medium">No kennels configured</p>
-                  <p className="text-sm">Add kennels in settings to see them on the map</p>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded border-2 border-gray-400 bg-gray-50"></div>
+                  <span className="text-xs text-gray-600">Full (95-100%)</span>
                 </div>
               </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Kennel Details Panel */}
-      <SlidePanel
-        open={Boolean(selectedArea)}
-        onClose={() => setSelectedArea(null)}
-        title={selectedArea?.name || 'Area Details'}
-        width="w-full md:w-96"
-      >
-        {selectedArea && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Capacity</p>
-                <p className="text-lg font-semibold text-gray-900">{selectedArea.stats.capacity}</p>
-              </div>
-              <div className="bg-purple-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Occupied</p>
-                <p className="text-lg font-semibold text-gray-900">{selectedArea.stats.occupied}</p>
-              </div>
-            </div>
-            <div className="bg-green-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-600 mb-1">Available</p>
-              <p className="text-2xl font-bold text-gray-900">{Math.max(0, (selectedArea.stats.capacity || 0) - (selectedArea.stats.occupied || 0))}</p>
-            </div>
-            {selectedArea.items?.length > 0 && (
-              <div className="border-t border-gray-200 pt-4">
-                <h4 className="font-medium text-gray-900 mb-2">Items in this area</h4>
-                <ul className="list-disc pl-5 text-sm text-gray-700 space-y-1 max-h-60 overflow-auto">
-                  {selectedArea.items.slice(0, 20).map((k) => (
-                    <li key={k.recordId || k.name}>{k.name} — cap {k.capacity || 0}</li>
-                  ))}
-                  {selectedArea.items.length > 20 && (
-                    <li className="text-gray-500">and {selectedArea.items.length - 20} more…</li>
-                  )}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-      </SlidePanel>
-      <SlidePanel
-        open={Boolean(selectedKennel)}
-        onClose={() => setSelectedKennel(null)}
-        title={selectedKennel?.name || 'Kennel Details'}
-        width="w-full md:w-96"
-      >
-        {selectedKennel && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Type</p>
-                <p className="text-lg font-semibold text-gray-900 capitalize">{selectedKennel.type || 'Unknown'}</p>
-              </div>
-              <div className="bg-purple-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Capacity</p>
-                <p className="text-lg font-semibold text-gray-900">{selectedKennel.capacity || 0}</p>
-              </div>
             </div>
 
-            <div className="bg-green-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-600 mb-1">Current Status</p>
-              <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold text-gray-900">
-                  {selectedKennel.occupied || 0}/{selectedKennel.capacity || 0}
-                </p>
-                <Badge variant={(selectedKennel.occupied || 0) >= (selectedKennel.capacity || 0) ? 'danger' : 'success'}>
-                  {(selectedKennel.occupied || 0) >= (selectedKennel.capacity || 0) ? 'Full' : `${(selectedKennel.capacity || 0) - (selectedKennel.occupied || 0)} Available`}
-                </Badge>
-              </div>
-            </div>
-
-            {selectedKennel.location && (
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Location</p>
-                <p className="text-gray-900">{selectedKennel.location}</p>
-              </div>
-            )}
-
-            {selectedKennel.building && (
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600 mb-1">Building</p>
-                <p className="text-gray-900">{selectedKennel.building}</p>
-              </div>
-            )}
-
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-600 mb-2">Occupancy Rate</p>
-              <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden">
-                <div
-                  className={cn(
-                    'h-full transition-all',
-                    (() => {
-                      const rate = (selectedKennel.capacity || 0) > 0 ? 
-                        ((selectedKennel.occupied || 0) / (selectedKennel.capacity || 1)) * 100 : 0;
-                      if (rate >= 100) return 'bg-gray-500';
-                      if (rate >= 95) return 'bg-red-500';
-                      if (rate >= 80) return 'bg-orange-500';
-                      if (rate >= 50) return 'bg-yellow-500';
-                      return 'bg-green-500';
-                    })()
-                  )}
-                  style={{ width: `${(selectedKennel.capacity || 0) > 0 ? ((selectedKennel.occupied || 0) / (selectedKennel.capacity || 1)) * 100 : 0}%` }}
+            {/* Interactive Canvas */}
+            <TransformComponent
+              wrapperClass="w-full h-full"
+              contentClass="w-full h-full"
+            >
+              <div className="relative w-[3000px] h-[2000px] bg-white">
+                {/* Grid Background */}
+                <div 
+                  className="absolute inset-0"
+                  style={{
+                    backgroundImage: 'radial-gradient(circle, #e5e7eb 1px, transparent 1px)',
+                    backgroundSize: '40px 40px'
+                  }}
                 />
+                
+                {/* Facility Cards */}
+                {aggregatedFacilities.map((facility) => (
+                  <DraggableFacilityCard
+                    key={facility.name}
+                    facility={facility}
+                    position={facilityPositions[facility.name] || { x: 0, y: 0 }}
+                    onPositionChange={(newPosition) => handlePositionChange(facility.name, newPosition)}
+                    onClick={handleFacilityClick}
+                    scale={state?.scale || currentScale || 1}
+                    isPanDisabled={isPanDisabled}
+                    setIsPanDisabled={setIsPanDisabled}
+                  />
+                ))}
               </div>
-              <p className="text-right text-sm font-medium text-gray-700 mt-1">
-                {((selectedKennel.capacity || 0) > 0 ? ((selectedKennel.occupied || 0) / (selectedKennel.capacity || 1)) * 100 : 0).toFixed(0)}%
-              </p>
-            </div>
-
-            {(selectedKennel.occupied || 0) > 0 && (
-              <div className="border-t border-gray-200 pt-4">
-                <h4 className="font-medium text-gray-900 mb-2">Current Guests</h4>
-                <p className="text-sm text-gray-600">
-                  {selectedKennel.occupied || 0} pet{(selectedKennel.occupied || 0) !== 1 ? 's' : ''} currently housed
-                </p>
-                {/* TODO: Show actual pet names when integrated with booking data */}
-              </div>
-            )}
-          </div>
+            </TransformComponent>
+          </>
         )}
-      </SlidePanel>
+      </TransformWrapper>
+      
+      {/* Facility Details Modal */}
+      {selectedFacility && (
+        <FacilityDetailsModal
+          facility={selectedFacility}
+          pets={[]} // TODO: Fetch pets for this facility
+          onClose={handleCloseModal}
+          onBook={handleBook}
+        />
+      )}
     </div>
   );
 };
 
 export default FacilityMapView;
-
