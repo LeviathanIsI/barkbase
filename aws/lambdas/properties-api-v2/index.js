@@ -16,6 +16,16 @@ exports.handler = async (event) => {
   const { httpMethod: method, path } = event.requestContext.http;
   const pathParams = event.pathParameters || {};
   const queryParams = event.queryStringParameters || {};
+  
+  // Handle OPTIONS for CORS
+  if (method === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers: getResponseHeaders(2),
+      body: '',
+    };
+  }
+  
   const body = event.body ? JSON.parse(event.body) : {};
 
   // Extract tenant context
@@ -33,8 +43,10 @@ exports.handler = async (event) => {
   const userId = claims['sub'] || null;
 
   try {
+    console.log(`Routing: ${method} ${path}`);
+    
     // Route: GET /api/v2/properties
-    if (method === 'GET' && path.endsWith('/properties')) {
+    if (method === 'GET' && (path === '/api/v2/properties' || path.endsWith('/properties'))) {
       return await listProperties(tenantId, queryParams);
     }
 
@@ -431,11 +443,14 @@ async function updateProperty(tenantId, userId, propertyId, data) {
 }
 
 /**
- * Get response headers with API version
+ * Get response headers with API version and CORS
  */
 function getResponseHeaders(version) {
   return {
     'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Tenant-Id',
     'X-API-Version': `v${version}`,
     'X-Property-Schema-Version': '2',
   };
