@@ -5,10 +5,21 @@ import EmptyStateOnboarding from './components/EmptyStateOnboarding';
 import PropertyTemplatesModal from './components/PropertyTemplatesModal';
 import EnhancedCreatePropertyModal from './components/EnhancedCreatePropertyModal';
 import PopulatedPropertiesView from './components/PopulatedPropertiesView';
+import EnterprisePropertiesTable from '../components/EnterprisePropertiesTable';
+import DependencyGraphViewer from '../components/DependencyGraphViewer';
+import ImpactAnalysisModal from '../components/ImpactAnalysisModal';
+import PropertyDeletionWizard from '../components/PropertyDeletionWizard';
 import ConditionalLogicTab from './components/ConditionalLogicTab';
 import GroupsTab from './components/GroupsTab';
 import ArchivedTab from './components/ArchivedTab';
-import { usePropertiesQuery } from '../api';
+import { 
+  usePropertiesQuery, 
+  usePropertiesV2Query, 
+  useArchivePropertyMutation, 
+  useRestorePropertyMutation,
+  useDependencyGraphQuery,
+  useImpactAnalysisMutation,
+} from '../api';
 
 const OBJECT_TYPES = [
   { recordId: 'pets', label: 'Pet properties' },
@@ -74,10 +85,36 @@ const PropertiesOverview = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingProperty, setEditingProperty] = useState(null);
   const [selectedProperties, setSelectedProperties] = useState([]);
+  const [selectedPropertyForGraph, setSelectedPropertyForGraph] = useState(null);
+  const [propertyForDeletion, setPropertyForDeletion] = useState(null);
+  const [impactAnalysisData, setImpactAnalysisData] = useState(null);
+  const [showImpactModal, setShowImpactModal] = useState(false);
+  const [useEnterpriseView, setUseEnterpriseView] = useState(true);
 
-  // Real API data
-  const { data: propertiesData, isLoading: propertiesLoading } = usePropertiesQuery(selectedObject);
-  const { data: archivedData } = usePropertiesQuery(selectedObject, { queryParams: { onlyArchived: true } });
+  // API data - use v2 for enterprise view, v1 for backward compatibility
+  const { data: propertiesDataV2, isLoading: propertiesLoadingV2 } = usePropertiesV2Query(
+    selectedObject, 
+    { enabled: useEnterpriseView, includeUsage: true, includeDependencies: false }
+  );
+  const { data: propertiesDataV1, isLoading: propertiesLoadingV1 } = usePropertiesQuery(
+    selectedObject,
+    { enabled: !useEnterpriseView }
+  );
+  const { data: archivedData } = usePropertiesV2Query(selectedObject, { includeArchived: true, enabled: selectedTab === 'archived' });
+  
+  // Mutations
+  const archiveMutation = useArchivePropertyMutation();
+  const restoreMutation = useRestorePropertyMutation();
+  const impactMutation = useImpactAnalysisMutation();
+  
+  // Dependency graph query (only when property selected)
+  const { data: dependencyGraph } = useDependencyGraphQuery(selectedPropertyForGraph?.propertyId, {
+    enabled: !!selectedPropertyForGraph,
+  });
+
+  // Use appropriate data based on view mode
+  const propertiesData = useEnterpriseView ? propertiesDataV2?.properties : propertiesDataV1;
+  const propertiesLoading = useEnterpriseView ? propertiesLoadingV2 : propertiesLoadingV1;
 
   // Set document title
   useEffect(() => {
@@ -103,7 +140,7 @@ const PropertiesOverview = () => {
     }
 
     const allProperties = propertiesData || [];
-    const groups = [...new Set(allProperties.map((p) => p.group || 'General'))].sort();
+    const groups = [...new Set(allProperties.map((p) => p.propertyGroup || p.group || 'General'))].sort();
 
     // Apply filters
     let filtered = allProperties;
@@ -113,7 +150,9 @@ const PropertiesOverview = () => {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (prop) =>
+          prop.displayLabel?.toLowerCase().includes(query) ||
           prop.label?.toLowerCase().includes(query) ||
+          prop.propertyName?.toLowerCase().includes(query) ||
           prop.name?.toLowerCase().includes(query) ||
           prop.description?.toLowerCase().includes(query)
       );
@@ -121,12 +160,12 @@ const PropertiesOverview = () => {
 
     // Group filter
     if (selectedGroup !== 'all') {
-      filtered = filtered.filter((prop) => (prop.group || 'General') === selectedGroup);
+      filtered = filtered.filter((prop) => (prop.propertyGroup || prop.group || 'General') === selectedGroup);
     }
 
-    // Type filter
+    // Type filter (data type for v2, type for v1)
     if (selectedType !== 'all') {
-      filtered = filtered.filter((prop) => prop.type === selectedType);
+      filtered = filtered.filter((prop) => prop.dataType === selectedType || prop.type === selectedType);
     }
 
     // Access level filter
@@ -293,25 +332,78 @@ const PropertiesOverview = () => {
             </div>
           </div>
 
-          {/* Properties Table */}
-          <PopulatedPropertiesView
-            properties={filteredProperties}
-            selectedProperties={selectedProperties}
-            onSelectProperty={(propertyId) => {
-              setSelectedProperties(prev =>
-                prev.includes(propertyId)
-                  ? prev.filter(id => id !== propertyId)
-                  : [...prev, propertyId]
-              );
-            }}
-            onSelectAll={(selected) => {
-              setSelectedProperties(selected ? filteredProperties.filter(p => !p.isSystem).map(p => p.recordId) : []);
-            }}
-            onEditProperty={(property) => {
-              setEditingProperty(property);
-              setIsCreateModalOpen(true);
-            }}
-          />
+          {/* Properties Table - Enterprise View Toggle */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-sm text-gray-600">
+              {filteredProperties.length} properties
+            </div>
+            <label className="flex items-center space-x-2 text-sm">
+              <input
+                type="checkbox"
+                checked={useEnterpriseView}
+                onChange={(e) => setUseEnterpriseView(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              <span>Use enterprise view (v2)</span>
+            </label>
+          </div>
+
+          {/* Render appropriate table based on view mode */}
+          {useEnterpriseView ? (
+            <EnterprisePropertiesTable
+              properties={filteredProperties}
+              onEditProperty={(property) => {
+                setEditingProperty(property);
+                setIsCreateModalOpen(true);
+              }}
+              onDeleteProperty={async (property) => {
+                // Run impact analysis first
+                const impact = await impactMutation.mutateAsync({
+                  propertyId: property.propertyId,
+                  modificationType: 'delete',
+                });
+                setImpactAnalysisData(impact);
+                setPropertyForDeletion(property);
+                setShowImpactModal(true);
+              }}
+              onViewDependencies={(property) => {
+                setSelectedPropertyForGraph(property);
+              }}
+              onViewUsage={(property) => {
+                alert(`Usage details for ${property.displayLabel}\n\nWorkflows: ${property.usage?.usedInWorkflows || 0}\nForms: ${property.usage?.usedInForms || 0}\nReports: ${property.usage?.usedInReports || 0}`);
+              }}
+              selectedProperties={selectedProperties}
+              onSelectProperty={(propertyId) => {
+                setSelectedProperties(prev =>
+                  prev.includes(propertyId)
+                    ? prev.filter(id => id !== propertyId)
+                    : [...prev, propertyId]
+                );
+              }}
+              onSelectAll={(selected) => {
+                setSelectedProperties(selected ? filteredProperties.filter(p => p.propertyType === 'custom').map(p => p.propertyId) : []);
+              }}
+            />
+          ) : (
+            <PopulatedPropertiesView
+              properties={filteredProperties}
+              selectedProperties={selectedProperties}
+              onSelectProperty={(propertyId) => {
+                setSelectedProperties(prev =>
+                  prev.includes(propertyId)
+                    ? prev.filter(id => id !== propertyId)
+                    : [...prev, propertyId]
+                );
+              }}
+              onSelectAll={(selected) => {
+                setSelectedProperties(selected ? filteredProperties.filter(p => !p.isSystem).map(p => p.recordId) : []);
+              }}
+              onEditProperty={(property) => {
+                setEditingProperty(property);
+                setIsCreateModalOpen(true);
+              }}
+            />
+          )}
         </>
       )}
 
@@ -361,6 +453,74 @@ const PropertiesOverview = () => {
           console.log('Creating/updating property:', propertyData);
           setIsCreateModalOpen(false);
           setEditingProperty(null);
+        }}
+      />
+
+      {/* Dependency Graph Modal */}
+      {selectedPropertyForGraph && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">
+                  Dependency Graph: {selectedPropertyForGraph.displayLabel || selectedPropertyForGraph.label}
+                </h2>
+                <button
+                  onClick={() => setSelectedPropertyForGraph(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <span className="text-2xl">&times;</span>
+                </button>
+              </div>
+              <DependencyGraphViewer
+                propertyId={selectedPropertyForGraph.propertyId}
+                graphData={dependencyGraph}
+                onNodeClick={(node) => console.log('Clicked node:', node)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Impact Analysis Modal */}
+      <ImpactAnalysisModal
+        open={showImpactModal}
+        onClose={() => setShowImpactModal(false)}
+        impactData={impactAnalysisData}
+        modificationType="delete"
+        onProceed={() => {
+          setShowImpactModal(false);
+          // Open deletion wizard
+          // For now, just proceed with deletion
+          if (propertyForDeletion) {
+            archiveMutation.mutate({
+              propertyId: propertyForDeletion.propertyId,
+              reason: 'User-initiated deletion',
+              confirmed: true,
+            });
+          }
+        }}
+        onCancel={() => {
+          setShowImpactModal(false);
+          setPropertyForDeletion(null);
+          setImpactAnalysisData(null);
+        }}
+      />
+
+      {/* Property Deletion Wizard */}
+      <PropertyDeletionWizard
+        open={!!propertyForDeletion && !showImpactModal}
+        onClose={() => setPropertyForDeletion(null)}
+        property={propertyForDeletion}
+        impactData={impactAnalysisData}
+        onDelete={async (deleteOptions) => {
+          await archiveMutation.mutateAsync({
+            propertyId: deleteOptions.propertyId,
+            reason: deleteOptions.reason,
+            confirmed: deleteOptions.confirmed,
+            cascadeStrategy: deleteOptions.cascadeStrategy,
+          });
+          setPropertyForDeletion(null);
         }}
       />
     </div>

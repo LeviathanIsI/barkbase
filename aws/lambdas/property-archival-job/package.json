@@ -1,0 +1,19 @@
+{
+  "name": "property-archival-job",
+  "version": "1.0.0",
+  "description": "Automated job to move soft-deleted properties to archive after 90 days",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "property",
+    "archival",
+    "scheduled",
+    "lifecycle"
+  ],
+  "author": "BarkBase",
+  "license": "ISC",
+  "dependencies": {}
+}
+

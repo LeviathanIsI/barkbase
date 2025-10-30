@@ -1,0 +1,20 @@
+{
+  "name": "property-dependency-service",
+  "version": "1.0.0",
+  "description": "Property dependency discovery, graph building, and impact analysis service",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "property",
+    "dependency",
+    "graph",
+    "impact-analysis",
+    "cascade"
+  ],
+  "author": "BarkBase",
+  "license": "ISC",
+  "dependencies": {}
+}
+

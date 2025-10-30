@@ -5,7 +5,7 @@ import { useTenantStore } from '@/stores/tenant';
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
-// Properties API
+// Properties API v1 (Legacy)
 export const usePropertiesQuery = (objectType, options = {}) => {
   const tenantKey = useTenantKey();
   return useQuery({
@@ -15,6 +15,29 @@ export const usePropertiesQuery = (objectType, options = {}) => {
       return res.data;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: !!objectType,
+    ...options,
+  });
+};
+
+// Properties API v2 (Enterprise - with rich metadata, usage stats, dependencies)
+export const usePropertiesV2Query = (objectType, options = {}) => {
+  const tenantKey = useTenantKey();
+  const { includeUsage = true, includeDependencies = false, includeArchived = false } = options;
+  
+  return useQuery({
+    queryKey: [...queryKeys.properties(tenantKey, { objectType }), 'v2', { includeUsage, includeDependencies, includeArchived }],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        objectType,
+        includeUsage: includeUsage.toString(),
+        includeDependencies: includeDependencies.toString(),
+        includeArchived: includeArchived.toString(),
+      });
+      const res = await apiClient.get(`/api/v2/properties?${params.toString()}`);
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000,
     enabled: !!objectType,
     ...options,
   });
@@ -69,6 +92,84 @@ export const useDeletePropertyMutation = () => {
         queryKey: queryKeys.properties(tenantKey, { objectType: data.objectType }) 
       });
     },
+  });
+};
+
+// Archive property (v2 - soft delete with cascade strategies)
+export const useArchivePropertyMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async ({ propertyId, reason, confirmed = true, cascadeStrategy = 'cancel' }) => {
+      const res = await apiClient.post(`/api/v2/properties/${propertyId}/archive`, {
+        reason,
+        confirmed,
+        cascadeStrategy,
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.properties(tenantKey, {}) });
+    },
+  });
+};
+
+// Restore property (v2 - from soft delete or archive)
+export const useRestorePropertyMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async (propertyId) => {
+      const res = await apiClient.post(`/api/v2/properties/${propertyId}/restore`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.properties(tenantKey, {}) });
+    },
+  });
+};
+
+// Get dependency graph for a property
+export const useDependencyGraphQuery = (propertyId, options = {}) => {
+  const tenantKey = useTenantKey();
+  
+  return useQuery({
+    queryKey: ['dependencies', tenantKey, propertyId],
+    queryFn: async () => {
+      const res = await apiClient.get(`/api/v2/properties/${propertyId}/dependencies`);
+      return res.data;
+    },
+    enabled: !!propertyId,
+    ...options,
+  });
+};
+
+// Get impact analysis for a property
+export const useImpactAnalysisMutation = () => {
+  return useMutation({
+    mutationFn: async ({ propertyId, modificationType = 'delete' }) => {
+      const res = await apiClient.post(`/api/v2/properties/${propertyId}/impact-analysis`, {
+        modificationType,
+      });
+      return res.data;
+    },
+  });
+};
+
+// Get permission profiles
+export const usePermissionProfilesQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  
+  return useQuery({
+    queryKey: ['profiles', tenantKey],
+    queryFn: async () => {
+      const res = await apiClient.get('/api/v1/profiles');
+      return res.data;
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    ...options,
   });
 };
 

@@ -1,0 +1,19 @@
+{
+  "name": "schema-version-service",
+  "version": "1.0.0",
+  "description": "Schema version management and compatibility tracking service",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "schema",
+    "version",
+    "migration",
+    "compatibility"
+  ],
+  "author": "BarkBase",
+  "license": "ISC",
+  "dependencies": {}
+}
+
