@@ -1,94 +1,106 @@
-import { cn } from "@/lib/cn";
-import { useEffect, useRef } from "react";
+/**
+ * Professional Dialog/Modal Component
+ * Clean overlay with proper accessibility
+ */
 
-const Dialog = ({ open, onOpenChange, children }) => {
-  const dialogRef = useRef(null);
+import React from 'react';
+import { X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dialogRef.current && !dialogRef.current.contains(event.target)) {
-        onOpenChange?.(false);
-      }
-    };
-
-    const handleEscape = (event) => {
-      if (event.key === "Escape") {
-        onOpenChange?.(false);
-      }
-    };
-
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("keydown", handleEscape);
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.removeEventListener("mousedown", handleClickOutside);
-        document.removeEventListener("keydown", handleEscape);
-        document.body.style.overflow = "unset";
-      };
-    }
-  }, [open, onOpenChange]);
-
+const Dialog = ({ open, onClose, children, className }) => {
   if (!open) return null;
 
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 z-50 bg-black/80" />
-
-      {/* Dialog - REMOVED max-w-lg constraint, it's now set per usage */}
-      <div className="fixed left-[50%] top-[50%] z-50 w-full translate-x-[-50%] translate-y-[-50%] p-4">
-        <div ref={dialogRef}>{children}</div>
+      <div 
+        className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm z-[1040] animate-fade-in"
+        onClick={onClose}
+      />
+      
+      {/* Dialog Container */}
+      <div className="fixed inset-0 z-[1050] overflow-y-auto">
+        <div className="flex min-h-full items-center justify-center p-4">
+          <div
+            className={cn(
+              'relative bg-white rounded-xl shadow-xl w-full max-w-lg',
+              'animate-slide-in',
+              className
+            )}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {children}
+          </div>
+        </div>
       </div>
     </>
   );
 };
 
-// THIS is where the styling happens - NO max-height, NO overflow
 const DialogContent = ({ className, children, ...props }) => (
+  <div className={cn('relative', className)} {...props}>
+    {children}
+  </div>
+);
+
+const DialogHeader = ({ className, children, ...props }) => (
   <div
-    className={cn(
-      "bg-white rounded-lg shadow-xl border border-[#E0E0E0] mx-auto",
-      className
-    )}
+    className={cn('flex flex-col space-y-1.5 px-6 py-6 border-b border-gray-200', className)}
     {...props}
   >
     {children}
   </div>
 );
 
-const DialogHeader = ({ className, ...props }) => (
-  <div className={cn("p-6 border-b border-[#E0E0E0]", className)} {...props} />
-);
-
-const DialogTitle = ({ className, ...props }) => (
-  <h2
-    className={cn("text-2xl font-semibold text-[#263238] mb-2", className)}
-    {...props}
-  />
-);
-
-const DialogDescription = ({ className, ...props }) => (
-  <p className={cn("text-sm text-[#64748B]", className)} {...props} />
-);
-
-const DialogFooter = ({ className, ...props }) => (
+const DialogFooter = ({ className, children, ...props }) => (
   <div
+    className={cn('flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200', className)}
+    {...props}
+  >
+    {children}
+  </div>
+);
+
+const DialogTitle = ({ className, children, ...props }) => (
+  <h2
+    className={cn('text-xl font-semibold text-gray-900', className)}
+    {...props}
+  >
+    {children}
+  </h2>
+);
+
+const DialogDescription = ({ className, children, ...props }) => (
+  <p
+    className={cn('text-sm text-gray-600', className)}
+    {...props}
+  >
+    {children}
+  </p>
+);
+
+const DialogClose = ({ onClose, className }) => (
+  <button
+    onClick={onClose}
     className={cn(
-      "p-6 border-t border-[#E0E0E0] flex justify-end gap-2",
+      'absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100',
+      'focus:outline-none focus:ring-2 focus:ring-primary-500',
       className
     )}
-    {...props}
-  />
+  >
+    <X className="h-5 w-5" />
+    <span className="sr-only">Close</span>
+  </button>
 );
 
 export {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
+  DialogFooter,
   DialogTitle,
+  DialogDescription,
+  DialogClose,
 };
 
 export default Dialog;
