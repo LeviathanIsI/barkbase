@@ -52,3 +52,11 @@ export const formatTime = (date) => {
 export const formatDateTime = (date) => {
   return `${formatDate(date)} at ${formatTime(date)}`;
 };
+
+/**
+ * Class name utility for conditional classes
+ * Merges Tailwind classes properly
+ */
+export function cn(...inputs) {
+  return inputs.filter(Boolean).join(' ');
+}

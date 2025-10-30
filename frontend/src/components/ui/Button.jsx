@@ -1,40 +1,68 @@
-import { forwardRef } from 'react';
-import { cn } from '@/lib/cn';
+/**
+ * Professional Button Component
+ * Based on Linear/Calendly patterns with systematic variants
+ */
 
-const variants = {
-  primary: 'bg-[#4B5DD3] text-white hover:bg-[#3A4BC2] shadow-sm hover:shadow-md transition-all',
-  secondary: 'bg-[#FF9800] text-white hover:bg-[#E68900] shadow-sm hover:shadow-md transition-all',
-  danger: 'bg-[#F44336] text-white hover:bg-[#D32F2F] shadow-sm hover:shadow-md transition-all',
-  success: 'bg-[#4CAF50] text-white hover:bg-[#388E3C] shadow-sm hover:shadow-md transition-all',
-  outline: 'bg-transparent text-[#4B5DD3] border-2 border-[#4B5DD3] hover:bg-[#4B5DD3] hover:text-white transition-all',
-  ghost: 'bg-transparent text-[#263238] hover:bg-gray-100 transition-all',
-  gradient: 'bg-gradient-to-r from-[#4B5DD3] to-[#3A4BC2] text-white hover:shadow-lg transform hover:scale-105 transition-all',
-};
+import React from 'react';
+import { cva } from 'class-variance-authority';
+import { cn } from '@/lib/utils';
 
-const sizes = {
-  sm: 'px-4 py-2 text-sm',
-  md: 'px-6 py-2.5 text-sm font-medium',
-  lg: 'px-8 py-3 text-base font-semibold',
-  icon: 'p-2.5',
-};
+const buttonVariants = cva(
+  // Base styles - Professional foundation
+  'inline-flex items-center justify-center gap-2 rounded-md font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+  {
+    variants: {
+      variant: {
+        // Primary - Brand color, high emphasis
+        primary: 'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800',
+        
+        // Secondary - Outlined, medium emphasis
+        secondary: 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 active:bg-gray-100',
+        
+        // Tertiary - Text only, low emphasis
+        tertiary: 'text-primary-600 hover:bg-primary-50 active:bg-primary-100',
+        
+        // Destructive - For delete/remove actions
+        destructive: 'bg-error-600 text-white hover:bg-error-700 active:bg-error-800',
+        
+        // Ghost - Minimal, subtle
+        ghost: 'hover:bg-gray-100 active:bg-gray-200 text-gray-700',
+        
+        // Success - For positive actions
+        success: 'bg-secondary-600 text-white hover:bg-secondary-700 active:bg-secondary-800',
+      },
+      size: {
+        sm: 'h-8 px-3 text-sm',
+        md: 'h-10 px-4 text-sm',
+        lg: 'h-12 px-6 text-base',
+        icon: 'h-10 w-10',
+      },
+    },
+    defaultVariants: {
+      variant: 'primary',
+      size: 'md',
+    },
+  }
+);
 
-const Button = forwardRef(function Button(
-  { variant = 'primary', size = 'md', className, type = 'button', ...props },
-  ref,
-) {
+const Button = React.forwardRef(({ 
+  className, 
+  variant, 
+  size, 
+  children, 
+  ...props 
+}, ref) => {
   return (
     <button
+      className={cn(buttonVariants({ variant, size, className }))}
       ref={ref}
-      type={type}
-      className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-md font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60',
-        variants[variant],
-        sizes[size],
-        className,
-      )}
       {...props}
-    />
+    >
+      {children}
+    </button>
   );
 });
+
+Button.displayName = 'Button';
 
 export default Button;
