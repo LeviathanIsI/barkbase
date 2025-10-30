@@ -294,7 +294,7 @@ export class CdkStack extends cdk.Stack {
     });
     httpApi.addRoutes({
       path: "/api/v1/pets/{id}/vaccinations/{vaccinationId}",
-      methods: [apigw.HttpMethod.PUT],
+      methods: [apigw.HttpMethod.PUT, apigw.HttpMethod.DELETE],
       integration: petsIntegration,
       authorizer: httpAuthorizer,
     });
@@ -724,6 +724,21 @@ export class CdkStack extends cdk.Stack {
     httpApi.addRoutes({ path: '/api/v1/services', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: servicesIntegration });
     httpApi.addRoutes({ path: '/api/v1/services/{serviceId}', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PUT, apigw.HttpMethod.DELETE], integration: servicesIntegration });
 
+    // Properties API (for system and custom properties management)
+    const propertiesApiFunction = new lambda.Function(this, 'PropertiesApiFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/properties-api')),
+      layers: [dbLayer],
+      environment: dbEnvironment,
+      // No VPC - connects to public database
+      timeout: cdk.Duration.seconds(30),
+    });
+    dbSecret.grantRead(propertiesApiFunction);
+    const propertiesIntegration = new HttpLambdaIntegration('PropertiesIntegration', propertiesApiFunction);
+    httpApi.addRoutes({ path: '/api/v1/properties', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: propertiesIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/properties/{propertyId}', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE], integration: propertiesIntegration, authorizer: httpAuthorizer });
+
     // Invites API
     const invitesApiFunction = new lambda.Function(this, 'InvitesApiFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
@@ -810,6 +825,12 @@ export class CdkStack extends cdk.Stack {
     });
     dbSecret.grantRead(runsApiFunction);
     const runsIntegration = new HttpLambdaIntegration('RunsIntegration', runsApiFunction);
+    // Run template endpoints
+    httpApi.addRoutes({ path: '/api/v1/run-templates', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: runsIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/run-templates/{id}', methods: [apigw.HttpMethod.PUT, apigw.HttpMethod.DELETE], integration: runsIntegration, authorizer: httpAuthorizer });
+    // Run endpoints
+    httpApi.addRoutes({ path: '/api/v1/runs/{runId}/available-slots', methods: [apigw.HttpMethod.GET], integration: runsIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/runs/assignments', methods: [apigw.HttpMethod.GET], integration: runsIntegration, authorizer: httpAuthorizer });
     httpApi.addRoutes({ path: '/api/v1/runs', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: runsIntegration, authorizer: httpAuthorizer });
     httpApi.addRoutes({ path: '/api/v1/runs/{runId}', methods: [apigw.HttpMethod.PUT], integration: runsIntegration, authorizer: httpAuthorizer });
 

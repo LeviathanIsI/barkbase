@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Home, BarChart3, MapPin, Star, FileText, Settings } from 'lucide-react';
+import { Home, BarChart3, MapPin, Star, FileText, Settings, Play } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -10,6 +10,7 @@ import LocationsTab from './tabs/LocationsTab';
 import AmenitiesTab from './tabs/AmenitiesTab';
 import RulesTab from './tabs/RulesTab';
 import SetupTab from './tabs/SetupTab';
+import RunTemplatesTab from './tabs/RunTemplatesTab';
 import { useUpdateFacilitySettingsMutation } from '@/features/facilities/api';
 
 const TABS = [
@@ -17,6 +18,7 @@ const TABS = [
   { id: 'capacity', label: 'Capacity', icon: BarChart3 },
   { id: 'locations', label: 'Locations', icon: MapPin },
   { id: 'amenities', label: 'Amenities', icon: Star },
+  { id: 'run-templates', label: 'Run Templates', icon: Play },
   { id: 'rules', label: 'Rules', icon: FileText },
   { id: 'setup', label: 'Setup', icon: Settings },
 ];
@@ -50,6 +52,8 @@ export default function FacilitySettings() {
         return <LocationsTab />;
       case 'amenities':
         return <AmenitiesTab />;
+      case 'run-templates':
+        return <RunTemplatesTab />;
       case 'rules':
         return <RulesTab />;
       case 'setup':

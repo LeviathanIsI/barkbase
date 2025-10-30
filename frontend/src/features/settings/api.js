@@ -5,16 +5,70 @@ import { useTenantStore } from '@/stores/tenant';
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
-// Properties API (Assuming this is a generic settings table)
-// TODO: A 'properties' table does not exist in the schema. This will need a new table & Lambda.
-const disabledQuery = () => Promise.resolve(null);
-
+// Properties API
 export const usePropertiesQuery = (objectType, options = {}) => {
   const tenantKey = useTenantKey();
   return useQuery({
     queryKey: queryKeys.properties(tenantKey, { objectType }),
-    queryFn: disabledQuery, // implement GET /api/v1/settings/properties?objectType=...
-    enabled: false,
+    queryFn: async () => {
+      const res = await apiClient.get(`/api/v1/properties?objectType=${objectType}`);
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: !!objectType,
+    ...options,
+  });
+};
+
+export const useCreatePropertyMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async (propertyData) => {
+      const res = await apiClient.post('/api/v1/properties', propertyData);
+      return res.data;
+    },
+    onSuccess: (data) => {
+      // Invalidate the properties list for this object type
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.properties(tenantKey, { objectType: data.objectType }) 
+      });
+    },
+  });
+};
+
+export const useUpdatePropertyMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async ({ propertyId, ...propertyData }) => {
+      const res = await apiClient.patch(`/api/v1/properties/${propertyId}`, propertyData);
+      return res.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.properties(tenantKey, { objectType: data.objectType }) 
+      });
+    },
+  });
+};
+
+export const useDeletePropertyMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async ({ propertyId, objectType }) => {
+      await apiClient.delete(`/api/v1/properties/${propertyId}`);
+      return { propertyId, objectType };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.properties(tenantKey, { objectType: data.objectType }) 
+      });
+    },
   });
 };
 

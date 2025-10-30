@@ -80,21 +80,20 @@ export const useDeleteRunMutation = () => {
 };
 
 /**
- * Assign pets to a run
- * TODO: This requires a dedicated Lambda for complex assignment logic
+ * Assign pets to a run with time slots
+ * assignedPets is an array of {petId, startTime, endTime} objects
  */
 export const useAssignPetsToRunMutation = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
 
   return useMutation({
-    mutationFn: async ({ runId, petIds, date }) => {
-      const res = await apiClient.post(`/api/v1/runs/${runId}/assign`, { petIds, date });
+    mutationFn: async ({ runId, assignedPets, date }) => {
+      const res = await apiClient.put(`/api/v1/runs/${runId}`, { assignedPets });
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.runs(tenantKey, {}) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.bookings(tenantKey, {}) });
+      // Don't invalidate - let the parent component handle refetch after all saves
     }
   });
 };

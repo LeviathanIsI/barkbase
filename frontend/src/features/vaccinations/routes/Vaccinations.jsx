@@ -1,16 +1,40 @@
 import { useMemo, useState } from 'react';
-import { Shield, RefreshCw, Search, AlertTriangle, Calendar } from 'lucide-react';
+import { Shield, RefreshCw, Search, AlertTriangle, Calendar, Trash2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card, PageHeader } from '@/components/ui/Card';
 import Skeleton from '@/components/ui/Skeleton';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useExpiringVaccinationsQuery } from '@/features/pets/api-vaccinations';
+import apiClient from '@/lib/apiClient';
+import toast from 'react-hot-toast';
+import { useQueryClient } from '@tanstack/react-query';
 
 const Vaccinations = () => {
   const [daysAhead, setDaysAhead] = useState('90');
   const [search, setSearch] = useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [vaccinationToDelete, setVaccinationToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const queryClient = useQueryClient();
 
   const effectiveDaysAhead = daysAhead === 'ALL' ? 36500 : Number(daysAhead);
   const { data, isLoading, refetch, isFetching } = useExpiringVaccinationsQuery(effectiveDaysAhead);
+
+  // Helper to detect if a vaccine is appropriate for the pet's species
+  const isVaccineAppropriate = (vaccine, species) => {
+    const dogOnlyVaccines = ['DAPP', 'DHPP', 'Bordetella', 'Leptospirosis', 'Influenza'];
+    const catOnlyVaccines = ['FVRCP', 'FeLV'];
+    
+    const normalizedType = vaccine?.toLowerCase();
+    const normalizedSpecies = species?.toLowerCase();
+    
+    if (normalizedSpecies === 'dog') {
+      return !catOnlyVaccines.some(v => v.toLowerCase() === normalizedType);
+    } else if (normalizedSpecies === 'cat') {
+      return !dogOnlyVaccines.some(v => v.toLowerCase() === normalizedType);
+    }
+    return true; // For unknown species, don't show warning
+  };
 
   const records = useMemo(() => {
     const list = Array.isArray(data) ? data : [];
@@ -21,6 +45,36 @@ const Vaccinations = () => {
       (v.type || '').toLowerCase().includes(q)
     );
   }, [data, search]);
+
+  const handleDeleteClick = (vaccination) => {
+    setVaccinationToDelete(vaccination);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!vaccinationToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      await apiClient.delete(`/api/v1/pets/${vaccinationToDelete.petId}/vaccinations/${vaccinationToDelete.recordId}`);
+      toast.success('Vaccination deleted successfully');
+      // Invalidate and refetch the list
+      queryClient.invalidateQueries({ queryKey: ['vaccinations', 'expiring'] });
+      refetch();
+      setDeleteDialogOpen(false);
+      setVaccinationToDelete(null);
+    } catch (error) {
+      console.error('Failed to delete vaccination:', error);
+      toast.error(error?.message || 'Failed to delete vaccination');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteDialogOpen(false);
+    setVaccinationToDelete(null);
+  };
 
   return (
     <div className="space-y-6">
@@ -96,6 +150,16 @@ const Vaccinations = () => {
                     <div className="flex items-center gap-3">
                       <a href={`/pets/${v.petId}`} className="font-semibold text-gray-900 hover:underline">{v.petName || 'Unknown Pet'}</a>
                       <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700">{v.type || 'Vaccine'}</span>
+                      {!isVaccineAppropriate(v.type, v.petSpecies) && (
+                        <span className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700 font-medium" title="This vaccine is not typically given to this species">
+                          ⚠️ Invalid
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-600 mt-0.5">
+                      {v.petBreed && <span>{v.petBreed}</span>}
+                      {v.petBreed && v.petSpecies && <span className="mx-1">•</span>}
+                      {v.petSpecies && <span>{v.petSpecies}</span>}
                     </div>
                     <div className="text-sm text-gray-700 mt-1">
                       Expires: {v.expiresAt ? new Date(v.expiresAt).toLocaleDateString() : 'N/A'}
@@ -112,11 +176,20 @@ const Vaccinations = () => {
                     )}
                   </div>
                 </div>
-                {v.daysRemaining <= 30 && (
-                  <div className="text-xs font-medium text-red-700 bg-red-50 px-2 py-1 rounded">
-                    Expires soon
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                  {v.daysRemaining <= 30 && (
+                    <div className="text-xs font-medium text-red-700 bg-red-50 px-2 py-1 rounded">
+                      Expires soon
+                    </div>
+                  )}
+                  <button
+                    onClick={() => handleDeleteClick(v)}
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                    title="Delete vaccination"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
               <div className="mt-3 text-sm text-gray-600">
                 Manage on the pet record under Vaccinations.
@@ -125,6 +198,18 @@ const Vaccinations = () => {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={deleteDialogOpen}
+        onClose={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+        title="Delete Vaccination"
+        message={`Are you sure you want to delete the ${vaccinationToDelete?.type} vaccination for ${vaccinationToDelete?.petName}? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isDeleting}
+      />
     </div>
   );
 };

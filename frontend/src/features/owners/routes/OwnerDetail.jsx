@@ -21,6 +21,7 @@ import { useOwnerQuery, useDeleteOwnerMutation, useAddPetToOwnerMutation, useRem
 import { usePetsQuery, useCreatePetMutation } from '@/features/pets/api';
 import { useAssociationsForObjectPairQuery } from '@/features/settings/api/associations';
 import toast from 'react-hot-toast';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useTenantStore } from '@/stores/tenant';
 import { queryKeys } from '@/lib/queryKeys';
 
@@ -31,6 +32,11 @@ const OwnerDetail = () => {
   const tenantKey = useTenantStore((state) => state.tenant?.slug ?? 'default');
 
   const [addPetModalOpen, setAddPetModalOpen] = useState(false);
+  const [deleteOwnerDialogOpen, setDeleteOwnerDialogOpen] = useState(false);
+  const [isDeletingOwner, setIsDeletingOwner] = useState(false);
+  const [removePetDialogOpen, setRemovePetDialogOpen] = useState(false);
+  const [petToRemove, setPetToRemove] = useState(null);
+  const [isRemovingPet, setIsRemovingPet] = useState(false);
 
   const ownerQuery = useOwnerQuery(ownerId);
   const petsQuery = usePetsQuery();
@@ -60,9 +66,12 @@ const OwnerDetail = () => {
     toast.info('Edit functionality coming soon');
   };
 
-  const handleDelete = async () => {
-    if (!window.confirm('Are you sure you want to delete this owner?')) return;
+  const handleDelete = () => {
+    setDeleteOwnerDialogOpen(true);
+  };
 
+  const handleConfirmOwnerDelete = async () => {
+    setIsDeletingOwner(true);
     try {
       await deleteOwnerMutation.mutateAsync(ownerId);
       queryClient.invalidateQueries({ queryKey: queryKeys.owners(tenantKey) });
@@ -70,6 +79,9 @@ const OwnerDetail = () => {
       navigate('/owners');
     } catch (error) {
       toast.error(error?.message || 'Failed to delete owner');
+    } finally {
+      setIsDeletingOwner(false);
+      setDeleteOwnerDialogOpen(false);
     }
   };
 
@@ -125,16 +137,26 @@ const OwnerDetail = () => {
     }
   };
 
-  const handleRemovePet = async (petId) => {
-    if (!window.confirm('Are you sure you want to remove this pet from the owner?')) return;
+  const handleRemovePet = (pet) => {
+    setPetToRemove(pet);
+    setRemovePetDialogOpen(true);
+  };
 
+  const handleConfirmRemovePet = async () => {
+    if (!petToRemove) return;
+    
+    setIsRemovingPet(true);
     try {
-      await removePetMutation.mutateAsync(petId);
+      await removePetMutation.mutateAsync(petToRemove.recordId);
       queryClient.invalidateQueries({ queryKey: [...queryKeys.owners(tenantKey), ownerId] });
       queryClient.invalidateQueries({ queryKey: queryKeys.pets(tenantKey) });
       toast.success('Pet removed successfully');
+      setRemovePetDialogOpen(false);
+      setPetToRemove(null);
     } catch (error) {
       toast.error(error?.message || 'Failed to remove pet');
+    } finally {
+      setIsRemovingPet(false);
     }
   };
 
@@ -338,7 +360,7 @@ const OwnerDetail = () => {
                   <p className="text-xs text-muted">{pet.breed || 'Unknown breed'}</p>
                 </div>
                 <button
-                  onClick={() => handleRemovePet(pet.recordId)}
+                  onClick={() => handleRemovePet(pet)}
                   className="rounded-full p-1 text-muted transition hover:bg-red-50 hover:text-red-600"
                   title="Remove pet"
                 >
@@ -465,6 +487,33 @@ const OwnerDetail = () => {
           </div>
         </div>
       }
+    />
+
+    <ConfirmDialog
+      isOpen={deleteOwnerDialogOpen}
+      onClose={() => setDeleteOwnerDialogOpen(false)}
+      onConfirm={handleConfirmOwnerDelete}
+      title="Delete Owner"
+      message={`Are you sure you want to delete ${fullName}? This will permanently remove all associated records including pets, bookings, and payment history. This action cannot be undone.`}
+      confirmText="Delete Owner"
+      cancelText="Cancel"
+      variant="danger"
+      isLoading={isDeletingOwner}
+    />
+
+    <ConfirmDialog
+      isOpen={removePetDialogOpen}
+      onClose={() => {
+        setRemovePetDialogOpen(false);
+        setPetToRemove(null);
+      }}
+      onConfirm={handleConfirmRemovePet}
+      title="Remove Pet"
+      message={`Are you sure you want to remove ${petToRemove?.name} from ${fullName}? This will unlink the pet from this owner.`}
+      confirmText="Remove Pet"
+      cancelText="Cancel"
+      variant="warning"
+      isLoading={isRemovingPet}
     />
   </>
   );

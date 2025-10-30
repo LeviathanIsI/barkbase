@@ -7,6 +7,7 @@ const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'defa
 
 export const usePetsQuery = (params = {}) => {
   const tenantKey = useTenantKey();
+  
   return useQuery({
     queryKey: queryKeys.pets(tenantKey, params),
     queryFn: async () => {
@@ -25,6 +26,7 @@ export const usePetsQuery = (params = {}) => {
 export const usePetDetailsQuery = (petId, options = {}) => {
   const tenantKey = useTenantKey();
   const { enabled = Boolean(petId), ...queryOptions } = options;
+  
   return useQuery({
     queryKey: [...queryKeys.pets(tenantKey), petId],
     queryFn: async () => {
@@ -195,6 +197,22 @@ export const useUpdateVaccinationMutation = (petId) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pet', petId, 'vaccinations'] });
+    },
+  });
+};
+
+export const useDeleteVaccinationMutation = (petId) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (vaccinationId) => {
+      console.log('Deleting vaccination:', vaccinationId);
+      const res = await apiClient.delete(`/api/v1/pets/${petId}/vaccinations/${vaccinationId}`);
+      console.log('Delete vaccination response:', res);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pet', petId, 'vaccinations'] });
+      queryClient.invalidateQueries({ queryKey: ['vaccinations', 'expiring'] });
     },
   });
 };

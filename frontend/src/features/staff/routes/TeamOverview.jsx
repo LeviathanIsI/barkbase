@@ -280,6 +280,7 @@ const TeamOverview = () => {
             {/* View Toggle */}
             <div className="flex items-center bg-gray-100 rounded-lg p-1">
               <Button
+                key="overview"
                 variant={currentView === "overview" ? "primary" : "ghost"}
                 size="sm"
                 onClick={() => setCurrentView("overview")}
@@ -289,6 +290,7 @@ const TeamOverview = () => {
                 Overview
               </Button>
               <Button
+                key="schedule"
                 variant={currentView === "schedule" ? "primary" : "ghost"}
                 size="sm"
                 onClick={() => setCurrentView("schedule")}
@@ -298,6 +300,7 @@ const TeamOverview = () => {
                 Schedule
               </Button>
               <Button
+                key="tasks"
                 variant={currentView === "tasks" ? "primary" : "ghost"}
                 size="sm"
                 onClick={() => setCurrentView("tasks")}
@@ -307,6 +310,7 @@ const TeamOverview = () => {
                 Tasks
               </Button>
               <Button
+                key="timeclock"
                 variant={currentView === "timeclock" ? "primary" : "ghost"}
                 size="sm"
                 onClick={() => setCurrentView("timeclock")}
@@ -316,6 +320,7 @@ const TeamOverview = () => {
                 Time Clock
               </Button>
               <Button
+                key="reviews"
                 variant={currentView === "reviews" ? "primary" : "ghost"}
                 size="sm"
                 onClick={() => setCurrentView("reviews")}
@@ -325,6 +330,7 @@ const TeamOverview = () => {
                 Reviews
               </Button>
               <Button
+                key="messages"
                 variant={currentView === "messages" ? "primary" : "ghost"}
                 size="sm"
                 onClick={() => setCurrentView("messages")}
@@ -334,6 +340,7 @@ const TeamOverview = () => {
                 Messages
               </Button>
               <Button
+                key="analytics"
                 variant={currentView === "analytics" ? "primary" : "ghost"}
                 size="sm"
                 onClick={() => setCurrentView("analytics")}
@@ -343,6 +350,7 @@ const TeamOverview = () => {
                 Analytics
               </Button>
               <Button
+                key="mobile"
                 variant={currentView === "mobile" ? "primary" : "ghost"}
                 size="sm"
                 onClick={() => setCurrentView("mobile")}

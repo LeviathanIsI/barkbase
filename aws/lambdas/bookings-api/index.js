@@ -69,7 +69,15 @@ async function listBookings(event, tenantId) {
     
     let query = `
         SELECT b.*, 
-               json_build_object('recordId', p."recordId", 'name', p."name", 'species', p."species") as pet,
+               json_build_object(
+                   'recordId', p."recordId", 
+                   'name', p."name", 
+                   'species', p."species", 
+                   'breed', p."breed",
+                   'behaviorFlags', p."behaviorFlags",
+                   'medicalNotes', p."medicalNotes",
+                   'dietaryNotes', p."dietaryNotes"
+               ) as pet,
                json_build_object('recordId', o."recordId", 'firstName', o."firstName", 'lastName', o."lastName", 'email', o."email") as owner,
                COALESCE(
                    json_agg(

@@ -518,36 +518,41 @@ CREATE INDEX "Task_tenantId_scheduledFor_idx" ON "Task"("tenantId", "scheduledFo
 CREATE INDEX "Task_tenantId_type_idx" ON "Task"("tenantId", "type");
 CREATE INDEX "Task_tenantId_assignedTo_idx" ON "Task"("tenantId", "assignedTo");
 
-CREATE TABLE "runs" (
+CREATE TABLE "RunTemplate" (
     "recordId" TEXT NOT NULL PRIMARY KEY,
     "tenantId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "capacity" INTEGER NOT NULL,
-    "scheduleTime" TEXT NOT NULL,
-    "color" TEXT,
+    "timePeriodMinutes" INTEGER NOT NULL DEFAULT 30,
+    "capacityType" TEXT NOT NULL DEFAULT 'total',
+    "maxCapacity" INTEGER NOT NULL DEFAULT 10,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "runs_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
+    CONSTRAINT "RunTemplate_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
 );
-CREATE INDEX "runs_tenantId_isActive_idx" ON "runs"("tenantId", "isActive");
+CREATE UNIQUE INDEX "RunTemplate_tenantId_name_key" ON "RunTemplate"("tenantId", "name");
+CREATE INDEX "RunTemplate_tenantId_isActive_idx" ON "RunTemplate"("tenantId", "isActive");
 
-CREATE TABLE "run_assignments" (
+CREATE TABLE "Run" (
     "recordId" TEXT NOT NULL PRIMARY KEY,
     "tenantId" TEXT NOT NULL,
-    "runId" TEXT NOT NULL,
-    "petId" TEXT NOT NULL,
+    "templateId" TEXT,
+    "name" TEXT NOT NULL,
     "date" DATE NOT NULL,
-    "notes" TEXT,
+    "scheduleTime" TEXT NOT NULL DEFAULT '09:00',
+    "capacity" INTEGER NOT NULL DEFAULT 10,
+    "assignedPets" JSONB NOT NULL DEFAULT '[]'::jsonb,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "run_assignments_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "run_assignments_runId_fkey" FOREIGN KEY ("runId") REFERENCES "runs"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "run_assignments_petId_fkey" FOREIGN KEY ("petId") REFERENCES "Pet"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Run_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "Run_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "RunTemplate"("recordId") ON DELETE SET NULL ON UPDATE CASCADE
 );
-CREATE UNIQUE INDEX "run_assignments_runId_petId_date_key" ON "run_assignments"("runId", "petId", "date");
-CREATE INDEX "run_assignments_tenantId_date_idx" ON "run_assignments"("tenantId", "date");
+CREATE INDEX "Run_tenantId_date_idx" ON "Run"("tenantId", "date");
+CREATE INDEX "Run_tenantId_isActive_idx" ON "Run"("tenantId", "isActive");
+CREATE INDEX "Run_templateId_idx" ON "Run"("templateId");
 
-CREATE TABLE "messages" (
+CREATE TABLE "Message" (
     "recordId" TEXT NOT NULL PRIMARY KEY,
     "tenantId" TEXT NOT NULL,
     "conversationId" TEXT NOT NULL,
@@ -557,13 +562,13 @@ CREATE TABLE "messages" (
     "isRead" BOOLEAN NOT NULL DEFAULT false,
     "readAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "messages_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "messages_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "User"("recordId") ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT "messages_recipientId_fkey" FOREIGN KEY ("recipientId") REFERENCES "User"("recordId") ON DELETE SET NULL ON UPDATE CASCADE
+    CONSTRAINT "Message_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "Message_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "User"("recordId") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "Message_recipientId_fkey" FOREIGN KEY ("recipientId") REFERENCES "User"("recordId") ON DELETE SET NULL ON UPDATE CASCADE
 );
-CREATE INDEX "messages_tenantId_conversationId_idx" ON "messages"("tenantId", "conversationId");
-CREATE INDEX "messages_tenantId_senderId_idx" ON "messages"("tenantId", "senderId");
-CREATE INDEX "messages_tenantId_recipientId_idx" ON "messages"("tenantId", "recipientId");
+CREATE INDEX "Message_tenantId_conversationId_idx" ON "Message"("tenantId", "conversationId");
+CREATE INDEX "Message_tenantId_senderId_idx" ON "Message"("tenantId", "senderId");
+CREATE INDEX "Message_tenantId_recipientId_idx" ON "Message"("tenantId", "recipientId");
 
 -- Add function to automatically update `updatedAt` columns
 CREATE OR REPLACE FUNCTION trigger_set_timestamp()
@@ -682,7 +687,12 @@ FOR EACH ROW
 EXECUTE PROCEDURE trigger_set_timestamp();
 
 CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON "runs"
+BEFORE UPDATE ON "Run"
+FOR EACH ROW
+EXECUTE PROCEDURE trigger_set_timestamp();
+
+CREATE TRIGGER set_timestamp
+BEFORE UPDATE ON "RunTemplate"
 FOR EACH ROW
 EXECUTE PROCEDURE trigger_set_timestamp();
 

@@ -77,7 +77,7 @@ const MEMBERSHIP_ID = 'fa542cf2-281e-41a1-ac40-f4f8352a8621';
           pet.weight, 
           'No known medical issues', 
           'Standard diet', 
-          JSON.stringify({ friendly: true, energetic: true }), 
+          JSON.stringify({}), // Empty behavior flags - users can add real ones as needed
           pet.ownerId]);
       console.log(`  ✓ Pet: ${pet.name} (${pet.breed})`);
 

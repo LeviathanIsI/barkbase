@@ -259,7 +259,17 @@ const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {
                   {member.schedule && (
                     <div className="mb-3">
                       <p className="text-sm text-gray-600">
-                        SCHEDULE: {typeof member.schedule === 'string' ? member.schedule : JSON.stringify(member.schedule)}
+                        <span className="font-medium">SCHEDULE:</span>{' '}
+                        {typeof member.schedule === 'string' 
+                          ? member.schedule 
+                          : Object.entries(member.schedule || {})
+                              .map(([day, hours]) => {
+                                const dayName = day.charAt(0).toUpperCase() + day.slice(1, 3);
+                                const hoursStr = Array.isArray(hours) ? hours.join(', ') : hours;
+                                return `${dayName} ${hoursStr}`;
+                              })
+                              .join(' • ')
+                        }
                       </p>
                     </div>
                   )}

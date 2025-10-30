@@ -63,19 +63,33 @@ const buildUrl = (path, params) => {
 
 const buildHeaders = async () => {
   const { useAuthStore } = await import('@/stores/auth');
+  const { useTenantStore } = await import('@/stores/tenant');
   const accessToken = useAuthStore.getState().accessToken;
+  const tenant = useTenantStore.getState().tenant;
+  const tenantId = tenant?.recordId;
+  
+  console.log('🔍 Tenant Debug:', { tenant, tenantId }); // Debug log
+  
+  if (!tenantId) {
+    console.warn('⚠️ WARNING: No tenant ID found. Tenant may not be loaded yet.');
+  }
+  
   return {
     'Content-Type': 'application/json',
     ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
+    ...(tenantId && { 'X-Tenant-Id': tenantId }),
   };
 };
 
 const get = async (path, { params } = {}) => {
   const url = buildUrl(path, params);
   const headers = await buildHeaders();
+  console.log('GET request:', url, 'Headers:', headers); // Debug log
   const res = await fetch(url, { method: 'GET', headers });
   if (!res.ok) {
-    throw new Error(await res.text());
+    const errorText = await res.text();
+    console.error('API Error:', res.status, errorText); // Debug log
+    throw new Error(errorText);
   }
   return { data: await res.json() };
 };

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Button from '@/components/ui/Button';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import RecordDetailsView from '@/components/RecordDetailsView';
 import { SectionCard, InfoRow, StatusPill } from '@/components/primitives';
 import {
@@ -20,6 +21,7 @@ import {
   usePetVaccinationsQuery,
   useCreateVaccinationMutation,
   useUpdateVaccinationMutation,
+  useDeleteVaccinationMutation,
 } from '../api';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTenantStore } from '@/stores/tenant';
@@ -32,8 +34,7 @@ const PetDetail = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantStore((state) => state.tenant?.slug ?? 'default');
 
-  const tenant = useTenantStore((state) => state.tenant);
-  const petQuery = usePetQuery(petId, { enabled: Boolean(petId && tenant?.recordId) });
+  const petQuery = usePetQuery(petId);
   const deletePetMutation = useDeletePetMutation();
   const updatePetMutation = useUpdatePetMutation(petId);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -42,10 +43,16 @@ const PetDetail = () => {
   const [vaccinationModalOpen, setVaccinationModalOpen] = useState(false);
   const [editingVaccination, setEditingVaccination] = useState(null);
   const [selectedVaccineType, setSelectedVaccineType] = useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [vaccinationToDelete, setVaccinationToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deletePetDialogOpen, setDeletePetDialogOpen] = useState(false);
+  const [isDeletingPet, setIsDeletingPet] = useState(false);
 
   // Vaccination mutations
   const createVaccinationMutation = useCreateVaccinationMutation(petId);
   const updateVaccinationMutation = useUpdateVaccinationMutation(petId);
+  const deleteVaccinationMutation = useDeleteVaccinationMutation(petId);
 
   const pet = petQuery.data;
   if (petQuery.data) {
@@ -108,6 +115,33 @@ const PetDetail = () => {
     setEditingVaccination(vaccination);
     setSelectedVaccineType('');
     setVaccinationModalOpen(true);
+  };
+
+  const handleDeleteClick = (vaccination) => {
+    setVaccinationToDelete(vaccination);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!vaccinationToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteVaccinationMutation.mutateAsync(vaccinationToDelete.recordId);
+      toast.success('Vaccination deleted successfully');
+      setDeleteDialogOpen(false);
+      setVaccinationToDelete(null);
+    } catch (error) {
+      console.error('Failed to delete vaccination:', error);
+      toast.error(error?.message || 'Failed to delete vaccination');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteDialogOpen(false);
+    setVaccinationToDelete(null);
   };
 
   const handleVaccinationSubmit = async (data) => {
@@ -312,16 +346,33 @@ const PetDetail = () => {
                                 <StatusPill intent={intent}>{label}</StatusPill>
                               );
                             })()}
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => vaccination
-                                ? handleEditVaccination(vaccination)
-                                : handleAddVaccination(vaccineType)
-                              }
-                            >
-                              {vaccination ? 'Edit' : 'Add'}
-                            </Button>
+                            {vaccination ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleEditVaccination(vaccination)}
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleDeleteClick(vaccination)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  Delete
+                                </Button>
+                              </>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleAddVaccination(vaccineType)}
+                              >
+                                Add
+                              </Button>
+                            )}
                           </div>
                         </div>
                       );
@@ -378,8 +429,12 @@ const PetDetail = () => {
     }
   };
 
-  const handleDelete = async () => {
-    if (!window.confirm('Are you sure you want to delete this pet?')) return;
+  const handleDelete = () => {
+    setDeletePetDialogOpen(true);
+  };
+
+  const handleConfirmPetDelete = async () => {
+    setIsDeletingPet(true);
     try {
       await deletePetMutation.mutateAsync(petId);
       queryClient.invalidateQueries({ queryKey: queryKeys.pets(tenantKey) });
@@ -387,6 +442,9 @@ const PetDetail = () => {
       navigate('/pets');
     } catch (error) {
       toast.error(error?.message || 'Failed to delete pet');
+    } finally {
+      setIsDeletingPet(false);
+      setDeletePetDialogOpen(false);
     }
   };
 
@@ -442,6 +500,30 @@ const PetDetail = () => {
         selectedVaccineType={selectedVaccineType}
         onSubmit={handleVaccinationSubmit}
         isLoading={createVaccinationMutation.isPending || updateVaccinationMutation.isPending}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteDialogOpen}
+        onClose={handleCancelDelete}
+        onConfirm={handleConfirmDelete}
+        title="Delete Vaccination"
+        message={`Are you sure you want to delete the ${vaccinationToDelete?.type} vaccination? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isDeleting}
+      />
+
+      <ConfirmDialog
+        isOpen={deletePetDialogOpen}
+        onClose={() => setDeletePetDialogOpen(false)}
+        onConfirm={handleConfirmPetDelete}
+        title="Delete Pet"
+        message={`Are you sure you want to delete ${pet?.name}? This will permanently remove all associated records including vaccinations and bookings. This action cannot be undone.`}
+        confirmText="Delete Pet"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isDeletingPet}
       />
     </>
   );

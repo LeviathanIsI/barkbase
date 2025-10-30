@@ -26,29 +26,37 @@ exports.handler = async (event) => {
     }
 
     try {
+        // Vaccination routes - must come before general pet routes to avoid incorrect matching
         if (httpMethod === 'GET' && path === '/api/v1/pets/vaccinations/expiring') {
             return await listExpiringVaccinations(event, tenantId);
         }
-        if (httpMethod === 'POST' && path.endsWith('/vaccinations') && event.pathParameters?.id) {
+        if (httpMethod === 'POST' && path.endsWith('/vaccinations') && event.pathParameters?.id && event.pathParameters?.vaccinationId === undefined) {
             return await createPetVaccination(event, tenantId);
         }
         if (httpMethod === 'PUT' && event.pathParameters?.id && event.pathParameters?.vaccinationId && path.includes('/vaccinations/')) {
             return await updatePetVaccination(event, tenantId);
         }
-        if (httpMethod === 'GET' && path.endsWith('/vaccinations') && event.pathParameters?.id) {
+        if (httpMethod === 'DELETE' && event.pathParameters?.id && event.pathParameters?.vaccinationId && path.includes('/vaccinations/')) {
+            return await deletePetVaccination(event, tenantId);
+        }
+        if (httpMethod === 'GET' && path.endsWith('/vaccinations') && event.pathParameters?.id && event.pathParameters?.vaccinationId === undefined) {
             return await listPetVaccinations(event, tenantId);
         }
-        if (httpMethod === 'GET' && event.pathParameters?.id) {
-            return await getPetById(event, tenantId);
-        }
+        
+        // Pet owner association route
         if (httpMethod === 'POST' && path === '/api/v1/pets/owners') {
             return await upsertPetOwner(event, tenantId);
         }
+        
+        // General pet routes
         if (httpMethod === 'GET' && path === '/api/v1/pets') {
             return await listPets(event, tenantId);
         }
         if (httpMethod === 'POST' && path === '/api/v1/pets') {
             return await createPet(event, tenantId);
+        }
+        if (httpMethod === 'GET' && event.pathParameters?.id) {
+            return await getPetById(event, tenantId);
         }
         if (httpMethod === 'PUT' && event.pathParameters?.id) {
             return await updatePet(event, tenantId);
@@ -404,6 +412,30 @@ const updatePetVaccination = async (event, tenantId) => {
         statusCode: 200,
         headers: HEADERS,
         body: JSON.stringify(rows[0]),
+    };
+};
+
+const deletePetVaccination = async (event, tenantId) => {
+    const vaccinationId = event.pathParameters.vaccinationId;
+
+    const pool = getPool();
+    const { rowCount } = await pool.query(
+        `DELETE FROM "Vaccination" WHERE "recordId" = $1 AND "tenantId" = $2`,
+        [vaccinationId, tenantId]
+    );
+
+    if (rowCount === 0) {
+        return {
+            statusCode: 404,
+            headers: HEADERS,
+            body: JSON.stringify({ message: 'Vaccination not found or you do not have permission to delete it' }),
+        };
+    }
+
+    return {
+        statusCode: 204,
+        headers: HEADERS,
+        body: '',
     };
 };
 
