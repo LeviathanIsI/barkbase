@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Search, Plus, ChevronDown, BarChart3, Download, Upload, Settings, Eye, EyeOff } from 'lucide-react';
+import { Search, Plus, ChevronDown } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import EmptyStateOnboarding from './components/EmptyStateOnboarding';
 import PropertyTemplatesModal from './components/PropertyTemplatesModal';
@@ -8,18 +7,29 @@ import EnhancedCreatePropertyModal from './components/EnhancedCreatePropertyModa
 import PopulatedPropertiesView from './components/PopulatedPropertiesView';
 import ConditionalLogicTab from './components/ConditionalLogicTab';
 import GroupsTab from './components/GroupsTab';
-import UsageAnalytics from './components/UsageAnalytics';
-import BulkActions from './components/BulkActions';
-import ImportExportModal from './components/ImportExportModal';
+import ArchivedTab from './components/ArchivedTab';
 import { usePropertiesQuery } from '../api';
 
 const OBJECT_TYPES = [
-  { recordId: 'pets', label: 'Pets' },
-  { recordId: 'owners', label: 'Owners' },
-  { recordId: 'bookings', label: 'Bookings' },
-  { recordId: 'invoices', label: 'Invoices' },
-  { recordId: 'payments', label: 'Payments' },
-  { recordId: 'tickets', label: 'Tickets' },
+  { recordId: 'pets', label: 'Pet properties' },
+  { recordId: 'owners', label: 'Owner properties' },
+  { recordId: 'bookings', label: 'Booking properties' },
+  { recordId: 'kennels', label: 'Kennel properties' },
+  { recordId: 'services', label: 'Service properties' },
+  { recordId: 'staff', label: 'Staff properties' },
+  { recordId: 'invoices', label: 'Invoice properties' },
+  { recordId: 'payments', label: 'Payment properties' },
+  { recordId: 'vaccinations', label: 'Vaccination properties' },
+  { recordId: 'check_ins', label: 'Check-in properties' },
+  { recordId: 'check_outs', label: 'Check-out properties' },
+  { recordId: 'incidents', label: 'Incident properties' },
+  { recordId: 'communications', label: 'Communication properties' },
+  { recordId: 'notes', label: 'Note properties' },
+  { recordId: 'tasks', label: 'Task properties' },
+  { recordId: 'runs', label: 'Run properties' },
+  { recordId: 'run_templates', label: 'Run template properties' },
+  { recordId: 'users', label: 'User properties' },
+  { recordId: 'tenants', label: 'Tenant properties' },
 ];
 
 const FIELD_TYPES = [
@@ -45,25 +55,29 @@ const FIELD_TYPES = [
   { value: 'rich_text', label: 'Rich text' },
 ];
 
-const PropertiesOverview = () => {
-  const [searchParams] = useSearchParams();
-  const tabParam = searchParams.get('tab');
+const ACCESS_LEVELS = [
+  { value: 'all', label: 'All access' },
+  { value: 'everyone_edit', label: 'Everyone can view and edit' },
+  { value: 'everyone_view', label: 'Everyone can view' },
+  { value: 'assigned_only', label: 'Assigned to users and teams' },
+  { value: 'admin_only', label: 'Admins only' },
+];
 
-  const [selectedObject, setSelectedObject] = useState(
-    tabParam && OBJECT_TYPES.find(t => t.recordId === tabParam) ? tabParam : 'pets'
-  );
+const PropertiesOverview = () => {
+  const [selectedObject, setSelectedObject] = useState('pets');
+  const [selectedTab, setSelectedTab] = useState('properties');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGroup, setSelectedGroup] = useState('all');
   const [selectedType, setSelectedType] = useState('all');
-  const [selectedView, setSelectedView] = useState('properties');
+  const [selectedAccess, setSelectedAccess] = useState('all');
   const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingProperty, setEditingProperty] = useState(null);
   const [selectedProperties, setSelectedProperties] = useState([]);
-  const [isImportExportModalOpen, setIsImportExportModalOpen] = useState(false);
 
   // Real API data
   const { data: propertiesData, isLoading: propertiesLoading } = usePropertiesQuery(selectedObject);
+  const { data: archivedData } = usePropertiesQuery(selectedObject, { queryParams: { onlyArchived: true } });
 
   // Set document title
   useEffect(() => {
@@ -73,39 +87,22 @@ const PropertiesOverview = () => {
     };
   }, []);
 
-  const handleBrowseTemplates = () => {
-    setIsTemplatesModalOpen(true);
-  };
-
   const handleCreateProperty = () => {
+    setEditingProperty(null);
     setIsCreateModalOpen(true);
   };
 
-  const handleImportExport = () => {
-    setIsImportExportModalOpen(true);
-  };
-
-  const handleWatchTutorial = () => {
-    // TODO: Open tutorial video
-    console.log('Watch tutorial');
-  };
-
   // Process API data and filter properties
-  const { filteredProperties, availableGroups, currentData, hasProperties } = useMemo(() => {
+  const { filteredProperties, availableGroups, hasProperties } = useMemo(() => {
     if (!propertiesData || propertiesLoading) {
       return {
         filteredProperties: [],
         availableGroups: [],
-        currentData: null,
         hasProperties: false
       };
     }
 
-    // The API returns a flat array of properties, not grouped
-    // We'll need to group them by some logic or just work with flat array
     const allProperties = propertiesData || [];
-
-    // Get unique groups (if properties have a group field)
     const groups = [...new Set(allProperties.map((p) => p.group || 'General'))].sort();
 
     // Apply filters
@@ -132,21 +129,20 @@ const PropertiesOverview = () => {
       filtered = filtered.filter((prop) => prop.type === selectedType);
     }
 
+    // Access level filter
+    if (selectedAccess !== 'all') {
+      filtered = filtered.filter((prop) => prop.accessLevel === selectedAccess);
+    }
+
     return {
       filteredProperties: filtered,
       availableGroups: groups,
-      currentData: {
-        total_properties: allProperties.length,
-        groups: groups.map(group => ({
-          name: group,
-          properties: allProperties.filter(p => (p.group || 'General') === group)
-        }))
-      },
       hasProperties: allProperties.length > 0,
     };
-  }, [propertiesData, propertiesLoading, selectedObject, searchQuery, selectedGroup, selectedType]);
+  }, [propertiesData, propertiesLoading, searchQuery, selectedGroup, selectedType, selectedAccess]);
 
-  const isLoading = propertiesLoading;
+  const currentObjectLabel = OBJECT_TYPES.find(t => t.recordId === selectedObject)?.label || 'Properties';
+  const archivedCount = archivedData?.length || 0;
 
   return (
     <div className="space-y-6">
@@ -155,151 +151,149 @@ const PropertiesOverview = () => {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Properties</h1>
           <p className="mt-1 text-gray-600">
-            Custom fields to track specific information about pets, customers, and bookings
+            Properties are used to collect and store information about your records in BarkBase. For example, a contact might have properties like First Name or Lead Status.
           </p>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={handleImportExport}>
-            <Settings className="w-4 h-4 mr-2" />
-            Advanced
-          </Button>
-          <Button onClick={handleCreateProperty} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Create Property
-          </Button>
+        <Button onClick={handleCreateProperty} className="flex items-center gap-2">
+          <Plus className="h-4 w-4" />
+          Create property
+        </Button>
+      </div>
+
+      {/* Object Type Selector */}
+      <div className="flex items-center gap-3">
+        <label className="text-sm font-medium text-gray-700">Select an object:</label>
+        <div className="relative">
+          <select
+            value={selectedObject}
+            onChange={(e) => {
+              setSelectedObject(e.target.value);
+              setSelectedProperties([]);
+            }}
+            className="appearance-none rounded-lg border border-gray-300 bg-white pl-4 pr-10 py-2.5 text-sm font-medium focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[250px]"
+          >
+            {OBJECT_TYPES.map((type) => (
+              <option key={type.recordId} value={type.recordId}>
+                {type.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
         </div>
       </div>
 
-      {/* Usage Analytics */}
-      {hasProperties && <UsageAnalytics data={currentData} />}
-
-      {/* Object Type Tabs */}
+      {/* Tabs */}
       <div className="border-b border-gray-200">
-        <nav className="flex gap-1 overflow-x-auto">
-          {OBJECT_TYPES.map((type) => (
-            <button
-              key={type.recordId}
-              onClick={() => setSelectedObject(type.recordId)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                selectedObject === type.recordId
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              {type.label} {selectedObject === type.recordId && currentData && `(${currentData.total_properties || 0})`}
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      {/* View Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="flex gap-1">
+        <nav className="flex gap-6">
           <button
-            onClick={() => setSelectedView('properties')}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-              selectedView === 'properties'
+            onClick={() => setSelectedTab('properties')}
+            className={`pb-3 border-b-2 text-sm font-medium transition-colors ${
+              selectedTab === 'properties'
                 ? 'border-blue-600 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            Properties
+            Properties {hasProperties && `(${propertiesData?.length || 0})`}
           </button>
           <button
-            onClick={() => setSelectedView('conditional-logic')}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-              selectedView === 'conditional-logic'
+            onClick={() => setSelectedTab('conditional-logic')}
+            className={`pb-3 border-b-2 text-sm font-medium transition-colors ${
+              selectedTab === 'conditional-logic'
                 ? 'border-blue-600 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            Conditional Logic
+            Conditional logic
           </button>
           <button
-            onClick={() => setSelectedView('groups')}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-              selectedView === 'groups'
+            onClick={() => setSelectedTab('groups')}
+            className={`pb-3 border-b-2 text-sm font-medium transition-colors ${
+              selectedTab === 'groups'
                 ? 'border-blue-600 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
             Groups
           </button>
+          <button
+            onClick={() => setSelectedTab('archived')}
+            className={`pb-3 border-b-2 text-sm font-medium transition-colors ${
+              selectedTab === 'archived'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Archived {archivedCount > 0 && `(${archivedCount})`}
+          </button>
         </nav>
       </div>
 
-      {/* Content based on view and state */}
-      {selectedView === 'properties' && !hasProperties && (
+      {/* Properties Tab Content */}
+      {selectedTab === 'properties' && !hasProperties && (
         <EmptyStateOnboarding
           objectType={selectedObject}
-          onBrowseTemplates={handleBrowseTemplates}
+          onBrowseTemplates={() => setIsTemplatesModalOpen(true)}
           onCreateProperty={handleCreateProperty}
-          onWatchTutorial={handleWatchTutorial}
+          onWatchTutorial={() => console.log('Watch tutorial')}
         />
       )}
 
-      {selectedView === 'properties' && hasProperties && (
+      {selectedTab === 'properties' && hasProperties && (
         <>
-          {/* Filters and Bulk Actions */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4 flex-wrap">
-              {/* Filter dropdowns */}
-              <div className="flex items-center gap-3">
-                <select
-                  value={selectedGroup}
-                  onChange={(e) => setSelectedGroup(e.target.value)}
-                  className="rounded-lg border border-gray-300 bg-white pl-3 pr-8 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                >
-                  <option value="all">All groups</option>
-                  {availableGroups.map((group) => (
-                    <option key={group} value={group}>
-                      {group.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
-                    </option>
-                  ))}
-                </select>
+          {/* Filters */}
+          <div className="flex items-center gap-4">
+            <select
+              value={selectedGroup}
+              onChange={(e) => setSelectedGroup(e.target.value)}
+              className="rounded-lg border border-gray-300 bg-white pl-3 pr-8 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="all">All groups</option>
+              {availableGroups.map((group) => (
+                <option key={group} value={group}>
+                  {group}
+                </option>
+              ))}
+            </select>
 
-                <select
-                  value={selectedType}
-                  onChange={(e) => setSelectedType(e.target.value)}
-                  className="rounded-lg border border-gray-300 bg-white pl-3 pr-8 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                >
-                  <option value="all">All field types</option>
-                  {FIELD_TYPES.map((type) => (
-                    <option key={type.value} value={type.value}>
-                      {type.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <select
+              value={selectedType}
+              onChange={(e) => setSelectedType(e.target.value)}
+              className="rounded-lg border border-gray-300 bg-white pl-3 pr-8 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="all">All field types</option>
+              {FIELD_TYPES.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
+              ))}
+            </select>
 
-              {/* Search */}
-              <div className="relative flex-1 max-w-xs">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search properties..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-4 text-sm placeholder:text-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
+            <select
+              value={selectedAccess}
+              onChange={(e) => setSelectedAccess(e.target.value)}
+              className="rounded-lg border border-gray-300 bg-white pl-3 pr-8 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              {ACCESS_LEVELS.map((level) => (
+                <option key={level.value} value={level.value}>
+                  {level.label}
+                </option>
+              ))}
+            </select>
 
-              {/* Property count */}
-              <div className="ml-auto text-sm text-gray-500">
-                {filteredProperties.length} {filteredProperties.length === 1 ? 'property' : 'properties'}
-              </div>
-            </div>
-
-            {/* Bulk Actions */}
-            {selectedProperties.length > 0 && (
-              <BulkActions
-                selectedCount={selectedProperties.length}
-                onClearSelection={() => setSelectedProperties([])}
+            {/* Search */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search properties"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-4 text-sm placeholder:text-gray-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
-            )}
+            </div>
           </div>
 
-          {/* Properties View */}
+          {/* Properties Table */}
           <PopulatedPropertiesView
             properties={filteredProperties}
             selectedProperties={selectedProperties}
@@ -311,18 +305,37 @@ const PropertiesOverview = () => {
               );
             }}
             onSelectAll={(selected) => {
-              setSelectedProperties(selected ? filteredProperties.map(p => p.recordId) : []);
+              setSelectedProperties(selected ? filteredProperties.filter(p => !p.isSystem).map(p => p.recordId) : []);
+            }}
+            onEditProperty={(property) => {
+              setEditingProperty(property);
+              setIsCreateModalOpen(true);
             }}
           />
         </>
       )}
 
-      {selectedView === 'conditional-logic' && (
+      {/* Conditional Logic Tab */}
+      {selectedTab === 'conditional-logic' && (
         <ConditionalLogicTab />
       )}
 
-      {selectedView === 'groups' && (
+      {/* Groups Tab */}
+      {selectedTab === 'groups' && (
         <GroupsTab />
+      )}
+
+      {/* Archived Tab */}
+      {selectedTab === 'archived' && (
+        <ArchivedTab
+          objectType={selectedObject}
+          onRestore={(propertyId) => {
+            console.log('Restore property:', propertyId);
+          }}
+          onDelete={(propertyId) => {
+            console.log('Delete property:', propertyId);
+          }}
+        />
       )}
 
       {/* Modals */}
@@ -338,18 +351,17 @@ const PropertiesOverview = () => {
 
       <EnhancedCreatePropertyModal
         isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
+        onClose={() => {
+          setIsCreateModalOpen(false);
+          setEditingProperty(null);
+        }}
         objectType={selectedObject}
         existingProperty={editingProperty}
         onSubmit={(propertyData) => {
-          console.log('Creating property:', propertyData);
+          console.log('Creating/updating property:', propertyData);
           setIsCreateModalOpen(false);
+          setEditingProperty(null);
         }}
-      />
-
-      <ImportExportModal
-        isOpen={isImportExportModalOpen}
-        onClose={() => setIsImportExportModalOpen(false)}
       />
     </div>
   );
