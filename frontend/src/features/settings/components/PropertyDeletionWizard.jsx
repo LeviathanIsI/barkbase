@@ -6,13 +6,11 @@
 
 import React, { useState } from 'react';
 import { AlertTriangle, Trash2, CheckCircle } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Textarea } from '@/components/ui/textarea';
-import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/Dialog';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+import Label from '@/components/ui/Label';
+import Textarea from '@/components/ui/Textarea';
 
 const STEPS = [
   { id: 1, title: 'Impact Analysis', description: 'Review affected properties and assets' },
@@ -133,7 +131,12 @@ export const PropertyDeletionWizard = ({
 
         {/* Progress Bar */}
         <div className="space-y-2">
-          <Progress value={progress} className="h-2" />
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div 
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+              style={{ width: `${progress}%` }}
+            />
+          </div>
           <div className="flex justify-between text-xs text-gray-600">
             {STEPS.map((step) => (
               <div
@@ -179,18 +182,24 @@ export const PropertyDeletionWizard = ({
                 Choose how to handle properties that depend on this one:
               </div>
 
-              <RadioGroup value={cascadeStrategy} onValueChange={setCascadeStrategy}>
+              <div className="space-y-3">
                 {CASCADE_STRATEGIES.map((strategy) => (
                   <div
                     key={strategy.value}
-                    className={`border rounded-lg p-4 ${
+                    className={`border rounded-lg p-4 cursor-pointer ${
                       cascadeStrategy === strategy.value ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
                     } ${strategy.danger ? 'border-red-300' : ''}`}
+                    onClick={() => setCascadeStrategy(strategy.value)}
                   >
                     <div className="flex items-start space-x-3">
-                      <RadioGroupItem value={strategy.value} id={strategy.value} />
+                      <input
+                        type="radio"
+                        checked={cascadeStrategy === strategy.value}
+                        onChange={() => setCascadeStrategy(strategy.value)}
+                        className="mt-1"
+                      />
                       <div className="flex-1">
-                        <Label htmlFor={strategy.value} className="flex items-center space-x-2 cursor-pointer">
+                        <Label className="flex items-center space-x-2 cursor-pointer">
                           <span className="font-medium">{strategy.label}</span>
                           {strategy.recommended && (
                             <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">
@@ -224,7 +233,7 @@ export const PropertyDeletionWizard = ({
                     )}
                   </div>
                 ))}
-              </RadioGroup>
+              </div>
             </div>
           )}
 

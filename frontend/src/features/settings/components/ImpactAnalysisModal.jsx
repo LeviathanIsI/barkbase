@@ -13,11 +13,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ScrollArea } from '@/components/ui/scroll-area';
+} from '@/components/ui/Dialog';
+import Button from '@/components/ui/Button';
+import Badge from '@/components/ui/Badge';
+import Alert from '@/components/ui/Alert';
 
 const RiskLevelBadge = ({ level }) => {
   const variants = {
@@ -74,8 +73,8 @@ export const ImpactAnalysisModal = ({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[60vh]">
-          <div className="space-y-6 pr-4">
+        <div className="max-h-[60vh] overflow-y-auto pr-4">
+          <div className="space-y-6">
             {/* Risk Assessment */}
             <div>
               <div className="flex items-center justify-between mb-3">
@@ -84,15 +83,13 @@ export const ImpactAnalysisModal = ({
               </div>
               
               {riskAssessment.factors && riskAssessment.factors.length > 0 && (
-                <Alert>
-                  <AlertDescription>
-                    <ul className="list-disc list-inside space-y-1 text-sm">
-                      {riskAssessment.factors.map((factor, idx) => (
-                        <li key={idx}>{factor}</li>
-                      ))}
-                    </ul>
-                  </AlertDescription>
-                </Alert>
+                <Alert variant="warning">
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  {riskAssessment.factors.map((factor, idx) => (
+                    <li key={idx}>{factor}</li>
+                  ))}
+                </ul>
+              </Alert>
               )}
             </div>
 
@@ -208,7 +205,7 @@ export const ImpactAnalysisModal = ({
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={onCancel}>

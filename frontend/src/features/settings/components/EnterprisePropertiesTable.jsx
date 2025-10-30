@@ -6,9 +6,9 @@
 
 import React, { useState } from 'react';
 import { Shield, Lock, Package, Plus, FileCode, TrendingUp, GitBranch } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
+import Badge from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
+import Checkbox from '@/components/ui/Checkbox';
 
 const PropertyTypeIcon = ({ type }) => {
   const icons = {
