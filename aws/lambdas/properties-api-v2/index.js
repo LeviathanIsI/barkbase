@@ -13,7 +13,8 @@ const cascadeOperationsHandler = require('./handlers/cascade-operations');
 exports.handler = async (event) => {
   console.log('Properties API v2 invoked:', JSON.stringify(event, null, 2));
 
-  const { httpMethod: method, path } = event.requestContext.http;
+  const method = event.requestContext.http.method;
+  const path = event.requestContext.http.path;
   const pathParams = event.pathParameters || {};
   const queryParams = event.queryStringParameters || {};
   
