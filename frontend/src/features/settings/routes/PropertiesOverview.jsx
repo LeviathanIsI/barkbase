@@ -89,7 +89,7 @@ const PropertiesOverview = () => {
   const [propertyForDeletion, setPropertyForDeletion] = useState(null);
   const [impactAnalysisData, setImpactAnalysisData] = useState(null);
   const [showImpactModal, setShowImpactModal] = useState(false);
-  const [useEnterpriseView, setUseEnterpriseView] = useState(true);
+  const [useEnterpriseView, setUseEnterpriseView] = useState(false); // Default to v1 until v2 is verified working
 
   // API data - use v2 for enterprise view, v1 for backward compatibility
   const { data: propertiesDataV2, isLoading: propertiesLoadingV2 } = usePropertiesV2Query(
