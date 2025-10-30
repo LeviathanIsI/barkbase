@@ -1,35 +1,46 @@
-import { forwardRef } from 'react';
-import { cn } from '@/lib/cn';
+/**
+ * Professional Textarea Component
+ * Multi-line text input with consistent styling
+ */
 
-const Textarea = forwardRef(function Textarea(
-  { label, helper, className, error, ...props },
-  ref,
-) {
-  return (
-    <div className="w-full">
-      {label && (
-        <label className="mb-1 block text-sm font-medium text-text">
-          {label}
-        </label>
-      )}
-      <textarea
-        ref={ref}
-        className={cn(
-          'min-h-[120px] w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20',
-          'disabled:cursor-not-allowed disabled:opacity-50',
-          error ? 'border-destructive focus:ring-destructive/30' : null,
-          className,
+import React from 'react';
+import { cn } from '@/lib/utils';
+
+const Textarea = React.forwardRef(
+  ({ className, label, error, helpText, rows = 3, ...props }, ref) => {
+    return (
+      <div className="w-full">
+        {label && (
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            {label}
+            {props.required && <span className="text-error-600 ml-1">*</span>}
+          </label>
         )}
-        {...props}
-      />
-      {helper && (
-        <p className="mt-1 text-xs text-muted">{helper}</p>
-      )}
-      {error && (
-        <p className="mt-1 text-xs text-destructive">{error}</p>
-      )}
-    </div>
-  );
-});
+        <textarea
+          rows={rows}
+          className={cn(
+            'flex w-full rounded-md border border-gray-300 bg-white px-3 py-2',
+            'text-sm text-gray-900 placeholder:text-gray-400',
+            'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent',
+            'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-50',
+            'transition-colors resize-y',
+            error && 'border-error-500 focus:ring-error-500',
+            className
+          )}
+          ref={ref}
+          {...props}
+        />
+        {error && (
+          <p className="mt-1.5 text-sm text-error-600">{error}</p>
+        )}
+        {helpText && !error && (
+          <p className="mt-1.5 text-sm text-gray-500">{helpText}</p>
+        )}
+      </div>
+    );
+  }
+);
+
+Textarea.displayName = 'Textarea';
 
 export default Textarea;
