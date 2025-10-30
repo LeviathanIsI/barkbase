@@ -1,42 +1,43 @@
-import { useState } from 'react';
-import { cn } from '@/lib/cn';
+/**
+ * Professional Switch/Toggle Component
+ * Clean on/off toggle with smooth animation
+ */
 
-const Switch = ({ checked, onCheckedChange, disabled = false, className, ...props }) => {
-  const [internalChecked, setInternalChecked] = useState(checked || false);
+import React from 'react';
+import { cn } from '@/lib/utils';
 
-  const isChecked = checked !== undefined ? checked : internalChecked;
-
-  const handleClick = () => {
-    if (disabled) return;
-
-    const newChecked = !isChecked;
-    setInternalChecked(newChecked);
-    onCheckedChange?.(newChecked);
-  };
-
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={isChecked}
-      disabled={disabled}
-      onClick={handleClick}
-      className={cn(
-        'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
-        isChecked ? 'bg-[#4B5DD3]' : 'bg-[#E0E0E0]',
-        className
-      )}
-      {...props}
-    >
-      <span
+const Switch = React.forwardRef(
+  ({ className, checked, onCheckedChange, disabled, ...props }, ref) => {
+    return (
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        disabled={disabled}
+        onClick={() => onCheckedChange?.(!checked)}
         className={cn(
-          'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
-          isChecked ? 'translate-x-6' : 'translate-x-1'
+          'peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full',
+          'border-2 border-transparent transition-colors',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2',
+          'disabled:cursor-not-allowed disabled:opacity-50',
+          checked ? 'bg-primary-600' : 'bg-gray-200',
+          className
         )}
-      />
-    </button>
-  );
-};
+        {...props}
+        ref={ref}
+      >
+        <span
+          className={cn(
+            'pointer-events-none block h-5 w-5 rounded-full bg-white shadow-lg',
+            'ring-0 transition-transform',
+            checked ? 'translate-x-5' : 'translate-x-0'
+          )}
+        />
+      </button>
+    );
+  }
+);
 
-export { Switch };
+Switch.displayName = 'Switch';
+
 export default Switch;
