@@ -28,6 +28,9 @@ const buttonVariants = cva(
         // Ghost - Minimal, subtle
         ghost: 'hover:bg-gray-100 active:bg-gray-200 text-gray-700',
         
+        // Ghost Dark - For use on dark backgrounds
+        'ghost-dark': 'hover:bg-white/10 active:bg-white/20 text-white',
+        
         // Success - For positive actions
         success: 'bg-secondary-600 text-white hover:bg-secondary-700 active:bg-secondary-800',
       },

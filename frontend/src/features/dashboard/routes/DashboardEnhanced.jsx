@@ -1,8 +1,8 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Calendar, Users, DollarSign, MapPin, Clock, CheckCircle,
-  UserPlus, FileText, AlertTriangle, Bell
+  UserPlus, UserX, FileText, AlertTriangle, Bell, List, LayoutDashboard, PawPrint
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card, MetricCard, PageHeader } from '@/components/ui/Card';
@@ -13,18 +13,27 @@ import {
   useDashboardStats,
   useDashboardOccupancy,
   useDashboardVaccinations,
+  useUpcomingArrivalsQuery,
+  useUpcomingDeparturesQuery,
 } from '../api';
+import { useBookingsQuery } from '@/features/bookings/api';
+import { useMemo } from 'react';
 
 const DashboardCharts = lazy(() => import('../components/Charts'));
+const HighDensityTodayView = lazy(() => import('../components/HighDensityTodayView'));
 
 const DashboardEnhanced = () => {
   const navigate = useNavigate();
   const { isLoading } = useAuth();
+  const [viewMode, setViewMode] = useState('overview'); // overview, today
 
   // Always call hooks at the top level
   const statsQuery = useDashboardStats();
   const occupancyQuery = useDashboardOccupancy();
   const vaccinationsQuery = useDashboardVaccinations({ limit: 5 });
+  const { data: todayArrivals = [] } = useUpcomingArrivalsQuery(1);
+  const { data: todayDepartures = [] } = useUpcomingDeparturesQuery(1);
+  const { data: recentBookingsData = [] } = useBookingsQuery({ limit: 5, sortBy: 'createdAt', sortOrder: 'desc' });
 
   // Don't load dashboard data until authentication is complete
   if (isLoading) {
@@ -48,7 +57,48 @@ const DashboardEnhanced = () => {
 
   const vaccinations = vaccinationsQuery.data ?? [];
 
-  // Real data for dashboard metrics - trends will be calculated when historical data is available
+  // Combine arrivals and departures for schedule
+  const scheduleItems = useMemo(() => {
+    const items = [];
+    
+    todayArrivals.slice(0, 5).forEach(item => {
+      const checkIn = item.checkIn ? new Date(item.checkIn) : null;
+      if (checkIn) {
+        items.push({
+          type: 'arrival',
+          petName: item.pet?.name || item.petName || 'Unknown',
+          ownerName: item.owner ? `${item.owner.firstName || ''} ${item.owner.lastName || ''}`.trim() : item.ownerName || 'Unknown',
+          time: checkIn.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+        });
+      }
+    });
+    
+    todayDepartures.slice(0, 5).forEach(item => {
+      const checkOut = item.checkOut ? new Date(item.checkOut) : null;
+      if (checkOut) {
+        items.push({
+          type: 'departure',
+          petName: item.pet?.name || item.petName || 'Unknown',
+          ownerName: item.owner ? `${item.owner.firstName || ''} ${item.owner.lastName || ''}`.trim() : item.ownerName || 'Unknown',
+          time: checkOut.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+        });
+      }
+    });
+    
+    // Sort by time
+    return items.sort((a, b) => {
+      const timeA = parseInt(a.time.replace(/[^0-9]/g, ''));
+      const timeB = parseInt(b.time.replace(/[^0-9]/g, ''));
+      return timeA - timeB;
+    }).slice(0, 5);
+  }, [todayArrivals, todayDepartures]);
+
+  // Recent bookings
+  const recentBookings = useMemo(() => {
+    return recentBookingsData.slice(0, 5);
+  }, [recentBookingsData]);
+
+  // Real data for dashboard metrics - professional design, no gradients
   const metrics = [
     {
       title: "Today's Occupancy",
@@ -56,7 +106,6 @@ const DashboardEnhanced = () => {
       subtitle: "active bookings",
       trend: null, // Will be calculated from historical data
       icon: Users,
-      gradient: "blue"
     },
     {
       title: "Revenue Today",
@@ -64,7 +113,6 @@ const DashboardEnhanced = () => {
       subtitle: "today's revenue",
       trend: null, // Will be calculated from historical data
       icon: DollarSign,
-      gradient: "orange"
     },
     {
       title: "Pending Check-ins",
@@ -72,7 +120,6 @@ const DashboardEnhanced = () => {
       subtitle: "awaiting check-in",
       trend: null, // Will be calculated from historical data
       icon: Clock,
-      gradient: "purple"
     },
     {
       title: "Available Spots",
@@ -80,7 +127,6 @@ const DashboardEnhanced = () => {
       subtitle: "across all facilities",
       trend: null, // Will be calculated from historical data
       icon: MapPin,
-      gradient: "gray"
     }
   ];
 
@@ -91,21 +137,57 @@ const DashboardEnhanced = () => {
         breadcrumb="Home > Dashboard"
         title="Dashboard"
         actions={
-          <>
+          <div className="flex items-center gap-3">
+            {/* View Mode Toggle */}
+            <div className="flex items-center bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('overview')}
+                className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${
+                  viewMode === 'overview'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <LayoutDashboard className="h-4 w-4 inline mr-1.5" />
+                Overview
+              </button>
+              <button
+                onClick={() => setViewMode('today')}
+                className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${
+                  viewMode === 'today'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <List className="h-4 w-4 inline mr-1.5" />
+                Today's Pets
+              </button>
+            </div>
+            
             <Button variant="secondary" size="sm" onClick={() => navigate('/bookings?action=new')}>
               <UserPlus className="h-4 w-4 mr-2" />
               New Booking
             </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate('/reports')}>
+            <Button variant="secondary" size="sm" onClick={() => navigate('/reports')}>
               <FileText className="h-4 w-4 mr-2" />
               Generate Report
             </Button>
-          </>
+          </div>
         }
       />
 
-      {/* Top Metrics Row */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+      {viewMode === 'today' ? (
+        /* High Density Today View */
+        <div className="h-[calc(100vh-200px)]">
+          <Suspense fallback={<Skeleton className="h-full w-full" />}>
+            <HighDensityTodayView />
+          </Suspense>
+        </div>
+      ) : (
+        /* Overview Dashboard */
+        <>
+          {/* Top Metrics Row */}
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
         {statsQuery.isLoading
           ? Array.from({ length: 4 }).map((_, index) => (
               <Skeleton key={index} className="h-32 rounded-lg" />
@@ -118,7 +200,6 @@ const DashboardEnhanced = () => {
                 subtitle={metric.subtitle}
                 trend={metric.trend}
                 icon={metric.icon}
-                gradient={metric.gradient}
               />
             ))}
       </div>
@@ -139,10 +220,31 @@ const DashboardEnhanced = () => {
                   <div className="w-16 h-6 bg-gray-200 rounded"></div>
                 </div>
               ))
+            ) : scheduleItems.length > 0 ? (
+              <div className="space-y-3">
+                {scheduleItems.map((item, index) => (
+                  <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      {item.type === 'arrival' ? (
+                        <UserPlus className="h-5 w-5 text-primary-600" />
+                      ) : (
+                        <UserX className="h-5 w-5 text-blue-600" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 text-sm truncate">{item.petName}</p>
+                      <p className="text-xs text-gray-600">{item.ownerName} • {item.time}</p>
+                    </div>
+                    <Badge variant={item.type === 'arrival' ? 'success' : 'secondary'} className="text-xs">
+                      {item.type}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
             ) : (
               <div className="text-center py-8">
                 <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-500">Schedule data will be available once bookings API is connected</p>
+                <p className="text-sm text-gray-500">No schedule items for today</p>
               </div>
             )}
           </div>
@@ -175,11 +277,11 @@ const DashboardEnhanced = () => {
               <Calendar className="h-4 w-4 mr-2" />
               New Booking
             </Button>
-            <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/schedule')}>
+            <Button variant="secondary" className="w-full justify-start" onClick={() => navigate('/schedule')}>
               <Users className="h-4 w-4 mr-2" />
               View Today's Schedule
             </Button>
-            <Button variant="outline" className="w-full justify-start" onClick={() => navigate('/reports')}>
+            <Button variant="secondary" className="w-full justify-start" onClick={() => navigate('/reports')}>
               <FileText className="h-4 w-4 mr-2" />
               Generate Report
             </Button>
@@ -200,10 +302,38 @@ const DashboardEnhanced = () => {
                   <div className="w-16 h-6 bg-gray-200 rounded"></div>
                 </div>
               ))
+            ) : recentBookings.length > 0 ? (
+              <div className="space-y-3">
+                {recentBookings.map((booking) => (
+                  <div key={booking.recordId || booking.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <PawPrint className="h-5 w-5 text-primary-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 text-sm truncate">
+                        {booking.pet?.name || booking.petName || 'Unknown Pet'}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        {booking.owner ? `${booking.owner.firstName || ''} ${booking.owner.lastName || ''}`.trim() : booking.ownerName || 'Unknown Owner'}
+                      </p>
+                    </div>
+                    <Badge 
+                      variant={
+                        booking.status === 'CHECKED_IN' ? 'success' : 
+                        booking.status === 'CONFIRMED' ? 'primary' : 
+                        'secondary'
+                      } 
+                      className="text-xs"
+                    >
+                      {booking.status?.replace('_', ' ') || 'Pending'}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
             ) : (
               <div className="text-center py-8">
                 <Users className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-500">Recent bookings will be available once bookings API is connected</p>
+                <p className="text-sm text-gray-500">No recent bookings</p>
               </div>
             )}
           </div>
@@ -225,10 +355,10 @@ const DashboardEnhanced = () => {
                     <AlertTriangle className="h-4 w-4 text-yellow-600" />
                   </div>
                   <div className="flex-1">
-                    <p className="font-semibold text-[#263238] text-sm">{item.petName}</p>
-                    <p className="text-xs text-[#64748B]">{item.vaccine}</p>
+                    <p className="font-semibold text-gray-900 text-sm">{item.petName}</p>
+                    <p className="text-xs text-gray-600">{item.vaccine}</p>
                   </div>
-                  <Badge variant={item.severity === 'danger' ? 'danger' : 'warning'} className="text-xs">
+                  <Badge variant={item.severity === 'danger' ? 'error' : 'warning'} className="text-xs">
                     {item.daysUntil}d
                   </Badge>
                 </div>
@@ -236,12 +366,14 @@ const DashboardEnhanced = () => {
             </div>
           ) : (
             <div className="text-center py-8">
-              <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-2" />
-              <p className="text-sm text-[#64748B]">All vaccinations up to date!</p>
+              <CheckCircle className="h-12 w-12 text-success-600 mx-auto mb-2" />
+              <p className="text-sm text-gray-600">All vaccinations up to date!</p>
             </div>
           )}
         </Card>
       </div>
+        </>
+      )}
     </div>
   );
 };

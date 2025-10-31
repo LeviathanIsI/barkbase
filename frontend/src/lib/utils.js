@@ -1,3 +1,6 @@
+import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
 export const formatCurrency = (amount, currency = 'USD') => {
   const formatter = new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -58,5 +61,5 @@ export const formatDateTime = (date) => {
  * Merges Tailwind classes properly
  */
 export function cn(...inputs) {
-  return inputs.filter(Boolean).join(' ');
+  return twMerge(clsx(inputs));
 }

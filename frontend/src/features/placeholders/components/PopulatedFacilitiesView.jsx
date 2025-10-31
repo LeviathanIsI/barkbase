@@ -71,7 +71,7 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
         {run.pet && (
           <div className="mb-3 p-2 bg-green-50 border border-green-200 rounded">
             <p className="text-sm font-medium text-green-900">
-              🐕 {run.pet} ({run.petBreed})
+              {run.pet} ({run.petBreed})
             </p>
             <p className="text-xs text-green-700">
               {run.checkoutDate ? `Out: ${new Date(run.checkoutDate).toLocaleDateString()}` : 'Current guest'}
@@ -200,7 +200,7 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
                 placeholder="Search runs by name, ID, or pet..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm text-gray-900 placeholder:text-gray-600 placeholder:opacity-75 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
@@ -445,7 +445,7 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
       {/* Cat Boarding */}
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-3">
-          🐱 Cat Boarding (4/6 occupied)
+          Cat Boarding (4/6 occupied)
         </h3>
 
         <div>
@@ -474,7 +474,7 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
                 {catArea.pet && (
                   <div className="mb-3 p-2 bg-green-50 border border-green-200 rounded">
                     <p className="text-sm font-medium text-green-900">
-                      🐱 {catArea.pet} ({catArea.petBreed})
+                      {catArea.pet} ({catArea.petBreed})
                     </p>
                     <p className="text-xs text-green-700">
                       {catArea.checkoutDate ? `Out: ${new Date(catArea.checkoutDate).toLocaleDateString()}` : 'Current guest'}

@@ -4,6 +4,8 @@
   "description": "Shared logic for Cognito authentication",
   "main": "index.js",
   "dependencies": {
-    "@aws-sdk/client-cognito-identity-provider": "^3.600.0"
+    "@aws-sdk/client-cognito-identity-provider": "^3.600.0",
+    "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^3.1.0"
   }
 }

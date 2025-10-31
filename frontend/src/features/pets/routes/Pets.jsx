@@ -9,6 +9,7 @@ import { usePetsQuery, useCreatePetMutation } from '../api';
 import { useExpiringVaccinationsQuery } from '../api-vaccinations';
 import { PetFormModal } from '../components';
 import EmptyStatePets from '../components/EmptyStatePets';
+import PetDetailsDrawer from '../components/PetDetailsDrawer';
 
 const Pets = () => {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ const Pets = () => {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [viewMode, setViewMode] = useState('grid');
   const [showImportModal, setShowImportModal] = useState(false);
+  const [selectedPet, setSelectedPet] = useState(null);
 
   const { data: pets = [], isLoading: isLoadingData, error } = usePetsQuery();
   const createPetMutation = useCreatePetMutation();
@@ -97,12 +99,12 @@ const Pets = () => {
 
     return (
       <Card
-        className="hover:shadow-lg transition-all cursor-pointer relative"
-        onClick={() => navigate(`/pets/${pet.recordId}`)}
+        className="hover:shadow-lg transition-all cursor-pointer relative p-6"
+        onClick={() => setSelectedPet(pet)}
       >
         {/* Alerts Badge */}
         {(hasExpiringVaccinations || hasMedicalAlerts) && (
-          <div className="absolute top-3 right-3 flex gap-1">
+          <div className="absolute top-4 right-4 flex gap-1.5">
             {hasExpiringVaccinations && (
               <div className="w-6 h-6 bg-yellow-100 rounded-full flex items-center justify-center" title="Vaccination expiring soon">
                 <ShieldAlert className="h-4 w-4 text-yellow-600" />
@@ -116,7 +118,7 @@ const Pets = () => {
           </div>
         )}
 
-        <div className="flex items-start gap-3 mb-4">
+        <div className="flex items-start gap-3 mb-4 pr-8">
           <div className="w-12 h-12 bg-gradient-to-r from-[#4B5DD3] to-[#3A4BC2] rounded-full flex items-center justify-center flex-shrink-0">
             <PawPrint className="h-6 w-6 text-white" />
           </div>
@@ -151,18 +153,18 @@ const Pets = () => {
           </div>
 
           {hasExpiringVaccinations && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded px-2 py-1">
-              <p className="text-xs text-yellow-800 flex items-center gap-1">
-                <Syringe className="h-3 w-3" />
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+              <p className="text-xs text-yellow-800 flex items-center gap-1.5">
+                <Syringe className="h-3.5 w-3.5 flex-shrink-0" />
                 Vaccination expiring soon
               </p>
             </div>
           )}
 
           {hasMedicalAlerts && (
-            <div className="bg-orange-50 border border-orange-200 rounded px-2 py-1">
-              <p className="text-xs text-orange-800 flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3" />
+            <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
+              <p className="text-xs text-orange-800 flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
                 Special care required
               </p>
             </div>
@@ -178,8 +180,8 @@ const Pets = () => {
     const status = pet.status || 'active';
 
     return (
-      <tr className="border-b border-[#F5F6FA] hover:bg-[#F5F6FA]/50 cursor-pointer" onClick={() => navigate(`/pets/${pet.recordId}`)}>
-        <td className="py-4 px-4">
+      <tr className="border-b border-[#F5F6FA] hover:bg-[#F5F6FA]/50 cursor-pointer transition-colors" onClick={() => setSelectedPet(pet)}>
+        <td className="py-4 px-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-r from-[#4B5DD3] to-[#3A4BC2] rounded-full flex items-center justify-center">
               <PawPrint className="h-5 w-5 text-white" />
@@ -190,18 +192,18 @@ const Pets = () => {
             </div>
           </div>
         </td>
-        <td className="py-4 px-4">
+        <td className="py-4 px-6">
           <p className="text-[#263238]">{primaryOwner?.name || primaryOwner?.email || '--'}</p>
         </td>
-        <td className="py-4 px-4">
+        <td className="py-4 px-6">
           <Badge variant={status === 'active' ? 'success' : 'neutral'}>
             {status === 'active' ? 'Active' : 'Inactive'}
           </Badge>
         </td>
-        <td className="py-4 px-4">
+        <td className="py-4 px-6">
           <p className="text-[#263238]">{bookingCount}</p>
         </td>
-        <td className="py-4 px-4">
+        <td className="py-4 px-6">
           {pet.medicalNotes && <Heart className="h-4 w-4 text-orange-500 inline mr-2" title="Medical notes" />}
           {pet.dietaryNotes && <AlertTriangle className="h-4 w-4 text-blue-500 inline" title="Dietary notes" />}
         </td>
@@ -263,52 +265,52 @@ const Pets = () => {
           ))
         ) : (
           <>
-            <Card>
+            <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B]">Total Pets</p>
+                  <p className="text-sm font-medium text-[#64748B] mb-1">Total Pets</p>
                   <p className="text-2xl font-bold text-[#263238]">{stats.total}</p>
                 </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                   <PawPrint className="h-6 w-6 text-blue-600" />
                 </div>
               </div>
             </Card>
 
-            <Card>
+            <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B]">Active Pets</p>
+                  <p className="text-sm font-medium text-[#64748B] mb-1">Active Pets</p>
                   <p className="text-2xl font-bold text-[#263238]">{stats.active}</p>
                 </div>
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
                   <Heart className="h-6 w-6 text-green-600" />
                 </div>
               </div>
             </Card>
 
-            <Card>
+            <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B]">With Bookings</p>
+                  <p className="text-sm font-medium text-[#64748B] mb-1">With Bookings</p>
                   <p className="text-2xl font-bold text-[#263238]">{stats.withBookings}</p>
                 </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
                   <Calendar className="h-6 w-6 text-purple-600" />
                 </div>
               </div>
             </Card>
 
-            <Card className={stats.expiringVaccinations > 0 ? 'border-yellow-300 bg-yellow-50' : ''}>
+            <Card className={`p-6 ${stats.expiringVaccinations > 0 ? 'border-yellow-300 bg-yellow-50' : ''}`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B]">Expiring Vaccines</p>
+                  <p className="text-sm font-medium text-[#64748B] mb-1">Expiring Vaccines</p>
                   <p className="text-2xl font-bold text-[#263238]">{stats.expiringVaccinations}</p>
                   {stats.expiringVaccinations > 0 && (
                     <p className="text-xs text-yellow-700 mt-1">Needs attention</p>
                   )}
                 </div>
-                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${
                   stats.expiringVaccinations > 0 ? 'bg-yellow-200' : 'bg-yellow-100'
                 }`}>
                   <Syringe className={`h-6 w-6 ${
@@ -318,13 +320,13 @@ const Pets = () => {
               </div>
             </Card>
 
-            <Card>
+            <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B]">Inactive</p>
+                  <p className="text-sm font-medium text-[#64748B] mb-1">Inactive</p>
                   <p className="text-2xl font-bold text-[#263238]">{stats.inactive}</p>
                 </div>
-                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
                   <Users className="h-6 w-6 text-gray-600" />
                 </div>
               </div>
@@ -334,24 +336,24 @@ const Pets = () => {
       </div>
 
       {/* Filters and View Toggle */}
-      <Card className="mb-6">
+      <Card className="mb-6 p-6">
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="flex items-center gap-4 flex-1">
+          <div className="flex items-center gap-4 flex-1 w-full sm:w-auto">
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#64748B]" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#64748B] pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search pets..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-[#E0E0E0] rounded-md focus:outline-none focus:ring-2 focus:ring-[#4B5DD3] focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2.5 border border-[#E0E0E0] rounded-md focus:outline-none focus:ring-2 focus:ring-[#4B5DD3] focus:border-transparent text-sm"
               />
             </div>
 
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-[#E0E0E0] rounded-md focus:outline-none focus:ring-2 focus:ring-[#4B5DD3] focus:border-transparent"
+              className="px-4 py-2.5 border border-[#E0E0E0] rounded-md focus:outline-none focus:ring-2 focus:ring-[#4B5DD3] focus:border-transparent text-sm bg-white"
             >
               <option value="ALL">All Status</option>
               <option value="active">Active</option>
@@ -359,20 +361,20 @@ const Pets = () => {
             </select>
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="text-sm text-[#64748B]">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="text-sm text-[#64748B] whitespace-nowrap">
               Showing {filteredPets.length} of {pets.length} pets
             </div>
-            <div className="flex border border-[#E0E0E0] rounded-md">
+            <div className="flex border border-[#E0E0E0] rounded-md overflow-hidden">
               <button
                 onClick={() => setViewMode('grid')}
-                className={`p-2 ${viewMode === 'grid' ? 'bg-[#4B5DD3] text-white' : 'text-[#64748B] hover:bg-gray-100'}`}
+                className={`p-2.5 transition-colors ${viewMode === 'grid' ? 'bg-[#4B5DD3] text-white' : 'text-[#64748B] hover:bg-gray-100'}`}
               >
                 <Grid3x3 className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`p-2 ${viewMode === 'list' ? 'bg-[#4B5DD3] text-white' : 'text-[#64748B] hover:bg-gray-100'}`}
+                className={`p-2.5 transition-colors border-l border-[#E0E0E0] ${viewMode === 'list' ? 'bg-[#4B5DD3] text-white' : 'text-[#64748B] hover:bg-gray-100'}`}
               >
                 <List className="h-4 w-4" />
               </button>
@@ -382,7 +384,7 @@ const Pets = () => {
       </Card>
 
       {/* Pets Display */}
-      <Card>
+      <Card className="p-6">
         {isLoading ? (
           viewMode === 'grid' ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -418,15 +420,15 @@ const Pets = () => {
             ))}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto -mx-6 -mb-6">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[#E0E0E0]">
-                  <th className="text-left py-3 px-4 font-semibold text-[#263238]">Pet</th>
-                  <th className="text-left py-3 px-4 font-semibold text-[#263238]">Owner</th>
-                  <th className="text-left py-3 px-4 font-semibold text-[#263238]">Status</th>
-                  <th className="text-left py-3 px-4 font-semibold text-[#263238]">Bookings</th>
-                  <th className="text-left py-3 px-4 font-semibold text-[#263238]">Notes</th>
+                <tr className="border-b border-[#E0E0E0] bg-gray-50">
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-[#64748B]">Pet</th>
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-[#64748B]">Owner</th>
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-[#64748B]">Status</th>
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-[#64748B]">Bookings</th>
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-[#64748B]">Notes</th>
                 </tr>
               </thead>
               <tbody>
@@ -455,6 +457,17 @@ const Pets = () => {
           }
         }}
         isLoading={createPetMutation.isPending}
+      />
+      
+      {/* Pet Details Drawer */}
+      <PetDetailsDrawer
+        pet={selectedPet}
+        isOpen={!!selectedPet}
+        onClose={() => setSelectedPet(null)}
+        onEdit={() => {
+          // Handle edit - could open the PetFormModal with the selected pet
+          setPetFormModalOpen(true);
+        }}
       />
     </div>
   );

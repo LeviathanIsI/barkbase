@@ -1,4 +1,4 @@
-const { getPool, getTenantIdFromEvent } = require('/opt/nodejs');
+const { getPool, getTenantIdFromEvent, getJWTValidator } = require('/opt/nodejs');
 
 const HEADERS = {
     'Access-Control-Allow-Origin': '*',
@@ -6,17 +6,40 @@ const HEADERS = {
     'Access-Control-Allow-Methods': 'OPTIONS,POST,GET,PUT,DELETE'
 };
 
+// Helper function to validate authentication
+async function validateAuth(event) {
+    try {
+        const jwtValidator = getJWTValidator();
+        const userInfo = await jwtValidator.validateRequest(event);
+        return userInfo;
+    } catch (error) {
+        console.error('Auth validation failed:', error);
+        return null;
+    }
+}
+
 exports.handler = async (event) => {
     console.log('Received event:', JSON.stringify(event, null, 2));
 
     const httpMethod = event.requestContext.http.method;
     const path = event.requestContext.http.path;
-    const tenantId = await getTenantIdFromEvent(event);
 
     if (httpMethod === 'OPTIONS') {
         return { statusCode: 200, headers: HEADERS, body: '' };
     }
 
+    // Validate authentication
+    const userInfo = await validateAuth(event);
+    if (!userInfo) {
+        return {
+            statusCode: 401,
+            headers: HEADERS,
+            body: JSON.stringify({ message: 'Unauthorized' }),
+        };
+    }
+
+    // Get tenant ID from JWT claims or database
+    const tenantId = userInfo.tenantId || await getTenantIdFromEvent(event);
     if (!tenantId) {
         return {
             statusCode: 401,

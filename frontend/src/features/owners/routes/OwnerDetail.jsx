@@ -11,6 +11,7 @@ import {
   ClipboardList,
   Video,
   X,
+  PawPrint,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import RecordDetailsView from '@/components/RecordDetailsView';
@@ -352,8 +353,8 @@ const OwnerDetail = () => {
                 key={pet.recordId}
                 className="flex items-center gap-3 rounded-md border border-border px-3 py-2 transition hover:bg-gray-50"
               >
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-                  🐾
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 text-primary-600">
+                  <PawPrint className="h-5 w-5" />
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium">{pet.name}</p>

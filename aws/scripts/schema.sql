@@ -1,699 +1,313 @@
--- PostgreSQL schema generated from prisma/schema.prisma
+-- BarkBase Database Schema
+-- PostgreSQL Schema for AWS RDS
 
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+-- Enable extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pg_crypto";
 
--- Enums
-CREATE TYPE "TenantPlan" AS ENUM ('FREE', 'PRO', 'ENTERPRISE');
-CREATE TYPE "Role" AS ENUM ('OWNER', 'ADMIN', 'STAFF', 'READONLY');
-CREATE TYPE "BookingStatus" AS ENUM ('PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS', 'CHECKED_OUT', 'COMPLETED', 'CANCELLED');
-CREATE TYPE "IncidentSeverity" AS ENUM ('MINOR', 'MODERATE', 'SEVERE', 'CRITICAL');
-CREATE TYPE "PaymentStatus" AS ENUM ('PENDING', 'AUTHORIZED', 'CAPTURED', 'SUCCESSFUL', 'REFUNDED', 'FAILED');
-CREATE TYPE "ServiceCategory" AS ENUM ('BOARDING', 'DAYCARE', 'GROOMING', 'TRAINING', 'OTHER');
-CREATE TYPE "KennelType" AS ENUM ('SUITE', 'KENNEL', 'CABIN', 'DAYCARE', 'MEDICAL');
-CREATE TYPE "CommunicationType" AS ENUM ('EMAIL', 'SMS', 'CALL', 'NOTE', 'SYSTEM');
-CREATE TYPE "CommunicationDirection" AS ENUM ('INBOUND', 'OUTBOUND', 'INTERNAL');
-CREATE TYPE "NoteVisibility" AS ENUM ('ALL', 'STAFF', 'ADMIN', 'PRIVATE');
-CREATE TYPE "CampaignStatus" AS ENUM ('DRAFT', 'SCHEDULED', 'ACTIVE', 'PAUSED', 'COMPLETED', 'CANCELLED');
-CREATE TYPE "TaskType" AS ENUM ('FEEDING', 'MEDICATION', 'EXERCISE', 'CLEANING', 'HEALTH_CHECK', 'SPECIAL_CARE');
-CREATE TYPE "Priority" AS ENUM ('LOW', 'NORMAL', 'HIGH', 'URGENT');
-
--- Tables
-CREATE TABLE "Tenant" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "slug" TEXT NOT NULL UNIQUE,
-    "name" TEXT NOT NULL,
-    "themeJson" JSONB,
-    "featureFlags" JSONB,
-    "plan" "TenantPlan" NOT NULL DEFAULT 'FREE',
-    "customDomain" TEXT UNIQUE,
-    "settings" JSONB,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL
+-- Tenants table - Multi-tenant architecture
+CREATE TABLE IF NOT EXISTS "Tenant" (
+    "recordId" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "slug" VARCHAR(255) UNIQUE NOT NULL,
+    "name" VARCHAR(255) NOT NULL,
+    "plan" VARCHAR(50) NOT NULL DEFAULT 'FREE',
+    "themeJson" JSONB DEFAULT '{}',
+    "featureFlags" JSONB DEFAULT '{}',
+    "customDomain" VARCHAR(255),
+    "settings" JSONB DEFAULT '{}',
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE "User" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "email" TEXT NOT NULL UNIQUE,
-    "passwordHash" TEXT NOT NULL,
-    "lastLoginAt" TIMESTAMP(3),
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "emailVerified" BOOLEAN NOT NULL DEFAULT false,
-    "twoFactorSecret" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "name" TEXT,
-    "phone" TEXT,
-    "avatarUrl" TEXT,
-    "timezone" TEXT DEFAULT 'America/New_York',
-    "language" TEXT DEFAULT 'en',
-    "preferences" JSONB DEFAULT '{}'
+CREATE INDEX IF NOT EXISTS idx_tenant_slug ON "Tenant"("slug");
+
+-- Users table
+CREATE TABLE IF NOT EXISTS "User" (
+    "recordId" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "email" VARCHAR(255) UNIQUE NOT NULL,
+    "passwordHash" VARCHAR(255),
+    "name" VARCHAR(255),
+    "phone" VARCHAR(50),
+    "cognitoSub" VARCHAR(255) UNIQUE,
+    "emailVerified" BOOLEAN DEFAULT FALSE,
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE TABLE "Membership" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "userId" TEXT NOT NULL,
-    "tenantId" TEXT NOT NULL,
-    "role" "Role" NOT NULL DEFAULT 'STAFF',
+CREATE INDEX IF NOT EXISTS idx_user_email ON "User"(LOWER("email"));
+CREATE INDEX IF NOT EXISTS idx_user_cognito_sub ON "User"("cognitoSub");
+
+-- Memberships table - Links users to tenants with roles
+CREATE TABLE IF NOT EXISTS "Membership" (
+    "recordId" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "userId" UUID NOT NULL REFERENCES "User"("recordId") ON DELETE CASCADE,
+    "tenantId" UUID NOT NULL REFERENCES "Tenant"("recordId") ON DELETE CASCADE,
+    "role" VARCHAR(50) NOT NULL DEFAULT 'VIEWER',
     "refreshToken" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "Membership_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "Membership_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE("userId", "tenantId")
 );
-CREATE UNIQUE INDEX "Membership_userId_tenantId_key" ON "Membership"("userId", "tenantId");
-CREATE INDEX "Membership_tenantId_role_idx" ON "Membership"("tenantId", "role");
 
-CREATE TABLE "Invite" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "email" TEXT NOT NULL,
-    "token" TEXT NOT NULL UNIQUE,
-    "role" "Role" NOT NULL DEFAULT 'STAFF',
-    "expiresAt" TIMESTAMP(3) NOT NULL,
-    "acceptedAt" TIMESTAMP(3),
-    "createdById" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "Invite_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "Invite_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("recordId") ON DELETE SET NULL ON UPDATE CASCADE
+CREATE INDEX IF NOT EXISTS idx_membership_user ON "Membership"("userId");
+CREATE INDEX IF NOT EXISTS idx_membership_tenant ON "Membership"("tenantId");
+
+-- Owners table
+CREATE TABLE IF NOT EXISTS "Owner" (
+    "recordId" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "tenantId" UUID NOT NULL REFERENCES "Tenant"("recordId") ON DELETE CASCADE,
+    "firstName" VARCHAR(255) NOT NULL,
+    "lastName" VARCHAR(255) NOT NULL,
+    "email" VARCHAR(255),
+    "phone" VARCHAR(50),
+    "address" TEXT,
+    "emergencyContact" VARCHAR(255),
+    "emergencyPhone" VARCHAR(50),
+    "notes" TEXT,
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-CREATE UNIQUE INDEX "Invite_tenantId_email_key" ON "Invite"("tenantId", "email");
-CREATE INDEX "Invite_tenantId_idx" ON "Invite"("tenantId");
-CREATE INDEX "Invite_email_idx" ON "Invite"("email");
 
-CREATE TABLE "EmailVerificationToken" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "userId" TEXT NOT NULL,
-    "token" TEXT NOT NULL UNIQUE,
-    "expiresAt" TIMESTAMP(3) NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "EmailVerificationToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
-);
-CREATE INDEX "EmailVerificationToken_userId_expiresAt_idx" ON "EmailVerificationToken"("userId", "expiresAt");
+CREATE INDEX IF NOT EXISTS idx_owner_tenant ON "Owner"("tenantId");
+CREATE INDEX IF NOT EXISTS idx_owner_email ON "Owner"(LOWER("email"));
 
-CREATE TABLE "AuditLog" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "actorId" TEXT,
-    "action" TEXT NOT NULL,
-    "entityType" TEXT NOT NULL,
-    "entityId" TEXT,
-    "diff" JSONB,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "AuditLog_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "AuditLog_actorId_fkey" FOREIGN KEY ("actorId") REFERENCES "User"("recordId") ON DELETE SET NULL ON UPDATE CASCADE
-);
-CREATE INDEX "AuditLog_tenantId_createdAt_idx" ON "AuditLog"("tenantId", "createdAt");
-CREATE INDEX "AuditLog_tenantId_entityType_idx" ON "AuditLog"("tenantId", "entityType");
-
-CREATE TABLE "UsageCounter" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "date" TIMESTAMP(3) NOT NULL,
-    "bookings" INTEGER NOT NULL DEFAULT 0,
-    "activePets" INTEGER NOT NULL DEFAULT 0,
-    "staffSeats" INTEGER NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "UsageCounter_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
-);
-CREATE UNIQUE INDEX "UsageCounter_tenantId_date_key" ON "UsageCounter"("tenantId", "date");
-CREATE INDEX "UsageCounter_tenantId_date_idx" ON "UsageCounter"("tenantId", "date");
-
-CREATE TABLE "Staff" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "membershipId" TEXT NOT NULL UNIQUE,
-    "title" TEXT,
-    "phone" TEXT,
-    "schedule" JSONB NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "Staff_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "Staff_membershipId_fkey" FOREIGN KEY ("membershipId") REFERENCES "Membership"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
-);
-CREATE INDEX "Staff_tenantId_idx" ON "Staff"("tenantId");
-
-CREATE TABLE "Owner" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "firstName" TEXT NOT NULL,
-    "lastName" TEXT NOT NULL,
-    "email" TEXT,
-    "phone" TEXT,
-    "address" JSONB NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "Owner_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
-);
-CREATE UNIQUE INDEX "Owner_tenantId_email_key" ON "Owner"("tenantId", "email");
-CREATE INDEX "Owner_tenantId_lastName_idx" ON "Owner"("tenantId", "lastName");
-
-CREATE TABLE "Pet" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "species" TEXT,
-    "breed" TEXT,
-    "birthdate" TIMESTAMP(3),
-    "photoUrl" TEXT,
+-- Pets table
+CREATE TABLE IF NOT EXISTS "Pet" (
+    "recordId" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "tenantId" UUID NOT NULL REFERENCES "Tenant"("recordId") ON DELETE CASCADE,
+    "name" VARCHAR(255) NOT NULL,
+    "breed" VARCHAR(255),
+    "species" VARCHAR(50) DEFAULT 'dog',
+    "gender" VARCHAR(20),
+    "weight" DECIMAL(5,2),
+    "birthDate" DATE,
+    "color" VARCHAR(100),
+    "microchipId" VARCHAR(100),
+    "status" VARCHAR(50) DEFAULT 'active',
     "medicalNotes" TEXT,
+    "behaviorNotes" TEXT,
     "dietaryNotes" TEXT,
-    "behaviorFlags" JSONB NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'active',
-    "primaryOwnerId" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "weight" DOUBLE PRECISION,
-    "allergies" TEXT,
-    "lastVetVisit" TIMESTAMP(3),
-    "nextAppointment" TIMESTAMP(3),
-    CONSTRAINT "Pet_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "Pet_primaryOwnerId_fkey" FOREIGN KEY ("primaryOwnerId") REFERENCES "Owner"("recordId") ON DELETE SET NULL ON UPDATE CASCADE
+    "photoUrl" TEXT,
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-CREATE INDEX "Pet_tenantId_name_idx" ON "Pet"("tenantId", "name");
 
-CREATE TABLE "PetOwner" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "petId" TEXT NOT NULL,
-    "ownerId" TEXT NOT NULL,
-    "isPrimary" BOOLEAN NOT NULL DEFAULT false,
-    CONSTRAINT "PetOwner_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "PetOwner_petId_fkey" FOREIGN KEY ("petId") REFERENCES "Pet"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "PetOwner_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "Owner"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
+CREATE INDEX IF NOT EXISTS idx_pet_tenant ON "Pet"("tenantId");
+CREATE INDEX IF NOT EXISTS idx_pet_status ON "Pet"("status");
+
+-- Pet-Owner relationship table (many-to-many)
+CREATE TABLE IF NOT EXISTS "PetOwner" (
+    "recordId" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "petId" UUID NOT NULL REFERENCES "Pet"("recordId") ON DELETE CASCADE,
+    "ownerId" UUID NOT NULL REFERENCES "Owner"("recordId") ON DELETE CASCADE,
+    "isPrimary" BOOLEAN DEFAULT FALSE,
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE("petId", "ownerId")
 );
-CREATE UNIQUE INDEX "PetOwner_tenantId_petId_ownerId_key" ON "PetOwner"("tenantId", "petId", "ownerId");
-CREATE INDEX "PetOwner_tenantId_ownerId_idx" ON "PetOwner"("tenantId", "ownerId");
--- Ensure only one primary owner per pet
-CREATE UNIQUE INDEX IF NOT EXISTS "PetOwner_one_primary_per_pet"
-  ON "PetOwner"("tenantId", "petId") WHERE "isPrimary" = true;
 
-CREATE TABLE "Kennel" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "type" "KennelType" NOT NULL,
-    "size" TEXT,
-    "capacity" INTEGER NOT NULL DEFAULT 1,
-    "location" TEXT,
-    "amenities" TEXT NOT NULL DEFAULT '{}',
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "building" TEXT,
-    "zone" TEXT,
-    "hourlyRate" INTEGER,
-    "dailyRate" INTEGER,
-    "weeklyRate" INTEGER,
-    "notes" TEXT,
-    CONSTRAINT "Kennel_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
-);
-CREATE UNIQUE INDEX "Kennel_tenantId_name_key" ON "Kennel"("tenantId", "name");
-CREATE INDEX "Kennel_tenantId_type_idx" ON "Kennel"("tenantId", "type");
-CREATE INDEX "Kennel_tenantId_isActive_idx" ON "Kennel"("tenantId", "isActive");
+CREATE INDEX IF NOT EXISTS idx_pet_owner_pet ON "PetOwner"("petId");
+CREATE INDEX IF NOT EXISTS idx_pet_owner_owner ON "PetOwner"("ownerId");
 
-CREATE TABLE "Booking" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "petId" TEXT NOT NULL,
-    "ownerId" TEXT NOT NULL,
-    "status" "BookingStatus" NOT NULL DEFAULT 'PENDING',
-    "checkIn" TIMESTAMP(3) NOT NULL,
-    "checkOut" TIMESTAMP(3) NOT NULL,
-    "depositCents" INTEGER NOT NULL DEFAULT 0,
-    "totalCents" INTEGER NOT NULL DEFAULT 0,
-    "balanceDueCents" INTEGER NOT NULL DEFAULT 0,
-    "notes" TEXT,
-    "specialInstructions" TEXT,
-    "source" TEXT DEFAULT 'portal',
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "Booking_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "Booking_petId_fkey" FOREIGN KEY ("petId") REFERENCES "Pet"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "Booking_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "Owner"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
-);
-CREATE INDEX "Booking_tenantId_status_checkIn_idx" ON "Booking"("tenantId", "status", "checkIn");
-CREATE INDEX "Booking_tenantId_petId_idx" ON "Booking"("tenantId", "petId");
-
-CREATE TABLE "BookingSegment" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "bookingId" TEXT NOT NULL,
-    "kennelId" TEXT NOT NULL,
-    "startDate" TIMESTAMP(3) NOT NULL,
-    "endDate" TIMESTAMP(3) NOT NULL,
-    "status" "BookingStatus" NOT NULL DEFAULT 'CONFIRMED',
-    "notes" TEXT,
-    CONSTRAINT "BookingSegment_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "BookingSegment_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "BookingSegment_kennelId_fkey" FOREIGN KEY ("kennelId") REFERENCES "Kennel"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
-);
-CREATE INDEX "BookingSegment_tenantId_startDate_idx" ON "BookingSegment"("tenantId", "startDate");
-CREATE INDEX "BookingSegment_tenantId_kennelId_startDate_idx" ON "BookingSegment"("tenantId", "kennelId", "startDate");
-
-CREATE TABLE "Service" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
+-- Services table
+CREATE TABLE IF NOT EXISTS "Service" (
+    "recordId" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "tenantId" UUID NOT NULL REFERENCES "Tenant"("recordId") ON DELETE CASCADE,
+    "name" VARCHAR(255) NOT NULL,
+    "category" VARCHAR(100) NOT NULL,
     "description" TEXT,
-    "priceCents" INTEGER NOT NULL DEFAULT 0,
-    "category" "ServiceCategory" NOT NULL DEFAULT 'BOARDING',
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "Service_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
+    "priceInCents" INTEGER NOT NULL DEFAULT 0,
+    "duration" INTEGER, -- in minutes
+    "isActive" BOOLEAN DEFAULT TRUE,
+    "settings" JSONB DEFAULT '{}',
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-CREATE UNIQUE INDEX "Service_tenantId_name_key" ON "Service"("tenantId", "name");
 
-CREATE TABLE "BookingService" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "bookingId" TEXT NOT NULL,
-    "serviceId" TEXT NOT NULL,
-    "quantity" INTEGER NOT NULL DEFAULT 1,
-    "priceCents" INTEGER NOT NULL DEFAULT 0,
-    CONSTRAINT "BookingService_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "BookingService_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "BookingService_serviceId_fkey" FOREIGN KEY ("serviceId") REFERENCES "Service"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
+CREATE INDEX IF NOT EXISTS idx_service_tenant ON "Service"("tenantId");
+CREATE INDEX IF NOT EXISTS idx_service_active ON "Service"("isActive");
+
+-- Run templates table
+CREATE TABLE IF NOT EXISTS "RunTemplate" (
+    "recordId" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "tenantId" UUID NOT NULL REFERENCES "Tenant"("recordId") ON DELETE CASCADE,
+    "name" VARCHAR(255) NOT NULL,
+    "category" VARCHAR(100),
+    "maxCapacity" INTEGER NOT NULL DEFAULT 1,
+    "currentCapacity" INTEGER DEFAULT 0,
+    "allowedServices" JSONB DEFAULT '[]',
+    "notes" TEXT,
+    "isActive" BOOLEAN DEFAULT TRUE,
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-CREATE INDEX "BookingService_tenantId_bookingId_idx" ON "BookingService"("tenantId", "bookingId");
 
-CREATE TABLE "Vaccination" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "petId" TEXT NOT NULL,
-    "type" TEXT NOT NULL,
-    "administeredAt" TIMESTAMP(3) NOT NULL,
-    "expiresAt" TIMESTAMP(3) NOT NULL,
+CREATE INDEX IF NOT EXISTS idx_run_template_tenant ON "RunTemplate"("tenantId");
+
+-- Bookings table
+CREATE TABLE IF NOT EXISTS "Booking" (
+    "recordId" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "tenantId" UUID NOT NULL REFERENCES "Tenant"("recordId") ON DELETE CASCADE,
+    "petId" UUID NOT NULL REFERENCES "Pet"("recordId") ON DELETE CASCADE,
+    "ownerId" UUID NOT NULL REFERENCES "Owner"("recordId") ON DELETE CASCADE,
+    "serviceId" UUID REFERENCES "Service"("recordId"),
+    "runTemplateId" UUID REFERENCES "RunTemplate"("recordId"),
+    "status" VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    "checkIn" DATE NOT NULL,
+    "checkOut" DATE NOT NULL,
+    "actualCheckIn" TIMESTAMP WITH TIME ZONE,
+    "actualCheckOut" TIMESTAMP WITH TIME ZONE,
+    "totalPriceInCents" INTEGER DEFAULT 0,
+    "depositInCents" INTEGER DEFAULT 0,
+    "balanceDueInCents" INTEGER DEFAULT 0,
+    "notes" TEXT,
+    "specialRequirements" TEXT,
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_booking_tenant ON "Booking"("tenantId");
+CREATE INDEX IF NOT EXISTS idx_booking_pet ON "Booking"("petId");
+CREATE INDEX IF NOT EXISTS idx_booking_owner ON "Booking"("ownerId");
+CREATE INDEX IF NOT EXISTS idx_booking_dates ON "Booking"("checkIn", "checkOut");
+CREATE INDEX IF NOT EXISTS idx_booking_status ON "Booking"("status");
+
+-- Vaccinations table
+CREATE TABLE IF NOT EXISTS "Vaccination" (
+    "recordId" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "tenantId" UUID NOT NULL REFERENCES "Tenant"("recordId") ON DELETE CASCADE,
+    "petId" UUID NOT NULL REFERENCES "Pet"("recordId") ON DELETE CASCADE,
+    "type" VARCHAR(100) NOT NULL,
+    "administeredAt" DATE NOT NULL,
+    "expiresAt" DATE,
+    "veterinarian" VARCHAR(255),
     "documentUrl" TEXT,
     "notes" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "reminderSentAt" TIMESTAMP(3),
-    CONSTRAINT "Vaccination_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "Vaccination_petId_fkey" FOREIGN KEY ("petId") REFERENCES "Pet"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-CREATE INDEX "Vaccination_tenantId_expiresAt_idx" ON "Vaccination"("tenantId", "expiresAt");
 
-CREATE TABLE "Payment" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "bookingId" TEXT,
-    "ownerId" TEXT NOT NULL,
-    "amountCents" INTEGER NOT NULL,
-    "currency" TEXT NOT NULL DEFAULT 'USD',
-    "status" "PaymentStatus" NOT NULL DEFAULT 'PENDING',
-    "method" TEXT,
-    "externalId" TEXT,
-    "intentId" TEXT,
-    "capturedAt" TIMESTAMP(3),
-    "metadata" JSONB NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "Payment_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "Payment_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "Payment_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "Owner"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
-);
-CREATE UNIQUE INDEX "Payment_tenantId_externalId_key" ON "Payment"("tenantId", "externalId");
-CREATE INDEX "Payment_tenantId_status_idx" ON "Payment"("tenantId", "status");
-CREATE INDEX "Payment_tenantId_createdAt_idx" ON "Payment"("tenantId", "createdAt");
-CREATE INDEX "Payment_tenantId_intentId_idx" ON "Payment"("tenantId", "intentId");
+CREATE INDEX IF NOT EXISTS idx_vaccination_tenant ON "Vaccination"("tenantId");
+CREATE INDEX IF NOT EXISTS idx_vaccination_pet ON "Vaccination"("petId");
+CREATE INDEX IF NOT EXISTS idx_vaccination_expires ON "Vaccination"("expiresAt");
 
-CREATE TABLE "CheckIn" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "bookingId" TEXT NOT NULL,
-    "staffId" TEXT,
-    "time" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "weight" DOUBLE PRECISION,
-    "photos" TEXT NOT NULL DEFAULT '[]',
-    "notes" TEXT,
+-- Check-ins table
+CREATE TABLE IF NOT EXISTS "CheckIn" (
+    "recordId" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "bookingId" UUID NOT NULL REFERENCES "Booking"("recordId") ON DELETE CASCADE,
+    "checkedInAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    "checkedInBy" UUID REFERENCES "User"("recordId"),
+    "weight" DECIMAL(5,2),
     "conditionRating" INTEGER,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "CheckIn_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "CheckIn_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "CheckIn_staffId_fkey" FOREIGN KEY ("staffId") REFERENCES "Staff"("recordId") ON DELETE SET NULL ON UPDATE CASCADE
-);
-CREATE INDEX "CheckIn_tenantId_bookingId_idx" ON "CheckIn"("tenantId", "bookingId");
-CREATE INDEX "CheckIn_tenantId_time_idx" ON "CheckIn"("tenantId", "time");
-
-CREATE TABLE "CheckOut" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "bookingId" TEXT NOT NULL,
-    "staffId" TEXT,
-    "time" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "incidentReportId" TEXT,
-    "extraCharges" TEXT NOT NULL DEFAULT '{}',
-    "signatureUrl" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "CheckOut_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "CheckOut_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "CheckOut_staffId_fkey" FOREIGN KEY ("staffId") REFERENCES "Staff"("recordId") ON DELETE SET NULL ON UPDATE CASCADE
-);
--- Note: FK to IncidentReport added after IncidentReport table is created
-
-CREATE INDEX "CheckOut_tenantId_bookingId_idx" ON "CheckOut"("tenantId", "bookingId");
-CREATE INDEX "CheckOut_tenantId_time_idx" ON "CheckOut"("tenantId", "time");
-
-CREATE TABLE "IncidentReport" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "petId" TEXT NOT NULL,
-    "bookingId" TEXT,
-    "occurredAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "severity" "IncidentSeverity" NOT NULL,
-    "narrative" TEXT NOT NULL,
-    "photos" TEXT NOT NULL DEFAULT '[]',
-    "vetContacted" BOOLEAN NOT NULL DEFAULT false,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "IncidentReport_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "IncidentReport_petId_fkey" FOREIGN KEY ("petId") REFERENCES "Pet"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "IncidentReport_bookingId_fkey" FOREIGN KEY ("bookingId") REFERENCES "Booking"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
-);
-CREATE INDEX "IncidentReport_tenantId_petId_idx" ON "IncidentReport"("tenantId", "petId");
-CREATE INDEX "IncidentReport_tenantId_bookingId_idx" ON "IncidentReport"("tenantId", "bookingId");
-CREATE INDEX "IncidentReport_tenantId_occurredAt_idx" ON "IncidentReport"("tenantId", "occurredAt");
-
--- Now add the FK from CheckOut to IncidentReport
-ALTER TABLE "CheckOut" ADD CONSTRAINT "CheckOut_incidentReportId_fkey" FOREIGN KEY ("incidentReportId") REFERENCES "IncidentReport"("recordId") ON DELETE SET NULL ON UPDATE CASCADE;
-
-CREATE TABLE "Communication" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "ownerId" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "type" "CommunicationType" NOT NULL,
-    "direction" "CommunicationDirection" NOT NULL,
-    "subject" TEXT,
-    "content" TEXT NOT NULL,
-    "metadata" JSONB,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "Communication_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "Communication_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "Owner"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "Communication_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
-);
-CREATE INDEX "Communication_tenantId_ownerId_createdAt_idx" ON "Communication"("tenantId", "ownerId", "createdAt");
-CREATE INDEX "Communication_tenantId_type_idx" ON "Communication"("tenantId", "type");
-
-CREATE TABLE "CustomerSegment" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "description" TEXT,
-    "conditions" JSONB NOT NULL,
-    "isAutomatic" BOOLEAN NOT NULL DEFAULT false,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "color" TEXT,
-    "icon" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "CustomerSegment_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
-);
-CREATE UNIQUE INDEX "CustomerSegment_tenantId_name_key" ON "CustomerSegment"("tenantId", "name");
-CREATE INDEX "CustomerSegment_tenantId_isActive_idx" ON "CustomerSegment"("tenantId", "isActive");
-
-CREATE TABLE "CustomerSegmentMember" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "segmentId" TEXT NOT NULL,
-    "ownerId" TEXT NOT NULL,
-    "addedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "isManual" BOOLEAN NOT NULL DEFAULT false,
-    CONSTRAINT "CustomerSegmentMember_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "CustomerSegmentMember_segmentId_fkey" FOREIGN KEY ("segmentId") REFERENCES "CustomerSegment"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "CustomerSegmentMember_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "Owner"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
-);
-CREATE UNIQUE INDEX "CustomerSegmentMember_segmentId_ownerId_key" ON "CustomerSegmentMember"("segmentId", "ownerId");
-CREATE INDEX "CustomerSegmentMember_tenantId_ownerId_idx" ON "CustomerSegmentMember"("tenantId", "ownerId");
-
-CREATE TABLE "CustomerTag" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "color" TEXT,
-    "description" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "CustomerTag_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
-);
-CREATE UNIQUE INDEX "CustomerTag_tenantId_name_key" ON "CustomerTag"("tenantId", "name");
-
-CREATE TABLE "CustomerTagMember" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "tagId" TEXT NOT NULL,
-    "ownerId" TEXT NOT NULL,
-    "addedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "CustomerTagMember_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "CustomerTagMember_tagId_fkey" FOREIGN KEY ("tagId") REFERENCES "CustomerTag"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "CustomerTagMember_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "Owner"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
-);
-CREATE UNIQUE INDEX "CustomerTagMember_tagId_ownerId_key" ON "CustomerTagMember"("tagId", "ownerId");
-CREATE INDEX "CustomerTagMember_tenantId_ownerId_idx" ON "CustomerTagMember"("tenantId", "ownerId");
-
-CREATE TABLE "Campaign" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "description" TEXT,
-    "type" "CommunicationType" NOT NULL,
-    "status" "CampaignStatus" NOT NULL DEFAULT 'DRAFT',
-    "segmentId" TEXT,
-    "content" JSONB NOT NULL,
-    "scheduledAt" TIMESTAMP(3),
-    "sentAt" TIMESTAMP(3),
-    "metrics" JSONB,
-    "createdById" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "Campaign_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "Campaign_segmentId_fkey" FOREIGN KEY ("segmentId") REFERENCES "CustomerSegment"("recordId") ON DELETE SET NULL ON UPDATE CASCADE,
-    CONSTRAINT "Campaign_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
-);
-CREATE INDEX "Campaign_tenantId_status_idx" ON "Campaign"("tenantId", "status");
-CREATE INDEX "Campaign_tenantId_scheduledAt_idx" ON "Campaign"("tenantId", "scheduledAt");
-
-CREATE TABLE "Note" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "entityType" TEXT NOT NULL,
-    "entityId" TEXT NOT NULL,
-    "category" TEXT,
-    "content" TEXT NOT NULL,
-    "visibility" "NoteVisibility" NOT NULL DEFAULT 'ALL',
-    "isPinned" BOOLEAN NOT NULL DEFAULT false,
-    "authorId" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "Note_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "Note_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
-);
-CREATE INDEX "Note_tenantId_entityType_entityId_idx" ON "Note"("tenantId", "entityType", "entityId");
-CREATE INDEX "Note_tenantId_authorId_idx" ON "Note"("tenantId", "authorId");
-
-CREATE TABLE "Task" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "type" "TaskType" NOT NULL,
-    "relatedType" TEXT NOT NULL,
-    "relatedId" TEXT NOT NULL,
-    "assignedTo" TEXT,
-    "scheduledFor" TIMESTAMP(3) NOT NULL,
-    "completedAt" TIMESTAMP(3),
-    "completedBy" TEXT,
+    "vaccinationsVerified" BOOLEAN DEFAULT FALSE,
+    "belongings" JSONB DEFAULT '[]',
+    "photoUrls" JSONB DEFAULT '[]',
     "notes" TEXT,
-    "priority" "Priority" NOT NULL DEFAULT 'NORMAL',
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    CONSTRAINT "Task_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "Task_assignedTo_fkey" FOREIGN KEY ("assignedTo") REFERENCES "Staff"("recordId") ON DELETE NO ACTION ON UPDATE CASCADE,
-    CONSTRAINT "Task_completedBy_fkey" FOREIGN KEY ("completedBy") REFERENCES "Staff"("recordId") ON DELETE NO ACTION ON UPDATE CASCADE
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-CREATE INDEX "Task_tenantId_scheduledFor_idx" ON "Task"("tenantId", "scheduledFor");
-CREATE INDEX "Task_tenantId_type_idx" ON "Task"("tenantId", "type");
-CREATE INDEX "Task_tenantId_assignedTo_idx" ON "Task"("tenantId", "assignedTo");
 
-CREATE TABLE "RunTemplate" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "timePeriodMinutes" INTEGER NOT NULL DEFAULT 30,
-    "capacityType" TEXT NOT NULL DEFAULT 'total',
-    "maxCapacity" INTEGER NOT NULL DEFAULT 10,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "RunTemplate_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE
+CREATE INDEX IF NOT EXISTS idx_checkin_booking ON "CheckIn"("bookingId");
+
+-- Check-outs table
+CREATE TABLE IF NOT EXISTS "CheckOut" (
+    "recordId" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "bookingId" UUID NOT NULL REFERENCES "Booking"("recordId") ON DELETE CASCADE,
+    "checkedOutAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    "checkedOutBy" UUID REFERENCES "User"("recordId"),
+    "lateFeeCents" INTEGER DEFAULT 0,
+    "additionalChargesCents" INTEGER DEFAULT 0,
+    "additionalChargesDescription" TEXT,
+    "paymentCaptured" BOOLEAN DEFAULT FALSE,
+    "paymentIntentId" VARCHAR(255),
+    "signatureUrl" TEXT,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-CREATE UNIQUE INDEX "RunTemplate_tenantId_name_key" ON "RunTemplate"("tenantId", "name");
-CREATE INDEX "RunTemplate_tenantId_isActive_idx" ON "RunTemplate"("tenantId", "isActive");
 
-CREATE TABLE "Run" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "templateId" TEXT,
-    "name" TEXT NOT NULL,
-    "date" DATE NOT NULL,
-    "scheduleTime" TEXT NOT NULL DEFAULT '09:00',
-    "capacity" INTEGER NOT NULL DEFAULT 10,
-    "assignedPets" JSONB NOT NULL DEFAULT '[]'::jsonb,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "Run_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "Run_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "RunTemplate"("recordId") ON DELETE SET NULL ON UPDATE CASCADE
+CREATE INDEX IF NOT EXISTS idx_checkout_booking ON "CheckOut"("bookingId");
+
+-- Invoices table
+CREATE TABLE IF NOT EXISTS "Invoice" (
+    "recordId" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "tenantId" UUID NOT NULL REFERENCES "Tenant"("recordId") ON DELETE CASCADE,
+    "bookingId" UUID REFERENCES "Booking"("recordId"),
+    "ownerId" UUID NOT NULL REFERENCES "Owner"("recordId") ON DELETE CASCADE,
+    "invoiceNumber" VARCHAR(50) NOT NULL,
+    "status" VARCHAR(50) NOT NULL DEFAULT 'DRAFT',
+    "subtotalCents" INTEGER NOT NULL DEFAULT 0,
+    "taxCents" INTEGER DEFAULT 0,
+    "totalCents" INTEGER NOT NULL DEFAULT 0,
+    "paidCents" INTEGER DEFAULT 0,
+    "dueDate" DATE,
+    "lineItems" JSONB DEFAULT '[]',
+    "notes" TEXT,
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE("tenantId", "invoiceNumber")
 );
-CREATE INDEX "Run_tenantId_date_idx" ON "Run"("tenantId", "date");
-CREATE INDEX "Run_tenantId_isActive_idx" ON "Run"("tenantId", "isActive");
-CREATE INDEX "Run_templateId_idx" ON "Run"("templateId");
 
-CREATE TABLE "Message" (
-    "recordId" TEXT NOT NULL PRIMARY KEY,
-    "tenantId" TEXT NOT NULL,
-    "conversationId" TEXT NOT NULL,
-    "senderId" TEXT NOT NULL,
-    "recipientId" TEXT,
-    "content" TEXT NOT NULL,
-    "isRead" BOOLEAN NOT NULL DEFAULT false,
-    "readAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "Message_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("recordId") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "Message_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "User"("recordId") ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT "Message_recipientId_fkey" FOREIGN KEY ("recipientId") REFERENCES "User"("recordId") ON DELETE SET NULL ON UPDATE CASCADE
+CREATE INDEX IF NOT EXISTS idx_invoice_tenant ON "Invoice"("tenantId");
+CREATE INDEX IF NOT EXISTS idx_invoice_booking ON "Invoice"("bookingId");
+CREATE INDEX IF NOT EXISTS idx_invoice_owner ON "Invoice"("ownerId");
+CREATE INDEX IF NOT EXISTS idx_invoice_status ON "Invoice"("status");
+
+-- Payments table
+CREATE TABLE IF NOT EXISTS "Payment" (
+    "recordId" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "tenantId" UUID NOT NULL REFERENCES "Tenant"("recordId") ON DELETE CASCADE,
+    "invoiceId" UUID REFERENCES "Invoice"("recordId"),
+    "ownerId" UUID NOT NULL REFERENCES "Owner"("recordId") ON DELETE CASCADE,
+    "amountCents" INTEGER NOT NULL,
+    "method" VARCHAR(50) NOT NULL,
+    "status" VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    "stripePaymentIntentId" VARCHAR(255),
+    "stripeChargeId" VARCHAR(255),
+    "metadata" JSONB DEFAULT '{}',
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-CREATE INDEX "Message_tenantId_conversationId_idx" ON "Message"("tenantId", "conversationId");
-CREATE INDEX "Message_tenantId_senderId_idx" ON "Message"("tenantId", "senderId");
-CREATE INDEX "Message_tenantId_recipientId_idx" ON "Message"("tenantId", "recipientId");
 
--- Add function to automatically update `updatedAt` columns
-CREATE OR REPLACE FUNCTION trigger_set_timestamp()
+CREATE INDEX IF NOT EXISTS idx_payment_tenant ON "Payment"("tenantId");
+CREATE INDEX IF NOT EXISTS idx_payment_invoice ON "Payment"("invoiceId");
+CREATE INDEX IF NOT EXISTS idx_payment_owner ON "Payment"("ownerId");
+
+-- Properties table (for custom fields)
+CREATE TABLE IF NOT EXISTS "Property" (
+    "recordId" UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    "tenantId" UUID NOT NULL REFERENCES "Tenant"("recordId") ON DELETE CASCADE,
+    "key" VARCHAR(255) NOT NULL,
+    "label" VARCHAR(255) NOT NULL,
+    "type" VARCHAR(50) NOT NULL,
+    "entityType" VARCHAR(50) NOT NULL, -- 'pet', 'owner', 'booking', etc.
+    "settings" JSONB DEFAULT '{}',
+    "isActive" BOOLEAN DEFAULT TRUE,
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE("tenantId", "key", "entityType")
+);
+
+CREATE INDEX IF NOT EXISTS idx_property_tenant ON "Property"("tenantId");
+CREATE INDEX IF NOT EXISTS idx_property_entity ON "Property"("entityType");
+
+-- Create update timestamp triggers
+CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
-  NEW."updatedAt" = NOW();
-  RETURN NEW;
+    NEW."updatedAt" = NOW();
+    RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ language 'plpgsql';
 
--- Apply the trigger to all tables with `updatedAt`
--- (This is a simplified approach; a more robust solution would generate this dynamically)
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON "Tenant"
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON "User"
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON "Membership"
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON "Invite"
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON "UsageCounter"
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON "Staff"
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON "Owner"
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON "Pet"
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON "Kennel"
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON "Booking"
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON "Service"
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON "Vaccination"
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON "Payment"
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON "CheckIn"
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON "CheckOut"
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON "IncidentReport"
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON "Communication"
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON "CustomerSegment"
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON "Campaign"
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON "Note"
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON "Task"
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON "Run"
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
-CREATE TRIGGER set_timestamp
-BEFORE UPDATE ON "RunTemplate"
-FOR EACH ROW
-EXECUTE PROCEDURE trigger_set_timestamp();
-
--- End of schema
+-- Apply update triggers to all tables with updatedAt
+DO $$
+DECLARE
+    t text;
+BEGIN
+    FOR t IN 
+        SELECT table_name 
+        FROM information_schema.columns 
+        WHERE column_name = 'updatedAt' 
+        AND table_schema = 'public'
+    LOOP
+        EXECUTE format('DROP TRIGGER IF EXISTS update_%I_updated_at ON %I', t, t);
+        EXECUTE format('CREATE TRIGGER update_%I_updated_at BEFORE UPDATE ON %I FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()', t, t);
+    END LOOP;
+END$$;

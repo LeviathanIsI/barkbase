@@ -14,7 +14,6 @@ const General = () => {
             <label className="mb-1 block text-sm font-medium text-text">Logo</label>
             <div className="flex items-center gap-4">
               <div className="flex h-16 w-16 items-center justify-center rounded-lg border-2 border-dashed border-border bg-surface/50">
-                <span className="text-2xl">🐕</span>
               </div>
               <Button variant="outline" size="sm">Upload Logo</Button>
             </div>

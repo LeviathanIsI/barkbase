@@ -1,6 +1,9 @@
 export const queryKeys = {
   tenant: (tenantKey) => ['tenant', tenantKey],
-  dashboard: {
+  // Base dashboard function for building query keys
+  dashboard: (tenantKey) => [tenantKey, 'dashboard'],
+  // Nested dashboard keys for backwards compatibility
+  dashboardKeys: {
     stats: (tenantKey) => [tenantKey, 'dashboard', 'stats'],
     occupancy: (tenantKey) => [tenantKey, 'dashboard', 'occupancy'],
     vaccinations: (tenantKey) => [tenantKey, 'dashboard', 'vaccinations'],

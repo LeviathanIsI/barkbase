@@ -1,5 +1,6 @@
 import Button from '@/components/ui/Button';
 import { DetailsGrid, InfoRow, TagList, KeyValue, StatusPill } from '@/components/primitives';
+import { PawPrint } from 'lucide-react';
 
 export default function PetDetails({ data, avatar, actionButtons = [] }) {
   if (!data) return null;
@@ -12,8 +13,8 @@ export default function PetDetails({ data, avatar, actionButtons = [] }) {
     <div className="space-y-6">
       <div className="flex items-start gap-4">
         {avatar ?? (
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-2xl">
-            🐾
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary-100">
+            <PawPrint className="h-8 w-8 text-primary-600" />
           </div>
         )}
         <div className="space-y-2">

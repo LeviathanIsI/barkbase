@@ -57,7 +57,7 @@ const StaffWizard = ({ isOpen, onClose, onComplete }) => {
             {[1, 2, 3, 4].map(step => (
               <div key={step} className="flex items-center">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  step <= currentStep ? 'bg-blue-600 text-white' : 'bg-gray-300 text-gray-600'
+                  step <= currentStep ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
                 }`}>
                   {step}
                 </div>

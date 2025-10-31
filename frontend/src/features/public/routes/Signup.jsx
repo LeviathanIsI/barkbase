@@ -76,14 +76,14 @@ const Signup = () => {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
       <div className="mb-6 text-center">
-        <p className="text-xs uppercase tracking-wide text-muted">BarkBase</p>
-        <h1 className="text-2xl font-semibold text-text">Create your BarkBase workspace</h1>
-        <p className="mt-2 text-sm text-muted">Start on the free plan. Upgrade whenever you’re ready.</p>
+        <p className="text-xs uppercase tracking-wide text-gray-400">BarkBase</p>
+        <h1 className="text-2xl font-semibold text-white">Create your BarkBase workspace</h1>
+        <p className="mt-2 text-sm text-gray-300">Start on the free plan. Upgrade whenever you're ready.</p>
       </div>
-      <Card className="w-full max-w-xl">
+      <Card className="w-full max-w-xl p-6">
         {success ? (
-          <div className="space-y-4 text-sm text-text">
-            <h2 className="text-lg font-semibold text-text">Verify your email</h2>
+          <div className="space-y-4 text-sm text-gray-900">
+            <h2 className="text-lg font-semibold text-gray-900">Verify your email</h2>
             <p>
               We've sent a verification link to <strong>{success.email}</strong>. Click the link to activate your
               workspace <strong>{success.tenant.name}</strong> and sign in.
@@ -92,21 +92,21 @@ const Signup = () => {
               Workspace slug: <span className="font-mono text-xs uppercase">{success.tenant.slug}</span>
             </p>
             {success.verification?.token ? (
-              <div className="rounded-lg border border-warning/60 bg-warning/10 p-4 text-left text-sm text-warning">
+              <div className="rounded-lg border border-yellow-500/60 bg-yellow-500/10 p-4 text-left text-sm text-yellow-700">
                 <p className="font-semibold">Need a quick way to verify?</p>
                 <p className="mt-1">
                   Email couldn't be delivered. Use this link instead:
                   <br />
                   <Link
                     to={`/verify-email?token=${success.verification.token}`}
-                    className="break-all font-mono text-xs text-warning underline"
+                    className="break-all font-mono text-xs text-yellow-700 underline"
                   >
                     {`${window.location.origin}/verify-email?token=${success.verification.token}`}
                   </Link>
                 </p>
               </div>
             ) : null}
-            <p className="text-muted">
+            <p className="text-gray-600">
               Didn't receive it? Check your spam folder or request another link from the sign-in screen once the
               first expires.
             </p>
@@ -132,7 +132,7 @@ const Signup = () => {
               placeholder={slugHint || 'acme-boarding'}
               pattern="^[a-z0-9]+(?:-[a-z0-9]+)*$"
               title="Lowercase letters, numbers, and hyphens only"
-              helper={`This becomes your tenant slug (e.g. ${tenantSlug || slugHint || 'acme-boarding'}.barkbase.app)`}
+              helpText={`This becomes your tenant slug (e.g. ${tenantSlug || slugHint || 'acme-boarding'}.barkbase.app)`}
               required
             />
             <Input
@@ -150,28 +150,28 @@ const Signup = () => {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Use at least 12 characters, incl. symbol"
               minLength={12}
-              helper="Must include upper & lower case letters, a number, and a symbol."
+              helpText="Must include upper & lower case letters, a number, and a symbol."
               required
             />
-            <label className="flex items-start gap-2 rounded-lg border border-border/70 bg-surface/80 p-3 text-sm">
+            <label className="flex items-start gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm">
               <input
                 type="checkbox"
                 checked={acknowledgeAwsHosting}
                 onChange={(event) => setAcknowledgeAwsHosting(event.target.checked)}
-                className="mt-1 h-4 w-4"
+                className="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-2 focus:ring-primary-500"
                 required
               />
-              <span className="text-left text-xs text-muted">
+              <span className="text-left text-xs text-gray-600">
                 I understand BarkBase stores my workspace on AWS-managed infrastructure and that plan limits control
                 retention and capacity. I will export data regularly if I need additional backups.
               </span>
             </label>
-            {error ? <p className="text-sm text-danger">{error}</p> : null}
+            {error ? <p className="text-sm text-red-600">{error}</p> : null}
             <div className="flex items-center justify-between gap-3">
               <Button type="submit" disabled={submitting || !acknowledgeAwsHosting}>
                 {submitting ? 'Creating workspace…' : 'Create workspace'}
               </Button>
-              <Link to="/login" className="text-sm text-primary underline">
+              <Link to="/login" className="text-sm text-primary-600 underline">
                 Already have an account? Sign in
               </Link>
             </div>

@@ -8,6 +8,15 @@ export default {
     extend: {
       // Professional Color Palette - Linear/Calendly inspired
       colors: {
+        // Semantic colors for consistent theming
+        background: '#2C3E50', // Dark slate blue for auth pages
+        surface: '#FFFFFF', // White for cards and inputs
+        text: '#111827', // Primary text color (gray-900)
+        muted: '#6B7280', // Muted/secondary text (gray-500)
+        border: '#E5E7EB', // Border color (gray-200)
+        danger: '#DC2626', // Error/danger color (error-600)
+        warning: '#F59E0B', // Warning color (warning-500)
+        
         // Primary - Professional Blue
         primary: {
           50: '#EFF6FF',

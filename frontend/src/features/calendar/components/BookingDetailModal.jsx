@@ -1,4 +1,4 @@
-import { X, Camera, FileText, Move, Calendar, AlertTriangle, CreditCard, CheckCircle, Phone, Mail, User } from 'lucide-react';
+import { X, Camera, FileText, Move, Calendar, AlertTriangle, CreditCard, CheckCircle, Phone, Mail, User, PawPrint } from 'lucide-react';
 import Button from '@/components/ui/Button';
 
 const BookingDetailModal = ({ booking, isOpen, onClose }) => {
@@ -58,26 +58,36 @@ const BookingDetailModal = ({ booking, isOpen, onClose }) => {
           {/* Pet Info */}
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
             <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-              🐕 PET INFO
+              <PawPrint className="h-5 w-5 text-primary-600" />
+              PET INFO
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <div className="text-lg font-medium text-gray-900">{mockBooking.pet.name}</div>
-                <div className="text-sm text-gray-600">{mockBooking.pet.breed}</div>
+                <div className="text-lg font-medium text-gray-900">{displayBooking.pet.name || 'Unknown'}</div>
+                <div className="text-sm text-gray-600">{displayBooking.pet.breed || 'N/A'}</div>
                 <div className="text-xs text-gray-500 mt-1">
-                  {mockBooking.pet.age} years old • {mockBooking.pet.weight} lbs • {mockBooking.pet.neutered ? 'Neutered' : 'Not neutered'}
+                  {displayBooking.pet.age ? `${displayBooking.pet.age} years old` : ''} 
+                  {displayBooking.pet.weight ? ` • ${displayBooking.pet.weight} lbs` : ''} 
+                  {displayBooking.pet.neutered !== undefined ? ` • ${displayBooking.pet.neutered ? 'Neutered' : 'Not neutered'}` : ''}
                 </div>
               </div>
               <div>
-                <div className="font-medium text-gray-900">{mockBooking.owner.name}</div>
-                <div className="text-sm text-gray-600 flex items-center gap-2">
-                  <Phone className="w-4 h-4" />
-                  {mockBooking.owner.phone}
+                <div className="font-medium text-gray-900">
+                  {displayBooking.owner.firstName || displayBooking.owner.name || 'Unknown'}
+                  {displayBooking.owner.lastName ? ` ${displayBooking.owner.lastName}` : ''}
                 </div>
-                <div className="text-sm text-gray-600 flex items-center gap-2">
-                  <Mail className="w-4 h-4" />
-                  {mockBooking.owner.email}
-                </div>
+                {displayBooking.owner.phone && (
+                  <div className="text-sm text-gray-600 flex items-center gap-2">
+                    <Phone className="w-4 h-4" />
+                    {displayBooking.owner.phone}
+                  </div>
+                )}
+                {displayBooking.owner.email && (
+                  <div className="text-sm text-gray-600 flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    {displayBooking.owner.email}
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex gap-2 mt-4">
@@ -94,16 +104,16 @@ const BookingDetailModal = ({ booking, isOpen, onClose }) => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <div className="text-sm font-medium text-gray-600">Service</div>
-                <div className="text-gray-900">{mockBooking.service.type}</div>
+                <div className="text-gray-900">{displayBooking.service.type}</div>
               </div>
               <div>
                 <div className="text-sm font-medium text-gray-600">Kennel</div>
-                <div className="text-gray-900">{mockBooking.kennel.name} ({mockBooking.kennel.type})</div>
+                <div className="text-gray-900">{displayBooking.kennel.name} ({displayBooking.kennel.type})</div>
               </div>
               <div>
                 <div className="text-sm font-medium text-gray-600">Status</div>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(mockBooking.service.status)}`}>
-                  {mockBooking.service.status}
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(displayBooking.service.status)}`}>
+                  {displayBooking.service.status}
                 </span>
               </div>
             </div>
@@ -112,19 +122,19 @@ const BookingDetailModal = ({ booking, isOpen, onClose }) => {
                 <div className="text-sm font-medium text-gray-600">Check-in</div>
                 <div className="text-gray-900 flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-600" />
-                  {mockBooking.service.checkIn} ✅ Completed
+                  {displayBooking.service.checkIn} ✅ Completed
                 </div>
               </div>
               <div>
                 <div className="text-sm font-medium text-gray-600">Check-out</div>
                 <div className="text-gray-900 flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-orange-600" />
-                  {mockBooking.service.checkOut} ⏳ Upcoming
+                  {displayBooking.service.checkOut} ⏳ Upcoming
                 </div>
               </div>
             </div>
             <div className="mt-4 text-sm text-gray-600">
-              Duration: {mockBooking.service.duration} • Booking ID: {mockBooking.booking.id} • Booked: {mockBooking.booking.bookedDate}
+              Duration: {displayBooking.service.duration} • Booking ID: {displayBooking.booking.id} • Booked: {displayBooking.booking.bookedDate}
             </div>
           </div>
 
@@ -135,20 +145,20 @@ const BookingDetailModal = ({ booking, isOpen, onClose }) => {
             </h3>
 
             {/* Medication */}
-            {mockBooking.care.medication.required && (
+            {displayBooking.care.medication.required && (
               <div className="mb-4 p-3 bg-white border border-yellow-300 rounded">
                 <div className="flex items-center justify-between mb-2">
                   <div className="font-medium text-gray-900 flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 text-orange-600" />
-                    Medication: {mockBooking.care.medication.name}
+                    Medication: {displayBooking.care.medication.name}
                   </div>
                   <Button size="sm" variant="outline">Log Dose</Button>
                 </div>
                 <div className="text-sm text-gray-600">
-                  {mockBooking.care.medication.schedule}
+                  {displayBooking.care.medication.schedule}
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
-                  Last given: {mockBooking.care.medication.lastGiven} by {mockBooking.care.medication.administeredBy}
+                  Last given: {displayBooking.care.medication.lastGiven} by {displayBooking.care.medication.administeredBy}
                 </div>
                 <Button size="sm" variant="outline" className="mt-2">View Schedule</Button>
               </div>
@@ -157,8 +167,8 @@ const BookingDetailModal = ({ booking, isOpen, onClose }) => {
             {/* Feeding */}
             <div className="mb-4">
               <div className="font-medium text-gray-900 mb-1">🍖 Feeding</div>
-              <div className="text-sm text-gray-600">{mockBooking.care.feeding.schedule}</div>
-              <div className="text-sm text-gray-600">Special diet: {mockBooking.care.feeding.specialDiet}</div>
+              <div className="text-sm text-gray-600">{displayBooking.care.feeding.schedule}</div>
+              <div className="text-sm text-gray-600">Special diet: {displayBooking.care.feeding.specialDiet}</div>
               <Button size="sm" variant="outline" className="mt-2">Log Feeding</Button>
             </div>
 
@@ -166,7 +176,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose }) => {
             <div className="mb-4">
               <div className="font-medium text-gray-900 mb-2">⚠️ Behavioral Notes</div>
               <ul className="text-sm text-gray-600 space-y-1">
-                {mockBooking.care.notes.map((note, index) => (
+                {displayBooking.care.notes.map((note, index) => (
                   <li key={index} className="flex items-start gap-2">
                     <span className="text-gray-400 mt-0.5">•</span>
                     {note}
@@ -179,7 +189,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose }) => {
             <div className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-green-600" />
               <span className="text-sm text-gray-600">
-                ✅ Vaccinations: All current (expires {mockBooking.care.vaccinations.expires})
+                ✅ Vaccinations: All current (expires {displayBooking.care.vaccinations.expires})
               </span>
             </div>
           </div>
@@ -192,11 +202,11 @@ const BookingDetailModal = ({ booking, isOpen, onClose }) => {
 
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span>Base rate: ${mockBooking.pricing.baseRate}/night × {mockBooking.pricing.nights} nights</span>
-                <span>${mockBooking.pricing.subtotal}.00</span>
+                <span>Base rate: ${displayBooking.pricing.baseRate}/night × {displayBooking.pricing.nights} nights</span>
+                <span>${displayBooking.pricing.subtotal}.00</span>
               </div>
 
-              {mockBooking.pricing.addons.map((addon, index) => (
+              {displayBooking.pricing.addons.map((addon, index) => (
                 <div key={index} className="flex justify-between text-gray-600">
                   <span>Add-on: {addon.name}</span>
                   <span>${addon.total}.00</span>
@@ -205,27 +215,27 @@ const BookingDetailModal = ({ booking, isOpen, onClose }) => {
 
               <div className="flex justify-between text-gray-600">
                 <span>Subtotal</span>
-                <span>${mockBooking.pricing.subtotal + mockBooking.pricing.addons.reduce((sum, addon) => sum + addon.total, 0)}.00</span>
+                <span>${displayBooking.pricing.subtotal + displayBooking.pricing.addons.reduce((sum, addon) => sum + addon.total, 0)}.00</span>
               </div>
 
               <div className="flex justify-between text-gray-600">
-                <span>Tax ({mockBooking.pricing.tax}%)</span>
-                <span>${mockBooking.pricing.taxAmount}</span>
+                <span>Tax ({displayBooking.pricing.tax}%)</span>
+                <span>${displayBooking.pricing.taxAmount}</span>
               </div>
 
               <div className="flex justify-between font-semibold border-t border-gray-300 pt-2">
                 <span>Total</span>
-                <span>${mockBooking.pricing.total}</span>
+                <span>${displayBooking.pricing.total}</span>
               </div>
             </div>
 
             <div className="mt-4 p-3 bg-white border border-green-300 rounded">
               <div className="flex items-center gap-2 mb-1">
                 <CheckCircle className="w-4 h-4 text-green-600" />
-                <span className="font-medium text-gray-900">Payment Status: {mockBooking.payment.status}</span>
+                <span className="font-medium text-gray-900">Payment Status: {displayBooking.payment.status}</span>
               </div>
               <div className="text-sm text-gray-600">
-                Method: {mockBooking.payment.method} • Paid: {mockBooking.payment.date}
+                Method: {displayBooking.payment.method} • Paid: {displayBooking.payment.date}
               </div>
             </div>
 

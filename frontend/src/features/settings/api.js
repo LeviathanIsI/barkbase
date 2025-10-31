@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
+import { useAuthStore } from '@/stores/auth';
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
@@ -364,6 +365,10 @@ export const useCalendarCapacity = (options = {}) => {
 };
 
 // Reports API
+// TODO: All reports require dedicated Lambdas for data aggregation.
+// These have been disabled until the backend is implemented.
+const disabledQuery = () => Promise.resolve(null);
+
 export const useReportsDashboardQuery = (params = {}, options = {}) => {
   const tenantKey = useTenantStore((state) => state.tenant?.slug ?? 'default');
   // Safely access auth store with error handling

@@ -1,4 +1,4 @@
-import { PawPrint, Plus, Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react';
+import { Plus, Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 
@@ -31,10 +31,10 @@ const EmptyStatePets = ({ onAddPet, onImport }) => {
   return (
     <div className="space-y-8">
       {/* Why Pet Profiles Matter */}
-      <Card className="p-8 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+      <Card className="p-8 bg-gray-50 border-gray-200">
         <div className="flex items-start gap-4 mb-6">
-          <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-            <PawPrint className="w-6 h-6 text-white" />
+          <div className="w-12 h-12 bg-primary-600 rounded-lg flex items-center justify-center flex-shrink-0">
+            <FileText className="w-6 h-6 text-white" />
           </div>
           <div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
@@ -50,10 +50,10 @@ const EmptyStatePets = ({ onAddPet, onImport }) => {
           {benefits.map((benefit, index) => {
             const Icon = benefit.icon;
             return (
-              <div key={index} className="bg-white rounded-lg p-4 border border-blue-200">
+              <div key={index} className="bg-white rounded-lg p-4 border border-gray-200">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Icon className="w-5 h-5 text-blue-600" />
+                  <div className="w-10 h-10 bg-primary-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Icon className="w-5 h-5 text-primary-600" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-1">{benefit.title}</h3>
@@ -75,23 +75,23 @@ const EmptyStatePets = ({ onAddPet, onImport }) => {
 
         <div className="grid md:grid-cols-2 gap-6">
           {/* Quick Add */}
-          <div className="border-2 border-blue-200 rounded-lg p-6 bg-blue-50">
+          <div className="border-2 border-gray-200 rounded-lg p-6 bg-gray-50">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
                 <Plus className="w-4 h-4 text-white" />
               </div>
-              <h3 className="font-bold text-blue-900">QUICK ADD</h3>
+              <h3 className="font-bold text-gray-900">QUICK ADD</h3>
             </div>
-            <p className="text-sm text-blue-800 mb-4">
+            <p className="text-sm text-gray-700 mb-4">
               Add a single pet manually with a guided form
             </p>
 
             <div className="space-y-3 mb-6">
-              <h4 className="font-medium text-blue-900 text-sm">Quick Start Guide:</h4>
+              <h4 className="font-medium text-gray-900 text-sm">Quick Start Guide:</h4>
               {quickStartSteps.map((item) => (
-                <div key={item.step} className="bg-white rounded-lg p-3 border border-blue-200">
+                <div key={item.step} className="bg-white rounded-lg p-3 border border-gray-200">
                   <div className="flex items-start gap-3">
-                    <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <div className="w-6 h-6 bg-primary-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                       <span className="text-white text-xs font-bold">{item.step}</span>
                     </div>
                     <div>
@@ -139,11 +139,11 @@ const EmptyStatePets = ({ onAddPet, onImport }) => {
               </div>
             </div>
 
-            <Button variant="outline" className="w-full mb-2" onClick={onImport}>
+            <Button variant="secondary" className="w-full mb-2" onClick={onImport}>
               <Upload className="w-4 h-4 mr-2" />
               Import Pets
             </Button>
-            <Button variant="outline" className="w-full" size="sm">
+            <Button variant="secondary" className="w-full" size="sm">
               <FileText className="w-4 h-4 mr-2" />
               Download Template
             </Button>
@@ -152,13 +152,13 @@ const EmptyStatePets = ({ onAddPet, onImport }) => {
       </Card>
 
       {/* Best Practices */}
-      <Card className="p-8 bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+      <Card className="p-8 bg-gray-50 border-gray-200">
         <h2 className="text-xl font-bold text-gray-900 mb-4">
           Best Practices for Pet Profiles
         </h2>
         <div className="grid md:grid-cols-2 gap-4 text-sm">
           <div className="space-y-2">
-            <h3 className="font-semibold text-green-900">Always Include:</h3>
+            <h3 className="font-semibold text-gray-900">Always Include:</h3>
             <ul className="space-y-1 text-gray-700">
               <li>• Up-to-date vaccination records with expiration dates</li>
               <li>• Emergency vet contact information</li>
@@ -168,7 +168,7 @@ const EmptyStatePets = ({ onAddPet, onImport }) => {
             </ul>
           </div>
           <div className="space-y-2">
-            <h3 className="font-semibold text-green-900">Pro Tips:</h3>
+            <h3 className="font-semibold text-gray-900">Pro Tips:</h3>
             <ul className="space-y-1 text-gray-700">
               <li>• Upload clear photos for easy identification</li>
               <li>• Keep microchip numbers and registration current</li>
@@ -184,9 +184,9 @@ const EmptyStatePets = ({ onAddPet, onImport }) => {
       <div className="text-center pt-4 border-t border-gray-200">
         <p className="text-sm text-gray-500">
           Need help setting up pet profiles?{' '}
-          <a href="#" className="text-blue-600 hover:underline">Watch tutorial</a>
+          <a href="#" className="text-primary-600 hover:underline">Watch tutorial</a>
           {' '}or{' '}
-          <a href="#" className="text-blue-600 hover:underline">contact support</a>
+          <a href="#" className="text-primary-600 hover:underline">contact support</a>
           {' '}for personalized guidance.
         </p>
       </div>

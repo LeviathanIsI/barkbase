@@ -12,9 +12,10 @@ import {
   User,
 } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const JumboHeader = ({ onMenuToggle }) => {
+  const navigate = useNavigate();
   const [searchOpen, setSearchOpen] = useState(false);
   const [appsOpen, setAppsOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -22,8 +23,10 @@ const JumboHeader = ({ onMenuToggle }) => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const tenant = useTenantStore((state) => state.tenant);
+  const setTenant = useTenantStore((state) => state.setTenant);
   const user = useAuthStore((state) => state.user);
   const role = useAuthStore((state) => state.role);
+  const logout = useAuthStore((state) => state.logout);
 
   const closeAllMenus = () => {
     setAppsOpen(false);
@@ -32,15 +35,22 @@ const JumboHeader = ({ onMenuToggle }) => {
     setUserMenuOpen(false);
   };
 
+  const handleLogout = () => {
+    closeAllMenus();
+    logout(); // Clear auth state
+    setTenant({}); // Reset tenant to defaults
+    navigate('/login');
+  };
+
   return (
-    <header className="sticky top-0 z-40 h-16 bg-gradient-to-r from-[#4B5DD3] to-[#3A4BC2] text-white shadow-lg">
+    <header className="sticky top-0 z-40 h-16 bg-primary-600 text-white shadow-md">
       <div className="flex h-full items-center justify-between px-6">
         {/* Left Side - Logo */}
         <div className="flex items-center gap-4">
           <Button
-            variant="ghost"
+            variant="ghost-dark"
             size="icon"
-            className="lg:hidden text-white hover:bg-white/10"
+            className="lg:hidden"
             onClick={onMenuToggle}
           >
             <Grid3x3 className="h-5 w-5" />
@@ -94,9 +104,8 @@ const JumboHeader = ({ onMenuToggle }) => {
           {/* Apps Dropdown */}
           <div className="relative">
             <Button
-              variant="ghost"
+              variant="ghost-dark"
               size="icon"
-              className="text-white hover:bg-white/10"
               onClick={() => {
                 closeAllMenus();
                 setAppsOpen(!appsOpen);
@@ -152,9 +161,9 @@ const JumboHeader = ({ onMenuToggle }) => {
           {/* Notifications */}
           <div className="relative">
             <Button
-              variant="ghost"
+              variant="ghost-dark"
               size="icon"
-              className="text-white hover:bg-white/10 relative"
+              className="relative"
               onClick={() => {
                 closeAllMenus();
                 setNotificationsOpen(!notificationsOpen);
@@ -182,9 +191,8 @@ const JumboHeader = ({ onMenuToggle }) => {
           {/* Messages */}
           <div className="relative">
             <Button
-              variant="ghost"
+              variant="ghost-dark"
               size="icon"
-              className="text-white hover:bg-white/10"
               onClick={() => {
                 closeAllMenus();
                 setMessagesOpen(!messagesOpen);
@@ -279,10 +287,7 @@ const JumboHeader = ({ onMenuToggle }) => {
                 <div className="border-t border-gray-100 my-1"></div>
                 <button
                   className="flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
-                  onClick={() => {
-                    // Handle logout
-                    closeAllMenus();
-                  }}
+                  onClick={handleLogout}
                 >
                   <LogOut className="h-4 w-4" />
                   Sign Out

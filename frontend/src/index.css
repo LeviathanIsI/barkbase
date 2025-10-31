@@ -42,20 +42,22 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
   margin: 0;
-  line-height: var(--leading-tight);
+  line-height: 1.3; /* Professional heading line-height */
 }
 
 h1 {
-  font-size: var(--text-4xl);
+  font-size: var(--text-4xl); /* 36px */
   font-weight: var(--font-weight-bold);
 }
 
 h2 {
-  font-size: var(--text-2xl);
+  font-size: var(--text-2xl); /* 24px */
+  font-weight: var(--font-weight-semibold);
 }
 
 h3 {
-  font-size: var(--text-xl);
+  font-size: var(--text-xl); /* 20px */
+  font-weight: var(--font-weight-medium);
 }
 
 h4 {
@@ -93,6 +95,19 @@ input, select, textarea {
   color: var(--text-primary);
 }
 
+/* Ensure all form inputs have visible text and placeholders */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
+select,
+textarea {
+  color: #111827; /* gray-900 - dark text for readability */
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"])::placeholder,
+textarea::placeholder {
+  color: #4B5563; /* gray-600 - darker placeholder for visibility */
+  opacity: 0.75;
+}
+
 input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--border-focus);
@@ -100,7 +115,8 @@ input:focus, select:focus, textarea:focus {
 }
 
 ::placeholder {
-  color: var(--text-disabled);
+  color: #6B7280; /* gray-500 - darker for better contrast */
+  opacity: 0.8;
 }
 
 ::selection {
@@ -332,6 +348,41 @@ a:focus-visible {
 
 .loading {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ========================================
+   MOBILE-SPECIFIC STYLES
+   ======================================== */
+
+body.mobile-view {
+  overflow: hidden;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+body.mobile-view #root {
+  height: 100vh;
+  height: -webkit-fill-available;
+  overflow: hidden;
+}
+
+/* Safe area padding for mobile devices */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 20px);
+}
+
+/* Hide scrollbars on mobile for cleaner look */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Touch-friendly tap targets */
+.touch-manipulation {
+  touch-action: manipulation;
 }
 
 /* ========================================

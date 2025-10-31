@@ -46,7 +46,7 @@ const AppShell = () => {
           <div
             className={cn(
               'flex-1 bg-[#F5F6FA]',
-              isSettingsRoute ? 'overflow-hidden' : 'overflow-y-auto px-6 py-6 lg:px-8',
+              isSettingsRoute ? 'overflow-hidden' : 'overflow-y-auto px-4 py-6 sm:px-6 lg:px-8 lg:py-8',
             )}
           >
             <Outlet />

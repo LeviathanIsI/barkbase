@@ -240,4 +240,7 @@ class CognitoClient {
     }
 }
 
-module.exports = { CognitoClient };
+const { JWTValidator } = require('./nodejs/jwt-validator');
+const { PermissionFilter } = require('./nodejs/permission-filter');
+
+module.exports = { CognitoClient, JWTValidator, PermissionFilter };

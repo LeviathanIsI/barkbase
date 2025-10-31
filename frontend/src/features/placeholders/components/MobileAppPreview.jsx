@@ -49,7 +49,6 @@ const MobileAppPreview = () => {
           <div>
             <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
               <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center">
-                <span className="text-purple-600 text-sm">🐕</span>
               </div>
               PET CARE
             </h4>
@@ -153,7 +152,7 @@ const MobileAppPreview = () => {
 
               {/* Current Pets */}
               <div className="p-4 border border-gray-200 rounded-lg">
-                <div className="font-medium text-gray-900 mb-2">🐕 Current Pets (18)</div>
+                <div className="font-medium text-gray-900 mb-2">Current Pets (18)</div>
                 <Button size="sm" className="w-full" variant="outline">View Check-in List</Button>
               </div>
 

@@ -11,7 +11,7 @@ const EmptyStateOnboarding = ({
     switch (type) {
       case "pets":
         return {
-          title: "🐕 For Pets",
+          title: "For Pets",
           examples: [
             "Special dietary needs (grain-free, allergies)",
             "Behavioral notes (reactive, shy, playful)",
@@ -71,7 +71,7 @@ const EmptyStateOnboarding = ({
         };
       default:
         return {
-          title: "🐕 For Pets",
+          title: "For Pets",
           examples: [
             "Special dietary needs (grain-free, allergies)",
             "Behavioral notes (reactive, shy, playful)",

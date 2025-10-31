@@ -101,10 +101,27 @@ async function testConnection() {
 	}
 }
 
+// Import JWT validator from auth layer
+const { JWTValidator } = require('/opt/auth/nodejs/jwt-validator');
+
+// Create a singleton JWT validator instance
+let jwtValidator = null;
+const getJWTValidator = () => {
+    if (!jwtValidator) {
+        jwtValidator = new JWTValidator({
+            region: process.env.AWS_REGION || 'us-east-1',
+            userPoolId: process.env.USER_POOL_ID,
+            clientId: process.env.CLIENT_ID
+        });
+    }
+    return jwtValidator;
+};
+
 module.exports = {
 	getPool,
 	testConnection,
 	getTenantIdFromEvent,
+	getJWTValidator,
 };
 
 // Cache for Cognito sub -> tenantId lookups (in-memory per Lambda instance)

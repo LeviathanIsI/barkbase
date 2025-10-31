@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
-import { differenceInMinutes, format } from 'date-fns';
+import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
@@ -177,7 +177,7 @@ const openPrintWindow = (html) => {
 };
 
 const CheckOutModal = ({ booking, open, onClose }) => {
-  const [checkoutTime, setCheckoutTime] = useState(() => new Date().toISOString().slice(0, 16));
+  const [checkoutTime, setCheckoutTime] = useState(() => new Date().toISOString().slice(0, 10));
   const [lateFeeCents, setLateFeeCents] = useState(0);
   const [lateFeeTouched, setLateFeeTouched] = useState(false);
   const [addOnsDescription, setAddOnsDescription] = useState('');
@@ -202,7 +202,7 @@ const CheckOutModal = ({ booking, open, onClose }) => {
   useEffect(() => {
     if (open) {
       const now = new Date();
-      setCheckoutTime(now.toISOString().slice(0, 16));
+      setCheckoutTime(now.toISOString().slice(0, 10));
       setLateFeeTouched(false);
       setLateFeeCents(0);
       setAddOnsDescription('');
@@ -225,10 +225,11 @@ const CheckOutModal = ({ booking, open, onClose }) => {
     if (!lateFeeTouched && booking?.checkOut) {
       const scheduledCheckout = new Date(booking.checkOut);
       const actualCheckout = new Date(checkoutTime);
-      const minutesLate = differenceInMinutes(actualCheckout, scheduledCheckout);
-      if (minutesLate > 60) {
-        const hoursLate = Math.floor(minutesLate / 60);
-        setLateFeeCents(hoursLate * 1500);
+      // Calculate days difference (late checkout = checkout date is after scheduled date)
+      const daysLate = Math.floor((actualCheckout - scheduledCheckout) / (1000 * 60 * 60 * 24));
+      if (daysLate > 0) {
+        // Late fee: $15 per day late
+        setLateFeeCents(daysLate * 1500);
       } else {
         setLateFeeCents(0);
       }
@@ -360,12 +361,12 @@ const CheckOutModal = ({ booking, open, onClose }) => {
 
       <div className="mt-4 grid gap-4">
         <div className="grid gap-2">
-          <label className="text-sm font-medium">Actual Checkout Time</label>
+          <label className="text-sm font-medium">Actual Checkout Date</label>
           <input
-            type="datetime-local"
+            type="date"
             value={checkoutTime}
             onChange={(e) => setCheckoutTime(e.target.value)}
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 placeholder:opacity-75 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
         </div>
 
@@ -380,7 +381,7 @@ const CheckOutModal = ({ booking, open, onClose }) => {
               setLateFeeTouched(true);
               setLateFeeCents(Math.round(parseFloat(e.target.value || 0) * 100));
             }}
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 placeholder:opacity-75 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
             placeholder="0.00"
           />
           <p className="text-xs text-muted">Auto-calculated for late pickups (hourly rate: $15)</p>
@@ -393,7 +394,7 @@ const CheckOutModal = ({ booking, open, onClose }) => {
             value={addOnsDescription}
             onChange={(e) => setAddOnsDescription(e.target.value)}
             placeholder="Description (e.g., extra bath, nail trim)"
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 placeholder:opacity-75 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
           <input
             type="number"
@@ -402,7 +403,7 @@ const CheckOutModal = ({ booking, open, onClose }) => {
             value={(addOnsCents / 100).toFixed(2)}
             onChange={(e) => setAddOnsCents(Math.round(parseFloat(e.target.value || 0) * 100))}
             placeholder="0.00"
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 placeholder:opacity-75 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
         </div>
 
