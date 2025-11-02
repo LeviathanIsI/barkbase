@@ -204,7 +204,7 @@ export class CdkStack extends cdk.Stack {
     );
 
     // Allowed origins for CORS come from env (comma-separated), fallback to "*" for dev
-    const allowedOrigins = (process.env.ALLOWED_ORIGINS || "*")
+    const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:5173")
       .split(",")
       .map((o) => o.trim())
       .filter((o) => o.length > 0);
@@ -226,6 +226,7 @@ export class CdkStack extends cdk.Stack {
           apigw.CorsHttpMethod.DELETE,
         ],
         allowOrigins: allowedOrigins,
+        allowCredentials: false,
       },
     });
 
@@ -518,8 +519,8 @@ export class CdkStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(30),
     });
     const paymentsIntegration = new HttpLambdaIntegration('PaymentsIntegration', paymentsApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/payments', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: paymentsIntegration });
-    httpApi.addRoutes({ path: '/api/v1/payments/{paymentId}', methods: [apigw.HttpMethod.GET], integration: paymentsIntegration });
+    httpApi.addRoutes({ path: '/api/v1/payments', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: paymentsIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/payments/{paymentId}', methods: [apigw.HttpMethod.GET], integration: paymentsIntegration, authorizer: httpAuthorizer });
 
     // Reports API
     const reportsApiFunction = new lambda.Function(this, 'ReportsApiFunction', {
@@ -607,7 +608,7 @@ export class CdkStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(30),
     });
     const incidentsIntegration = new HttpLambdaIntegration('IncidentsIntegration', incidentsApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/incidents', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: incidentsIntegration });
+    httpApi.addRoutes({ path: '/api/v1/incidents', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: incidentsIntegration, authorizer: httpAuthorizer });
 
     // Services API
     const servicesApiFunction = new lambda.Function(this, 'ServicesApiFunction', {
@@ -620,8 +621,8 @@ export class CdkStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(30),
     });
     const servicesIntegration = new HttpLambdaIntegration('ServicesIntegration', servicesApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/services', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: servicesIntegration });
-    httpApi.addRoutes({ path: '/api/v1/services/{serviceId}', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PUT, apigw.HttpMethod.DELETE], integration: servicesIntegration });
+    httpApi.addRoutes({ path: '/api/v1/services', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: servicesIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/services/{serviceId}', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PUT, apigw.HttpMethod.DELETE], integration: servicesIntegration, authorizer: httpAuthorizer });
 
     // Properties API (for system and custom properties management)
     const propertiesApiFunction = new lambda.Function(this, 'PropertiesApiFunction', {
@@ -717,7 +718,7 @@ export class CdkStack extends cdk.Stack {
       allowPublicSubnet: true,
     });
     const invitesIntegration = new HttpLambdaIntegration('InvitesIntegration', invitesApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/invites', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: invitesIntegration });
+    httpApi.addRoutes({ path: '/api/v1/invites', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: invitesIntegration, authorizer: httpAuthorizer });
 
     // Invoices API
     const invoicesApiFunction = new lambda.Function(this, 'InvoicesApiFunction', {
@@ -731,7 +732,7 @@ export class CdkStack extends cdk.Stack {
       allowPublicSubnet: true,
     });
     const invoicesIntegration = new HttpLambdaIntegration('InvoicesIntegration', invoicesApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/invoices', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: invoicesIntegration });
+    httpApi.addRoutes({ path: '/api/v1/invoices', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: invoicesIntegration, authorizer: httpAuthorizer });
 
     // Packages API
     const packagesApiFunction = new lambda.Function(this, 'PackagesApiFunction', {
@@ -745,7 +746,7 @@ export class CdkStack extends cdk.Stack {
       allowPublicSubnet: true,
     });
     const packagesIntegration = new HttpLambdaIntegration('PackagesIntegration', packagesApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/packages', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: packagesIntegration });
+    httpApi.addRoutes({ path: '/api/v1/packages', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: packagesIntegration, authorizer: httpAuthorizer });
 
     // Tasks API
     const tasksApiFunction = new lambda.Function(this, 'TasksApiFunction', {
@@ -776,7 +777,7 @@ export class CdkStack extends cdk.Stack {
       allowPublicSubnet: true,
     });
     const messagesIntegration = new HttpLambdaIntegration('MessagesIntegration', messagesApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/messages', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: messagesIntegration });
+    httpApi.addRoutes({ path: '/api/v1/messages', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: messagesIntegration, authorizer: httpAuthorizer });
 
     // Runs API
     const runsApiFunction = new lambda.Function(this, 'RunsApiFunction', {
@@ -812,8 +813,8 @@ export class CdkStack extends cdk.Stack {
       allowPublicSubnet: true,
     });
     const membershipsIntegration = new HttpLambdaIntegration('MembershipsIntegration', membershipsApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/memberships', methods: [apigw.HttpMethod.GET], integration: membershipsIntegration });
-    httpApi.addRoutes({ path: '/api/v1/memberships/{membershipId}', methods: [apigw.HttpMethod.PUT], integration: membershipsIntegration });
+    httpApi.addRoutes({ path: '/api/v1/memberships', methods: [apigw.HttpMethod.GET], integration: membershipsIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/memberships/{membershipId}', methods: [apigw.HttpMethod.PUT], integration: membershipsIntegration, authorizer: httpAuthorizer });
 
     // Admin API
     const adminApiFunction = new lambda.Function(this, 'AdminApiFunction', {
@@ -827,7 +828,7 @@ export class CdkStack extends cdk.Stack {
       allowPublicSubnet: true,
     });
     const adminIntegration = new HttpLambdaIntegration('AdminIntegration', adminApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/admin/stats', methods: [apigw.HttpMethod.GET], integration: adminIntegration });
+    httpApi.addRoutes({ path: '/api/v1/admin/stats', methods: [apigw.HttpMethod.GET], integration: adminIntegration, authorizer: httpAuthorizer });
 
     // Billing API
     const billingApiFunction = new lambda.Function(this, 'BillingApiFunction', {
@@ -841,7 +842,7 @@ export class CdkStack extends cdk.Stack {
       allowPublicSubnet: true,
     });
     const billingIntegration = new HttpLambdaIntegration('BillingIntegration', billingApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/billing/metrics', methods: [apigw.HttpMethod.GET], integration: billingIntegration });
+    httpApi.addRoutes({ path: '/api/v1/billing/metrics', methods: [apigw.HttpMethod.GET], integration: billingIntegration, authorizer: httpAuthorizer });
 
     // Communication API
     const communicationApiFunction = new lambda.Function(this, 'CommunicationApiFunction', {
@@ -855,7 +856,7 @@ export class CdkStack extends cdk.Stack {
       allowPublicSubnet: true,
     });
     const communicationIntegration = new HttpLambdaIntegration('CommunicationIntegration', communicationApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/communications', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: communicationIntegration });
+    httpApi.addRoutes({ path: '/api/v1/communications', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: communicationIntegration, authorizer: httpAuthorizer });
 
     // Notes API
     const notesApiFunction = new lambda.Function(this, 'NotesApiFunction', {
@@ -869,7 +870,7 @@ export class CdkStack extends cdk.Stack {
       allowPublicSubnet: true,
     });
     const notesIntegration = new HttpLambdaIntegration('NotesIntegration', notesApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/notes', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: notesIntegration });
+    httpApi.addRoutes({ path: '/api/v1/notes', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: notesIntegration, authorizer: httpAuthorizer });
 
     // Roles API
     const rolesApiFunction = new lambda.Function(this, 'RolesApiFunction', {
@@ -883,7 +884,7 @@ export class CdkStack extends cdk.Stack {
       allowPublicSubnet: true,
     });
     const rolesIntegration = new HttpLambdaIntegration('RolesIntegration', rolesApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/roles', methods: [apigw.HttpMethod.GET], integration: rolesIntegration });
+    httpApi.addRoutes({ path: '/api/v1/roles', methods: [apigw.HttpMethod.GET], integration: rolesIntegration, authorizer: httpAuthorizer });
 
     // Facility API
     const facilityApiFunction = new lambda.Function(this, 'FacilityApiFunction', {
@@ -938,7 +939,7 @@ export class CdkStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(60), // Longer timeout for migrations
     });
     const migrationIntegration = new HttpLambdaIntegration('MigrationIntegration', migrationApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/migration', methods: [apigw.HttpMethod.POST], integration: migrationIntegration });
+    httpApi.addRoutes({ path: '/api/v1/migration', methods: [apigw.HttpMethod.POST], integration: migrationIntegration, authorizer: httpAuthorizer });
 
     // === WEBSOCKET API FOR REAL-TIME ===
 
