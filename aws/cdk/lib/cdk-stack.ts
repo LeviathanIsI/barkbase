@@ -508,19 +508,29 @@ export class CdkStack extends cdk.Stack {
     httpApi.addRoutes({ path: '/api/v1/owners', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: ownersIntegration, authorizer: httpAuthorizer });
     httpApi.addRoutes({ path: '/api/v1/owners/{ownerId}', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PUT, apigw.HttpMethod.DELETE], integration: ownersIntegration, authorizer: httpAuthorizer });
 
-    // Payments API
-    const paymentsApiFunction = new lambda.Function(this, 'PaymentsApiFunction', {
+    // Financial Service (consolidates payments-api, invoices-api, billing-api)
+    // Saves 10 CloudFormation resources: 3 Lambdas → 1 Lambda
+    const financialServiceFunction = new lambda.Function(this, 'FinancialServiceFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
       handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/payments-api')),
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/financial-service')),
       layers: [dbLayer],
       environment: dbEnvironment,
       // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
     });
-    const paymentsIntegration = new HttpLambdaIntegration('PaymentsIntegration', paymentsApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/payments', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: paymentsIntegration, authorizer: httpAuthorizer });
-    httpApi.addRoutes({ path: '/api/v1/payments/{paymentId}', methods: [apigw.HttpMethod.GET], integration: paymentsIntegration, authorizer: httpAuthorizer });
+    dbSecret.grantRead(financialServiceFunction);  // FIX: Add missing Secrets Manager permission
+    const financialIntegration = new HttpLambdaIntegration('FinancialIntegration', financialServiceFunction);
+
+    // Payments routes (from payments-api)
+    httpApi.addRoutes({ path: '/api/v1/payments', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: financialIntegration, authorizer: httpAuthorizer });
+    httpApi.addRoutes({ path: '/api/v1/payments/{paymentId}', methods: [apigw.HttpMethod.GET], integration: financialIntegration, authorizer: httpAuthorizer });
+
+    // Invoices routes (from invoices-api)
+    httpApi.addRoutes({ path: '/api/v1/invoices', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: financialIntegration, authorizer: httpAuthorizer });
+
+    // Billing routes (from billing-api)
+    httpApi.addRoutes({ path: '/api/v1/billing/metrics', methods: [apigw.HttpMethod.GET], integration: financialIntegration, authorizer: httpAuthorizer });
 
     // Reports API
     const reportsApiFunction = new lambda.Function(this, 'ReportsApiFunction', {
@@ -720,20 +730,6 @@ export class CdkStack extends cdk.Stack {
     const invitesIntegration = new HttpLambdaIntegration('InvitesIntegration', invitesApiFunction);
     httpApi.addRoutes({ path: '/api/v1/invites', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: invitesIntegration, authorizer: httpAuthorizer });
 
-    // Invoices API
-    const invoicesApiFunction = new lambda.Function(this, 'InvoicesApiFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/invoices-api')),
-      layers: [dbLayer],
-      environment: dbEnvironment,
-      // No VPC - connects to public database
-      timeout: cdk.Duration.seconds(30),
-      allowPublicSubnet: true,
-    });
-    const invoicesIntegration = new HttpLambdaIntegration('InvoicesIntegration', invoicesApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/invoices', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: invoicesIntegration, authorizer: httpAuthorizer });
-
     // Packages API
     const packagesApiFunction = new lambda.Function(this, 'PackagesApiFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
@@ -829,20 +825,6 @@ export class CdkStack extends cdk.Stack {
     });
     const adminIntegration = new HttpLambdaIntegration('AdminIntegration', adminApiFunction);
     httpApi.addRoutes({ path: '/api/v1/admin/stats', methods: [apigw.HttpMethod.GET], integration: adminIntegration, authorizer: httpAuthorizer });
-
-    // Billing API
-    const billingApiFunction = new lambda.Function(this, 'BillingApiFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/billing-api')),
-      layers: [dbLayer],
-      environment: dbEnvironment,
-      // No VPC - connects to public database
-      timeout: cdk.Duration.seconds(30),
-      allowPublicSubnet: true,
-    });
-    const billingIntegration = new HttpLambdaIntegration('BillingIntegration', billingApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/billing/metrics', methods: [apigw.HttpMethod.GET], integration: billingIntegration, authorizer: httpAuthorizer });
 
     // Communication API
     const communicationApiFunction = new lambda.Function(this, 'CommunicationApiFunction', {
