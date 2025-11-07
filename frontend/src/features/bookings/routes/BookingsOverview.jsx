@@ -275,7 +275,6 @@ const BookingsOverview = () => {
             onBookingClick={handleBookingClick}
             onBookingMove={(bookingId, newStatus) => {
               // Handle status change
-              console.log('Move booking', bookingId, 'to', newStatus);
             }}
           />
         )}

@@ -1,0 +1,7 @@
+{
+  "name": "migration-api",
+  "version": "1.0.0",
+  "description": "Database migration Lambda function",
+  "main": "index.js",
+  "dependencies": {}
+}

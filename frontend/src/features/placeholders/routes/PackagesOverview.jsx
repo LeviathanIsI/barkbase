@@ -26,7 +26,6 @@ const PackagesOverview = () => {
   };
 
   const handleWizardComplete = (packageData) => {
-    console.log('Package created:', packageData);
     setShowWizard(false);
     setHasPackages(true);
   };

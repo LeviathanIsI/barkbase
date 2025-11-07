@@ -8,7 +8,6 @@ const { getPool } = require('/opt/nodejs');
 const { getTenantIdFromEvent } = require('/opt/nodejs');
 
 exports.handler = async (event) => {
-  console.log('Schema Version Service invoked:', JSON.stringify(event, null, 2));
 
   const { httpMethod: method, path } = event.requestContext.http;
   const pathParams = event.pathParameters || {};

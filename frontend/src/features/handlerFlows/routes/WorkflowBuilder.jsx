@@ -177,11 +177,9 @@ export default function WorkflowBuilder() {
 
   // Open sidebar to add action
   const handleOpenAddAction = useCallback((afterStepIndex) => {
-    console.log('[WorkflowBuilder] handleOpenAddAction called with:', afterStepIndex);
     setAddAfterStepIndex(afterStepIndex);
     setSidebarMode('add');
     setSelectedNode(null);
-    console.log('[WorkflowBuilder] Sidebar mode set to: add');
   }, []);
 
   // Handle selecting an action from the sidebar
@@ -338,11 +336,9 @@ export default function WorkflowBuilder() {
       // Check if enrichment is needed (any node missing handlers)
       const needsEnrichment = currentNodes.some(node => !node.data?.onClone);
       if (!needsEnrichment && currentNodes.every(node => node.data?.totalSteps === currentNodes.length)) {
-        console.log('[WorkflowBuilder] Skipping enrichment - handlers already present');
         return currentNodes; // Skip enrichment to avoid infinite loop
       }
 
-      console.log('[WorkflowBuilder] Enriching nodes with handlers');
       return currentNodes.map((node, index) => {
         const enriched = {
           ...node,
@@ -357,7 +353,6 @@ export default function WorkflowBuilder() {
             onInsert: handleOpenAddAction,
           },
         };
-        console.log('[WorkflowBuilder] Enriched node:', node.recordId, 'has onInsert:', !!enriched.data.onInsert);
         return enriched;
       });
     });
@@ -496,8 +491,6 @@ export default function WorkflowBuilder() {
         edges={edges}
         showMinimap={showMinimap}
         setShowMinimap={setShowMinimap}
-        onNodesChange={(changes) => console.log('Nodes changed:', changes)}
-        onEdgesChange={(changes) => console.log('Edges changed:', changes)}
         onNodeClick={handleNodeClick}
         sidebarMode={sidebarMode}
         selectedNode={selectedNode}

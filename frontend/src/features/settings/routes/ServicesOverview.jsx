@@ -51,7 +51,6 @@ const ServicesOverview = () => {
 
   const handleWatchTutorial = () => {
     // TODO: Open tutorial video
-    console.log('Watch tutorial');
   };
 
   // Process and filter services from API
@@ -211,7 +210,6 @@ const ServicesOverview = () => {
         isOpen={isTemplatesModalOpen}
         onClose={() => setIsTemplatesModalOpen(false)}
         onImportTemplates={(templates) => {
-          console.log('Importing templates:', templates);
           setIsTemplatesModalOpen(false);
         }}
       />
@@ -222,7 +220,6 @@ const ServicesOverview = () => {
         category={selectedCategory}
         existingService={editingService}
         onSubmit={(serviceData) => {
-          console.log('Creating service:', serviceData);
           setIsCreateModalOpen(false);
           setEditingService(null);
         }}
@@ -232,7 +229,6 @@ const ServicesOverview = () => {
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         onImport={(data) => {
-          console.log('Importing services:', data);
           setIsImportModalOpen(false);
         }}
       />

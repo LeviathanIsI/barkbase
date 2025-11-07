@@ -209,7 +209,6 @@ async function requestArchiveRestoration(propertyId, tenantId, userId, reason) {
     );
 
     // TODO: Send notification to admin for approval
-    console.log(`[NOTIFICATION] Archive restoration requested for property ${property.property_name} by ${userId}`);
 
     return {
       statusCode: 200,

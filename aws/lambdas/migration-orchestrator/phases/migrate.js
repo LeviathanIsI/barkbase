@@ -14,7 +14,6 @@ const { getPool } = require('/opt/nodejs');
 async function execute(migrationId) {
   const pool = getPool();
 
-  console.log(`[Migrate Phase] Starting for migration: ${migrationId}`);
 
   const client = await pool.connect();
 
@@ -56,7 +55,6 @@ async function execute(migrationId) {
     );
 
     if (versionResult.rows.length > 0 && versionResult.rows[0].migrate_script) {
-      console.log('[Migrate Phase] Executing migrate script (dual-write setup)');
       await client.query(versionResult.rows[0].migrate_script);
     }
 
@@ -80,7 +78,6 @@ async function execute(migrationId) {
 
     await client.query('COMMIT');
 
-    console.log(`[Migrate Phase] Completed for migration: ${migrationId}`);
 
     return {
       phase: 'migrate',

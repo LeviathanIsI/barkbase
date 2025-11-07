@@ -129,7 +129,6 @@ const NotificationsOverview = () => {
 
   const handleReset = () => {
     // TODO: Reset to default preferences
-    console.log('Resetting notification preferences');
   };
 
   return (

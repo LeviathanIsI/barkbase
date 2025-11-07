@@ -61,30 +61,30 @@ const buildUrl = (path, params) => {
   return url.toString();
 };
 
-const buildHeaders = async () => {
-  const { useAuthStore } = await import('@/stores/auth');
-  const { useTenantStore } = await import('@/stores/tenant');
+const buildHeaders = async (path = "") => {
+  const { useAuthStore } = await import("@/stores/auth");
+  const { useTenantStore } = await import("@/stores/tenant");
   const accessToken = useAuthStore.getState().accessToken;
   const tenant = useTenantStore.getState().tenant;
   const tenantId = tenant?.recordId;
-  
-  console.log('🔍 Tenant Debug:', { tenant, tenantId }); // Debug log
-  
-  if (!tenantId) {
-    console.warn('⚠️ WARNING: No tenant ID found. Tenant may not be loaded yet.');
+
+  // Skip tenant check for tenant fetch endpoints (chicken-and-egg problem)
+  const isTenantFetchEndpoint = path.includes("/tenants/current") || path.includes("/tenants?");
+
+  if (!tenantId && !isTenantFetchEndpoint) {
+    console.warn("⚠️ WARNING: No tenant ID found. Tenant may not be loaded yet.");
   }
-  
+
   return {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
     ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
-    ...(tenantId && { 'X-Tenant-Id': tenantId }),
+    ...(tenantId && { "X-Tenant-Id": tenantId }),
   };
 };
 
 const get = async (path, { params } = {}) => {
   const url = buildUrl(path, params);
-  const headers = await buildHeaders();
-  console.log('GET request:', url, 'Headers:', headers); // Debug log
+  const headers = await buildHeaders(path);
   const res = await fetch(url, { method: 'GET', headers });
   if (!res.ok) {
     const errorText = await res.text();
@@ -96,7 +96,7 @@ const get = async (path, { params } = {}) => {
 
 const post = async (path, body) => {
   const url = buildUrl(path);
-  const headers = await buildHeaders();
+  const headers = await buildHeaders(path);
   const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
   if (!res.ok) {
     throw new Error(await res.text());
@@ -106,7 +106,7 @@ const post = async (path, body) => {
 
 const put = async (path, body) => {
   const url = buildUrl(path);
-  const headers = await buildHeaders();
+  const headers = await buildHeaders(path);
   const res = await fetch(url, { method: 'PUT', headers, body: JSON.stringify(body) });
   if (!res.ok) {
     throw new Error(await res.text());
@@ -116,7 +116,7 @@ const put = async (path, body) => {
 
 const del = async (path, options = {}) => {
   const url = buildUrl(path, options.params);
-  const headers = await buildHeaders();
+  const headers = await buildHeaders(path);
   const res = await fetch(url, {
     method: 'DELETE',
     headers,
@@ -145,4 +145,3 @@ const apiClient = {
 
 export { apiClient };
 export default apiClient;
-

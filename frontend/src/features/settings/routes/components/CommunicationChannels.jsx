@@ -45,12 +45,10 @@ const CommunicationChannels = ({ preferences, onUpdate }) => {
 
   const handleAddPhoneNumber = () => {
     // TODO: Implement phone number addition
-    console.log('Add phone number');
   };
 
   const handleDownloadApp = (platform) => {
     // TODO: Implement app download
-    console.log(`Download ${platform} app`);
   };
 
   return (

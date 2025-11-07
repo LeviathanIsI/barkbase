@@ -56,7 +56,6 @@ const PetDetail = () => {
 
   const pet = petQuery.data;
   if (petQuery.data) {
-    console.log('[PetDetail] pet payload', petQuery.data);
   }
   const { data: vaccinations = [], isLoading: vaccLoading } = usePetVaccinationsQuery(petId);
 

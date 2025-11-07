@@ -25,7 +25,6 @@ const Accommodations = () => {
 
   const handleSave = async () => {
     // TODO: Implement API call to save facility settings
-    console.log('Saving facility settings:', { terminology, kennelNaming });
   };
 
   return (

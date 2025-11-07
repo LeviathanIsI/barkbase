@@ -83,4 +83,4 @@ const Alert = React.forwardRef(
 
 Alert.displayName = 'Alert';
 
-export default Alert;
+const AlertTitle = React.forwardRef(({ className, ...props }, ref) => (  <h5    ref={ref}    className={cn("mb-1 font-medium text-sm leading-none tracking-tight", className)}    {...props}  />));AlertTitle.displayName = "AlertTitle";const AlertDescription = React.forwardRef(({ className, ...props }, ref) => (  <div    ref={ref}    className={cn("text-sm [&_p]:leading-relaxed", className)}    {...props}  />));AlertDescription.displayName = "AlertDescription";export { Alert, AlertTitle, AlertDescription };export default Alert;

@@ -11,7 +11,6 @@ const dependenciesHandler = require('./handlers/dependencies');
 const cascadeOperationsHandler = require('./handlers/cascade-operations');
 
 exports.handler = async (event) => {
-  console.log('Properties API v2 invoked:', JSON.stringify(event, null, 2));
 
   const method = event.requestContext.http.method;
   const path = event.requestContext.http.path;
@@ -44,7 +43,6 @@ exports.handler = async (event) => {
   const userId = claims['sub'] || null;
 
   try {
-    console.log(`Routing: ${method} ${path}`);
     
     // Route: GET /api/v2/properties
     if (method === 'GET' && (path === '/api/v2/properties' || path.endsWith('/properties'))) {

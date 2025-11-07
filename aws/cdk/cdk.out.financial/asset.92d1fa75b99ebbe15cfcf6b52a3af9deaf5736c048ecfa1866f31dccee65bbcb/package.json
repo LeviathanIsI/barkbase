@@ -1,0 +1,7 @@
+{
+  "name": "pets-api",
+  "version": "1.0.0",
+  "description": "Lambda function for Pet CRUD operations",
+  "main": "index.js",
+  "dependencies": {}
+}

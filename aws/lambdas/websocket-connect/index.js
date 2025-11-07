@@ -6,7 +6,6 @@ exports.handler = async (event) => {
     const tenantId = queryParams.tenantId;
     const userId = queryParams.userId;
 
-    console.log('WebSocket Connect:', { connectionId, tenantId, userId });
 
     try {
         const pool = getPool();

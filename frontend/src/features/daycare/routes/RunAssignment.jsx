@@ -181,29 +181,12 @@ const RunAssignment = () => {
 
   // Get checked-in pets for the day with owner information
   const checkedInPets = useMemo(() => {
-    console.log('🔍 === BOOKINGS DEBUG START ===');
-    console.log('🔍 Raw bookingsData:', JSON.stringify(bookingsData, null, 2));
-    console.log('🔍 Selected Date:', selectedDate);
-    console.log('🔍 Bookings loading?', bookingsLoading);
     
     // Handle both wrapped and unwrapped responses
     const bookings = bookingsData?.data || bookingsData || [];
-    console.log('🔍 Bookings array length:', bookings.length);
     
-    bookings.forEach((b, idx) => {
-      console.log(`🔍 Booking ${idx + 1}:`, {
-        id: b.recordId,
-        status: b.status,
-        checkIn: b.checkIn,
-        checkOut: b.checkOut,
-        petName: b.pet?.name,
-        hasPet: !!b.pet,
-        petId: b.petId
-      });
-    });
     
     const checked = bookings.filter(b => b.status === 'CHECKED_IN');
-    console.log('🔍 CHECKED_IN bookings count:', checked.length);
     
     const pets = checked
       .map(b => {
@@ -219,8 +202,6 @@ const RunAssignment = () => {
       })
       .filter(Boolean);
     
-    console.log('🔍 Final checked-in pets:', pets.map(p => p.name));
-    console.log('🔍 === BOOKINGS DEBUG END ===');
     return pets;
   }, [bookingsData, selectedDate, bookingsLoading]);
 

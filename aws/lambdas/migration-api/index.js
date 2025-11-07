@@ -11,7 +11,6 @@ exports.handler = async (event) => {
         if (event.requestContext.http.method === 'POST') {
             const pool = getPool();
 
-            console.log('Running PaymentStatus enum migration...');
 
             // Add SUCCESSFUL to PaymentStatus enum if it doesn't exist
             await pool.query(`
@@ -32,7 +31,6 @@ exports.handler = async (event) => {
                 $$;
             `);
 
-            console.log('Migration completed successfully');
 
             return {
                 statusCode: 200,

@@ -14,7 +14,6 @@ const { getPool } = require('/opt/nodejs');
 async function scheduleRollout(migrationId, config) {
   const pool = getPool();
 
-  console.log(`[Rollout Scheduler] Scheduling rollout for migration: ${migrationId}`);
 
   // Get tenants by rollout group
   const groupsResult = await pool.query(
@@ -54,7 +53,6 @@ async function scheduleRollout(migrationId, config) {
     [JSON.stringify(rolloutPlan), migrationId]
   );
 
-  console.log(`[Rollout Scheduler] Rollout plan created:`, rolloutPlan);
 
   return rolloutPlan;
 }
@@ -109,7 +107,6 @@ function getMonitoringPeriod(group) {
 async function executeRolloutForGroup(migrationId, groupName) {
   const pool = getPool();
 
-  console.log(`[Rollout Scheduler] Executing rollout for group: ${groupName}`);
 
   // Get migration config
   const migrationResult = await pool.query(
@@ -148,7 +145,6 @@ async function executeRolloutForGroup(migrationId, groupName) {
     [migrationId, groupName]
   );
 
-  console.log(`[Rollout Scheduler] Rollout executed for group: ${groupName}`);
 }
 
 /**
@@ -214,7 +210,6 @@ function calculateHealthScore(health) {
 async function triggerAutoRollback(migrationId, groupName, reason) {
   const pool = getPool();
 
-  console.log(`[Rollout Scheduler] Auto-rollback triggered for group: ${groupName}`);
 
   // Rollback all tenants in this group
   await pool.query(

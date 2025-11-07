@@ -12,7 +12,6 @@ const rolloutScheduler = require('./rollout-scheduler');
 const rollbackHandler = require('./rollback-handler');
 
 exports.handler = async (event) => {
-  console.log('Migration Orchestrator invoked:', JSON.stringify(event, null, 2));
 
   const { httpMethod: method, path } = event.requestContext.http;
   const body = event.body ? JSON.parse(event.body) : {};

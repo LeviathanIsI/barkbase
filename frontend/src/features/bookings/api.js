@@ -12,9 +12,7 @@ export const useBookingsQuery = (params = {}) => {
   return useQuery({
     queryKey: queryKeys.bookings(tenantKey, params),
     queryFn: async () => {
-      console.log('🔍 useBookingsQuery params:', params);
       const res = await apiClient.get('/api/v1/bookings', { params });
-      console.log('🔍 useBookingsQuery response:', res.data);
       return res.data;
     },
     staleTime: 30 * 1000,

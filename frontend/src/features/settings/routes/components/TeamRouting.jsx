@@ -38,7 +38,6 @@ const TeamRouting = () => {
 
   const handleConfigureRouting = () => {
     // TODO: Open routing configuration modal
-    console.log('Configure team routing');
   };
 
   const getRoleIcon = (role) => {

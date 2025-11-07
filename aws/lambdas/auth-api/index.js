@@ -50,12 +50,10 @@ async function login(event) {
         }
 
         const pool = getPool();
-        console.log('[auth] Login attempt for email:', String(email).toLowerCase());
 
         // Smoke test the DB first to surface connectivity issues clearly
         try {
             await pool.query('SELECT 1');
-            console.log('[auth] DB connectivity OK');
         } catch (dbErr) {
             console.error('DB connectivity check failed:', dbErr?.message || dbErr);
             return { statusCode: 500, headers: HEADERS, body: JSON.stringify({ message: 'Database unavailable' }) };
@@ -73,7 +71,6 @@ async function login(event) {
              LIMIT 1`,
             [email]
         );
-        console.log('[auth] Query rows:', userResult.rows.length);
 
         if (userResult.rows.length === 0) {
             return { statusCode: 401, headers: HEADERS, body: JSON.stringify({ message: 'Invalid credentials' }) };
@@ -88,7 +85,6 @@ async function login(event) {
         };
 
         const validPassword = await bcrypt.compare(password, user.passwordHash || '');
-        console.log('[auth] Password match:', !!validPassword);
         if (!validPassword) {
             return { statusCode: 401, headers: HEADERS, body: JSON.stringify({ message: 'Invalid credentials' }) };
         }

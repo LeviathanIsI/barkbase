@@ -92,12 +92,10 @@ const NotificationHistory = () => {
 
   const handleViewAll = () => {
     // TODO: Open full notification history
-    console.log('View all notifications');
   };
 
   const handleTestNotification = () => {
     // TODO: Open test notification modal
-    console.log('Test notification');
   };
 
   return (

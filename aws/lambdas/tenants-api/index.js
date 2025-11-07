@@ -7,19 +7,16 @@ const HEADERS = {
 };
 
 exports.handler = async (event) => {
-    console.log('Tenants API Event:', JSON.stringify(event, null, 2));
     
     const httpMethod = event.requestContext.http.method;
     const path = event.requestContext.http.path;
     const tenantId = await getTenantIdFromEvent(event);
     const slug = event.queryStringParameters?.slug;
 
-    console.log('Path:', path, 'Method:', httpMethod, 'Slug:', slug, 'TenantId:', tenantId);
 
     try {
         // Public endpoint - get tenant by slug (no auth required)
         if (httpMethod === 'GET' && slug) {
-            console.log('Fetching tenant by slug:', slug);
             return await getTenantBySlug(event, slug);
         }
         if (httpMethod === 'GET' && path === '/api/v1/tenants/current') {
@@ -50,25 +47,20 @@ exports.handler = async (event) => {
 
 async function getTenantBySlug(event, slug) {
     try {
-        console.log('getTenantBySlug called with slug:', slug);
         const pool = getPool();
 
-        console.log('Executing query...');
         const result = await pool.query(
             `SELECT "recordId", "slug", "name", "plan", "themeJson", "featureFlags", "customDomain", "settings", "createdAt", "updatedAt"
              FROM "Tenant" WHERE "slug" = $1`,
             [slug]
         );
 
-        console.log('Query result:', JSON.stringify(result.rows));
 
         if (result.rows.length === 0) {
-            console.log('No tenant found, returning 404');
             return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Tenant not found' }) };
         }
 
         const tenant = result.rows[0];
-        console.log('Tenant found:', tenant.slug);
         
         return {
             statusCode: 200,

@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate, Link } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
 import { useAuthStore } from '@/stores/auth';
 import { useTenantStore } from '@/stores/tenant';
-import { auth } from '@/lib/apiClient'; // Import the new auth client
+import { auth, apiClient } from '@/lib/apiClient';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 
 const Login = () => {
   const navigate = useNavigate();
   const { setAuth } = useAuthStore();
-  const { setTenant } = useTenantStore();
+  const { setTenant, setLoading } = useTenantStore();
   const { register, handleSubmit, formState: { errors, isSubmitting }, setError, watch } = useForm();
-  const [rememberMe, setRememberMe] = useState(true); // Default to true
+  const [rememberMe, setRememberMe] = useState(true);
 
   const email = watch('email');
   const password = watch('password');
@@ -20,14 +21,70 @@ const Login = () => {
   const onSubmit = async (data) => {
     try {
       const { email, password } = data;
-      // Supports both modes: hosted (redirect) and password (returns tokens)
       const result = await auth.signIn({ email, password });
+
       if (result?.accessToken) {
+        // Decode JWT to extract user information (no tenant info in JWT)
+        let userInfo = null;
+
+        try {
+          const decoded = jwtDecode(result.accessToken);
+          userInfo = {
+            id: decoded.sub,
+            email: decoded.email,
+            role: decoded['custom:role'] || decoded.role,
+          };
+        } catch (jwtError) {
+          console.error('[Login] Failed to decode JWT:', jwtError);
+        }
+
+        // Set auth state with tokens first (tenant will be populated below)
         setAuth({
           accessToken: result.accessToken,
           refreshToken: result.refreshToken,
+          tenantId: null, // Will be populated after fetching tenant
+          user: userInfo,
           rememberMe,
         });
+
+        // Check if tenant is already being loaded
+        const { isLoading } = useTenantStore.getState();
+        if (isLoading) {
+          console.log('[Login] Tenant already being loaded by another component, skipping...');
+          navigate('/dashboard');
+          return;
+        }
+
+        // ALWAYS fetch tenant from backend (uses JWT sub to find tenant via database)
+        // Backend extracts Cognito sub from JWT → queries User table → gets tenant
+        setLoading(true);
+        try {
+          console.log('[Login] Fetching tenant from backend using JWT sub...');
+          const tenantResponse = await apiClient.get('/api/v1/tenants/current');
+          
+          if (tenantResponse.data) {
+            const tenantData = tenantResponse.data;
+            console.log('[Login] Tenant fetched successfully:', tenantData.recordId);
+
+            // Update auth store with the tenantId from backend
+            setAuth({
+              accessToken: result.accessToken,
+              refreshToken: result.refreshToken,
+              tenantId: tenantData.recordId,
+              user: userInfo,
+              rememberMe,
+            });
+
+            // Set full tenant object
+            setTenant(tenantData);
+          }
+        } catch (tenantError) {
+          console.error('[Login] Failed to fetch tenant from backend:', tenantError);
+          // Don't block login if tenant fetch fails - user can still access some pages
+        } finally {
+          setLoading(false);
+        }
+
         navigate('/dashboard');
       }
       return;
@@ -39,7 +96,7 @@ const Login = () => {
       });
     }
   };
-  
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
       <div className="mb-6 text-center">

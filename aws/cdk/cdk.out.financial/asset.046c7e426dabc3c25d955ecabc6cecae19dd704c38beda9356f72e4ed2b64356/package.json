@@ -1,0 +1,9 @@
+{
+  "name": "cognito-pre-signup",
+  "version": "1.0.0",
+  "description": "Cognito Pre-SignUp trigger to auto-confirm users",
+  "main": "index.js",
+  "dependencies": {}
+}
+
+

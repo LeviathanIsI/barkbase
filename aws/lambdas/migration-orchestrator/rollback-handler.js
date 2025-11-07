@@ -15,7 +15,6 @@ const { getPool } = require('/opt/nodejs');
 async function rollback(migrationId, reason) {
   const pool = getPool();
 
-  console.log(`[Rollback Handler] Initiating rollback for migration: ${migrationId}`);
 
   const client = await pool.connect();
 
@@ -48,7 +47,6 @@ async function rollback(migrationId, reason) {
 
     // Execute rollback script if exists
     if (versionResult.rows.length > 0 && versionResult.rows[0].rollback_script) {
-      console.log('[Rollback Handler] Executing rollback script');
       await client.query(versionResult.rows[0].rollback_script);
     }
 
@@ -85,7 +83,6 @@ async function rollback(migrationId, reason) {
 
     await client.query('COMMIT');
 
-    console.log(`[Rollback Handler] Rollback completed for ${rolledBackTenants} tenants`);
 
     return {
       status: 'rolled_back',
@@ -108,7 +105,6 @@ async function rollback(migrationId, reason) {
  * Ensures data consistency between old and new schema
  */
 async function reconcileData(client, targetVersion) {
-  console.log('[Rollback Handler] Reconciling data after rollback');
 
   // Get properties that were added/modified in this version
   const propertiesResult = await client.query(
@@ -120,13 +116,11 @@ async function reconcileData(client, targetVersion) {
   // For each property, ensure old schema has latest data
   for (const property of propertiesResult.rows) {
     // This would contain version-specific reconciliation logic
-    console.log(`[Rollback Handler] Reconciling property: ${property.property_name}`);
     
     // Example: Copy data from new schema to old schema
     // Actual implementation depends on specific schema changes
   }
 
-  console.log('[Rollback Handler] Data reconciliation completed');
 }
 
 /**

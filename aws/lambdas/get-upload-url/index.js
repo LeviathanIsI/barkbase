@@ -13,7 +13,6 @@ const HEADERS = {
 };
 
 exports.handler = async (event) => {
-	console.log('Received event:', JSON.stringify(event, null, 2));
 
 	try {
 		const body = JSON.parse(event.body);

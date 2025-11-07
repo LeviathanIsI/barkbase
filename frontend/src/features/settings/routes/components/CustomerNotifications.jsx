@@ -72,12 +72,10 @@ const CustomerNotifications = ({ notifications, onUpdate }) => {
 
   const handleViewTemplate = () => {
     // TODO: Open template preview
-    console.log('View confirmation template');
   };
 
   const handlePreviewExperience = () => {
     // TODO: Open customer experience preview
-    console.log('Preview customer experience');
   };
 
   return (

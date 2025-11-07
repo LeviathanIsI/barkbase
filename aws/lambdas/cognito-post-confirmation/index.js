@@ -2,7 +2,6 @@ const { getPool } = require('/opt/nodejs/index');
 const { randomUUID } = require('crypto');
 
 exports.handler = async (event) => {
-    console.log('Cognito Post-Confirmation trigger event:', JSON.stringify(event, null, 2));
 
     const { userPoolId, userName, request } = event;
     const { userAttributes } = request;
@@ -26,7 +25,6 @@ exports.handler = async (event) => {
         if (existingUser.rows.length > 0) {
             // User exists (created via database auth), link to Cognito
             userId = existingUser.rows[0].recordId;
-            console.log(`Linking existing user ${userId} to Cognito sub ${cognitoSub}`);
             
             await pool.query(
                 'UPDATE "User" SET "cognitoSub" = $1, "emailVerified" = true, "updatedAt" = CURRENT_TIMESTAMP WHERE "recordId" = $2',
@@ -35,7 +33,6 @@ exports.handler = async (event) => {
         } else {
             // New user, create User record
             userId = randomUUID();
-            console.log(`Creating new user ${userId} for Cognito sub ${cognitoSub}`);
             
             await pool.query(
                 `INSERT INTO "User" 
@@ -56,7 +53,6 @@ exports.handler = async (event) => {
                 [tenantId, tenantName, slug]
             );
 
-            console.log(`Created tenant ${tenantId} for new user`);
 
             // Create Membership linking user to tenant
             const membershipId = randomUUID();
@@ -67,11 +63,9 @@ exports.handler = async (event) => {
                 [membershipId, userId, tenantId]
             );
 
-            console.log(`Created membership ${membershipId} linking user to tenant`);
         }
 
         await pool.query('COMMIT');
-        console.log('✅ Post-confirmation trigger completed successfully');
 
     } catch (error) {
         await pool.query('ROLLBACK');

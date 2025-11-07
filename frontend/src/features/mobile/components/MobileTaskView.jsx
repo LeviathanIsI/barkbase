@@ -247,7 +247,6 @@ const MobileTaskView = () => {
       <div className="fixed bottom-6 right-6 z-20">
         <Button
           className="h-14 w-14 rounded-full shadow-lg"
-          onClick={() => console.log('Quick add task')}
         >
           <Plus className="h-6 w-6" />
         </Button>
@@ -273,7 +272,6 @@ const TaskCard = ({ task, onSelect }) => {
         <Button
           variant="destructive"
           className="h-full rounded-none px-4"
-          onClick={() => console.log('Complete task')}
         >
           <CheckCircle className="h-5 w-5" />
         </Button>

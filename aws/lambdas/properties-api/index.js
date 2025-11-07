@@ -14,7 +14,6 @@ const corsHeaders = {
  * Manages both system properties (created by BarkBase) and custom properties (created by users)
  */
 exports.handler = async (event) => {
-  console.log('Event:', JSON.stringify(event, null, 2));
 
   // Handle OPTIONS request for CORS
   if (event.requestContext.http.method === 'OPTIONS') {

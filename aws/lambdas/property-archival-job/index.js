@@ -8,7 +8,6 @@
 const { getPool } = require('/opt/nodejs');
 
 exports.handler = async (event) => {
-  console.log('Property Archival Job started at:', new Date().toISOString());
 
   const pool = getPool();
   const results = {
@@ -44,12 +43,10 @@ exports.handler = async (event) => {
     const eligibleProperties = eligibleResult.rows;
     results.propertiesProcessed = eligibleProperties.length;
 
-    console.log(`Found ${eligibleProperties.length} properties eligible for archival`);
 
     // Process each property
     for (const property of eligibleProperties) {
       try {
-        console.log(`Archiving property: ${property.property_name} (${property.property_id}), deleted ${Math.floor(property.days_since_deletion)} days ago`);
 
         // Call the archive function
         await pool.query('SELECT move_property_to_archive($1)', [property.property_id]);
@@ -88,7 +85,6 @@ exports.handler = async (event) => {
     results.endTime = new Date().toISOString();
     results.durationSeconds = Math.round((new Date(results.endTime) - new Date(results.startTime)) / 1000);
 
-    console.log('Property Archival Job completed:', JSON.stringify(results, null, 2));
 
     return {
       statusCode: 200,
@@ -125,7 +121,6 @@ async function sendArchivalNotification(pool, property) {
     );
 
     if (tenantResult.rows.length === 0) {
-      console.log(`No admin found for tenant ${property.tenant_id}`);
       return;
     }
 
@@ -133,10 +128,6 @@ async function sendArchivalNotification(pool, property) {
 
     // In a real implementation, this would send an email via SES or SNS
     // For now, we'll just log it
-    console.log(`[NOTIFICATION] To: ${admin_email}`);
-    console.log(`Subject: Property Archived - ${property.display_label}`);
-    console.log(`Body: Property "${property.display_label}" (${property.property_name}) has been automatically archived after 90 days in soft delete state.`);
-    console.log(`Restoration window: 7 years. To restore, go to Settings > Properties > Archived tab.`);
 
     // TODO: Integrate with actual notification system
     // await sendEmail({

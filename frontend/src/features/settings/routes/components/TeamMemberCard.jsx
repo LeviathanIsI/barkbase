@@ -44,16 +44,7 @@ const TeamMemberCard = ({ member, isSelected, onSelect, onEdit }) => {
   };
 
   const menuActions = [
-    { icon: Eye, label: 'View Profile', action: () => console.log('View profile') },
     { icon: Edit, label: 'Edit Permissions', action: () => onEdit(member) },
-    { icon: Calendar, label: 'View Schedule', action: () => console.log('View schedule') },
-    { icon: MessageSquare, label: 'Send Message', action: () => console.log('Send message') },
-    { icon: Mail, label: 'Send Email', action: () => console.log('Send email') },
-    { icon: Phone, label: 'Call/Text', action: () => console.log('Call/text') },
-    { icon: Activity, label: 'View Performance', action: () => console.log('View performance') },
-    { icon: Clock, label: 'View Time Log', action: () => console.log('View time log') },
-    { icon: UserX, label: 'Deactivate', action: () => console.log('Deactivate'), danger: true },
-    { icon: Trash2, label: 'Remove from Team', action: () => console.log('Remove'), danger: true },
   ];
 
   return (

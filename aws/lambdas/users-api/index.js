@@ -11,7 +11,6 @@ const HEADERS = {
 };
 
 exports.handler = async (event) => {
-  console.log("Received event:", JSON.stringify(event, null, 2));
 
   const httpMethod = event.requestContext.http.method;
   const path = event.requestContext.http.path;

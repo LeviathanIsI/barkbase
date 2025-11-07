@@ -8,7 +8,6 @@
 const { getPool } = require('/opt/nodejs');
 
 exports.handler = async (event) => {
-  console.log('Property Permanent Deletion Job started at:', new Date().toISOString());
 
   const pool = getPool();
   const results = {
@@ -41,7 +40,6 @@ exports.handler = async (event) => {
     const eligibleProperties = eligibleResult.rows;
     results.propertiesProcessed = eligibleProperties.length;
 
-    console.log(`Found ${eligibleProperties.length} properties eligible for permanent deletion`);
 
     // Safety check: Don't delete more than 100 properties in one run
     if (eligibleProperties.length > 100) {
@@ -52,7 +50,6 @@ exports.handler = async (event) => {
     // Process each property
     for (const property of eligibleProperties) {
       try {
-        console.log(`Permanently deleting property: ${property.property_name} (${property.property_id}), archived ${Math.floor(property.days_since_archive)} days ago`);
 
         // Call the permanent deletion function
         await pool.query('SELECT permanently_delete_archived_property($1)', [property.property_id]);
@@ -67,7 +64,6 @@ exports.handler = async (event) => {
         results.tenantSummary[tenantId].deleted++;
 
         // Log to CloudWatch for compliance
-        console.log(`[COMPLIANCE] Property ${property.property_id} (${property.property_name}) permanently deleted after 7-year retention`);
 
       } catch (error) {
         console.error(`Failed to permanently delete property ${property.property_id}:`, error);
@@ -93,7 +89,6 @@ exports.handler = async (event) => {
     results.endTime = new Date().toISOString();
     results.durationSeconds = Math.round((new Date(results.endTime) - new Date(results.startTime)) / 1000);
 
-    console.log('Property Permanent Deletion Job completed:', JSON.stringify(results, null, 2));
 
     return {
       statusCode: 200,

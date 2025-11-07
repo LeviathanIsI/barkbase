@@ -15,7 +15,6 @@ const RequestIntegrationModal = ({ isOpen, onClose }) => {
 
   const handleSubmit = () => {
     // TODO: Submit integration request
-    console.log('Requesting integration:', integrationName, useCase);
     onClose();
   };
 

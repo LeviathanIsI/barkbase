@@ -26,17 +26,14 @@ export default function SetupTab() {
 
   const handleExportSettings = () => {
     // TODO: Implement export functionality
-    console.log('Exporting facility settings...');
   };
 
   const handleImportSettings = () => {
     // TODO: Implement import functionality
-    console.log('Importing facility settings...');
   };
 
   const handleResetSettings = () => {
     // TODO: Implement reset functionality
-    console.log('Resetting facility settings...');
     setShowResetConfirm(false);
   };
 

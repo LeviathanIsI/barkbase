@@ -5,7 +5,6 @@ import Button from '@/components/ui/Button';
 const MobilePush = () => {
   const handleDownloadApp = (platform) => {
     // TODO: Implement app download
-    console.log(`Download ${platform} app`);
   };
 
   return (

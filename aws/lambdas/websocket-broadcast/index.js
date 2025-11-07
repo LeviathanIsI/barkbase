@@ -13,7 +13,6 @@ exports.handler = async (event) => {
         return { statusCode: 400, body: 'Missing parameters' };
     }
 
-    console.log('Broadcasting:', { tenantId, eventType });
 
     try {
         const pool = getPool();
@@ -25,7 +24,6 @@ exports.handler = async (event) => {
         );
 
         if (rows.length === 0) {
-            console.log('No active connections for tenant:', tenantId);
             return { statusCode: 200, body: 'No connections to broadcast to' };
         }
 
@@ -56,7 +54,6 @@ exports.handler = async (event) => {
                             `DELETE FROM "WebSocketConnection" WHERE "connectionId" = $1`,
                             [conn.connectionId]
                         );
-                        console.log('Removed stale connection:', conn.connectionId);
                     }
                     throw error;
                 }
@@ -66,7 +63,6 @@ exports.handler = async (event) => {
         const successful = results.filter(r => r.status === 'fulfilled').length;
         const failed = results.filter(r => r.status === 'rejected').length;
 
-        console.log('Broadcast complete:', { successful, failed, total: rows.length });
 
         return {
             statusCode: 200,

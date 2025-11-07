@@ -42,7 +42,6 @@ const Signup = () => {
         name: email.split('@')[0]
       });
 
-      console.log('Signup successful:', signUpResponse);
 
       setAuth({
         user: signUpResponse.user,

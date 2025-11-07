@@ -53,11 +53,9 @@ export const usePetVaccinationsQuery = (petId, options = {}) => {
     enabled,
     queryFn: async () => {
       try {
-        console.log('Fetching vaccinations for petId:', petId);
 
         // Try direct API call to the Lambda endpoint
         const res = await apiClient.get(`/api/v1/pets/${petId}/vaccinations`);
-        console.log('Vaccinations API response:', res);
         // Normalize to an array whether backend returns [..] or { data: [..] }
         const list = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
         return list;
@@ -175,9 +173,7 @@ export const useCreateVaccinationMutation = (petId) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload) => {
-      console.log('Creating vaccination:', payload);
       const res = await apiClient.post(`/api/v1/pets/${petId}/vaccinations`, payload);
-      console.log('Create vaccination response:', res);
       return res.data;
     },
     onSuccess: () => {
@@ -190,9 +186,7 @@ export const useUpdateVaccinationMutation = (petId) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ vaccinationId, payload }) => {
-      console.log('Updating vaccination:', vaccinationId, payload);
       const res = await apiClient.put(`/api/v1/pets/${petId}/vaccinations/${vaccinationId}`, payload);
-      console.log('Update vaccination response:', res);
       return res.data;
     },
     onSuccess: () => {
@@ -205,9 +199,7 @@ export const useDeleteVaccinationMutation = (petId) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (vaccinationId) => {
-      console.log('Deleting vaccination:', vaccinationId);
       const res = await apiClient.delete(`/api/v1/pets/${petId}/vaccinations/${vaccinationId}`);
-      console.log('Delete vaccination response:', res);
       return res.data;
     },
     onSuccess: () => {

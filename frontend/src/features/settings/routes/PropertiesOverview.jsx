@@ -265,7 +265,6 @@ const PropertiesOverview = () => {
           objectType={selectedObject}
           onBrowseTemplates={() => setIsTemplatesModalOpen(true)}
           onCreateProperty={handleCreateProperty}
-          onWatchTutorial={() => console.log('Watch tutorial')}
         />
       )}
 
@@ -384,10 +383,8 @@ const PropertiesOverview = () => {
         <ArchivedTab
           objectType={selectedObject}
           onRestore={(propertyId) => {
-            console.log('Restore property:', propertyId);
           }}
           onDelete={(propertyId) => {
-            console.log('Delete property:', propertyId);
           }}
         />
       )}
@@ -398,7 +395,6 @@ const PropertiesOverview = () => {
         onClose={() => setIsTemplatesModalOpen(false)}
         objectType={selectedObject}
         onImportTemplates={(templates) => {
-          console.log('Importing templates:', templates);
           setIsTemplatesModalOpen(false);
         }}
       />
@@ -412,7 +408,6 @@ const PropertiesOverview = () => {
         objectType={selectedObject}
         existingProperty={editingProperty}
         onSubmit={(propertyData) => {
-          console.log('Creating/updating property:', propertyData);
           setIsCreateModalOpen(false);
           setEditingProperty(null);
         }}
@@ -437,7 +432,6 @@ const PropertiesOverview = () => {
               <DependencyGraphViewer
                 propertyId={selectedPropertyForGraph.propertyId}
                 graphData={dependencyGraph}
-                onNodeClick={(node) => console.log('Clicked node:', node)}
               />
             </div>
           </div>

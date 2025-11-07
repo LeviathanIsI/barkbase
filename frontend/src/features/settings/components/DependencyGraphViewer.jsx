@@ -27,7 +27,6 @@ export const DependencyGraphViewer = ({ propertyId, graphData, onNodeClick }) =>
     const nodes = data.nodes || [];
     const edges = data.edges || [];
 
-    console.log('Rendering graph with', nodes.length, 'nodes and', edges.length, 'edges');
     
     // TODO: Implement full D3.js force-directed graph
   };
@@ -36,7 +35,6 @@ export const DependencyGraphViewer = ({ propertyId, graphData, onNodeClick }) =>
   const handleZoomOut = () => setZoom(prev => Math.max(prev - 0.2, 0.5));
   const handleExport = () => {
     // Export graph as PNG
-    console.log('Exporting graph...');
   };
 
   const getNodeColor = (type) => {

@@ -13,7 +13,6 @@ exports.handler = async (event) => {
         // Handle /api/v1/schedule/capacity - get capacity data for each day in range
         if (path.includes('/capacity')) {
             const { startDate, endDate } = event.queryStringParameters || {};
-            console.log('[schedule-api/capacity] Params:', { tenantId, startDate, endDate });
             
             // Generate all dates in range and count bookings staying on each day
             const { rows } = await pool.query(
@@ -47,7 +46,6 @@ exports.handler = async (event) => {
                 [tenantId, startDate || '2020-01-01', endDate || '2099-12-31']
             );
             
-            console.log('[schedule-api/capacity] Returned rows:', rows.length, 'First row:', rows[0]);
             
             return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows) };
         }

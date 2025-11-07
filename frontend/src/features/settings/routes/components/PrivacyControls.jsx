@@ -9,7 +9,6 @@ const PrivacyControls = () => {
 
   const handleDataExport = () => {
     // TODO: Implement data export
-    console.log('Exporting all user data...');
   };
 
   const handleAccountDeletion = () => {
@@ -19,7 +18,6 @@ const PrivacyControls = () => {
       return;
     }
     // TODO: Implement account deletion
-    console.log('Deleting account...');
     setShowDeleteModal(false);
   };
 

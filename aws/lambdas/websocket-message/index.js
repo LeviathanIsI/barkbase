@@ -14,7 +14,6 @@ exports.handler = async (event) => {
     const stage = event.requestContext.stage;
     const endpoint = `https://${domainName}/${stage}`;
 
-    console.log('WebSocket Message received:', { connectionId, endpoint });
 
     try {
         const body = JSON.parse(event.body || '{}');

@@ -23,7 +23,6 @@ const NotificationTesting = () => {
 
   const handleSendTest = () => {
     // TODO: Send test notification
-    console.log(`Sending test ${testType} notification via ${testChannel}`);
   };
 
   return (

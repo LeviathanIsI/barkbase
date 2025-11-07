@@ -1,51 +1,93 @@
 import { useEffect, useRef } from 'react';
 import { useTenantStore } from '@/stores/tenant';
 import { useAuthStore } from '@/stores/auth';
+import { apiClient } from '@/lib/apiClient';
 import { setTenantSlugCookie } from '@/lib/cookies';
 
 const TenantLoader = () => {
   const hasInitialized = useRef(false);
   const loadTenant = useTenantStore((state) => state.loadTenant);
   const loadTenantById = useTenantStore((state) => state.loadTenantById);
+  const setTenant = useTenantStore((state) => state.setTenant);
+  const setLoading = useTenantStore((state) => state.setLoading);
   const tenant = useTenantStore((state) => state.tenant);
   const user = useAuthStore((state) => state.user);
   const memberships = useAuthStore((state) => state.memberships);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
 
   useEffect(() => {
-    // Only load tenant if user is authenticated and tenant data is not already loaded
-    if (!isAuthenticated || tenant.recordId) {
-      return;
-    }
+    // Wait a tick to allow Zustand persist to rehydrate from localStorage
+    const timer = setTimeout(() => {
+      // Check if tenant was restored from localStorage
+      const currentTenant = useTenantStore.getState().tenant;
+      
+      // If tenant already has recordId (restored from localStorage), skip loading
+      if (currentTenant?.recordId) {
+        console.log('[TenantLoader] Tenant already loaded from localStorage:', currentTenant.recordId);
+        return;
+      }
 
-    if (hasInitialized.current) {
-      return;
-    }
-    hasInitialized.current = true;
+      // Check if tenant is already being loaded
+      const { isLoading } = useTenantStore.getState();
+      if (isLoading) {
+        console.log('[TenantLoader] Tenant already being loaded, skipping...');
+        return;
+      }
 
-    const initTenant = async () => {
-      // Prefer tenantId from auth store when present
-      const { tenantId: authTenantId } = useAuthStore.getState();
-      if (authTenantId) {
+      // Only load tenant if user is authenticated
+      if (!isAuthenticated) {
+        return;
+      }
+
+      if (hasInitialized.current) {
+        return;
+      }
+      hasInitialized.current = true;
+
+      const initTenant = async () => {
+        setLoading(true);
+        
         try {
-          await loadTenantById(authTenantId);
-          return;
-        } catch (e) {
-          console.warn('Tenant load by id failed:', e.message);
+          // Path 1: Prefer tenantId from auth store when present (already fetched by Login/AuthLoader)
+          const { tenantId: authTenantId } = useAuthStore.getState();
+          if (authTenantId) {
+            try {
+              await loadTenantById(authTenantId);
+              return;
+            } catch (e) {
+              console.warn('[TenantLoader] Tenant load by id failed:', e.message);
+            }
+          }
+
+          // Path 2: Try to load by slug from memberships
+          const slug = memberships?.[0]?.tenant?.slug ?? user?.memberships?.[0]?.tenant?.slug;
+          if (slug) {
+            try {
+              await loadTenant(slug);
+              setTenantSlugCookie(slug);
+              return;
+            } catch (error) {
+              console.warn('[TenantLoader] Tenant load by slug failed:', slug, error.message);
+            }
+          }
+
+          // Path 3: Ultimate fallback - fetch from backend using JWT sub
+          console.log('[TenantLoader] Fetching tenant from backend as final fallback...');
+          const response = await apiClient.get('/api/v1/tenants/current');
+          if (response.data) {
+            setTenant(response.data);
+          }
+        } catch (apiError) {
+          console.error('[TenantLoader] All tenant loading paths failed:', apiError);
+        } finally {
+          setLoading(false);
         }
-      }
+      };
 
-      const slug = memberships?.[0]?.tenant?.slug ?? user?.memberships?.[0]?.tenant?.slug;
-      if (!slug) return;
-      try {
-        await loadTenant(slug);
-        setTenantSlugCookie(slug);
-      } catch (error) {
-        console.warn('Tenant load failed for user membership slug:', slug, error.message);
-      }
-    };
+      initTenant();
+    }, 100); // Wait 100ms for rehydration
 
-    initTenant();
+    return () => clearTimeout(timer);
   }, [isAuthenticated, user, memberships]); // Re-run if authentication status or user data changes
 
   return null;

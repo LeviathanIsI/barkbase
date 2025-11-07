@@ -14,7 +14,6 @@ const impactAnalyzer = require('./impact-analyzer');
 const cascadeHandler = require('./cascade-handler');
 
 exports.handler = async (event) => {
-  console.log('Property Dependency Service invoked:', JSON.stringify(event, null, 2));
 
   const { httpMethod: method, path } = event.requestContext.http;
   const pathParams = event.pathParameters || {};

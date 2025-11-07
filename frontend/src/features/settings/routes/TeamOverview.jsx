@@ -133,7 +133,6 @@ const TeamOverview = () => {
   };
 
   const handleBulkAction = (action) => {
-    console.log('Bulk action:', action, 'for members:', selectedMembers);
     // Implement bulk actions
   };
 
@@ -334,7 +333,6 @@ const TeamOverview = () => {
             setEditingMember(null);
           }}
           onSave={(updatedMember) => {
-            console.log('Save member:', updatedMember);
             setShowPermissionModal(false);
             setEditingMember(null);
           }}

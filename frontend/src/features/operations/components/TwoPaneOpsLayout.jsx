@@ -468,7 +468,6 @@ const StaffSchedulePane = ({ selectedDate, selectedStaff, onStaffSelect }) => {
 
   const handleClockAction = async (staff, action) => {
     // TODO: Implement time clock mutations
-    console.log(`${action} for ${staff.name}`);
     toast.info(`Time clock functionality will be implemented soon`);
   };
 

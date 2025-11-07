@@ -42,13 +42,11 @@ export class RealtimeClient {
     try {
       this.ws = new WebSocket(wsUrl);
       this.ws.onopen = () => {
-        console.log('WebSocket connected to AWS');
         this.backoff = 1000;
         this.startHeartbeat();
       };
       this.ws.onmessage = (m) => this.onMessage(m.data);
       this.ws.onclose = () => {
-        console.log('WebSocket disconnected');
         this.scheduleReconnect();
       };
       this.ws.onerror = (err) => {

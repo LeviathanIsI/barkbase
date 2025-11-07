@@ -32,7 +32,6 @@ const FieldSetConfig = ({ node, onUpdate }) => {
       setLoadingProperties(true);
       try {
         const response = await apiClient(`/api/v1/settings/properties?object=${object}`);
-        console.log('[FieldSetConfig] Properties response:', response);
 
         // Flatten properties from groups
         const allProps = [];
@@ -44,7 +43,6 @@ const FieldSetConfig = ({ node, onUpdate }) => {
           });
         }
 
-        console.log('[FieldSetConfig] Total properties loaded:', allProps.length);
         setProperties(allProps);
       } catch (error) {
         console.error('[FieldSetConfig] Failed to fetch properties:', error);
@@ -100,16 +98,6 @@ const FieldSetConfig = ({ node, onUpdate }) => {
     );
   });
 
-  // Debug logging
-  useEffect(() => {
-    console.log('[FieldSetConfig] State:', {
-      showFieldDropdown,
-      loadingProperties,
-      propertiesCount: properties.length,
-      filteredCount: filteredProperties.length,
-      fieldSearchQuery,
-    });
-  }, [showFieldDropdown, loadingProperties, properties, filteredProperties, fieldSearchQuery]);
 
   const handleSave = () => {
     let value;

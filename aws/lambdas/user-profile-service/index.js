@@ -9,7 +9,6 @@ const { getTenantIdFromEvent } = require('/opt/nodejs');
 const permissionCalculator = require('./permission-calculator');
 
 exports.handler = async (event) => {
-  console.log('User Profile Service invoked:', JSON.stringify(event, null, 2));
 
   const { httpMethod: method, path } = event.requestContext.http;
   const pathParams = event.pathParameters || {};

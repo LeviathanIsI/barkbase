@@ -20,7 +20,6 @@ export const useTelemetry = () => {
 
     // Log to console in development
     if (import.meta.env.DEV) {
-      console.log('[Telemetry]', event);
     }
 
     // In production, send to your analytics service

@@ -3,7 +3,6 @@ const { getPool } = require('/opt/nodejs');
 exports.handler = async (event) => {
     const connectionId = event.requestContext.connectionId;
 
-    console.log('WebSocket Disconnect:', { connectionId });
 
     try {
         const pool = getPool();

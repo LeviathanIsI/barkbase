@@ -82,7 +82,6 @@ const IndustryTemplatesModal = ({ isOpen, onClose, onImportTemplates }) => {
 
   const handlePreviewTemplate = (templateId) => {
     // TODO: Open template preview
-    console.log('Preview template:', templateId);
   };
 
   const handleImportSelected = () => {

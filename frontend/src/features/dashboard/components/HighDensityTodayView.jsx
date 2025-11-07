@@ -496,7 +496,8 @@ const HighDensityTodayView = () => {
                     </td>
                   )}
                 </tr>
-              ))}
+              ))
+            )}
           </tbody>
         </table>
       </div>

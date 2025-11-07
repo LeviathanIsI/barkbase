@@ -14,7 +14,6 @@ const { getPool } = require('/opt/nodejs');
 async function execute(migrationId) {
   const pool = getPool();
 
-  console.log(`[Expand Phase] Starting for migration: ${migrationId}`);
 
   const client = await pool.connect();
 
@@ -52,7 +51,6 @@ async function execute(migrationId) {
     );
 
     if (versionResult.rows.length > 0 && versionResult.rows[0].expand_script) {
-      console.log('[Expand Phase] Executing expand script');
       await client.query(versionResult.rows[0].expand_script);
     }
 
@@ -66,7 +64,6 @@ async function execute(migrationId) {
 
     await client.query('COMMIT');
 
-    console.log(`[Expand Phase] Completed for migration: ${migrationId}`);
 
     return {
       phase: 'expand',

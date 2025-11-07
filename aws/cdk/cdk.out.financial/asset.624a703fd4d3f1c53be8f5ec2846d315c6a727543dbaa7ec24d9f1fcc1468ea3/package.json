@@ -1,0 +1,20 @@
+{
+  "name": "property-permanent-deletion-job",
+  "version": "1.0.0",
+  "description": "Automated job to permanently delete archived properties after 7-year retention",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "property",
+    "deletion",
+    "scheduled",
+    "compliance",
+    "retention"
+  ],
+  "author": "BarkBase",
+  "license": "ISC",
+  "dependencies": {}
+}
+

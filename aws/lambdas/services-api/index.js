@@ -1,4 +1,4 @@
-const { getPool, getTenantIdFromEvent, getJWTValidator } = require('/opt/nodejs');
+const { getPool, getTenantIdFromEvent } = require('/opt/nodejs');
 
 const HEADERS = {
     'Access-Control-Allow-Origin': '*',
@@ -6,20 +6,23 @@ const HEADERS = {
     'Access-Control-Allow-Methods': 'OPTIONS,POST,GET,PUT,DELETE'
 };
 
-// Helper function to validate authentication
-async function validateAuth(event) {
-    try {
-        const jwtValidator = getJWTValidator();
-        const userInfo = await jwtValidator.validateRequest(event);
-        return userInfo;
-    } catch (error) {
-        console.error('Auth validation failed:', error);
+// Extract user info from API Gateway authorizer (JWT already validated by API Gateway)
+function getUserInfoFromEvent(event) {
+    const claims = event?.requestContext?.authorizer?.jwt?.claims;
+    if (!claims) {
+        console.error('No JWT claims found in event');
         return null;
     }
+
+    return {
+        sub: claims.sub,
+        username: claims.username,
+        email: claims.email,
+        tenantId: claims['custom:tenantId'] || claims.tenantId
+    };
 }
 
 exports.handler = async (event) => {
-    console.log('Received event:', JSON.stringify(event, null, 2));
 
     const httpMethod = event.requestContext.http.method;
     const path = event.requestContext.http.path;
@@ -28,8 +31,8 @@ exports.handler = async (event) => {
         return { statusCode: 200, headers: HEADERS, body: '' };
     }
 
-    // Validate authentication
-    const userInfo = await validateAuth(event);
+    // Extract user info from API Gateway authorizer (JWT already validated)
+    const userInfo = getUserInfoFromEvent(event);
     if (!userInfo) {
         return {
             statusCode: 401,

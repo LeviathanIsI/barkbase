@@ -1,4 +1,4 @@
-const { getPool, getTenantIdFromEvent, getJWTValidator } = require('/opt/nodejs');
+const { getPool, getTenantIdFromEvent } = require('/opt/nodejs');
 
 // Unified CORS headers (superset of all 3 original Lambdas)
 const HEADERS = {
@@ -7,20 +7,23 @@ const HEADERS = {
     'Access-Control-Allow-Methods': 'OPTIONS,GET,POST,PATCH'
 };
 
-// Helper function to validate authentication
-async function validateAuth(event) {
-    try {
-        const jwtValidator = getJWTValidator();
-        const userInfo = await jwtValidator.validateRequest(event);
-        return userInfo;
-    } catch (error) {
-        console.error('Auth validation failed:', error);
+// Extract user info from API Gateway authorizer (JWT already validated by API Gateway)
+function getUserInfoFromEvent(event) {
+    const claims = event?.requestContext?.authorizer?.jwt?.claims;
+    if (!claims) {
+        console.error('No JWT claims found in event');
         return null;
     }
+
+    return {
+        sub: claims.sub,
+        username: claims.username,
+        email: claims.email,
+        tenantId: claims['custom:tenantId'] || claims.tenantId
+    };
 }
 
 exports.handler = async (event) => {
-    console.log('Financial service received event:', JSON.stringify(event, null, 2));
 
     const httpMethod = event.requestContext.http.method;
     const path = event.requestContext.http.path;
@@ -30,8 +33,8 @@ exports.handler = async (event) => {
         return { statusCode: 200, headers: HEADERS, body: '' };
     }
 
-    // Validate authentication - CRITICAL SECURITY CHECK
-    const userInfo = await validateAuth(event);
+    // Extract user info from API Gateway authorizer (JWT already validated)
+    const userInfo = getUserInfoFromEvent(event);
     if (!userInfo) {
         return {
             statusCode: 401,
@@ -56,18 +59,15 @@ exports.handler = async (event) => {
         // ============================================
         if (path === '/api/v1/payments') {
             if (httpMethod === 'GET') {
-                console.log('Handling: List payments');
                 return await listPayments(event, tenantId);
             }
             if (httpMethod === 'POST') {
-                console.log('Handling: Create payment');
                 return await createPayment(event, tenantId);
             }
         }
 
         if (path.match(/^\/api\/v1\/payments\/[^\/]+$/) && event.pathParameters?.paymentId) {
             if (httpMethod === 'GET') {
-                console.log('Handling: Get payment by ID');
                 return await getPayment(event, tenantId);
             }
         }
@@ -77,11 +77,9 @@ exports.handler = async (event) => {
         // ============================================
         if (path === '/api/v1/invoices') {
             if (httpMethod === 'GET') {
-                console.log('Handling: List invoices');
                 return await listInvoices(event, tenantId);
             }
             if (httpMethod === 'POST') {
-                console.log('Handling: Create invoice');
                 return await createInvoice(event, tenantId);
             }
         }
@@ -90,12 +88,10 @@ exports.handler = async (event) => {
         // BILLING ROUTES (from billing-api)
         // ============================================
         if (path === '/api/v1/billing/metrics' && httpMethod === 'GET') {
-            console.log('Handling: Get billing metrics');
             return await getBillingMetrics(event, tenantId);
         }
 
         // No matching route
-        console.log('No matching route for:', httpMethod, path);
         return {
             statusCode: 404,
             headers: HEADERS,

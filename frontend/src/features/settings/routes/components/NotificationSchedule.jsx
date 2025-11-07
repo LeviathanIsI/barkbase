@@ -39,7 +39,6 @@ const NotificationSchedule = ({ schedule, onUpdate }) => {
 
   const handleConfigureDND = () => {
     // TODO: Open DND configuration modal
-    console.log('Configure Do Not Disturb');
   };
 
   return (

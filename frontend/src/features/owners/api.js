@@ -153,3 +153,39 @@ export const useOwnerSearchQuery = (searchTerm, options = {}) => {
     ...queryOptions,
   });
 };
+// Add pet to owner
+export const useAddPetToOwnerMutation = (ownerId) => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+  
+  return useMutation({
+    mutationFn: async ({ petId, isPrimary = false }) => {
+      const res = await apiClient.post(`/api/v1/owners/${ownerId}/pets`, { 
+        petId, 
+        isPrimary 
+      });
+      return res.data;
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.owners(tenantKey) });
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.owners(tenantKey), ownerId] });
+    },
+  });
+};
+
+// Remove pet from owner
+export const useRemovePetFromOwnerMutation = (ownerId) => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+  
+  return useMutation({
+    mutationFn: async (petId) => {
+      await apiClient.delete(`/api/v1/owners/${ownerId}/pets/${petId}`);
+      return petId;
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.owners(tenantKey) });
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.owners(tenantKey), ownerId] });
+    },
+  });
+};

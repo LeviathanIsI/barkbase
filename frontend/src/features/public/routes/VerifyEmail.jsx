@@ -25,7 +25,6 @@ const VerifyEmail = () => {
             const confirmSignUp = async () => {
                 try {
                     await auth.confirmSignUp({ username, code });
-                    console.log('Email verification successful for:', username);
                     setStatus('success');
                 } catch (error) {
                     setError(error.message);
@@ -38,7 +37,6 @@ const VerifyEmail = () => {
             const confirmSignUp = async () => {
                 try {
                     // For mock verification, we can simulate success
-                    console.log('Mock email verification successful with token:', token);
                     setStatus('success');
                 } catch (error) {
                     setError(error.message);

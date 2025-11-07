@@ -30,12 +30,10 @@ const WorkflowCanvas = ({
 
   // Sync external nodes/edges with internal state when they change
   useEffect(() => {
-    console.log('[WorkflowCanvas] Syncing initialNodes to internal state', initialNodes.length, 'nodes');
     setNodes(initialNodes);
   }, [initialNodes, setNodes]);
 
   useEffect(() => {
-    console.log('[WorkflowCanvas] Syncing initialEdges to internal state', initialEdges.length, 'edges');
     setEdges(initialEdges);
   }, [initialEdges, setEdges]);
 
