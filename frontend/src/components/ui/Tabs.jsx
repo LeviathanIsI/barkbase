@@ -31,7 +31,7 @@ const TabsList = React.forwardRef(({ className, children, ...props }, ref) => (
   <div
     ref={ref}
     className={cn(
-      'inline-flex h-10 items-center justify-center rounded-lg bg-gray-100 p-1 text-gray-600',
+      'inline-flex h-10 items-center justify-center rounded-lg bg-gray-100 dark:bg-surface-secondary p-1 text-gray-600 dark:text-text-secondary',
       className
     )}
     {...props}
@@ -56,8 +56,8 @@ const TabsTrigger = React.forwardRef(({ className, value, children, ...props }, 
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
         'disabled:pointer-events-none disabled:opacity-50',
         isSelected
-          ? 'bg-white text-gray-900 shadow-sm'
-          : 'text-gray-600 hover:text-gray-900',
+          ? 'bg-white dark:bg-surface-primary text-gray-900 dark:text-text-primary shadow-sm'
+          : 'text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary',
         className
       )}
       {...props}

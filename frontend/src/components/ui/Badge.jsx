@@ -12,14 +12,14 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        default: 'bg-gray-100 text-gray-700 border border-gray-200',
-        primary: 'bg-primary-100 text-primary-700 border border-primary-200',
-        secondary: 'bg-secondary-100 text-secondary-700 border border-secondary-200',
-        success: 'bg-secondary-100 text-secondary-700 border border-secondary-200',
-        warning: 'bg-warning-100 text-warning-700 border border-warning-200',
-        error: 'bg-error-100 text-error-700 border border-error-200',
-        info: 'bg-primary-100 text-primary-700 border border-primary-200',
-        outline: 'bg-transparent text-gray-700 border border-gray-300',
+        default: 'bg-gray-100 dark:bg-surface-secondary text-gray-700 dark:text-text-primary border border-gray-200 dark:border-surface-border',
+        primary: 'bg-primary-100 dark:bg-primary-950/30 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-900/50',
+        secondary: 'bg-secondary-100 dark:bg-secondary-950/30 text-secondary-700 dark:text-secondary-300 border border-secondary-200 dark:border-secondary-900/50',
+        success: 'bg-secondary-100 dark:bg-secondary-950/30 text-secondary-700 dark:text-secondary-300 border border-secondary-200 dark:border-secondary-900/50',
+        warning: 'bg-warning-100 dark:bg-warning-950/30 text-warning-700 dark:text-warning-300 border border-warning-200 dark:border-warning-900/50',
+        error: 'bg-error-100 dark:bg-error-950/30 text-error-700 dark:text-error-300 border border-error-200 dark:border-error-900/50',
+        info: 'bg-primary-100 dark:bg-primary-950/30 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-900/50',
+        outline: 'bg-transparent text-gray-700 dark:text-text-primary border border-gray-300 dark:border-surface-border',
       },
     },
     defaultVariants: {
