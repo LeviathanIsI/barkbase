@@ -14,7 +14,7 @@ export default function Toolbar({
   return (
     <div
       className={cn(
-        'w-full bg-white',
+        'w-full bg-white dark:bg-surface-primary',
         sticky && 'sticky top-0 z-10 border-b border-border shadow-sm',
         className,
       )}

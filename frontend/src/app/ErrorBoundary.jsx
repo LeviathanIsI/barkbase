@@ -72,9 +72,9 @@ class ErrorBoundary extends Component {
       return (
         <div
           role="alert"
-          className="min-h-screen flex items-center justify-center bg-gray-50 px-4"
+          className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-surface-secondary px-4"
         >
-          <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
+          <div className="max-w-md w-full bg-white dark:bg-surface-primary rounded-lg shadow-lg p-8 text-center">
             <div className="mb-4">
               <svg
                 className="mx-auto h-16 w-16 text-red-500"
@@ -92,17 +92,17 @@ class ErrorBoundary extends Component {
               </svg>
             </div>
 
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-text-primary mb-2">
               Something went wrong
             </h1>
 
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 dark:text-text-secondary mb-6">
               We're sorry, but something unexpected happened. Please try reloading the page.
             </p>
 
             {import.meta.env.DEV && this.state.error && (
-              <details className="mb-6 text-left bg-gray-100 rounded p-4 overflow-auto max-h-48">
-                <summary className="cursor-pointer font-semibold text-sm text-gray-700 mb-2">
+              <details className="mb-6 text-left bg-gray-100 dark:bg-surface-secondary rounded p-4 overflow-auto max-h-48">
+                <summary className="cursor-pointer font-semibold text-sm text-gray-700 dark:text-text-primary mb-2">
                   Error Details (Development Only)
                 </summary>
                 <pre className="text-xs text-red-600 whitespace-pre-wrap">
@@ -121,13 +121,13 @@ class ErrorBoundary extends Component {
               </button>
               <button
                 onClick={this.handleReset}
-                className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                className="px-6 py-2 bg-gray-200 dark:bg-surface-border text-gray-700 dark:text-text-primary rounded-lg hover:bg-gray-300 transition-colors font-medium"
               >
                 Try Again
               </button>
             </div>
 
-            <p className="mt-6 text-sm text-gray-500">
+            <p className="mt-6 text-sm text-gray-500 dark:text-text-secondary">
               If this problem persists, please contact support.
             </p>
           </div>

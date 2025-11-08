@@ -201,7 +201,7 @@ const Header = ({ onMenuToggle }) => {
           </Badge>
           {import.meta.env.DEV ? (
             <div className="flex items-center gap-2">
-              <Badge variant="success" className="text-xs bg-green-500 text-white">
+              <Badge variant="success" className="text-xs bg-green-50 dark:bg-green-950/20 text-white">
                 ENTERPRISE
               </Badge>
               <Badge variant="warning" className="text-xs">

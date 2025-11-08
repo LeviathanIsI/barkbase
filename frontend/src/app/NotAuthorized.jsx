@@ -10,7 +10,7 @@ const NotAuthorized = () => {
     <div className="flex min-h-full flex-col items-center justify-center px-4 py-16">
       <div className="max-w-md text-center space-y-6">
         <div className="flex justify-center">
-          <div className="rounded-full bg-red-500/10 p-6">
+          <div className="rounded-full bg-red-50 dark:bg-red-950/10 p-6">
             <ShieldX className="h-16 w-16 text-red-600" />
           </div>
         </div>

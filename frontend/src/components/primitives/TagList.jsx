@@ -12,7 +12,7 @@ export default function TagList({
   tone = 'neutral',
 }) {
   const toneClass = tone === 'neutral'
-    ? 'bg-gray-100 text-gray-700 border-gray-200'
+    ? 'bg-gray-100 dark:bg-surface-secondary text-gray-700 dark:text-text-primary border-gray-200 dark:border-surface-border'
     : 'bg-primary/10 text-primary border-primary/20';
 
   if (!tags.length) {
