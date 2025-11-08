@@ -218,7 +218,7 @@ export const PropertyDeletionWizard = ({
                       <div className="mt-3 pl-7">
                         <Label className="text-sm">Select Replacement Property</Label>
                         <select
-                          className="w-full mt-1 p-2 border rounded"
+                          className="w-full mt-1 p-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded text-gray-900 dark:text-text-primary"
                           value={replacementPropertyId}
                           onChange={(e) => setReplacementPropertyId(e.target.value)}
                         >

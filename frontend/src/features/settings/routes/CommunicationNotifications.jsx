@@ -193,7 +193,7 @@ const CommunicationNotifications = () => {
                   onChange={(e) => updateSetting('reminderDays', parseInt(e.target.value))}
                   min="1"
                   max="7"
-                  className="w-16 px-2 py-1 border rounded"
+                  className="w-16 px-2 py-1 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded text-gray-900 dark:text-text-primary"
                 />
                 <span className="text-sm text-gray-600 dark:text-text-secondary">days before appointment</span>
               </div>
