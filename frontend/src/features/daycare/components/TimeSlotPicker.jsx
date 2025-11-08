@@ -135,7 +135,7 @@ const TimeSlotPicker = ({
             {availableSlots.length > 0 && (
               <div className="text-sm text-gray-600 dark:text-text-secondary">
                 {availableSlots.find(s => s.startTime === startTime && s.endTime === endTime)?.available === false && (
-                  <div className="text-amber-600 font-medium">
+                  <div className="text-amber-600 dark:text-amber-400 font-medium">
                     ⚠️ This time slot may be at capacity
                   </div>
                 )}

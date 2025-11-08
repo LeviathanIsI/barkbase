@@ -52,7 +52,7 @@ const PetCard = ({ pet, startTime, endTime, isDragging = false }) => {
       style={style}
       {...listeners}
       {...attributes}
-      className={`bg-white dark:bg-surface-primary border ${hasWarnings ? 'border-yellow-400' : 'border-border'} rounded-lg p-3 mb-2 cursor-move transition-all duration-200 hover:shadow-md ${
+      className={`bg-white dark:bg-surface-primary border ${hasWarnings ? 'border-yellow-400 dark:border-yellow-700' : 'border-border'} rounded-lg p-3 mb-2 cursor-move transition-all duration-200 hover:shadow-md ${
         isDragging ? 'opacity-50 rotate-2' : ''
       }`}
     >
@@ -61,7 +61,7 @@ const PetCard = ({ pet, startTime, endTime, isDragging = false }) => {
           <div className="flex items-center gap-2">
             <h4 className="font-semibold text-text">{pet.name}</h4>
             {hasWarnings && (
-              <AlertTriangle className="h-4 w-4 text-yellow-600" title="Has behavioral notes" />
+              <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" title="Has behavioral notes" />
             )}
           </div>
           <p className="text-sm text-muted">{pet.breed || 'Unknown breed'}</p>
