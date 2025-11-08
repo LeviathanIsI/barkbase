@@ -93,7 +93,7 @@ const RunTemplatesTab = () => {
                 <div className="flex gap-1">
                   <button
                     onClick={() => handleEdit(template)}
-                    className="p-1.5 text-gray-400 dark:text-text-tertiary hover:text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:bg-surface-primary rounded transition-colors"
+                    className="p-1.5 text-gray-400 dark:text-text-tertiary hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-surface-secondary rounded transition-colors"
                     title="Edit template"
                   >
                     <Edit2 className="h-4 w-4" />

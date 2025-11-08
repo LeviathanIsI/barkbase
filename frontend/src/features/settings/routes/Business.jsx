@@ -134,7 +134,7 @@ const Business = () => {
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-text">Address</label>
-                <textarea className="w-full rounded-md border border-[#E0E0E0] px-4 py-3 text-sm" rows={3} placeholder="Street address, city, state, ZIP" onChange={()=>setIsDirty(true)} />
+                <textarea className="w-full rounded-md border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary px-4 py-3 text-sm text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary" rows={3} placeholder="Street address, city, state, ZIP" onChange={()=>setIsDirty(true)} />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input label="After-hours emergencies" value={profile.emergency} onChange={(e)=>{setProfile({...profile,emergency:e.target.value}); setIsDirty(true);}} />
