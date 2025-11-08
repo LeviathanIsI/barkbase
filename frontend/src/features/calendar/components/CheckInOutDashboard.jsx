@@ -96,12 +96,12 @@ const CheckInOutDashboard = ({ currentDate, onBookingClick }) => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'on-time': return 'bg-green-100 dark:bg-surface-secondary border-green-300 text-green-800';
+      case 'on-time': return 'bg-green-100 dark:bg-surface-secondary border-green-300 text-green-800 dark:text-green-200';
       case 'late': return 'bg-red-100 dark:bg-surface-secondary border-red-300 text-red-800 dark:text-red-200';
       case 'early': return 'bg-blue-100 dark:bg-surface-secondary border-blue-300 text-blue-800 dark:text-blue-200';
       case 'scheduled': return 'bg-gray-100 dark:bg-surface-secondary border-gray-300 dark:border-surface-border text-gray-800 dark:text-text-primary';
-      case 'ready': return 'bg-green-100 dark:bg-surface-secondary border-green-300 text-green-800';
-      case 'outstanding-balance': return 'bg-yellow-100 dark:bg-surface-secondary border-yellow-300 text-yellow-800';
+      case 'ready': return 'bg-green-100 dark:bg-surface-secondary border-green-300 text-green-800 dark:text-green-200';
+      case 'outstanding-balance': return 'bg-yellow-100 dark:bg-surface-secondary border-yellow-300 text-yellow-800 dark:text-yellow-200';
       default: return 'bg-gray-100 dark:bg-surface-secondary border-gray-300 dark:border-surface-border text-gray-800 dark:text-text-primary';
     }
   };

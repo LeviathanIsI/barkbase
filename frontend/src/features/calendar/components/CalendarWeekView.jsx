@@ -57,8 +57,8 @@ const CalendarWeekView = ({ currentDate, onDateChange, onBookingClick, filters }
   const getStatusColor = (status) => {
     switch (status) {
       case 'confirmed': return 'bg-blue-100 dark:bg-surface-secondary border-blue-300 text-blue-800 dark:text-blue-200';
-      case 'pending': return 'bg-yellow-100 dark:bg-surface-secondary border-yellow-300 text-yellow-800';
-      case 'checked-in': return 'bg-green-100 dark:bg-surface-secondary border-green-300 text-green-800';
+      case 'pending': return 'bg-yellow-100 dark:bg-surface-secondary border-yellow-300 text-yellow-800 dark:text-yellow-200';
+      case 'checked-in': return 'bg-green-100 dark:bg-surface-secondary border-green-300 text-green-800 dark:text-green-200';
       case 'checked-out': return 'bg-gray-100 dark:bg-surface-secondary border-gray-300 dark:border-surface-border text-gray-800 dark:text-text-primary';
       default: return 'bg-gray-100 dark:bg-surface-secondary border-gray-300 dark:border-surface-border text-gray-800 dark:text-text-primary';
     }
@@ -139,7 +139,7 @@ const CalendarWeekView = ({ currentDate, onDateChange, onBookingClick, filters }
                   <div className="text-sm text-gray-600 dark:text-text-secondary mt-1">{format(day, 'MMM d')}</div>
                   <div className="text-xs text-gray-500 dark:text-text-secondary mt-1">{capacityPercent}%</div>
                   {isHigh && (
-                    <div className={`text-xs mt-1 ${isCritical ? 'text-red-600' : 'text-orange-600'}`}>
+                    <div className={`text-xs mt-1 ${isCritical ? 'text-red-600 dark:text-red-400' : 'text-orange-600 dark:text-orange-400'}`}>
                       {isCritical ? '🔥' : '⚠️'}
                     </div>
                   )}
@@ -195,7 +195,7 @@ const CalendarWeekView = ({ currentDate, onDateChange, onBookingClick, filters }
                                     <ServiceIcon className="w-3 h-3" />
                                     <span className="font-medium">{booking.petName || booking.pet?.name}</span>
                                   </div>
-                                  {booking.medication && <Pill className="w-3 h-3 text-orange-600" />}
+                                  {booking.medication && <Pill className="w-3 h-3 text-orange-600 dark:text-orange-400" />}
                                 </div>
                                 <div className="text-xs opacity-75">{booking.ownerName || booking.owner?.name}</div>
                                 <div className="flex items-center gap-1 mt-1">
@@ -224,7 +224,7 @@ const CalendarWeekView = ({ currentDate, onDateChange, onBookingClick, filters }
           <span>Boarding</span>
         </div>
         <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-green-600" />
+          <Calendar className="w-4 h-4 text-green-600 dark:text-green-400" />
           <span>Daycare</span>
         </div>
         <div className="flex items-center gap-2">

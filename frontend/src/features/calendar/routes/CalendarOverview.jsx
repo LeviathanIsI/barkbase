@@ -145,7 +145,7 @@ const CalendarOverview = () => {
       <div className="bg-white dark:bg-surface-primary border border-gray-200 dark:border-surface-border rounded-lg p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
-            <CheckSquare className="w-5 h-5 text-green-600" />
+            <CheckSquare className="w-5 h-5 text-green-600 dark:text-green-400" />
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">

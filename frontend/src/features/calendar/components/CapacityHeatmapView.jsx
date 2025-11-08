@@ -126,8 +126,8 @@ const CapacityHeatmapView = ({ currentDate, filters }) => {
 
       {/* Recommended Actions */}
       <div className="bg-green-50 dark:bg-surface-primary border border-green-200 dark:border-green-900/30 rounded-lg p-4 mb-6">
-        <h3 className="font-semibold text-green-900 mb-3">RECOMMENDED ACTIONS</h3>
-        <ul className="space-y-2 text-sm text-green-800">
+        <h3 className="font-semibold text-green-900 dark:text-green-100 mb-3">RECOMMENDED ACTIONS</h3>
+        <ul className="space-y-2 text-sm text-green-800 dark:text-green-200">
           <li>💰 Raise Thu-Fri prices by $10-15 (demand supports it)</li>
           <li>💡 Run midweek promotion to boost Mon-Wed occupancy</li>
           <li>👥 Consider adding staff for peak weekend periods</li>

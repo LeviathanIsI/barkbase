@@ -37,7 +37,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose }) => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'Confirmed': return 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-surface-secondary';
-      case 'In Progress': return 'text-green-600 bg-green-100 dark:bg-surface-secondary';
+      case 'In Progress': return 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-surface-secondary';
       case 'Completed': return 'text-gray-600 dark:text-text-secondary bg-gray-100 dark:bg-surface-secondary';
       default: return 'text-gray-600 dark:text-text-secondary bg-gray-100 dark:bg-surface-secondary';
     }
@@ -121,14 +121,14 @@ const BookingDetailModal = ({ booking, isOpen, onClose }) => {
               <div>
                 <div className="text-sm font-medium text-gray-600 dark:text-text-secondary">Check-in</div>
                 <div className="text-gray-900 dark:text-text-primary flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
                   {displayBooking.service.checkIn} ✅ Completed
                 </div>
               </div>
               <div>
                 <div className="text-sm font-medium text-gray-600 dark:text-text-secondary">Check-out</div>
                 <div className="text-gray-900 dark:text-text-primary flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-orange-600" />
+                  <Calendar className="w-4 h-4 text-orange-600 dark:text-orange-400" />
                   {displayBooking.service.checkOut} ⏳ Upcoming
                 </div>
               </div>
@@ -149,7 +149,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose }) => {
               <div className="mb-4 p-3 bg-white dark:bg-surface-primary border border-yellow-300 rounded">
                 <div className="flex items-center justify-between mb-2">
                   <div className="font-medium text-gray-900 dark:text-text-primary flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-orange-600" />
+                    <AlertTriangle className="w-4 h-4 text-orange-600 dark:text-orange-400" />
                     Medication: {displayBooking.care.medication.name}
                   </div>
                   <Button size="sm" variant="outline">Log Dose</Button>
@@ -187,7 +187,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose }) => {
 
             {/* Vaccinations */}
             <div className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-green-600" />
+              <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
               <span className="text-sm text-gray-600 dark:text-text-secondary">
                 ✅ Vaccinations: All current (expires {displayBooking.care.vaccinations.expires})
               </span>
@@ -231,7 +231,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose }) => {
 
             <div className="mt-4 p-3 bg-white dark:bg-surface-primary border border-green-300 rounded">
               <div className="flex items-center gap-2 mb-1">
-                <CheckCircle className="w-4 h-4 text-green-600" />
+                <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
                 <span className="font-medium text-gray-900 dark:text-text-primary">Payment Status: {displayBooking.payment.status}</span>
               </div>
               <div className="text-sm text-gray-600 dark:text-text-secondary">
@@ -265,7 +265,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose }) => {
                 <Calendar className="w-4 h-4" />
                 Modify Booking
               </Button>
-              <Button size="sm" variant="outline" className="flex items-center gap-2 text-red-600 border-red-300">
+              <Button size="sm" variant="outline" className="flex items-center gap-2 text-red-600 dark:text-red-400 border-red-300 dark:border-red-700">
                 <X className="w-4 h-4" />
                 Cancel Booking
               </Button>
