@@ -12,7 +12,7 @@ const ConflictsWarning = ({ onViewConflicts }) => {
   return (
     <div className="bg-yellow-50 dark:bg-surface-primary border border-yellow-200 dark:border-yellow-900/30 rounded-lg p-4">
       <div className="flex items-start gap-3">
-        <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
+        <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
         <div className="flex-1">
           <h4 className="font-semibold text-yellow-900">Booking Conflicts Detected</h4>
           <p className="text-yellow-800 mt-1">Conflicts detected that need attention.</p>

@@ -12,7 +12,7 @@ const OverbookingAlert = ({ onResolveOverbooking }) => {
   return (
     <div className="bg-red-50 dark:bg-surface-primary border border-red-200 dark:border-red-900/30 rounded-lg p-4">
       <div className="flex items-start gap-3">
-        <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
+        <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5" />
         <div className="flex-1">
           <h4 className="font-semibold text-red-900 dark:text-red-100">Overbooking Alert</h4>
           <p className="text-red-800 dark:text-red-200 mt-1">Capacity conflict detected that needs resolution.</p>

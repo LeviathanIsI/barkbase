@@ -17,7 +17,7 @@ const BookingCard = ({ booking, onCheckIn, onCheckOut, onEdit, onCancel, onConta
   const getStatusIcon = (status) => {
     switch (status) {
       case 'confirmed': return <CheckCircle className="w-4 h-4 text-blue-600 dark:text-blue-400" />;
-      case 'pending': return <Clock className="w-4 h-4 text-yellow-600" />;
+      case 'pending': return <Clock className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />;
       case 'checked_in': return <CheckCircle className="w-4 h-4 text-green-600" />;
       case 'checked_out': return <Home className="w-4 h-4 text-gray-600 dark:text-text-secondary" />;
       default: return <Clock className="w-4 h-4 text-gray-600 dark:text-text-secondary" />;
@@ -141,7 +141,7 @@ const BookingCard = ({ booking, onCheckIn, onCheckOut, onEdit, onCancel, onConta
           <ul className="space-y-1">
             {booking.specialNotes.map((note, index) => (
               <li key={index} className="text-sm text-yellow-800 flex items-start gap-2">
-                <span className="text-yellow-600 mt-0.5">•</span>
+                <span className="text-yellow-600 dark:text-yellow-400 mt-0.5">•</span>
                 {note}
               </li>
             ))}
@@ -254,13 +254,13 @@ const BookingCard = ({ booking, onCheckIn, onCheckOut, onEdit, onCancel, onConta
         </Button>
 
         {booking.paymentStatus !== 'paid' && (
-          <Button size="sm" variant="outline" className="text-orange-600 border-orange-300">
+          <Button size="sm" variant="outline" className="text-orange-600 dark:text-orange-400 border-orange-300 dark:border-orange-700">
             <DollarSign className="w-4 h-4 mr-1" />
             Pay Now
           </Button>
         )}
 
-        <Button size="sm" variant="outline" className="text-red-600 border-red-300" onClick={() => onCancel(booking.id)}>
+        <Button size="sm" variant="outline" className="text-red-600 dark:text-red-400 border-red-300 dark:border-red-700" onClick={() => onCancel(booking.id)}>
           <X className="w-4 h-4 mr-1" />
           Cancel
         </Button>

@@ -296,7 +296,7 @@ const OwnerStep = ({ bookingData, updateBookingData }) => {
       </div>
 
       {/* Quick Add New Owner - Inline, not modal */}
-      <div className="border-t pt-4">
+      <div className="border-t border-gray-300 dark:border-surface-border pt-4">
         <Button variant="secondary" className="w-full">
           <Users className="h-4 w-4 mr-2" />
           Add New Owner
@@ -400,8 +400,8 @@ const PetStep = ({ bookingData, updateBookingData }) => {
 
       {/* Selected count */}
       {bookingData.pets.length > 0 && (
-        <div className="bg-primary-50 border border-primary-200 rounded-lg p-3">
-          <p className="text-sm text-primary-700">
+        <div className="bg-primary-50 dark:bg-surface-primary border border-primary-200 dark:border-primary-900/30 rounded-lg p-3">
+          <p className="text-sm text-primary-700 dark:text-primary-300">
             {bookingData.pets.length} pet(s) selected for this booking
           </p>
         </div>
@@ -696,7 +696,7 @@ const BillingStep = ({ bookingData }) => {
               <span className="font-medium">$15</span>
             </div>
           ))}
-          <div className="border-t pt-1 flex justify-between font-medium">
+          <div className="border-t border-gray-300 dark:border-surface-border pt-1 flex justify-between font-medium">
             <span>Total</span>
             <span className="text-lg">${total.toFixed(2)}</span>
           </div>
@@ -829,12 +829,12 @@ const CapacityPanel = ({ dateRange, selectedRunTemplate }) => {
 
       {/* Warnings */}
       {capacityData[0]?.percentage >= 85 && (
-        <div className="mt-6 p-3 bg-warning-50 border border-warning-200 rounded-lg">
+        <div className="mt-6 p-3 bg-warning-50 dark:bg-surface-primary border border-warning-200 dark:border-warning-900/30 rounded-lg">
           <div className="flex items-start gap-2">
-            <AlertCircle className="h-4 w-4 text-warning-600 mt-0.5" />
+            <AlertCircle className="h-4 w-4 text-warning-600 dark:text-warning-400 mt-0.5" />
             <div className="text-sm">
-              <p className="font-medium text-warning-800">High Occupancy</p>
-              <p className="text-warning-700 text-xs mt-1">
+              <p className="font-medium text-warning-800 dark:text-warning-200">High Occupancy</p>
+              <p className="text-warning-700 dark:text-warning-300 text-xs mt-1">
                 {capacityData[0].percentage}% capacity - consider early drop-off
               </p>
             </div>
