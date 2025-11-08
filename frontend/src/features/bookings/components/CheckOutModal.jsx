@@ -91,7 +91,7 @@ const SignatureCanvas = forwardRef(({ onChange }, ref) => {
       ref={canvasRef}
       width={480}
       height={200}
-      className="h-40 w-full rounded-lg border border-dashed border-border/70 bg-white"
+      className="h-40 w-full rounded-lg border border-dashed border-border/70 bg-white dark:bg-surface-primary"
     />
   );
 });
@@ -366,7 +366,7 @@ const CheckOutModal = ({ booking, open, onClose }) => {
             type="date"
             value={checkoutTime}
             onChange={(e) => setCheckoutTime(e.target.value)}
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 placeholder:opacity-75 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary dark:text-text-secondary placeholder:opacity-75 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
         </div>
 
@@ -381,7 +381,7 @@ const CheckOutModal = ({ booking, open, onClose }) => {
               setLateFeeTouched(true);
               setLateFeeCents(Math.round(parseFloat(e.target.value || 0) * 100));
             }}
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 placeholder:opacity-75 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary dark:text-text-secondary placeholder:opacity-75 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
             placeholder="0.00"
           />
           <p className="text-xs text-muted">Auto-calculated for late pickups (hourly rate: $15)</p>
@@ -394,7 +394,7 @@ const CheckOutModal = ({ booking, open, onClose }) => {
             value={addOnsDescription}
             onChange={(e) => setAddOnsDescription(e.target.value)}
             placeholder="Description (e.g., extra bath, nail trim)"
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 placeholder:opacity-75 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary dark:text-text-secondary placeholder:opacity-75 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
           <input
             type="number"
@@ -403,7 +403,7 @@ const CheckOutModal = ({ booking, open, onClose }) => {
             value={(addOnsCents / 100).toFixed(2)}
             onChange={(e) => setAddOnsCents(Math.round(parseFloat(e.target.value || 0) * 100))}
             placeholder="0.00"
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-gray-900 placeholder:text-gray-600 placeholder:opacity-75 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary dark:text-text-secondary placeholder:opacity-75 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
         </div>
 
