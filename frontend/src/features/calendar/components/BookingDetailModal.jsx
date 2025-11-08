@@ -146,7 +146,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose }) => {
 
             {/* Medication */}
             {displayBooking.care.medication.required && (
-              <div className="mb-4 p-3 bg-white dark:bg-surface-primary border border-yellow-300 rounded">
+              <div className="mb-4 p-3 bg-white dark:bg-surface-primary border border-yellow-300 dark:border-yellow-700 rounded">
                 <div className="flex items-center justify-between mb-2">
                   <div className="font-medium text-gray-900 dark:text-text-primary flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 text-orange-600 dark:text-orange-400" />
@@ -229,7 +229,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose }) => {
               </div>
             </div>
 
-            <div className="mt-4 p-3 bg-white dark:bg-surface-primary border border-green-300 rounded">
+            <div className="mt-4 p-3 bg-white dark:bg-surface-primary border border-green-300 dark:border-green-700 rounded">
               <div className="flex items-center gap-2 mb-1">
                 <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
                 <span className="font-medium text-gray-900 dark:text-text-primary">Payment Status: {displayBooking.payment.status}</span>

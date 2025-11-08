@@ -205,7 +205,7 @@ const KennelLayoutView = ({ currentDate }) => {
                     key={kennel.recordId}
                     type="button"
                     onClick={() => { setSelectedKennelId(kennel.recordId); setShowMaintenance(true); }}
-                    className={`border-2 rounded-lg p-4 text-left focus:outline-none focus:ring-2 focus:ring-blue-400 ${kennel.occupied > 0 ? 'border-green-300 bg-green-50 dark:bg-surface-primary' : 'border-gray-300 dark:border-surface-border bg-gray-50 dark:bg-surface-secondary'}`}
+                    className={`border-2 rounded-lg p-4 text-left focus:outline-none focus:ring-2 focus:ring-blue-400 ${kennel.occupied > 0 ? 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-surface-primary' : 'border-gray-300 dark:border-surface-border bg-gray-50 dark:bg-surface-secondary'}`}
                   >
                     <div className="text-center">
                       <div className="font-semibold text-gray-900 dark:text-text-primary">{kennel.name}</div>

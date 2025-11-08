@@ -35,10 +35,10 @@ const EnhancedStatsDashboard = ({ currentDate, stats: todayStats = {} }) => {
   const alerts = []; // Will be populated from alerts/conflicts API
 
   const getCapacityColor = (percentage) => {
-    if (percentage >= 95) return 'text-red-600 bg-red-100 dark:bg-surface-secondary';
-    if (percentage >= 90) return 'text-orange-600 bg-orange-100 dark:bg-surface-secondary';
-    if (percentage >= 80) return 'text-yellow-600 bg-yellow-100 dark:bg-surface-secondary';
-    return 'text-green-600 bg-green-100 dark:bg-surface-secondary';
+    if (percentage >= 95) return 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-surface-secondary';
+    if (percentage >= 90) return 'text-orange-600 dark:text-orange-400 bg-orange-100 dark:bg-surface-secondary';
+    if (percentage >= 80) return 'text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-surface-secondary';
+    return 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-surface-secondary';
   };
 
   const getSeverityColor = (severity) => {
@@ -75,7 +75,7 @@ const EnhancedStatsDashboard = ({ currentDate, stats: todayStats = {} }) => {
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">Today's Bookings</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.bookings.today}</p>
-              <p className="text-xs text-green-600 flex items-center gap-1">
+              <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
                 <TrendingUp className="h-3 w-3" />
                 +{stats.bookings.change} from yesterday
               </p>
@@ -90,7 +90,7 @@ const EnhancedStatsDashboard = ({ currentDate, stats: todayStats = {} }) => {
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">Capacity</p>
-              <p className={`text-2xl font-bold ${stats.capacity.percentage >= 90 ? 'text-orange-600' : 'text-gray-900 dark:text-text-primary'}`}>
+              <p className={`text-2xl font-bold ${stats.capacity.percentage >= 90 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-900 dark:text-text-primary'}`}>
                 {stats.capacity.percentage}%
               </p>
               <p className="text-xs text-gray-600 dark:text-text-secondary">
@@ -103,12 +103,12 @@ const EnhancedStatsDashboard = ({ currentDate, stats: todayStats = {} }) => {
         <Card className="p-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-orange-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
-              <Users className="h-5 w-5 text-orange-600" />
+              <Users className="h-5 w-5 text-orange-600 dark:text-orange-400" />
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">Check-ins Today</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.checkins.completed}</p>
-              <p className="text-xs text-orange-600">
+              <p className="text-xs text-orange-600 dark:text-orange-400">
                 {stats.checkins.pending} pending
               </p>
             </div>
@@ -134,7 +134,7 @@ const EnhancedStatsDashboard = ({ currentDate, stats: todayStats = {} }) => {
       {/* Capacity Alerts */}
       <div className="bg-white dark:bg-surface-primary border border-gray-200 dark:border-surface-border rounded-lg p-6">
         <div className="flex items-center gap-2 mb-4">
-          <AlertTriangle className="h-5 w-5 text-orange-600" />
+          <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
           <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">⚠️ CAPACITY ALERTS</h3>
         </div>
 
@@ -159,8 +159,8 @@ const EnhancedStatsDashboard = ({ currentDate, stats: todayStats = {} }) => {
                 </div>
                 <div className={`px-2 py-1 rounded-full text-xs font-medium ${
                   alert.impact === 'High' ? 'bg-red-100 dark:bg-surface-secondary text-red-800 dark:text-red-200' :
-                  alert.impact === 'Medium' ? 'bg-yellow-100 dark:bg-surface-secondary text-yellow-800' :
-                  'bg-green-100 dark:bg-surface-secondary text-green-800'
+                  alert.impact === 'Medium' ? 'bg-yellow-100 dark:bg-surface-secondary text-yellow-800 dark:text-yellow-200' :
+                  'bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200'
                 }`}>
                   {alert.impact}
                 </div>
@@ -168,7 +168,7 @@ const EnhancedStatsDashboard = ({ currentDate, stats: todayStats = {} }) => {
             </div>
           )) : (
             <div className="text-center py-8">
-              <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-2" />
+              <CheckCircle className="h-12 w-12 text-green-500 dark:text-green-400 mx-auto mb-2" />
               <p className="text-sm text-gray-500 dark:text-text-secondary">No capacity alerts at this time</p>
             </div>
           )}

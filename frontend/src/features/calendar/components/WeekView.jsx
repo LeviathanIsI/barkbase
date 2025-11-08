@@ -15,10 +15,10 @@ const BookingCard = ({ booking, isDragging = false }) => {
     : 'Owner';
 
   const statusColors = {
-    PENDING: 'bg-yellow-50 dark:bg-surface-primary border-l-yellow-500 text-yellow-800',
+    PENDING: 'bg-yellow-50 dark:bg-surface-primary border-l-yellow-500 text-yellow-800 dark:text-yellow-200',
     CONFIRMED: 'bg-blue-50 dark:bg-surface-primary border-l-blue-500 text-blue-800 dark:text-blue-200',
-    IN_PROGRESS: 'bg-green-50 dark:bg-surface-primary border-l-green-500 text-green-800',
-    CHECKED_IN: 'bg-green-50 dark:bg-surface-primary border-l-green-500 text-green-800',
+    IN_PROGRESS: 'bg-green-50 dark:bg-surface-primary border-l-green-500 text-green-800 dark:text-green-200',
+    CHECKED_IN: 'bg-green-50 dark:bg-surface-primary border-l-green-500 text-green-800 dark:text-green-200',
     CHECKED_OUT: 'bg-gray-50 dark:bg-surface-secondary border-l-gray-500 text-gray-800 dark:text-text-primary',
     COMPLETED: 'bg-gray-50 dark:bg-surface-secondary border-l-gray-500 text-gray-600 dark:text-text-secondary',
     CANCELLED: 'bg-red-50 dark:bg-surface-primary border-l-red-500 text-red-800 dark:text-red-200',
