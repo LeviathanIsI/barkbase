@@ -102,10 +102,24 @@ textarea {
   color: #111827; /* gray-900 - dark text for readability */
 }
 
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
+.dark select,
+.dark textarea {
+  color: var(--input-text); /* Light text in dark mode */
+  background-color: var(--input-bg);
+  border-color: var(--input-border);
+}
+
 input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"])::placeholder,
 textarea::placeholder {
   color: #4B5563; /* gray-600 - darker placeholder for visibility */
   opacity: 0.75;
+}
+
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"])::placeholder,
+.dark textarea::placeholder {
+  color: var(--input-placeholder);
+  opacity: 0.7;
 }
 
 input:focus, select:focus, textarea:focus {
@@ -119,8 +133,18 @@ input:focus, select:focus, textarea:focus {
   opacity: 0.8;
 }
 
+.dark ::placeholder {
+  color: var(--input-placeholder);
+  opacity: 0.7;
+}
+
 ::selection {
   background-color: var(--color-primary-100);
+  color: var(--text-primary);
+}
+
+.dark ::selection {
+  background-color: rgba(139, 92, 246, 0.3);
   color: var(--text-primary);
 }
 
@@ -137,13 +161,26 @@ input:focus, select:focus, textarea:focus {
   background: var(--bg-secondary);
 }
 
+.dark ::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
 ::-webkit-scrollbar-thumb {
   background: var(--color-gray-300);
   border-radius: var(--radius-lg);
 }
 
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: var(--radius-lg);
+}
+
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-gray-400);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* ========================================

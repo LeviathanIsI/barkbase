@@ -215,22 +215,67 @@
 }
 
 /* ========================================
-   DARK MODE SUPPORT (Optional)
+   DARK MODE - Professional B2B SaaS Theme
    ======================================== */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text-primary: #F9FAFB;
-    --text-secondary: #D1D5DB;
-    --text-tertiary: #9CA3AF;
-    
-    --bg-primary: #111827;
-    --bg-secondary: #1F2937;
-    --bg-tertiary: #374151;
-    
-    --border-primary: #374151;
-    --border-secondary: #4B5563;
-  }
+.dark {
+  /* Dark Mode Color System - Deep Professional Backgrounds */
+  --color-dark-950: #0F0F1A; /* Deepest background */
+  --color-dark-900: #1A1A2E; /* Main background */
+  --color-dark-850: #1E1E2E; /* Elevated surfaces */
+  --color-dark-800: #252538; /* Cards/panels */
+  --color-dark-700: #2D2D42; /* Hover states */
+
+  /* Surface tokens for cards, panels, modals */
+  --surface-primary: rgba(30, 30, 46, 0.6);   /* Main cards - glassmorphism */
+  --surface-secondary: rgba(37, 37, 56, 0.8); /* Elevated cards */
+  --surface-elevated: rgba(45, 45, 66, 0.9);  /* Modals, dropdowns */
+  --surface-border: rgba(255, 255, 255, 0.1); /* Subtle borders */
+
+  /* Text Colors - High Contrast for Readability */
+  --text-primary: #F9FAFB;    /* Primary text - AAA compliant */
+  --text-secondary: #D1D5DB;  /* Secondary text */
+  --text-tertiary: #9CA3AF;   /* Tertiary/muted text */
+  --text-disabled: #6B7280;   /* Disabled state */
+  --text-inverse: #111827;    /* For light backgrounds */
+
+  /* Background Colors - Deep & Professional */
+  --bg-primary: #0F0F1A;      /* Page background */
+  --bg-secondary: #1A1A2E;    /* Section backgrounds */
+  --bg-tertiary: #1E1E2E;     /* Subtle variations */
+
+  /* Border Colors - Subtle Definition */
+  --border-primary: rgba(255, 255, 255, 0.1);
+  --border-secondary: rgba(255, 255, 255, 0.05);
+  --border-focus: #8B5CF6; /* Purple focus for brand consistency */
+
+  /* Interactive States */
+  --hover-overlay: rgba(255, 255, 255, 0.05);
+  --active-overlay: rgba(255, 255, 255, 0.1);
+  --focus-ring: 0 0 0 3px rgba(139, 92, 246, 0.3);
+
+  /* Scrollbar styling for dark mode */
+  --scrollbar-track: var(--bg-secondary);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.2);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
+
+  /* Form inputs - proper contrast */
+  --input-bg: rgba(30, 30, 46, 0.8);
+  --input-border: rgba(255, 255, 255, 0.15);
+  --input-border-hover: rgba(255, 255, 255, 0.25);
+  --input-border-focus: #8B5CF6;
+  --input-text: #F9FAFB;
+  --input-placeholder: #9CA3AF;
+
+  /* Shadows - Adjusted for dark backgrounds */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.6), 0 8px 10px -6px rgb(0 0 0 / 0.5);
+
+  /* Purple glow effects for premium feel */
+  --glow-purple: 0 0 20px rgba(139, 92, 246, 0.4);
+  --glow-purple-strong: 0 0 40px rgba(139, 92, 246, 0.6), 0 0 60px rgba(59, 130, 246, 0.4);
 }
 
 /* ========================================
