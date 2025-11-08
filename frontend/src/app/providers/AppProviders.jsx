@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { Toaster } from 'react-hot-toast';
 import QueryProvider from './QueryProvider';
-import ThemeInitializer from './ThemeInitializer';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import TenantLoader from './TenantLoader';
 import TokenRefresher from './TokenRefresher';
 import AuthLoader from './AuthLoader';
@@ -36,7 +36,7 @@ const RealtimeProvider = ({ children }) => {
 };
 
 const AppProviders = ({ children, fallback = null }) => (
-  <ThemeInitializer>
+  <ThemeProvider>
     <QueryProvider>
       <RealtimeProvider>
       <OfflineBoundary />
@@ -47,7 +47,7 @@ const AppProviders = ({ children, fallback = null }) => (
       <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
       </RealtimeProvider>
     </QueryProvider>
-  </ThemeInitializer>
+  </ThemeProvider>
 );
 
 export default AppProviders;
