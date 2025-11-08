@@ -230,7 +230,7 @@ const TeamOverview = () => {
             {activeMembers.filter(m => m.status === 'active').slice(0, 3).map((member) => (
               <div key={member.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-surface-secondary rounded-lg">
                 <div className="flex items-center gap-3">
-                  <div className={`w-2 h-2 rounded-full ${member.isOnline ? 'bg-green-50 dark:bg-green-950/20' : 'bg-gray-400 dark:bg-surface-secondary'}`} />
+                  <div className={`w-2 h-2 rounded-full ${member.isOnline ? 'bg-green-500 dark:bg-green-400' : 'bg-gray-400 dark:bg-gray-600'}`} />
                   <Avatar size="sm" fallback={member.name} />
                   <span className="font-medium">{member.name}</span>
                 </div>

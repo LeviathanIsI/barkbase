@@ -445,7 +445,7 @@ const IntegrationsOverview = () => {
                 className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
                   selectedCategory === category.id
                     ? 'bg-blue-100 dark:bg-surface-secondary text-blue-800 dark:text-blue-200'
-                    : 'bg-gray-100 dark:bg-surface-secondary text-gray-700 dark:text-text-primary hover:bg-gray-200 dark:bg-surface-border'
+                    : 'bg-gray-100 dark:bg-surface-secondary text-gray-700 dark:text-text-primary hover:bg-gray-200 dark:hover:bg-surface-border'
                 }`}
               >
                 {category.label} ({category.count})

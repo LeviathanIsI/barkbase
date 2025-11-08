@@ -221,7 +221,7 @@ const PropertiesOverview = () => {
             className={`pb-3 border-b-2 text-sm font-medium transition-colors ${
               selectedTab === 'properties'
                 ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-gray-500 dark:text-text-secondary hover:text-gray-700 dark:hover:text-text-primary hover:border-gray-300 dark:border-surface-border'
+                : 'border-transparent text-gray-500 dark:text-text-secondary hover:text-gray-700 dark:hover:text-text-primary hover:border-gray-300 dark:hover:border-surface-border'
             }`}
           >
             Properties {hasProperties && `(${propertiesData?.length || 0})`}

@@ -384,8 +384,8 @@ const Profile = () => {
     return (
       <div className="text-center py-12">
         <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-[#263238] mb-2">Error Loading Profile</h3>
-        <p className="text-[#64748B]">Unable to load your profile information. Please try again.</p>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">Error Loading Profile</h3>
+        <p className="text-gray-600 dark:text-text-secondary">Unable to load your profile information. Please try again.</p>
       </div>
     );
   }
