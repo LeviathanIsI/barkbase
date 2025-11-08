@@ -171,16 +171,16 @@ const QuickInsightsDashboard = () => {
         <div className="grid gap-6 md:grid-cols-2">
           {trendingInsights.map((section, index) => (
             <div key={index} className={`border rounded-lg p-4 ${
-              section.type === 'positive' ? 'border-green-200 dark:border-green-900/30 bg-green-50 dark:bg-surface-primary' : 'border-orange-200 bg-orange-50'
+              section.type === 'positive' ? 'border-green-200 dark:border-green-900/30 bg-green-50 dark:bg-surface-primary' : 'border-orange-200 dark:border-orange-900/50 bg-orange-50 dark:bg-orange-950/30'
             }`}>
               <div className="flex items-center gap-2 mb-3">
                 {section.type === 'positive' ? (
                   <TrendingUp className="w-5 h-5 text-green-600" />
                 ) : (
-                  <AlertTriangle className="w-5 h-5 text-orange-600" />
+                  <AlertTriangle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                 )}
                 <h4 className={`font-semibold ${
-                  section.type === 'positive' ? 'text-green-900' : 'text-orange-900'
+                  section.type === 'positive' ? 'text-green-900' : 'text-orange-900 dark:text-orange-300'
                 }`}>
                   {section.title}
                 </h4>
@@ -188,10 +188,10 @@ const QuickInsightsDashboard = () => {
               <ul className="space-y-2">
                 {section.items.map((item, itemIndex) => (
                   <li key={itemIndex} className={`text-sm flex items-start gap-2 ${
-                    section.type === 'positive' ? 'text-green-800' : 'text-orange-800'
+                    section.type === 'positive' ? 'text-green-800' : 'text-orange-800 dark:text-orange-400'
                   }`}>
                     <span className={`mt-1 ${
-                      section.type === 'positive' ? 'text-green-500' : 'text-orange-500'
+                      section.type === 'positive' ? 'text-green-500' : 'text-orange-500 dark:text-orange-500'
                     }`}>
                       •
                     </span>
