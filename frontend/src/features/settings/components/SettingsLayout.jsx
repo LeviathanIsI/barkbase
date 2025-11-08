@@ -107,7 +107,7 @@ export default function SettingsLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F6FA]">
+    <div className="min-h-screen bg-gray-100 dark:bg-[#0F0F1A]">
       {/* Page Header */}
       <PageHeader
         breadcrumb="Home > Settings"
@@ -116,7 +116,7 @@ export default function SettingsLayout() {
       />
 
       {/* Tab Navigation */}
-      <div className="bg-white dark:bg-surface-primary border-b border-[#E0E0E0] mb-6">
+      <div className="bg-white dark:bg-surface-primary border-b border-gray-300 dark:border-surface-border mb-6">
         <div className="max-w-7xl mx-auto px-6">
           <nav className="flex space-x-8 overflow-x-auto">
             {TAB_CONFIG.map((tab) => {
@@ -129,8 +129,8 @@ export default function SettingsLayout() {
                   onClick={() => handleTabChange(tab.id)}
                   className={`flex items-center gap-3 px-1 py-4 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${
                     isActive
-                      ? 'border-[#4B5DD3] text-[#4B5DD3]'
-                      : 'border-transparent text-[#64748B] hover:text-[#263238] hover:border-[#E0E0E0]'
+                      ? 'border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'border-transparent text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary hover:border-gray-300 dark:hover:border-surface-border'
                   }`}
                 >
                   <Icon className="h-5 w-5" />
@@ -146,16 +146,16 @@ export default function SettingsLayout() {
       <div className="max-w-7xl mx-auto px-6 pb-12">
         {/* Tab Description */}
         <div className="mb-6">
-          <h2 className="text-xl font-semibold text-[#263238] mb-1">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary mb-1">
             {TAB_CONFIG.find(tab => tab.id === activeTab)?.label}
           </h2>
-          <p className="text-[#64748B]">
+          <p className="text-gray-600 dark:text-text-secondary">
             {TAB_CONFIG.find(tab => tab.id === activeTab)?.description}
           </p>
         </div>
 
         {/* Content Area */}
-        <div className="bg-white dark:bg-surface-primary rounded-lg border border-[#E0E0E0] shadow-sm">
+        <div className="bg-white dark:bg-surface-primary rounded-lg border border-gray-300 dark:border-surface-border shadow-sm">
           <div className="p-6">
             <Outlet />
           </div>

@@ -177,7 +177,7 @@ const Business = () => {
 
           <Card title="Holiday Schedule" description="Manage closed dates and holidays.">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-[#64748B]">Closed dates immediately block new bookings and remind staff to plan workloads.</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Closed dates immediately block new bookings and remind staff to plan workloads.</p>
               <Button variant="secondary" size="sm" onClick={()=>setHolidayOpen(true)}>Manage Holiday Schedule</Button>
             </div>
           </Card>
@@ -197,16 +197,16 @@ const Business = () => {
                 <div
                   key={key}
                   className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                    services[key] ? `border-[#4B5DD3] bg-[#4B5DD3]/5` : 'border-[#E0E0E0] hover:border-[#4B5DD3]/30'
+                    services[key] ? `border-blue-600 dark:border-blue-500 bg-blue-50 dark:bg-blue-950/20` : 'border-gray-300 dark:border-surface-border hover:border-blue-400 dark:hover:border-blue-600'
                   }`}
                   onClick={() => { setServices({ ...services, [key]: !services[key] }); setIsDirty(true); }}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${services[key] ? 'bg-[#4B5DD3]' : 'bg-gray-100 dark:bg-surface-secondary'}`}>
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${services[key] ? 'bg-blue-600 dark:bg-blue-700' : 'bg-gray-100 dark:bg-surface-secondary'}`}>
                       <Icon className={`h-5 w-5 ${services[key] ? 'text-white' : 'text-gray-500 dark:text-text-secondary'}`} />
                     </div>
                     <div className="flex-1">
-                      <div className="font-medium text-[#263238]">{label}</div>
+                      <div className="font-medium text-gray-900 dark:text-text-primary">{label}</div>
                     </div>
                     <input type="checkbox" checked={services[key]} readOnly className="w-5 h-5" />
                   </div>
@@ -227,8 +227,8 @@ const Business = () => {
                 <label className="flex items-center gap-3 mb-4">
                   <Switch checked={capacity.enableSizeBased} onCheckedChange={(c)=>{setCapacity({...capacity, enableSizeBased: c}); setIsDirty(true);}} />
                   <div>
-                    <div className="font-medium text-[#263238]">Enable Size-Based Capacity</div>
-                    <div className="text-sm text-[#64748B]">Set different limits for small, medium, large dogs and cats</div>
+                    <div className="font-medium text-gray-900 dark:text-text-primary">Enable Size-Based Capacity</div>
+                    <div className="text-sm text-gray-600 dark:text-text-secondary">Set different limits for small, medium, large dogs and cats</div>
                   </div>
                 </label>
 
@@ -243,14 +243,14 @@ const Business = () => {
               </div>
 
               <div className="border-t pt-4 space-y-4">
-                <h4 className="font-semibold text-[#263238]">Alert Settings</h4>
+                <h4 className="font-semibold text-gray-900 dark:text-text-primary">Alert Settings</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input label="Warn when capacity reaches (%)" type="number" min="50" max="100" value={capacity.alertThreshold} onChange={(e)=>{setCapacity({...capacity, alertThreshold: e.target.value}); setIsDirty(true);}} />
                   <Input label="Overbooking buffer (%)" type="number" min="0" max="10" value={capacity.overbookingBuffer} onChange={(e)=>{setCapacity({...capacity, overbookingBuffer: e.target.value}); setIsDirty(true);}} />
                 </div>
                 <label className="flex items-center gap-3">
                   <Switch checked={capacity.blockWhenFull} onCheckedChange={(c)=>{setCapacity({...capacity, blockWhenFull: c}); setIsDirty(true);}} />
-                  <span className="text-sm text-[#263238]">Block bookings when full</span>
+                  <span className="text-sm text-gray-900 dark:text-text-primary">Block bookings when full</span>
                 </label>
               </div>
 
@@ -283,7 +283,7 @@ function TimeSelect({ value, onChange }) {
     }
   }
   return (
-    <select className="rounded-md border border-[#E0E0E0] px-3 pr-10 py-2 text-sm w-full bg-white dark:bg-surface-primary" value={value} onChange={(e)=>onChange(e.target.value)}>
+    <select className="rounded-md border border-gray-300 dark:border-surface-border px-3 pr-10 py-2 text-sm w-full bg-white dark:bg-surface-primary text-gray-900 dark:text-text-primary" value={value} onChange={(e)=>onChange(e.target.value)}>
       {times.map(t => (
         <option key={t.value} value={t.value}>{t.label}</option>
       ))}

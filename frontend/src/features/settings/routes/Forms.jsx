@@ -112,7 +112,7 @@ const Forms = () => {
           {forms.map(form => (
             <div
               key={form.id}
-              className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
+              className="flex items-center justify-between p-4 border border-gray-300 dark:border-surface-border rounded-lg hover:bg-gray-50 dark:hover:bg-surface-secondary bg-white dark:bg-surface-secondary"
             >
               <div className="flex items-center gap-4">
                 <div className="p-2 bg-blue-100 dark:bg-surface-secondary rounded-lg">
@@ -167,7 +167,7 @@ const Forms = () => {
                   size="sm"
                   onClick={() => handleDeleteForm(form)}
                   title="Delete"
-                  className="text-red-600 hover:text-red-700"
+                  className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -239,7 +239,7 @@ const Forms = () => {
                   onChange={(e) => updateSetting('reminderDays', parseInt(e.target.value))}
                   min="1"
                   max="7"
-                  className="w-16 px-3 py-2 border rounded-md"
+                  className="w-16 px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
                 />
                 <span className="text-sm text-gray-600 dark:text-text-secondary">days</span>
               </div>

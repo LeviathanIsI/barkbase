@@ -170,7 +170,7 @@ export default function HolidayManager({ open, onClose }) {
                     <div className="font-medium text-sm text-text">
                       {h.name}
                     </div>
-                    <div className="text-xs text-[#64748B]">
+                    <div className="text-xs text-gray-600 dark:text-text-secondary">
                       {h.startDate}{" "}
                       {h.endDate && h.endDate !== h.startDate
                         ? `– ${h.endDate}`
