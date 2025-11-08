@@ -83,7 +83,7 @@ const JumboHeader = ({ onMenuToggle }) => {
               <input
                 type="text"
                 placeholder="Search..."
-                className="bg-transparent border-0 outline-none text-white placeholder-white/40 flex-1 text-sm focus:outline-none"
+                className="bg-black/20 border-0 outline-none text-white placeholder-white/40 flex-1 text-sm focus:outline-none"
                 onFocus={() => setSearchOpen(true)}
                 onBlur={() => setSearchOpen(false)}
               />
