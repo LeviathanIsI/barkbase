@@ -217,7 +217,7 @@ const CommunicationNotifications = () => {
               type="time"
               value={settings.quietHoursStart}
               onChange={(e) => updateSetting('quietHoursStart', e.target.value)}
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
             />
           </div>
 
@@ -230,7 +230,7 @@ const CommunicationNotifications = () => {
               type="time"
               value={settings.quietHoursEnd}
               onChange={(e) => updateSetting('quietHoursEnd', e.target.value)}
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
             />
           </div>
         </div>
@@ -253,7 +253,7 @@ const CommunicationNotifications = () => {
                 value={testEmail}
                 onChange={(e) => setTestEmail(e.target.value)}
                 placeholder="test@example.com"
-                className="flex-1 px-3 py-2 border rounded-md"
+                className="flex-1 px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary"
               />
               <Button onClick={() => sendTestMessage('email')} variant="outline">
                 Send Test
@@ -270,7 +270,7 @@ const CommunicationNotifications = () => {
                   value={testPhone}
                   onChange={(e) => setTestPhone(e.target.value)}
                   placeholder="+1234567890"
-                  className="flex-1 px-3 py-2 border rounded-md"
+                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary"
                 />
                 <Button onClick={() => sendTestMessage('sms')} variant="outline">
                   Send Test

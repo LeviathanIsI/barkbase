@@ -173,7 +173,7 @@ const PaymentProcessing = () => {
                   onChange={(e) => updateSetting('processingFee', parseFloat(e.target.value))}
                   step="0.1"
                   min="0"
-                  className="w-20 px-3 py-2 border rounded-md"
+                  className="w-20 px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
                 />
                 <span className="text-sm text-gray-600 dark:text-text-secondary">%</span>
               </div>
@@ -191,7 +191,7 @@ const PaymentProcessing = () => {
                   onChange={(e) => updateSetting('transactionFee', parseFloat(e.target.value))}
                   step="0.01"
                   min="0"
-                  className="w-20 px-3 py-2 border rounded-md"
+                  className="w-20 px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
                 />
               </div>
             </div>
@@ -207,7 +207,7 @@ const PaymentProcessing = () => {
                   onChange={(e) => updateSetting('taxRate', parseFloat(e.target.value))}
                   step="0.01"
                   min="0"
-                  className="w-20 px-3 py-2 border rounded-md"
+                  className="w-20 px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
                 />
                 <span className="text-sm text-gray-600 dark:text-text-secondary">%</span>
               </div>

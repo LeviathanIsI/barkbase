@@ -117,7 +117,7 @@ const Reporting = () => {
               value={settings.reportEmail}
               onChange={(e) => updateSetting('reportEmail', e.target.value)}
               placeholder="reports@example.com"
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary"
             />
           </div>
 
