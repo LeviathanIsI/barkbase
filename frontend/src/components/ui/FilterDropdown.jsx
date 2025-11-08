@@ -56,14 +56,14 @@ const FilterDropdown = ({ label, options = [], value, onChange, onClear }) => {
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 top-full z-50 mt-1 min-w-[200px] rounded-md border border-border bg-white shadow-lg">
+        <div className="absolute left-0 top-full z-50 mt-1 min-w-[200px] rounded-md border border-border bg-white dark:bg-surface-primary shadow-lg">
           <div className="max-h-64 overflow-y-auto py-1">
             {options.map((option) => (
               <button
                 key={option.value}
                 onClick={() => handleSelect(option.value)}
                 className={cn(
-                  'flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-gray-50',
+                  'flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary',
                   value === option.value && 'bg-primary/5 text-primary font-medium'
                 )}
               >
