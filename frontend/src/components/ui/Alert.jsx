@@ -9,33 +9,33 @@ import { cn } from '@/lib/utils';
 
 const variantStyles = {
   default: {
-    container: 'bg-gray-50 border-gray-200 text-gray-800',
-    icon: 'text-gray-600',
+    container: 'bg-gray-50 dark:bg-surface-secondary border-gray-200 dark:border-surface-border text-gray-800 dark:text-text-primary',
+    icon: 'text-gray-600 dark:text-text-secondary',
     Icon: Info,
   },
   info: {
-    container: 'bg-primary-50 border-primary-200 text-primary-800',
-    icon: 'text-primary-600',
+    container: 'bg-primary-50 dark:bg-primary-950/30 border-primary-200 dark:border-primary-900/50 text-primary-800 dark:text-primary-200',
+    icon: 'text-primary-600 dark:text-primary-400',
     Icon: Info,
   },
   success: {
-    container: 'bg-secondary-50 border-secondary-200 text-secondary-800',
-    icon: 'text-secondary-600',
+    container: 'bg-secondary-50 dark:bg-secondary-950/30 border-secondary-200 dark:border-secondary-900/50 text-secondary-800 dark:text-secondary-200',
+    icon: 'text-secondary-600 dark:text-secondary-400',
     Icon: CheckCircle,
   },
   warning: {
-    container: 'bg-warning-50 border-warning-200 text-warning-800',
-    icon: 'text-warning-600',
+    container: 'bg-warning-50 dark:bg-warning-950/30 border-warning-200 dark:border-warning-900/50 text-warning-800 dark:text-warning-200',
+    icon: 'text-warning-600 dark:text-warning-400',
     Icon: AlertTriangle,
   },
   error: {
-    container: 'bg-error-50 border-error-200 text-error-800',
-    icon: 'text-error-600',
+    container: 'bg-error-50 dark:bg-error-950/30 border-error-200 dark:border-error-900/50 text-error-800 dark:text-error-200',
+    icon: 'text-error-600 dark:text-error-400',
     Icon: AlertCircle,
   },
   destructive: {
-    container: 'bg-error-50 border-error-200 text-error-800',
-    icon: 'text-error-600',
+    container: 'bg-error-50 dark:bg-error-950/30 border-error-200 dark:border-error-900/50 text-error-800 dark:text-error-200',
+    icon: 'text-error-600 dark:text-error-400',
     Icon: AlertCircle,
   },
 };

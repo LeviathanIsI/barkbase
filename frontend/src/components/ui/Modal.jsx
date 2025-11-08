@@ -83,7 +83,7 @@ const Modal = ({ open, onClose, title, ariaLabel = 'Dialog', children, footer, c
 
   const content = (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose} aria-hidden="true" />
+      <div className="absolute inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm animate-fade-in" onClick={onClose} aria-hidden="true" />
       <div
         ref={dialogRef}
         role="dialog"
@@ -91,7 +91,7 @@ const Modal = ({ open, onClose, title, ariaLabel = 'Dialog', children, footer, c
         aria-labelledby={title ? headingId : undefined}
         aria-label={!title ? ariaLabel : undefined}
         className={cn(
-          'relative z-[101] w-full max-w-2xl scale-100 rounded-2xl border border-border/50 bg-surface p-8 shadow-2xl focus:outline-none animate-scale-in',
+          'relative z-[101] w-full max-w-2xl scale-100 rounded-2xl border border-border/50 dark:border-surface-border bg-surface dark:bg-surface-primary p-8 shadow-2xl focus:outline-none animate-scale-in',
           className,
         )}
         tabIndex={-1}
@@ -99,7 +99,7 @@ const Modal = ({ open, onClose, title, ariaLabel = 'Dialog', children, footer, c
         <div className="flex items-start justify-between gap-4">
           <div>
             {title && (
-              <h3 id={headingId} className="text-2xl font-bold text-text">
+              <h3 id={headingId} className="text-2xl font-bold text-text dark:text-text-primary">
                 {title}
               </h3>
             )}
@@ -108,7 +108,7 @@ const Modal = ({ open, onClose, title, ariaLabel = 'Dialog', children, footer, c
             <X className="h-5 w-5" />
           </Button>
         </div>
-        <div className="mt-4 space-y-3 text-sm text-text/90">{children}</div>
+        <div className="mt-4 space-y-3 text-sm text-text/90 dark:text-text-secondary">{children}</div>
         {footer && <div className="mt-6 flex justify-end gap-3">{footer}</div>}
       </div>
     </div>

@@ -58,8 +58,8 @@ const SlidePanel = ({ open, onClose, title, children, className, width = 'w-full
   const content = (
     <div className="fixed inset-0 z-50 flex">
       {/* Backdrop - clicking closes the panel */}
-      <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
+      <div
+        className="absolute inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -67,7 +67,7 @@ const SlidePanel = ({ open, onClose, title, children, className, width = 'w-full
       {/* Panel */}
       <div
         className={cn(
-          'relative ml-auto h-full bg-white shadow-2xl flex flex-col animate-slide-in-right',
+          'relative ml-auto h-full bg-white dark:bg-surface-primary shadow-2xl flex flex-col animate-slide-in-right',
           width,
           className
         )}
@@ -75,8 +75,8 @@ const SlidePanel = ({ open, onClose, title, children, className, width = 'w-full
         aria-modal="true"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-surface-border">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">{title}</h2>
           <Button 
             variant="ghost" 
             size="icon" 

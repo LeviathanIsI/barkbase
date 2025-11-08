@@ -12,7 +12,7 @@ const Card = React.forwardRef(({ className, children, title, description, ...pro
     <div
       ref={ref}
       className={cn(
-        'rounded-lg border border-gray-200 bg-white text-gray-900 shadow-sm',
+        'rounded-lg border border-gray-200 dark:border-surface-border bg-white dark:bg-surface-primary text-gray-900 dark:text-text-primary shadow-sm',
         className
       )}
       {...props}
@@ -58,7 +58,7 @@ CardTitle.displayName = 'CardTitle';
 const CardDescription = React.forwardRef(({ className, children, ...props }, ref) => (
   <p
     ref={ref}
-    className={cn('text-sm text-gray-600', className)}
+    className={cn('text-sm text-gray-600 dark:text-text-secondary', className)}
     {...props}
   >
     {children}
@@ -103,22 +103,22 @@ const MetricCard = React.forwardRef(({
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-3">
         {Icon && (
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-50">
-            <Icon className="h-5 w-5 text-primary-600 stroke-1.5" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-50 dark:bg-primary-950/30">
+            <Icon className="h-5 w-5 text-primary-600 dark:text-primary-400 stroke-1.5" />
           </div>
         )}
         <div>
-          <p className="text-sm font-medium text-gray-500">{title}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-0.5">{value}</p>
+          <p className="text-sm font-medium text-gray-500 dark:text-text-secondary">{title}</p>
+          <p className="text-2xl font-bold text-gray-900 dark:text-text-primary mt-0.5">{value}</p>
           {subtitle && (
-            <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>
+            <p className="text-xs text-gray-500 dark:text-text-secondary mt-0.5">{subtitle}</p>
           )}
           {change && (
             <p className={cn(
               'text-xs mt-1 font-medium',
               trend === 'up' && 'text-success-600',
               trend === 'down' && 'text-error-600',
-              trend === 'neutral' && 'text-gray-500'
+              trend === 'neutral' && 'text-gray-500 dark:text-text-secondary'
             )}>
               {change}
             </p>
@@ -147,8 +147,8 @@ const PageHeader = React.forwardRef(({
     {...props}
   >
     <div className="min-w-0 flex-1">
-      {title && <h1 className="text-2xl font-bold text-gray-900">{title}</h1>}
-      {description && <p className="mt-1.5 text-sm text-gray-600">{description}</p>}
+      {title && <h1 className="text-2xl font-bold text-gray-900 dark:text-text-primary">{title}</h1>}
+      {description && <p className="mt-1.5 text-sm text-gray-600 dark:text-text-secondary">{description}</p>}
     </div>
     {actions && <div className="flex items-center gap-3 flex-wrap">{actions}</div>}
   </div>
