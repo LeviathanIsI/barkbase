@@ -15,7 +15,7 @@ const ConflictsWarning = ({ onViewConflicts }) => {
         <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
         <div className="flex-1">
           <h4 className="font-semibold text-yellow-900 dark:text-yellow-100">Booking Conflicts Detected</h4>
-          <p className="text-yellow-800 mt-1">Conflicts detected that need attention.</p>
+          <p className="text-yellow-800 dark:text-yellow-200 mt-1">Conflicts detected that need attention.</p>
           <div className="mt-3 flex gap-2">
             <Button size="sm" variant="outline" onClick={onViewConflicts}>
               View Conflicts

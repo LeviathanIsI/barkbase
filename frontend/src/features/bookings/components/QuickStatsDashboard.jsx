@@ -86,7 +86,7 @@ const QuickStatsDashboard = ({ bookings }) => {
             <div className="space-y-2">
               {alerts.map((alert, index) => (
                 <div key={index} className="flex items-start justify-between py-2 px-3 bg-yellow-50 dark:bg-surface-primary border border-yellow-200 dark:border-yellow-900/30 rounded">
-                  <span className="text-sm text-yellow-800">{alert.message}</span>
+                  <span className="text-sm text-yellow-800 dark:text-yellow-200">{alert.message}</span>
                   <Button size="sm" variant="outline" className="ml-2 text-xs">
                     {alert.action}
                   </Button>

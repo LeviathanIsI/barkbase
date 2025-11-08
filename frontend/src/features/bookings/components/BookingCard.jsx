@@ -7,8 +7,8 @@ const BookingCard = ({ booking, onCheckIn, onCheckOut, onEdit, onCancel, onConta
   const getStatusColor = (status) => {
     switch (status) {
       case 'confirmed': return 'bg-blue-100 dark:bg-surface-secondary border-blue-300 text-blue-800 dark:text-blue-200';
-      case 'pending': return 'bg-yellow-100 dark:bg-surface-secondary border-yellow-300 text-yellow-800';
-      case 'checked_in': return 'bg-green-100 dark:bg-surface-secondary border-green-300 text-green-800';
+      case 'pending': return 'bg-yellow-100 dark:bg-surface-secondary border-yellow-300 text-yellow-800 dark:text-yellow-200';
+      case 'checked_in': return 'bg-green-100 dark:bg-surface-secondary border-green-300 text-green-800 dark:text-green-200';
       case 'checked_out': return 'bg-gray-100 dark:bg-surface-secondary border-gray-300 dark:border-surface-border text-gray-800 dark:text-text-primary';
       default: return 'bg-gray-100 dark:bg-surface-secondary border-gray-300 dark:border-surface-border text-gray-800 dark:text-text-primary';
     }
@@ -140,7 +140,7 @@ const BookingCard = ({ booking, onCheckIn, onCheckOut, onEdit, onCancel, onConta
           <h4 className="font-medium text-yellow-900 dark:text-yellow-100 mb-2">⚠️ SPECIAL NOTES</h4>
           <ul className="space-y-1">
             {booking.specialNotes.map((note, index) => (
-              <li key={index} className="text-sm text-yellow-800 flex items-start gap-2">
+              <li key={index} className="text-sm text-yellow-800 dark:text-yellow-200 flex items-start gap-2">
                 <span className="text-yellow-600 dark:text-yellow-400 mt-0.5">•</span>
                 {note}
               </li>

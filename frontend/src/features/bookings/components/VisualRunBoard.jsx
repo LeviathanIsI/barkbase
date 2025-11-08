@@ -135,9 +135,9 @@ const VisualRunBoard = () => {
         const statusColors = {
           'PENDING': 'bg-gray-100 dark:bg-surface-secondary border-gray-300 dark:border-surface-border text-gray-900 dark:text-text-primary',
           'CONFIRMED': 'bg-blue-100 dark:bg-surface-secondary border-blue-300 text-blue-900 dark:text-blue-100',
-          'CHECKED_IN': 'bg-green-100 dark:bg-surface-secondary border-green-300 text-green-900',
+          'CHECKED_IN': 'bg-green-100 dark:bg-surface-secondary border-green-300 text-green-900 dark:text-green-100',
           'CHECKED_OUT': 'bg-gray-100 dark:bg-surface-secondary border-gray-200 dark:border-surface-border text-gray-600 dark:text-text-secondary',
-          'CANCELLED': 'bg-red-50 dark:bg-surface-primary border-red-200 dark:border-red-900/30 text-red-700'
+          'CANCELLED': 'bg-red-50 dark:bg-surface-primary border-red-200 dark:border-red-900/30 text-red-700 dark:text-red-300'
         };
 
         return {
