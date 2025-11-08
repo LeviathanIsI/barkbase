@@ -137,7 +137,7 @@ const BookingCard = ({ booking, onCheckIn, onCheckOut, onEdit, onCancel, onConta
       {/* Special Notes & Alerts */}
       {booking.specialNotes && Array.isArray(booking.specialNotes) && booking.specialNotes.length > 0 && (
         <div className="bg-yellow-50 dark:bg-surface-primary border border-yellow-200 dark:border-yellow-900/30 rounded-lg p-3 mb-4">
-          <h4 className="font-medium text-yellow-900 mb-2">⚠️ SPECIAL NOTES</h4>
+          <h4 className="font-medium text-yellow-900 dark:text-yellow-100 mb-2">⚠️ SPECIAL NOTES</h4>
           <ul className="space-y-1">
             {booking.specialNotes.map((note, index) => (
               <li key={index} className="text-sm text-yellow-800 flex items-start gap-2">
@@ -156,7 +156,7 @@ const BookingCard = ({ booking, onCheckIn, onCheckOut, onEdit, onCancel, onConta
             <AlertTriangle className="w-4 h-4" />
             <span className="font-medium">⚠️ LATE ({booking.lateBy} overdue)</span>
           </div>
-          <p className="text-sm text-red-700 mt-1">Regular daycare visitor</p>
+          <p className="text-sm text-red-700 dark:text-red-300 mt-1">Regular daycare visitor</p>
         </div>
       )}
 
@@ -165,10 +165,10 @@ const BookingCard = ({ booking, onCheckIn, onCheckOut, onEdit, onCancel, onConta
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs text-gray-500 dark:text-text-secondary uppercase tracking-wide">Total</p>
-            <p className="text-lg font-semibold text-green-900">
+            <p className="text-lg font-semibold text-green-900 dark:text-green-100">
               ${((booking.totalCents || booking.totalAmount || 0) / 100).toFixed(2)}
             </p>
-            <p className="text-sm text-green-700">
+            <p className="text-sm text-green-700 dark:text-green-300">
               Status: {booking.paymentStatus === 'paid' || booking.balanceDueCents === 0 ? '✅ Paid in full' : '⚠️ Payment required'}
             </p>
           </div>
