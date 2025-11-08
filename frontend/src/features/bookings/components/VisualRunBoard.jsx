@@ -387,7 +387,7 @@ const VisualRunBoard = () => {
                     key={idx}
                     className={cn(
                       "p-3 text-center",
-                      isToday ? "bg-primary-50" : "bg-gray-50 dark:bg-surface-secondary"
+                      isToday ? "bg-primary-50 dark:bg-primary-900/40 border-2 border-primary-500/0 dark:border-primary-500/50" : "bg-gray-50 dark:bg-surface-secondary"
                     )}
                   >
                     <div className="text-xs text-gray-500 dark:text-text-secondary">
@@ -395,7 +395,7 @@ const VisualRunBoard = () => {
                     </div>
                     <div className={cn(
                       "text-lg font-medium",
-                      isToday ? "text-primary-600" : "text-gray-900 dark:text-text-primary"
+                      isToday ? "text-primary-600 dark:text-primary-400" : "text-gray-900 dark:text-text-primary"
                     )}>
                       {date.getDate()}
                     </div>

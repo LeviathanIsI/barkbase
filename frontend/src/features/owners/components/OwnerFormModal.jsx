@@ -83,14 +83,14 @@ const OwnerFormModal = ({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-text mb-1">
-              First Name <span className="text-red-500">*</span>
+              First Name <span className="text-red-500 dark:text-red-400">*</span>
             </label>
             <input
               type="text"
               {...register('firstName', { required: 'First name is required' })}
               className={cn(
                 'w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary',
-                errors.firstName && 'border-red-500'
+                errors.firstName && 'border-red-500 dark:border-red-400'
               )}
               placeholder="John"
             />

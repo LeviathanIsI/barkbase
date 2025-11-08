@@ -758,19 +758,6 @@ export class CdkStack extends cdk.Stack {
     // const invitesIntegration = new HttpLambdaIntegration('InvitesIntegration', invitesApiFunction);
     // httpApi.addRoutes({ path: '/api/v1/invites', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: invitesIntegration, authorizer: httpAuthorizer });
 
-    // Packages API - REPLACED BY ConfigServiceFunction
-    // const packagesApiFunction = new lambda.Function(this, 'PackagesApiFunction', {
-    //   runtime: lambda.Runtime.NODEJS_20_X,
-    //   handler: 'index.handler',
-    //   code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/packages-api')),
-    //   layers: [dbLayer],
-    //   environment: dbEnvironment,
-    //   // No VPC - connects to public database
-    //   timeout: cdk.Duration.seconds(30),
-    //   allowPublicSubnet: true,
-    // });
-    // const packagesIntegration = new HttpLambdaIntegration('PackagesIntegration', packagesApiFunction);
-    // httpApi.addRoutes({ path: '/api/v1/packages', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: packagesIntegration, authorizer: httpAuthorizer });
 
     // Tasks API - REPLACED BY FeaturesServiceFunction
     // const tasksApiFunction = new lambda.Function(this, 'TasksApiFunction', {

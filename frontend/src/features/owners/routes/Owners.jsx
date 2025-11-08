@@ -76,7 +76,7 @@ const Owners = () => {
         <PageHeader title="Owners" breadcrumb="Home > Clients > Owners" />
         <Card>
           <div className="text-center py-12">
-            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <AlertTriangle className="h-12 w-12 text-red-500 dark:text-red-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-[#263238] mb-2">Error Loading Owners</h3>
             <p className="text-[#64748B]">Unable to load owner data. Please try again.</p>
           </div>
@@ -188,7 +188,7 @@ const Owners = () => {
                   <p className="text-2xl font-bold text-[#263238]">{stats.active}</p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
-                  <Heart className="h-6 w-6 text-green-600" />
+                  <Heart className="h-6 w-6 text-green-600 dark:text-green-400" />
                 </div>
               </div>
             </Card>
@@ -212,7 +212,7 @@ const Owners = () => {
                   <p className="text-2xl font-bold text-[#263238]">{formatCurrency(stats.totalRevenue)}</p>
                 </div>
                 <div className="w-12 h-12 bg-orange-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
-                  <Calendar className="h-6 w-6 text-orange-600" />
+                  <Calendar className="h-6 w-6 text-orange-600 dark:text-orange-400" />
                 </div>
               </div>
             </Card>

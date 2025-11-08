@@ -351,7 +351,7 @@ const OwnerDetail = () => {
             {recordPets.map((pet) => (
               <div
                 key={pet.recordId}
-                className="flex items-center gap-3 rounded-md border border-border px-3 py-2 transition hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
+                className="flex items-center gap-3 rounded-md border border-border px-3 py-2 transition hover:bg-gray-50 dark:hover:bg-surface-secondary"
               >
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 text-primary-600">
                   <PawPrint className="h-5 w-5" />
@@ -362,7 +362,7 @@ const OwnerDetail = () => {
                 </div>
                 <button
                   onClick={() => handleRemovePet(pet)}
-                  className="rounded-full p-1 text-muted transition hover:bg-red-50 dark:bg-surface-primary hover:text-red-600"
+                  className="rounded-full p-1 text-muted transition hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 dark:hover:text-red-400"
                   title="Remove pet"
                 >
                   <X className="h-4 w-4" />
@@ -466,7 +466,7 @@ const OwnerDetail = () => {
           </p>
           <div>
             <label className="block text-sm font-medium text-text mb-1">
-              Pet Name <span className="text-red-500">*</span>
+              Pet Name <span className="text-red-500 dark:text-red-400">*</span>
             </label>
             <input
               type="text"
