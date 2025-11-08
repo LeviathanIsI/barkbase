@@ -137,7 +137,7 @@ const DataQuality = () => {
             <select
               value={settings.backupFrequency}
               onChange={(e) => updateSetting('backupFrequency', e.target.value)}
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
             >
               <option value="hourly">Hourly</option>
               <option value="daily">Daily</option>
@@ -153,7 +153,7 @@ const DataQuality = () => {
             <select
               value={settings.retentionPeriod}
               onChange={(e) => updateSetting('retentionPeriod', e.target.value)}
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
             >
               <option value="30">30 days</option>
               <option value="60">60 days</option>

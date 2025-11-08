@@ -168,7 +168,7 @@ const Mobile = () => {
             <select
               value={settings.photoQuality}
               onChange={(e) => updateSetting('photoQuality', e.target.value)}
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
             >
               <option value="low">Low (Faster uploads)</option>
               <option value="medium">Medium (Balanced)</option>
@@ -183,7 +183,7 @@ const Mobile = () => {
             <select
               value={settings.dataUsage}
               onChange={(e) => updateSetting('dataUsage', e.target.value)}
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
             >
               <option value="wifi-only">Wi-Fi Only</option>
               <option value="wifi-preferred">Wi-Fi Preferred</option>
@@ -203,7 +203,7 @@ const Mobile = () => {
                 min="50"
                 max="500"
                 step="50"
-                className="w-24 px-3 py-2 border rounded-md"
+                className="w-24 px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
               />
               <span className="text-sm text-gray-600 dark:text-text-secondary">MB</span>
             </div>
