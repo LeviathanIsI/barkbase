@@ -20,7 +20,7 @@ const Switch = React.forwardRef(
           'border-2 border-transparent transition-colors',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2',
           'disabled:cursor-not-allowed disabled:opacity-50',
-          checked ? 'bg-primary-600' : 'bg-gray-200',
+          checked ? 'bg-primary-600' : 'bg-gray-200 dark:bg-surface-border',
           className
         )}
         {...props}
@@ -28,7 +28,7 @@ const Switch = React.forwardRef(
       >
         <span
           className={cn(
-            'pointer-events-none block h-5 w-5 rounded-full bg-white shadow-lg',
+            'pointer-events-none block h-5 w-5 rounded-full bg-white dark:bg-surface-primary shadow-lg',
             'ring-0 transition-transform',
             checked ? 'translate-x-5' : 'translate-x-0'
           )}

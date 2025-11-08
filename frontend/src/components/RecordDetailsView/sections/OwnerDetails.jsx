@@ -18,7 +18,7 @@ export default function OwnerDetails({ data, avatar, actionButtons = [] }) {
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div className="flex items-start gap-4">
           {avatar ?? (
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-purple-100 text-lg font-semibold text-purple-600">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-purple-100 dark:bg-surface-secondary text-lg font-semibold text-purple-600 dark:text-purple-400">
               {initials || '👤'}
             </div>
           )}

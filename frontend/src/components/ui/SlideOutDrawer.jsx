@@ -126,7 +126,7 @@ const SlideOutDrawer = ({
       {/* Drawer */}
       <div
         className={cn(
-          "absolute inset-y-0 right-0 bg-white shadow-xl flex flex-col transition-transform duration-300",
+          "absolute inset-y-0 right-0 bg-white dark:bg-surface-primary shadow-xl flex flex-col transition-transform duration-300",
           !width && sizeClasses[currentSize],
           isClosing ? "translate-x-full" : "translate-x-0",
           className
@@ -143,21 +143,21 @@ const SlideOutDrawer = ({
             onMouseDown={handleResizeStart}
           >
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-12 flex items-center justify-center">
-              <div className="w-1 h-8 bg-gray-300 rounded-full" />
+              <div className="w-1 h-8 bg-gray-300 dark:bg-surface-border rounded-full" />
             </div>
           </div>
         )}
 
         {/* Header */}
         <div className={cn(
-          "px-6 py-4 border-b bg-white",
+          "px-6 py-4 border-b bg-white dark:bg-surface-primary",
           headerClassName
         )}>
           <div className="flex items-start justify-between">
             <div className="flex-1 pr-4">
-              <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">{title}</h2>
               {subtitle && (
-                <p className="text-sm text-gray-600 mt-1">{subtitle}</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary mt-1">{subtitle}</p>
               )}
             </div>
             
@@ -208,7 +208,7 @@ const SlideOutDrawer = ({
 
         {/* Footer */}
         {footerContent && (
-          <div className="px-6 py-4 border-t bg-gray-50">
+          <div className="px-6 py-4 border-t bg-gray-50 dark:bg-surface-secondary">
             {footerContent}
           </div>
         )}
@@ -225,7 +225,7 @@ export const DetailDrawer = ({ record, ...props }) => {
       size="lg"
       title={props.title || `${record?.type || 'Record'} Details`}
       subtitle={props.subtitle || `ID: ${record?.id || 'Unknown'}`}
-      headerClassName="bg-gray-50"
+      headerClassName="bg-gray-50 dark:bg-surface-secondary"
       {...props}
     />
   );
@@ -250,7 +250,7 @@ export const EditDrawer = ({ onSave, onCancel, isDirty = false, ...props }) => {
       onClose={handleClose}
       footerContent={
         <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-text-secondary">
             {isDirty && 'You have unsaved changes'}
           </p>
           <div className="flex items-center gap-2">
@@ -285,7 +285,7 @@ export const QuickActionDrawer = ({ actions = [], ...props }) => {
                 props.onClose();
               }}
               className={cn(
-                "w-full px-6 py-4 text-left hover:bg-gray-50 transition-colors flex items-center gap-3",
+                "w-full px-6 py-4 text-left hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary transition-colors flex items-center gap-3",
                 action.variant === 'danger' && "text-error-600 hover:bg-error-50",
                 action.disabled && "opacity-50 cursor-not-allowed"
               )}
@@ -295,10 +295,10 @@ export const QuickActionDrawer = ({ actions = [], ...props }) => {
               <div className="flex-1">
                 <p className="font-medium">{action.label}</p>
                 {action.description && (
-                  <p className="text-sm text-gray-600">{action.description}</p>
+                  <p className="text-sm text-gray-600 dark:text-text-secondary">{action.description}</p>
                 )}
               </div>
-              <ChevronRight className="h-4 w-4 text-gray-400" />
+              <ChevronRight className="h-4 w-4 text-gray-400 dark:text-text-tertiary" />
             </button>
           );
         })}
@@ -311,7 +311,7 @@ export const QuickActionDrawer = ({ actions = [], ...props }) => {
 export const DrawerTabPanel = ({ tabs, activeTab, onTabChange, children }) => {
   return (
     <>
-      <div className="border-b bg-gray-50">
+      <div className="border-b bg-gray-50 dark:bg-surface-secondary">
         <div className="flex overflow-x-auto scrollbar-hide">
           {tabs.map((tab) => (
             <button
@@ -321,7 +321,7 @@ export const DrawerTabPanel = ({ tabs, activeTab, onTabChange, children }) => {
                 "px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
                 activeTab === tab.id
                   ? "border-primary-600 text-primary-600"
-                  : "border-transparent text-gray-600 hover:text-gray-900"
+                  : "border-transparent text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary dark:text-text-primary"
               )}
             >
               {tab.icon && <tab.icon className="h-4 w-4 inline mr-1.5" />}
