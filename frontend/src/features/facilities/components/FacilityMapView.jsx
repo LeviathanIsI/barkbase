@@ -29,9 +29,9 @@ const getFacilityIcon = (type) => {
  */
 const getBorderColor = (occupancyRate) => {
   if (occupancyRate >= 95) return 'border-gray-400 dark:border-surface-border';
-  if (occupancyRate >= 80) return 'border-red-500';
-  if (occupancyRate >= 50) return 'border-yellow-500';
-  return 'border-green-500';
+  if (occupancyRate >= 80) return 'border-red-500 dark:border-red-700';
+  if (occupancyRate >= 50) return 'border-yellow-500 dark:border-yellow-700';
+  return 'border-green-500 dark:border-green-700';
 };
 
 /**
@@ -195,10 +195,10 @@ const DraggableFacilityCard = ({ facility, position, onPositionChange, onClick, 
             isFull
               ? 'bg-gray-400 dark:bg-surface-secondary'
               : occupancyRate >= 80
-              ? 'bg-red-50 dark:bg-red-950/20'
+              ? 'bg-red-500 dark:bg-red-400'
               : occupancyRate >= 50
-              ? 'bg-yellow-50 dark:bg-yellow-950/20'
-              : 'bg-green-50 dark:bg-green-950/20'
+              ? 'bg-yellow-500 dark:bg-yellow-400'
+              : 'bg-green-500 dark:bg-green-400'
           }`}
           style={{ width: `${Math.min(occupancyRate, 100)}%` }}
         />
@@ -392,15 +392,15 @@ const FacilityMapView = ({ kennels = [] }) => {
               <p className="text-xs font-semibold text-gray-700 dark:text-text-primary mb-2">Status:</p>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded border-2 border-green-500 bg-green-50 dark:bg-surface-primary"></div>
+                  <div className="w-4 h-4 rounded border-2 border-green-500 dark:border-green-700 bg-green-50 dark:bg-surface-primary"></div>
                   <span className="text-xs text-gray-600 dark:text-text-secondary">Available (&lt;50%)</span>
         </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded border-2 border-yellow-500 bg-yellow-50 dark:bg-surface-primary"></div>
+                  <div className="w-4 h-4 rounded border-2 border-yellow-500 dark:border-yellow-700 bg-yellow-50 dark:bg-surface-primary"></div>
                   <span className="text-xs text-gray-600 dark:text-text-secondary">Moderate (50-80%)</span>
         </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded border-2 border-red-500 bg-red-50 dark:bg-surface-primary"></div>
+                  <div className="w-4 h-4 rounded border-2 border-red-500 dark:border-red-700 bg-red-50 dark:bg-surface-primary"></div>
                   <span className="text-xs text-gray-600 dark:text-text-secondary">High (80-95%)</span>
         </div>
                 <div className="flex items-center gap-2">
