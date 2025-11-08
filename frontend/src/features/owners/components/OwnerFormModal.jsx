@@ -95,25 +95,25 @@ const OwnerFormModal = ({
               placeholder="John"
             />
             {errors.firstName && (
-              <p className="mt-1 text-xs text-red-500">{errors.firstName.message}</p>
+              <p className="mt-1 text-xs text-red-500 dark:text-red-400">{errors.firstName.message}</p>
             )}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-text mb-1">
-              Last Name <span className="text-red-500">*</span>
+              Last Name <span className="text-red-500 dark:text-red-400">*</span>
             </label>
             <input
               type="text"
               {...register('lastName', { required: 'Last name is required' })}
               className={cn(
                 'w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary',
-                errors.lastName && 'border-red-500'
+                errors.lastName && 'border-red-500 dark:border-red-400'
               )}
               placeholder="Doe"
             />
             {errors.lastName && (
-              <p className="mt-1 text-xs text-red-500">{errors.lastName.message}</p>
+              <p className="mt-1 text-xs text-red-500 dark:text-red-400">{errors.lastName.message}</p>
             )}
           </div>
         </div>
@@ -134,12 +134,12 @@ const OwnerFormModal = ({
               })}
               className={cn(
                 'w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary',
-                errors.email && 'border-red-500'
+                errors.email && 'border-red-500 dark:border-red-400'
               )}
               placeholder="john.doe@example.com"
             />
             {errors.email && (
-              <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>
+              <p className="mt-1 text-xs text-red-500 dark:text-red-400">{errors.email.message}</p>
             )}
           </div>
 
