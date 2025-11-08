@@ -427,7 +427,7 @@ const DataTable = ({
           <button
             className={cn(
               'rounded p-1.5 transition-colors',
-              'bg-white text-primary shadow-sm'
+              'bg-white dark:bg-surface-primary text-primary shadow-sm'
             )}
           >
             <List className="h-4 w-4" />
@@ -465,7 +465,7 @@ const DataTable = ({
           </button>
 
           {showMoreFilters && (
-            <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-md border border-border bg-white shadow-lg">
+            <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-md border border-border bg-white dark:bg-surface-primary shadow-lg">
               <div className="p-4">
                 <h3 className="mb-3 text-sm font-semibold text-text">Additional Filters</h3>
                 <div className="space-y-2">
@@ -474,30 +474,30 @@ const DataTable = ({
                       setShowMoreFilters(false);
                       // Add functionality here
                     }}
-                    className="flex w-full items-center justify-between rounded px-3 py-2 text-sm hover:bg-gray-50"
+                    className="flex w-full items-center justify-between rounded px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
                   >
                     <span>Owner Type</span>
-                    <Plus className="h-4 w-4 text-gray-400" />
+                    <Plus className="h-4 w-4 text-gray-400 dark:text-text-tertiary" />
                   </button>
                   <button
                     onClick={() => {
                       setShowMoreFilters(false);
                       // Add functionality here
                     }}
-                    className="flex w-full items-center justify-between rounded px-3 py-2 text-sm hover:bg-gray-50"
+                    className="flex w-full items-center justify-between rounded px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
                   >
                     <span>Pet Count</span>
-                    <Plus className="h-4 w-4 text-gray-400" />
+                    <Plus className="h-4 w-4 text-gray-400 dark:text-text-tertiary" />
                   </button>
                   <button
                     onClick={() => {
                       setShowMoreFilters(false);
                       // Add functionality here
                     }}
-                    className="flex w-full items-center justify-between rounded px-3 py-2 text-sm hover:bg-gray-50"
+                    className="flex w-full items-center justify-between rounded px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
                   >
                     <span>Location</span>
-                    <Plus className="h-4 w-4 text-gray-400" />
+                    <Plus className="h-4 w-4 text-gray-400 dark:text-text-tertiary" />
                   </button>
                 </div>
               </div>
@@ -556,26 +556,26 @@ const DataTable = ({
 
       {/* Bulk Actions Bar */}
       {selectedRows.size > 0 && (
-        <div className="flex items-center justify-between border-b border-border bg-blue-50 px-6 py-3">
+        <div className="flex items-center justify-between border-b border-border bg-blue-50 dark:bg-surface-primary px-6 py-3">
           <span className="text-sm font-medium text-text">
             {selectedRows.size} {selectedRows.size === 1 ? 'item' : 'items'} selected
           </span>
           <div className="flex items-center gap-2">
             <button
               onClick={handleBulkExport}
-              className="rounded-md border border-border bg-white px-3 py-1.5 text-sm font-medium transition-colors hover:bg-gray-50"
+              className="rounded-md border border-border bg-white dark:bg-surface-primary px-3 py-1.5 text-sm font-medium transition-colors hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
             >
               Export Selected
             </button>
             <button
               onClick={handleBulkDelete}
-              className="rounded-md border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+              className="rounded-md border border-red-200 dark:border-red-900/30 bg-white dark:bg-surface-primary px-3 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:bg-red-950/20"
             >
               Delete Selected
             </button>
             <button
               onClick={() => setSelectedRows(new Set())}
-              className="rounded-md border border-border bg-white px-3 py-1.5 text-sm font-medium transition-colors hover:bg-gray-50"
+              className="rounded-md border border-border bg-white dark:bg-surface-primary px-3 py-1.5 text-sm font-medium transition-colors hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
             >
               Clear Selection
             </button>
@@ -584,7 +584,7 @@ const DataTable = ({
       )}
 
       {/* Table */}
-      <div className="bg-white">
+      <div className="bg-white dark:bg-surface-primary">
         <table className="w-full">
           <thead className="border-b border-border">
             <tr>
@@ -594,7 +594,7 @@ const DataTable = ({
                     type="checkbox"
                     checked={selectedRows.size === paginatedData.length && paginatedData.length > 0}
                     onChange={handleSelectAll}
-                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-2 focus:ring-primary/20"
+                    className="h-4 w-4 rounded border-gray-300 dark:border-surface-border text-primary focus:ring-2 focus:ring-primary/20"
                   />
                 </th>
               )}
@@ -604,8 +604,8 @@ const DataTable = ({
                   <th
                     key={idx}
                     className={cn(
-                      'px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-600',
-                      column.sortable && 'cursor-pointer select-none hover:bg-gray-50'
+                      'px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-600 dark:text-text-secondary',
+                      column.sortable && 'cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary'
                     )}
                     onClick={() => handleSort(column)}
                   >
@@ -624,7 +624,7 @@ const DataTable = ({
               })}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 bg-white">
+          <tbody className="divide-y divide-gray-100 dark:divide-surface-border bg-white dark:bg-surface-primary">
             {paginatedData.length === 0 ? (
               <tr>
                 <td
@@ -640,7 +640,7 @@ const DataTable = ({
                   key={row.recordId}
                   onClick={() => onRowClick?.(row)}
                   className={cn(
-                    'transition-colors hover:bg-gray-50',
+                    'transition-colors hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary',
                     onRowClick && 'cursor-pointer'
                   )}
                 >
@@ -653,7 +653,7 @@ const DataTable = ({
                           e.stopPropagation();
                           handleSelectRow(row.recordId);
                         }}
-                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-2 focus:ring-primary/20"
+                        className="h-4 w-4 rounded border-gray-300 dark:border-surface-border text-primary focus:ring-2 focus:ring-primary/20"
                       />
                     </td>
                   )}
@@ -673,12 +673,12 @@ const DataTable = ({
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-center gap-1 border-t border-border bg-white px-6 py-4">
+      <div className="flex items-center justify-center gap-1 border-t border-border bg-white dark:bg-surface-primary px-6 py-4">
         <button
           onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
           disabled={currentPage === 1}
           className={cn(
-            'px-3 py-1 text-sm font-medium text-primary hover:underline disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed'
+            'px-3 py-1 text-sm font-medium text-primary hover:underline disabled:text-gray-400 dark:text-text-tertiary disabled:no-underline disabled:cursor-not-allowed'
           )}
         >
           Prev
@@ -686,7 +686,7 @@ const DataTable = ({
 
         {getPaginationRange().map((page, idx) => (
           page === '...' ? (
-            <span key={`ellipsis-${idx}`} className="px-2 text-gray-400">...</span>
+            <span key={`ellipsis-${idx}`} className="px-2 text-gray-400 dark:text-text-tertiary">...</span>
           ) : (
             <button
               key={page}
@@ -695,7 +695,7 @@ const DataTable = ({
                 'min-w-[2rem] rounded px-2 py-1 text-sm font-medium transition-colors',
                 currentPage === page
                   ? 'bg-primary text-white'
-                  : 'text-gray-700 hover:bg-gray-100'
+                  : 'text-gray-700 dark:text-text-primary hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary'
               )}
             >
               {page}
@@ -707,7 +707,7 @@ const DataTable = ({
           onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
           disabled={currentPage === totalPages}
           className={cn(
-            'px-3 py-1 text-sm font-medium text-primary hover:underline disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed'
+            'px-3 py-1 text-sm font-medium text-primary hover:underline disabled:text-gray-400 dark:text-text-tertiary disabled:no-underline disabled:cursor-not-allowed'
           )}
         >
           Next
@@ -716,14 +716,14 @@ const DataTable = ({
         <div ref={pageSizeDropdownRef} className="relative ml-4">
           <button
             onClick={() => setShowPageSizeDropdown(!showPageSizeDropdown)}
-            className="flex items-center gap-2 rounded-md border border-border bg-white px-3 py-1.5 text-sm transition-colors hover:bg-gray-50"
+            className="flex items-center gap-2 rounded-md border border-border bg-white dark:bg-surface-primary px-3 py-1.5 text-sm transition-colors hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
           >
             <span>{itemsPerPage} per page</span>
-            <ChevronDown className={cn('h-3 w-3 text-gray-500 transition-transform', showPageSizeDropdown && 'rotate-180')} />
+            <ChevronDown className={cn('h-3 w-3 text-gray-500 dark:text-text-secondary transition-transform', showPageSizeDropdown && 'rotate-180')} />
           </button>
 
           {showPageSizeDropdown && (
-            <div className="absolute bottom-full left-0 mb-1 w-full rounded-md border border-border bg-white shadow-lg">
+            <div className="absolute bottom-full left-0 mb-1 w-full rounded-md border border-border bg-white dark:bg-surface-primary shadow-lg">
               <div className="py-1">
                 {[25, 50, 100].map((size) => (
                   <button
@@ -734,7 +734,7 @@ const DataTable = ({
                       setShowPageSizeDropdown(false);
                     }}
                     className={cn(
-                      'flex w-full items-center px-3 py-2 text-left text-sm transition-colors hover:bg-gray-50',
+                      'flex w-full items-center px-3 py-2 text-left text-sm transition-colors hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary',
                       itemsPerPage === size && 'bg-primary/5 text-primary font-medium'
                     )}
                   >
@@ -751,14 +751,14 @@ const DataTable = ({
       {/* Column Editor Modal */}
       {showColumnEditor && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="flex h-[600px] w-full max-w-5xl rounded-lg bg-white shadow-2xl">
+          <div className="flex h-[600px] w-full max-w-5xl rounded-lg bg-white dark:bg-surface-primary shadow-2xl">
             {/* Header */}
             <div className="flex w-full flex-col">
-              <div className="flex items-center justify-between border-b border-gray-200 bg-primary px-6 py-4">
+              <div className="flex items-center justify-between border-b border-gray-200 dark:border-surface-border bg-primary px-6 py-4">
                 <h2 className="text-lg font-semibold text-white">Choose which columns you see</h2>
                 <button
                   onClick={cancelColumnChanges}
-                  className="text-white hover:text-gray-200"
+                  className="text-white hover:text-gray-200 dark:hover:text-text-tertiary"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -767,24 +767,24 @@ const DataTable = ({
               {/* Content */}
               <div className="flex flex-1 overflow-hidden">
                 {/* Left Side - All Columns */}
-                <div className="flex w-2/3 flex-col border-r border-gray-200">
+                <div className="flex w-2/3 flex-col border-r border-gray-200 dark:border-surface-border">
                   {/* Search */}
-                  <div className="border-b border-gray-200 p-4">
+                  <div className="border-b border-gray-200 dark:border-surface-border p-4">
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-text-tertiary" />
                       <input
                         type="text"
                         placeholder="Search columns..."
                         value={columnSearch}
                         onChange={(e) => setColumnSearch(e.target.value)}
-                        className="w-full rounded-md border border-gray-300 py-2 pl-10 pr-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        className="w-full rounded-md border border-gray-300 dark:border-surface-border py-2 pl-10 pr-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                       />
                     </div>
                   </div>
 
                   {/* Column List */}
                   <div className="flex-1 overflow-y-auto p-4">
-                    <div className="mb-2 text-xs font-semibold uppercase text-gray-500">
+                    <div className="mb-2 text-xs font-semibold uppercase text-gray-500 dark:text-text-secondary">
                       COLUMNS
                     </div>
                     <div className="space-y-1">
@@ -793,15 +793,15 @@ const DataTable = ({
                         return (
                           <label
                             key={originalIdx}
-                            className="flex items-center gap-3 rounded px-2 py-2 hover:bg-gray-50 cursor-pointer"
+                            className="flex items-center gap-3 rounded px-2 py-2 hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary cursor-pointer"
                           >
                             <input
                               type="checkbox"
                               checked={tempVisibleColumns[originalIdx]}
                               onChange={() => toggleColumnVisibility(originalIdx)}
-                              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                              className="h-4 w-4 rounded border-gray-300 dark:border-surface-border text-primary focus:ring-primary"
                             />
-                            <span className="text-sm text-gray-700">{col.header}</span>
+                            <span className="text-sm text-gray-700 dark:text-text-primary">{col.header}</span>
                           </label>
                         );
                       })}
@@ -810,13 +810,13 @@ const DataTable = ({
                 </div>
 
                 {/* Right Side - Selected Columns */}
-                <div className="flex w-1/3 flex-col bg-gray-50">
-                  <div className="border-b border-gray-200 p-4">
+                <div className="flex w-1/3 flex-col bg-gray-50 dark:bg-surface-secondary">
+                  <div className="border-b border-gray-200 dark:border-surface-border p-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-gray-700">
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-text-primary">
                         SELECTED COLUMNS ({selectedColumnsCount})
                       </h3>
-                      <span className="text-xs text-gray-500">Frozen columns: 0</span>
+                      <span className="text-xs text-gray-500 dark:text-text-secondary">Frozen columns: 0</span>
                     </div>
                   </div>
 
@@ -827,15 +827,15 @@ const DataTable = ({
                         return (
                           <div
                             key={idx}
-                            className="flex items-center justify-between rounded bg-white border border-gray-200 px-3 py-2 text-sm"
+                            className="flex items-center justify-between rounded bg-white dark:bg-surface-primary border border-gray-200 dark:border-surface-border px-3 py-2 text-sm"
                           >
                             <div className="flex items-center gap-2">
-                              <span className="text-gray-400">&#8942;&#8942;</span>
-                              <span className="text-gray-700">{col.header}</span>
+                              <span className="text-gray-400 dark:text-text-tertiary">&#8942;&#8942;</span>
+                              <span className="text-gray-700 dark:text-text-primary">{col.header}</span>
                             </div>
                             <button
                               onClick={() => toggleColumnVisibility(idx)}
-                              className="text-gray-400 hover:text-gray-600"
+                              className="text-gray-400 dark:text-text-tertiary hover:text-gray-600 dark:hover:text-text-secondary"
                             >
                               <X className="h-4 w-4" />
                             </button>
@@ -848,7 +848,7 @@ const DataTable = ({
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between border-t border-gray-200 px-6 py-4">
+              <div className="flex items-center justify-between border-t border-gray-200 dark:border-surface-border px-6 py-4">
                 <button
                   onClick={removeAllColumns}
                   className="text-sm font-medium text-red-600 hover:text-red-700"
@@ -858,7 +858,7 @@ const DataTable = ({
                 <div className="flex gap-2">
                   <button
                     onClick={cancelColumnChanges}
-                    className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    className="rounded-md border border-gray-300 dark:border-surface-border px-4 py-2 text-sm font-medium text-gray-700 dark:text-text-primary hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
                   >
                     Cancel
                   </button>
@@ -878,14 +878,14 @@ const DataTable = ({
       {/* Advanced Filters Modal - Full Version */}
       {showAdvancedFilters && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="flex h-[600px] w-full max-w-4xl rounded-lg bg-white shadow-2xl">
+          <div className="flex h-[600px] w-full max-w-4xl rounded-lg bg-white dark:bg-surface-primary shadow-2xl">
             <div className="flex w-full flex-col">
               {/* Header */}
-              <div className="flex items-center justify-between border-b border-gray-200 bg-primary px-6 py-4">
+              <div className="flex items-center justify-between border-b border-gray-200 dark:border-surface-border bg-primary px-6 py-4">
                 <h2 className="text-lg font-semibold text-white">All Filters</h2>
                 <button
                   onClick={() => setShowAdvancedFilters(false)}
-                  className="text-white hover:text-gray-200"
+                  className="text-white hover:text-gray-200 dark:hover:text-text-tertiary"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -894,14 +894,14 @@ const DataTable = ({
               {/* Content */}
               <div className="flex flex-1 overflow-hidden">
                 {/* Left Side - Current Filters */}
-                <div className="flex w-1/2 flex-col border-r border-gray-200 p-6">
+                <div className="flex w-1/2 flex-col border-r border-gray-200 dark:border-surface-border p-6">
                   {/* Quick Filters */}
                   <div className="mb-6">
                     <div className="mb-3 flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-gray-900">Quick filters</h3>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-text-primary">Quick filters</h3>
                       <button className="text-xs text-primary hover:underline">Hide</button>
                     </div>
-                    <p className="text-xs text-gray-500 mb-3">
+                    <p className="text-xs text-gray-500 dark:text-text-secondary mb-3">
                       These filters were set within the current table.
                     </p>
 
@@ -912,14 +912,14 @@ const DataTable = ({
                           const group = filterGroups.find(g => g.recordId === key);
                           const option = group?.options?.find(o => o.value === value);
                           return (
-                            <div key={key} className="flex items-center justify-between rounded bg-blue-50 px-3 py-2">
+                            <div key={key} className="flex items-center justify-between rounded bg-blue-50 dark:bg-surface-primary px-3 py-2">
                               <div>
-                                <span className="text-sm font-medium text-gray-900">{group?.label}: </span>
-                                <span className="text-sm text-gray-700">{option?.label || value}</span>
+                                <span className="text-sm font-medium text-gray-900 dark:text-text-primary">{group?.label}: </span>
+                                <span className="text-sm text-gray-700 dark:text-text-primary">{option?.label || value}</span>
                               </div>
                               <button
                                 onClick={() => onFilterClear?.(key)}
-                                className="text-gray-400 hover:text-gray-600"
+                                className="text-gray-400 dark:text-text-tertiary hover:text-gray-600 dark:hover:text-text-secondary"
                               >
                                 <X className="h-4 w-4" />
                               </button>
@@ -928,32 +928,32 @@ const DataTable = ({
                         })}
                       </div>
                     ) : (
-                      <p className="text-sm text-gray-500 italic">No quick filters applied</p>
+                      <p className="text-sm text-gray-500 dark:text-text-secondary italic">No quick filters applied</p>
                     )}
                   </div>
 
                   {/* Advanced Filters */}
-                  <div className="flex-1 border-t border-gray-200 pt-6">
-                    <h3 className="mb-3 text-sm font-semibold text-gray-900">Advanced Filters</h3>
+                  <div className="flex-1 border-t border-gray-200 dark:border-surface-border pt-6">
+                    <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-text-primary">Advanced Filters</h3>
                     {advancedFilters.length > 0 ? (
                       <div className="space-y-2">
                         {advancedFilters.map((filter) => {
                           const operators = getOperatorsForType(filter.propertyType);
                           const operatorLabel = operators.find(o => o.value === filter.operator)?.label || filter.operator;
                           return (
-                            <div key={filter.recordId} className="rounded bg-gray-100 px-3 py-2">
+                            <div key={filter.recordId} className="rounded bg-gray-100 dark:bg-surface-secondary px-3 py-2">
                               <div className="flex items-center justify-between">
                                 <div className="flex-1 text-sm">
-                                  <span className="font-medium text-gray-900">{filter.propertyLabel}</span>
-                                  <span className="text-gray-600"> {operatorLabel} </span>
-                                  <span className="font-medium text-gray-900">{filter.value}</span>
+                                  <span className="font-medium text-gray-900 dark:text-text-primary">{filter.propertyLabel}</span>
+                                  <span className="text-gray-600 dark:text-text-secondary"> {operatorLabel} </span>
+                                  <span className="font-medium text-gray-900 dark:text-text-primary">{filter.value}</span>
                                   {filter.operator === 'between' && filter.value2 && (
-                                    <span className="text-gray-600"> and <span className="font-medium text-gray-900">{filter.value2}</span></span>
+                                    <span className="text-gray-600 dark:text-text-secondary"> and <span className="font-medium text-gray-900 dark:text-text-primary">{filter.value2}</span></span>
                                   )}
                                 </div>
                                 <button
                                   onClick={() => handleRemoveAdvancedFilter(filter.recordId)}
-                                  className="ml-2 text-gray-400 hover:text-gray-600"
+                                  className="ml-2 text-gray-400 dark:text-text-tertiary hover:text-gray-600 dark:hover:text-text-secondary"
                                 >
                                   <X className="h-4 w-4" />
                                 </button>
@@ -963,7 +963,7 @@ const DataTable = ({
                         })}
                       </div>
                     ) : (
-                      <p className="text-xs text-gray-500 mb-4">
+                      <p className="text-xs text-gray-500 dark:text-text-secondary mb-4">
                         This view doesn't have any advanced filters. Select a filter to begin.
                       </p>
                     )}
@@ -975,12 +975,12 @@ const DataTable = ({
                   {editingFilter ? (
                     <>
                       {/* Filter Builder */}
-                      <div className="border-b border-gray-200 p-6">
+                      <div className="border-b border-gray-200 dark:border-surface-border p-6">
                         <div className="mb-4 flex items-center justify-between">
-                          <h3 className="text-sm font-semibold text-gray-900">Configure filter</h3>
+                          <h3 className="text-sm font-semibold text-gray-900 dark:text-text-primary">Configure filter</h3>
                           <button
                             onClick={() => setEditingFilter(null)}
-                            className="text-gray-400 hover:text-gray-600"
+                            className="text-gray-400 dark:text-text-tertiary hover:text-gray-600 dark:hover:text-text-secondary"
                           >
                             <X className="h-4 w-4" />
                           </button>
@@ -988,25 +988,25 @@ const DataTable = ({
 
                         <div className="space-y-4">
                           <div>
-                            <label className="mb-1 block text-xs font-medium text-gray-700">
+                            <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-text-primary">
                               Property
                             </label>
                             <input
                               type="text"
                               value={editingFilter.propertyLabel}
                               disabled
-                              className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm"
+                              className="w-full rounded-md border border-gray-300 dark:border-surface-border bg-gray-50 dark:bg-surface-secondary px-3 py-2 text-sm"
                             />
                           </div>
 
                           <div>
-                            <label className="mb-1 block text-xs font-medium text-gray-700">
+                            <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-text-primary">
                               Operator
                             </label>
                             <select
                               value={editingFilter.operator}
                               onChange={(e) => setEditingFilter({...editingFilter, operator: e.target.value})}
-                              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                              className="w-full rounded-md border border-gray-300 dark:border-surface-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                             >
                               {getOperatorsForType(editingFilter.propertyType).map(op => (
                                 <option key={op.value} value={op.value}>{op.label}</option>
@@ -1015,7 +1015,7 @@ const DataTable = ({
                           </div>
 
                           <div>
-                            <label className="mb-1 block text-xs font-medium text-gray-700">
+                            <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-text-primary">
                               Value
                             </label>
                             {editingFilter.propertyType === 'date' ? (
@@ -1023,7 +1023,7 @@ const DataTable = ({
                                 type="date"
                                 value={editingFilter.value}
                                 onChange={(e) => setEditingFilter({...editingFilter, value: e.target.value})}
-                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="w-full rounded-md border border-gray-300 dark:border-surface-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                               />
                             ) : editingFilter.propertyType === 'number' ? (
                               <input
@@ -1031,7 +1031,7 @@ const DataTable = ({
                                 value={editingFilter.value}
                                 onChange={(e) => setEditingFilter({...editingFilter, value: e.target.value})}
                                 placeholder="Enter number..."
-                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="w-full rounded-md border border-gray-300 dark:border-surface-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                               />
                             ) : (
                               <input
@@ -1039,21 +1039,21 @@ const DataTable = ({
                                 value={editingFilter.value}
                                 onChange={(e) => setEditingFilter({...editingFilter, value: e.target.value})}
                                 placeholder="Enter value..."
-                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="w-full rounded-md border border-gray-300 dark:border-surface-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                               />
                             )}
                           </div>
 
                           {editingFilter.operator === 'between' && (
                             <div>
-                              <label className="mb-1 block text-xs font-medium text-gray-700">
+                              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-text-primary">
                                 End Value
                               </label>
                               <input
                                 type="date"
                                 value={editingFilter.value2}
                                 onChange={(e) => setEditingFilter({...editingFilter, value2: e.target.value})}
-                                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="w-full rounded-md border border-gray-300 dark:border-surface-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                               />
                             </div>
                           )}
@@ -1063,7 +1063,7 @@ const DataTable = ({
                       <div className="flex justify-end gap-2 p-6">
                         <button
                           onClick={() => setEditingFilter(null)}
-                          className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                          className="rounded-md border border-gray-300 dark:border-surface-border px-4 py-2 text-sm font-medium text-gray-700 dark:text-text-primary hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
                         >
                           Cancel
                         </button>
@@ -1079,16 +1079,16 @@ const DataTable = ({
                   ) : (
                     <>
                       {/* Filter Property List */}
-                      <div className="border-b border-gray-200 p-6">
-                        <h3 className="mb-3 text-sm font-semibold text-gray-900">Add filter</h3>
+                      <div className="border-b border-gray-200 dark:border-surface-border p-6">
+                        <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-text-primary">Add filter</h3>
                         <div className="relative">
-                          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-text-tertiary" />
                           <input
                             type="text"
                             placeholder="Search in contact properties"
                             value={filterSearch}
                             onChange={(e) => setFilterSearch(e.target.value)}
-                            className="w-full rounded-md border border-gray-300 py-2 pl-10 pr-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                            className="w-full rounded-md border border-gray-300 dark:border-surface-border py-2 pl-10 pr-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                           />
                         </div>
                       </div>
@@ -1096,18 +1096,18 @@ const DataTable = ({
                       {/* Filter Options */}
                       <div className="flex-1 overflow-y-auto p-6">
                         <div className="mb-4">
-                          <h4 className="mb-2 text-xs font-semibold text-gray-500 uppercase">Contact activity</h4>
+                          <h4 className="mb-2 text-xs font-semibold text-gray-500 dark:text-text-secondary uppercase">Contact activity</h4>
                           <div className="space-y-1">
                             {advancedFilterProperties
                               .filter(prop => !filterSearch || prop.label.toLowerCase().includes(filterSearch.toLowerCase()))
                               .map((property) => (
                                 <button
                                   key={property.recordId}
-                                  className="flex w-full items-center justify-between rounded px-3 py-2 text-left hover:bg-gray-50"
+                                  className="flex w-full items-center justify-between rounded px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
                                   onClick={() => handleAddFilter(property)}
                                 >
-                                  <span className="text-sm text-gray-700">{property.label}</span>
-                                  <Plus className="h-4 w-4 text-gray-400" />
+                                  <span className="text-sm text-gray-700 dark:text-text-primary">{property.label}</span>
+                                  <Plus className="h-4 w-4 text-gray-400 dark:text-text-tertiary" />
                                 </button>
                               ))}
                           </div>
@@ -1119,7 +1119,7 @@ const DataTable = ({
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between border-t border-gray-200 px-6 py-4">
+              <div className="flex items-center justify-between border-t border-gray-200 dark:border-surface-border px-6 py-4">
                 <button
                   onClick={handleClearAllFilters}
                   className="text-sm font-medium text-red-600 hover:text-red-700"
@@ -1134,7 +1134,7 @@ const DataTable = ({
                       setEditingFilter(null);
                       setFilterSearch('');
                     }}
-                    className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                    className="rounded-md border border-gray-300 dark:border-surface-border px-4 py-2 text-sm font-medium text-gray-700 dark:text-text-primary hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
                   >
                     Cancel
                   </button>

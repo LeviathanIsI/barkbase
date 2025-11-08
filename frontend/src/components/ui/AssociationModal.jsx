@@ -105,7 +105,7 @@ const AssociationModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl">
+      <div className="w-full max-w-2xl rounded-lg bg-white dark:bg-surface-primary shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border bg-primary px-6 py-4">
           <h2 className="text-xl font-semibold text-white">{title}</h2>
@@ -124,8 +124,8 @@ const AssociationModal = ({
             className={cn(
               'flex-1 px-6 py-3 text-sm font-medium transition-colors',
               activeTab === 'create'
-                ? 'border-b-2 border-primary bg-gray-50 text-primary'
-                : 'text-muted hover:bg-gray-50'
+                ? 'border-b-2 border-primary bg-gray-50 dark:bg-surface-secondary text-primary'
+                : 'text-muted hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary'
             )}
           >
             Create new
@@ -135,8 +135,8 @@ const AssociationModal = ({
             className={cn(
               'flex-1 px-6 py-3 text-sm font-medium transition-colors',
               activeTab === 'existing'
-                ? 'border-b-2 border-primary bg-gray-50 text-primary'
-                : 'text-muted hover:bg-gray-50'
+                ? 'border-b-2 border-primary bg-gray-50 dark:bg-surface-secondary text-primary'
+                : 'text-muted hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary'
             )}
           >
             Add existing
@@ -173,7 +173,7 @@ const AssociationModal = ({
                       placeholder={`Search ${objectType}s...`}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full rounded-md border border-border bg-white py-2 pl-9 pr-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="w-full rounded-md border border-border bg-white dark:bg-surface-primary py-2 pl-9 pr-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     />
                   </div>
 
@@ -191,7 +191,7 @@ const AssociationModal = ({
                   </div>
 
                   {/* Checkbox list */}
-                  <div className="space-y-2 rounded-lg border border-border bg-gray-50 p-3">
+                  <div className="space-y-2 rounded-lg border border-border bg-gray-50 dark:bg-surface-secondary p-3">
                     {filteredRecords.length === 0 ? (
                       <p className="py-4 text-center text-sm text-muted">
                         No {objectType}s match your search
@@ -206,10 +206,10 @@ const AssociationModal = ({
                           <div key={record.recordId} className="space-y-2">
                             <div
                               className={cn(
-                                'flex items-center gap-3 rounded-md border border-border bg-white p-3 transition-colors',
+                                'flex items-center gap-3 rounded-md border border-border bg-white dark:bg-surface-primary p-3 transition-colors',
                                 isAlreadyAssociated
-                                  ? 'bg-gray-100 cursor-not-allowed'
-                                  : 'cursor-pointer hover:border-primary hover:bg-blue-50'
+                                  ? 'bg-gray-100 dark:bg-surface-secondary cursor-not-allowed'
+                                  : 'cursor-pointer hover:border-primary hover:bg-blue-50 dark:bg-surface-primary'
                               )}
                               onClick={() => handleToggleRecord(record.recordId)}
                             >
@@ -235,14 +235,14 @@ const AssociationModal = ({
 
                             {/* Association label dropdown for selected records */}
                             {isSelected && associationLabels.length > 0 && (
-                              <div className="ml-7 rounded-md border border-border bg-white p-3">
+                              <div className="ml-7 rounded-md border border-border bg-white dark:bg-surface-primary p-3">
                                 <label className="mb-1 block text-xs font-medium text-muted">
                                   Association label
                                 </label>
                                 <select
                                   value={recordLabels[record.id] || associationLabels[0]?.value || ''}
                                   onChange={(e) => handleLabelChange(record.recordId, e.target.value)}
-                                  className="w-full rounded-md border border-border bg-white px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                  className="w-full rounded-md border border-border bg-white dark:bg-surface-primary px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   {associationLabels.map((label) => (
@@ -265,7 +265,7 @@ const AssociationModal = ({
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 border-t border-border bg-gray-50 px-6 py-4">
+        <div className="flex justify-end gap-2 border-t border-border bg-gray-50 dark:bg-surface-secondary px-6 py-4">
           <Button variant="outline" onClick={handleClose} disabled={isLoading}>
             Cancel
           </Button>
