@@ -104,7 +104,7 @@ const ImportExport = () => {
             <select
               value={exportFormat}
               onChange={(e) => setExportFormat(e.target.value)}
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
             >
               <option value="csv">CSV (.csv)</option>
               <option value="excel">Excel (.xlsx)</option>
@@ -118,7 +118,7 @@ const ImportExport = () => {
             <select
               value={exportScope}
               onChange={(e) => setExportScope(e.target.value)}
-              className="w-full px-3 py-2 border rounded-md"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
             >
               <option value="all">All Data</option>
               <option value="pets">Pets Only</option>

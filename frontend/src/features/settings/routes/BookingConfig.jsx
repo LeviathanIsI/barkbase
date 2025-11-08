@@ -140,7 +140,7 @@ const BookingConfig = () => {
                 value={settings.maxAdvanceBooking}
                 onChange={(e) => updateSetting('maxAdvanceBooking', parseInt(e.target.value))}
                 min="1"
-                className="w-20 px-3 py-2 border rounded-md"
+                className="w-20 px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
               />
               <span className="text-sm text-gray-600 dark:text-text-secondary">days</span>
             </div>
@@ -157,7 +157,7 @@ const BookingConfig = () => {
                 value={settings.minAdvanceBooking}
                 onChange={(e) => updateSetting('minAdvanceBooking', parseInt(e.target.value))}
                 min="0"
-                className="w-20 px-3 py-2 border rounded-md"
+                className="w-20 px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
               />
               <span className="text-sm text-gray-600 dark:text-text-secondary">hours</span>
             </div>
@@ -174,7 +174,7 @@ const BookingConfig = () => {
                 value={settings.cancellationHours}
                 onChange={(e) => updateSetting('cancellationHours', parseInt(e.target.value))}
                 min="0"
-                className="w-20 px-3 py-2 border rounded-md"
+                className="w-20 px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
               />
               <span className="text-sm text-gray-600 dark:text-text-secondary">hours before check-in</span>
             </div>
@@ -197,7 +197,7 @@ const BookingConfig = () => {
                 type="time"
                 value={settings.checkInTime}
                 onChange={(e) => updateSetting('checkInTime', e.target.value)}
-                className="w-full px-3 py-2 border rounded-md"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
               />
             </div>
 
@@ -209,7 +209,7 @@ const BookingConfig = () => {
                 type="time"
                 value={settings.checkOutTime}
                 onChange={(e) => updateSetting('checkOutTime', e.target.value)}
-                className="w-full px-3 py-2 border rounded-md"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
               />
             </div>
           </div>
@@ -235,7 +235,7 @@ const BookingConfig = () => {
                   type="time"
                   value={settings.extendedCheckIn}
                   onChange={(e) => updateSetting('extendedCheckIn', e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
                 />
               </div>
 
@@ -247,7 +247,7 @@ const BookingConfig = () => {
                   type="time"
                   value={settings.extendedCheckOut}
                   onChange={(e) => updateSetting('extendedCheckOut', e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
                 />
               </div>
             </div>
