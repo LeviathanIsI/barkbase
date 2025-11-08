@@ -126,7 +126,7 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
   return (
     <aside
       className={cn(
-        "bg-[#1E1E2D] text-white transition-all duration-200 shadow-lg",
+        "bg-[#1E1E2D] dark:bg-[#1A1A2E] text-white transition-all duration-200 shadow-lg",
         !isMobile && "lg:sticky lg:top-0 lg:h-screen lg:self-start",
         isMobile
           ? "flex w-64 flex-col"
@@ -164,7 +164,7 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
             </div>
             <button
               onClick={toggleSidebar}
-              className="rounded-lg p-1 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+              className="rounded-lg p-1 text-white/70 transition-colors hover:bg-white dark:hover:bg-surface-primary dark:bg-surface-primary/10 hover:text-white"
               aria-label="Expand sidebar"
               title="Expand sidebar"
             >
@@ -198,7 +198,7 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
             {!isMobile && (
               <button
                 onClick={toggleSidebar}
-                className="flex-shrink-0 rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                className="flex-shrink-0 rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white dark:hover:bg-surface-primary dark:bg-surface-primary/10 hover:text-white"
                 aria-label="Collapse sidebar"
                 title="Collapse sidebar"
               >
@@ -259,7 +259,7 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
                             "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                             active
                               ? "bg-[#4B5DD3] text-white shadow-md border-l-4 border-l-[#4B5DD3]"
-                              : "text-white/80 hover:bg-white/10 hover:text-white",
+                              : "text-white/80 hover:bg-white dark:hover:bg-surface-primary dark:bg-surface-primary/10 hover:text-white",
                             collapsed && !isMobile && "justify-center px-2"
                           )
                         }
