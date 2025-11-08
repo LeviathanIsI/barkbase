@@ -37,10 +37,10 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
   const RunCard = ({ run, building }) => {
     const getStatusColor = (status) => {
       switch (status) {
-        case 'occupied': return 'bg-green-100 border-green-300 text-green-800';
-        case 'available': return 'bg-blue-100 border-blue-300 text-blue-800';
-        case 'maintenance': return 'bg-yellow-100 border-yellow-300 text-yellow-800';
-        default: return 'bg-gray-100 border-gray-300 text-gray-800';
+        case 'occupied': return 'bg-green-100 dark:bg-surface-secondary border-green-300 text-green-800';
+        case 'available': return 'bg-blue-100 dark:bg-surface-secondary border-blue-300 text-blue-800 dark:text-blue-200';
+        case 'maintenance': return 'bg-yellow-100 dark:bg-surface-secondary border-yellow-300 text-yellow-800';
+        default: return 'bg-gray-100 dark:bg-surface-secondary border-gray-300 dark:border-surface-border text-gray-800 dark:text-text-primary';
       }
     };
 
@@ -58,18 +58,18 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
         <div className="flex items-start justify-between mb-3">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <h4 className="font-semibold text-gray-900">{run.name}</h4>
+              <h4 className="font-semibold text-gray-900 dark:text-text-primary">{run.name}</h4>
               <span className={`px-2 py-1 rounded-full text-xs border ${getStatusColor(run.status)}`}>
                 {getStatusIcon(run.status)} {run.status}
               </span>
             </div>
-            <p className="text-sm text-gray-600">{run.type} • {run.size}</p>
-            <p className="text-xs text-gray-500">{building.name}</p>
+            <p className="text-sm text-gray-600 dark:text-text-secondary">{run.type} • {run.size}</p>
+            <p className="text-xs text-gray-500 dark:text-text-secondary">{building.name}</p>
           </div>
         </div>
 
         {run.pet && (
-          <div className="mb-3 p-2 bg-green-50 border border-green-200 rounded">
+          <div className="mb-3 p-2 bg-green-50 dark:bg-surface-primary border border-green-200 dark:border-green-900/30 rounded">
             <p className="text-sm font-medium text-green-900">
               {run.pet} ({run.petBreed})
             </p>
@@ -80,7 +80,7 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
         )}
 
         {run.status === 'maintenance' && (
-          <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded">
+          <div className="mb-3 p-2 bg-yellow-50 dark:bg-surface-primary border border-yellow-200 dark:border-yellow-900/30 rounded">
             <p className="text-sm font-medium text-yellow-900">Cleaning/repairs</p>
             <p className="text-xs text-yellow-700">Back: Oct 16, 2025</p>
           </div>
@@ -107,11 +107,11 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="text-sm font-medium text-gray-600">TOTAL CAPACITY</p>
-              <p className="text-2xl font-bold text-gray-900">{totalBoardingCapacity + totalDaycareCapacity}</p>
+              <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">TOTAL CAPACITY</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{totalBoardingCapacity + totalDaycareCapacity}</p>
             </div>
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Building className="h-6 w-6 text-blue-600" />
+            <div className="w-12 h-12 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
+              <Building className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
           <div className="space-y-2">
@@ -129,10 +129,10 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="text-sm font-medium text-gray-600">CURRENT OCCUPANCY</p>
-              <p className="text-2xl font-bold text-gray-900">{currentBoardingOccupancy + currentDaycareOccupancy}</p>
+              <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">CURRENT OCCUPANCY</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{currentBoardingOccupancy + currentDaycareOccupancy}</p>
             </div>
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+            <div className="w-12 h-12 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
               <Users className="h-6 w-6 text-green-600" />
             </div>
           </div>
@@ -151,13 +151,13 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="text-sm font-medium text-gray-600">UTILIZATION TODAY</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">UTILIZATION TODAY</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">
                 {Math.round(((currentBoardingOccupancy + currentDaycareOccupancy) / (totalBoardingCapacity + totalDaycareCapacity)) * 100)}%
               </p>
             </div>
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <BarChart3 className="h-6 w-6 text-purple-600" />
+            <div className="w-12 h-12 bg-purple-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
+              <BarChart3 className="h-6 w-6 text-purple-600 dark:text-purple-400" />
             </div>
           </div>
           <div className="flex gap-2">
@@ -194,20 +194,20 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
         <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
           <div className="flex items-center gap-4 flex-1">
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-text-tertiary" />
               <input
                 type="text"
                 placeholder="Search runs by name, ID, or pet..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm text-gray-900 placeholder:text-gray-600 placeholder:opacity-75 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary dark:text-text-secondary placeholder:opacity-75 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Status</option>
               <option value="available">Available</option>
@@ -218,7 +218,7 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Types</option>
               <option value="small">Small</option>
@@ -232,7 +232,7 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
             <select
               value={buildingFilter}
               onChange={(e) => setBuildingFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Buildings</option>
               <option value="building-a">Building A</option>
@@ -240,7 +240,7 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
             </select>
           </div>
 
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-text-secondary">
             Showing {filteredRuns.length} runs
           </div>
         </div>
@@ -248,13 +248,13 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
 
       {/* Boarding Kennels */}
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">
           🏠 Boarding Kennels ({currentBoardingOccupancy}/{totalBoardingCapacity} occupied)
         </h3>
 
         {/* Building A - Small Kennels */}
         <div>
-          <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+          <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3 flex items-center gap-2">
             <Building className="w-4 h-4" />
             Building A: Small Kennels (up to 25 lbs)
           </h4>
@@ -278,7 +278,7 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
 
         {/* Building A - Medium Kennels */}
         <div>
-          <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+          <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3 flex items-center gap-2">
             <Building className="w-4 h-4" />
             Building A: Medium Kennels (25-60 lbs)
           </h4>
@@ -302,7 +302,7 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
 
         {/* Building A - Large Kennels */}
         <div>
-          <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+          <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3 flex items-center gap-2">
             <Building className="w-4 h-4" />
             Building A: Large Kennels (60-90 lbs)
           </h4>
@@ -327,7 +327,7 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
 
       {/* Luxury Suites */}
       <div>
-        <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+        <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3 flex items-center gap-2">
           <Building className="w-4 h-4" />
           Building A: Luxury Suites
         </h4>
@@ -351,7 +351,7 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
 
       {/* Outdoor Runs */}
       <div>
-        <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+        <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3 flex items-center gap-2">
           <MapPin className="w-4 h-4" />
           Outdoor Runs
         </h4>
@@ -373,7 +373,7 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
 
       {/* Daycare Areas */}
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">
           🎾 Daycare Areas ({currentDaycareOccupancy}/{totalDaycareCapacity} present)
         </h3>
 
@@ -381,15 +381,15 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
           <Card key={area.id} className="p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h4 className="text-lg font-semibold text-gray-900">{area.name}</h4>
-                <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-text-primary">{area.name}</h4>
+                <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-text-secondary mt-1">
                   <span>Max capacity: {area.maxCapacity} dogs</span>
                   <span>Currently: {area.currentCount} dogs</span>
                   <span className={area.currentCount > area.maxCapacity * 0.8 ? 'text-orange-600 font-medium' : ''}>
                     {Math.round((area.currentCount / area.maxCapacity) * 100)}% full
                   </span>
                 </div>
-                <div className="text-sm text-gray-600 mt-1">
+                <div className="text-sm text-gray-600 dark:text-text-secondary mt-1">
                   Staff assigned: {area.staffAssigned}
                 </div>
               </div>
@@ -411,15 +411,15 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
 
             {area.currentCount > 0 && (
               <div className="mb-4">
-                <p className="text-sm font-medium text-gray-900 mb-2">Dogs currently in area:</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-text-primary mb-2">Dogs currently in area:</p>
                 <div className="flex flex-wrap gap-2">
                   {area.pets.slice(0, 6).map((pet, index) => (
-                    <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
+                    <span key={index} className="px-2 py-1 bg-blue-100 dark:bg-surface-secondary text-blue-800 dark:text-blue-200 rounded text-sm">
                       {pet}
                     </span>
                   ))}
                   {area.pets.length > 6 && (
-                    <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-sm">
+                    <span className="px-2 py-1 bg-gray-100 dark:bg-surface-secondary text-gray-800 dark:text-text-primary rounded text-sm">
                       +{area.pets.length - 6} more
                     </span>
                   )}
@@ -429,9 +429,9 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
 
             <div className="flex items-center justify-between">
               <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                area.currentCount >= area.maxCapacity ? 'bg-red-100 text-red-800' :
-                area.currentCount >= area.maxCapacity * 0.8 ? 'bg-yellow-100 text-yellow-800' :
-                'bg-green-100 text-green-800'
+                area.currentCount >= area.maxCapacity ? 'bg-red-100 dark:bg-surface-secondary text-red-800 dark:text-red-200' :
+                area.currentCount >= area.maxCapacity * 0.8 ? 'bg-yellow-100 dark:bg-surface-secondary text-yellow-800' :
+                'bg-green-100 dark:bg-surface-secondary text-green-800'
               }`}>
                 {area.currentCount >= area.maxCapacity ? 'At Capacity' :
                  area.currentCount >= area.maxCapacity * 0.8 ? 'Limited New Admissions' :
@@ -444,12 +444,12 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
 
       {/* Cat Boarding */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-3">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-3">
           Cat Boarding (4/6 occupied)
         </h3>
 
         <div>
-          <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+          <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3 flex items-center gap-2">
             <Building className="w-4 h-4" />
             Building B: Cat Condos
           </h4>
@@ -458,21 +458,21 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
               <Card key={catArea.id} className="p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <h4 className="font-semibold text-gray-900">{catArea.name}</h4>
-                    <p className="text-sm text-gray-600">Cat Condo • Multi-level</p>
-                    <p className="text-xs text-gray-500">Building B</p>
+                    <h4 className="font-semibold text-gray-900 dark:text-text-primary">{catArea.name}</h4>
+                    <p className="text-sm text-gray-600 dark:text-text-secondary">Cat Condo • Multi-level</p>
+                    <p className="text-xs text-gray-500 dark:text-text-secondary">Building B</p>
                   </div>
                   <span className={`px-2 py-1 rounded-full text-xs border ${
                     catArea.status === 'occupied'
-                      ? 'bg-green-100 border-green-300 text-green-800'
-                      : 'bg-blue-100 border-blue-300 text-blue-800'
+                      ? 'bg-green-100 dark:bg-surface-secondary border-green-300 text-green-800'
+                      : 'bg-blue-100 dark:bg-surface-secondary border-blue-300 text-blue-800 dark:text-blue-200'
                   }`}>
                     {catArea.status === 'occupied' ? '🟢 Occupied' : '✅ Available'}
                   </span>
                 </div>
 
                 {catArea.pet && (
-                  <div className="mb-3 p-2 bg-green-50 border border-green-200 rounded">
+                  <div className="mb-3 p-2 bg-green-50 dark:bg-surface-primary border border-green-200 dark:border-green-900/30 rounded">
                     <p className="text-sm font-medium text-green-900">
                       {catArea.pet} ({catArea.petBreed})
                     </p>

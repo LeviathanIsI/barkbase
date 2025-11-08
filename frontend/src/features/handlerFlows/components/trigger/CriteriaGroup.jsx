@@ -34,7 +34,7 @@ const CriteriaGroup = ({ group, onUpdate, onRemove, isEnrollmentFilter = false }
     <>
       <div className="bg-background rounded-lg border border-border overflow-hidden">
         {/* Group Header */}
-        <div className="p-3 flex items-center justify-between bg-blue-500/5 border-b border-border">
+        <div className="p-3 flex items-center justify-between bg-blue-50 dark:bg-blue-950/5 border-b border-border">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="flex items-center gap-2 flex-1 text-left"
@@ -49,7 +49,7 @@ const CriteriaGroup = ({ group, onUpdate, onRemove, isEnrollmentFilter = false }
           <div className="flex items-center gap-1">
             <button
               onClick={onRemove}
-              className="p-1.5 hover:bg-red-500/10 rounded text-muted hover:text-red-600 transition-colors"
+              className="p-1.5 hover:bg-red-50 dark:bg-red-950/10 rounded text-muted hover:text-red-600 transition-colors"
               title="Delete group"
             >
               <Trash2 className="w-4 h-4" />
@@ -105,7 +105,7 @@ const CriteriaGroup = ({ group, onUpdate, onRemove, isEnrollmentFilter = false }
                       </div>
                       <button
                         onClick={() => handleRemoveCriteria(criteria.recordId)}
-                        className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-red-500/10 rounded text-muted hover:text-red-600 transition-all"
+                        className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-red-50 dark:bg-red-950/10 rounded text-muted hover:text-red-600 transition-all"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

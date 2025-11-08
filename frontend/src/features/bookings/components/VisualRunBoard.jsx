@@ -133,11 +133,11 @@ const VisualRunBoard = () => {
         }
 
         const statusColors = {
-          'PENDING': 'bg-gray-100 border-gray-300 text-gray-900',
-          'CONFIRMED': 'bg-blue-100 border-blue-300 text-blue-900',
-          'CHECKED_IN': 'bg-green-100 border-green-300 text-green-900',
-          'CHECKED_OUT': 'bg-gray-100 border-gray-200 text-gray-600',
-          'CANCELLED': 'bg-red-50 border-red-200 text-red-700'
+          'PENDING': 'bg-gray-100 dark:bg-surface-secondary border-gray-300 dark:border-surface-border text-gray-900 dark:text-text-primary',
+          'CONFIRMED': 'bg-blue-100 dark:bg-surface-secondary border-blue-300 text-blue-900 dark:text-blue-100',
+          'CHECKED_IN': 'bg-green-100 dark:bg-surface-secondary border-green-300 text-green-900',
+          'CHECKED_OUT': 'bg-gray-100 dark:bg-surface-secondary border-gray-200 dark:border-surface-border text-gray-600 dark:text-text-secondary',
+          'CANCELLED': 'bg-red-50 dark:bg-surface-primary border-red-200 dark:border-red-900/30 text-red-700'
         };
 
         return {
@@ -243,10 +243,10 @@ const VisualRunBoard = () => {
       {/* Header Controls */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-4">
-          <h2 className="text-xl font-bold text-gray-900">Run Board</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-text-primary">Run Board</h2>
           
           {/* View Mode Toggles */}
-          <div className="flex items-center bg-gray-100 rounded-lg p-1">
+          <div className="flex items-center bg-gray-100 dark:bg-surface-secondary rounded-lg p-1">
             {['Day', 'Week', 'Month'].map(mode => (
               <button
                 key={mode}
@@ -254,8 +254,8 @@ const VisualRunBoard = () => {
                 className={cn(
                   "px-3 py-1 rounded text-sm font-medium transition-all",
                   viewMode === mode.toLowerCase()
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-600 hover:text-gray-900"
+                    ? "bg-white dark:bg-surface-primary text-gray-900 dark:text-text-primary shadow-sm"
+                    : "text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary dark:text-text-primary"
                 )}
               >
                 {mode}
@@ -292,7 +292,7 @@ const VisualRunBoard = () => {
             </Button>
           </div>
 
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-text-secondary">
             {weekDates[0].toLocaleDateString()} - {weekDates[6].toLocaleDateString()}
           </div>
         </div>
@@ -302,7 +302,7 @@ const VisualRunBoard = () => {
           <select
             value={filterByService}
             onChange={(e) => setFilterByService(e.target.value)}
-            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white"
+            className="px-3 py-1.5 border border-gray-300 dark:border-surface-border rounded-lg text-sm text-gray-900 dark:text-text-primary bg-white dark:bg-surface-primary"
           >
             <option value="all">All Services</option>
             <option value="boarding">Boarding Only</option>
@@ -311,13 +311,13 @@ const VisualRunBoard = () => {
 
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-text-tertiary" />
               <input
               type="text"
               placeholder="Search pet or owner..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-600 placeholder:opacity-75 bg-white w-48"
+              className="pl-9 pr-3 py-1.5 border border-gray-300 dark:border-surface-border rounded-lg text-sm text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary dark:text-text-secondary placeholder:opacity-75 bg-white dark:bg-surface-primary w-48"
             />
           </div>
 
@@ -353,7 +353,7 @@ const VisualRunBoard = () => {
               )}>
                 {occupancy}% Full
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-1.5">
+              <div className="w-full bg-gray-200 dark:bg-surface-border rounded-full h-1.5">
                 <div
                   className={cn(
                     "h-1.5 rounded-full transition-all",
@@ -376,8 +376,8 @@ const VisualRunBoard = () => {
         >
           <div className="min-w-[1000px]">
             {/* Header Row - Days */}
-            <div className="grid grid-cols-[120px_repeat(7,1fr)] gap-px bg-gray-200 sticky top-0 z-10">
-              <div className="bg-gray-50 p-3 font-medium text-sm text-gray-700">
+            <div className="grid grid-cols-[120px_repeat(7,1fr)] gap-px bg-gray-200 dark:bg-surface-border sticky top-0 z-10">
+              <div className="bg-gray-50 dark:bg-surface-secondary p-3 font-medium text-sm text-gray-700 dark:text-text-primary">
                 Run/Room
               </div>
               {weekDates.map((date, idx) => {
@@ -387,15 +387,15 @@ const VisualRunBoard = () => {
                     key={idx}
                     className={cn(
                       "p-3 text-center",
-                      isToday ? "bg-primary-50" : "bg-gray-50"
+                      isToday ? "bg-primary-50" : "bg-gray-50 dark:bg-surface-secondary"
                     )}
                   >
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-gray-500 dark:text-text-secondary">
                       {date.toLocaleDateString('en-US', { weekday: 'short' })}
                     </div>
                     <div className={cn(
                       "text-lg font-medium",
-                      isToday ? "text-primary-600" : "text-gray-900"
+                      isToday ? "text-primary-600" : "text-gray-900 dark:text-text-primary"
                     )}>
                       {date.getDate()}
                     </div>
@@ -407,10 +407,10 @@ const VisualRunBoard = () => {
             {/* Run Rows */}
             {isLoading ? (
               <div className="p-8 text-center">
-                <Loader2 className="h-8 w-8 animate-spin text-gray-400 mx-auto" />
+                <Loader2 className="h-8 w-8 animate-spin text-gray-400 dark:text-text-tertiary mx-auto" />
               </div>
             ) : runs.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">
+              <div className="p-8 text-center text-gray-500 dark:text-text-secondary">
                 No run templates configured. Please add run templates in Settings.
               </div>
             ) : (
@@ -421,16 +421,16 @@ const VisualRunBoard = () => {
                 return (
                   <div
                     key={run.id}
-                    className="grid grid-cols-[120px_repeat(7,1fr)] gap-px bg-gray-200 h-20"
+                    className="grid grid-cols-[120px_repeat(7,1fr)] gap-px bg-gray-200 dark:bg-surface-border h-20"
                   >
                     {/* Run Label */}
                     <div className={cn(
-                      "bg-white p-3 flex items-center justify-between",
-                      runIdx === 0 && "border-t border-gray-200"
+                      "bg-white dark:bg-surface-primary p-3 flex items-center justify-between",
+                      runIdx === 0 && "border-t border-gray-200 dark:border-surface-border"
                     )}>
                       <div>
-                        <div className="font-medium text-sm text-gray-900">{run.name}</div>
-                        <div className="text-xs text-gray-500">
+                        <div className="font-medium text-sm text-gray-900 dark:text-text-primary">{run.name}</div>
+                        <div className="text-xs text-gray-500 dark:text-text-secondary">
                           {run.type} • Cap: {run.capacity}
                         </div>
                       </div>
@@ -441,9 +441,9 @@ const VisualRunBoard = () => {
                       <div
                         key={dateIdx}
                         className={cn(
-                          "bg-white relative",
+                          "bg-white dark:bg-surface-primary relative",
                           date.toDateString() === new Date().toDateString() && "bg-primary-50/30",
-                          runIdx === 0 && "border-t border-gray-200"
+                          runIdx === 0 && "border-t border-gray-200 dark:border-surface-border"
                         )}
                         onDragOver={handleDragOver}
                         onDrop={(e) => handleDrop(e, run.id, date)}
@@ -543,21 +543,21 @@ const BookingBlock = ({ booking, onSelect, onDragStart }) => {
 const BookingQuickActions = ({ booking, onClose }) => {
   const actions = [
     { icon: CheckCircle, label: 'Check In', color: 'text-success-600' },
-    { icon: XCircle, label: 'Check Out', color: 'text-gray-600' },
-    { icon: Move, label: 'Change Room', color: 'text-blue-600' },
-    { icon: Edit2, label: 'Edit Booking', color: 'text-gray-600' },
-    { icon: PhoneCall, label: 'Call Owner', color: 'text-gray-600' },
-    { icon: MessageSquare, label: 'Send Message', color: 'text-gray-600' },
-    { icon: DollarSign, label: 'Process Payment', color: 'text-gray-600' },
+    { icon: XCircle, label: 'Check Out', color: 'text-gray-600 dark:text-text-secondary' },
+    { icon: Move, label: 'Change Room', color: 'text-blue-600 dark:text-blue-400' },
+    { icon: Edit2, label: 'Edit Booking', color: 'text-gray-600 dark:text-text-secondary' },
+    { icon: PhoneCall, label: 'Call Owner', color: 'text-gray-600 dark:text-text-secondary' },
+    { icon: MessageSquare, label: 'Send Message', color: 'text-gray-600 dark:text-text-secondary' },
+    { icon: DollarSign, label: 'Process Payment', color: 'text-gray-600 dark:text-text-secondary' },
     { icon: Trash2, label: 'Cancel', color: 'text-error-600' },
   ];
 
   return (
-    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white rounded-lg shadow-xl border border-gray-200 p-4 z-20">
+    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white dark:bg-surface-primary rounded-lg shadow-xl border border-gray-200 dark:border-surface-border p-4 z-20">
       <div className="flex items-start justify-between mb-3">
         <div>
-          <p className="font-medium text-gray-900">{booking.petName}</p>
-          <p className="text-sm text-gray-600">{booking.ownerName} • {booking.service}</p>
+          <p className="font-medium text-gray-900 dark:text-text-primary">{booking.petName}</p>
+          <p className="text-sm text-gray-600 dark:text-text-secondary">{booking.ownerName} • {booking.service}</p>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose}>
           <XCircle className="h-4 w-4" />

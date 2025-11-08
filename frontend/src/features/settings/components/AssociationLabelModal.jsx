@@ -103,7 +103,7 @@ const AssociationLabelModal = ({ open, onClose, association = null }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-lg rounded-lg bg-white shadow-xl">
+      <div className="w-full max-w-lg rounded-lg bg-white dark:bg-surface-primary shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border bg-primary px-6 py-4">
           <h2 className="text-xl font-semibold text-white">
@@ -145,7 +145,7 @@ const AssociationLabelModal = ({ open, onClose, association = null }) => {
                         value={formData.label}
                         onChange={(e) => handleChange('label', e.target.value)}
                         placeholder="e.g., Colleague"
-                        className="mt-2 w-full max-w-xs rounded-md border border-border bg-gray-50 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        className="mt-2 w-full max-w-xs rounded-md border border-border bg-gray-50 dark:bg-surface-secondary px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                         required
                       />
                     )}
@@ -172,7 +172,7 @@ const AssociationLabelModal = ({ open, onClose, association = null }) => {
                           value={formData.label}
                           onChange={(e) => handleChange('label', e.target.value)}
                           placeholder="e.g., Manager"
-                          className="w-full max-w-xs rounded-md border border-border bg-gray-50 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                          className="w-full max-w-xs rounded-md border border-border bg-gray-50 dark:bg-surface-secondary px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                           required
                         />
                         <input
@@ -180,7 +180,7 @@ const AssociationLabelModal = ({ open, onClose, association = null }) => {
                           value={formData.reverseLabel}
                           onChange={(e) => handleChange('reverseLabel', e.target.value)}
                           placeholder="e.g., Employee"
-                          className="w-full max-w-xs rounded-md border border-border bg-gray-50 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                          className="w-full max-w-xs rounded-md border border-border bg-gray-50 dark:bg-surface-secondary px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                           required={formData.isPaired}
                         />
                         <p className="text-xs text-muted italic">
@@ -202,7 +202,7 @@ const AssociationLabelModal = ({ open, onClose, association = null }) => {
                 value={formData.fromObjectType}
                 onChange={(e) => handleChange('fromObjectType', e.target.value)}
                 disabled={isEditing}
-                className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:bg-gray-100 disabled:cursor-not-allowed"
+                className="w-full rounded-md border border-border bg-white dark:bg-surface-primary px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:bg-gray-100 dark:bg-surface-secondary disabled:cursor-not-allowed"
               >
                 {OBJECT_TYPES.map((type) => (
                   <option key={type.value} value={type.value}>
@@ -221,7 +221,7 @@ const AssociationLabelModal = ({ open, onClose, association = null }) => {
                 value={formData.toObjectType}
                 onChange={(e) => handleChange('toObjectType', e.target.value)}
                 disabled={isEditing}
-                className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:bg-gray-100 disabled:cursor-not-allowed"
+                className="w-full rounded-md border border-border bg-white dark:bg-surface-primary px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:bg-gray-100 dark:bg-surface-secondary disabled:cursor-not-allowed"
               >
                 {OBJECT_TYPES.map((type) => (
                   <option key={type.value} value={type.value}>
@@ -240,7 +240,7 @@ const AssociationLabelModal = ({ open, onClose, association = null }) => {
                 {LIMIT_TYPES.map((type) => (
                   <label
                     key={type.value}
-                    className="flex items-start gap-3 rounded-md border border-border p-3 cursor-pointer hover:bg-gray-50"
+                    className="flex items-start gap-3 rounded-md border border-border p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
                   >
                     <input
                       type="radio"
@@ -260,7 +260,7 @@ const AssociationLabelModal = ({ open, onClose, association = null }) => {
             </div>
 
             {isEditing && association?.isSystemDefined && (
-              <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3">
+              <div className="rounded-md bg-yellow-50 dark:bg-surface-primary border border-yellow-200 dark:border-yellow-900/30 p-3">
                 <p className="text-sm text-yellow-800">
                   <strong>Note:</strong> This is a system-defined association. You can only edit the label name and association type.
                 </p>

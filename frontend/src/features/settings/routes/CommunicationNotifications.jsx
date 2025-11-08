@@ -82,10 +82,10 @@ const CommunicationNotifications = () => {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Mail className="w-5 h-5 text-gray-600" />
+              <Mail className="w-5 h-5 text-gray-600 dark:text-text-secondary" />
               <div>
                 <h4 className="font-medium">Email Notifications</h4>
-                <p className="text-sm text-gray-600">Send updates via email</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">Send updates via email</p>
               </div>
             </div>
             <Switch
@@ -96,10 +96,10 @@ const CommunicationNotifications = () => {
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <MessageSquare className="w-5 h-5 text-gray-600" />
+              <MessageSquare className="w-5 h-5 text-gray-600 dark:text-text-secondary" />
               <div>
                 <h4 className="font-medium">SMS Notifications</h4>
-                <p className="text-sm text-gray-600">Send text message updates</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">Send text message updates</p>
                 <Badge variant="warning" className="mt-1">Premium Feature</Badge>
               </div>
             </div>
@@ -111,10 +111,10 @@ const CommunicationNotifications = () => {
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Smartphone className="w-5 h-5 text-gray-600" />
+              <Smartphone className="w-5 h-5 text-gray-600 dark:text-text-secondary" />
               <div>
                 <h4 className="font-medium">Push Notifications</h4>
-                <p className="text-sm text-gray-600">Mobile app notifications</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">Mobile app notifications</p>
               </div>
             </div>
             <Switch
@@ -195,7 +195,7 @@ const CommunicationNotifications = () => {
                   max="7"
                   className="w-16 px-2 py-1 border rounded"
                 />
-                <span className="text-sm text-gray-600">days before appointment</span>
+                <span className="text-sm text-gray-600 dark:text-text-secondary">days before appointment</span>
               </div>
             </div>
           </div>
@@ -234,7 +234,7 @@ const CommunicationNotifications = () => {
             />
           </div>
         </div>
-        <p className="text-sm text-gray-600 mt-2">
+        <p className="text-sm text-gray-600 dark:text-text-secondary mt-2">
           Non-urgent notifications will be held during quiet hours
         </p>
       </Card>

@@ -25,7 +25,7 @@ const ServiceListView = ({ services, category, onEdit }) => {
   const getGrowthColor = (growth) => {
     if (growth > 0) return 'text-green-600';
     if (growth < 0) return 'text-red-600';
-    return 'text-gray-600';
+    return 'text-gray-600 dark:text-text-secondary';
   };
 
   const getGrowthIcon = (growth) => {
@@ -37,15 +37,15 @@ const ServiceListView = ({ services, category, onEdit }) => {
     <div className="space-y-6">
       {/* Services by Category */}
       {services.map((service) => (
-        <div key={service.recordId} className="border border-gray-200 rounded-lg overflow-hidden">
+        <div key={service.recordId} className="border border-gray-200 dark:border-surface-border rounded-lg overflow-hidden">
           {/* Service Header */}
-          <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+          <div className="bg-gray-50 dark:bg-surface-secondary px-6 py-4 border-b border-gray-200 dark:border-surface-border">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <span className="text-2xl">{getCategoryIcon(service.category)}</span>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{service.name}</h3>
-                  <p className="text-sm text-gray-600">{service.description}</p>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">{service.name}</h3>
+                  <p className="text-sm text-gray-600 dark:text-text-secondary">{service.description}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -65,20 +65,20 @@ const ServiceListView = ({ services, category, onEdit }) => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Pricing Information */}
               <div>
-                <h4 className="font-medium text-gray-900 mb-3">Pricing</h4>
+                <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3">Pricing</h4>
                 <div className="space-y-2">
                   {service.flatRate ? (
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Base Price:</span>
+                      <span className="text-sm text-gray-600 dark:text-text-secondary">Base Price:</span>
                       <span className="text-sm font-medium">{formatCurrency(service.basePrice * 100)} {service.unit}</span>
                     </div>
                   ) : service.sizePricing ? (
                     <div>
-                      <div className="text-sm text-gray-600 mb-1">Size-Based Pricing:</div>
+                      <div className="text-sm text-gray-600 dark:text-text-secondary mb-1">Size-Based Pricing:</div>
                       <div className="space-y-1 text-sm">
                         {Object.entries(service.sizePricing).map(([size, price]) => (
                           <div key={size} className="flex justify-between">
-                            <span className="capitalize text-gray-600">{size}:</span>
+                            <span className="capitalize text-gray-600 dark:text-text-secondary">{size}:</span>
                             <span className="font-medium">{formatCurrency(price * 100)}</span>
                           </div>
                         ))}
@@ -86,19 +86,19 @@ const ServiceListView = ({ services, category, onEdit }) => {
                     </div>
                   ) : (
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Base Price:</span>
+                      <span className="text-sm text-gray-600 dark:text-text-secondary">Base Price:</span>
                       <span className="text-sm font-medium">{formatCurrency(service.basePrice * 100)} {service.unit}</span>
                     </div>
                   )}
 
                   {/* Discounts */}
                   {service.discounts && service.discounts.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <div className="text-sm text-gray-600 mb-1">Discounts:</div>
+                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-surface-border">
+                      <div className="text-sm text-gray-600 dark:text-text-secondary mb-1">Discounts:</div>
                       <div className="space-y-1 text-sm">
                         {service.discounts.map((discount, index) => (
                           <div key={index} className="flex justify-between">
-                            <span className="text-gray-600">{discount.nights}+ nights:</span>
+                            <span className="text-gray-600 dark:text-text-secondary">{discount.nights}+ nights:</span>
                             <span className="font-medium text-green-600">-{discount.discount}%</span>
                           </div>
                         ))}
@@ -108,12 +108,12 @@ const ServiceListView = ({ services, category, onEdit }) => {
 
                   {/* Packages */}
                   {service.packages && service.packages.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <div className="text-sm text-gray-600 mb-1">Package Pricing:</div>
+                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-surface-border">
+                      <div className="text-sm text-gray-600 dark:text-text-secondary mb-1">Package Pricing:</div>
                       <div className="space-y-1 text-sm">
                         {service.packages.map((pkg, index) => (
                           <div key={index} className="flex justify-between">
-                            <span className="text-gray-600">{pkg.name}:</span>
+                            <span className="text-gray-600 dark:text-text-secondary">{pkg.name}:</span>
                             <span className="font-medium">{formatCurrency(pkg.price * 100)} (save {formatCurrency(pkg.savings * 100)})</span>
                           </div>
                         ))}
@@ -123,10 +123,10 @@ const ServiceListView = ({ services, category, onEdit }) => {
 
                   {/* Unlimited Membership */}
                   {service.unlimitedMembership && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <div className="text-sm text-gray-600 mb-1">Unlimited Membership:</div>
+                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-surface-border">
+                      <div className="text-sm text-gray-600 dark:text-text-secondary mb-1">Unlimited Membership:</div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Monthly:</span>
+                        <span className="text-gray-600 dark:text-text-secondary">Monthly:</span>
                         <span className="font-medium">{formatCurrency(service.unlimitedMembership.monthlyPrice * 100)} (avg {service.unlimitedMembership.avgVisits} visits)</span>
                       </div>
                     </div>
@@ -136,28 +136,28 @@ const ServiceListView = ({ services, category, onEdit }) => {
 
               {/* Performance Metrics */}
               <div>
-                <h4 className="font-medium text-gray-900 mb-3">Performance</h4>
+                <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3">Performance</h4>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Bookings this month:</span>
+                    <span className="text-sm text-gray-600 dark:text-text-secondary">Bookings this month:</span>
                     <span className="text-sm font-medium">{service.bookingsThisMonth}</span>
                   </div>
 
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Revenue this month:</span>
+                    <span className="text-sm text-gray-600 dark:text-text-secondary">Revenue this month:</span>
                     <span className="text-sm font-medium">{formatCurrency(service.revenueThisMonth * 100)}</span>
                   </div>
 
                   {service.avgStay && (
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Avg stay:</span>
+                      <span className="text-sm text-gray-600 dark:text-text-secondary">Avg stay:</span>
                       <span className="text-sm font-medium">{service.avgStay} nights</span>
                     </div>
                   )}
 
                   {service.rating && (
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Rating:</span>
+                      <span className="text-sm text-gray-600 dark:text-text-secondary">Rating:</span>
                       <div className="flex items-center gap-1">
                         <Star className="w-3 h-3 text-yellow-500 fill-current" />
                         <span className="text-sm font-medium">{service.rating}/5.0</span>
@@ -167,7 +167,7 @@ const ServiceListView = ({ services, category, onEdit }) => {
 
                   {service.growth && (
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">vs last month:</span>
+                      <span className="text-sm text-gray-600 dark:text-text-secondary">vs last month:</span>
                       <div className={`flex items-center gap-1 text-sm font-medium ${getGrowthColor(service.growth)}`}>
                         {getGrowthIcon(service.growth)}
                         {service.growth > 0 ? '+' : ''}{service.growth}%
@@ -176,7 +176,7 @@ const ServiceListView = ({ services, category, onEdit }) => {
                   )}
 
                   {service.isMostPopular && (
-                    <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded">
+                    <div className="mt-3 p-2 bg-yellow-50 dark:bg-surface-primary border border-yellow-200 dark:border-yellow-900/30 rounded">
                       <div className="flex items-center gap-2 text-yellow-800">
                         <Star className="w-4 h-4 fill-current" />
                         <span className="text-sm font-medium">MOST POPULAR SERVICE</span>
@@ -188,16 +188,16 @@ const ServiceListView = ({ services, category, onEdit }) => {
             </div>
 
             {/* Additional Information */}
-            <div className="mt-6 pt-6 border-t border-gray-200">
+            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-surface-border">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Amenities/Included */}
                 {service.amenities && (
                   <div>
-                    <h5 className="text-sm font-medium text-gray-900 mb-2">Included Amenities:</h5>
-                    <ul className="text-sm text-gray-600 space-y-1">
+                    <h5 className="text-sm font-medium text-gray-900 dark:text-text-primary mb-2">Included Amenities:</h5>
+                    <ul className="text-sm text-gray-600 dark:text-text-secondary space-y-1">
                       {service.amenities.map((amenity, index) => (
                         <li key={index} className="flex items-center gap-2">
-                          <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                          <span className="w-1.5 h-1.5 bg-green-50 dark:bg-green-950/20 rounded-full"></span>
                           {amenity}
                         </li>
                       ))}
@@ -208,16 +208,16 @@ const ServiceListView = ({ services, category, onEdit }) => {
                 {/* Add-ons Available */}
                 {service.addOns && service.addOns.length > 0 && (
                   <div>
-                    <h5 className="text-sm font-medium text-gray-900 mb-2">Add-ons Available:</h5>
-                    <p className="text-sm text-gray-600">{service.addOns.join(', ')}</p>
+                    <h5 className="text-sm font-medium text-gray-900 dark:text-text-primary mb-2">Add-ons Available:</h5>
+                    <p className="text-sm text-gray-600 dark:text-text-secondary">{service.addOns.join(', ')}</p>
                   </div>
                 )}
 
                 {/* Multi-pet discount */}
                 {service.multiPetDiscount && (
                   <div>
-                    <h5 className="text-sm font-medium text-gray-900 mb-2">Multi-Pet Discount:</h5>
-                    <p className="text-sm text-gray-600">
+                    <h5 className="text-sm font-medium text-gray-900 dark:text-text-primary mb-2">Multi-Pet Discount:</h5>
+                    <p className="text-sm text-gray-600 dark:text-text-secondary">
                       {service.multiPetDiscount.discount}{service.multiPetDiscount.unit === 'per additional pet' ? '% off per additional pet' : '% off'}
                     </p>
                   </div>
@@ -226,8 +226,8 @@ const ServiceListView = ({ services, category, onEdit }) => {
                 {/* Duration */}
                 {service.duration && (
                   <div>
-                    <h5 className="text-sm font-medium text-gray-900 mb-2">Duration:</h5>
-                    <p className="text-sm text-gray-600">{service.duration}</p>
+                    <h5 className="text-sm font-medium text-gray-900 dark:text-text-primary mb-2">Duration:</h5>
+                    <p className="text-sm text-gray-600 dark:text-text-secondary">{service.duration}</p>
                   </div>
                 )}
               </div>

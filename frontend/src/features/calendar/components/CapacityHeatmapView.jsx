@@ -43,23 +43,23 @@ const CapacityHeatmapView = ({ currentDate, filters }) => {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   const getColorClass = (percentage) => {
-    if (percentage >= 95) return 'bg-red-500';
+    if (percentage >= 95) return 'bg-red-50 dark:bg-red-950/20';
     if (percentage >= 90) return 'bg-orange-500';
-    if (percentage >= 80) return 'bg-yellow-500';
-    if (percentage >= 50) return 'bg-blue-500';
-    return 'bg-green-500';
+    if (percentage >= 80) return 'bg-yellow-50 dark:bg-yellow-950/20';
+    if (percentage >= 50) return 'bg-blue-50 dark:bg-blue-950/20';
+    return 'bg-green-50 dark:bg-green-950/20';
   };
 
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-gray-900">Capacity Heatmap</h2>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">Capacity Heatmap</h2>
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">Last 30 days</span>
+          <span className="text-sm text-gray-600 dark:text-text-secondary">Last 30 days</span>
         </div>
       </div>
 
-      <p className="text-gray-600 mb-6">
+      <p className="text-gray-600 dark:text-text-secondary mb-6">
         Visualize booking patterns over time
       </p>
 
@@ -68,12 +68,12 @@ const CapacityHeatmapView = ({ currentDate, filters }) => {
         <div className="grid grid-cols-8 gap-1 text-center text-sm">
           <div></div>
           {days.map(day => (
-            <div key={day} className="font-medium text-gray-700 p-2">{day}</div>
+            <div key={day} className="font-medium text-gray-700 dark:text-text-primary p-2">{day}</div>
           ))}
 
           {heatmapData.map((weekData, weekIndex) => (
             <div key={week.toISOString()}>
-              <div className="font-medium text-gray-700 p-2">
+              <div className="font-medium text-gray-700 dark:text-text-primary p-2">
                 Wk {weekIndex + 1}
               </div>
               {weekData.map((percentage, dayIndex) => (
@@ -92,15 +92,15 @@ const CapacityHeatmapView = ({ currentDate, filters }) => {
       {/* Legend */}
       <div className="flex items-center justify-center gap-6 mb-6 text-sm">
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-green-500 rounded"></div>
+          <div className="w-4 h-4 bg-green-50 dark:bg-green-950/20 rounded"></div>
           <span>&lt;50%</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-blue-500 rounded"></div>
+          <div className="w-4 h-4 bg-blue-50 dark:bg-blue-950/20 rounded"></div>
           <span>50-80%</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-yellow-500 rounded"></div>
+          <div className="w-4 h-4 bg-yellow-50 dark:bg-yellow-950/20 rounded"></div>
           <span>80-90%</span>
         </div>
         <div className="flex items-center gap-2">
@@ -108,15 +108,15 @@ const CapacityHeatmapView = ({ currentDate, filters }) => {
           <span>90-95%</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-red-500 rounded"></div>
+          <div className="w-4 h-4 bg-red-50 dark:bg-red-950/20 rounded"></div>
           <span>95%+</span>
         </div>
       </div>
 
       {/* Insights */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-        <h3 className="font-semibold text-blue-900 mb-3">INSIGHTS</h3>
-        <ul className="space-y-2 text-sm text-blue-800">
+      <div className="bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-4 mb-6">
+        <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-3">INSIGHTS</h3>
+        <ul className="space-y-2 text-sm text-blue-800 dark:text-blue-200">
           <li>• Thursday-Friday consistently high (90%+)</li>
           <li>• Weekends show strong demand (80-95%)</li>
           <li>• Monday-Wednesday underutilized (55-70%)</li>
@@ -125,7 +125,7 @@ const CapacityHeatmapView = ({ currentDate, filters }) => {
       </div>
 
       {/* Recommended Actions */}
-      <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+      <div className="bg-green-50 dark:bg-surface-primary border border-green-200 dark:border-green-900/30 rounded-lg p-4 mb-6">
         <h3 className="font-semibold text-green-900 mb-3">RECOMMENDED ACTIONS</h3>
         <ul className="space-y-2 text-sm text-green-800">
           <li>💰 Raise Thu-Fri prices by $10-15 (demand supports it)</li>

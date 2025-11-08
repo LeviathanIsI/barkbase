@@ -65,11 +65,11 @@ const ShiftCoveragePlanner = ({ onClose }) => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'good': return 'bg-green-100 text-green-800';
-      case 'adequate': return 'bg-blue-100 text-blue-800';
-      case 'low': return 'bg-yellow-100 text-yellow-800';
-      case 'critical': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'good': return 'bg-green-100 dark:bg-surface-secondary text-green-800';
+      case 'adequate': return 'bg-blue-100 dark:bg-surface-secondary text-blue-800 dark:text-blue-200';
+      case 'low': return 'bg-yellow-100 dark:bg-surface-secondary text-yellow-800';
+      case 'critical': return 'bg-red-100 dark:bg-surface-secondary text-red-800 dark:text-red-200';
+      default: return 'bg-gray-100 dark:bg-surface-secondary text-gray-800 dark:text-text-primary';
     }
   };
 
@@ -135,23 +135,23 @@ const ShiftCoveragePlanner = ({ onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden">
+      <div className="bg-white dark:bg-surface-primary rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-surface-border">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Shift Coverage Planner</h2>
-            <p className="text-gray-600">Monitor and manage staffing coverage</p>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">Shift Coverage Planner</h2>
+            <p className="text-gray-600 dark:text-text-secondary">Monitor and manage staffing coverage</p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary rounded-full transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Controls */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-surface-border">
           <div className="flex items-center gap-4">
             <Button
               variant="outline"
@@ -183,23 +183,23 @@ const ShiftCoveragePlanner = ({ onClose }) => {
         </div>
 
         {/* Coverage Statistics */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-gray-200 dark:border-surface-border">
           <div className="grid grid-cols-4 gap-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900">{stats.totalSlots}</div>
-              <div className="text-sm text-gray-600">Total Slots</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.totalSlots}</div>
+              <div className="text-sm text-gray-600 dark:text-text-secondary">Total Slots</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">{stats.adequateSlots}</div>
-              <div className="text-sm text-gray-600">Adequate</div>
+              <div className="text-sm text-gray-600 dark:text-text-secondary">Adequate</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-yellow-600">{stats.lowSlots}</div>
-              <div className="text-sm text-gray-600">Low Coverage</div>
+              <div className="text-sm text-gray-600 dark:text-text-secondary">Low Coverage</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-red-600">{stats.criticalSlots}</div>
-              <div className="text-sm text-gray-600">Critical</div>
+              <div className="text-sm text-gray-600 dark:text-text-secondary">Critical</div>
             </div>
           </div>
         </div>
@@ -209,17 +209,17 @@ const ShiftCoveragePlanner = ({ onClose }) => {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-medium text-gray-900 w-20">Time</th>
+                <tr className="border-b border-gray-200 dark:border-surface-border">
+                  <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-text-primary w-20">Time</th>
                   {weekDates.map((date, index) => {
                     const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
                     const dayNumber = date.getDate();
                     const isToday = date.toDateString() === new Date().toDateString();
 
                     return (
-                      <th key={index} className={`text-center py-3 px-4 font-medium ${isToday ? 'bg-blue-50' : ''}`}>
-                        <div className="text-sm text-gray-600">{dayName}</div>
-                        <div className={`text-lg ${isToday ? 'text-blue-600 font-bold' : 'text-gray-900'}`}>
+                      <th key={index} className={`text-center py-3 px-4 font-medium ${isToday ? 'bg-blue-50 dark:bg-surface-primary' : ''}`}>
+                        <div className="text-sm text-gray-600 dark:text-text-secondary">{dayName}</div>
+                        <div className={`text-lg ${isToday ? 'text-blue-600 dark:text-blue-400 font-bold' : 'text-gray-900 dark:text-text-primary'}`}>
                           {dayNumber}
                         </div>
                       </th>
@@ -229,8 +229,8 @@ const ShiftCoveragePlanner = ({ onClose }) => {
               </thead>
               <tbody>
                 {timeSlots.map((timeSlot) => (
-                  <tr key={timeSlot} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 font-medium text-gray-900">
+                  <tr key={timeSlot} className="border-b border-gray-100 hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary">
+                    <td className="py-3 px-4 font-medium text-gray-900 dark:text-text-primary">
                       {timeSlot}
                     </td>
                     {weekDates.map((date, index) => {
@@ -260,22 +260,22 @@ const ShiftCoveragePlanner = ({ onClose }) => {
         </div>
 
         {/* Legend */}
-        <div className="p-6 border-t border-gray-200 bg-gray-50">
+        <div className="p-6 border-t border-gray-200 dark:border-surface-border bg-gray-50 dark:bg-surface-secondary">
           <div className="flex items-center gap-6 text-sm">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-green-100 rounded"></div>
+              <div className="w-4 h-4 bg-green-100 dark:bg-surface-secondary rounded"></div>
               <span>Adequate coverage (≥ required)</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-blue-100 rounded"></div>
+              <div className="w-4 h-4 bg-blue-100 dark:bg-surface-secondary rounded"></div>
               <span>Good coverage (&gt; required)</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-yellow-100 rounded"></div>
+              <div className="w-4 h-4 bg-yellow-100 dark:bg-surface-secondary rounded"></div>
               <span>Low coverage (&lt; required)</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-red-100 rounded"></div>
+              <div className="w-4 h-4 bg-red-100 dark:bg-surface-secondary rounded"></div>
               <span>Critical (significantly understaffed)</span>
             </div>
           </div>
@@ -284,12 +284,12 @@ const ShiftCoveragePlanner = ({ onClose }) => {
         {/* Time Slot Details Modal */}
         {selectedTimeSlot && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg w-full max-w-md">
+            <div className="bg-white dark:bg-surface-primary rounded-lg w-full max-w-md">
               <div className="p-6">
                 <h3 className="text-lg font-semibold mb-4">
                   Coverage Details - {selectedTimeSlot.time}
                 </h3>
-                <p className="text-gray-600 mb-4">
+                <p className="text-gray-600 dark:text-text-secondary mb-4">
                   {new Date(selectedTimeSlot.date).toLocaleDateString('en-US', {
                     weekday: 'long',
                     year: 'numeric',

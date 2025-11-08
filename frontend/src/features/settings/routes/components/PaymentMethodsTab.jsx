@@ -57,14 +57,14 @@ export default function PaymentMethodsTab() {
       {/* Primary Payment Method */}
       <Card title="PRIMARY PAYMENT METHOD">
         {paymentMethods.filter(pm => pm.isPrimary).map((method) => (
-          <div key={method.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+          <div key={method.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-surface-border rounded-lg">
             <div className="flex items-center gap-4">
               {getCardTypeIcon(method.type)}
               <div>
-                <div className="font-medium text-gray-900">
+                <div className="font-medium text-gray-900 dark:text-text-primary">
                   {formatCardNumber(method.last4)}
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-gray-600 dark:text-text-secondary">
                   Expires {method.expiry} • {method.billingEmail}
                 </div>
               </div>
@@ -72,7 +72,7 @@ export default function PaymentMethodsTab() {
             <div className="flex items-center gap-2">
               <Badge variant="success">Primary</Badge>
               <div className="relative">
-                <button className="p-2 hover:bg-gray-100 rounded-full">
+                <button className="p-2 hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary rounded-full">
                   <MoreVertical className="w-4 h-4" />
                 </button>
                 {/* Dropdown menu would go here */}
@@ -85,9 +85,9 @@ export default function PaymentMethodsTab() {
       {/* Add Payment Method */}
       <Card>
         <div className="text-center py-8">
-          <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Add Payment Method</h3>
-          <p className="text-gray-600 mb-4">
+          <CreditCard className="w-12 h-12 text-gray-400 dark:text-text-tertiary mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-text-primary mb-2">Add Payment Method</h3>
+          <p className="text-gray-600 dark:text-text-secondary mb-4">
             Add a backup payment method to avoid service interruptions
           </p>
           <Button onClick={() => setShowAddCardModal(true)}>
@@ -99,8 +99,8 @@ export default function PaymentMethodsTab() {
 
       {/* Backup Payment Methods */}
       <Card title="BACKUP METHODS">
-        <div className="text-center py-8 text-gray-500">
-          <Shield className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+        <div className="text-center py-8 text-gray-500 dark:text-text-secondary">
+          <Shield className="w-12 h-12 text-gray-300 dark:text-text-tertiary mx-auto mb-4" />
           <p>No backup payment method on file.</p>
           <p className="text-sm">Add one to avoid service interruptions.</p>
           <Button variant="outline" className="mt-4">
@@ -115,22 +115,22 @@ export default function PaymentMethodsTab() {
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-              <div className="text-gray-900">{billingAddress.name}</div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Name</label>
+              <div className="text-gray-900 dark:text-text-primary">{billingAddress.name}</div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <div className="text-gray-900">{billingAddress.email}</div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Email</label>
+              <div className="text-gray-900 dark:text-text-primary">{billingAddress.email}</div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-              <div className="text-gray-900">{billingAddress.phone}</div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Phone</label>
+              <div className="text-gray-900 dark:text-text-primary">{billingAddress.phone}</div>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-            <div className="text-gray-900">
+            <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Address</label>
+            <div className="text-gray-900 dark:text-text-primary">
               {billingAddress.address.line1}<br />
               {billingAddress.address.line2 && <>{billingAddress.address.line2}<br /></>}
               {billingAddress.address.city}, {billingAddress.address.state} {billingAddress.address.zip}<br />
@@ -150,8 +150,8 @@ export default function PaymentMethodsTab() {
           {/* Auto Renewal */}
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="font-medium text-gray-900">Automatic Renewal</h4>
-              <p className="text-sm text-gray-600">
+              <h4 className="font-medium text-gray-900 dark:text-text-primary">Automatic Renewal</h4>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">
                 Your subscription will auto-renew on Jan 15, 2025
               </p>
             </div>
@@ -162,15 +162,15 @@ export default function PaymentMethodsTab() {
                 onChange={() => {}}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              <div className="w-11 h-6 bg-gray-200 dark:bg-surface-border peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:bg-surface-primary after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
             </label>
           </div>
 
           {/* Payment Retry */}
           <div className="flex items-center justify-between">
             <div>
-              <h4 className="font-medium text-gray-900">Payment Retry</h4>
-              <p className="text-sm text-gray-600">
+              <h4 className="font-medium text-gray-900 dark:text-text-primary">Payment Retry</h4>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">
                 If payment fails, we'll retry 3 times over 7 days
               </p>
             </div>
@@ -181,13 +181,13 @@ export default function PaymentMethodsTab() {
                 onChange={() => {}}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              <div className="w-11 h-6 bg-gray-200 dark:bg-surface-border peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:bg-surface-primary after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
             </label>
           </div>
 
           {/* Notification Preferences */}
           <div>
-            <h4 className="font-medium text-gray-900 mb-3">Billing Notifications</h4>
+            <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3">Billing Notifications</h4>
             <div className="space-y-3">
               {[
                 { key: 'emailInvoice', label: 'Email invoice receipt after payment' },
@@ -200,7 +200,7 @@ export default function PaymentMethodsTab() {
                     type="checkbox"
                     checked={billingPreferences[pref.key]}
                     onChange={() => {}}
-                    className="rounded border-gray-300"
+                    className="rounded border-gray-300 dark:border-surface-border"
                   />
                   <span className="text-sm">{pref.label}</span>
                 </label>
@@ -210,16 +210,16 @@ export default function PaymentMethodsTab() {
 
           {/* Invoice Email */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
               Invoice Email
             </label>
             <input
               type="email"
               value={billingPreferences.invoiceEmail}
               onChange={() => {}}
-              className="w-full md:w-96 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full md:w-96 px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <button className="text-blue-600 text-sm ml-2">Change</button>
+            <button className="text-blue-600 dark:text-blue-400 text-sm ml-2">Change</button>
           </div>
         </div>
       </Card>

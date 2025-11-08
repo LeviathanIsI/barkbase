@@ -182,7 +182,7 @@ const OwnerDetail = () => {
 
   const summaryProps = useMemo(() => ({
     avatar: (
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-purple-100 text-purple-600">
+      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-purple-100 dark:bg-surface-secondary text-purple-600 dark:text-purple-400">
         <UsersIcon className="h-8 w-8" />
       </div>
     ),
@@ -247,7 +247,7 @@ const OwnerDetail = () => {
                   key={booking.recordId}
                   className="flex gap-4 border-b border-border pb-4 last:border-0"
                 >
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 dark:bg-surface-secondary text-blue-600 dark:text-blue-400">
                     <Calendar className="h-4 w-4" />
                   </div>
                   <div className="flex-1">
@@ -351,7 +351,7 @@ const OwnerDetail = () => {
             {recordPets.map((pet) => (
               <div
                 key={pet.recordId}
-                className="flex items-center gap-3 rounded-md border border-border px-3 py-2 transition hover:bg-gray-50"
+                className="flex items-center gap-3 rounded-md border border-border px-3 py-2 transition hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
               >
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 text-primary-600">
                   <PawPrint className="h-5 w-5" />
@@ -362,7 +362,7 @@ const OwnerDetail = () => {
                 </div>
                 <button
                   onClick={() => handleRemovePet(pet)}
-                  className="rounded-full p-1 text-muted transition hover:bg-red-50 hover:text-red-600"
+                  className="rounded-full p-1 text-muted transition hover:bg-red-50 dark:bg-surface-primary hover:text-red-600"
                   title="Remove pet"
                 >
                   <X className="h-4 w-4" />
@@ -471,7 +471,7 @@ const OwnerDetail = () => {
             <input
               type="text"
               id="petName"
-              className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full rounded-md border border-border bg-white dark:bg-surface-primary px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               placeholder="Enter pet name"
             />
           </div>
@@ -482,7 +482,7 @@ const OwnerDetail = () => {
             <input
               type="text"
               id="petBreed"
-              className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full rounded-md border border-border bg-white dark:bg-surface-primary px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               placeholder="Enter breed (optional)"
             />
           </div>

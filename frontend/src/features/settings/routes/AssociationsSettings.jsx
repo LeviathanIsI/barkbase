@@ -234,9 +234,9 @@ const AssociationsSettings = () => {
       ) : (
         <div className="space-y-6">
           {groupedAssociations.map((group) => (
-            <div key={`${group.fromObjectType}-${group.toObjectType}`} className="rounded-lg border border-border bg-white overflow-hidden">
+            <div key={`${group.fromObjectType}-${group.toObjectType}`} className="rounded-lg border border-border bg-white dark:bg-surface-primary overflow-hidden">
               {/* Group Header */}
-              <div className="bg-gray-50 border-b border-border px-6 py-3">
+              <div className="bg-gray-50 dark:bg-surface-secondary border-b border-border px-6 py-3">
                 <h3 className="text-sm font-semibold text-text flex items-center gap-2">
                   {formatObjectType(group.fromObjectType)}
                   <ExternalLink className="h-3.5 w-3.5 text-muted" />
@@ -248,7 +248,7 @@ const AssociationsSettings = () => {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-border bg-gray-50/50">
+                    <tr className="border-b border-border bg-gray-50 dark:bg-surface-secondary/50">
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">
                         Label
                       </th>
@@ -270,7 +270,7 @@ const AssociationsSettings = () => {
                     {group.associations.map((association) => (
                       <tr
                         key={association.recordId}
-                        className={`hover:bg-gray-50/50 transition-colors ${
+                        className={`hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary/50 transition-colors ${
                           association.archived ? 'opacity-50' : ''
                         }`}
                       >
@@ -280,14 +280,14 @@ const AssociationsSettings = () => {
                               {association.label}
                             </span>
                             {association.archived && (
-                              <span className="px-2 py-0.5 text-xs font-medium text-gray-600 bg-gray-100 rounded">
+                              <span className="px-2 py-0.5 text-xs font-medium text-gray-600 dark:text-text-secondary bg-gray-100 dark:bg-surface-secondary rounded">
                                 Archived
                               </span>
                             )}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded">
+                          <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-700 dark:text-text-primary bg-gray-100 dark:bg-surface-secondary rounded">
                             {formatLimitType(association.limitType)}
                           </span>
                         </td>
@@ -296,11 +296,11 @@ const AssociationsSettings = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {association.isSystemDefined ? (
-                            <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded">
+                            <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-surface-primary rounded">
                               System
                             </span>
                           ) : (
-                            <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-purple-700 bg-purple-50 rounded">
+                            <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-surface-primary rounded">
                               Custom
                             </span>
                           )}

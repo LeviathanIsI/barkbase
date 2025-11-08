@@ -115,7 +115,7 @@ const Inventory = () => {
     >
       <div className="grid gap-6 lg:grid-cols-3 mb-6">
         <Card className="text-center">
-          <div className="flex items-center justify-center w-12 h-12 mx-auto mb-3 rounded-full bg-red-100 text-red-600">
+          <div className="flex items-center justify-center w-12 h-12 mx-auto mb-3 rounded-full bg-red-100 dark:bg-surface-secondary text-red-600">
             <AlertTriangle className="w-6 h-6" />
           </div>
           <div className="text-2xl font-bold text-text">
@@ -125,7 +125,7 @@ const Inventory = () => {
         </Card>
         
         <Card className="text-center">
-          <div className="flex items-center justify-center w-12 h-12 mx-auto mb-3 rounded-full bg-yellow-100 text-yellow-600">
+          <div className="flex items-center justify-center w-12 h-12 mx-auto mb-3 rounded-full bg-yellow-100 dark:bg-surface-secondary text-yellow-600">
             <Calendar className="w-6 h-6" />
           </div>
           <div className="text-2xl font-bold text-text">
@@ -135,7 +135,7 @@ const Inventory = () => {
         </Card>
         
         <Card className="text-center">
-          <div className="flex items-center justify-center w-12 h-12 mx-auto mb-3 rounded-full bg-blue-100 text-blue-600">
+          <div className="flex items-center justify-center w-12 h-12 mx-auto mb-3 rounded-full bg-blue-100 dark:bg-surface-secondary text-blue-600 dark:text-blue-400">
             <Package className="w-6 h-6" />
           </div>
           <div className="text-2xl font-bold text-text">

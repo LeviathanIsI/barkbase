@@ -37,12 +37,12 @@ const CriticalAlerts = ({ alerts, onUpdate }) => {
   return (
     <Card title="Critical Alerts" icon={AlertTriangle}>
       <div className="space-y-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="bg-red-50 dark:bg-surface-primary border border-red-200 dark:border-red-900/30 rounded-lg p-4">
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
             <div>
-              <h4 className="font-medium text-red-900 mb-1">Always receive these notifications</h4>
-              <p className="text-sm text-red-800">
+              <h4 className="font-medium text-red-900 dark:text-red-100 mb-1">Always receive these notifications</h4>
+              <p className="text-sm text-red-800 dark:text-red-200">
                 These critical alerts will be sent even if other notification channels are disabled or during quiet hours.
               </p>
             </div>
@@ -51,7 +51,7 @@ const CriticalAlerts = ({ alerts, onUpdate }) => {
 
         {/* Critical Alert Types */}
         <div>
-          <h3 className="font-medium text-gray-900 mb-3">Critical Alert Types</h3>
+          <h3 className="font-medium text-gray-900 dark:text-text-primary mb-3">Critical Alert Types</h3>
           <div className="space-y-3">
             {criticalAlertTypes.map((alertType) => (
               <label key={alertType.key} className="flex items-start gap-3">
@@ -59,11 +59,11 @@ const CriticalAlerts = ({ alerts, onUpdate }) => {
                   type="checkbox"
                   checked={alerts[alertType.key]}
                   onChange={(e) => handleAlertToggle(alertType.key, e.target.checked)}
-                  className="mt-1 rounded border-gray-300"
+                  className="mt-1 rounded border-gray-300 dark:border-surface-border"
                 />
                 <div>
-                  <span className="font-medium text-gray-900">{alertType.label}</span>
-                  <p className="text-sm text-gray-600">{alertType.description}</p>
+                  <span className="font-medium text-gray-900 dark:text-text-primary">{alertType.label}</span>
+                  <p className="text-sm text-gray-600 dark:text-text-secondary">{alertType.description}</p>
                 </div>
               </label>
             ))}
@@ -72,7 +72,7 @@ const CriticalAlerts = ({ alerts, onUpdate }) => {
 
         {/* Delivery Channels */}
         <div>
-          <h3 className="font-medium text-gray-900 mb-3">These will be sent via:</h3>
+          <h3 className="font-medium text-gray-900 dark:text-text-primary mb-3">These will be sent via:</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {channels.map((channel) => {
               const Icon = channel.icon;
@@ -82,7 +82,7 @@ const CriticalAlerts = ({ alerts, onUpdate }) => {
                 <label
                   key={channel.key}
                   className={`border rounded-lg p-4 cursor-pointer transition-colors ${
-                    isEnabled ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'
+                    isEnabled ? 'border-blue-500 bg-blue-50 dark:bg-surface-primary' : 'border-gray-200 dark:border-surface-border hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -90,12 +90,12 @@ const CriticalAlerts = ({ alerts, onUpdate }) => {
                       type="checkbox"
                       checked={isEnabled}
                       onChange={(e) => handleChannelToggle(channel.key, e.target.checked)}
-                      className="rounded border-gray-300"
+                      className="rounded border-gray-300 dark:border-surface-border"
                     />
-                    <div className={`p-2 rounded-full ${isEnabled ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                      <Icon className={`w-4 h-4 ${isEnabled ? 'text-blue-600' : 'text-gray-400'}`} />
+                    <div className={`p-2 rounded-full ${isEnabled ? 'bg-blue-100' : 'bg-gray-100 dark:bg-surface-secondary'}`}>
+                      <Icon className={`w-4 h-4 ${isEnabled ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-text-tertiary'}`} />
                     </div>
-                    <span className={`font-medium ${isEnabled ? 'text-blue-900' : 'text-gray-700'}`}>
+                    <span className={`font-medium ${isEnabled ? 'text-blue-900 dark:text-blue-100' : 'text-gray-700 dark:text-text-primary'}`}>
                       {channel.label}
                     </span>
                   </div>
@@ -106,9 +106,9 @@ const CriticalAlerts = ({ alerts, onUpdate }) => {
         </div>
 
         {/* Additional Settings */}
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <h4 className="font-medium text-gray-900 mb-2">Additional Settings</h4>
-          <div className="space-y-2 text-sm text-gray-600">
+        <div className="bg-gray-50 dark:bg-surface-secondary border border-gray-200 dark:border-surface-border rounded-lg p-4">
+          <h4 className="font-medium text-gray-900 dark:text-text-primary mb-2">Additional Settings</h4>
+          <div className="space-y-2 text-sm text-gray-600 dark:text-text-secondary">
             <p>• Critical alerts bypass quiet hours restrictions</p>
             <p>• SMS alerts will be sent even if SMS is disabled for other notifications</p>
             <p>• Critical alerts are logged and cannot be disabled</p>

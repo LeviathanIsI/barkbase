@@ -56,11 +56,11 @@ const CalendarWeekView = ({ currentDate, onDateChange, onBookingClick, filters }
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'confirmed': return 'bg-blue-100 border-blue-300 text-blue-800';
-      case 'pending': return 'bg-yellow-100 border-yellow-300 text-yellow-800';
-      case 'checked-in': return 'bg-green-100 border-green-300 text-green-800';
-      case 'checked-out': return 'bg-gray-100 border-gray-300 text-gray-800';
-      default: return 'bg-gray-100 border-gray-300 text-gray-800';
+      case 'confirmed': return 'bg-blue-100 dark:bg-surface-secondary border-blue-300 text-blue-800 dark:text-blue-200';
+      case 'pending': return 'bg-yellow-100 dark:bg-surface-secondary border-yellow-300 text-yellow-800';
+      case 'checked-in': return 'bg-green-100 dark:bg-surface-secondary border-green-300 text-green-800';
+      case 'checked-out': return 'bg-gray-100 dark:bg-surface-secondary border-gray-300 dark:border-surface-border text-gray-800 dark:text-text-primary';
+      default: return 'bg-gray-100 dark:bg-surface-secondary border-gray-300 dark:border-surface-border text-gray-800 dark:text-text-primary';
     }
   };
 
@@ -108,10 +108,10 @@ const CalendarWeekView = ({ currentDate, onDateChange, onBookingClick, filters }
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
-        <h2 className="text-xl font-semibold text-gray-900">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">
           {format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
         </h2>
-        <div className="flex items-center gap-2 text-sm text-gray-600">
+        <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-text-secondary">
           <span>All Services</span>
           <span>•</span>
           <span>All Kennels</span>
@@ -123,9 +123,9 @@ const CalendarWeekView = ({ currentDate, onDateChange, onBookingClick, filters }
       {/* Calendar Grid */}
       <div className="overflow-x-auto">
         <div className="min-w-[1000px]">
-          <div className="grid grid-cols-8 border border-gray-200 rounded-lg overflow-hidden">
+          <div className="grid grid-cols-8 border border-gray-200 dark:border-surface-border rounded-lg overflow-hidden">
             {/* Header Row */}
-            <div className="bg-gray-50 border-r border-gray-200 p-4 font-semibold text-gray-900">
+            <div className="bg-gray-50 dark:bg-surface-secondary border-r border-gray-200 dark:border-surface-border p-4 font-semibold text-gray-900 dark:text-text-primary">
               Kennel
             </div>
             {days.map((day) => {
@@ -134,10 +134,10 @@ const CalendarWeekView = ({ currentDate, onDateChange, onBookingClick, filters }
               const isCritical = capacityPercent >= 95;
 
               return (
-                <div key={day.toISOString()} className="bg-gray-50 border-r border-gray-200 p-4 text-center">
-                  <div className="font-semibold text-gray-900">{format(day, 'EEE')}</div>
-                  <div className="text-sm text-gray-600 mt-1">{format(day, 'MMM d')}</div>
-                  <div className="text-xs text-gray-500 mt-1">{capacityPercent}%</div>
+                <div key={day.toISOString()} className="bg-gray-50 dark:bg-surface-secondary border-r border-gray-200 dark:border-surface-border p-4 text-center">
+                  <div className="font-semibold text-gray-900 dark:text-text-primary">{format(day, 'EEE')}</div>
+                  <div className="text-sm text-gray-600 dark:text-text-secondary mt-1">{format(day, 'MMM d')}</div>
+                  <div className="text-xs text-gray-500 dark:text-text-secondary mt-1">{capacityPercent}%</div>
                   {isHigh && (
                     <div className={`text-xs mt-1 ${isCritical ? 'text-red-600' : 'text-orange-600'}`}>
                       {isCritical ? '🔥' : '⚠️'}
@@ -151,9 +151,9 @@ const CalendarWeekView = ({ currentDate, onDateChange, onBookingClick, filters }
             {kennels.map((kennel) => (
               <div key={kennel.recordId || kennel.id} className="contents">
                 {/* Kennel Header */}
-                <div className="bg-gray-50 border-r border-gray-200 p-4 font-medium text-gray-900 border-t">
+                <div className="bg-gray-50 dark:bg-surface-secondary border-r border-gray-200 dark:border-surface-border p-4 font-medium text-gray-900 dark:text-text-primary border-t">
                   <div className="font-semibold">{kennel.name}</div>
-                  <div className="text-xs text-gray-600 mt-1">{kennel.size}</div>
+                  <div className="text-xs text-gray-600 dark:text-text-secondary mt-1">{kennel.size}</div>
                 </div>
 
                 {/* Day Columns */}
@@ -165,8 +165,8 @@ const CalendarWeekView = ({ currentDate, onDateChange, onBookingClick, filters }
                   return (
                     <div
                       key={`${kennel.recordId || kennel.id}-${day.toISOString()}`}
-                      className={`min-h-[120px] border-r border-t border-gray-200 p-2 ${
-                        isFull ? 'bg-red-50' : capacityPercent >= 90 ? 'bg-orange-50' : 'bg-white'
+                      className={`min-h-[120px] border-r border-t border-gray-200 dark:border-surface-border p-2 ${
+                        isFull ? 'bg-red-50 dark:bg-red-950/20' : capacityPercent >= 90 ? 'bg-orange-50' : 'bg-white dark:bg-surface-primary'
                       }`}
                     >
                       {dayBookings.length === 0 ? (
@@ -218,9 +218,9 @@ const CalendarWeekView = ({ currentDate, onDateChange, onBookingClick, filters }
       </div>
 
       {/* Legend */}
-      <div className="mt-6 flex flex-wrap items-center gap-6 text-xs text-gray-600">
+      <div className="mt-6 flex flex-wrap items-center gap-6 text-xs text-gray-600 dark:text-text-secondary">
         <div className="flex items-center gap-2">
-          <Home className="w-4 h-4 text-blue-600" />
+          <Home className="w-4 h-4 text-blue-600 dark:text-blue-400" />
           <span>Boarding</span>
         </div>
         <div className="flex items-center gap-2">
@@ -228,7 +228,7 @@ const CalendarWeekView = ({ currentDate, onDateChange, onBookingClick, filters }
           <span>Daycare</span>
         </div>
         <div className="flex items-center gap-2">
-          <Scissors className="w-4 h-4 text-purple-600" />
+          <Scissors className="w-4 h-4 text-purple-600 dark:text-purple-400" />
           <span>Grooming</span>
         </div>
         <div className="flex items-center gap-2">

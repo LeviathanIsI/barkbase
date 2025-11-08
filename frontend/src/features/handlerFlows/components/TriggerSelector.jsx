@@ -69,7 +69,7 @@ const triggerCategories = [
     name: 'Websites & media',
     description: 'When websites and media are interacted with',
     icon: <Globe className="w-5 h-5" />,
-    color: 'text-purple-600',
+    color: 'text-purple-600 dark:text-purple-400',
     triggers: [
       { recordId: 'form.submitted',
         label: 'Form submitted',
@@ -100,7 +100,7 @@ const triggerCategories = [
     name: 'Custom events & external events',
     description: 'Requires custom configuration',
     icon: <Code className="w-5 h-5" />,
-    color: 'text-gray-600',
+    color: 'text-gray-600 dark:text-text-secondary',
     triggers: [
       { recordId: 'webhook.received',
         label: 'Received a webhook from an external app',

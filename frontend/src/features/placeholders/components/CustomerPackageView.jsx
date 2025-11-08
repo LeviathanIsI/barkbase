@@ -41,13 +41,13 @@ const CustomerPackageView = () => {
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">My Packages & Memberships</h2>
-        <p className="text-gray-600">View and manage your packages</p>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-text-primary">My Packages & Memberships</h2>
+        <p className="text-gray-600 dark:text-text-secondary">View and manage your packages</p>
       </div>
 
       {/* Active Packages */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">ACTIVE PACKAGES ({mockActivePackages.length})</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">ACTIVE PACKAGES ({mockActivePackages.length})</h3>
         <div className="space-y-4">
           {mockActivePackages.map((pkg) => {
             const progressPercent = (pkg.usedVisits / pkg.totalVisits) * 100;
@@ -57,12 +57,12 @@ const CustomerPackageView = () => {
               <Card key={pkg.id} className="p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-start gap-3">
-                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Package className="w-6 h-6 text-blue-600" />
+                    <div className="w-12 h-12 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Package className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div>
-                      <h4 className="font-bold text-gray-900">{pkg.name}</h4>
-                      <p className="text-sm text-gray-600">{pkg.type}</p>
+                      <h4 className="font-bold text-gray-900 dark:text-text-primary">{pkg.name}</h4>
+                      <p className="text-sm text-gray-600 dark:text-text-secondary">{pkg.type}</p>
                     </div>
                   </div>
                   {isExpiringSoon && (
@@ -75,12 +75,12 @@ const CustomerPackageView = () => {
 
                 <div className="mb-4">
                   <div className="flex items-center justify-between text-sm mb-2">
-                    <span className="text-gray-600">Progress</span>
-                    <span className="font-semibold text-gray-900">
+                    <span className="text-gray-600 dark:text-text-secondary">Progress</span>
+                    <span className="font-semibold text-gray-900 dark:text-text-primary">
                       {pkg.usedVisits} of {pkg.totalVisits} visits used
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div className="w-full bg-gray-200 dark:bg-surface-border rounded-full h-3">
                     <div
                       className={`h-3 rounded-full transition-all ${
                         progressPercent < 30 ? 'bg-green-600' :
@@ -90,23 +90,23 @@ const CustomerPackageView = () => {
                       style={{ width: `${progressPercent}%` }}
                     ></div>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">
                     {pkg.remainingVisits} visits remaining
                   </p>
                 </div>
 
                 <div className="grid grid-cols-3 gap-4 text-sm mb-4">
                   <div>
-                    <p className="text-gray-600">Purchased</p>
-                    <p className="font-medium text-gray-900">{pkg.purchased}</p>
+                    <p className="text-gray-600 dark:text-text-secondary">Purchased</p>
+                    <p className="font-medium text-gray-900 dark:text-text-primary">{pkg.purchased}</p>
                   </div>
                   <div>
-                    <p className="text-gray-600">Expires</p>
-                    <p className="font-medium text-gray-900">{pkg.expires}</p>
+                    <p className="text-gray-600 dark:text-text-secondary">Expires</p>
+                    <p className="font-medium text-gray-900 dark:text-text-primary">{pkg.expires}</p>
                   </div>
                   <div>
-                    <p className="text-gray-600">Value</p>
-                    <p className="font-medium text-gray-900">${pkg.value}</p>
+                    <p className="text-gray-600 dark:text-text-secondary">Value</p>
+                    <p className="font-medium text-gray-900 dark:text-text-primary">${pkg.value}</p>
                   </div>
                 </div>
 
@@ -127,15 +127,15 @@ const CustomerPackageView = () => {
 
       {/* Redemption History */}
       <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">REDEMPTION HISTORY</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">REDEMPTION HISTORY</h3>
         <div className="space-y-3">
           {mockHistory.map((item, idx) => (
-            <div key={idx} className="flex items-start gap-3 pb-3 border-b border-gray-200 last:border-0">
+            <div key={idx} className="flex items-start gap-3 pb-3 border-b border-gray-200 dark:border-surface-border last:border-0">
               <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="font-medium text-gray-900">{item.description}</p>
-                <p className="text-sm text-gray-600">{item.location}</p>
-                <p className="text-xs text-gray-500 mt-1">{item.date}</p>
+                <p className="font-medium text-gray-900 dark:text-text-primary">{item.description}</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">{item.location}</p>
+                <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">{item.date}</p>
               </div>
             </div>
           ))}
@@ -144,14 +144,14 @@ const CustomerPackageView = () => {
       </Card>
 
       {/* Purchase New Package */}
-      <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+      <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-surface-primary dark:to-surface-primary border-blue-200 dark:border-blue-900/30">
         <div className="flex items-start gap-4">
           <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
             <TrendingUp className="w-6 h-6 text-white" />
           </div>
           <div className="flex-1">
-            <h3 className="font-bold text-blue-900 mb-2">Save More with Packages</h3>
-            <p className="text-sm text-blue-800 mb-4">
+            <h3 className="font-bold text-blue-900 dark:text-blue-100 mb-2">Save More with Packages</h3>
+            <p className="text-sm text-blue-800 dark:text-blue-200 mb-4">
               Purchase multi-visit packages and save up to 30% on your regular bookings.
             </p>
             <Button>

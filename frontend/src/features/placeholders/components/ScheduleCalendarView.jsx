@@ -8,8 +8,8 @@ const ScheduleCalendarView = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold text-gray-900">Team Schedule</h2>
-          <p className="text-gray-600">Manage staff shifts, time off, and coverage</p>
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-text-primary">Team Schedule</h2>
+          <p className="text-gray-600 dark:text-text-secondary">Manage staff shifts, time off, and coverage</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline">Week</Button>
@@ -39,7 +39,7 @@ const ScheduleCalendarView = () => {
 
       {/* Coverage Analysis */}
       <Card className="p-4">
-        <h4 className="font-semibold text-gray-900 mb-3">Coverage Analysis</h4>
+        <h4 className="font-semibold text-gray-900 dark:text-text-primary mb-3">Coverage Analysis</h4>
         <div className="grid gap-4 md:grid-cols-3">
           <div className="flex items-center gap-2 text-green-700">
             <CheckCircle className="w-5 h-5" />
@@ -54,103 +54,103 @@ const ScheduleCalendarView = () => {
             <span>Sunday: ⚠️ Low coverage (3 staff - could use 2 more)</span>
           </div>
         </div>
-        <div className="mt-3 text-sm text-gray-600">
+        <div className="mt-3 text-sm text-gray-600 dark:text-text-secondary">
           <p><strong>Staff-to-pet ratios:</strong></p>
           <p>• Monday: 1:6 ✅ Within safe limits</p>
           <p>• Friday: 1:8 ⚠️ Approaching maximum (1:10 limit)</p>
         </div>
-        <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-          <p className="text-sm text-blue-800">💡 Consider scheduling additional staff for Friday</p>
+        <div className="mt-3 p-3 bg-blue-50 dark:bg-surface-primary rounded-lg">
+          <p className="text-sm text-blue-800 dark:text-blue-200">💡 Consider scheduling additional staff for Friday</p>
         </div>
       </Card>
 
       {/* Calendar Grid */}
       <div className="overflow-x-auto">
         <div className="min-w-[800px]">
-          <table className="w-full border border-gray-200">
+          <table className="w-full border border-gray-200 dark:border-surface-border">
             <thead>
-              <tr className="bg-gray-50">
-                <th className="p-4 text-left font-semibold border-r border-gray-200">Staff</th>
-                <th className="p-4 text-center font-semibold border-r border-gray-200">Mon Oct 13</th>
-                <th className="p-4 text-center font-semibold border-r border-gray-200">Tue Oct 14</th>
-                <th className="p-4 text-center font-semibold border-r border-gray-200 bg-blue-50">Wed Oct 15 TODAY</th>
-                <th className="p-4 text-center font-semibold border-r border-gray-200">Thu Oct 16</th>
-                <th className="p-4 text-center font-semibold border-r border-gray-200">Fri Oct 17</th>
-                <th className="p-4 text-center font-semibold border-r border-gray-200">Sat Oct 18</th>
+              <tr className="bg-gray-50 dark:bg-surface-secondary">
+                <th className="p-4 text-left font-semibold border-r border-gray-200 dark:border-surface-border">Staff</th>
+                <th className="p-4 text-center font-semibold border-r border-gray-200 dark:border-surface-border">Mon Oct 13</th>
+                <th className="p-4 text-center font-semibold border-r border-gray-200 dark:border-surface-border">Tue Oct 14</th>
+                <th className="p-4 text-center font-semibold border-r border-gray-200 dark:border-surface-border bg-blue-50 dark:bg-surface-primary">Wed Oct 15 TODAY</th>
+                <th className="p-4 text-center font-semibold border-r border-gray-200 dark:border-surface-border">Thu Oct 16</th>
+                <th className="p-4 text-center font-semibold border-r border-gray-200 dark:border-surface-border">Fri Oct 17</th>
+                <th className="p-4 text-center font-semibold border-r border-gray-200 dark:border-surface-border">Sat Oct 18</th>
                 <th className="p-4 text-center font-semibold">Sun Oct 19</th>
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b border-gray-200">
-                <td className="p-4 font-medium border-r border-gray-200">Jenny Martinez</td>
-                <td className="p-2 text-center border-r border-gray-200">
-                  <div className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">8-5 🟢</div>
+              <tr className="border-b border-gray-200 dark:border-surface-border">
+                <td className="p-4 font-medium border-r border-gray-200 dark:border-surface-border">Jenny Martinez</td>
+                <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
+                  <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 px-2 py-1 rounded">8-5 🟢</div>
                 </td>
-                <td className="p-2 text-center border-r border-gray-200">
-                  <div className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">8-5 🟢</div>
+                <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
+                  <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 px-2 py-1 rounded">8-5 🟢</div>
                 </td>
-                <td className="p-2 text-center border-r border-gray-200 bg-blue-50">
-                  <div className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">8-5 🟢NOW</div>
+                <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border bg-blue-50 dark:bg-surface-primary">
+                  <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 px-2 py-1 rounded">8-5 🟢NOW</div>
                 </td>
-                <td className="p-2 text-center border-r border-gray-200">
-                  <div className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">8-5</div>
+                <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
+                  <div className="text-xs bg-gray-100 dark:bg-surface-secondary text-gray-600 dark:text-text-secondary px-2 py-1 rounded">8-5</div>
                 </td>
-                <td className="p-2 text-center border-r border-gray-200">
-                  <div className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">8-5</div>
+                <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
+                  <div className="text-xs bg-gray-100 dark:bg-surface-secondary text-gray-600 dark:text-text-secondary px-2 py-1 rounded">8-5</div>
                 </td>
-                <td className="p-2 text-center border-r border-gray-200">
-                  <span className="text-xs text-gray-400">OFF</span>
+                <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
+                  <span className="text-xs text-gray-400 dark:text-text-tertiary">OFF</span>
                 </td>
                 <td className="p-2 text-center">
-                  <span className="text-xs text-gray-400">OFF</span>
+                  <span className="text-xs text-gray-400 dark:text-text-tertiary">OFF</span>
                 </td>
               </tr>
-              <tr className="border-b border-gray-200">
-                <td className="p-4 font-medium border-r border-gray-200">Mike Thompson</td>
-                <td className="p-2 text-center border-r border-gray-200">
-                  <div className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">7-4 🟢</div>
+              <tr className="border-b border-gray-200 dark:border-surface-border">
+                <td className="p-4 font-medium border-r border-gray-200 dark:border-surface-border">Mike Thompson</td>
+                <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
+                  <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 px-2 py-1 rounded">7-4 🟢</div>
                 </td>
-                <td className="p-2 text-center border-r border-gray-200">
-                  <div className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">7-4 🟢</div>
+                <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
+                  <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 px-2 py-1 rounded">7-4 🟢</div>
                 </td>
-                <td className="p-2 text-center border-r border-gray-200 bg-blue-50">
-                  <div className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">7-4 🟢NOW</div>
+                <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border bg-blue-50 dark:bg-surface-primary">
+                  <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 px-2 py-1 rounded">7-4 🟢NOW</div>
                 </td>
-                <td className="p-2 text-center border-r border-gray-200">
-                  <div className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">7-4</div>
+                <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
+                  <div className="text-xs bg-gray-100 dark:bg-surface-secondary text-gray-600 dark:text-text-secondary px-2 py-1 rounded">7-4</div>
                 </td>
-                <td className="p-2 text-center border-r border-gray-200">
-                  <div className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">7-4</div>
+                <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
+                  <div className="text-xs bg-gray-100 dark:bg-surface-secondary text-gray-600 dark:text-text-secondary px-2 py-1 rounded">7-4</div>
                 </td>
-                <td className="p-2 text-center border-r border-gray-200">
-                  <div className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">9-6</div>
+                <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
+                  <div className="text-xs bg-gray-100 dark:bg-surface-secondary text-gray-600 dark:text-text-secondary px-2 py-1 rounded">9-6</div>
                 </td>
                 <td className="p-2 text-center">
-                  <span className="text-xs text-gray-400">OFF</span>
+                  <span className="text-xs text-gray-400 dark:text-text-tertiary">OFF</span>
                 </td>
               </tr>
-              <tr className="border-b border-gray-200">
-                <td className="p-4 font-medium border-r border-gray-200">Sarah Johnson</td>
-                <td className="p-2 text-center border-r border-gray-200">
-                  <div className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">10-6 🟢</div>
+              <tr className="border-b border-gray-200 dark:border-surface-border">
+                <td className="p-4 font-medium border-r border-gray-200 dark:border-surface-border">Sarah Johnson</td>
+                <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
+                  <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 px-2 py-1 rounded">10-6 🟢</div>
                 </td>
-                <td className="p-2 text-center border-r border-gray-200">
-                  <div className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">10-6 🟢</div>
+                <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
+                  <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 px-2 py-1 rounded">10-6 🟢</div>
                 </td>
-                <td className="p-2 text-center border-r border-gray-200 bg-blue-50">
-                  <div className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">🏖️PTO</div>
+                <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border bg-blue-50 dark:bg-surface-primary">
+                  <div className="text-xs bg-orange-100 dark:bg-surface-secondary text-orange-800 px-2 py-1 rounded">🏖️PTO</div>
                 </td>
-                <td className="p-2 text-center border-r border-gray-200">
-                  <div className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">🏖️PTO</div>
+                <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
+                  <div className="text-xs bg-orange-100 dark:bg-surface-secondary text-orange-800 px-2 py-1 rounded">🏖️PTO</div>
                 </td>
-                <td className="p-2 text-center border-r border-gray-200">
-                  <span className="text-xs text-gray-400">OFF</span>
+                <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
+                  <span className="text-xs text-gray-400 dark:text-text-tertiary">OFF</span>
                 </td>
-                <td className="p-2 text-center border-r border-gray-200">
-                  <span className="text-xs text-gray-400">OFF</span>
+                <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
+                  <span className="text-xs text-gray-400 dark:text-text-tertiary">OFF</span>
                 </td>
                 <td className="p-2 text-center">
-                  <span className="text-xs text-gray-400">OFF</span>
+                  <span className="text-xs text-gray-400 dark:text-text-tertiary">OFF</span>
                 </td>
               </tr>
             </tbody>
@@ -160,24 +160,24 @@ const ScheduleCalendarView = () => {
 
       {/* Upcoming Time Off */}
       <Card className="p-4">
-        <h4 className="font-semibold text-gray-900 mb-3">Upcoming Time Off</h4>
+        <h4 className="font-semibold text-gray-900 dark:text-text-primary mb-3">Upcoming Time Off</h4>
         <div className="space-y-2">
-          <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+          <div className="flex items-center justify-between p-3 bg-yellow-50 dark:bg-surface-primary rounded-lg">
             <div>
-              <p className="font-medium text-gray-900">Sarah Johnson</p>
-              <p className="text-sm text-gray-600">Oct 15-18 (Vacation) 🏖️</p>
+              <p className="font-medium text-gray-900 dark:text-text-primary">Sarah Johnson</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Oct 15-18 (Vacation) 🏖️</p>
             </div>
           </div>
-          <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+          <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-surface-primary rounded-lg">
             <div>
-              <p className="font-medium text-gray-900">Mike Thompson</p>
-              <p className="text-sm text-gray-600">Oct 25-27 (Personal) 📅</p>
+              <p className="font-medium text-gray-900 dark:text-text-primary">Mike Thompson</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Oct 25-27 (Personal) 📅</p>
             </div>
           </div>
-          <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+          <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-surface-primary rounded-lg">
             <div>
-              <p className="font-medium text-gray-900">Jenny Martinez</p>
-              <p className="text-sm text-gray-600">Nov 22-24 (Thanksgiving) 🦃</p>
+              <p className="font-medium text-gray-900 dark:text-text-primary">Jenny Martinez</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Nov 22-24 (Thanksgiving) 🦃</p>
             </div>
           </div>
         </div>

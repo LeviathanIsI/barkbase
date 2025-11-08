@@ -85,7 +85,7 @@ export default function SegmentForm({ segment, onClose }) {
           />
           
           {isAutomatic && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-4">
+            <div className="mt-4 p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg space-y-4">
               <Select
                 label="Segment Type"
                 value={segmentType}
@@ -118,9 +118,9 @@ export default function SegmentForm({ segment, onClose }) {
                 />
               )}
               
-              <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-md">
-                <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-blue-800">
+              <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-surface-primary rounded-md">
+                <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-blue-800 dark:text-blue-200">
                   Automatic segments update daily. Members are added or removed based on the conditions you set.
                 </p>
               </div>

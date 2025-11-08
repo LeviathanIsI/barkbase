@@ -56,7 +56,7 @@ export const DependencyGraphViewer = ({ propertyId, graphData, onNodeClick }) =>
           <Button variant="outline" size="sm" onClick={handleZoomOut}>
             <ZoomOut className="w-4 h-4" />
           </Button>
-          <span className="text-sm text-gray-600">{Math.round(zoom * 100)}%</span>
+          <span className="text-sm text-gray-600 dark:text-text-secondary">{Math.round(zoom * 100)}%</span>
           <Button variant="outline" size="sm" onClick={handleZoomIn}>
             <ZoomIn className="w-4 h-4" />
           </Button>
@@ -68,7 +68,7 @@ export const DependencyGraphViewer = ({ propertyId, graphData, onNodeClick }) =>
       </div>
 
       {/* Graph Visualization */}
-      <div className="border rounded-lg bg-gray-50 relative" style={{ height: '500px' }}>
+      <div className="border rounded-lg bg-gray-50 dark:bg-surface-secondary relative" style={{ height: '500px' }}>
         <svg
           ref={svgRef}
           width="100%"
@@ -78,14 +78,14 @@ export const DependencyGraphViewer = ({ propertyId, graphData, onNodeClick }) =>
           {/* Graph rendered here */}
           <g id="graph-container">
             {/* Placeholder visualization */}
-            <text x="50%" y="50%" textAnchor="middle" className="text-gray-400">
+            <text x="50%" y="50%" textAnchor="middle" className="text-gray-400 dark:text-text-tertiary">
               Graph visualization will render here
             </text>
           </g>
         </svg>
 
         {/* Legend */}
-        <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg p-3 space-y-2 text-sm">
+        <div className="absolute bottom-4 left-4 bg-white dark:bg-surface-primary rounded-lg shadow-lg p-3 space-y-2 text-sm">
           <div className="font-semibold mb-2">Property Types</div>
           {['system', 'standard', 'protected', 'custom'].map(type => (
             <div key={type} className="flex items-center space-x-2">
@@ -100,7 +100,7 @@ export const DependencyGraphViewer = ({ propertyId, graphData, onNodeClick }) =>
 
         {/* Metrics */}
         {graphData && (
-          <div className="absolute top-4 right-4 bg-white rounded-lg shadow-lg p-3 space-y-1 text-sm">
+          <div className="absolute top-4 right-4 bg-white dark:bg-surface-primary rounded-lg shadow-lg p-3 space-y-1 text-sm">
             <div><span className="font-semibold">Nodes:</span> {graphData.metrics?.nodeCount || 0}</div>
             <div><span className="font-semibold">Edges:</span> {graphData.metrics?.edgeCount || 0}</div>
             <div><span className="font-semibold">Max Depth:</span> {graphData.metrics?.maxDepth || 0}</div>
@@ -111,7 +111,7 @@ export const DependencyGraphViewer = ({ propertyId, graphData, onNodeClick }) =>
 
       {/* Selected Node Details */}
       {selectedNode && (
-        <div className="mt-4 p-4 border rounded-lg bg-blue-50">
+        <div className="mt-4 p-4 border rounded-lg bg-blue-50 dark:bg-surface-primary">
           <h4 className="font-semibold mb-2">{selectedNode.label}</h4>
           <div className="text-sm space-y-1">
             <div><span className="font-medium">Property Name:</span> {selectedNode.propertyName}</div>

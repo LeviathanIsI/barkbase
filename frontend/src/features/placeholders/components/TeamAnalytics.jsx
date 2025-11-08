@@ -8,11 +8,11 @@ const TeamAnalytics = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold text-gray-900">Team Analytics</h2>
-          <p className="text-gray-600">Insights into team performance and efficiency</p>
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-text-primary">Team Analytics</h2>
+          <p className="text-gray-600 dark:text-text-secondary">Insights into team performance and efficiency</p>
         </div>
         <div className="flex gap-2">
-          <select className="px-3 py-2 border border-gray-300 rounded-md">
+          <select className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md bg-white dark:bg-surface-primary">
             <option>Last 30 days</option>
             <option>Last 90 days</option>
             <option>Last 6 months</option>
@@ -21,27 +21,27 @@ const TeamAnalytics = () => {
       </div>
 
       {/* Health Score */}
-      <Card className="p-6 bg-gradient-to-r from-green-50 to-blue-50">
+      <Card className="p-6 bg-gradient-to-r from-green-50 to-blue-50 dark:from-surface-primary dark:to-surface-primary">
         <div className="text-center">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Overall Team Health Score</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">Overall Team Health Score</h3>
           <div className="text-6xl font-bold text-green-600 mb-2">87/100</div>
           <div className="text-xl text-green-700 mb-4">⭐ VERY GOOD</div>
           <div className="grid gap-4 md:grid-cols-4 text-sm">
             <div>
               <div className="font-medium text-green-700">✅ Productivity: 92/100</div>
-              <div className="text-gray-600">Excellent</div>
+              <div className="text-gray-600 dark:text-text-secondary">Excellent</div>
             </div>
             <div>
               <div className="font-medium text-green-700">✅ Customer Satisfaction: 94/100</div>
-              <div className="text-gray-600">Excellent</div>
+              <div className="text-gray-600 dark:text-text-secondary">Excellent</div>
             </div>
             <div>
               <div className="font-medium text-orange-700">⚠️ Attendance: 78/100</div>
-              <div className="text-gray-600">Needs Improvement</div>
+              <div className="text-gray-600 dark:text-text-secondary">Needs Improvement</div>
             </div>
             <div>
               <div className="font-medium text-green-700">✅ Task Completion: 96/100</div>
-              <div className="text-gray-600">Excellent</div>
+              <div className="text-gray-600 dark:text-text-secondary">Excellent</div>
             </div>
           </div>
         </div>
@@ -49,29 +49,29 @@ const TeamAnalytics = () => {
 
       {/* Productivity Metrics */}
       <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Productivity Metrics</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">Productivity Metrics</h3>
         <div className="grid gap-4 md:grid-cols-4 mb-4">
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900">2,847</div>
-            <div className="text-sm text-gray-600">Tasks completed</div>
-            <div className="text-xs text-gray-500">avg 95/day</div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-text-primary">2,847</div>
+            <div className="text-sm text-gray-600 dark:text-text-secondary">Tasks completed</div>
+            <div className="text-xs text-gray-500 dark:text-text-secondary">avg 95/day</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-green-600">96.2%</div>
-            <div className="text-sm text-gray-600">On-time completion</div>
+            <div className="text-sm text-gray-600 dark:text-text-secondary">On-time completion</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900">28 min</div>
-            <div className="text-sm text-gray-600">Average completion time</div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-text-primary">28 min</div>
+            <div className="text-sm text-gray-600 dark:text-text-secondary">Average completion time</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">8.2</div>
-            <div className="text-sm text-gray-600">Tasks per staff member</div>
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">8.2</div>
+            <div className="text-sm text-gray-600 dark:text-text-secondary">Tasks per staff member</div>
           </div>
         </div>
 
         <div className="mb-4">
-          <h4 className="font-medium text-gray-900 mb-2">Top Performers</h4>
+          <h4 className="font-medium text-gray-900 dark:text-text-primary mb-2">Top Performers</h4>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span>1. Jenny Martinez - 412 tasks (97% on-time)</span>
@@ -90,7 +90,7 @@ const TeamAnalytics = () => {
 
         <div className="mb-4">
           <h4 className="font-medium text-orange-700 mb-2">Needs attention</h4>
-          <p className="text-sm text-gray-600">• David Martinez - 89% on-time (below 95% target)</p>
+          <p className="text-sm text-gray-600 dark:text-text-secondary">• David Martinez - 89% on-time (below 95% target)</p>
         </div>
 
         <Button variant="outline">View Detailed Productivity Report</Button>
@@ -98,29 +98,29 @@ const TeamAnalytics = () => {
 
       {/* Attendance & Punctuality */}
       <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Attendance & Punctuality</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">Attendance & Punctuality</h3>
         <div className="grid gap-4 md:grid-cols-3 mb-4">
           <div className="text-center">
             <div className="text-2xl font-bold text-green-600">94.2%</div>
-            <div className="text-sm text-gray-600">Attendance rate</div>
-            <div className="text-xs text-gray-500">Target: 96%</div>
+            <div className="text-sm text-gray-600 dark:text-text-secondary">Attendance rate</div>
+            <div className="text-xs text-gray-500 dark:text-text-secondary">Target: 96%</div>
           </div>
           <div className="text-center">
             <div className="text-2xl font-bold text-red-600">47</div>
-            <div className="text-sm text-gray-600">Late arrivals</div>
-            <div className="text-xs text-gray-500">incidents</div>
+            <div className="text-sm text-gray-600 dark:text-text-secondary">Late arrivals</div>
+            <div className="text-xs text-gray-500 dark:text-text-secondary">incidents</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900">12 min</div>
-            <div className="text-sm text-gray-600">Average late time</div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-text-primary">12 min</div>
+            <div className="text-sm text-gray-600 dark:text-text-secondary">Average late time</div>
           </div>
         </div>
 
         <div className="mb-4">
-          <h4 className="font-medium text-gray-900 mb-2">Perfect attendance (this month)</h4>
+          <h4 className="font-medium text-gray-900 dark:text-text-primary mb-2">Perfect attendance (this month)</h4>
           <div className="flex gap-2">
-            <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">Mike Thompson ⭐</span>
-            <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">Amanda Chen ⭐</span>
+            <span className="px-3 py-1 bg-green-100 dark:bg-surface-secondary text-green-800 rounded-full text-sm">Mike Thompson ⭐</span>
+            <span className="px-3 py-1 bg-green-100 dark:bg-surface-secondary text-green-800 rounded-full text-sm">Amanda Chen ⭐</span>
           </div>
         </div>
 
@@ -129,10 +129,10 @@ const TeamAnalytics = () => {
 
       {/* Customer Satisfaction */}
       <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Customer Satisfaction</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">Customer Satisfaction</h3>
         <div className="text-center mb-4">
           <div className="text-4xl font-bold text-yellow-500 mb-2">⭐⭐⭐⭐⭐ 4.7/5.0</div>
-          <div className="text-gray-600">Based on 247 customer reviews</div>
+          <div className="text-gray-600 dark:text-text-secondary">Based on 247 customer reviews</div>
         </div>
 
         <div className="space-y-3 mb-4">
@@ -155,7 +155,7 @@ const TeamAnalytics = () => {
         <div className="grid gap-4 md:grid-cols-2 mb-4">
           <div>
             <h4 className="font-medium text-green-700 mb-2">Common positive feedback</h4>
-            <ul className="text-sm text-gray-600 space-y-1">
+            <ul className="text-sm text-gray-600 dark:text-text-secondary space-y-1">
               <li>• "Staff are so caring and professional"</li>
               <li>• "Great communication about my dog's day"</li>
               <li>• "My pet is always excited to come here"</li>
@@ -163,7 +163,7 @@ const TeamAnalytics = () => {
           </div>
           <div>
             <h4 className="font-medium text-orange-700 mb-2">Common complaints</h4>
-            <ul className="text-sm text-gray-600 space-y-1">
+            <ul className="text-sm text-gray-600 dark:text-text-secondary space-y-1">
               <li>• "Sometimes slow to respond to messages"</li>
               <li>• "Would like more photo updates"</li>
             </ul>
@@ -174,13 +174,13 @@ const TeamAnalytics = () => {
       </Card>
 
       {/* Actionable Insights */}
-      <Card className="p-6 bg-gradient-to-r from-blue-50 to-purple-50">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Actionable Insights</h3>
+      <Card className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-surface-primary dark:to-surface-primary">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">Actionable Insights</h3>
 
         <div className="space-y-4">
           <div>
             <h4 className="font-medium text-green-700 mb-2">📈 OPPORTUNITIES:</h4>
-            <ul className="text-sm text-gray-700 space-y-1">
+            <ul className="text-sm text-gray-700 dark:text-text-primary space-y-1">
               <li>• Jenny Martinez ready for leadership role - 4.9 rating</li>
               <li>• Team morale high - 87% satisfaction score</li>
               <li>• Labor costs efficient at 32.5% of revenue</li>
@@ -189,7 +189,7 @@ const TeamAnalytics = () => {
 
           <div>
             <h4 className="font-medium text-red-700 mb-2">⚠️ CONCERNS:</h4>
-            <ul className="text-sm text-gray-700 space-y-1">
+            <ul className="text-sm text-gray-700 dark:text-text-primary space-y-1">
               <li>• David Martinez needs coaching (lateness, lower ratings)</li>
               <li>• Overtime costs increasing - hire part-time help?</li>
               <li>• Only 50% of staff CPR certified - compliance risk</li>
@@ -197,8 +197,8 @@ const TeamAnalytics = () => {
           </div>
 
           <div>
-            <h4 className="font-medium text-blue-700 mb-2">🎯 RECOMMENDED ACTIONS:</h4>
-            <ol className="text-sm text-gray-700 space-y-1">
+            <h4 className="font-medium text-blue-700 dark:text-blue-300 mb-2">🎯 RECOMMENDED ACTIONS:</h4>
+            <ol className="text-sm text-gray-700 dark:text-text-primary space-y-1">
               <li>1. Coach David on punctuality and customer service</li>
               <li>2. Schedule CPR certification for 4 staff members</li>
               <li>3. Consider promoting Jenny to shift supervisor</li>

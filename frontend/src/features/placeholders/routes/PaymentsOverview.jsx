@@ -109,51 +109,51 @@ const PaymentsOverview = () => {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card className="p-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <DollarSign className="w-5 h-5 text-blue-600" />
+              <div className="w-10 h-10 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
+                <DollarSign className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <p className="text-sm text-gray-600">Revenue Collected</p>
-                <p className="text-2xl font-bold text-gray-900">${safeStats.revenueCollected.toLocaleString()}</p>
-                <p className="text-xs text-gray-600">Revenue collected</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">Revenue Collected</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">${safeStats.revenueCollected.toLocaleString()}</p>
+                <p className="text-xs text-gray-600 dark:text-text-secondary">Revenue collected</p>
               </div>
             </div>
           </Card>
 
           <Card className="p-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                 <CheckCircle className="w-5 h-5 text-green-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-600">Success Rate</p>
-                <p className="text-2xl font-bold text-gray-900">{safeStats.successRate}%</p>
-                <p className="text-xs text-gray-600">Success rate</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">Success Rate</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{safeStats.successRate}%</p>
+                <p className="text-xs text-gray-600 dark:text-text-secondary">Success rate</p>
               </div>
             </div>
           </Card>
 
           <Card className="p-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-yellow-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                 <Clock className="w-5 h-5 text-yellow-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-600">Outstanding</p>
-                <p className="text-2xl font-bold text-gray-900">${safeStats.pendingAmount.toLocaleString()}</p>
-                <p className="text-xs text-gray-600">Pending payments</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">Outstanding</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">${safeStats.pendingAmount.toLocaleString()}</p>
+                <p className="text-xs text-gray-600 dark:text-text-secondary">Pending payments</p>
               </div>
             </div>
           </Card>
 
           <Card className="p-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-purple-600" />
+              <div className="w-10 h-10 bg-purple-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
-                <p className="text-sm text-gray-600">Fees Paid</p>
-                <p className="text-2xl font-bold text-gray-900">$456</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">Fees Paid</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">$456</p>
                 <p className="text-xs text-green-600">2.47% effective rate</p>
               </div>
             </div>
@@ -163,19 +163,19 @@ const PaymentsOverview = () => {
         {/* Processor Status */}
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Payment Processor</h3>
-            <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">Payment Processor</h3>
+            <span className="px-3 py-1 bg-green-100 dark:bg-surface-secondary text-green-800 text-sm font-medium rounded-full">
               ✅ Connected: Stripe
             </span>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <p className="text-sm text-gray-600">Status</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Status</p>
               <p className="font-medium text-green-700">Active • Processing smoothly</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Your Rate</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Your Rate</p>
               <p className="font-medium">2.9% + 30¢ per transaction</p>
             </div>
           </div>
@@ -214,7 +214,7 @@ const PaymentsOverview = () => {
         actions={
           <div className="flex items-center gap-2">
             {/* View Toggle */}
-            <div className="flex items-center bg-gray-100 rounded-lg p-1">
+            <div className="flex items-center bg-gray-100 dark:bg-surface-secondary rounded-lg p-1">
               <Button
                 variant={currentView === 'overview' ? 'primary' : 'ghost'}
                 size="sm"
@@ -266,12 +266,12 @@ const PaymentsOverview = () => {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
               <DollarSign className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Revenue Collected</p>
-              <p className="text-2xl font-bold text-gray-900">${safeStats.revenueCollected.toLocaleString()}</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Revenue Collected</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">${safeStats.revenueCollected.toLocaleString()}</p>
               <p className="text-xs text-green-600">+${safeStats.previousPeriod.toLocaleString()} (+15%)</p>
             </div>
           </div>
@@ -279,39 +279,39 @@ const PaymentsOverview = () => {
 
         <Card className="p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <CheckCircle className="w-5 h-5 text-blue-600" />
+            <div className="w-10 h-10 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
+              <CheckCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Processed</p>
-              <p className="text-2xl font-bold text-gray-900">${safeStats.processedAmount.toLocaleString()}</p>
-              <p className="text-xs text-gray-600">Card/online payments</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Processed</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">${safeStats.processedAmount.toLocaleString()}</p>
+              <p className="text-xs text-gray-600 dark:text-text-secondary">Card/online payments</p>
             </div>
           </div>
         </Card>
 
         <Card className="p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-yellow-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
               <Clock className="w-5 h-5 text-yellow-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Pending</p>
-              <p className="text-2xl font-bold text-gray-900">${safeStats.pendingAmount.toLocaleString()}</p>
-              <p className="text-xs text-gray-600">Outstanding balance</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Pending</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">${safeStats.pendingAmount.toLocaleString()}</p>
+              <p className="text-xs text-gray-600 dark:text-text-secondary">Outstanding balance</p>
             </div>
           </div>
         </Card>
 
         <Card className="p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-purple-600" />
+            <div className="w-10 h-10 bg-purple-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Success Rate</p>
-              <p className="text-2xl font-bold text-gray-900">{safeStats.successRate}%</p>
-              <p className="text-xs text-gray-600">Very good</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Success Rate</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{safeStats.successRate}%</p>
+              <p className="text-xs text-gray-600 dark:text-text-secondary">Very good</p>
             </div>
           </div>
         </Card>
@@ -321,51 +321,51 @@ const PaymentsOverview = () => {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-red-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
               <XCircle className="w-5 h-5 text-red-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Refunds</p>
-              <p className="text-2xl font-bold text-gray-900">${safeStats.refunds.toFixed(2)}</p>
-              <p className="text-xs text-gray-600">Total refunds</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Refunds</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">${safeStats.refunds.toFixed(2)}</p>
+              <p className="text-xs text-gray-600 dark:text-text-secondary">Total refunds</p>
             </div>
           </div>
         </Card>
 
         <Card className="p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-orange-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
               <AlertTriangle className="w-5 h-5 text-orange-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Failed Payments</p>
-              <p className="text-2xl font-bold text-gray-900">{safeStats.failedPayments}</p>
-              <p className="text-xs text-gray-600">Failed payments</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Failed Payments</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{safeStats.failedPayments}</p>
+              <p className="text-xs text-gray-600 dark:text-text-secondary">Failed payments</p>
             </div>
           </div>
         </Card>
 
         <Card className="p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-indigo-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
               <CreditCard className="w-5 h-5 text-indigo-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Avg Payment</p>
-              <p className="text-2xl font-bold text-gray-900">${safeStats.avgPayment.toFixed(2)}</p>
-              <p className="text-xs text-gray-600">Per booking</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Avg Payment</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">${safeStats.avgPayment.toFixed(2)}</p>
+              <p className="text-xs text-gray-600 dark:text-text-secondary">Per booking</p>
             </div>
           </div>
         </Card>
 
         <Card className="p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-gray-600" />
+            <div className="w-10 h-10 bg-gray-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
+              <BarChart3 className="w-5 h-5 text-gray-600 dark:text-text-secondary" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Fees Paid</p>
-              <p className="text-2xl font-bold text-gray-900">${safeStats.feesPaid.toFixed(2)}</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Fees Paid</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">${safeStats.feesPaid.toFixed(2)}</p>
               <p className="text-xs text-green-600">{safeStats.feeRate}% effective rate</p>
             </div>
           </div>
@@ -376,16 +376,16 @@ const PaymentsOverview = () => {
       <Card className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
               <CheckCircle className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <p className="font-medium text-gray-900">Connected: {safeProcessor.name}</p>
-              <p className="text-sm text-gray-600">Status: Active • Processing smoothly</p>
+              <p className="font-medium text-gray-900 dark:text-text-primary">Connected: {safeProcessor.name}</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Status: Active • Processing smoothly</p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-sm text-gray-600">Your rate</p>
+            <p className="text-sm text-gray-600 dark:text-text-secondary">Your rate</p>
             <p className="font-medium">{safeProcessor.rate}</p>
           </div>
         </div>

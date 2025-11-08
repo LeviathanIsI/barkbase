@@ -168,13 +168,13 @@ const PackageTemplatesModal = ({ isOpen, onClose, onSelectTemplate }) => {
           <div className="flex items-center justify-between">
             <div>
               <DialogTitle className="text-xl font-bold">Package Templates</DialogTitle>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-gray-600 dark:text-text-secondary mt-1">
                 Choose a pre-built template to get started quickly
               </p>
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-gray-400 dark:text-text-tertiary hover:text-gray-600 dark:hover:text-text-secondary transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -201,15 +201,15 @@ const PackageTemplatesModal = ({ isOpen, onClose, onSelectTemplate }) => {
             return (
               <div
                 key={template.id}
-                className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer"
+                className="border border-gray-200 dark:border-surface-border rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer"
                 onClick={() => onSelectTemplate(template)}
               >
                 <div className="flex items-start gap-3 mb-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Icon className="w-5 h-5 text-blue-600" />
+                  <div className="w-10 h-10 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Icon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-semibold text-gray-900 text-sm mb-1">{template.name}</h4>
+                    <h4 className="font-semibold text-gray-900 dark:text-text-primary text-sm mb-1">{template.name}</h4>
                     <Badge variant="secondary" className="text-xs">{template.category}</Badge>
                   </div>
                   {template.popularityRank <= 3 && (
@@ -219,16 +219,16 @@ const PackageTemplatesModal = ({ isOpen, onClose, onSelectTemplate }) => {
                   )}
                 </div>
 
-                <p className="text-xs text-gray-600 mb-3">{template.description}</p>
+                <p className="text-xs text-gray-600 dark:text-text-secondary mb-3">{template.description}</p>
 
                 <div className="mb-3">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-lg font-bold text-gray-900">
+                    <span className="text-lg font-bold text-gray-900 dark:text-text-primary">
                       ${template.price}{template.recurring && <span className="text-sm font-normal">/mo</span>}
                     </span>
                     {template.regularPrice && (
                       <>
-                        <span className="text-sm text-gray-400 line-through">${template.regularPrice}</span>
+                        <span className="text-sm text-gray-400 dark:text-text-tertiary line-through">${template.regularPrice}</span>
                         <span className="text-xs font-semibold text-green-700">Save ${template.savings}</span>
                       </>
                     )}
@@ -237,7 +237,7 @@ const PackageTemplatesModal = ({ isOpen, onClose, onSelectTemplate }) => {
 
                 <div className="space-y-1 mb-3">
                   {template.features.map((feature, idx) => (
-                    <p key={idx} className="text-xs text-gray-600 flex items-center gap-1">
+                    <p key={idx} className="text-xs text-gray-600 dark:text-text-secondary flex items-center gap-1">
                       <span className="text-green-600">✓</span>
                       {feature}
                     </p>
@@ -252,7 +252,7 @@ const PackageTemplatesModal = ({ isOpen, onClose, onSelectTemplate }) => {
           })}
         </div>
 
-        <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-200">
+        <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-200 dark:border-surface-border">
           <Button variant="secondary" onClick={onClose}>Close</Button>
         </div>
       </DialogContent>

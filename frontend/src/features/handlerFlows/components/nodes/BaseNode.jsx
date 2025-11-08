@@ -6,10 +6,10 @@ import NodeActions from './NodeActions';
 const BaseNode = ({ recordId, data, children, className, variant = 'default' }) => {
   const variants = {
     default: 'bg-surface border-border',
-    trigger: 'bg-blue-500/10 border-blue-500',
-    condition: 'bg-yellow-500/10 border-yellow-500',
+    trigger: 'bg-blue-50 dark:bg-blue-950/10 border-blue-500',
+    condition: 'bg-yellow-50 dark:bg-yellow-950/10 border-yellow-500',
     action: 'bg-purple-500/10 border-purple-500',
-    delay: 'bg-green-500/10 border-green-500',
+    delay: 'bg-green-50 dark:bg-green-950/10 border-green-500',
     branch: 'bg-orange-500/10 border-orange-500',
     code: 'bg-cyan-500/10 border-cyan-500',
   };

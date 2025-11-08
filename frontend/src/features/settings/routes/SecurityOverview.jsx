@@ -72,8 +72,8 @@ const SecurityOverview = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Security</h1>
-        <p className="text-gray-600">Manage your account security and access controls</p>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-text-primary">Security</h1>
+        <p className="text-gray-600 dark:text-text-secondary">Manage your account security and access controls</p>
       </div>
 
       {/* Security Score Overview */}
@@ -84,7 +84,7 @@ const SecurityOverview = () => {
         <form onSubmit={handlePasswordSubmit} className="space-y-4">
           <div className="grid gap-4 md:grid-cols-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                 Current Password
               </label>
               <input
@@ -92,13 +92,13 @@ const SecurityOverview = () => {
                 name="currentPassword"
                 value={passwordData.currentPassword}
                 onChange={handlePasswordChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                 New Password
               </label>
               <input
@@ -106,13 +106,13 @@ const SecurityOverview = () => {
                 name="newPassword"
                 value={passwordData.newPassword}
                 onChange={handlePasswordChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                 Confirm New Password
               </label>
               <input
@@ -120,7 +120,7 @@ const SecurityOverview = () => {
                 name="confirmPassword"
                 value={passwordData.confirmPassword}
                 onChange={handlePasswordChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
             </div>

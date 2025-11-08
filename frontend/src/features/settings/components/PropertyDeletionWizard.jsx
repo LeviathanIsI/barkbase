@@ -131,17 +131,17 @@ export const PropertyDeletionWizard = ({
 
         {/* Progress Bar */}
         <div className="space-y-2">
-          <div className="w-full bg-gray-200 rounded-full h-2">
+          <div className="w-full bg-gray-200 dark:bg-surface-border rounded-full h-2">
             <div 
               className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
               style={{ width: `${progress}%` }}
             />
           </div>
-          <div className="flex justify-between text-xs text-gray-600">
+          <div className="flex justify-between text-xs text-gray-600 dark:text-text-secondary">
             {STEPS.map((step) => (
               <div
                 key={step.id}
-                className={`${currentStep >= step.id ? 'font-semibold text-blue-600' : ''}`}
+                className={`${currentStep >= step.id ? 'font-semibold text-blue-600 dark:text-blue-400' : ''}`}
               >
                 {step.title}
               </div>
@@ -154,7 +154,7 @@ export const PropertyDeletionWizard = ({
           {/* Step 1: Impact Analysis */}
           {currentStep === 1 && impactData && (
             <div className="space-y-4">
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className="bg-yellow-50 dark:bg-surface-primary border border-yellow-200 dark:border-yellow-900/30 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
                   <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
                   <div>
@@ -168,7 +168,7 @@ export const PropertyDeletionWizard = ({
                 </div>
               </div>
 
-              <div className="text-sm text-gray-700">
+              <div className="text-sm text-gray-700 dark:text-text-primary">
                 <p>This property deletion will impact {impactData.impactSummary.affectedPropertiesCount} other properties in your system.</p>
                 <p className="mt-2">Review the impact and choose an appropriate cascade strategy in the next step.</p>
               </div>
@@ -178,7 +178,7 @@ export const PropertyDeletionWizard = ({
           {/* Step 2: Cascade Strategy */}
           {currentStep === 2 && (
             <div className="space-y-4">
-              <div className="text-sm text-gray-700 mb-4">
+              <div className="text-sm text-gray-700 dark:text-text-primary mb-4">
                 Choose how to handle properties that depend on this one:
               </div>
 
@@ -187,7 +187,7 @@ export const PropertyDeletionWizard = ({
                   <div
                     key={strategy.value}
                     className={`border rounded-lg p-4 cursor-pointer ${
-                      cascadeStrategy === strategy.value ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                      cascadeStrategy === strategy.value ? 'border-blue-500 bg-blue-50 dark:bg-surface-primary' : 'border-gray-200 dark:border-surface-border'
                     } ${strategy.danger ? 'border-red-300' : ''}`}
                     onClick={() => setCascadeStrategy(strategy.value)}
                   >
@@ -202,12 +202,12 @@ export const PropertyDeletionWizard = ({
                         <Label className="flex items-center space-x-2 cursor-pointer">
                           <span className="font-medium">{strategy.label}</span>
                           {strategy.recommended && (
-                            <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded">
+                            <span className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 px-2 py-0.5 rounded">
                               Recommended
                             </span>
                           )}
                         </Label>
-                        <p className="text-sm text-gray-600 mt-1">{strategy.description}</p>
+                        <p className="text-sm text-gray-600 dark:text-text-secondary mt-1">{strategy.description}</p>
                         {strategy.warning && (
                           <p className="text-sm text-orange-600 mt-1">⚠️ {strategy.warning}</p>
                         )}
@@ -240,10 +240,10 @@ export const PropertyDeletionWizard = ({
           {/* Step 3: Confirmation */}
           {currentStep === 3 && (
             <div className="space-y-4">
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="bg-red-50 dark:bg-surface-primary border border-red-200 dark:border-red-900/30 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
                   <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
-                  <div className="text-sm text-red-900">
+                  <div className="text-sm text-red-900 dark:text-red-100">
                     <div className="font-semibold">This action cannot be undone easily</div>
                     <p className="mt-1">The property will be soft-deleted and can be restored within 90 days.</p>
                   </div>
@@ -275,9 +275,9 @@ export const PropertyDeletionWizard = ({
               </div>
 
               {countdown > 0 && (
-                <div className="text-center p-4 bg-gray-100 rounded-lg">
-                  <div className="text-2xl font-bold text-gray-700">{countdown}</div>
-                  <div className="text-sm text-gray-600">Please wait before proceeding...</div>
+                <div className="text-center p-4 bg-gray-100 dark:bg-surface-secondary rounded-lg">
+                  <div className="text-2xl font-bold text-gray-700 dark:text-text-primary">{countdown}</div>
+                  <div className="text-sm text-gray-600 dark:text-text-secondary">Please wait before proceeding...</div>
                 </div>
               )}
             </div>
@@ -288,12 +288,12 @@ export const PropertyDeletionWizard = ({
             <div className="text-center py-8">
               <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">Property Deleted Successfully</h3>
-              <p className="text-sm text-gray-600 mb-4">
+              <p className="text-sm text-gray-600 dark:text-text-secondary mb-4">
                 The property has been soft-deleted and can be restored within 90 days from the Archived tab.
               </p>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left text-sm">
+              <div className="bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-4 text-left text-sm">
                 <div className="font-semibold mb-2">Next Steps:</div>
-                <ul className="space-y-1 text-gray-700">
+                <ul className="space-y-1 text-gray-700 dark:text-text-primary">
                   <li>• Review and update any affected workflows</li>
                   <li>• Check dependent properties for broken references</li>
                   <li>• Update documentation if needed</li>

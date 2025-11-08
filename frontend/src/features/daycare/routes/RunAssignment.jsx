@@ -52,7 +52,7 @@ const PetCard = ({ pet, startTime, endTime, isDragging = false }) => {
       style={style}
       {...listeners}
       {...attributes}
-      className={`bg-white border ${hasWarnings ? 'border-yellow-400' : 'border-border'} rounded-lg p-3 mb-2 cursor-move transition-all duration-200 hover:shadow-md ${
+      className={`bg-white dark:bg-surface-primary border ${hasWarnings ? 'border-yellow-400' : 'border-border'} rounded-lg p-3 mb-2 cursor-move transition-all duration-200 hover:shadow-md ${
         isDragging ? 'opacity-50 rotate-2' : ''
       }`}
     >
@@ -67,7 +67,7 @@ const PetCard = ({ pet, startTime, endTime, isDragging = false }) => {
           <p className="text-sm text-muted">{pet.breed || 'Unknown breed'}</p>
           <p className="text-xs text-muted">{ownerName}</p>
           {startTime && endTime && (
-            <div className="flex items-center gap-1 mt-1 text-xs text-blue-600 font-medium">
+            <div className="flex items-center gap-1 mt-1 text-xs text-blue-600 dark:text-blue-400 font-medium">
               <Clock className="h-3 w-3" />
               <span>{startTime} - {endTime}</span>
             </div>
@@ -102,7 +102,7 @@ const RunColumn = ({ run, assignments }) => {
   const utilizationPercent = Math.round((assignments.length / maxCapacity) * 100);
 
   return (
-    <div className={`bg-white border border-border rounded-lg p-4 ${isOver ? 'ring-2 ring-primary' : ''}`}>
+    <div className={`bg-white dark:bg-surface-primary border border-border rounded-lg p-4 ${isOver ? 'ring-2 ring-primary' : ''}`}>
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-semibold text-text">{run.name}</h3>
         <Badge variant={utilizationPercent > 80 ? 'danger' : utilizationPercent > 60 ? 'warning' : 'success'}>
@@ -114,7 +114,7 @@ const RunColumn = ({ run, assignments }) => {
         <div className="flex items-center gap-2 mb-2 text-xs text-muted">
           <Clock className="h-3 w-3" />
           <span>{run.timePeriodMinutes} min slots</span>
-          <span className="px-2 py-0.5 bg-gray-100 rounded text-xs">
+          <span className="px-2 py-0.5 bg-gray-100 dark:bg-surface-secondary rounded text-xs">
             {run.capacityType === 'concurrent' ? 'Concurrent' : 'Total'}
           </span>
         </div>
@@ -407,9 +407,9 @@ const RunAssignment = () => {
         <PageHeader title="Run Assignment" breadcrumb="Home > Daycare > Run Assignment" />
         <Card>
           <div className="text-center py-12">
-            <Clock className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No Run Templates Configured</h3>
-            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+            <Clock className="h-16 w-16 text-gray-400 dark:text-text-tertiary mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-text-primary mb-2">No Run Templates Configured</h3>
+            <p className="text-gray-600 dark:text-text-secondary mb-6 max-w-md mx-auto">
               Before you can assign pets to runs, you need to create run templates in Settings. These templates define the schedule, capacity, and time slots for each run.
             </p>
             <Link to="/settings/facility?tab=run-templates">

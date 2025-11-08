@@ -5,9 +5,9 @@ import Button from '@/components/ui/Button';
 const QuickActionsBar = ({ onNewBooking }) => {
   const navigate = useNavigate();
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 sticky bottom-4 shadow-lg">
+    <div className="bg-white dark:bg-surface-primary border border-gray-200 dark:border-surface-border rounded-lg p-4 sticky bottom-4 shadow-lg">
       <div className="flex items-center justify-between">
-        <h4 className="font-semibold text-gray-900">QUICK ACTIONS</h4>
+        <h4 className="font-semibold text-gray-900 dark:text-text-primary">QUICK ACTIONS</h4>
 
         <div className="flex items-center gap-2">
           <Button 

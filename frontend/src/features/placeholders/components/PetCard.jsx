@@ -5,24 +5,24 @@ import { Card } from '@/components/ui/Card';
 const PetCard = ({ pet, onCheckIn, onCheckOut, onCommunication }) => {
   const getStatusColor = (status) => {
     switch (status) {
-      case 'checked_in': return 'bg-green-100 border-green-300 text-green-800';
-      case 'checked_out': return 'bg-gray-100 border-gray-300 text-gray-800';
-      case 'scheduled': return 'bg-blue-100 border-blue-300 text-blue-800';
-      default: return 'bg-gray-100 border-gray-300 text-gray-800';
+      case 'checked_in': return 'bg-green-100 dark:bg-surface-secondary border-green-300 text-green-800';
+      case 'checked_out': return 'bg-gray-100 dark:bg-surface-secondary border-gray-300 dark:border-surface-border text-gray-800 dark:text-text-primary';
+      case 'scheduled': return 'bg-blue-100 dark:bg-surface-secondary border-blue-300 text-blue-800 dark:text-blue-200';
+      default: return 'bg-gray-100 dark:bg-surface-secondary border-gray-300 dark:border-surface-border text-gray-800 dark:text-text-primary';
     }
   };
 
   const getStatusIcon = (status) => {
     switch (status) {
       case 'checked_in': return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'checked_out': return <Home className="w-4 h-4 text-gray-600" />;
-      case 'scheduled': return <Clock className="w-4 h-4 text-blue-600" />;
-      default: return <Clock className="w-4 h-4 text-gray-600" />;
+      case 'checked_out': return <Home className="w-4 h-4 text-gray-600 dark:text-text-secondary" />;
+      case 'scheduled': return <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />;
+      default: return <Clock className="w-4 h-4 text-gray-600 dark:text-text-secondary" />;
     }
   };
 
   const getStatusBadgeColor = () => {
-    if (pet.late) return 'bg-red-100 text-red-800 border-red-300';
+    if (pet.late) return 'bg-red-100 dark:bg-surface-secondary text-red-800 dark:text-red-200 border-red-300';
     return getStatusColor(pet.status);
   };
 
@@ -36,15 +36,15 @@ const PetCard = ({ pet, onCheckIn, onCheckOut, onCommunication }) => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-xl font-semibold text-gray-900">{pet.name}</h3>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-text-primary">{pet.name}</h3>
               {pet.late && (
-                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-surface-secondary text-red-800 dark:text-red-200">
                   <AlertTriangle className="w-3 h-3" />
                   LATE ({pet.lateBy})
                 </span>
               )}
             </div>
-            <p className="text-gray-600">{pet.breed} • {pet.age} yrs • {pet.weight} lbs</p>
+            <p className="text-gray-600 dark:text-text-secondary">{pet.breed} • {pet.age} yrs • {pet.weight} lbs</p>
           </div>
         </div>
 
@@ -55,9 +55,9 @@ const PetCard = ({ pet, onCheckIn, onCheckOut, onCommunication }) => {
       </div>
 
       {/* Owner Info */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+      <div className="bg-gray-50 dark:bg-surface-secondary border border-gray-200 dark:border-surface-border rounded-lg p-4 mb-4">
         <div className="flex items-center justify-between mb-2">
-          <span className="font-medium text-gray-900">{pet.owner.name}</span>
+          <span className="font-medium text-gray-900 dark:text-text-primary">{pet.owner.name}</span>
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={() => onCommunication(pet)}>
               <Phone className="w-3 h-3 mr-1" />
@@ -69,7 +69,7 @@ const PetCard = ({ pet, onCheckIn, onCheckOut, onCommunication }) => {
             </Button>
           </div>
         </div>
-        <div className="flex items-center gap-4 text-sm text-gray-600">
+        <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-text-secondary">
           <div className="flex items-center gap-1">
             <Phone className="w-4 h-4" />
             <span>{pet.owner.phone}</span>
@@ -84,14 +84,14 @@ const PetCard = ({ pet, onCheckIn, onCheckOut, onCommunication }) => {
       {/* Schedule Info */}
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
-          <p className="text-xs text-gray-500 uppercase tracking-wide">Scheduled</p>
-          <p className="text-lg font-semibold text-gray-900">{pet.scheduledTime}</p>
+          <p className="text-xs text-gray-500 dark:text-text-secondary uppercase tracking-wide">Scheduled</p>
+          <p className="text-lg font-semibold text-gray-900 dark:text-text-primary">{pet.scheduledTime}</p>
         </div>
         <div>
-          <p className="text-xs text-gray-500 uppercase tracking-wide">
+          <p className="text-xs text-gray-500 dark:text-text-secondary uppercase tracking-wide">
             {pet.status === 'checked_out' ? 'Checked Out' : 'Check-in'}
           </p>
-          <p className="text-lg font-semibold text-gray-900">
+          <p className="text-lg font-semibold text-gray-900 dark:text-text-primary">
             {pet.status === 'checked_out' ? pet.checkOutTime :
              pet.checkInTime || 'Not checked in'}
           </p>
@@ -100,8 +100,8 @@ const PetCard = ({ pet, onCheckIn, onCheckOut, onCommunication }) => {
 
       {/* Status-specific alerts */}
       {pet.late && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-          <div className="flex items-center gap-2 text-red-800">
+        <div className="bg-red-50 dark:bg-surface-primary border border-red-200 dark:border-red-900/30 rounded-lg p-3 mb-4">
+          <div className="flex items-center gap-2 text-red-800 dark:text-red-200">
             <AlertTriangle className="w-4 h-4" />
             <span className="font-medium">⚠️ LATE ({pet.lateBy} overdue)</span>
           </div>
@@ -111,7 +111,7 @@ const PetCard = ({ pet, onCheckIn, onCheckOut, onCommunication }) => {
 
       {/* Special Notes */}
       {pet.specialNotes && pet.specialNotes.length > 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+        <div className="bg-yellow-50 dark:bg-surface-primary border border-yellow-200 dark:border-yellow-900/30 rounded-lg p-3 mb-4">
           <h4 className="font-medium text-yellow-900 mb-2">⚠️ SPECIAL NOTES</h4>
           <ul className="space-y-1">
             {pet.specialNotes.map((note, index) => (
@@ -126,7 +126,7 @@ const PetCard = ({ pet, onCheckIn, onCheckOut, onCommunication }) => {
 
       {/* Medication Alert */}
       {pet.medication && (
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
+        <div className="bg-orange-50 dark:bg-surface-primary border border-orange-200 rounded-lg p-3 mb-4">
           <div className="flex items-center gap-2 mb-1">
             <Pill className="w-4 h-4 text-orange-600" />
             <span className="font-medium text-orange-900">
@@ -143,23 +143,23 @@ const PetCard = ({ pet, onCheckIn, onCheckOut, onCommunication }) => {
       {/* Health & Vaccination Status */}
       <div className="grid grid-cols-3 gap-4 mb-4 text-center">
         <div>
-          <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Vaccinations</div>
+          <div className="text-xs text-gray-500 dark:text-text-secondary uppercase tracking-wide mb-1">Vaccinations</div>
           <div className="text-green-600 font-medium">
             {pet.vaccinationsCurrent ? '✅ Current' : '❌ Due'}
           </div>
           {pet.vaccinationsCurrent && (
-            <div className="text-xs text-gray-600">Expires Apr 2026</div>
+            <div className="text-xs text-gray-600 dark:text-text-secondary">Expires Apr 2026</div>
           )}
         </div>
         <div>
-          <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Medications</div>
+          <div className="text-xs text-gray-500 dark:text-text-secondary uppercase tracking-wide mb-1">Medications</div>
           <div className={`font-medium ${pet.medication ? 'text-orange-600' : 'text-green-600'}`}>
             {pet.medication ? '1 scheduled' : '✅ None'}
           </div>
-          <div className="text-xs text-gray-600">today</div>
+          <div className="text-xs text-gray-600 dark:text-text-secondary">today</div>
         </div>
         <div>
-          <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Health</div>
+          <div className="text-xs text-gray-500 dark:text-text-secondary uppercase tracking-wide mb-1">Health</div>
           <div className="text-green-600 font-medium">✅ No incidents</div>
         </div>
       </div>
@@ -194,8 +194,8 @@ const PetCard = ({ pet, onCheckIn, onCheckOut, onCommunication }) => {
       </div>
 
       {/* Quick Actions Footer */}
-      <div className="mt-4 pt-4 border-t border-gray-200">
-        <div className="text-xs text-gray-600 mb-2">QUICK ACTIONS:</div>
+      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-surface-border">
+        <div className="text-xs text-gray-600 dark:text-text-secondary mb-2">QUICK ACTIONS:</div>
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="ghost" className="text-xs">
             ✓ Check In Now

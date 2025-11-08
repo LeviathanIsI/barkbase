@@ -76,20 +76,20 @@ const DailyOperationsChecklist = () => {
         {task.completed ? (
           <CheckSquare className="w-5 h-5 text-green-600" />
         ) : (
-          <Square className="w-5 h-5 text-gray-400" />
+          <Square className="w-5 h-5 text-gray-400 dark:text-text-tertiary" />
         )}
       </button>
 
       <div className="flex-1">
-        <div className={`text-sm ${task.completed ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+        <div className={`text-sm ${task.completed ? 'text-gray-500 dark:text-text-secondary line-through' : 'text-gray-900 dark:text-text-primary'}`}>
           {task.text}
         </div>
         {task.count && (
-          <div className="text-xs text-gray-500 mt-1">{task.count}</div>
+          <div className="text-xs text-gray-500 dark:text-text-secondary mt-1">{task.count}</div>
         )}
       </div>
 
-      <div className="text-xs text-gray-500 flex items-center gap-1">
+      <div className="text-xs text-gray-500 dark:text-text-secondary flex items-center gap-1">
         <Clock className="w-3 h-3" />
         {task.time}
       </div>
@@ -100,20 +100,20 @@ const DailyOperationsChecklist = () => {
     const Icon = alert.icon;
     return (
       <div className={`flex items-start gap-3 p-3 rounded-lg ${
-        alert.type === 'warning' ? 'bg-yellow-50 border border-yellow-200' :
-        alert.type === 'error' ? 'bg-red-50 border border-red-200' :
-        'bg-blue-50 border border-blue-200'
+        alert.type === 'warning' ? 'bg-yellow-50 dark:bg-surface-primary border border-yellow-200 dark:border-yellow-900/30' :
+        alert.type === 'error' ? 'bg-red-50 dark:bg-surface-primary border border-red-200 dark:border-red-900/30' :
+        'bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30'
       }`}>
         <Icon className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
           alert.type === 'warning' ? 'text-yellow-600' :
           alert.type === 'error' ? 'text-red-600' :
-          'text-blue-600'
+          'text-blue-600 dark:text-blue-400'
         }`} />
         <div className="flex-1">
           <div className={`text-sm ${
             alert.type === 'warning' ? 'text-yellow-800' :
-            alert.type === 'error' ? 'text-red-800' :
-            'text-blue-800'
+            alert.type === 'error' ? 'text-red-800 dark:text-red-200' :
+            'text-blue-800 dark:text-blue-200'
           }`}>
             {alert.message}
           </div>
@@ -134,29 +134,29 @@ const DailyOperationsChecklist = () => {
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-6">
+    <div className="bg-white dark:bg-surface-primary border border-gray-200 dark:border-surface-border rounded-lg p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <CheckSquare className="w-6 h-6 text-blue-600" />
+          <CheckSquare className="w-6 h-6 text-blue-600 dark:text-blue-400" />
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">📋 DAILY CHECKLIST</h3>
-            <p className="text-sm text-gray-600">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">📋 DAILY CHECKLIST</h3>
+            <p className="text-sm text-gray-600 dark:text-text-secondary">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
           </div>
         </div>
         <div className="text-right">
-          <div className="text-lg font-bold text-gray-900">
+          <div className="text-lg font-bold text-gray-900 dark:text-text-primary">
             {getCompletedCount([...tasks.morning, ...tasks.midday, ...tasks.evening])}/{getTotalCount([...tasks.morning, ...tasks.midday, ...tasks.evening])}
           </div>
-          <div className="text-xs text-gray-500">tasks completed</div>
+          <div className="text-xs text-gray-500 dark:text-text-secondary">tasks completed</div>
         </div>
       </div>
 
       {/* Morning Tasks */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+          <h4 className="font-semibold text-gray-900 dark:text-text-primary flex items-center gap-2">
             🌅 MORNING TASKS
-            <span className="text-sm font-normal text-gray-600">
+            <span className="text-sm font-normal text-gray-600 dark:text-text-secondary">
               ({getCompletedCount(tasks.morning)}/{getTotalCount(tasks.morning)})
             </span>
           </h4>
@@ -181,9 +181,9 @@ const DailyOperationsChecklist = () => {
       {/* Midday Tasks */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+          <h4 className="font-semibold text-gray-900 dark:text-text-primary flex items-center gap-2">
             ☀️ MIDDAY TASKS
-            <span className="text-sm font-normal text-gray-600">
+            <span className="text-sm font-normal text-gray-600 dark:text-text-secondary">
               ({getCompletedCount(tasks.midday)}/{getTotalCount(tasks.midday)})
             </span>
           </h4>
@@ -203,9 +203,9 @@ const DailyOperationsChecklist = () => {
       {/* Evening Tasks */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+          <h4 className="font-semibold text-gray-900 dark:text-text-primary flex items-center gap-2">
             🌙 EVENING TASKS
-            <span className="text-sm font-normal text-gray-600">
+            <span className="text-sm font-normal text-gray-600 dark:text-text-secondary">
               ({getCompletedCount(tasks.evening)}/{getTotalCount(tasks.evening)})
             </span>
           </h4>
@@ -223,8 +223,8 @@ const DailyOperationsChecklist = () => {
       </div>
 
       {/* Alerts & Reminders */}
-      <div className="border-t border-gray-200 pt-6">
-        <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+      <div className="border-t border-gray-200 dark:border-surface-border pt-6">
+        <h4 className="font-semibold text-gray-900 dark:text-text-primary mb-4 flex items-center gap-2">
           ⚠️ ALERTS & REMINDERS
         </h4>
         <div className="space-y-3">
@@ -235,7 +235,7 @@ const DailyOperationsChecklist = () => {
       </div>
 
       {/* Quick Actions */}
-      <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200">
+      <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-surface-border">
         <Button variant="outline" size="sm">
           <Dog className="w-4 h-4 mr-2" />
           View Full Task List

@@ -81,30 +81,30 @@ const TimeSlotPicker = ({
     >
       <div className="space-y-4">
         {template && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
-            <div className="flex items-center gap-2 text-blue-800 font-medium mb-1">
+          <div className="bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-3 text-sm">
+            <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200 font-medium mb-1">
               <Clock className="h-4 w-4" />
               Time Period: {template.timePeriodMinutes} minutes
             </div>
-            <div className="text-blue-700">
+            <div className="text-blue-700 dark:text-blue-300">
               Capacity: {template.maxCapacity} pets ({template.capacityType === 'concurrent' ? 'per time slot' : 'total'})
             </div>
           </div>
         )}
 
         {slotsLoading ? (
-          <div className="text-center py-4 text-gray-500">Loading available slots...</div>
+          <div className="text-center py-4 text-gray-500 dark:text-text-secondary">Loading available slots...</div>
         ) : (
           <>
             <div>
-              <label htmlFor="startTime" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="startTime" className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                 Start Time
               </label>
               <select
                 id="startTime"
                 value={startTime}
                 onChange={(e) => handleStartTimeChange(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 {timeOptions.map((time) => (
                   <option key={time} value={time}>
@@ -115,14 +115,14 @@ const TimeSlotPicker = ({
             </div>
 
             <div>
-              <label htmlFor="endTime" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="endTime" className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                 End Time
               </label>
               <select
                 id="endTime"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 {timeOptions.filter(time => time > startTime).map((time) => (
                   <option key={time} value={time}>
@@ -133,7 +133,7 @@ const TimeSlotPicker = ({
             </div>
 
             {availableSlots.length > 0 && (
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-gray-600 dark:text-text-secondary">
                 {availableSlots.find(s => s.startTime === startTime && s.endTime === endTime)?.available === false && (
                   <div className="text-amber-600 font-medium">
                     ⚠️ This time slot may be at capacity

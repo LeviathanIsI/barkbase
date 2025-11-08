@@ -43,7 +43,7 @@ const Reports = () => {
         subtitle="Transform data into actionable insights"
         actions={
           <div className="flex items-center gap-2">
-            <div className="flex items-center bg-gray-100 rounded-lg p-1">
+            <div className="flex items-center bg-gray-100 dark:bg-surface-secondary rounded-lg p-1">
               <Button
                 variant={activeView === 'overview' ? 'primary' : 'ghost'}
                 size="sm"

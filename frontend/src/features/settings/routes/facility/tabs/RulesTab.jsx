@@ -200,7 +200,7 @@ export default function RulesTab() {
           )}
 
           <div>
-            <h4 className="font-medium text-gray-900 mb-3">Behavioral Requirements</h4>
+            <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3">Behavioral Requirements</h4>
             <div className="space-y-3">
               {petRequirements.behavioralReqs.map((req) => (
                 <label key={req.id} className="flex items-center gap-3">
@@ -233,7 +233,7 @@ export default function RulesTab() {
           />
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
               Restricted Breeds (optional)
             </label>
             <textarea
@@ -243,12 +243,12 @@ export default function RulesTab() {
                 restrictedBreeds: e.target.value.split('\n').filter(breed => breed.trim())
               }))}
               placeholder="Enter one breed per line"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               rows="4"
             />
           </div>
 
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 dark:text-text-secondary">
             Any restrictions will be clearly communicated to customers during booking.
           </p>
         </div>
@@ -346,9 +346,9 @@ export default function RulesTab() {
               min="0"
             />
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Late Pickup Fee</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary">Late Pickup Fee</label>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500">$</span>
+                <span className="text-sm text-gray-500 dark:text-text-secondary">$</span>
                 <Input
                   type="number"
                   value={checkInOut.latePickupFee}
@@ -356,11 +356,11 @@ export default function RulesTab() {
                   className="flex-1"
                   min="0"
                 />
-                <span className="text-sm text-gray-500">per</span>
+                <span className="text-sm text-gray-500 dark:text-text-secondary">per</span>
                 <select
                   value={checkInOut.latePickupFeeUnit}
                   onChange={(e) => setCheckInOut(prev => ({ ...prev, latePickupFeeUnit: e.target.value }))}
-                  className="px-2 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="px-2 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="hour">hour</option>
                   <option value="15min">15 min</option>

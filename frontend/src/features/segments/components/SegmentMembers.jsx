@@ -88,7 +88,7 @@ const AddMembersForm = ({ segment, onClose }) => {
           {availableOwners.map((owner) => (
             <label
               key={owner.recordId}
-              className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer"
+              className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary rounded cursor-pointer"
             >
               <input
                 type="checkbox"

@@ -13,7 +13,7 @@ import Checkbox from '@/components/ui/Checkbox';
 const PropertyTypeIcon = ({ type }) => {
   const icons = {
     system: <Shield className="w-4 h-4 text-red-600" />,
-    standard: <Package className="w-4 h-4 text-blue-600" />,
+    standard: <Package className="w-4 h-4 text-blue-600 dark:text-blue-400" />,
     protected: <Lock className="w-4 h-4 text-amber-600" />,
     custom: <Plus className="w-4 h-4 text-green-600" />,
   };
@@ -84,7 +84,7 @@ export const EnterprisePropertiesTable = ({
   return (
     <div className="border rounded-lg overflow-hidden">
       <table className="w-full">
-        <thead className="bg-gray-50 border-b">
+        <thead className="bg-gray-50 dark:bg-surface-secondary border-b">
           <tr>
             <th className="w-12 px-4 py-3 text-left">
               <Checkbox 
@@ -92,37 +92,37 @@ export const EnterprisePropertiesTable = ({
                 onCheckedChange={onSelectAll}
               />
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-text-secondary uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
                 onClick={() => handleSort('displayLabel')}>
               Name
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-text-secondary uppercase tracking-wider">
               Property Type
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-text-secondary uppercase tracking-wider">
               Property Access
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-text-secondary uppercase tracking-wider">
               Group
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-text-secondary uppercase tracking-wider">
               Created By
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-text-secondary uppercase tracking-wider">
               Used In
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-text-secondary uppercase tracking-wider">
               Dependencies
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-text-secondary uppercase tracking-wider">
               Fill Rate
             </th>
-            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-text-secondary uppercase tracking-wider">
               Actions
             </th>
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+        <tbody className="bg-white dark:bg-surface-primary divide-y divide-gray-200 dark:divide-surface-border">
           {sortedProperties.map((property) => {
             const isSelected = selectedProperties.includes(property.propertyId);
             const canSelect = property.propertyType === 'custom';
@@ -134,7 +134,7 @@ export const EnterprisePropertiesTable = ({
             return (
               <tr 
                 key={property.propertyId}
-                className={`hover:bg-gray-50 ${isSelected ? 'bg-blue-50' : ''}`}
+                className={`hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary ${isSelected ? 'bg-blue-50 dark:bg-surface-primary' : ''}`}
               >
                 <td className="px-4 py-4">
                   {canSelect && (
@@ -149,10 +149,10 @@ export const EnterprisePropertiesTable = ({
                   <div className="flex items-center space-x-2">
                     <PropertyTypeIcon type={property.propertyType} />
                     <div>
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-sm font-medium text-gray-900 dark:text-text-primary">
                         {property.displayLabel}
                       </div>
-                      <div className="text-xs text-gray-500 font-mono">
+                      <div className="text-xs text-gray-500 dark:text-text-secondary font-mono">
                         {property.propertyName}
                       </div>
                     </div>
@@ -173,11 +173,11 @@ export const EnterprisePropertiesTable = ({
                   />
                 </td>
                 
-                <td className="px-4 py-4 text-sm text-gray-700">
+                <td className="px-4 py-4 text-sm text-gray-700 dark:text-text-primary">
                   {property.propertyGroup || '—'}
                 </td>
                 
-                <td className="px-4 py-4 text-sm text-gray-700">
+                <td className="px-4 py-4 text-sm text-gray-700 dark:text-text-primary">
                   {property.createdBy || 'System'}
                 </td>
                 
@@ -187,13 +187,13 @@ export const EnterprisePropertiesTable = ({
                       variant="link" 
                       size="sm"
                       onClick={() => onViewUsage(property)}
-                      className="text-blue-600 hover:text-blue-800 p-0"
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:text-blue-200 p-0"
                     >
                       <FileCode className="w-4 h-4 mr-1" />
                       {totalUsage} assets
                     </Button>
                   ) : (
-                    <span className="text-sm text-gray-400">Not used</span>
+                    <span className="text-sm text-gray-400 dark:text-text-tertiary">Not used</span>
                   )}
                 </td>
                 
@@ -203,25 +203,25 @@ export const EnterprisePropertiesTable = ({
                       variant="link" 
                       size="sm"
                       onClick={() => onViewDependencies(property)}
-                      className="text-purple-600 hover:text-purple-800 p-0"
+                      className="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:text-purple-200 p-0"
                     >
                       <GitBranch className="w-4 h-4 mr-1" />
                       {totalDeps}
                     </Button>
                   ) : (
-                    <span className="text-sm text-gray-400">None</span>
+                    <span className="text-sm text-gray-400 dark:text-text-tertiary">None</span>
                   )}
                 </td>
                 
                 <td className="px-4 py-4">
                   <div className="flex items-center space-x-2">
-                    <div className="flex-1 bg-gray-200 rounded-full h-2 max-w-[60px]">
+                    <div className="flex-1 bg-gray-200 dark:bg-surface-border rounded-full h-2 max-w-[60px]">
                       <div 
                         className="bg-green-600 h-2 rounded-full" 
                         style={{ width: `${usage.fillRate || 0}%` }}
                       />
                     </div>
-                    <span className="text-xs text-gray-600">{usage.fillRate || 0}%</span>
+                    <span className="text-xs text-gray-600 dark:text-text-secondary">{usage.fillRate || 0}%</span>
                   </div>
                 </td>
                 
@@ -238,7 +238,7 @@ export const EnterprisePropertiesTable = ({
                       variant="ghost" 
                       size="sm"
                       onClick={() => onDeleteProperty(property)}
-                      className="text-red-600 hover:text-red-800"
+                      className="text-red-600 hover:text-red-800 dark:text-red-200"
                     >
                       Delete
                     </Button>
@@ -251,8 +251,8 @@ export const EnterprisePropertiesTable = ({
       </table>
       
       {properties.length === 0 && (
-        <div className="text-center py-12 text-gray-500">
-          <Package className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+        <div className="text-center py-12 text-gray-500 dark:text-text-secondary">
+          <Package className="w-12 h-12 mx-auto mb-4 text-gray-400 dark:text-text-tertiary" />
           <p>No properties found</p>
         </div>
       )}

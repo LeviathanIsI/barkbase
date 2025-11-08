@@ -35,9 +35,9 @@ const TYPE_LABELS = {
 };
 
 const TYPE_COLORS = {
-  string: "text-blue-600",
-  text: "text-blue-600",
-  number: "text-purple-600",
+  string: "text-blue-600 dark:text-blue-400",
+  text: "text-blue-600 dark:text-blue-400",
+  number: "text-purple-600 dark:text-purple-400",
   currency: "text-green-600",
   date: "text-orange-600",
   datetime: "text-orange-600",
@@ -47,7 +47,7 @@ const TYPE_COLORS = {
   email: "text-pink-600",
   phone: "text-pink-600",
   url: "text-cyan-600",
-  uuid: "text-gray-600",
+  uuid: "text-gray-600 dark:text-text-secondary",
   association: "text-violet-600",
   file: "text-amber-600",
 };
@@ -202,7 +202,7 @@ const PropertyTable = ({
                 </td>
                 <td className="px-6 py-4">
                   {property.required && (
-                    <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                    <span className="inline-flex items-center rounded-full bg-red-50 dark:bg-surface-primary px-2 py-0.5 text-xs font-medium text-red-700">
                       Required
                     </span>
                   )}

@@ -22,17 +22,17 @@ const TeamFilters = ({ filters, onFiltersChange }) => {
   const hasActiveFilters = filters.search || filters.role !== 'all' || filters.status !== 'all' || filters.location !== 'all';
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
+    <div className="bg-white dark:bg-surface-primary border border-gray-200 dark:border-surface-border rounded-lg p-4">
       {/* Search Bar */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-text-tertiary" />
           <input
             type="text"
             placeholder="Search by name, email, or role..."
             value={filters.search}
             onChange={(e) => updateFilter('search', e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
 
@@ -41,7 +41,7 @@ const TeamFilters = ({ filters, onFiltersChange }) => {
           <select
             value={filters.role}
             onChange={(e) => updateFilter('role', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="all">All Roles</option>
             <option value="owner">Owner</option>
@@ -54,7 +54,7 @@ const TeamFilters = ({ filters, onFiltersChange }) => {
           <select
             value={filters.status}
             onChange={(e) => updateFilter('status', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="all">All Status</option>
             <option value="active">Active</option>
@@ -65,7 +65,7 @@ const TeamFilters = ({ filters, onFiltersChange }) => {
           <select
             value={filters.location}
             onChange={(e) => updateFilter('location', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="all">All Locations</option>
             <option value="building-a">Building A</option>
@@ -76,7 +76,7 @@ const TeamFilters = ({ filters, onFiltersChange }) => {
           <select
             value={filters.sortBy}
             onChange={(e) => updateFilter('sortBy', e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="name">Sort by Name</option>
             <option value="role">Sort by Role</option>
@@ -101,7 +101,7 @@ const TeamFilters = ({ filters, onFiltersChange }) => {
       {hasActiveFilters && (
         <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
           {filters.search && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 dark:bg-surface-secondary text-blue-800 dark:text-blue-200 rounded-full">
               Search: "{filters.search}"
               <button
                 onClick={() => updateFilter('search', '')}
@@ -112,7 +112,7 @@ const TeamFilters = ({ filters, onFiltersChange }) => {
             </span>
           )}
           {filters.role !== 'all' && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
+            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-green-100 dark:bg-surface-secondary text-green-800 rounded-full">
               Role: {filters.role}
               <button
                 onClick={() => updateFilter('role', 'all')}
@@ -123,7 +123,7 @@ const TeamFilters = ({ filters, onFiltersChange }) => {
             </span>
           )}
           {filters.status !== 'all' && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full">
+            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-purple-100 dark:bg-surface-secondary text-purple-800 dark:text-purple-200 rounded-full">
               Status: {filters.status}
               <button
                 onClick={() => updateFilter('status', 'all')}
@@ -134,7 +134,7 @@ const TeamFilters = ({ filters, onFiltersChange }) => {
             </span>
           )}
           {filters.location !== 'all' && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded-full">
+            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-orange-100 dark:bg-surface-secondary text-orange-800 rounded-full">
               Location: {filters.location.replace('-', ' ')}
               <button
                 onClick={() => updateFilter('location', 'all')}

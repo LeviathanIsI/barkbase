@@ -110,8 +110,8 @@ const ServicesOverview = () => {
       {/* Page Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Services & Pricing</h1>
-          <p className="mt-1 text-gray-600">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-text-primary">Services & Pricing</h1>
+          <p className="mt-1 text-gray-600 dark:text-text-secondary">
             Configure boarding, daycare, grooming, and training services with flexible pricing
           </p>
         </div>
@@ -135,7 +135,7 @@ const ServicesOverview = () => {
       {hasServices && <ServiceAnalyticsDashboard data={currentData} />}
 
       {/* Category Tabs */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-gray-200 dark:border-surface-border">
         <nav className="flex gap-1 overflow-x-auto">
           {OBJECT_TYPES.map((type) => (
             <button
@@ -143,8 +143,8 @@ const ServicesOverview = () => {
               onClick={() => setSelectedCategory(type.recordId)}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 selectedCategory === type.recordId
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 dark:text-text-secondary hover:text-gray-700 dark:hover:text-text-primary hover:border-gray-300 dark:border-surface-border'
               }`}
             >
               {type.label}
@@ -170,18 +170,18 @@ const ServicesOverview = () => {
             <div className="flex items-center gap-4 flex-wrap">
               {/* Search */}
               <div className="relative flex-1 max-w-xs">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-text-tertiary" />
                 <input
                   type="text"
                   placeholder="Search services..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-4 text-sm text-gray-900 placeholder:text-gray-600 placeholder:opacity-75 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-full rounded-lg border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary py-2 pl-9 pr-4 text-sm text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary dark:text-text-secondary placeholder:opacity-75 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
               </div>
 
               {/* Service count */}
-              <div className="ml-auto text-sm text-gray-500">
+              <div className="ml-auto text-sm text-gray-500 dark:text-text-secondary">
                 {filteredServices.length} {filteredServices.length === 1 ? 'service' : 'services'}
               </div>
             </div>

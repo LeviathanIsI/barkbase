@@ -418,8 +418,8 @@ const IntegrationsOverview = () => {
       {/* Page Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Integrations</h1>
-          <p className="mt-1 text-gray-600">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-text-primary">Integrations</h1>
+          <p className="mt-1 text-gray-600 dark:text-text-secondary">
             Connect third-party apps and services to automate workflows and eliminate manual data entry
           </p>
         </div>
@@ -429,10 +429,10 @@ const IntegrationsOverview = () => {
       <IntegrationAnalytics />
 
       {/* Filters and Search */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4">
+      <div className="bg-white dark:bg-surface-primary border border-gray-200 dark:border-surface-border rounded-lg p-4">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Available Integrations</h2>
-          <span className="text-sm text-gray-600">{filteredIntegrations.length} integrations</span>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-text-primary">Available Integrations</h2>
+          <span className="text-sm text-gray-600 dark:text-text-secondary">{filteredIntegrations.length} integrations</span>
         </div>
 
         <div className="flex flex-wrap gap-4">
@@ -444,8 +444,8 @@ const IntegrationsOverview = () => {
                 onClick={() => setSelectedCategory(category.id)}
                 className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
                   selectedCategory === category.id
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-blue-100 dark:bg-surface-secondary text-blue-800 dark:text-blue-200'
+                    : 'bg-gray-100 dark:bg-surface-secondary text-gray-700 dark:text-text-primary hover:bg-gray-200 dark:bg-surface-border'
                 }`}
               >
                 {category.label} ({category.count})
@@ -459,7 +459,7 @@ const IntegrationsOverview = () => {
           <select
             value={connectionFilter}
             onChange={(e) => setConnectionFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="all">All Status</option>
             <option value="connected">Connected ({connectedCount})</option>
@@ -468,13 +468,13 @@ const IntegrationsOverview = () => {
 
           {/* Search */}
           <div className="relative flex-1 max-w-xs">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-text-tertiary" />
             <input
               type="text"
               placeholder="Search integrations..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-md text-sm text-gray-900 placeholder:text-gray-600 placeholder:opacity-75 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-9 pr-4 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary dark:text-text-secondary placeholder:opacity-75 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         </div>
@@ -484,7 +484,7 @@ const IntegrationsOverview = () => {
       <div className="space-y-8">
         {Object.entries(groupedIntegrations).map(([categoryId, integrations]) => (
           <div key={categoryId}>
-            <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary mb-4 flex items-center gap-2">
               {getCategoryIcon(categoryId)} {getCategoryTitle(categoryId)}
             </h2>
 
@@ -503,13 +503,13 @@ const IntegrationsOverview = () => {
       </div>
 
       {/* Request Integration Section */}
-      <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-6">
+      <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-surface-primary dark:to-surface-primary border border-purple-200 dark:border-purple-900/30 rounded-lg p-6">
         <div className="text-center">
-          <MessageSquare className="w-12 h-12 text-purple-600 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-purple-900 mb-2">
+          <MessageSquare className="w-12 h-12 text-purple-600 dark:text-purple-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-2">
             Don't See What You Need?
           </h3>
-          <p className="text-purple-700 mb-4">
+          <p className="text-purple-700 dark:text-purple-300 mb-4">
             We're constantly adding new integrations based on customer feedback. Let us know what you'd like to connect.
           </p>
 
@@ -517,7 +517,7 @@ const IntegrationsOverview = () => {
             Request New Integration
           </Button>
 
-          <div className="mt-4 text-sm text-purple-700">
+          <div className="mt-4 text-sm text-purple-700 dark:text-purple-300">
             <p className="mb-2">Most requested integrations:</p>
             <div className="flex justify-center gap-4 text-xs">
               <span>1. PetDesk (23 votes) - In progress ✓</span>
@@ -525,7 +525,7 @@ const IntegrationsOverview = () => {
               <span>3. Salesforce (12 votes)</span>
             </div>
             <p className="mt-2">
-              <a href="#" className="text-purple-600 hover:underline">View All Requests & Vote</a>
+              <a href="#" className="text-purple-600 dark:text-purple-400 hover:underline">View All Requests & Vote</a>
             </p>
           </div>
         </div>

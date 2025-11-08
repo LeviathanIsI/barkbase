@@ -36,14 +36,14 @@ const BulkActions = ({ selectedCount, onClearSelection }) => {
   ];
 
   return (
-    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+    <div className="bg-gray-50 dark:bg-surface-secondary border border-gray-200 dark:border-surface-border rounded-lg p-4">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium text-gray-900">
+        <span className="text-sm font-medium text-gray-900 dark:text-text-primary">
           {selectedCount} properties selected
         </span>
         <button
           onClick={onClearSelection}
-          className="text-sm text-gray-500 hover:text-gray-700"
+          className="text-sm text-gray-500 dark:text-text-secondary hover:text-gray-700 dark:hover:text-text-primary"
         >
           Clear selection
         </button>

@@ -129,15 +129,15 @@ const SinglePageBookingWizard = ({ onComplete, initialData = {} }) => {
                       "flex items-center gap-2 px-4 py-2 rounded-lg transition-all",
                       isActive && "bg-primary-600 text-white",
                       isCompleted && "bg-primary-100 text-primary-700 hover:bg-primary-200",
-                      !isActive && !isCompleted && "bg-gray-100 text-gray-400"
+                      !isActive && !isCompleted && "bg-gray-100 dark:bg-surface-secondary text-gray-400 dark:text-text-tertiary"
                     )}
                     disabled={index > currentStep}
                   >
                     <div className={cn(
                       "flex items-center justify-center w-8 h-8 rounded-full",
-                      isActive && "bg-white/30 text-white",
+                      isActive && "bg-white dark:bg-surface-primary/30 text-white",
                       isCompleted && "bg-primary-600 text-white",
-                      !isActive && !isCompleted && "bg-gray-200 text-gray-600"
+                      !isActive && !isCompleted && "bg-gray-200 dark:bg-surface-border text-gray-600 dark:text-text-secondary"
                     )}>
                       {isCompleted ? (
                         <CheckCircle className="h-5 w-5" />
@@ -148,7 +148,7 @@ const SinglePageBookingWizard = ({ onComplete, initialData = {} }) => {
                     <span className="font-medium hidden sm:block">{step.label}</span>
                   </button>
                   {index < STEPS.length - 1 && (
-                    <ChevronRight className="h-5 w-5 text-gray-300 mx-2" />
+                    <ChevronRight className="h-5 w-5 text-gray-300 dark:text-text-tertiary mx-2" />
                   )}
                 </div>
               );
@@ -237,8 +237,8 @@ const OwnerStep = ({ bookingData, updateBookingData }) => {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Select Owner</h3>
-        <p className="text-sm text-gray-600">Choose an existing customer or create a new one</p>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">Select Owner</h3>
+        <p className="text-sm text-gray-600 dark:text-text-secondary">Choose an existing customer or create a new one</p>
       </div>
 
       {/* Search */}
@@ -248,7 +248,7 @@ const OwnerStep = ({ bookingData, updateBookingData }) => {
           placeholder="Search by name, email, or phone..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm text-gray-900 placeholder:text-gray-600 placeholder:opacity-75 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          className="w-full px-4 py-2 border border-gray-300 dark:border-surface-border rounded-lg bg-white dark:bg-surface-primary text-sm text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary dark:text-text-secondary placeholder:opacity-75 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
         />
       </div>
 
@@ -256,10 +256,10 @@ const OwnerStep = ({ bookingData, updateBookingData }) => {
       <div className="space-y-2">
         {isLoading && searchTerm.length >= 2 ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+            <Loader2 className="h-6 w-6 animate-spin text-gray-400 dark:text-text-tertiary" />
           </div>
         ) : ownersWithDisplay.length === 0 && searchTerm.length >= 2 ? (
-          <div className="text-center py-8 text-sm text-gray-500">
+          <div className="text-center py-8 text-sm text-gray-500 dark:text-text-secondary">
             No owners found. Try a different search term.
           </div>
         ) : (
@@ -271,13 +271,13 @@ const OwnerStep = ({ bookingData, updateBookingData }) => {
                 "w-full text-left p-4 rounded-lg border transition-all",
                 (bookingData.owner?.recordId === owner.recordId || bookingData.owner?.id === owner.id)
                   ? "border-primary-600 bg-primary-50" 
-                  : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                  : "border-gray-200 dark:border-surface-border hover:border-gray-300 hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
               )}
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-gray-900">{owner.name}</p>
-                  <p className="text-sm text-gray-600">
+                  <p className="font-medium text-gray-900 dark:text-text-primary">{owner.name}</p>
+                  <p className="text-sm text-gray-600 dark:text-text-secondary">
                     {owner.email} {owner.phone ? `• ${owner.phone}` : ''}
                   </p>
                 </div>
@@ -289,7 +289,7 @@ const OwnerStep = ({ bookingData, updateBookingData }) => {
           ))
         )}
         {searchTerm.length < 2 && (
-          <div className="text-center py-8 text-sm text-gray-500">
+          <div className="text-center py-8 text-sm text-gray-500 dark:text-text-secondary">
             Type at least 2 characters to search for owners
           </div>
         )}
@@ -341,20 +341,20 @@ const PetStep = ({ bookingData, updateBookingData }) => {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Select Pets</h3>
-        <p className="text-sm text-gray-600">Choose which pets to include in this booking</p>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">Select Pets</h3>
+        <p className="text-sm text-gray-600 dark:text-text-secondary">Choose which pets to include in this booking</p>
       </div>
 
       {!bookingData.owner ? (
-        <div className="text-center py-8 text-sm text-gray-500">
+        <div className="text-center py-8 text-sm text-gray-500 dark:text-text-secondary">
           Please select an owner first
         </div>
       ) : isLoading ? (
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-gray-400 dark:text-text-tertiary" />
         </div>
       ) : availablePets.length === 0 ? (
-        <div className="text-center py-8 text-sm text-gray-500">
+        <div className="text-center py-8 text-sm text-gray-500 dark:text-text-secondary">
           No pets found for this owner. Please add a pet first.
         </div>
       ) : (
@@ -371,16 +371,16 @@ const PetStep = ({ bookingData, updateBookingData }) => {
                 "p-4 rounded-lg border-2 transition-all text-left",
                 isSelected 
                   ? "border-primary-600 bg-primary-50" 
-                  : "border-gray-200 hover:border-gray-300"
+                  : "border-gray-200 dark:border-surface-border hover:border-gray-300"
               )}
             >
               <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
-                  <PawPrint className="h-6 w-6 text-gray-600" />
+                <div className="flex-shrink-0 w-12 h-12 bg-gray-200 dark:bg-surface-border rounded-full flex items-center justify-center">
+                  <PawPrint className="h-6 w-6 text-gray-600 dark:text-text-secondary" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-medium text-gray-900">{pet.name}</p>
-                  <p className="text-sm text-gray-600">{pet.breed} • {pet.age}</p>
+                  <p className="font-medium text-gray-900 dark:text-text-primary">{pet.name}</p>
+                  <p className="text-sm text-gray-600 dark:text-text-secondary">{pet.breed} • {pet.age}</p>
                   {pet.vaccinations === 'expires soon' && (
                     <div className="flex items-center gap-1 mt-1">
                       <AlertCircle className="h-3 w-3 text-warning-600" />
@@ -443,17 +443,17 @@ const ServiceStep = ({ bookingData, updateBookingData }) => {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Select Service & Dates</h3>
-        <p className="text-sm text-gray-600">Choose the primary service and duration</p>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">Select Service & Dates</h3>
+        <p className="text-sm text-gray-600 dark:text-text-secondary">Choose the primary service and duration</p>
       </div>
 
       {/* Service Selection - Visual cards */}
       {isLoading ? (
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-gray-400 dark:text-text-tertiary" />
         </div>
       ) : services.length === 0 ? (
-        <div className="text-center py-8 text-sm text-gray-500">
+        <div className="text-center py-8 text-sm text-gray-500 dark:text-text-secondary">
           No services available. Please add services in Settings.
         </div>
       ) : (
@@ -466,12 +466,12 @@ const ServiceStep = ({ bookingData, updateBookingData }) => {
                 "p-4 rounded-lg border-2 transition-all",
                 (bookingData.service?.recordId === service.recordId || bookingData.service?.id === service.id)
                   ? "border-primary-600 bg-primary-50"
-                  : "border-gray-200 hover:border-gray-300"
+                  : "border-gray-200 dark:border-surface-border hover:border-gray-300"
               )}
             >
               <div className="text-3xl mb-2">{getServiceIcon(service.category)}</div>
-              <p className="font-medium text-gray-900">{service.name}</p>
-              <p className="text-sm text-gray-600">{formatPrice(service)}</p>
+              <p className="font-medium text-gray-900 dark:text-text-primary">{service.name}</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">{formatPrice(service)}</p>
             </button>
           ))}
         </div>
@@ -480,13 +480,13 @@ const ServiceStep = ({ bookingData, updateBookingData }) => {
       {/* Date Selection - Inline, not modal */}
       {bookingData.service && (
         <div className="space-y-4">
-          <h4 className="font-medium text-gray-900">Select Dates</h4>
+          <h4 className="font-medium text-gray-900 dark:text-text-primary">Select Dates</h4>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Check-in</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Check-in</label>
               <input
                 type="date"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm text-gray-900 placeholder:text-gray-600 placeholder:opacity-75 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-lg bg-white dark:bg-surface-primary text-sm text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary dark:text-text-secondary placeholder:opacity-75 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 onChange={(e) => updateBookingData('dateRange', {
                   ...bookingData.dateRange,
                   start: e.target.value
@@ -494,10 +494,10 @@ const ServiceStep = ({ bookingData, updateBookingData }) => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Check-out</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Check-out</label>
               <input
                 type="date"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm text-gray-900 placeholder:text-gray-600 placeholder:opacity-75 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-lg bg-white dark:bg-surface-primary text-sm text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary dark:text-text-secondary placeholder:opacity-75 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 onChange={(e) => updateBookingData('dateRange', {
                   ...bookingData.dateRange,
                   end: e.target.value
@@ -510,7 +510,7 @@ const ServiceStep = ({ bookingData, updateBookingData }) => {
 
       {/* Additional Services - Quick toggles */}
       <div className="space-y-3">
-        <h4 className="font-medium text-gray-900">Additional Services</h4>
+        <h4 className="font-medium text-gray-900 dark:text-text-primary">Additional Services</h4>
         <div className="space-y-2">
           {['Nail Trim ($15)', 'Playtime ($20)', 'Special Feeding ($10)'].map(addon => (
             <label key={addon} className="flex items-center gap-3">
@@ -527,7 +527,7 @@ const ServiceStep = ({ bookingData, updateBookingData }) => {
                   }
                 }}
               />
-              <span className="text-sm text-gray-700">{addon}</span>
+              <span className="text-sm text-gray-700 dark:text-text-primary">{addon}</span>
             </label>
           ))}
         </div>
@@ -570,20 +570,20 @@ const RoomStep = ({ bookingData, updateBookingData }) => {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Select Run/Room</h3>
-        <p className="text-sm text-gray-600">Choose from available accommodations for the selected dates</p>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">Select Run/Room</h3>
+        <p className="text-sm text-gray-600 dark:text-text-secondary">Choose from available accommodations for the selected dates</p>
       </div>
 
       {!bookingData.dateRange.start || !bookingData.dateRange.end ? (
-        <div className="text-center py-8 text-sm text-gray-500">
+        <div className="text-center py-8 text-sm text-gray-500 dark:text-text-secondary">
           Please select dates first to see available runs
         </div>
       ) : isLoading ? (
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-gray-400 dark:text-text-tertiary" />
         </div>
       ) : availableRunTemplates.length === 0 ? (
-        <div className="text-center py-8 text-sm text-gray-500">
+        <div className="text-center py-8 text-sm text-gray-500 dark:text-text-secondary">
           No run templates available. Please configure run templates in Settings.
         </div>
       ) : (
@@ -596,14 +596,14 @@ const RoomStep = ({ bookingData, updateBookingData }) => {
               className={cn(
                 "p-4 rounded-lg border-2 transition-all",
                 (bookingData.runTemplate?.recordId === template.recordId || bookingData.runTemplate?.id === template.id) && "border-primary-600 bg-primary-50",
-                template.available && (bookingData.runTemplate?.recordId !== template.recordId && bookingData.runTemplate?.id !== template.id) && "border-gray-200 hover:border-gray-300",
-                !template.available && "border-gray-100 bg-gray-50 cursor-not-allowed opacity-60"
+                template.available && (bookingData.runTemplate?.recordId !== template.recordId && bookingData.runTemplate?.id !== template.id) && "border-gray-200 dark:border-surface-border hover:border-gray-300",
+                !template.available && "border-gray-100 bg-gray-50 dark:bg-surface-secondary cursor-not-allowed opacity-60"
               )}
             >
               <div className="text-center">
-                <p className="font-bold text-lg text-gray-900">{template.name}</p>
-                <p className="text-sm text-gray-600">Capacity: {template.maxCapacity || 'N/A'}</p>
-                <p className="text-xs text-gray-500">{template.capacityType || 'total'}</p>
+                <p className="font-bold text-lg text-gray-900 dark:text-text-primary">{template.name}</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">Capacity: {template.maxCapacity || 'N/A'}</p>
+                <p className="text-xs text-gray-500 dark:text-text-secondary">{template.capacityType || 'total'}</p>
                 {!template.available && (
                   <Badge variant="error" className="mt-2">Occupied</Badge>
                 )}
@@ -615,10 +615,10 @@ const RoomStep = ({ bookingData, updateBookingData }) => {
 
       {/* Special Requirements */}
       <div className="space-y-3">
-        <h4 className="font-medium text-gray-900">Special Requirements</h4>
+        <h4 className="font-medium text-gray-900 dark:text-text-primary">Special Requirements</h4>
         <textarea
           placeholder="Any special notes about room placement, neighboring pets to avoid, etc."
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm text-gray-900 placeholder:text-gray-600 placeholder:opacity-75 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-lg bg-white dark:bg-surface-primary text-sm text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary dark:text-text-secondary placeholder:opacity-75 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           rows={3}
           onChange={(e) => updateBookingData('specialRequirements', e.target.value)}
           value={bookingData.specialRequirements || ''}
@@ -654,29 +654,29 @@ const BillingStep = ({ bookingData }) => {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Review & Payment</h3>
-        <p className="text-sm text-gray-600">Confirm booking details and process payment</p>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">Review & Payment</h3>
+        <p className="text-sm text-gray-600 dark:text-text-secondary">Confirm booking details and process payment</p>
       </div>
 
       {/* Booking Summary */}
-      <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-        <h4 className="font-medium text-gray-900">Booking Summary</h4>
+      <div className="bg-gray-50 dark:bg-surface-secondary rounded-lg p-4 space-y-3">
+        <h4 className="font-medium text-gray-900 dark:text-text-primary">Booking Summary</h4>
         
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-gray-600">Owner:</span>
+            <span className="text-gray-600 dark:text-text-secondary">Owner:</span>
             <span className="font-medium">{bookingData.owner?.name}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Pets:</span>
+            <span className="text-gray-600 dark:text-text-secondary">Pets:</span>
             <span className="font-medium">{bookingData.pets.map(p => p.name).join(', ')}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Service:</span>
+            <span className="text-gray-600 dark:text-text-secondary">Service:</span>
             <span className="font-medium">{bookingData.service?.name} ({nights} nights)</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Run/Room:</span>
+            <span className="text-gray-600 dark:text-text-secondary">Run/Room:</span>
             <span className="font-medium">{bookingData.runTemplate?.name || 'Not selected'}</span>
           </div>
         </div>
@@ -684,15 +684,15 @@ const BillingStep = ({ bookingData }) => {
 
       {/* Price Breakdown */}
       <div className="space-y-2">
-        <h4 className="font-medium text-gray-900">Price Breakdown</h4>
+        <h4 className="font-medium text-gray-900 dark:text-text-primary">Price Breakdown</h4>
         <div className="space-y-1 text-sm">
           <div className="flex justify-between">
-            <span className="text-gray-600">{bookingData.service?.name} ({nights} {nights === 1 ? 'night' : 'nights'} × {bookingData.pets.length} {bookingData.pets.length === 1 ? 'pet' : 'pets'})</span>
+            <span className="text-gray-600 dark:text-text-secondary">{bookingData.service?.name} ({nights} {nights === 1 ? 'night' : 'nights'} × {bookingData.pets.length} {bookingData.pets.length === 1 ? 'pet' : 'pets'})</span>
             <span className="font-medium">${serviceTotal.toFixed(2)}</span>
           </div>
           {bookingData.additionalServices.map(addon => (
             <div key={addon} className="flex justify-between">
-              <span className="text-gray-600">{addon}</span>
+              <span className="text-gray-600 dark:text-text-secondary">{addon}</span>
               <span className="font-medium">$15</span>
             </div>
           ))}
@@ -705,17 +705,17 @@ const BillingStep = ({ bookingData }) => {
 
       {/* Payment Options */}
       <div className="space-y-3">
-        <h4 className="font-medium text-gray-900">Payment Method</h4>
+        <h4 className="font-medium text-gray-900 dark:text-text-primary">Payment Method</h4>
         <div className="space-y-2">
-          <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+          <label className="flex items-center gap-3 p-3 border border-gray-200 dark:border-surface-border rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary">
             <input type="radio" name="payment" className="text-primary-600" />
             <span className="text-sm">Pay now (Card on file ending in 4242)</span>
           </label>
-          <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+          <label className="flex items-center gap-3 p-3 border border-gray-200 dark:border-surface-border rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary">
             <input type="radio" name="payment" className="text-primary-600" />
             <span className="text-sm">Pay at drop-off</span>
           </label>
-          <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+          <label className="flex items-center gap-3 p-3 border border-gray-200 dark:border-surface-border rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary">
             <input type="radio" name="payment" className="text-primary-600" />
             <span className="text-sm">Send invoice</span>
           </label>
@@ -766,19 +766,19 @@ const CapacityPanel = ({ dateRange, selectedRunTemplate }) => {
   }, [todayArrivals]);
 
   return (
-    <Card className="h-full p-6 bg-gray-50">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Facility Status</h3>
+    <Card className="h-full p-6 bg-gray-50 dark:bg-surface-secondary">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">Facility Status</h3>
       
       {/* Current Capacity */}
       <div className="space-y-4 mb-6">
-        <h4 className="text-sm font-medium text-gray-700">Current Capacity</h4>
+        <h4 className="text-sm font-medium text-gray-700 dark:text-text-primary">Current Capacity</h4>
         {capacityData.map(item => (
           <div key={item.date} className="space-y-1">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">{item.date}</span>
+              <span className="text-gray-600 dark:text-text-secondary">{item.date}</span>
               <span className="font-medium">{item.occupied}/{item.total}</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-gray-200 dark:bg-surface-border rounded-full h-2">
               <div
                 className={cn(
                   "h-2 rounded-full transition-all",
@@ -795,16 +795,16 @@ const CapacityPanel = ({ dateRange, selectedRunTemplate }) => {
 
       {/* Selected Dates Availability */}
       {dateRange.start && dateRange.end && (
-        <div className="mb-6 p-3 bg-white rounded-lg border border-gray-200">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">Selected Period</h4>
+        <div className="mb-6 p-3 bg-white dark:bg-surface-primary rounded-lg border border-gray-200 dark:border-surface-border">
+          <h4 className="text-sm font-medium text-gray-700 dark:text-text-primary mb-2">Selected Period</h4>
           <div className="space-y-1 text-sm">
-            <p className="text-gray-600">
+            <p className="text-gray-600 dark:text-text-secondary">
               {new Date(dateRange.start).toLocaleDateString()} - {new Date(dateRange.end).toLocaleDateString()}
             </p>
             {selectedRunTemplate ? (
               <p className="font-medium text-success-600">✓ {selectedRunTemplate.name} selected</p>
             ) : (
-              <p className="text-gray-500">No run selected</p>
+              <p className="text-gray-500 dark:text-text-secondary">No run selected</p>
             )}
           </div>
         </div>
@@ -812,14 +812,14 @@ const CapacityPanel = ({ dateRange, selectedRunTemplate }) => {
 
       {/* Today's Schedule */}
       <div className="space-y-3">
-        <h4 className="text-sm font-medium text-gray-700">Today's Arrivals</h4>
+        <h4 className="text-sm font-medium text-gray-700 dark:text-text-primary">Today's Arrivals</h4>
         {formattedArrivals.length === 0 ? (
-          <div className="text-sm text-gray-500">No arrivals scheduled today</div>
+          <div className="text-sm text-gray-500 dark:text-text-secondary">No arrivals scheduled today</div>
         ) : (
           <div className="space-y-2">
             {formattedArrivals.map((arrival, idx) => (
               <div key={idx} className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">{arrival.time}</span>
+                <span className="text-gray-600 dark:text-text-secondary">{arrival.time}</span>
                 <span className="font-medium">{arrival.pet} ({arrival.owner})</span>
               </div>
             ))}

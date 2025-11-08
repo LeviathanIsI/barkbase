@@ -53,9 +53,9 @@ export default function SubscriptionTab() {
   };
 
   const getUsageColor = (percentage) => {
-    if (percentage < 50) return 'bg-green-500';
-    if (percentage < 80) return 'bg-yellow-500';
-    return 'bg-red-500';
+    if (percentage < 50) return 'bg-green-50 dark:bg-green-950/20';
+    if (percentage < 80) return 'bg-yellow-50 dark:bg-yellow-950/20';
+    return 'bg-red-50 dark:bg-red-950/20';
   };
 
   return (
@@ -64,8 +64,8 @@ export default function SubscriptionTab() {
       <Card>
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">{currentPlan.name} PLAN</h2>
-            <p className="text-gray-600">{currentPlan.description}</p>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">{currentPlan.name} PLAN</h2>
+            <p className="text-gray-600 dark:text-text-secondary">{currentPlan.description}</p>
           </div>
           <Button>
             <Zap className="w-4 h-4 mr-2" />
@@ -76,68 +76,68 @@ export default function SubscriptionTab() {
         {/* Usage Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900 dark:text-text-primary">
               {currentPlan.usage.bookings.used} / {currentPlan.usage.bookings.limit}
             </div>
-            <div className="text-sm text-gray-600">Bookings this month</div>
-            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+            <div className="text-sm text-gray-600 dark:text-text-secondary">Bookings this month</div>
+            <div className="w-full bg-gray-200 dark:bg-surface-border rounded-full h-2 mt-2">
               <div
                 className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(currentPlan.usage.bookings.used, currentPlan.usage.bookings.limit))}`}
                 style={{ width: `${getUsagePercentage(currentPlan.usage.bookings.used, currentPlan.usage.bookings.limit)}%` }}
               />
             </div>
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-xs text-gray-500 dark:text-text-secondary mt-1">
               Reset date: Feb 1, 2025
             </div>
           </div>
 
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900 dark:text-text-primary">
               {currentPlan.usage.activePets}
             </div>
-            <div className="text-sm text-gray-600">Active pets</div>
-            <div className="text-xs text-gray-500 mt-3">
+            <div className="text-sm text-gray-600 dark:text-text-secondary">Active pets</div>
+            <div className="text-xs text-gray-500 dark:text-text-secondary mt-3">
               No monthly reset
             </div>
           </div>
 
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900 dark:text-text-primary">
               {currentPlan.usage.storage.used} MB / {currentPlan.usage.storage.limit} MB
             </div>
-            <div className="text-sm text-gray-600">Storage used</div>
-            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+            <div className="text-sm text-gray-600 dark:text-text-secondary">Storage used</div>
+            <div className="w-full bg-gray-200 dark:bg-surface-border rounded-full h-2 mt-2">
               <div
                 className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(currentPlan.usage.storage.used, currentPlan.usage.storage.limit))}`}
                 style={{ width: `${getUsagePercentage(currentPlan.usage.storage.used, currentPlan.usage.storage.limit)}%` }}
               />
             </div>
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-xs text-gray-500 dark:text-text-secondary mt-1">
               Photos: 18 MB | Documents: 7 MB
             </div>
           </div>
 
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900 dark:text-text-primary">
               {currentPlan.usage.seats.used} / {currentPlan.usage.seats.limit}
             </div>
-            <div className="text-sm text-gray-600">Team seats</div>
-            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+            <div className="text-sm text-gray-600 dark:text-text-secondary">Team seats</div>
+            <div className="w-full bg-gray-200 dark:bg-surface-border rounded-full h-2 mt-2">
               <div
                 className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(currentPlan.usage.seats.used, currentPlan.usage.seats.limit))}`}
                 style={{ width: `${getUsagePercentage(currentPlan.usage.seats.used, currentPlan.usage.seats.limit)}%` }}
               />
             </div>
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-xs text-gray-500 dark:text-text-secondary mt-1">
               Team members with system access
             </div>
           </div>
         </div>
 
         {/* Usage Warnings */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <h4 className="font-medium text-blue-900 mb-2">Usage Warnings</h4>
-          <ul className="text-sm text-blue-800 space-y-1">
+        <div className="bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-4 mb-6">
+          <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Usage Warnings</h4>
+          <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
             <li>• You're at 0% of booking capacity - plenty of room!</li>
             <li>• Storage: 75 MB remaining</li>
           </ul>
@@ -163,8 +163,8 @@ export default function SubscriptionTab() {
               <div key={index} className="flex items-start gap-3">
                 <X className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <div className="text-sm font-medium text-gray-900">{feature.name}</div>
-                  <div className="text-xs text-gray-600">{feature.description}</div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-text-primary">{feature.name}</div>
+                  <div className="text-xs text-gray-600 dark:text-text-secondary">{feature.description}</div>
                 </div>
               </div>
             ))}
@@ -176,29 +176,29 @@ export default function SubscriptionTab() {
       </div>
 
       {/* Upgrade Recommendation */}
-      <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
+      <Card className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-surface-primary dark:to-surface-primary border-purple-200 dark:border-purple-900/30">
         <div className="flex items-start gap-4">
-          <TrendingUp className="w-8 h-8 text-purple-600 flex-shrink-0 mt-1" />
+          <TrendingUp className="w-8 h-8 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-1" />
           <div className="flex-1">
-            <h3 className="text-lg font-semibold text-purple-900 mb-2">
+            <h3 className="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-2">
               💡 RECOMMENDED FOR YOU
             </h3>
-            <p className="text-purple-800 font-medium mb-3">
+            <p className="text-purple-800 dark:text-purple-200 font-medium mb-3">
               Upgrade to {upgradeRecommendation.plan} Plan
             </p>
-            <p className="text-sm text-purple-700 mb-4">
+            <p className="text-sm text-purple-700 dark:text-purple-300 mb-4">
               {upgradeRecommendation.reason}
             </p>
-            <ul className="text-sm text-purple-700 space-y-1 mb-4">
+            <ul className="text-sm text-purple-700 dark:text-purple-300 space-y-1 mb-4">
               {upgradeRecommendation.details.map((detail, index) => (
                 <li key={index}>• {detail}</li>
               ))}
             </ul>
             <div className="flex items-center gap-4">
-              <div className="text-lg font-bold text-purple-900">
+              <div className="text-lg font-bold text-purple-900 dark:text-purple-100">
                 ${upgradeRecommendation.price.monthly}/month
               </div>
-              <Badge variant="success" className="bg-green-100 text-green-800">
+              <Badge variant="success" className="bg-green-100 dark:bg-surface-secondary text-green-800">
                 {upgradeRecommendation.savings}
               </Badge>
             </div>
@@ -206,7 +206,7 @@ export default function SubscriptionTab() {
               <Button className="bg-purple-600 hover:bg-purple-700">
                 See What You'll Get
               </Button>
-              <Button variant="outline" className="border-purple-300 text-purple-700 hover:bg-purple-50">
+              <Button variant="outline" className="border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:bg-surface-primary">
                 Start Free Trial
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>

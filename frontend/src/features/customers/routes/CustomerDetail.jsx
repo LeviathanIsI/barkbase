@@ -21,7 +21,7 @@ const CustomerHeader = ({ owner, stats }) => {
   const navigate = useNavigate();
   
   return (
-    <div className="bg-white border-b border-border">
+    <div className="bg-white dark:bg-surface-primary border-b border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-6">
@@ -90,7 +90,7 @@ const CustomerHeader = ({ owner, stats }) => {
                   {owner._count?.bookings || 0}
                 </p>
               </div>
-              <Calendar className="w-8 h-8 text-gray-400" />
+              <Calendar className="w-8 h-8 text-gray-400 dark:text-text-tertiary" />
             </div>
           </Card>
           
@@ -102,7 +102,7 @@ const CustomerHeader = ({ owner, stats }) => {
                   ${((owner._count?.payments || 0) * 150).toFixed(0)}
                 </p>
               </div>
-              <DollarSign className="w-8 h-8 text-gray-400" />
+              <DollarSign className="w-8 h-8 text-gray-400 dark:text-text-tertiary" />
             </div>
           </Card>
           
@@ -114,7 +114,7 @@ const CustomerHeader = ({ owner, stats }) => {
                   {stats?.total || 0}
                 </p>
               </div>
-              <MessageSquare className="w-8 h-8 text-gray-400" />
+              <MessageSquare className="w-8 h-8 text-gray-400 dark:text-text-tertiary" />
             </div>
           </Card>
           
@@ -126,7 +126,7 @@ const CustomerHeader = ({ owner, stats }) => {
                   {owner.updatedAt ? format(new Date(owner.updatedAt), 'MMM d') : 'Never'}
                 </p>
               </div>
-              <Activity className="w-8 h-8 text-gray-400" />
+              <Activity className="w-8 h-8 text-gray-400 dark:text-text-tertiary" />
             </div>
           </Card>
         </div>

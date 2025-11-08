@@ -28,13 +28,13 @@ const NotificationTesting = () => {
   return (
     <Card title="Test Your Notifications" icon={TestTube}>
       <div className="space-y-4">
-        <p className="text-gray-600">
+        <p className="text-gray-600 dark:text-text-secondary">
           Send a test notification to verify your settings
         </p>
 
         {/* Channel Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
             Channel to test
           </label>
           <div className="grid grid-cols-3 gap-3">
@@ -44,7 +44,7 @@ const NotificationTesting = () => {
                 <label
                   key={channel.key}
                   className={`border rounded-lg p-3 cursor-pointer transition-colors ${
-                    testChannel === channel.key ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'
+                    testChannel === channel.key ? 'border-blue-500 bg-blue-50 dark:bg-surface-primary' : 'border-gray-200 dark:border-surface-border hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -54,12 +54,12 @@ const NotificationTesting = () => {
                       value={channel.key}
                       checked={testChannel === channel.key}
                       onChange={(e) => setTestChannel(e.target.value)}
-                      className="text-blue-600"
+                      className="text-blue-600 dark:text-blue-400"
                     />
-                    <div className={`p-2 rounded-full ${testChannel === channel.key ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                      <Icon className={`w-4 h-4 ${testChannel === channel.key ? 'text-blue-600' : 'text-gray-400'}`} />
+                    <div className={`p-2 rounded-full ${testChannel === channel.key ? 'bg-blue-100' : 'bg-gray-100 dark:bg-surface-secondary'}`}>
+                      <Icon className={`w-4 h-4 ${testChannel === channel.key ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-text-tertiary'}`} />
                     </div>
-                    <span className={`font-medium ${testChannel === channel.key ? 'text-blue-900' : 'text-gray-700'}`}>
+                    <span className={`font-medium ${testChannel === channel.key ? 'text-blue-900 dark:text-blue-100' : 'text-gray-700 dark:text-text-primary'}`}>
                       {channel.label}
                     </span>
                   </div>
@@ -71,13 +71,13 @@ const NotificationTesting = () => {
 
         {/* Notification Type Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
             Notification type
           </label>
           <select
             value={testType}
             onChange={(e) => setTestType(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             {notificationTypes.map((type) => (
               <option key={type.key} value={type.key}>
@@ -85,7 +85,7 @@ const NotificationTesting = () => {
               </option>
             ))}
           </select>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-gray-600 dark:text-text-secondary mt-1">
             {notificationTypes.find(t => t.key === testType)?.description}
           </p>
         </div>
@@ -97,18 +97,18 @@ const NotificationTesting = () => {
         </Button>
 
         {/* Test History */}
-        <div className="border-t border-gray-200 pt-4">
-          <h4 className="font-medium text-gray-900 mb-2">Test History</h4>
-          <div className="text-sm text-gray-600">
+        <div className="border-t border-gray-200 dark:border-surface-border pt-4">
+          <h4 className="font-medium text-gray-900 dark:text-text-primary mb-2">Test History</h4>
+          <div className="text-sm text-gray-600 dark:text-text-secondary">
             <p>Last test sent: Never</p>
             <p>No test notifications have been sent yet</p>
           </div>
         </div>
 
         {/* Testing Tips */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h4 className="font-medium text-blue-900 mb-2">Testing Tips</h4>
-          <ul className="text-sm text-blue-800 space-y-1">
+        <div className="bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-4">
+          <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Testing Tips</h4>
+          <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
             <li>• Test notifications during business hours to avoid quiet hour restrictions</li>
             <li>• Critical alerts will always be sent, even if channels are disabled</li>
             <li>• SMS tests may incur carrier charges</li>

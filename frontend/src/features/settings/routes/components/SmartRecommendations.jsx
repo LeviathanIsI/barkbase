@@ -52,15 +52,15 @@ const SmartRecommendations = ({ services }) => {
   const getTypeColor = (type) => {
     switch (type) {
       case 'high-impact':
-        return 'border-red-200 bg-red-50';
+        return 'border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-surface-primary';
       case 'medium-impact':
-        return 'border-yellow-200 bg-yellow-50';
+        return 'border-yellow-200 dark:border-yellow-900/30 bg-yellow-50 dark:bg-surface-primary';
       case 'quick-win':
-        return 'border-green-200 bg-green-50';
+        return 'border-green-200 dark:border-green-900/30 bg-green-50 dark:bg-surface-primary';
       case 'advanced':
-        return 'border-purple-200 bg-purple-50';
+        return 'border-purple-200 dark:border-purple-900/30 bg-purple-50 dark:bg-surface-primary';
       default:
-        return 'border-gray-200 bg-gray-50';
+        return 'border-gray-200 dark:border-surface-border bg-gray-50 dark:bg-surface-secondary';
     }
   };
 
@@ -88,7 +88,7 @@ const SmartRecommendations = ({ services }) => {
       case 'high':
         return 'text-red-600';
       default:
-        return 'text-gray-600';
+        return 'text-gray-600 dark:text-text-secondary';
     }
   };
 
@@ -96,7 +96,7 @@ const SmartRecommendations = ({ services }) => {
     <div className="space-y-4">
       <div className="flex items-center gap-3">
         <Lightbulb className="w-6 h-6 text-yellow-600" />
-        <h2 className="text-xl font-semibold text-gray-900">Smart Recommendations</h2>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">Smart Recommendations</h2>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -106,27 +106,27 @@ const SmartRecommendations = ({ services }) => {
             <div key={rec.id} className={`border rounded-lg p-6 ${getTypeColor(rec.type)}`}>
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <Icon className="w-5 h-5 text-gray-600" />
-                  <span className="text-xs font-bold text-gray-700">
+                  <Icon className="w-5 h-5 text-gray-600 dark:text-text-secondary" />
+                  <span className="text-xs font-bold text-gray-700 dark:text-text-primary">
                     {getTypeLabel(rec.type)}
                   </span>
                 </div>
               </div>
 
-              <h3 className="font-semibold text-gray-900 mb-2">{rec.title}</h3>
-              <p className="text-sm text-gray-700 mb-4">{rec.description}</p>
+              <h3 className="font-semibold text-gray-900 dark:text-text-primary mb-2">{rec.title}</h3>
+              <p className="text-sm text-gray-700 dark:text-text-primary mb-4">{rec.description}</p>
 
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Estimated impact:</span>
+                  <span className="text-gray-600 dark:text-text-secondary">Estimated impact:</span>
                   <span className="font-medium text-green-600">{rec.impact}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Implementation time:</span>
+                  <span className="text-gray-600 dark:text-text-secondary">Implementation time:</span>
                   <span className="font-medium">{rec.timeToImplement}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Risk:</span>
+                  <span className="text-gray-600 dark:text-text-secondary">Risk:</span>
                   <span className={`font-medium ${getRiskColor(rec.risk)}`}>{rec.risk}</span>
                 </div>
               </div>

@@ -180,7 +180,7 @@ const PetDetail = () => {
             <div className="space-y-2">
               {recordOwners.map((owner) => (
                 <div key={owner.recordId} className="flex items-center gap-3 rounded-md border border-border px-3 py-2">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-100 text-purple-600">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-100 dark:bg-surface-secondary text-purple-600 dark:text-purple-400">
                     <User className="h-4 w-4" />
                   </div>
                   <div className="flex-1">
@@ -230,7 +230,7 @@ const PetDetail = () => {
 
   const summaryProps = useMemo(() => ({
     avatar: (
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 dark:bg-surface-secondary text-blue-600 dark:text-blue-400">
         <PawPrint className="h-8 w-8" />
       </div>
     ),
@@ -322,7 +322,7 @@ const PetDetail = () => {
                           className="flex items-center justify-between p-4 border border-border rounded-lg bg-surface hover:bg-surface-hover transition-colors"
                         >
                           <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-surface-secondary text-blue-600 dark:text-blue-400">
                               <Syringe className="h-5 w-5" />
                             </div>
                             <div>
@@ -358,7 +358,7 @@ const PetDetail = () => {
                                   size="sm"
                                   variant="ghost"
                                   onClick={() => handleDeleteClick(vaccination)}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:bg-surface-primary"
                                 >
                                   Delete
                                 </Button>

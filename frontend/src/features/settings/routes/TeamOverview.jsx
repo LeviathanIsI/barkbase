@@ -157,8 +157,8 @@ const TeamOverview = () => {
       {/* Header with Actions */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Team</h1>
-          <p className="text-gray-600">Manage staff and permissions</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-text-primary">Team</h1>
+          <p className="text-gray-600 dark:text-text-secondary">Manage staff and permissions</p>
         </div>
         <div className="flex gap-3">
           <Button onClick={() => navigate('/settings/team/invite')}>
@@ -173,42 +173,42 @@ const TeamOverview = () => {
       </div>
 
       {/* Team Overview Dashboard */}
-      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-surface-primary dark:to-surface-primary border-blue-200 dark:border-blue-900/30">
         <div className="p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-blue-600" />
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             Team Overview
           </h2>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{teamStats.activeStaff}</div>
-              <div className="text-sm text-gray-600">Active Staff</div>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{teamStats.activeStaff}</div>
+              <div className="text-sm text-gray-600 dark:text-text-secondary">Active Staff</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-orange-600">{teamStats.pendingInvites}</div>
-              <div className="text-sm text-gray-600">Pending Invites</div>
+              <div className="text-sm text-gray-600 dark:text-text-secondary">Pending Invites</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">{teamStats.onlineNow}</div>
-              <div className="text-sm text-gray-600">Online Now</div>
+              <div className="text-sm text-gray-600 dark:text-text-secondary">Online Now</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">{teamStats.avgHoursToday}h</div>
-              <div className="text-sm text-gray-600">Avg Hours Today</div>
+              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{teamStats.avgHoursToday}h</div>
+              <div className="text-sm text-gray-600 dark:text-text-secondary">Avg Hours Today</div>
             </div>
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-700">Current Coverage:</span>
+              <span className="text-sm text-gray-700 dark:text-text-primary">Current Coverage:</span>
               <div className="flex items-center gap-2">
                 <currentCoverage.icon className={`w-4 h-4 ${currentCoverage.color}`} />
                 <span className="text-sm font-medium">{currentCoverage.text}</span>
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-700">Tomorrow's Coverage:</span>
+              <span className="text-sm text-gray-700 dark:text-text-primary">Tomorrow's Coverage:</span>
               <div className="flex items-center gap-2">
                 <tomorrowCoverage.icon className={`w-4 h-4 ${tomorrowCoverage.color}`} />
                 <span className="text-sm font-medium">{tomorrowCoverage.text}</span>
@@ -221,20 +221,20 @@ const TeamOverview = () => {
       {/* Current Shift Status */}
       <Card>
         <div className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-blue-600" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4 flex items-center gap-2">
+            <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             Current Shift Status
           </h3>
 
           <div className="space-y-3">
             {activeMembers.filter(m => m.status === 'active').slice(0, 3).map((member) => (
-              <div key={member.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div key={member.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-surface-secondary rounded-lg">
                 <div className="flex items-center gap-3">
-                  <div className={`w-2 h-2 rounded-full ${member.isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
+                  <div className={`w-2 h-2 rounded-full ${member.isOnline ? 'bg-green-50 dark:bg-green-950/20' : 'bg-gray-400 dark:bg-surface-secondary'}`} />
                   <Avatar size="sm" fallback={member.name} />
                   <span className="font-medium">{member.name}</span>
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-gray-600 dark:text-text-secondary">
                   {member.isOnline
                     ? `Clocked in: ${member.lastActive}`
                     : 'Not scheduled today'
@@ -276,7 +276,7 @@ const TeamOverview = () => {
 
       {/* Active Team Members */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">
           Active Team Members ({activeMembers.length})
         </h3>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -295,17 +295,17 @@ const TeamOverview = () => {
       {/* Pending Invites */}
       {pendingInvites.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">
             Pending Invites ({pendingInvites.length})
           </h3>
           <div className="space-y-3">
             {pendingInvites.map((invite) => (
-              <div key={invite.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+              <div key={invite.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-surface-border rounded-lg">
                 <div className="flex items-center gap-3">
-                  <Mail className="w-5 h-5 text-gray-400" />
+                  <Mail className="w-5 h-5 text-gray-400 dark:text-text-tertiary" />
                   <div>
-                    <p className="font-medium text-gray-900">{invite.email}</p>
-                    <p className="text-sm text-gray-600">
+                    <p className="font-medium text-gray-900 dark:text-text-primary">{invite.email}</p>
+                    <p className="text-sm text-gray-600 dark:text-text-secondary">
                       {invite.role} role • {invite.lastActive}
                     </p>
                   </div>

@@ -202,8 +202,8 @@ const Business = () => {
                   onClick={() => { setServices({ ...services, [key]: !services[key] }); setIsDirty(true); }}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${services[key] ? 'bg-[#4B5DD3]' : 'bg-gray-100'}`}>
-                      <Icon className={`h-5 w-5 ${services[key] ? 'text-white' : 'text-gray-500'}`} />
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${services[key] ? 'bg-[#4B5DD3]' : 'bg-gray-100 dark:bg-surface-secondary'}`}>
+                      <Icon className={`h-5 w-5 ${services[key] ? 'text-white' : 'text-gray-500 dark:text-text-secondary'}`} />
                     </div>
                     <div className="flex-1">
                       <div className="font-medium text-[#263238]">{label}</div>
@@ -283,7 +283,7 @@ function TimeSelect({ value, onChange }) {
     }
   }
   return (
-    <select className="rounded-md border border-[#E0E0E0] px-3 pr-10 py-2 text-sm w-full" value={value} onChange={(e)=>onChange(e.target.value)}>
+    <select className="rounded-md border border-[#E0E0E0] px-3 pr-10 py-2 text-sm w-full bg-white dark:bg-surface-primary" value={value} onChange={(e)=>onChange(e.target.value)}>
       {times.map(t => (
         <option key={t.value} value={t.value}>{t.label}</option>
       ))}

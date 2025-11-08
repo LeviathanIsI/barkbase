@@ -19,18 +19,18 @@ export default function FinancialDashboard() {
 
   if (isLoading || !billingOverview) {
     return (
-      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-surface-primary dark:to-surface-primary border-blue-200 dark:border-blue-900/30">
         <Skeleton className="h-64" />
       </Card>
     );
   }
 
   return (
-    <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+    <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-surface-primary dark:to-surface-primary border-blue-200 dark:border-blue-900/30">
       <div className="p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-blue-600" />
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-text-primary flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             Billing Overview
           </h2>
           <div className="flex gap-3">
@@ -51,11 +51,11 @@ export default function FinancialDashboard() {
 
         {/* Main Billing Info */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
+          <div className="bg-white dark:bg-surface-primary rounded-lg p-4 border border-gray-200 dark:border-surface-border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Current Plan</p>
-                <p className="text-xl font-bold text-gray-900">{billingOverview.currentPlan}</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">Current Plan</p>
+                <p className="text-xl font-bold text-gray-900 dark:text-text-primary">{billingOverview.currentPlan}</p>
               </div>
               <Badge variant="neutral" className="text-xs">
                 Free
@@ -63,23 +63,23 @@ export default function FinancialDashboard() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
+          <div className="bg-white dark:bg-surface-primary rounded-lg p-4 border border-gray-200 dark:border-surface-border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Next Billing</p>
-                <p className="text-xl font-bold text-gray-900">{billingOverview.nextBilling}</p>
-                <p className="text-xs text-gray-500">{billingOverview.daysUntilBilling} days</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">Next Billing</p>
+                <p className="text-xl font-bold text-gray-900 dark:text-text-primary">{billingOverview.nextBilling}</p>
+                <p className="text-xs text-gray-500 dark:text-text-secondary">{billingOverview.daysUntilBilling} days</p>
               </div>
-              <Calendar className="w-8 h-8 text-blue-600" />
+              <Calendar className="w-8 h-8 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
 
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
+          <div className="bg-white dark:bg-surface-primary rounded-lg p-4 border border-gray-200 dark:border-surface-border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Payment Method</p>
-                <p className="text-lg font-bold text-gray-900">●●●● 4242</p>
-                <p className="text-xs text-gray-500">Visa ending in 4242</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">Payment Method</p>
+                <p className="text-lg font-bold text-gray-900 dark:text-text-primary">●●●● 4242</p>
+                <p className="text-xs text-gray-500 dark:text-text-secondary">Visa ending in 4242</p>
               </div>
               <Button variant="outline" size="sm">
                 Update
@@ -89,26 +89,26 @@ export default function FinancialDashboard() {
         </div>
 
         {/* Monthly Summary */}
-        <div className="bg-white rounded-lg p-4 border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">This Month</h3>
+        <div className="bg-white dark:bg-surface-primary rounded-lg p-4 border border-gray-200 dark:border-surface-border">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">This Month</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">
                 {formatCurrency(billingOverview.thisMonth.processed * 100)}
               </div>
-              <div className="text-sm text-gray-600">Processed</div>
+              <div className="text-sm text-gray-600 dark:text-text-secondary">Processed</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                 {billingOverview.thisMonth.bookings}
               </div>
-              <div className="text-sm text-gray-600">Bookings</div>
+              <div className="text-sm text-gray-600 dark:text-text-secondary">Bookings</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-orange-600">
                 {formatCurrency(billingOverview.thisMonth.transactionFees * 100)}
               </div>
-              <div className="text-sm text-gray-600">Transaction Fees</div>
+              <div className="text-sm text-gray-600 dark:text-text-secondary">Transaction Fees</div>
             </div>
           </div>
         </div>

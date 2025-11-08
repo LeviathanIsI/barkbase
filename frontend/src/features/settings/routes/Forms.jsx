@@ -112,11 +112,11 @@ const Forms = () => {
           {forms.map(form => (
             <div
               key={form.id}
-              className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+              className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
             >
               <div className="flex items-center gap-4">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <FileText className="w-5 h-5 text-blue-600" />
+                <div className="p-2 bg-blue-100 dark:bg-surface-secondary rounded-lg">
+                  <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
@@ -128,7 +128,7 @@ const Forms = () => {
                       {form.active ? 'Active' : 'Inactive'}
                     </Badge>
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
+                  <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-text-secondary mt-1">
                     <span>{form.fields} fields</span>
                     <span>•</span>
                     <span>{form.submissions} submissions</span>
@@ -186,7 +186,7 @@ const Forms = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Require Electronic Signature</h4>
-              <p className="text-sm text-gray-600">Customers must sign forms electronically</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Customers must sign forms electronically</p>
             </div>
             <Switch
               checked={formSettings.requireSignature}
@@ -197,7 +197,7 @@ const Forms = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Save Incomplete Forms</h4>
-              <p className="text-sm text-gray-600">Allow customers to save and resume later</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Allow customers to save and resume later</p>
             </div>
             <Switch
               checked={formSettings.saveIncomplete}
@@ -208,7 +208,7 @@ const Forms = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Email Copy to Customer</h4>
-              <p className="text-sm text-gray-600">Send completed forms to customer email</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Send completed forms to customer email</p>
             </div>
             <Switch
               checked={formSettings.emailCopy}
@@ -219,7 +219,7 @@ const Forms = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Automatic Reminders</h4>
-              <p className="text-sm text-gray-600">Remind customers to complete forms</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Remind customers to complete forms</p>
             </div>
             <Switch
               checked={formSettings.autoReminder}
@@ -241,7 +241,7 @@ const Forms = () => {
                   max="7"
                   className="w-16 px-3 py-2 border rounded-md"
                 />
-                <span className="text-sm text-gray-600">days</span>
+                <span className="text-sm text-gray-600 dark:text-text-secondary">days</span>
               </div>
             </div>
           )}
@@ -256,7 +256,7 @@ const Forms = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer">
             <h4 className="font-medium mb-2">Basic Intake Form</h4>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-text-secondary">
               Collect essential customer and pet information
             </p>
             <Button variant="outline" size="sm" className="mt-3">
@@ -266,7 +266,7 @@ const Forms = () => {
           
           <div className="p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer">
             <h4 className="font-medium mb-2">Vaccination Records</h4>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-text-secondary">
               Track pet vaccination history and requirements
             </p>
             <Button variant="outline" size="sm" className="mt-3">
@@ -276,7 +276,7 @@ const Forms = () => {
           
           <div className="p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer">
             <h4 className="font-medium mb-2">Emergency Contact</h4>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-text-secondary">
               Collect emergency contact information
             </p>
             <Button variant="outline" size="sm" className="mt-3">
@@ -286,7 +286,7 @@ const Forms = () => {
           
           <div className="p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer">
             <h4 className="font-medium mb-2">Service Agreement</h4>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-text-secondary">
               Standard terms and conditions agreement
             </p>
             <Button variant="outline" size="sm" className="mt-3">

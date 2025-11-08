@@ -11,7 +11,7 @@ const FilterOptionsPanel = ({ isOpen, onClose, filters, onFiltersChange }) => {
     >
       <div className="space-y-6">
         <div>
-          <h4 className="font-medium text-gray-900 mb-3">Show Services</h4>
+          <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3">Show Services</h4>
           <div className="space-y-2">
             {['boarding', 'daycare', 'grooming', 'training'].map(service => (
               <label key={service} className="flex items-center">
@@ -33,7 +33,7 @@ const FilterOptionsPanel = ({ isOpen, onClose, filters, onFiltersChange }) => {
         </div>
 
         <div>
-          <h4 className="font-medium text-gray-900 mb-3">Highlight</h4>
+          <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3">Highlight</h4>
           <div className="space-y-2">
             {[
               'check-in-today',
@@ -61,7 +61,7 @@ const FilterOptionsPanel = ({ isOpen, onClose, filters, onFiltersChange }) => {
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200">
+        <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200 dark:border-surface-border">
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>

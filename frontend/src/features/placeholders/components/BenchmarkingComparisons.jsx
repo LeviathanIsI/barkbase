@@ -63,37 +63,37 @@ const BenchmarkingComparisons = () => {
         <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
           <Target className="w-8 h-8 text-white" />
         </div>
-        <h3 className="text-2xl font-semibold text-gray-900 mb-2">Industry Benchmarks</h3>
-        <p className="text-gray-600 mb-8">See how you compare to similar facilities</p>
+        <h3 className="text-2xl font-semibold text-gray-900 dark:text-text-primary mb-2">Industry Benchmarks</h3>
+        <p className="text-gray-600 dark:text-text-secondary mb-8">See how you compare to similar facilities</p>
       </div>
 
       <Card className="p-6">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">YOUR PERFORMANCE VS INDUSTRY</h4>
-        <p className="text-sm text-gray-600 mb-6">
+        <h4 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">YOUR PERFORMANCE VS INDUSTRY</h4>
+        <p className="text-sm text-gray-600 dark:text-text-secondary mb-6">
           Based on: Medium-sized facilities (20-40 kennels) in United States, offering Boarding + Daycare
         </p>
 
         <div className="space-y-6">
           {benchmarks.map((benchmark, index) => (
-            <div key={index} className="border border-gray-200 rounded-lg p-4">
-              <h5 className="font-semibold text-gray-900 mb-3">{benchmark.metric}</h5>
+            <div key={index} className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
+              <h5 className="font-semibold text-gray-900 dark:text-text-primary mb-3">{benchmark.metric}</h5>
 
               <div className="grid gap-4 md:grid-cols-3 mb-3">
                 <div className="text-center">
-                  <p className="text-sm text-gray-600">You</p>
-                  <p className="text-2xl font-bold text-gray-900">{benchmark.you}</p>
+                  <p className="text-sm text-gray-600 dark:text-text-secondary">You</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{benchmark.you}</p>
                   <div className={`h-2 rounded-full mt-2 ${
-                    benchmark.status === 'above' ? 'bg-green-500' :
-                    benchmark.status === 'below' ? 'bg-red-500' : 'bg-yellow-500'
+                    benchmark.status === 'above' ? 'bg-green-50 dark:bg-green-950/20' :
+                    benchmark.status === 'below' ? 'bg-red-50 dark:bg-red-950/20' : 'bg-yellow-50 dark:bg-yellow-950/20'
                   }`} style={{ width: `${benchmark.percentile}%` }}></div>
                 </div>
                 <div className="text-center">
-                  <p className="text-sm text-gray-600">Average</p>
-                  <p className="text-lg font-semibold text-gray-700">{benchmark.average}</p>
+                  <p className="text-sm text-gray-600 dark:text-text-secondary">Average</p>
+                  <p className="text-lg font-semibold text-gray-700 dark:text-text-primary">{benchmark.average}</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-sm text-gray-600">Top 25%</p>
-                  <p className="text-lg font-semibold text-gray-700">{benchmark.top25}</p>
+                  <p className="text-sm text-gray-600 dark:text-text-secondary">Top 25%</p>
+                  <p className="text-lg font-semibold text-gray-700 dark:text-text-primary">{benchmark.top25}</p>
                 </div>
               </div>
 
@@ -122,13 +122,13 @@ const BenchmarkingComparisons = () => {
         </div>
       </Card>
 
-      <Card className="p-6 bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
+      <Card className="p-6 bg-gradient-to-r from-green-50 to-blue-50 dark:from-surface-primary dark:to-surface-primary border-green-200 dark:border-green-900/30">
         <h4 className="text-lg font-semibold text-green-900 mb-4">ACTIONABLE RECOMMENDATIONS</h4>
         <p className="text-sm text-green-800 mb-4">Based on benchmarking data:</p>
 
         <div className="space-y-3 mb-6">
           {recommendations.map((rec, index) => (
-            <div key={index} className="flex items-center justify-between p-3 bg-white rounded-lg">
+            <div key={index} className="flex items-center justify-between p-3 bg-white dark:bg-surface-primary rounded-lg">
               <div className="flex items-center gap-3">
                 <TrendingUp className="w-5 h-5 text-green-600" />
                 <span className="text-sm text-green-900">{rec.text}</span>

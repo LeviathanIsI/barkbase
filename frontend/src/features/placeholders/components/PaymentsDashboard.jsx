@@ -26,12 +26,12 @@ const PaymentsDashboard = ({ onViewPayment, onProcessRefund }) => {
     const s = (status || '').toUpperCase();
     switch (s) {
       case 'CAPTURED':
-      case 'SUCCESSFUL': return 'text-green-600 bg-green-100';
+      case 'SUCCESSFUL': return 'text-green-600 bg-green-100 dark:bg-surface-secondary';
       case 'PENDING':
-      case 'AUTHORIZED': return 'text-yellow-600 bg-yellow-100';
-      case 'FAILED': return 'text-red-600 bg-red-100';
-      case 'REFUNDED': return 'text-gray-600 bg-gray-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case 'AUTHORIZED': return 'text-yellow-600 bg-yellow-100 dark:bg-surface-secondary';
+      case 'FAILED': return 'text-red-600 bg-red-100 dark:bg-surface-secondary';
+      case 'REFUNDED': return 'text-gray-600 dark:text-text-secondary bg-gray-100 dark:bg-surface-secondary';
+      default: return 'text-gray-600 dark:text-text-secondary bg-gray-100 dark:bg-surface-secondary';
     }
   };
 
@@ -71,20 +71,20 @@ const PaymentsDashboard = ({ onViewPayment, onProcessRefund }) => {
         <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
           <div className="flex items-center gap-4 flex-1">
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-text-tertiary" />
               <input
                 type="text"
                 placeholder="Search: Customer, amount, transaction ID..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm text-gray-900 placeholder:text-gray-600 placeholder:opacity-75 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary dark:text-text-secondary placeholder:opacity-75 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="pl-3 pr-10 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white bg-no-repeat bg-right"
+              className="pl-3 pr-10 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white dark:bg-surface-primary bg-no-repeat bg-right"
               style={{ backgroundImage: "url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e\")", backgroundPosition: "right 0.5rem center", backgroundSize: "1.5em 1.5em" }}
             >
               <option value="all">Status: All</option>
@@ -98,7 +98,7 @@ const PaymentsDashboard = ({ onViewPayment, onProcessRefund }) => {
             <select
               value={methodFilter}
               onChange={(e) => setMethodFilter(e.target.value)}
-              className="pl-3 pr-10 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white bg-no-repeat bg-right"
+              className="pl-3 pr-10 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white dark:bg-surface-primary bg-no-repeat bg-right"
               style={{ backgroundImage: "url(\"data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e\")", backgroundPosition: "right 0.5rem center", backgroundSize: "1.5em 1.5em" }}
             >
               <option value="all">Method: All</option>
@@ -109,7 +109,7 @@ const PaymentsDashboard = ({ onViewPayment, onProcessRefund }) => {
             </select>
           </div>
 
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-text-secondary">
             Showing {payments.length} payments
           </div>
         </div>
@@ -157,23 +157,23 @@ const PaymentsDashboard = ({ onViewPayment, onProcessRefund }) => {
       {/* Transaction Cards */}
       <div className="space-y-4">
         {error && (
-          <Card className="p-12 text-center bg-red-50">
+          <Card className="p-12 text-center bg-red-50 dark:bg-surface-primary">
             <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Error Loading Payments</h3>
-            <p className="text-gray-600">{error.message}</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">Error Loading Payments</h3>
+            <p className="text-gray-600 dark:text-text-secondary">{error.message}</p>
             <pre className="mt-4 text-xs text-left overflow-auto">{JSON.stringify({ paymentsData, error }, null, 2)}</pre>
           </Card>
         )}
         {!error && isLoading ? (
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading payments...</p>
+            <p className="mt-4 text-gray-600 dark:text-text-secondary">Loading payments...</p>
           </div>
         ) : !error && payments.length === 0 ? (
           <Card className="p-12 text-center">
-            <DollarSign className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No payments found</h3>
-            <p className="text-gray-600">Payments will appear here once transactions are processed</p>
+            <DollarSign className="h-16 w-16 text-gray-400 dark:text-text-tertiary mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">No payments found</h3>
+            <p className="text-gray-600 dark:text-text-secondary">Payments will appear here once transactions are processed</p>
           </Card>
         ) : payments.map((payment) => (
           <Card key={payment.id} className="p-6">
@@ -192,13 +192,13 @@ const PaymentsDashboard = ({ onViewPayment, onProcessRefund }) => {
 
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
-                    <h4 className="font-semibold text-gray-900">{payment.recordId || payment.id}</h4>
+                    <h4 className="font-semibold text-gray-900 dark:text-text-primary">{payment.recordId || payment.id}</h4>
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(payment.status || 'unknown')}`}>
                       {(payment.status || 'UNKNOWN').toUpperCase()}
                     </span>
                   </div>
 
-                  <div className="grid gap-2 md:grid-cols-2 text-sm text-gray-600 mb-3">
+                  <div className="grid gap-2 md:grid-cols-2 text-sm text-gray-600 dark:text-text-secondary mb-3">
                     <div className="flex items-center gap-2">
                       <DollarSign className="w-4 h-4" />
                       <span>${((payment.amountCents || payment.amount || 0) / 100).toFixed(2)} {payment.currency || 'USD'} • {payment.method || 'N/A'}</span>
@@ -211,24 +211,24 @@ const PaymentsDashboard = ({ onViewPayment, onProcessRefund }) => {
 
                   <div className="space-y-1 text-sm">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-gray-900">
+                      <span className="font-medium text-gray-900 dark:text-text-primary">
                         👤 {payment.ownerFirstName && payment.ownerLastName 
                           ? `${payment.ownerFirstName} ${payment.ownerLastName}` 
                           : payment.ownerEmail || 'Unknown Customer'}
                       </span>
                       {payment.ownerPhone && (
-                        <span className="text-gray-600">• {payment.ownerPhone}</span>
+                        <span className="text-gray-600 dark:text-text-secondary">• {payment.ownerPhone}</span>
                       )}
                     </div>
                     {payment.petName && (
                       <div className="flex items-center gap-2">
-                        <span className="text-gray-600">{payment.petName}</span>
-                        {payment.petBreed && <span className="text-gray-600">({payment.petBreed})</span>}
+                        <span className="text-gray-600 dark:text-text-secondary">{payment.petName}</span>
+                        {payment.petBreed && <span className="text-gray-600 dark:text-text-secondary">({payment.petBreed})</span>}
                       </div>
                     )}
                     {payment.bookingCheckIn && payment.bookingCheckOut && (
                       <div className="flex items-center gap-2">
-                        <span className="text-gray-600">
+                        <span className="text-gray-600 dark:text-text-secondary">
                           📅 {new Date(payment.bookingCheckIn).toLocaleDateString()} - {new Date(payment.bookingCheckOut).toLocaleDateString()}
                         </span>
                       </div>
@@ -236,16 +236,16 @@ const PaymentsDashboard = ({ onViewPayment, onProcessRefund }) => {
                   </div>
 
                   {payment.status === 'FAILED' && (
-                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded">
-                      <p className="text-sm text-red-800">
+                    <div className="mt-3 p-3 bg-red-50 dark:bg-surface-primary border border-red-200 dark:border-red-900/30 rounded">
+                      <p className="text-sm text-red-800 dark:text-red-200">
                         Payment failed - review details and retry or contact customer
                       </p>
                     </div>
                   )}
 
                   {payment.status === 'REFUNDED' && (
-                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
-                      <p className="text-sm text-blue-800">
+                    <div className="mt-3 p-3 bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded">
+                      <p className="text-sm text-blue-800 dark:text-blue-200">
                         Refund issued • Expected in customer account: 5-10 business days
                       </p>
                     </div>

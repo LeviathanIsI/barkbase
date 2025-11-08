@@ -26,7 +26,7 @@ const DeletePropertyDialog = ({ isOpen, property, onClose, onConfirm }) => {
     <Modal open={isOpen} onClose={onClose} size="sm">
       <div className="p-6">
         <div className="flex items-start gap-4">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-100">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-surface-secondary">
             <AlertTriangle className="h-5 w-5 text-red-600" />
           </div>
           <div className="flex-1">
@@ -39,7 +39,7 @@ const DeletePropertyDialog = ({ isOpen, property, onClose, onConfirm }) => {
               This will remove the property definition and all its data from existing records. This action cannot be undone.
             </p>
             {error && (
-              <div className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-600">
+              <div className="mt-3 rounded-lg bg-red-50 dark:bg-surface-primary p-3 text-sm text-red-600">
                 {error}
               </div>
             )}

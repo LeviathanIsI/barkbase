@@ -10,23 +10,23 @@ const QRCheckInModal = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-md">
+      <div className="bg-white dark:bg-surface-primary rounded-lg w-full max-w-md">
         <div className="p-6">
           <div className="text-center">
-            <QrCode className="h-16 w-16 text-blue-600 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">QR Code Check-In</h3>
-            <p className="text-gray-600 mb-6">Point camera at customer's QR code</p>
+            <QrCode className="h-16 w-16 text-blue-600 dark:text-blue-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-text-primary mb-2">QR Code Check-In</h3>
+            <p className="text-gray-600 dark:text-text-secondary mb-6">Point camera at customer's QR code</p>
 
             {!detected ? (
-              <div className="bg-gray-100 rounded-lg p-8 mb-6">
-                <Camera className="w-16 h-16 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-600">Scanning...</p>
-                <div className="w-full bg-gray-200 rounded-full h-2 mt-4">
+              <div className="bg-gray-100 dark:bg-surface-secondary rounded-lg p-8 mb-6">
+                <Camera className="w-16 h-16 text-gray-400 dark:text-text-tertiary mx-auto mb-2" />
+                <p className="text-gray-600 dark:text-text-secondary">Scanning...</p>
+                <div className="w-full bg-gray-200 dark:bg-surface-border rounded-full h-2 mt-4">
                   <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
                 </div>
               </div>
             ) : (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+              <div className="bg-green-50 dark:bg-surface-primary border border-green-200 dark:border-green-900/30 rounded-lg p-4 mb-6">
                 <h4 className="font-semibold text-green-900 mb-2">✅ QR Code Detected</h4>
                 <p className="text-green-800">Found booking for Bella - Golden Retriever</p>
                 <p className="text-sm text-green-700 mt-2">Confidence: 98% match</p>

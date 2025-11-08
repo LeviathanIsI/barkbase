@@ -79,10 +79,10 @@ const MobileTaskView = () => {
   const getTaskColor = (type) => {
     switch (type) {
       case 'check-in': return 'bg-success-100 text-success-700 border-success-200';
-      case 'check-out': return 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'check-out': return 'bg-blue-100 dark:bg-surface-secondary text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-900/30';
       case 'medication': return 'bg-error-100 text-error-700 border-error-200';
       case 'feeding': return 'bg-warning-100 text-warning-700 border-warning-200';
-      default: return 'bg-gray-100 text-gray-700 border-gray-200';
+      default: return 'bg-gray-100 dark:bg-surface-secondary text-gray-700 dark:text-text-primary border-gray-200 dark:border-surface-border';
     }
   };
 
@@ -106,12 +106,12 @@ const MobileTaskView = () => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
+    <div className="h-full flex flex-col bg-gray-50 dark:bg-surface-secondary">
       {/* Mobile Header */}
-      <div className="bg-white border-b sticky top-0 z-10">
+      <div className="bg-white dark:bg-surface-primary border-b sticky top-0 z-10">
         <div className="px-4 py-3">
           <div className="flex items-center justify-between mb-3">
-            <h1 className="text-lg font-semibold text-gray-900">Tasks</h1>
+            <h1 className="text-lg font-semibold text-gray-900 dark:text-text-primary">Tasks</h1>
             <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
@@ -130,11 +130,11 @@ const MobileTaskView = () => {
           {searchOpen && (
             <div className="mb-3">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-text-tertiary" />
                 <input
                   type="text"
                   placeholder="Search tasks, pets, or owners..."
-                  className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                  className="w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-surface-border rounded-lg focus:ring-2 focus:ring-primary-500"
                   autoFocus
                 />
                 <Button
@@ -169,7 +169,7 @@ const MobileTaskView = () => {
                     "px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all",
                     filterStatus === filter.value
                       ? "bg-primary-600 text-white"
-                      : "bg-gray-100 text-gray-700"
+                      : "bg-gray-100 dark:bg-surface-secondary text-gray-700 dark:text-text-primary"
                   )}
                 >
                   {filter.label}
@@ -183,24 +183,24 @@ const MobileTaskView = () => {
         </div>
 
         {/* Summary Bar */}
-        <div className="px-4 py-2 bg-gray-50 flex items-center justify-between text-xs">
+        <div className="px-4 py-2 bg-gray-50 dark:bg-surface-secondary flex items-center justify-between text-xs">
           {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+            <Loader2 className="h-4 w-4 animate-spin text-gray-400 dark:text-text-tertiary" />
           ) : (
             <>
               <div className="flex items-center gap-3">
-                <span className="text-gray-600">
+                <span className="text-gray-600 dark:text-text-secondary">
                   {filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1">
                   <div className="w-2 h-2 bg-error-500 rounded-full"></div>
-                  <span className="text-gray-600">{tasks.filter(t => t.status === 'overdue').length} overdue</span>
+                  <span className="text-gray-600 dark:text-text-secondary">{tasks.filter(t => t.status === 'overdue').length} overdue</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Activity className="h-3 w-3 text-success-600" />
-                  <span className="text-gray-600">
+                  <span className="text-gray-600 dark:text-text-secondary">
                     {tasks.length > 0 ? Math.round((tasks.filter(t => t.status === 'completed').length / tasks.length) * 100) : 0}% complete
                   </span>
                 </div>
@@ -214,10 +214,10 @@ const MobileTaskView = () => {
       <div className="flex-1 overflow-y-auto pb-safe">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400 dark:text-text-tertiary" />
           </div>
         ) : filteredTasks.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-gray-500 dark:text-text-secondary">
             No tasks found
           </div>
         ) : (
@@ -280,7 +280,7 @@ const TaskCard = ({ task, onSelect }) => {
       {/* Main Card Content */}
       <div
         className={cn(
-          "relative bg-white border rounded-lg p-4 touch-manipulation",
+          "relative bg-white dark:bg-surface-primary border rounded-lg p-4 touch-manipulation",
           getTaskColor(task.type),
           task.priority === 'urgent' && "ring-2 ring-error-400"
         )}
@@ -296,10 +296,10 @@ const TaskCard = ({ task, onSelect }) => {
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2 mb-1">
               <div>
-                <p className="font-semibold text-gray-900">
+                <p className="font-semibold text-gray-900 dark:text-text-primary">
                   {task.type.charAt(0).toUpperCase() + task.type.slice(1).replace('-', ' ')}
                 </p>
-                <p className="text-sm text-gray-700 mt-0.5">{task.time}</p>
+                <p className="text-sm text-gray-700 dark:text-text-primary mt-0.5">{task.time}</p>
               </div>
               {task.status === 'overdue' && (
                 <Badge variant="error" className="text-xs">Overdue</Badge>
@@ -308,7 +308,7 @@ const TaskCard = ({ task, onSelect }) => {
 
             {/* Pet Info */}
             <div className="flex items-center gap-2 mt-2">
-              <div className="w-8 h-8 bg-white/50 rounded-full flex items-center justify-center">
+              <div className="w-8 h-8 bg-white dark:bg-surface-primary/50 rounded-full flex items-center justify-center">
                 <PawPrint className="h-4 w-4" />
               </div>
               <div className="min-w-0 flex-1">
@@ -351,7 +351,7 @@ const TaskCard = ({ task, onSelect }) => {
                   </Button>
                 </>
               )}
-              <ChevronRight className="h-5 w-5 text-gray-400 ml-auto" />
+              <ChevronRight className="h-5 w-5 text-gray-400 dark:text-text-tertiary ml-auto" />
             </div>
           </div>
         </div>
@@ -390,24 +390,24 @@ const TaskDetailsSheet = ({ task, onClose, onComplete, isLoading: isCompleting }
       {/* Sheet */}
       <div
         className={cn(
-          "absolute inset-x-0 bottom-0 bg-white rounded-t-2xl transition-transform duration-300",
+          "absolute inset-x-0 bottom-0 bg-white dark:bg-surface-primary rounded-t-2xl transition-transform duration-300",
           isClosing ? "translate-y-full" : "translate-y-0"
         )}
         style={{ maxHeight: '90vh' }}
       >
         {/* Handle */}
         <div className="flex justify-center pt-3">
-          <div className="w-12 h-1 bg-gray-300 rounded-full" />
+          <div className="w-12 h-1 bg-gray-300 dark:bg-surface-border rounded-full" />
         </div>
 
         {/* Header */}
         <div className="px-4 pt-4 pb-3 border-b">
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-text-primary">
                 {task.type.charAt(0).toUpperCase() + task.type.slice(1).replace('-', ' ')}
               </h2>
-              <p className="text-sm text-gray-600">{task.time}</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">{task.time}</p>
             </div>
             <Button variant="ghost" size="icon" onClick={handleClose}>
               <X className="h-5 w-5" />
@@ -419,23 +419,23 @@ const TaskDetailsSheet = ({ task, onClose, onComplete, isLoading: isCompleting }
         <div className="px-4 py-4 overflow-y-auto" style={{ maxHeight: '60vh' }}>
           {/* Pet Section */}
           <div className="mb-6">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">Pet Information</h3>
-            <div className="bg-gray-50 rounded-lg p-4">
+            <h3 className="text-sm font-medium text-gray-700 dark:text-text-primary mb-3">Pet Information</h3>
+            <div className="bg-gray-50 dark:bg-surface-secondary rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                <div className="w-16 h-16 bg-gray-200 dark:bg-surface-border rounded-lg flex items-center justify-center">
                   {task.pet.photo ? (
                     <img src={task.pet.photo} alt={task.pet.name} className="w-full h-full object-cover rounded-lg" />
                   ) : (
-                    <PawPrint className="h-8 w-8 text-gray-400" />
+                    <PawPrint className="h-8 w-8 text-gray-400 dark:text-text-tertiary" />
                   )}
                 </div>
                 <div className="flex-1">
-                  <p className="font-semibold text-gray-900">{task.pet.name}</p>
-                  <p className="text-sm text-gray-600">{task.pet.breed}</p>
+                  <p className="font-semibold text-gray-900 dark:text-text-primary">{task.pet.name}</p>
+                  <p className="text-sm text-gray-600 dark:text-text-secondary">{task.pet.breed}</p>
                   {task.room && (
                     <div className="flex items-center gap-1 mt-2">
-                      <MapPin className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm text-gray-700">Room {task.room}</span>
+                      <MapPin className="h-4 w-4 text-gray-400 dark:text-text-tertiary" />
+                      <span className="text-sm text-gray-700 dark:text-text-primary">Room {task.room}</span>
                     </div>
                   )}
                 </div>
@@ -458,12 +458,12 @@ const TaskDetailsSheet = ({ task, onClose, onComplete, isLoading: isCompleting }
           {/* Owner Section */}
           {task.owner && (
             <div className="mb-6">
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Owner Information</h3>
-              <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-text-primary mb-3">Owner Information</h3>
+              <div className="bg-gray-50 dark:bg-surface-secondary rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium text-gray-900">{task.owner.name}</p>
-                    <p className="text-sm text-gray-600">{task.owner.phone}</p>
+                    <p className="font-medium text-gray-900 dark:text-text-primary">{task.owner.name}</p>
+                    <p className="text-sm text-gray-600 dark:text-text-secondary">{task.owner.phone}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button variant="secondary" size="sm">
@@ -481,7 +481,7 @@ const TaskDetailsSheet = ({ task, onClose, onComplete, isLoading: isCompleting }
           {/* Task-Specific Content */}
           {task.type === 'medication' && (
             <div className="mb-6">
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Medication Details</h3>
+              <h3 className="text-sm font-medium text-gray-700 dark:text-text-primary mb-3">Medication Details</h3>
               <div className="bg-error-50 rounded-lg p-4">
                 <p className="font-medium text-error-900">{task.medication}</p>
                 <p className="text-sm text-error-700 mt-1">{task.instructions}</p>
@@ -491,18 +491,18 @@ const TaskDetailsSheet = ({ task, onClose, onComplete, isLoading: isCompleting }
 
           {task.type === 'check-out' && task.items && (
             <div className="mb-6">
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Services & Charges</h3>
-              <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-text-primary mb-3">Services & Charges</h3>
+              <div className="bg-gray-50 dark:bg-surface-secondary rounded-lg p-4">
                 <div className="space-y-2">
                   {task.items.map((item, idx) => (
                     <div key={idx} className="flex justify-between text-sm">
-                      <span className="text-gray-700">{item}</span>
-                      <span className="text-gray-900 font-medium">--</span>
+                      <span className="text-gray-700 dark:text-text-primary">{item}</span>
+                      <span className="text-gray-900 dark:text-text-primary font-medium">--</span>
                     </div>
                   ))}
                   <div className="pt-2 border-t flex justify-between">
-                    <span className="font-medium text-gray-900">Total Due</span>
-                    <span className="font-semibold text-gray-900">${task.balance}</span>
+                    <span className="font-medium text-gray-900 dark:text-text-primary">Total Due</span>
+                    <span className="font-semibold text-gray-900 dark:text-text-primary">${task.balance}</span>
                   </div>
                 </div>
               </div>
@@ -511,7 +511,7 @@ const TaskDetailsSheet = ({ task, onClose, onComplete, isLoading: isCompleting }
         </div>
 
         {/* Actions */}
-        <div className="px-4 py-4 border-t bg-gray-50">
+        <div className="px-4 py-4 border-t bg-gray-50 dark:bg-surface-secondary">
           <Button
             className="w-full h-12 text-base"
             onClick={handleComplete}

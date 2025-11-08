@@ -96,46 +96,46 @@ const CheckInOutDashboard = ({ currentDate, onBookingClick }) => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'on-time': return 'bg-green-100 border-green-300 text-green-800';
-      case 'late': return 'bg-red-100 border-red-300 text-red-800';
-      case 'early': return 'bg-blue-100 border-blue-300 text-blue-800';
-      case 'scheduled': return 'bg-gray-100 border-gray-300 text-gray-800';
-      case 'ready': return 'bg-green-100 border-green-300 text-green-800';
-      case 'outstanding-balance': return 'bg-yellow-100 border-yellow-300 text-yellow-800';
-      default: return 'bg-gray-100 border-gray-300 text-gray-800';
+      case 'on-time': return 'bg-green-100 dark:bg-surface-secondary border-green-300 text-green-800';
+      case 'late': return 'bg-red-100 dark:bg-surface-secondary border-red-300 text-red-800 dark:text-red-200';
+      case 'early': return 'bg-blue-100 dark:bg-surface-secondary border-blue-300 text-blue-800 dark:text-blue-200';
+      case 'scheduled': return 'bg-gray-100 dark:bg-surface-secondary border-gray-300 dark:border-surface-border text-gray-800 dark:text-text-primary';
+      case 'ready': return 'bg-green-100 dark:bg-surface-secondary border-green-300 text-green-800';
+      case 'outstanding-balance': return 'bg-yellow-100 dark:bg-surface-secondary border-yellow-300 text-yellow-800';
+      default: return 'bg-gray-100 dark:bg-surface-secondary border-gray-300 dark:border-surface-border text-gray-800 dark:text-text-primary';
     }
   };
 
   const getStatusIcon = (status) => {
     switch (status) {
       case 'late': return <AlertTriangle className="w-4 h-4 text-red-600" />;
-      case 'early': return <Clock className="w-4 h-4 text-blue-600" />;
+      case 'early': return <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />;
       case 'ready': return <CheckCircle className="w-4 h-4 text-green-600" />;
-      default: return <Clock className="w-4 h-4 text-gray-600" />;
+      default: return <Clock className="w-4 h-4 text-gray-600 dark:text-text-secondary" />;
     }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">Check-ins & Check-outs</h2>
-        <span className="text-sm text-gray-600">{format(currentDate, 'EEEE, MMMM d, yyyy')}</span>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">Check-ins & Check-outs</h2>
+        <span className="text-sm text-gray-600 dark:text-text-secondary">{format(currentDate, 'EEEE, MMMM d, yyyy')}</span>
       </div>
 
       {/* Pending Check-ins */}
       <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">
           PENDING CHECK-INS ({pendingCheckIns.length})
         </h3>
 
         <div className="space-y-4">
           {pendingCheckIns.map((checkin) => (
-            <div key={checkin.id} className="border border-gray-200 rounded-lg p-4">
+            <div key={checkin.id} className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     {getStatusIcon(checkin.status)}
-                    <span className="font-medium text-gray-900">
+                    <span className="font-medium text-gray-900 dark:text-text-primary">
                       {checkin.pet} - {checkin.breed}
                     </span>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(checkin.status)}`}>
@@ -145,12 +145,12 @@ const CheckInOutDashboard = ({ currentDate, onBookingClick }) => {
                     </span>
                   </div>
 
-                  <div className="text-sm text-gray-600 mb-2">
+                  <div className="text-sm text-gray-600 dark:text-text-secondary mb-2">
                     Owner: {checkin.owner} • Kennel: {checkin.kennel} • {checkin.paymentStatus === 'paid' ? '✅ Paid' : '❌ Unpaid'}
                   </div>
 
                   {checkin.lastContact && (
-                    <div className="text-sm text-gray-600 mb-2">
+                    <div className="text-sm text-gray-600 dark:text-text-secondary mb-2">
                       📞 Last contact: {checkin.lastContact}
                     </div>
                   )}
@@ -175,18 +175,18 @@ const CheckInOutDashboard = ({ currentDate, onBookingClick }) => {
 
       {/* Pending Check-outs */}
       <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">
           PENDING CHECK-OUTS ({pendingCheckOuts.length})
         </h3>
 
         <div className="space-y-4">
           {pendingCheckOuts.map((checkout) => (
-            <div key={checkout.id} className="border border-gray-200 rounded-lg p-4">
+            <div key={checkout.id} className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     {getStatusIcon(checkout.status)}
-                    <span className="font-medium text-gray-900">
+                    <span className="font-medium text-gray-900 dark:text-text-primary">
                       {checkout.pet} - {checkout.breed}
                     </span>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(checkout.status)}`}>
@@ -195,7 +195,7 @@ const CheckInOutDashboard = ({ currentDate, onBookingClick }) => {
                     </span>
                   </div>
 
-                  <div className="text-sm text-gray-600 mb-2">
+                  <div className="text-sm text-gray-600 dark:text-text-secondary mb-2">
                     Owner: {checkout.owner} • Kennel: {checkout.kennel} • {checkout.paymentStatus === 'paid' ? '✅ Paid' : '❌ Unpaid'}
                   </div>
 
@@ -234,13 +234,13 @@ const CheckInOutDashboard = ({ currentDate, onBookingClick }) => {
 
       {/* Completed Today */}
       <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">
           COMPLETED TODAY ({completedToday.length})
         </h3>
 
         <div className="space-y-2">
           {completedToday.map((item, index) => (
-            <div key={index} className="flex items-center gap-3 text-sm text-gray-600">
+            <div key={index} className="flex items-center gap-3 text-sm text-gray-600 dark:text-text-secondary">
               <CheckCircle className="w-4 h-4 text-green-600" />
               <span>{item.time}</span>
               <span>{item.action}</span>
@@ -248,7 +248,7 @@ const CheckInOutDashboard = ({ currentDate, onBookingClick }) => {
           ))}
         </div>
 
-        <div className="mt-4 pt-4 border-t border-gray-200">
+        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-surface-border">
           <Button variant="outline">
             View Full Log
           </Button>

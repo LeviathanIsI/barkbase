@@ -8,11 +8,11 @@ const CommunicationChannels = ({ preferences, onUpdate }) => {
       type="button"
       onClick={onChange}
       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-        enabled ? 'bg-blue-600' : 'bg-gray-300'
+        enabled ? 'bg-blue-600' : 'bg-gray-300 dark:bg-surface-border'
       }`}
     >
       <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+        className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-surface-primary transition-transform ${
           enabled ? 'translate-x-6' : 'translate-x-1'
         }`}
       />
@@ -55,18 +55,18 @@ const CommunicationChannels = ({ preferences, onUpdate }) => {
     <Card title="Communication Channels" description="Choose how you want to be notified">
       <div className="space-y-4">
         {/* Email Notifications */}
-        <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+        <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-surface-border rounded-lg">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-full ${preferences.email.enabled ? 'bg-blue-100' : 'bg-gray-100'}`}>
-              <Mail className={`w-5 h-5 ${preferences.email.enabled ? 'text-blue-600' : 'text-gray-400'}`} />
+            <div className={`p-2 rounded-full ${preferences.email.enabled ? 'bg-blue-100' : 'bg-gray-100 dark:bg-surface-secondary'}`}>
+              <Mail className={`w-5 h-5 ${preferences.email.enabled ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-text-tertiary'}`} />
             </div>
             <div>
-              <h3 className="font-medium text-gray-900">Email Notifications</h3>
-              <p className="text-sm text-gray-600">{preferences.email.address}</p>
+              <h3 className="font-medium text-gray-900 dark:text-text-primary">Email Notifications</h3>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">{preferences.email.address}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className={`text-sm font-medium ${preferences.email.enabled ? 'text-green-600' : 'text-gray-500'}`}>
+            <span className={`text-sm font-medium ${preferences.email.enabled ? 'text-green-600' : 'text-gray-500 dark:text-text-secondary'}`}>
               {preferences.email.enabled ? 'ON' : 'OFF'}
             </span>
             <Toggle enabled={preferences.email.enabled} onChange={handleEmailToggle} />
@@ -74,14 +74,14 @@ const CommunicationChannels = ({ preferences, onUpdate }) => {
         </div>
 
         {/* SMS Notifications */}
-        <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+        <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-surface-border rounded-lg">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-full ${preferences.sms.enabled ? 'bg-green-100' : 'bg-gray-100'}`}>
-              <PhoneIcon className={`w-5 h-5 ${preferences.sms.enabled ? 'text-green-600' : 'text-gray-400'}`} />
+            <div className={`p-2 rounded-full ${preferences.sms.enabled ? 'bg-green-100' : 'bg-gray-100 dark:bg-surface-secondary'}`}>
+              <PhoneIcon className={`w-5 h-5 ${preferences.sms.enabled ? 'text-green-600' : 'text-gray-400 dark:text-text-tertiary'}`} />
             </div>
             <div>
-              <h3 className="font-medium text-gray-900">SMS Notifications</h3>
-              <p className="text-sm text-gray-600">
+              <h3 className="font-medium text-gray-900 dark:text-text-primary">SMS Notifications</h3>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">
                 {preferences.sms.number ? preferences.sms.number : 'Add phone number to enable'}
               </p>
             </div>
@@ -89,7 +89,7 @@ const CommunicationChannels = ({ preferences, onUpdate }) => {
           <div className="flex items-center gap-3">
             {preferences.sms.number ? (
               <>
-                <span className={`text-sm font-medium ${preferences.sms.enabled ? 'text-green-600' : 'text-gray-500'}`}>
+                <span className={`text-sm font-medium ${preferences.sms.enabled ? 'text-green-600' : 'text-gray-500 dark:text-text-secondary'}`}>
                   {preferences.sms.enabled ? 'ON' : 'OFF'}
                 </span>
                 <Toggle enabled={preferences.sms.enabled} onChange={handleSmsToggle} />
@@ -104,18 +104,18 @@ const CommunicationChannels = ({ preferences, onUpdate }) => {
         </div>
 
         {/* In-App Notifications */}
-        <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+        <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-surface-border rounded-lg">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-full ${preferences.inApp.enabled ? 'bg-purple-100' : 'bg-gray-100'}`}>
-              <Monitor className={`w-5 h-5 ${preferences.inApp.enabled ? 'text-purple-600' : 'text-gray-400'}`} />
+            <div className={`p-2 rounded-full ${preferences.inApp.enabled ? 'bg-purple-100' : 'bg-gray-100 dark:bg-surface-secondary'}`}>
+              <Monitor className={`w-5 h-5 ${preferences.inApp.enabled ? 'text-purple-600 dark:text-purple-400' : 'text-gray-400 dark:text-text-tertiary'}`} />
             </div>
             <div>
-              <h3 className="font-medium text-gray-900">In-App Notifications</h3>
-              <p className="text-sm text-gray-600">Show notifications in the app</p>
+              <h3 className="font-medium text-gray-900 dark:text-text-primary">In-App Notifications</h3>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Show notifications in the app</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className={`text-sm font-medium ${preferences.inApp.enabled ? 'text-green-600' : 'text-gray-500'}`}>
+            <span className={`text-sm font-medium ${preferences.inApp.enabled ? 'text-green-600' : 'text-gray-500 dark:text-text-secondary'}`}>
               {preferences.inApp.enabled ? 'ON' : 'OFF'}
             </span>
             <Toggle enabled={preferences.inApp.enabled} onChange={handleInAppToggle} />
@@ -123,18 +123,18 @@ const CommunicationChannels = ({ preferences, onUpdate }) => {
         </div>
 
         {/* Push Notifications */}
-        <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+        <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-surface-border rounded-lg">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-full ${preferences.push.enabled ? 'bg-orange-100' : 'bg-gray-100'}`}>
-              <Smartphone className={`w-5 h-5 ${preferences.push.enabled ? 'text-orange-600' : 'text-gray-400'}`} />
+            <div className={`p-2 rounded-full ${preferences.push.enabled ? 'bg-orange-100' : 'bg-gray-100 dark:bg-surface-secondary'}`}>
+              <Smartphone className={`w-5 h-5 ${preferences.push.enabled ? 'text-orange-600' : 'text-gray-400 dark:text-text-tertiary'}`} />
             </div>
             <div>
-              <h3 className="font-medium text-gray-900">Push Notifications</h3>
-              <p className="text-sm text-gray-600">Receive alerts on your mobile device</p>
+              <h3 className="font-medium text-gray-900 dark:text-text-primary">Push Notifications</h3>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Receive alerts on your mobile device</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className={`text-sm font-medium ${preferences.push.enabled ? 'text-green-600' : 'text-gray-500'}`}>
+            <span className={`text-sm font-medium ${preferences.push.enabled ? 'text-green-600' : 'text-gray-500 dark:text-text-secondary'}`}>
               {preferences.push.enabled ? 'ON' : 'OFF'}
             </span>
             <div className="flex gap-2">

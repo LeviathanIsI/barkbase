@@ -242,8 +242,8 @@ const PropertyDetail = () => {
                 </div>
 
                 {property.system && (
-                  <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
-                    <p className="text-sm text-blue-900">
+                  <div className="rounded-lg bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 p-4">
+                    <p className="text-sm text-blue-900 dark:text-blue-100">
                       <strong>System Property:</strong> This is a built-in property. You can edit the label, group, and description, but the internal name, object type, and field type cannot be changed.
                     </p>
                   </div>

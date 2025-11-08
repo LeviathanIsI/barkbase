@@ -5,13 +5,13 @@ const SecurityNotifications = () => {
   return (
     <Card title="Security Notifications" icon={Bell}>
       <div className="space-y-6">
-        <p className="text-gray-600">
+        <p className="text-gray-600 dark:text-text-secondary">
           Choose what security events trigger alerts.
         </p>
 
         {/* Email Notifications */}
         <div>
-          <h3 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+          <h3 className="font-medium text-gray-900 dark:text-text-primary mb-3 flex items-center gap-2">
             <Mail className="w-4 h-4" />
             Email Notifications (joshua.r.bradford1@gmail.com)
           </h3>
@@ -30,7 +30,7 @@ const SecurityNotifications = () => {
                 <input
                   type="checkbox"
                   defaultChecked={index < 7} // First 7 are checked by default
-                  className="rounded border-gray-300"
+                  className="rounded border-gray-300 dark:border-surface-border"
                 />
                 <span className="text-sm">{notification}</span>
               </label>
@@ -40,7 +40,7 @@ const SecurityNotifications = () => {
 
         {/* SMS Notifications */}
         <div>
-          <h3 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+          <h3 className="font-medium text-gray-900 dark:text-text-primary mb-3 flex items-center gap-2">
             <Smartphone className="w-4 h-4" />
             SMS Notifications ((555) 123-4567)
           </h3>
@@ -49,14 +49,14 @@ const SecurityNotifications = () => {
               <input
                 type="checkbox"
                 defaultChecked
-                className="rounded border-gray-300"
+                className="rounded border-gray-300 dark:border-surface-border"
               />
               <span className="text-sm">Critical alerts only (suspicious activity)</span>
             </label>
             <label className="flex items-center gap-3">
               <input
                 type="checkbox"
-                className="rounded border-gray-300"
+                className="rounded border-gray-300 dark:border-surface-border"
               />
               <span className="text-sm">All security notifications</span>
             </label>
@@ -65,7 +65,7 @@ const SecurityNotifications = () => {
 
         {/* Push Notifications */}
         <div>
-          <h3 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+          <h3 className="font-medium text-gray-900 dark:text-text-primary mb-3 flex items-center gap-2">
             <Monitor className="w-4 h-4" />
             Push Notifications (Browser)
           </h3>
@@ -74,14 +74,14 @@ const SecurityNotifications = () => {
               <input
                 type="checkbox"
                 defaultChecked
-                className="rounded border-gray-300"
+                className="rounded border-gray-300 dark:border-surface-border"
               />
               <span className="text-sm">Enabled for critical alerts</span>
             </label>
             <label className="flex items-center gap-3">
               <input
                 type="checkbox"
-                className="rounded border-gray-300"
+                className="rounded border-gray-300 dark:border-surface-border"
               />
               <span className="text-sm">All notifications</span>
             </label>
@@ -89,9 +89,9 @@ const SecurityNotifications = () => {
         </div>
 
         {/* Notification Summary */}
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <h4 className="font-medium text-gray-900 mb-2">Notification Summary</h4>
-          <div className="text-sm text-gray-600 space-y-1">
+        <div className="bg-gray-50 dark:bg-surface-secondary border border-gray-200 dark:border-surface-border rounded-lg p-4">
+          <h4 className="font-medium text-gray-900 dark:text-text-primary mb-2">Notification Summary</h4>
+          <div className="text-sm text-gray-600 dark:text-text-secondary space-y-1">
             <p>• Email: 7 of 8 events enabled</p>
             <p>• SMS: Critical alerts only</p>
             <p>• Push: Critical alerts enabled</p>

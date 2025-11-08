@@ -15,13 +15,13 @@ const BookingCard = ({ booking, isDragging = false }) => {
     : 'Owner';
 
   const statusColors = {
-    PENDING: 'bg-yellow-50 border-l-yellow-500 text-yellow-800',
-    CONFIRMED: 'bg-blue-50 border-l-blue-500 text-blue-800',
-    IN_PROGRESS: 'bg-green-50 border-l-green-500 text-green-800',
-    CHECKED_IN: 'bg-green-50 border-l-green-500 text-green-800',
-    CHECKED_OUT: 'bg-gray-50 border-l-gray-500 text-gray-800',
-    COMPLETED: 'bg-gray-50 border-l-gray-500 text-gray-600',
-    CANCELLED: 'bg-red-50 border-l-red-500 text-red-800',
+    PENDING: 'bg-yellow-50 dark:bg-surface-primary border-l-yellow-500 text-yellow-800',
+    CONFIRMED: 'bg-blue-50 dark:bg-surface-primary border-l-blue-500 text-blue-800 dark:text-blue-200',
+    IN_PROGRESS: 'bg-green-50 dark:bg-surface-primary border-l-green-500 text-green-800',
+    CHECKED_IN: 'bg-green-50 dark:bg-surface-primary border-l-green-500 text-green-800',
+    CHECKED_OUT: 'bg-gray-50 dark:bg-surface-secondary border-l-gray-500 text-gray-800 dark:text-text-primary',
+    COMPLETED: 'bg-gray-50 dark:bg-surface-secondary border-l-gray-500 text-gray-600 dark:text-text-secondary',
+    CANCELLED: 'bg-red-50 dark:bg-surface-primary border-l-red-500 text-red-800 dark:text-red-200',
   };
 
   const colorClass = statusColors[booking.status] || statusColors.PENDING;
@@ -78,14 +78,14 @@ const KennelColumn = ({ kennel, day, bookings, occupancy }) => {
 
   const heatmapColor =
     utilizationPercent === 0
-      ? 'bg-gray-50'
+      ? 'bg-gray-50 dark:bg-surface-secondary'
       : utilizationPercent < 50
-        ? 'bg-green-50'
+        ? 'bg-green-50 dark:bg-surface-primary'
         : utilizationPercent < 80
-          ? 'bg-yellow-50'
+          ? 'bg-yellow-50 dark:bg-surface-primary'
           : utilizationPercent < 100
-            ? 'bg-orange-50'
-            : 'bg-red-50';
+            ? 'bg-orange-50 dark:bg-surface-primary'
+            : 'bg-red-50 dark:bg-surface-primary';
 
   return (
     <div
@@ -104,7 +104,7 @@ const CapacityHeatmap = ({ occupancy }) => {
   if (!occupancy) return null;
 
   return (
-    <div className="bg-white rounded-lg border border-[#E0E0E0] p-6 mb-6">
+    <div className="bg-white dark:bg-surface-primary rounded-lg border border-[#E0E0E0] p-6 mb-6">
       <h3 className="text-lg font-semibold text-[#263238] mb-4">Capacity Overview</h3>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
         <div className="text-center">
@@ -126,23 +126,23 @@ const CapacityHeatmap = ({ occupancy }) => {
       </div>
       <div className="mt-6 flex items-center gap-6 text-sm">
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded border border-[#E0E0E0] bg-gray-50"></div>
+          <div className="w-4 h-4 rounded border border-[#E0E0E0] bg-gray-50 dark:bg-surface-secondary"></div>
           <span className="text-[#64748B]">Empty</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded border border-[#E0E0E0] bg-green-50"></div>
+          <div className="w-4 h-4 rounded border border-[#E0E0E0] bg-green-50 dark:bg-surface-primary"></div>
           <span className="text-[#64748B]">&lt;50%</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded border border-[#E0E0E0] bg-yellow-50"></div>
+          <div className="w-4 h-4 rounded border border-[#E0E0E0] bg-yellow-50 dark:bg-surface-primary"></div>
           <span className="text-[#64748B]">50-80%</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded border border-[#E0E0E0] bg-orange-50"></div>
+          <div className="w-4 h-4 rounded border border-[#E0E0E0] bg-orange-50 dark:bg-surface-primary"></div>
           <span className="text-[#64748B]">80-100%</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded border border-[#E0E0E0] bg-red-50"></div>
+          <div className="w-4 h-4 rounded border border-[#E0E0E0] bg-red-50 dark:bg-surface-primary"></div>
           <span className="text-[#64748B]">Full</span>
         </div>
       </div>
@@ -248,7 +248,7 @@ const WeekView = () => {
 
   if (calendarQuery.isError || occupancyQuery.isError) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+      <div className="bg-red-50 dark:bg-surface-primary border border-red-200 dark:border-red-900/30 rounded-lg p-6 text-center">
         <div className="text-red-600 mb-2">Failed to load calendar data</div>
         <div className="text-sm text-red-500">Please try again or contact support if the issue persists.</div>
       </div>
@@ -284,7 +284,7 @@ const WeekView = () => {
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="overflow-x-auto">
           <div className="min-w-[1200px]">
-            <div className="grid grid-cols-8 border border-[#E0E0E0] rounded-lg overflow-hidden bg-white shadow-sm">
+            <div className="grid grid-cols-8 border border-[#E0E0E0] rounded-lg overflow-hidden bg-white dark:bg-surface-primary shadow-sm">
               {/* Header row */}
               <div className="bg-[#F5F6FA] border-r border-[#E0E0E0] p-4 font-semibold text-[#263238] sticky left-0">Kennel</div>
               {days.map((day) => (

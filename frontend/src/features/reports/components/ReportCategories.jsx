@@ -7,7 +7,7 @@ const ReportCategories = ({ onGenerateReport, onExportReport }) => {
     {
       title: 'Financial Reports',
       icon: DollarSign,
-      iconColor: 'text-green-600 bg-green-100',
+      iconColor: 'text-green-600 bg-green-100 dark:bg-surface-secondary',
       reports: [
         {
           name: 'Revenue Summary',
@@ -38,7 +38,7 @@ const ReportCategories = ({ onGenerateReport, onExportReport }) => {
     {
       title: 'Operational Reports',
       icon: BarChart3,
-      iconColor: 'text-blue-600 bg-blue-100',
+      iconColor: 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-surface-secondary',
       reports: [
         {
           name: 'Booking Summary',
@@ -69,7 +69,7 @@ const ReportCategories = ({ onGenerateReport, onExportReport }) => {
     {
       title: 'Customer Reports',
       icon: Users,
-      iconColor: 'text-purple-600 bg-purple-100',
+      iconColor: 'text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-surface-secondary',
       reports: [
         {
           name: 'Customer List',
@@ -100,7 +100,7 @@ const ReportCategories = ({ onGenerateReport, onExportReport }) => {
     {
       title: 'Marketing Reports',
       icon: TrendingUp,
-      iconColor: 'text-orange-600 bg-orange-100',
+      iconColor: 'text-orange-600 bg-orange-100 dark:bg-surface-secondary',
       reports: [
         {
           name: 'Marketing ROI',
@@ -140,7 +140,7 @@ const ReportCategories = ({ onGenerateReport, onExportReport }) => {
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
-            <h4 className="font-semibold text-gray-900">{report.name}</h4>
+            <h4 className="font-semibold text-gray-900 dark:text-text-primary">{report.name}</h4>
             {report.tier === 'pro' && (
               <span className="px-2 py-1 bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs font-medium rounded-full flex items-center gap-1">
                 <Star className="w-3 h-3" />
@@ -148,12 +148,12 @@ const ReportCategories = ({ onGenerateReport, onExportReport }) => {
               </span>
             )}
             {report.tier === 'free' && (
-              <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+              <span className="px-2 py-1 bg-green-100 dark:bg-surface-secondary text-green-800 text-xs font-medium rounded-full">
                 FREE
               </span>
             )}
           </div>
-          <p className="text-sm text-gray-600">{report.description}</p>
+          <p className="text-sm text-gray-600 dark:text-text-secondary">{report.description}</p>
         </div>
       </div>
 
@@ -253,7 +253,7 @@ const ReportCategories = ({ onGenerateReport, onExportReport }) => {
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${category.iconColor}`}>
               <category.icon className="w-4 h-4" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900">{category.title}</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">{category.title}</h3>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mb-6">
@@ -267,7 +267,7 @@ const ReportCategories = ({ onGenerateReport, onExportReport }) => {
           </div>
 
           <div className="text-center">
-            <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+            <button className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:text-blue-300 text-sm font-medium">
               View All {category.title} ({category.reports.length})
             </button>
           </div>
@@ -276,20 +276,20 @@ const ReportCategories = ({ onGenerateReport, onExportReport }) => {
 
       {/* Custom Reports */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Custom Reports</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">Custom Reports</h3>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {customReports.map((report, index) => (
             <ReportCard key={index} report={report} />
           ))}
 
-          <Card className="p-4 border-dashed border-2 border-gray-300">
+          <Card className="p-4 border-dashed border-2 border-gray-300 dark:border-surface-border">
             <div className="text-center py-4">
-              <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                <Star className="w-6 h-6 text-gray-400" />
+              <div className="w-12 h-12 bg-gray-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center mx-auto mb-3">
+                <Star className="w-6 h-6 text-gray-400 dark:text-text-tertiary" />
               </div>
-              <p className="text-sm text-gray-600 mb-3">Your saved custom reports</p>
-              <p className="text-xs text-gray-500">None yet</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary mb-3">Your saved custom reports</p>
+              <p className="text-xs text-gray-500 dark:text-text-secondary">None yet</p>
             </div>
           </Card>
         </div>

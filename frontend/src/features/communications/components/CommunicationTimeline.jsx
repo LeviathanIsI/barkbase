@@ -46,7 +46,7 @@ const TimelineItem = ({ item }) => {
         <div className={`w-10 h-10 rounded-full bg-${color}-100 flex items-center justify-center`}>
           <Icon className={`w-5 h-5 text-${color}-600`} />
         </div>
-        <div className="absolute top-10 left-1/2 -translate-x-1/2 w-0.5 h-full bg-gray-200" />
+        <div className="absolute top-10 left-1/2 -translate-x-1/2 w-0.5 h-full bg-gray-200 dark:bg-surface-border" />
       </div>
       
       <div className="flex-1 pb-8">
@@ -71,7 +71,7 @@ const TimelineItem = ({ item }) => {
         </div>
         
         {isExpanded && item.data && (
-          <div className="mt-3 p-3 bg-gray-50 rounded-lg text-sm">
+          <div className="mt-3 p-3 bg-gray-50 dark:bg-surface-secondary rounded-lg text-sm">
             <pre className="whitespace-pre-wrap text-text-secondary">
               {JSON.stringify(item.data, null, 2)}
             </pre>

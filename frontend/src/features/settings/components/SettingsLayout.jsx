@@ -116,7 +116,7 @@ export default function SettingsLayout() {
       />
 
       {/* Tab Navigation */}
-      <div className="bg-white border-b border-[#E0E0E0] mb-6">
+      <div className="bg-white dark:bg-surface-primary border-b border-[#E0E0E0] mb-6">
         <div className="max-w-7xl mx-auto px-6">
           <nav className="flex space-x-8 overflow-x-auto">
             {TAB_CONFIG.map((tab) => {
@@ -155,7 +155,7 @@ export default function SettingsLayout() {
         </div>
 
         {/* Content Area */}
-        <div className="bg-white rounded-lg border border-[#E0E0E0] shadow-sm">
+        <div className="bg-white dark:bg-surface-primary rounded-lg border border-[#E0E0E0] shadow-sm">
           <div className="p-6">
             <Outlet />
           </div>

@@ -46,54 +46,54 @@ const PopulatedPropertiesView = ({ properties, selectedProperties, onSelectPrope
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
+    <div className="bg-white dark:bg-surface-primary border border-gray-200 dark:border-surface-border rounded-lg overflow-hidden">
+      <table className="min-w-full divide-y divide-gray-200 dark:divide-surface-border">
+        <thead className="bg-gray-50 dark:bg-surface-secondary">
           <tr>
             <th scope="col" className="w-8 px-3 py-3">
               <input
                 type="checkbox"
                 checked={selectedProperties.length === properties.filter(p => !p.isSystem).length && properties.filter(p => !p.isSystem).length > 0}
                 onChange={handleSelectAll}
-                className="rounded border-gray-300"
+                className="rounded border-gray-300 dark:border-surface-border"
               />
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-text-secondary uppercase tracking-wider">
               Name
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-text-secondary uppercase tracking-wider">
               Property Access
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-text-secondary uppercase tracking-wider">
               Group
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-text-secondary uppercase tracking-wider">
               Created By
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider text-right">
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-text-secondary uppercase tracking-wider text-right">
               Used In
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider text-right">
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-text-secondary uppercase tracking-wider text-right">
               Fill Rate
             </th>
             <th scope="col" className="w-16 px-3 py-3"></th>
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+        <tbody className="bg-white dark:bg-surface-primary divide-y divide-gray-200 dark:divide-surface-border">
           {properties.map((property) => (
-            <tr key={property.recordId} className="hover:bg-gray-50 transition-colors">
+            <tr key={property.recordId} className="hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary transition-colors">
               {/* Checkbox */}
               <td className="px-3 py-4">
                 {property.isSystem ? (
                   <div className="w-5 h-5 flex items-center justify-center">
-                    <Shield className="w-4 h-4 text-blue-600" />
+                    <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                   </div>
                 ) : (
                   <input
                     type="checkbox"
                     checked={selectedProperties.includes(property.recordId)}
                     onChange={() => onSelectProperty(property.recordId)}
-                    className="rounded border-gray-300"
+                    className="rounded border-gray-300 dark:border-surface-border"
                   />
                 )}
               </td>
@@ -105,17 +105,17 @@ const PopulatedPropertiesView = ({ properties, selectedProperties, onSelectPrope
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => onEditProperty && onEditProperty(property)}
-                        className="font-medium text-blue-600 hover:text-blue-800 text-left"
+                        className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:text-blue-200 text-left"
                       >
                         {property.label}
                       </button>
                       {property.isRequired && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 dark:bg-surface-secondary text-red-800 dark:text-red-200">
                           Required
                         </span>
                       )}
                     </div>
-                    <div className="text-sm text-gray-500 mt-1">
+                    <div className="text-sm text-gray-500 dark:text-text-secondary mt-1">
                       <span className="font-mono text-xs">{property.name}</span> · {getFieldTypeLabel(property.type)}
                     </div>
                   </div>
@@ -123,29 +123,29 @@ const PopulatedPropertiesView = ({ properties, selectedProperties, onSelectPrope
               </td>
 
               {/* Property Access */}
-              <td className="px-6 py-4 text-sm text-gray-700">
+              <td className="px-6 py-4 text-sm text-gray-700 dark:text-text-primary">
                 {ACCESS_LEVEL_LABELS[property.accessLevel || 'everyone_edit']}
               </td>
 
               {/* Group */}
-              <td className="px-6 py-4 text-sm text-gray-700">
+              <td className="px-6 py-4 text-sm text-gray-700 dark:text-text-primary">
                 {property.group || 'General'}
               </td>
 
               {/* Created By */}
-              <td className="px-6 py-4 text-sm text-gray-700">
+              <td className="px-6 py-4 text-sm text-gray-700 dark:text-text-primary">
                 {property.isSystem ? 'BarkBase' : property.createdBy || 'Unknown'}
               </td>
 
               {/* Used In */}
               <td className="px-6 py-4 text-sm text-right">
                 {property.usageCount !== undefined ? (
-                  <button className="text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1">
+                  <button className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:text-blue-200 hover:underline inline-flex items-center gap-1">
                     {property.usageCount}
                     <ExternalLink className="w-3 h-3" />
                   </button>
                 ) : (
-                  <span className="text-gray-400">-</span>
+                  <span className="text-gray-400 dark:text-text-tertiary">-</span>
                 )}
               </td>
 
@@ -156,7 +156,7 @@ const PopulatedPropertiesView = ({ properties, selectedProperties, onSelectPrope
                     {property.fillRate}%
                   </span>
                 ) : (
-                  <span className="text-gray-400">-</span>
+                  <span className="text-gray-400 dark:text-text-tertiary">-</span>
                 )}
               </td>
 
@@ -169,7 +169,7 @@ const PopulatedPropertiesView = ({ properties, selectedProperties, onSelectPrope
                     onClick={() => onEditProperty && onEditProperty(property)}
                     title={property.isSystem ? "System properties have limited editing" : "Edit property"}
                   >
-                    {property.isSystem ? <Lock className="w-4 h-4 text-gray-400" /> : <Edit className="w-4 h-4" />}
+                    {property.isSystem ? <Lock className="w-4 h-4 text-gray-400 dark:text-text-tertiary" /> : <Edit className="w-4 h-4" />}
                   </Button>
                   {!property.isSystem && (
                     <Button variant="ghost" size="sm">
@@ -186,7 +186,7 @@ const PopulatedPropertiesView = ({ properties, selectedProperties, onSelectPrope
       {/* Empty state */}
       {properties.length === 0 && (
         <div className="text-center py-12">
-          <p className="text-gray-500">No properties found matching your filters.</p>
+          <p className="text-gray-500 dark:text-text-secondary">No properties found matching your filters.</p>
         </div>
       )}
     </div>

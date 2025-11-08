@@ -106,12 +106,12 @@ const Pets = () => {
         {(hasExpiringVaccinations || hasMedicalAlerts) && (
           <div className="absolute top-4 right-4 flex gap-1.5">
             {hasExpiringVaccinations && (
-              <div className="w-6 h-6 bg-yellow-100 rounded-full flex items-center justify-center" title="Vaccination expiring soon">
+              <div className="w-6 h-6 bg-yellow-100 dark:bg-surface-secondary rounded-full flex items-center justify-center" title="Vaccination expiring soon">
                 <ShieldAlert className="h-4 w-4 text-yellow-600" />
               </div>
             )}
             {hasMedicalAlerts && (
-              <div className="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center" title="Special care notes">
+              <div className="w-6 h-6 bg-orange-100 dark:bg-surface-secondary rounded-full flex items-center justify-center" title="Special care notes">
                 <Heart className="h-4 w-4 text-orange-600" />
               </div>
             )}
@@ -153,7 +153,7 @@ const Pets = () => {
           </div>
 
           {hasExpiringVaccinations && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+            <div className="bg-yellow-50 dark:bg-surface-primary border border-yellow-200 dark:border-yellow-900/30 rounded-lg px-3 py-2">
               <p className="text-xs text-yellow-800 flex items-center gap-1.5">
                 <Syringe className="h-3.5 w-3.5 flex-shrink-0" />
                 Vaccination expiring soon
@@ -162,7 +162,7 @@ const Pets = () => {
           )}
 
           {hasMedicalAlerts && (
-            <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
+            <div className="bg-orange-50 dark:bg-surface-primary border border-orange-200 rounded-lg px-3 py-2">
               <p className="text-xs text-orange-800 flex items-center gap-1.5">
                 <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
                 Special care required
@@ -271,8 +271,8 @@ const Pets = () => {
                   <p className="text-sm font-medium text-[#64748B] mb-1">Total Pets</p>
                   <p className="text-2xl font-bold text-[#263238]">{stats.total}</p>
                 </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <PawPrint className="h-6 w-6 text-blue-600" />
+                <div className="w-12 h-12 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center flex-shrink-0">
+                  <PawPrint className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                 </div>
               </div>
             </Card>
@@ -283,7 +283,7 @@ const Pets = () => {
                   <p className="text-sm font-medium text-[#64748B] mb-1">Active Pets</p>
                   <p className="text-2xl font-bold text-[#263238]">{stats.active}</p>
                 </div>
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center flex-shrink-0">
                   <Heart className="h-6 w-6 text-green-600" />
                 </div>
               </div>
@@ -295,13 +295,13 @@ const Pets = () => {
                   <p className="text-sm font-medium text-[#64748B] mb-1">With Bookings</p>
                   <p className="text-2xl font-bold text-[#263238]">{stats.withBookings}</p>
                 </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Calendar className="h-6 w-6 text-purple-600" />
+                <div className="w-12 h-12 bg-purple-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Calendar className="h-6 w-6 text-purple-600 dark:text-purple-400" />
                 </div>
               </div>
             </Card>
 
-            <Card className={`p-6 ${stats.expiringVaccinations > 0 ? 'border-yellow-300 bg-yellow-50' : ''}`}>
+            <Card className={`p-6 ${stats.expiringVaccinations > 0 ? 'border-yellow-300 bg-yellow-50 dark:bg-surface-primary' : ''}`}>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-[#64748B] mb-1">Expiring Vaccines</p>
@@ -311,7 +311,7 @@ const Pets = () => {
                   )}
                 </div>
                 <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                  stats.expiringVaccinations > 0 ? 'bg-yellow-200' : 'bg-yellow-100'
+                  stats.expiringVaccinations > 0 ? 'bg-yellow-200' : 'bg-yellow-100 dark:bg-surface-secondary'
                 }`}>
                   <Syringe className={`h-6 w-6 ${
                     stats.expiringVaccinations > 0 ? 'text-yellow-700' : 'text-yellow-600'
@@ -326,8 +326,8 @@ const Pets = () => {
                   <p className="text-sm font-medium text-[#64748B] mb-1">Inactive</p>
                   <p className="text-2xl font-bold text-[#263238]">{stats.inactive}</p>
                 </div>
-                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Users className="h-6 w-6 text-gray-600" />
+                <div className="w-12 h-12 bg-gray-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Users className="h-6 w-6 text-gray-600 dark:text-text-secondary" />
                 </div>
               </div>
             </Card>
@@ -353,7 +353,7 @@ const Pets = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2.5 border border-[#E0E0E0] rounded-md focus:outline-none focus:ring-2 focus:ring-[#4B5DD3] focus:border-transparent text-sm bg-white"
+              className="px-4 py-2.5 border border-[#E0E0E0] rounded-md focus:outline-none focus:ring-2 focus:ring-[#4B5DD3] focus:border-transparent text-sm bg-white dark:bg-surface-primary"
             >
               <option value="ALL">All Status</option>
               <option value="active">Active</option>
@@ -368,13 +368,13 @@ const Pets = () => {
             <div className="flex border border-[#E0E0E0] rounded-md overflow-hidden">
               <button
                 onClick={() => setViewMode('grid')}
-                className={`p-2.5 transition-colors ${viewMode === 'grid' ? 'bg-[#4B5DD3] text-white' : 'text-[#64748B] hover:bg-gray-100'}`}
+                className={`p-2.5 transition-colors ${viewMode === 'grid' ? 'bg-[#4B5DD3] text-white' : 'text-[#64748B] hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary'}`}
               >
                 <Grid3x3 className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`p-2.5 transition-colors border-l border-[#E0E0E0] ${viewMode === 'list' ? 'bg-[#4B5DD3] text-white' : 'text-[#64748B] hover:bg-gray-100'}`}
+                className={`p-2.5 transition-colors border-l border-[#E0E0E0] ${viewMode === 'list' ? 'bg-[#4B5DD3] text-white' : 'text-[#64748B] hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary'}`}
               >
                 <List className="h-4 w-4" />
               </button>
@@ -423,7 +423,7 @@ const Pets = () => {
           <div className="overflow-x-auto -mx-6 -mb-6">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[#E0E0E0] bg-gray-50">
+                <tr className="border-b border-[#E0E0E0] bg-gray-50 dark:bg-surface-secondary">
                   <th className="text-left py-4 px-6 text-sm font-semibold text-[#64748B]">Pet</th>
                   <th className="text-left py-4 px-6 text-sm font-semibold text-[#64748B]">Owner</th>
                   <th className="text-left py-4 px-6 text-sm font-semibold text-[#64748B]">Status</th>

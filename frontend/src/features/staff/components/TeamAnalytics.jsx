@@ -57,14 +57,14 @@ const TeamAnalytics = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold text-gray-900">Team Analytics</h2>
-          <p className="text-gray-600">Insights into team performance and efficiency</p>
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-text-primary">Team Analytics</h2>
+          <p className="text-gray-600 dark:text-text-secondary">Insights into team performance and efficiency</p>
         </div>
         <div className="flex gap-2">
           <select
             value={rangeDays}
             onChange={(e) => setRangeDays(Number(e.target.value))}
-            className="px-3 py-2 border border-gray-300 rounded-md"
+            className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md"
           >
             <option value={30}>Last 30 days</option>
             <option value={90}>Last 90 days</option>
@@ -73,11 +73,11 @@ const TeamAnalytics = () => {
       </div>
 
       {/* Health Score */}
-      <Card className="p-6 bg-gradient-to-r from-green-50 to-blue-50">
+      <Card className="p-6 bg-gradient-to-r from-green-50 to-blue-50 dark:from-surface-primary dark:to-surface-primary">
         <div className="text-center">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Overall Team Health Score</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">Overall Team Health Score</h3>
           {tasksLoading ? (
-            <div className="text-sm text-gray-700">Calculating…</div>
+            <div className="text-sm text-gray-700 dark:text-text-primary">Calculating…</div>
           ) : (
             <>
               <div className="text-6xl font-bold text-green-600 mb-2">{isNaN(healthScore) ? 0 : healthScore}/100</div>
@@ -85,15 +85,15 @@ const TeamAnalytics = () => {
               <div className="grid gap-4 md:grid-cols-3 text-sm">
                 <div>
                   <div className="font-medium text-green-700">Completion</div>
-                  <div className="text-gray-600">{Math.round(completionRate * 100)}%</div>
+                  <div className="text-gray-600 dark:text-text-secondary">{Math.round(completionRate * 100)}%</div>
                 </div>
                 <div>
                   <div className="font-medium text-green-700">On-time</div>
-                  <div className="text-gray-600">{Math.round(onTimeRate * 100)}%</div>
+                  <div className="text-gray-600 dark:text-text-secondary">{Math.round(onTimeRate * 100)}%</div>
                 </div>
                 <div>
                   <div className="font-medium text-green-700">Overdue open</div>
-                  <div className="text-gray-600">{Math.round(overdueRate * 100)}%</div>
+                  <div className="text-gray-600 dark:text-text-secondary">{Math.round(overdueRate * 100)}%</div>
                 </div>
               </div>
             </>
@@ -103,35 +103,35 @@ const TeamAnalytics = () => {
 
       {/* Metrics */}
       <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Productivity Metrics</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">Productivity Metrics</h3>
         {tasksLoading ? (
-          <div className="text-sm text-gray-600">Loading metrics…</div>
+          <div className="text-sm text-gray-600 dark:text-text-secondary">Loading metrics…</div>
         ) : (
           <div className="grid gap-4 md:grid-cols-4 mb-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900">{completed.length}</div>
-              <div className="text-sm text-gray-600">Tasks completed</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-text-primary">{completed.length}</div>
+              <div className="text-sm text-gray-600 dark:text-text-secondary">Tasks completed</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">{completed.length > 0 ? Math.round((onTime.length / completed.length) * 100) : 0}%</div>
-              <div className="text-sm text-gray-600">On-time completion</div>
+              <div className="text-sm text-gray-600 dark:text-text-secondary">On-time completion</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-red-600">{overdueOpen.length}</div>
-              <div className="text-sm text-gray-600">Overdue open</div>
+              <div className="text-sm text-gray-600 dark:text-text-secondary">Overdue open</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{tasksPerStaff.toFixed(1)}</div>
-              <div className="text-sm text-gray-600">Tasks per staff</div>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{tasksPerStaff.toFixed(1)}</div>
+              <div className="text-sm text-gray-600 dark:text-text-secondary">Tasks per staff</div>
             </div>
           </div>
         )}
 
         {/* Top performers */}
         <div className="mb-2">
-          <h4 className="font-medium text-gray-900 mb-2">Top Performers</h4>
+          <h4 className="font-medium text-gray-900 dark:text-text-primary mb-2">Top Performers</h4>
           {topPerformers.length === 0 ? (
-            <div className="text-sm text-gray-600">No completed tasks in this period.</div>
+            <div className="text-sm text-gray-600 dark:text-text-secondary">No completed tasks in this period.</div>
           ) : (
             <div className="space-y-2 text-sm">
               {topPerformers.map((p, idx) => (
@@ -154,14 +154,14 @@ const TeamAnalytics = () => {
 
       {/* Customer Satisfaction (placeholder until reviews data exists) */}
       <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Customer Satisfaction</h3>
-        <div className="text-sm text-gray-600">No review data available yet. When reviews are stored, we will show average ratings and counts here.</div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">Customer Satisfaction</h3>
+        <div className="text-sm text-gray-600 dark:text-text-secondary">No review data available yet. When reviews are stored, we will show average ratings and counts here.</div>
       </Card>
 
       {/* Actionable Insights (derived from current metrics) */}
-      <Card className="p-6 bg-gradient-to-r from-blue-50 to-purple-50">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Actionable Insights</h3>
-        <div className="space-y-2 text-sm text-gray-800">
+      <Card className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-surface-primary dark:to-surface-primary">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">Actionable Insights</h3>
+        <div className="space-y-2 text-sm text-gray-800 dark:text-text-primary">
           {overdueOpen.length > 0 && (
             <div>• {overdueOpen.length} overdue task{overdueOpen.length === 1 ? '' : 's'} — prioritize resolution.</div>
           )}

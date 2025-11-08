@@ -294,7 +294,7 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
         )}
 
         {error && (
-          <div className="mb-4 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-600">
+          <div className="mb-4 rounded-lg bg-red-50 dark:bg-surface-primary border border-red-200 dark:border-red-900/30 p-3 text-sm text-red-600">
             {error}
           </div>
         )}
@@ -556,8 +556,8 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
                     <option value="invoices">Invoices</option>
                   </select>
                 </div>
-                <div className="p-3 rounded-lg bg-blue-50 border border-blue-200">
-                  <p className="text-sm text-blue-900">
+                <div className="p-3 rounded-lg bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30">
+                  <p className="text-sm text-blue-900 dark:text-blue-100">
                     Values will automatically update when the selected property on the associated record changes.
                   </p>
                 </div>

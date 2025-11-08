@@ -1,49 +1,66 @@
 /** @type {import('tailwindcss').Config} */
+import plugin from 'tailwindcss/plugin';
+
 export default {
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: 'class', // Enable class-based dark mode strategy
   theme: {
     extend: {
-      // Professional Color Palette - Linear/Calendly inspired
+      // Dark SaaS Color Palette - Purple/Blue with glassmorphism
       colors: {
-        // Semantic colors for consistent theming
-        background: '#2C3E50', // Dark slate blue for auth pages
-        surface: '#FFFFFF', // White for cards and inputs
-        text: '#111827', // Primary text color (gray-900)
-        muted: '#6B7280', // Muted/secondary text (gray-500)
-        border: '#E5E7EB', // Border color (gray-200)
-        danger: '#DC2626', // Error/danger color (error-600)
-        warning: '#F59E0B', // Warning color (warning-500)
-        
-        // Primary - Professional Blue
+        // CSS variable-based theming for dual mode support
+        background: {
+          primary: 'var(--bg-primary)',
+          secondary: 'var(--bg-secondary)',
+          tertiary: 'var(--bg-tertiary)',
+        },
+        surface: {
+          primary: 'var(--surface-primary)',
+          secondary: 'var(--surface-secondary)',
+          elevated: 'var(--surface-elevated)',
+          border: 'var(--surface-border)',
+        },
+        text: {
+          primary: 'var(--text-primary)',
+          secondary: 'var(--text-secondary)',
+          tertiary: 'var(--text-tertiary)',
+          inverse: 'var(--text-inverse)',
+        },
+
+        // Primary - Purple gradients
         primary: {
+          50: '#FAF5FF',
+          100: '#F3E8FF',
+          200: '#E9D5FF',
+          300: '#D8B4FE',
+          400: '#C084FC',
+          500: '#8B5CF6', // Brand purple
+          600: '#7C3AED',
+          700: '#6D28D9',
+          800: '#5B21B6',
+          900: '#4C1D95',
+          950: '#2E1065',
+        },
+
+        // Secondary - Blue accents
+        secondary: {
           50: '#EFF6FF',
           100: '#DBEAFE',
           200: '#BFDBFE',
           300: '#93C5FD',
           400: '#60A5FA',
-          500: '#3B82F6',
-          600: '#2563EB', // Brand primary
+          500: '#3B82F6', // Brand blue
+          600: '#2563EB',
           700: '#1D4ED8',
           800: '#1E40AF',
           900: '#1E3A8A',
+          950: '#172554',
         },
-        // Secondary - Forest Green
-        secondary: {
-          50: '#ECFDF5',
-          100: '#D1FAE5',
-          200: '#A7F3D0',
-          300: '#6EE7B7',
-          400: '#34D399',
-          500: '#10B981',
-          600: '#059669', // Brand secondary
-          700: '#047857',
-          800: '#065F46',
-          900: '#064E3B',
-        },
-        // Grayscale - Professional neutrals
+
+        // Grayscale with dark mode optimizations
         gray: {
           50: '#F9FAFB',
           100: '#F3F4F6',
@@ -55,34 +72,59 @@ export default {
           700: '#374151',
           800: '#1F2937',
           900: '#111827',
+          950: '#0F0F1A', // Extra dark for dark mode
         },
+
         // Semantic colors
         success: {
-          100: '#D1FAE5',
+          50: '#F0FDF4',
+          100: '#DCFCE7',
+          200: '#BBF7D0',
+          300: '#86EFAC',
+          400: '#4ADE80',
           500: '#10B981',
           600: '#059669',
           700: '#047857',
+          800: '#065F46',
+          900: '#064E3B',
+          950: '#022C22',
         },
         warning: {
+          50: '#FFFBEB',
           100: '#FEF3C7',
+          200: '#FDE68A',
+          300: '#FCD34D',
+          400: '#FBBF24',
           500: '#F59E0B',
           600: '#D97706',
           700: '#B45309',
+          800: '#92400E',
+          900: '#78350F',
+          950: '#451A03',
         },
         error: {
+          50: '#FEF2F2',
           100: '#FEE2E2',
+          200: '#FECACA',
+          300: '#FCA5A5',
+          400: '#F87171',
           500: '#EF4444',
           600: '#DC2626',
           700: '#B91C1C',
+          800: '#991B1B',
+          900: '#7F1D1D',
+          950: '#450A0A',
         },
-        // Accent - Premium Purple
+
+        // Accent colors for glow effects
         accent: {
-          100: '#EDE9FE',
-          500: '#8B5CF6',
-          600: '#7C3AED',
+          purple: '#8B5CF6',
+          blue: '#3B82F6',
+          pink: '#EC4899',
+          cyan: '#06B6D4',
         },
       },
-      
+
       // Typography - Inter Font System
       fontFamily: {
         sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
@@ -119,26 +161,57 @@ export default {
         '24': '6rem',    // 96px
       },
 
-      // Border Radius - Professional (not too round)
+      // Border Radius - Modern rounded corners
       borderRadius: {
         'none': '0',
         'sm': '0.25rem',   // 4px
-        'DEFAULT': '0.375rem', // 6px
-        'md': '0.375rem',  // 6px
-        'lg': '0.5rem',    // 8px
-        'xl': '0.75rem',   // 12px
-        '2xl': '1rem',     // 16px
+        'DEFAULT': '0.5rem', // 8px
+        'md': '0.5rem',    // 8px
+        'lg': '0.75rem',   // 12px
+        'xl': '1rem',      // 16px
+        '2xl': '1.5rem',   // 24px
         'full': '9999px',
       },
 
-      // Shadows - Subtle Professional Depth
+      // Shadows - Glow effects for dark SaaS aesthetic
       boxShadow: {
+        // Standard shadows
         'sm': '0 1px 2px 0 rgb(0 0 0 / 0.05)',
         'DEFAULT': '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
         'md': '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
         'lg': '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
         'xl': '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
+
+        // Glow effects for neon aesthetic
+        'glow-sm': '0 0 10px rgba(139, 92, 246, 0.3)',
+        'glow': '0 0 20px rgba(139, 92, 246, 0.5), 0 0 40px rgba(59, 130, 246, 0.3)',
+        'glow-lg': '0 0 30px rgba(139, 92, 246, 0.6), 0 0 60px rgba(59, 130, 246, 0.4)',
+        'glow-purple': '0 0 20px rgba(139, 92, 246, 0.6)',
+        'glow-blue': '0 0 20px rgba(59, 130, 246, 0.6)',
+        'glow-pink': '0 0 20px rgba(236, 72, 153, 0.6)',
+
+        // Inner glow for glassmorphism
+        'inner-glow': 'inset 0 1px 2px rgba(255, 255, 255, 0.1)',
+
         'none': 'none',
+      },
+
+      // Background Images - Gradient presets
+      backgroundImage: {
+        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+        'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
+        'gradient-purple-blue': 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 50%, #60A5FA 100%)',
+        'gradient-mesh-dark': 'radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.3) 0px, transparent 50%), radial-gradient(at 100% 0%, rgba(59, 130, 246, 0.3) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.2) 0px, transparent 50%), radial-gradient(at 0% 100%, rgba(59, 130, 246, 0.2) 0px, transparent 50%)',
+        'gradient-mesh-light': 'radial-gradient(at 0% 0%, rgba(124, 58, 237, 0.2) 0px, transparent 50%), radial-gradient(at 100% 0%, rgba(37, 99, 235, 0.2) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(124, 58, 237, 0.15) 0px, transparent 50%), radial-gradient(at 0% 100%, rgba(37, 99, 235, 0.15) 0px, transparent 50%)',
+      },
+
+      // Backdrop Blur for glassmorphism
+      backdropBlur: {
+        xs: '2px',
+        sm: '8px',
+        md: '12px',
+        lg: '16px',
+        xl: '24px',
       },
 
       // Z-Index Scale
@@ -163,6 +236,47 @@ export default {
         'fast': '150ms',
         'DEFAULT': '200ms',
         'slow': '300ms',
+        'slower': '500ms',
+      },
+
+      // Animation keyframes
+      keyframes: {
+        'fade-in': {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'slide-in': {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(0)' },
+        },
+        'scale-in': {
+          '0%': { opacity: '0', transform: 'scale(0.95)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+        'glow-pulse': {
+          '0%, 100%': { boxShadow: '0 0 20px rgba(139, 92, 246, 0.4)' },
+          '50%': { boxShadow: '0 0 40px rgba(139, 92, 246, 0.8), 0 0 60px rgba(59, 130, 246, 0.6)' },
+        },
+        'gradient-shift': {
+          '0%, 100%': { backgroundPosition: '0% 50%' },
+          '50%': { backgroundPosition: '100% 50%' },
+        },
+        'blob': {
+          '0%': { transform: 'translate(0px, 0px) scale(1)' },
+          '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+          '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+          '100%': { transform: 'translate(0px, 0px) scale(1)' },
+        },
+      },
+
+      // Animation utilities
+      animation: {
+        'fade-in': 'fade-in 0.3s ease-out',
+        'slide-in': 'slide-in 0.3s ease-out',
+        'scale-in': 'scale-in 0.2s ease-out',
+        'glow-pulse': 'glow-pulse 2s ease-in-out infinite',
+        'gradient-shift': 'gradient-shift 3s ease infinite',
+        'blob': 'blob 7s infinite',
       },
 
       // Professional Layout Dimensions
@@ -182,5 +296,48 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // Custom plugin for glassmorphism utilities and animation delays
+    plugin(function({ addUtilities }) {
+      const glassUtilities = {
+        '.glass': {
+          background: 'rgba(255, 255, 255, 0.05)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+        },
+        '.glass-light': {
+          background: 'rgba(255, 255, 255, 0.03)',
+          backdropFilter: 'blur(8px)',
+          border: '1px solid rgba(255, 255, 255, 0.05)',
+        },
+        '.glass-medium': {
+          background: 'rgba(255, 255, 255, 0.08)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
+        },
+        '.glass-heavy': {
+          background: 'rgba(255, 255, 255, 0.12)',
+          backdropFilter: 'blur(16px)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+        },
+        '.glass-dark': {
+          background: 'rgba(15, 15, 26, 0.6)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(139, 92, 246, 0.2)',
+        },
+      };
+
+      const animationDelayUtilities = {
+        '.animation-delay-2000': {
+          animationDelay: '2s',
+        },
+        '.animation-delay-4000': {
+          animationDelay: '4s',
+        },
+      };
+
+      addUtilities(glassUtilities);
+      addUtilities(animationDelayUtilities);
+    }),
+  ],
 }

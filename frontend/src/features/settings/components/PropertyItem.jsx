@@ -22,21 +22,21 @@ const TYPE_ICONS = {
 };
 
 const TYPE_COLORS = {
-  string: 'bg-blue-100 text-blue-700',
-  text: 'bg-blue-100 text-blue-700',
-  number: 'bg-purple-100 text-purple-700',
-  currency: 'bg-green-100 text-green-700',
-  date: 'bg-orange-100 text-orange-700',
-  datetime: 'bg-orange-100 text-orange-700',
-  boolean: 'bg-teal-100 text-teal-700',
-  enum: 'bg-indigo-100 text-indigo-700',
-  multi_enum: 'bg-indigo-100 text-indigo-700',
-  email: 'bg-pink-100 text-pink-700',
-  phone: 'bg-pink-100 text-pink-700',
-  url: 'bg-cyan-100 text-cyan-700',
-  association: 'bg-violet-100 text-violet-700',
-  file: 'bg-amber-100 text-amber-700',
-  uuid: 'bg-gray-100 text-gray-700',
+  string: 'bg-blue-100 dark:bg-surface-secondary text-blue-700 dark:text-blue-300',
+  text: 'bg-blue-100 dark:bg-surface-secondary text-blue-700 dark:text-blue-300',
+  number: 'bg-purple-100 dark:bg-surface-secondary text-purple-700 dark:text-purple-300',
+  currency: 'bg-green-100 dark:bg-surface-secondary text-green-700',
+  date: 'bg-orange-100 dark:bg-surface-secondary text-orange-700',
+  datetime: 'bg-orange-100 dark:bg-surface-secondary text-orange-700',
+  boolean: 'bg-teal-100 dark:bg-surface-secondary text-teal-700',
+  enum: 'bg-indigo-100 dark:bg-surface-secondary text-indigo-700',
+  multi_enum: 'bg-indigo-100 dark:bg-surface-secondary text-indigo-700',
+  email: 'bg-pink-100 dark:bg-surface-secondary text-pink-700',
+  phone: 'bg-pink-100 dark:bg-surface-secondary text-pink-700',
+  url: 'bg-cyan-100 dark:bg-surface-secondary text-cyan-700',
+  association: 'bg-violet-100 dark:bg-surface-secondary text-violet-700',
+  file: 'bg-amber-100 dark:bg-surface-secondary text-amber-700',
+  uuid: 'bg-gray-100 dark:bg-surface-secondary text-gray-700 dark:text-text-primary',
 };
 
 const PropertyItem = ({ property, onEdit, onDelete }) => {
@@ -58,7 +58,7 @@ const PropertyItem = ({ property, onEdit, onDelete }) => {
     };
   }, [menuOpen]);
 
-  const typeColor = TYPE_COLORS[property.type] || 'bg-gray-100 text-gray-700';
+  const typeColor = TYPE_COLORS[property.type] || 'bg-gray-100 dark:bg-surface-secondary text-gray-700 dark:text-text-primary';
   const typeIcon = TYPE_ICONS[property.type] || '📦';
 
   return (
@@ -126,7 +126,7 @@ const PropertyItem = ({ property, onEdit, onDelete }) => {
                       onDelete(property);
                       setMenuOpen(false);
                     }}
-                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:bg-surface-primary transition-colors"
                   >
                     <Trash2 className="h-4 w-4" />
                     Delete property

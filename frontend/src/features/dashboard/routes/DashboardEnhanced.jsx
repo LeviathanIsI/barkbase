@@ -139,13 +139,13 @@ const DashboardEnhanced = () => {
         actions={
           <div className="flex items-center gap-3">
             {/* View Mode Toggle */}
-            <div className="flex items-center bg-gray-100 rounded-lg p-1">
+            <div className="flex items-center bg-gray-100 dark:bg-surface-secondary rounded-lg p-1">
               <button
                 onClick={() => setViewMode('overview')}
                 className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${
                   viewMode === 'overview'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-white dark:bg-surface-primary text-gray-900 dark:text-text-primary shadow-sm'
+                    : 'text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary dark:text-text-primary'
                 }`}
               >
                 <LayoutDashboard className="h-4 w-4 inline mr-1.5" />
@@ -155,8 +155,8 @@ const DashboardEnhanced = () => {
                 onClick={() => setViewMode('today')}
                 className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${
                   viewMode === 'today'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-white dark:bg-surface-primary text-gray-900 dark:text-text-primary shadow-sm'
+                    : 'text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary dark:text-text-primary'
                 }`}
               >
                 <List className="h-4 w-4 inline mr-1.5" />
@@ -211,29 +211,29 @@ const DashboardEnhanced = () => {
           <div className="space-y-4">
             {statsQuery.isLoading ? (
               Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg animate-pulse">
-                  <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+                <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-surface-secondary rounded-lg animate-pulse">
+                  <div className="w-10 h-10 bg-gray-200 dark:bg-surface-border rounded-full"></div>
                   <div className="flex-1">
-                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-surface-border rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-gray-200 dark:bg-surface-border rounded w-1/2"></div>
                   </div>
-                  <div className="w-16 h-6 bg-gray-200 rounded"></div>
+                  <div className="w-16 h-6 bg-gray-200 dark:bg-surface-border rounded"></div>
                 </div>
               ))
             ) : scheduleItems.length > 0 ? (
               <div className="space-y-3">
                 {scheduleItems.map((item, index) => (
-                  <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-surface-secondary rounded-lg">
                     <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
                       {item.type === 'arrival' ? (
                         <UserPlus className="h-5 w-5 text-primary-600" />
                       ) : (
-                        <UserX className="h-5 w-5 text-blue-600" />
+                        <UserX className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 text-sm truncate">{item.petName}</p>
-                      <p className="text-xs text-gray-600">{item.ownerName} • {item.time}</p>
+                      <p className="font-medium text-gray-900 dark:text-text-primary text-sm truncate">{item.petName}</p>
+                      <p className="text-xs text-gray-600 dark:text-text-secondary">{item.ownerName} • {item.time}</p>
                     </div>
                     <Badge variant={item.type === 'arrival' ? 'success' : 'secondary'} className="text-xs">
                       {item.type}
@@ -243,8 +243,8 @@ const DashboardEnhanced = () => {
               </div>
             ) : (
               <div className="text-center py-8">
-                <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-500">No schedule items for today</p>
+                <Calendar className="h-12 w-12 text-gray-400 dark:text-text-tertiary mx-auto mb-2" />
+                <p className="text-sm text-gray-500 dark:text-text-secondary">No schedule items for today</p>
               </div>
             )}
           </div>
@@ -294,26 +294,26 @@ const DashboardEnhanced = () => {
             {statsQuery.isLoading ? (
               Array.from({ length: 3 }).map((_, index) => (
                 <div key={index} className="flex items-center gap-3 animate-pulse">
-                  <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+                  <div className="w-10 h-10 bg-gray-200 dark:bg-surface-border rounded-full"></div>
                   <div className="flex-1">
-                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-surface-border rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-gray-200 dark:bg-surface-border rounded w-1/2"></div>
                   </div>
-                  <div className="w-16 h-6 bg-gray-200 rounded"></div>
+                  <div className="w-16 h-6 bg-gray-200 dark:bg-surface-border rounded"></div>
                 </div>
               ))
             ) : recentBookings.length > 0 ? (
               <div className="space-y-3">
                 {recentBookings.map((booking) => (
-                  <div key={booking.recordId || booking.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div key={booking.recordId || booking.id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-surface-secondary rounded-lg">
                     <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
                       <PawPrint className="h-5 w-5 text-primary-600" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 text-sm truncate">
+                      <p className="font-medium text-gray-900 dark:text-text-primary text-sm truncate">
                         {booking.pet?.name || booking.petName || 'Unknown Pet'}
                       </p>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs text-gray-600 dark:text-text-secondary">
                         {booking.owner ? `${booking.owner.firstName || ''} ${booking.owner.lastName || ''}`.trim() : booking.ownerName || 'Unknown Owner'}
                       </p>
                     </div>
@@ -332,8 +332,8 @@ const DashboardEnhanced = () => {
               </div>
             ) : (
               <div className="text-center py-8">
-                <Users className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-500">No recent bookings</p>
+                <Users className="h-12 w-12 text-gray-400 dark:text-text-tertiary mx-auto mb-2" />
+                <p className="text-sm text-gray-500 dark:text-text-secondary">No recent bookings</p>
               </div>
             )}
           </div>
@@ -350,13 +350,13 @@ const DashboardEnhanced = () => {
           ) : vaccinations.length ? (
             <div className="space-y-3">
               {vaccinations.map((item) => (
-                <div key={item.recordId} className="flex items-center gap-3 p-3 bg-yellow-50 rounded-lg">
-                  <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                <div key={item.recordId} className="flex items-center gap-3 p-3 bg-yellow-50 dark:bg-surface-primary rounded-lg">
+                  <div className="w-8 h-8 bg-yellow-100 dark:bg-surface-secondary rounded-full flex items-center justify-center">
                     <AlertTriangle className="h-4 w-4 text-yellow-600" />
                   </div>
                   <div className="flex-1">
-                    <p className="font-semibold text-gray-900 text-sm">{item.petName}</p>
-                    <p className="text-xs text-gray-600">{item.vaccine}</p>
+                    <p className="font-semibold text-gray-900 dark:text-text-primary text-sm">{item.petName}</p>
+                    <p className="text-xs text-gray-600 dark:text-text-secondary">{item.vaccine}</p>
                   </div>
                   <Badge variant={item.severity === 'danger' ? 'error' : 'warning'} className="text-xs">
                     {item.daysUntil}d
@@ -367,7 +367,7 @@ const DashboardEnhanced = () => {
           ) : (
             <div className="text-center py-8">
               <CheckCircle className="h-12 w-12 text-success-600 mx-auto mb-2" />
-              <p className="text-sm text-gray-600">All vaccinations up to date!</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">All vaccinations up to date!</p>
             </div>
           )}
         </Card>

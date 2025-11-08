@@ -15,10 +15,10 @@ const PasswordStrengthMeter = ({ password }) => {
 
     score = checks.filter(Boolean).length;
 
-    if (score < 3) return { score, label: 'Weak', color: 'bg-red-500', width: '25%' };
-    if (score < 4) return { score, label: 'Fair', color: 'bg-yellow-500', width: '50%' };
-    if (score < 5) return { score, label: 'Good', color: 'bg-blue-500', width: '75%' };
-    return { score, label: 'Strong', color: 'bg-green-500', width: '100%' };
+    if (score < 3) return { score, label: 'Weak', color: 'bg-red-50 dark:bg-red-950/20', width: '25%' };
+    if (score < 4) return { score, label: 'Fair', color: 'bg-yellow-50 dark:bg-yellow-950/20', width: '50%' };
+    if (score < 5) return { score, label: 'Good', color: 'bg-blue-50 dark:bg-blue-950/20', width: '75%' };
+    return { score, label: 'Strong', color: 'bg-green-50 dark:bg-green-950/20', width: '100%' };
   };
 
   const requirements = [
@@ -38,16 +38,16 @@ const PasswordStrengthMeter = ({ password }) => {
       {/* Strength Meter */}
       <div>
         <div className="flex justify-between items-center mb-2">
-          <span className="text-sm font-medium text-gray-700">Password Strength:</span>
+          <span className="text-sm font-medium text-gray-700 dark:text-text-primary">Password Strength:</span>
           <span className={`text-sm font-medium ${
             strength.score < 3 ? 'text-red-600' :
             strength.score < 4 ? 'text-yellow-600' :
-            strength.score < 5 ? 'text-blue-600' : 'text-green-600'
+            strength.score < 5 ? 'text-blue-600 dark:text-blue-400' : 'text-green-600'
           }`}>
             {strength.label}
           </span>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
+        <div className="w-full bg-gray-200 dark:bg-surface-border rounded-full h-2">
           <div
             className={`h-2 rounded-full transition-all duration-300 ${strength.color}`}
             style={{ width: strength.width }}
@@ -57,7 +57,7 @@ const PasswordStrengthMeter = ({ password }) => {
 
       {/* Requirements */}
       <div>
-        <h4 className="text-sm font-medium text-gray-700 mb-2">Requirements:</h4>
+        <h4 className="text-sm font-medium text-gray-700 dark:text-text-primary mb-2">Requirements:</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
           {requirements.map((req, index) => (
             <div key={index} className="flex items-center gap-2">
@@ -66,7 +66,7 @@ const PasswordStrengthMeter = ({ password }) => {
               ) : (
                 <X className="w-4 h-4 text-red-400 flex-shrink-0" />
               )}
-              <span className={`text-xs ${req.met ? 'text-green-700' : 'text-gray-600'}`}>
+              <span className={`text-xs ${req.met ? 'text-green-700' : 'text-gray-600 dark:text-text-secondary'}`}>
                 {req.text}
               </span>
             </div>
@@ -75,12 +75,12 @@ const PasswordStrengthMeter = ({ password }) => {
       </div>
 
       {/* Tips */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+      <div className="bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-3">
         <div className="flex items-start gap-2">
-          <Lightbulb className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+          <Lightbulb className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-blue-900 mb-1">Tips for a strong password:</p>
-            <p className="text-xs text-blue-800">
+            <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">Tips for a strong password:</p>
+            <p className="text-xs text-blue-800 dark:text-blue-200">
               Avoid common words, use a passphrase like "MyDog&Loves2Play!" or combine unrelated words with numbers and symbols.
             </p>
           </div>

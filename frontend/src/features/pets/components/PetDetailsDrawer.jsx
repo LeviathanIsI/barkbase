@@ -82,8 +82,8 @@ const OverviewTab = ({ pet }) => {
               className="w-32 h-32 rounded-lg object-cover"
             />
           ) : (
-            <div className="w-32 h-32 bg-gray-200 rounded-lg flex items-center justify-center">
-              <PawPrint className="h-12 w-12 text-gray-400" />
+            <div className="w-32 h-32 bg-gray-200 dark:bg-surface-border rounded-lg flex items-center justify-center">
+              <PawPrint className="h-12 w-12 text-gray-400 dark:text-text-tertiary" />
             </div>
           )}
         </div>
@@ -120,21 +120,21 @@ const OverviewTab = ({ pet }) => {
 
       {/* Owner Information */}
       <div>
-        <h3 className="font-medium text-gray-900 mb-3">Owner Information</h3>
+        <h3 className="font-medium text-gray-900 dark:text-text-primary mb-3">Owner Information</h3>
         <Card className="p-4">
           <div className="flex items-start justify-between">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-gray-400" />
+                <User className="h-4 w-4 text-gray-400 dark:text-text-tertiary" />
                 <span className="font-medium">{pet.owner?.name || 'Unknown'}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-gray-400" />
-                <span className="text-sm text-gray-600">{pet.owner?.phone}</span>
+                <Phone className="h-4 w-4 text-gray-400 dark:text-text-tertiary" />
+                <span className="text-sm text-gray-600 dark:text-text-secondary">{pet.owner?.phone}</span>
               </div>
               <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-gray-400" />
-                <span className="text-sm text-gray-600">{pet.owner?.email}</span>
+                <Mail className="h-4 w-4 text-gray-400 dark:text-text-tertiary" />
+                <span className="text-sm text-gray-600 dark:text-text-secondary">{pet.owner?.email}</span>
               </div>
             </div>
             <Button variant="secondary" size="sm">
@@ -147,7 +147,7 @@ const OverviewTab = ({ pet }) => {
       {/* Emergency Contact */}
       {pet.emergencyContact && (
         <div>
-          <h3 className="font-medium text-gray-900 mb-3">Emergency Contact</h3>
+          <h3 className="font-medium text-gray-900 dark:text-text-primary mb-3">Emergency Contact</h3>
           <Card className="p-4 border-error-200 bg-error-50">
             <div className="space-y-2">
               <p className="font-medium text-error-900">{pet.emergencyContact.name}</p>
@@ -173,11 +173,11 @@ const MedicalTab = ({ pet }) => {
   return (
     <div className="space-y-6">
       {/* Vaccination Status Summary */}
-      <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+      <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg">
         <Shield className="h-8 w-8 text-success-600" />
         <div className="flex-1">
-          <p className="font-medium text-gray-900">Vaccination Status</p>
-          <p className="text-sm text-gray-600">2 current, 1 needs update</p>
+          <p className="font-medium text-gray-900 dark:text-text-primary">Vaccination Status</p>
+          <p className="text-sm text-gray-600 dark:text-text-secondary">2 current, 1 needs update</p>
         </div>
         <Button variant="secondary" size="sm">
           <Syringe className="h-4 w-4 mr-2" />
@@ -187,14 +187,14 @@ const MedicalTab = ({ pet }) => {
 
       {/* Vaccinations List */}
       <div>
-        <h3 className="font-medium text-gray-900 mb-3">Vaccinations</h3>
+        <h3 className="font-medium text-gray-900 dark:text-text-primary mb-3">Vaccinations</h3>
         <div className="space-y-2">
           {vaccinations.map((vax, idx) => (
             <Card key={idx} className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-gray-900">{vax.name}</p>
-                  <p className="text-sm text-gray-600">
+                  <p className="font-medium text-gray-900 dark:text-text-primary">{vax.name}</p>
+                  <p className="text-sm text-gray-600 dark:text-text-secondary">
                     Given: {new Date(vax.date).toLocaleDateString()} • 
                     Expires: {new Date(vax.expires).toLocaleDateString()}
                   </p>
@@ -214,14 +214,14 @@ const MedicalTab = ({ pet }) => {
       {/* Medical Conditions */}
       {pet.medicalConditions && (
         <div>
-          <h3 className="font-medium text-gray-900 mb-3">Medical Conditions</h3>
+          <h3 className="font-medium text-gray-900 dark:text-text-primary mb-3">Medical Conditions</h3>
           <Card className="p-4 space-y-2">
             {pet.medicalConditions.map((condition, idx) => (
               <div key={idx} className="flex items-start gap-2">
                 <AlertCircle className="h-4 w-4 text-warning-600 mt-0.5" />
                 <div>
-                  <p className="font-medium text-gray-900">{condition.name}</p>
-                  <p className="text-sm text-gray-600">{condition.notes}</p>
+                  <p className="font-medium text-gray-900 dark:text-text-primary">{condition.name}</p>
+                  <p className="text-sm text-gray-600 dark:text-text-secondary">{condition.notes}</p>
                 </div>
               </div>
             ))}
@@ -232,14 +232,14 @@ const MedicalTab = ({ pet }) => {
       {/* Medications */}
       {pet.medications && (
         <div>
-          <h3 className="font-medium text-gray-900 mb-3">Medications</h3>
+          <h3 className="font-medium text-gray-900 dark:text-text-primary mb-3">Medications</h3>
           <div className="space-y-2">
             {pet.medications.map((med, idx) => (
               <Card key={idx} className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium text-gray-900">{med.name}</p>
-                    <p className="text-sm text-gray-600">
+                    <p className="font-medium text-gray-900 dark:text-text-primary">{med.name}</p>
+                    <p className="text-sm text-gray-600 dark:text-text-secondary">
                       {med.dosage} • {med.frequency}
                     </p>
                   </div>
@@ -276,7 +276,7 @@ const BookingsTab = ({ pet }) => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-600 dark:text-text-secondary">
           Total bookings: 12 • Revenue: $1,245
         </p>
         <Button variant="secondary" size="sm">
@@ -290,8 +290,8 @@ const BookingsTab = ({ pet }) => {
           <Card key={booking.id} className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-gray-900">{booking.service}</p>
-                <p className="text-sm text-gray-600">{booking.dates}</p>
+                <p className="font-medium text-gray-900 dark:text-text-primary">{booking.service}</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">{booking.dates}</p>
               </div>
               <div className="flex items-center gap-3">
                 <Badge variant={
@@ -346,12 +346,12 @@ const NotesTab = ({ pet }) => {
           >
             <div className="flex items-start justify-between mb-2">
               <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-gray-400" />
-                <span className="text-sm font-medium text-gray-900">{note.author}</span>
+                <User className="h-4 w-4 text-gray-400 dark:text-text-tertiary" />
+                <span className="text-sm font-medium text-gray-900 dark:text-text-primary">{note.author}</span>
               </div>
-              <span className="text-xs text-gray-500">{note.date}</span>
+              <span className="text-xs text-gray-500 dark:text-text-secondary">{note.date}</span>
             </div>
-            <p className="text-sm text-gray-700">{note.note}</p>
+            <p className="text-sm text-gray-700 dark:text-text-primary">{note.note}</p>
           </Card>
         ))}
       </div>
@@ -362,8 +362,8 @@ const NotesTab = ({ pet }) => {
 // Utility component
 const InfoItem = ({ label, value }) => (
   <div>
-    <p className="text-xs text-gray-500">{label}</p>
-    <p className="font-medium text-gray-900">{value}</p>
+    <p className="text-xs text-gray-500 dark:text-text-secondary">{label}</p>
+    <p className="font-medium text-gray-900 dark:text-text-primary">{value}</p>
   </div>
 );
 

@@ -17,10 +17,10 @@ const mockPets = [
 ];
 
 const mockRuns = [
-  { id: 'run-1', name: 'Morning Walk Run', capacity: 8, assigned: 3, time: '8:00 AM', color: 'bg-blue-100 border-blue-300' },
-  { id: 'run-2', name: 'Afternoon Play Run', capacity: 6, assigned: 5, time: '2:00 PM', color: 'bg-green-100 border-green-300' },
-  { id: 'run-3', name: 'Evening Calm Run', capacity: 4, assigned: 2, time: '6:00 PM', color: 'bg-purple-100 border-purple-300' },
-  { id: 'run-4', name: 'Indoor Rest Area', capacity: 10, assigned: 7, time: 'All Day', color: 'bg-orange-100 border-orange-300' },
+  { id: 'run-1', name: 'Morning Walk Run', capacity: 8, assigned: 3, time: '8:00 AM', color: 'bg-blue-100 dark:bg-surface-secondary border-blue-300' },
+  { id: 'run-2', name: 'Afternoon Play Run', capacity: 6, assigned: 5, time: '2:00 PM', color: 'bg-green-100 dark:bg-surface-secondary border-green-300' },
+  { id: 'run-3', name: 'Evening Calm Run', capacity: 4, assigned: 2, time: '6:00 PM', color: 'bg-purple-100 dark:bg-surface-secondary border-purple-300 dark:border-purple-700' },
+  { id: 'run-4', name: 'Indoor Rest Area', capacity: 10, assigned: 7, time: 'All Day', color: 'bg-orange-100 dark:bg-surface-secondary border-orange-300' },
 ];
 
 const PetCard = ({ pet, isDragging = false }) => {
@@ -39,7 +39,7 @@ const PetCard = ({ pet, isDragging = false }) => {
       style={style}
       {...listeners}
       {...attributes}
-      className={`bg-white border border-[#E0E0E0] rounded-lg p-3 mb-2 cursor-move transition-all duration-200 hover:shadow-md ${
+      className={`bg-white dark:bg-surface-primary border border-[#E0E0E0] rounded-lg p-3 mb-2 cursor-move transition-all duration-200 hover:shadow-md ${
         isDragging ? 'opacity-50 rotate-2' : ''
       }`}
     >
@@ -66,7 +66,7 @@ const RunColumn = ({ run, assignedPets, onDrop }) => {
   const utilizationPercent = Math.round((run.assigned / run.capacity) * 100);
 
   return (
-    <div className={`bg-white border border-[#E0E0E0] rounded-lg p-4 ${isOver ? 'ring-2 ring-[#4B5DD3]' : ''}`}>
+    <div className={`bg-white dark:bg-surface-primary border border-[#E0E0E0] rounded-lg p-4 ${isOver ? 'ring-2 ring-[#4B5DD3]' : ''}`}>
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-semibold text-[#263238]">{run.name}</h3>
         <Badge variant={utilizationPercent > 80 ? 'danger' : utilizationPercent > 60 ? 'warning' : 'success'}>
@@ -89,7 +89,7 @@ const RunColumn = ({ run, assignedPets, onDrop }) => {
       <div
         ref={setNodeRef}
         className={`min-h-[200px] border-2 border-dashed rounded-lg p-3 transition-colors ${
-          isOver ? 'border-[#4B5DD3] bg-blue-50' : 'border-[#E0E0E0]'
+          isOver ? 'border-[#4B5DD3] bg-blue-50 dark:bg-surface-primary' : 'border-[#E0E0E0]'
         }`}
       >
         {assignedPets.map((pet) => (
@@ -204,8 +204,8 @@ const RunAssignment = () => {
               <p className="text-sm font-medium text-[#64748B]">Total Pets</p>
               <p className="text-2xl font-bold text-[#263238]">{mockPets.length}</p>
             </div>
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Users className="h-6 w-6 text-blue-600" />
+            <div className="w-12 h-12 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
+              <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
         </Card>
@@ -216,7 +216,7 @@ const RunAssignment = () => {
               <p className="text-sm font-medium text-[#64748B]">Active Runs</p>
               <p className="text-2xl font-bold text-[#263238]">{mockRuns.length}</p>
             </div>
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+            <div className="w-12 h-12 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
               <Home className="h-6 w-6 text-green-600" />
             </div>
           </div>
@@ -230,8 +230,8 @@ const RunAssignment = () => {
                 {mockRuns.reduce((sum, run) => sum + run.capacity, 0)}
               </p>
             </div>
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <MapPin className="h-6 w-6 text-purple-600" />
+            <div className="w-12 h-12 bg-purple-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
+              <MapPin className="h-6 w-6 text-purple-600 dark:text-purple-400" />
             </div>
           </div>
         </Card>
@@ -242,7 +242,7 @@ const RunAssignment = () => {
               <p className="text-sm font-medium text-[#64748B]">Avg. Utilization</p>
               <p className="text-2xl font-bold text-[#263238]">68%</p>
             </div>
-            <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+            <div className="w-12 h-12 bg-orange-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
               <Clock className="h-6 w-6 text-orange-600" />
             </div>
           </div>

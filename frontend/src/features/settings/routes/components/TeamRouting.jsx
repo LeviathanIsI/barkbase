@@ -58,14 +58,14 @@ const TeamRouting = () => {
   return (
     <Card title="Team Notification Routing" icon={Users}>
       <div className="space-y-6">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-4">
           <div className="flex items-start gap-3">
-            <Shield className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <Shield className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
             <div>
-              <h4 className="font-medium text-blue-900 mb-1">
+              <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-1">
                 Available on Pro plan
               </h4>
-              <p className="text-sm text-blue-800">
+              <p className="text-sm text-blue-800 dark:text-blue-200">
                 Route specific notifications to team members for better workflow management.
               </p>
             </div>
@@ -75,7 +75,7 @@ const TeamRouting = () => {
         {/* Current Routing Rules */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-medium text-gray-900">Current Routing Rules</h3>
+            <h3 className="font-medium text-gray-900 dark:text-text-primary">Current Routing Rules</h3>
             <Button variant="outline" onClick={handleConfigureRouting}>
               Configure Team Routing
             </Button>
@@ -83,13 +83,13 @@ const TeamRouting = () => {
 
           <div className="space-y-3">
             {routingRules.map((rule, index) => (
-              <div key={index} className="border border-gray-200 rounded-lg p-4">
+              <div key={index} className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-medium text-gray-900">{rule.event}</h4>
-                    <p className="text-sm text-gray-600">{rule.description}</p>
+                    <h4 className="font-medium text-gray-900 dark:text-text-primary">{rule.event}</h4>
+                    <p className="text-sm text-gray-600 dark:text-text-secondary">{rule.description}</p>
                     <div className="flex items-center gap-2 mt-2">
-                      <span className="text-xs text-gray-500">Recipients:</span>
+                      <span className="text-xs text-gray-500 dark:text-text-secondary">Recipients:</span>
                       {rule.recipients.map((recipient, idx) => (
                         <Badge key={idx} variant="secondary" className="text-xs">
                           {recipient}
@@ -108,18 +108,18 @@ const TeamRouting = () => {
 
         {/* Team Members Overview */}
         <div>
-          <h3 className="font-medium text-gray-900 mb-4">Team Members</h3>
+          <h3 className="font-medium text-gray-900 dark:text-text-primary mb-4">Team Members</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {teamMembers.map((member) => {
               const RoleIcon = getRoleIcon(member.role);
               return (
-                <div key={member.id} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
-                  <div className="p-2 bg-gray-100 rounded-full">
-                    <RoleIcon className="w-4 h-4 text-gray-600" />
+                <div key={member.id} className="flex items-center gap-3 p-3 border border-gray-200 dark:border-surface-border rounded-lg">
+                  <div className="p-2 bg-gray-100 dark:bg-surface-secondary rounded-full">
+                    <RoleIcon className="w-4 h-4 text-gray-600 dark:text-text-secondary" />
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">{member.name}</p>
-                    <p className="text-sm text-gray-600">{member.role}</p>
+                    <p className="font-medium text-gray-900 dark:text-text-primary">{member.name}</p>
+                    <p className="text-sm text-gray-600 dark:text-text-secondary">{member.role}</p>
                   </div>
                 </div>
               );
@@ -128,13 +128,13 @@ const TeamRouting = () => {
         </div>
 
         {/* Upgrade Prompt */}
-        <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-6">
+        <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-surface-primary dark:to-surface-primary border border-purple-200 dark:border-purple-900/30 rounded-lg p-6">
           <div className="text-center">
-            <Users className="w-12 h-12 text-purple-600 mx-auto mb-4" />
-            <h4 className="text-lg font-semibold text-purple-900 mb-2">
+            <Users className="w-12 h-12 text-purple-600 dark:text-purple-400 mx-auto mb-4" />
+            <h4 className="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-2">
               Advanced Team Routing
             </h4>
-            <p className="text-purple-700 mb-4">
+            <p className="text-purple-700 dark:text-purple-300 mb-4">
               Route notifications intelligently based on roles, schedules, and availability.
               Ensure the right team member gets notified at the right time.
             </p>
@@ -142,7 +142,7 @@ const TeamRouting = () => {
               <Button className="bg-purple-600 hover:bg-purple-700">
                 Upgrade to Pro
               </Button>
-              <Button variant="outline" className="border-purple-300 text-purple-700 hover:bg-purple-50">
+              <Button variant="outline" className="border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:bg-surface-primary">
                 Learn More
               </Button>
             </div>

@@ -162,7 +162,7 @@ const KennelLayoutView = ({ currentDate }) => {
         <form onSubmit={onSubmit} className="space-y-4">
           <h3 className="text-lg font-semibold">Mark Maintenance</h3>
           {kennelId ? (
-            <div className="text-sm text-gray-700">Kennel: {kennels.find(k => k.recordId === kennelId)?.name || kennelId}</div>
+            <div className="text-sm text-gray-700 dark:text-text-primary">Kennel: {kennels.find(k => k.recordId === kennelId)?.name || kennelId}</div>
           ) : (
             <Select label="Kennel" value={kennelId} onChange={(e) => setKennelId(e.target.value)} required>
               <option value="">Select…</option>
@@ -183,14 +183,14 @@ const KennelLayoutView = ({ currentDate }) => {
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-gray-900">Kennel Layout</h2>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">Kennel Layout</h2>
         <Button variant="outline" onClick={() => navigate('/kennels')}>
           <Edit className="w-4 h-4 mr-2" />
           Edit Layout
         </Button>
       </div>
 
-      <p className="text-gray-600 mb-6">Visual overview of your facility</p>
+      <p className="text-gray-600 dark:text-text-secondary mb-6">Visual overview of your facility</p>
 
       {(kennelsLoading || occupancyLoading) ? (
         <Skeleton className="h-64" />
@@ -198,18 +198,18 @@ const KennelLayoutView = ({ currentDate }) => {
         <div className="space-y-8">
           {groupedByBuilding.map((group) => (
             <div key={group.building}>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">{group.building}</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">{group.building}</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {group.list.map((kennel) => (
                   <button
                     key={kennel.recordId}
                     type="button"
                     onClick={() => { setSelectedKennelId(kennel.recordId); setShowMaintenance(true); }}
-                    className={`border-2 rounded-lg p-4 text-left focus:outline-none focus:ring-2 focus:ring-blue-400 ${kennel.occupied > 0 ? 'border-green-300 bg-green-50' : 'border-gray-300 bg-gray-50'}`}
+                    className={`border-2 rounded-lg p-4 text-left focus:outline-none focus:ring-2 focus:ring-blue-400 ${kennel.occupied > 0 ? 'border-green-300 bg-green-50 dark:bg-surface-primary' : 'border-gray-300 dark:border-surface-border bg-gray-50 dark:bg-surface-secondary'}`}
                   >
                     <div className="text-center">
-                      <div className="font-semibold text-gray-900">{kennel.name}</div>
-                      <div className="text-sm text-gray-600">Cap {kennel.capacity ?? 1}</div>
+                      <div className="font-semibold text-gray-900 dark:text-text-primary">{kennel.name}</div>
+                      <div className="text-sm text-gray-600 dark:text-text-secondary">Cap {kennel.capacity ?? 1}</div>
                       {kennel.occupied > 0 ? (
                         <div className="mt-2 space-y-1">
                           {(kennel.bookings || []).slice(0, 2).map((b) => (
@@ -217,7 +217,7 @@ const KennelLayoutView = ({ currentDate }) => {
                           ))}
                         </div>
                       ) : (
-                        <div className="mt-2 text-xs text-gray-500">🟢 OPEN</div>
+                        <div className="mt-2 text-xs text-gray-500 dark:text-text-secondary">🟢 OPEN</div>
                       )}
                     </div>
                   </button>
@@ -228,9 +228,9 @@ const KennelLayoutView = ({ currentDate }) => {
         </div>
       )}
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 my-6">
-        <div className="font-semibold text-blue-900">CAPACITY: {totalOccupied}/{totalCapacity} kennels occupied ({utilizationPercent}%)</div>
-        <div className="text-sm text-blue-700">• {totalAvailable} available now</div>
+      <div className="bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-4 my-6">
+        <div className="font-semibold text-blue-900 dark:text-blue-100">CAPACITY: {totalOccupied}/{totalCapacity} kennels occupied ({utilizationPercent}%)</div>
+        <div className="text-sm text-blue-700 dark:text-blue-300">• {totalAvailable} available now</div>
       </div>
 
       <div className="flex gap-3">

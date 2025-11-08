@@ -180,8 +180,8 @@ const PropertiesOverview = () => {
       {/* Page Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Properties</h1>
-          <p className="mt-1 text-gray-600">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-text-primary">Properties</h1>
+          <p className="mt-1 text-gray-600 dark:text-text-secondary">
             Properties are used to collect and store information about your records in BarkBase. For example, a contact might have properties like First Name or Lead Status.
           </p>
         </div>
@@ -193,7 +193,7 @@ const PropertiesOverview = () => {
 
       {/* Object Type Selector */}
       <div className="flex items-center gap-3">
-        <label className="text-sm font-medium text-gray-700">Select an object:</label>
+        <label className="text-sm font-medium text-gray-700 dark:text-text-primary">Select an object:</label>
         <div className="relative">
           <select
             value={selectedObject}
@@ -201,7 +201,7 @@ const PropertiesOverview = () => {
               setSelectedObject(e.target.value);
               setSelectedProperties([]);
             }}
-            className="appearance-none rounded-lg border border-gray-300 bg-white pl-4 pr-10 py-2.5 text-sm font-medium focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[250px]"
+            className="appearance-none rounded-lg border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary pl-4 pr-10 py-2.5 text-sm font-medium focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[250px]"
           >
             {OBJECT_TYPES.map((type) => (
               <option key={type.recordId} value={type.recordId}>
@@ -209,19 +209,19 @@ const PropertiesOverview = () => {
               </option>
             ))}
           </select>
-          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-text-tertiary pointer-events-none" />
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-gray-200 dark:border-surface-border">
         <nav className="flex gap-6">
           <button
             onClick={() => setSelectedTab('properties')}
             className={`pb-3 border-b-2 text-sm font-medium transition-colors ${
               selectedTab === 'properties'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-gray-500 dark:text-text-secondary hover:text-gray-700 dark:hover:text-text-primary hover:border-gray-300 dark:border-surface-border'
             }`}
           >
             Properties {hasProperties && `(${propertiesData?.length || 0})`}
@@ -230,8 +230,8 @@ const PropertiesOverview = () => {
             onClick={() => setSelectedTab('conditional-logic')}
             className={`pb-3 border-b-2 text-sm font-medium transition-colors ${
               selectedTab === 'conditional-logic'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-gray-500 dark:text-text-secondary hover:text-gray-700 dark:hover:text-text-primary hover:border-gray-300 dark:border-surface-border'
             }`}
           >
             Conditional logic
@@ -240,8 +240,8 @@ const PropertiesOverview = () => {
             onClick={() => setSelectedTab('groups')}
             className={`pb-3 border-b-2 text-sm font-medium transition-colors ${
               selectedTab === 'groups'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-gray-500 dark:text-text-secondary hover:text-gray-700 dark:hover:text-text-primary hover:border-gray-300 dark:border-surface-border'
             }`}
           >
             Groups
@@ -250,8 +250,8 @@ const PropertiesOverview = () => {
             onClick={() => setSelectedTab('archived')}
             className={`pb-3 border-b-2 text-sm font-medium transition-colors ${
               selectedTab === 'archived'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                : 'border-transparent text-gray-500 dark:text-text-secondary hover:text-gray-700 dark:hover:text-text-primary hover:border-gray-300 dark:border-surface-border'
             }`}
           >
             Archived {archivedCount > 0 && `(${archivedCount})`}
@@ -275,7 +275,7 @@ const PropertiesOverview = () => {
             <select
               value={selectedGroup}
               onChange={(e) => setSelectedGroup(e.target.value)}
-              className="rounded-lg border border-gray-300 bg-white pl-3 pr-8 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="rounded-lg border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary pl-3 pr-8 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="all">All groups</option>
               {availableGroups.map((group) => (
@@ -288,7 +288,7 @@ const PropertiesOverview = () => {
             <select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              className="rounded-lg border border-gray-300 bg-white pl-3 pr-8 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="rounded-lg border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary pl-3 pr-8 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="all">All field types</option>
               {FIELD_TYPES.map((type) => (
@@ -301,7 +301,7 @@ const PropertiesOverview = () => {
             <select
               value={selectedAccess}
               onChange={(e) => setSelectedAccess(e.target.value)}
-              className="rounded-lg border border-gray-300 bg-white pl-3 pr-8 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="rounded-lg border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary pl-3 pr-8 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               {ACCESS_LEVELS.map((level) => (
                 <option key={level.value} value={level.value}>
@@ -312,20 +312,20 @@ const PropertiesOverview = () => {
 
             {/* Search */}
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-text-tertiary" />
               <input
                 type="text"
                 placeholder="Search properties"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-4 text-sm text-gray-900 placeholder:text-gray-600 placeholder:opacity-75 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary py-2 pl-9 pr-4 text-sm text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary dark:text-text-secondary placeholder:opacity-75 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>
           </div>
 
           {/* Properties Count */}
           <div className="flex items-center justify-between mb-4">
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-gray-600 dark:text-text-secondary">
               {filteredProperties.length} properties
             </div>
           </div>
@@ -416,7 +416,7 @@ const PropertiesOverview = () => {
       {/* Dependency Graph Modal */}
       {selectedPropertyForGraph && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-auto">
+          <div className="bg-white dark:bg-surface-primary rounded-lg max-w-6xl w-full max-h-[90vh] overflow-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold">
@@ -424,7 +424,7 @@ const PropertiesOverview = () => {
                 </h2>
                 <button
                   onClick={() => setSelectedPropertyForGraph(null)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 dark:text-text-tertiary hover:text-gray-600 dark:hover:text-text-secondary"
                 >
                   <span className="text-2xl">&times;</span>
                 </button>

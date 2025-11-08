@@ -78,15 +78,15 @@ const NotificationHistory = () => {
   const getTypeColor = (type) => {
     switch (type) {
       case 'booking':
-        return 'text-blue-600';
+        return 'text-blue-600 dark:text-blue-400';
       case 'payment':
         return 'text-green-600';
       case 'health':
         return 'text-red-600';
       case 'inquiry':
-        return 'text-purple-600';
+        return 'text-purple-600 dark:text-purple-400';
       default:
-        return 'text-gray-600';
+        return 'text-gray-600 dark:text-text-secondary';
     }
   };
 
@@ -101,7 +101,7 @@ const NotificationHistory = () => {
   return (
     <Card title="Recent Notifications" icon={History}>
       <div className="space-y-4">
-        <p className="text-gray-600">
+        <p className="text-gray-600 dark:text-text-secondary">
           See what notifications you've received
         </p>
 
@@ -110,20 +110,20 @@ const NotificationHistory = () => {
           {notifications.map((notification) => {
             const Icon = notification.icon;
             return (
-              <div key={notification.id} className="border border-gray-200 rounded-lg p-4">
+              <div key={notification.id} className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
                 <div className="flex items-start gap-4">
-                  <div className="p-2 bg-gray-100 rounded-full">
+                  <div className="p-2 bg-gray-100 dark:bg-surface-secondary rounded-full">
                     <Icon className={`w-4 h-4 ${getTypeColor(notification.type)}`} />
                   </div>
 
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-medium text-gray-900">{notification.title}</h4>
-                      <span className="text-sm text-gray-500">{notification.time}</span>
+                      <h4 className="font-medium text-gray-900 dark:text-text-primary">{notification.title}</h4>
+                      <span className="text-sm text-gray-500 dark:text-text-secondary">{notification.time}</span>
                     </div>
-                    <p className="text-sm text-gray-600 mb-2">{notification.description}</p>
+                    <p className="text-sm text-gray-600 dark:text-text-secondary mb-2">{notification.description}</p>
 
-                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                    <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-text-secondary">
                       <span>{notification.date}</span>
                       <div className="flex items-center gap-1">
                         <span>Delivered via:</span>

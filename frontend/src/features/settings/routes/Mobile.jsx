@@ -64,30 +64,30 @@ const Mobile = () => {
         description="Monitor your mobile app usage"
       >
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <Smartphone className="w-8 h-8 mx-auto mb-2 text-blue-600" />
+          <div className="text-center p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg">
+            <Smartphone className="w-8 h-8 mx-auto mb-2 text-blue-600 dark:text-blue-400" />
             <div className="text-2xl font-bold">{appStats.activeUsers}</div>
-            <p className="text-sm text-gray-600">Active Users</p>
+            <p className="text-sm text-gray-600 dark:text-text-secondary">Active Users</p>
           </div>
           
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
+          <div className="text-center p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg">
             <Download className="w-8 h-8 mx-auto mb-2 text-green-600" />
             <div className="text-2xl font-bold">{appStats.totalDownloads}</div>
-            <p className="text-sm text-gray-600">Total Downloads</p>
+            <p className="text-sm text-gray-600 dark:text-text-secondary">Total Downloads</p>
           </div>
           
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <Shield className="w-8 h-8 mx-auto mb-2 text-purple-600" />
+          <div className="text-center p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg">
+            <Shield className="w-8 h-8 mx-auto mb-2 text-purple-600 dark:text-purple-400" />
             <div className="text-lg font-medium">v{appStats.appVersion}</div>
-            <p className="text-sm text-gray-600">Current Version</p>
+            <p className="text-sm text-gray-600 dark:text-text-secondary">Current Version</p>
           </div>
           
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
+          <div className="text-center p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg">
             <Wifi className="w-8 h-8 mx-auto mb-2 text-orange-600" />
             <div className="text-sm font-medium">
               {new Date(appStats.lastSyncTime).toLocaleTimeString()}
             </div>
-            <p className="text-sm text-gray-600">Last Sync</p>
+            <p className="text-sm text-gray-600 dark:text-text-secondary">Last Sync</p>
           </div>
         </div>
       </Card>
@@ -101,7 +101,7 @@ const Mobile = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Mobile App Access</h4>
-              <p className="text-sm text-gray-600">Allow staff to use the mobile app</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Allow staff to use the mobile app</p>
             </div>
             <Switch
               checked={settings.mobileAppEnabled}
@@ -112,7 +112,7 @@ const Mobile = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Offline Mode</h4>
-              <p className="text-sm text-gray-600">Allow app to work without internet</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Allow app to work without internet</p>
             </div>
             <Switch
               checked={settings.offlineMode}
@@ -123,7 +123,7 @@ const Mobile = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Auto-Sync</h4>
-              <p className="text-sm text-gray-600">Automatically sync data when online</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Automatically sync data when online</p>
             </div>
             <Switch
               checked={settings.autoSync}
@@ -134,7 +134,7 @@ const Mobile = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Push Notifications</h4>
-              <p className="text-sm text-gray-600">Send notifications to mobile devices</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Send notifications to mobile devices</p>
             </div>
             <Switch
               checked={settings.pushNotifications}
@@ -145,7 +145,7 @@ const Mobile = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Biometric Authentication</h4>
-              <p className="text-sm text-gray-600">Use fingerprint or face ID</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Use fingerprint or face ID</p>
             </div>
             <Switch
               checked={settings.biometricAuth}
@@ -205,7 +205,7 @@ const Mobile = () => {
                 step="50"
                 className="w-24 px-3 py-2 border rounded-md"
               />
-              <span className="text-sm text-gray-600">MB</span>
+              <span className="text-sm text-gray-600 dark:text-text-secondary">MB</span>
             </div>
           </div>
         </div>
@@ -217,10 +217,10 @@ const Mobile = () => {
         description="Share your mobile app with staff"
       >
         <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
+          <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-surface-primary rounded-lg">
             <div>
               <h4 className="font-medium">Download QR Code</h4>
-              <p className="text-sm text-gray-600">Generate QR code for easy app download</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Generate QR code for easy app download</p>
             </div>
             <Button onClick={generateQRCode} variant="outline">
               <QrCode className="w-4 h-4 mr-2" />
@@ -231,23 +231,23 @@ const Mobile = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <a
               href="#"
-              className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary transition-colors"
             >
               <Download className="w-8 h-8 text-green-600" />
               <div>
                 <p className="font-medium">Download for iOS</p>
-                <p className="text-sm text-gray-600">Available on App Store</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">Available on App Store</p>
               </div>
             </a>
             
             <a
               href="#"
-              className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-3 p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary transition-colors"
             >
               <Download className="w-8 h-8 text-green-600" />
               <div>
                 <p className="font-medium">Download for Android</p>
-                <p className="text-sm text-gray-600">Available on Google Play</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">Available on Google Play</p>
               </div>
             </a>
           </div>

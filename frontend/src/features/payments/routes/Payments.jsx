@@ -83,7 +83,7 @@ const Payments = () => {
         subtitle="Flexible payment processing with your choice of processor"
         actions={
           <div className="flex items-center gap-2">
-            <div className="flex items-center bg-gray-100 rounded-lg p-1">
+            <div className="flex items-center bg-gray-100 dark:bg-surface-secondary rounded-lg p-1">
               <Button
                 variant={currentView === 'overview' ? 'primary' : 'ghost'}
                 size="sm"
@@ -132,12 +132,12 @@ const Payments = () => {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
               <DollarSign className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Revenue Collected</p>
-              <p className="text-2xl font-bold text-gray-900">${(safeStats.revenueCollected || 0).toLocaleString()}</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Revenue Collected</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">${(safeStats.revenueCollected || 0).toLocaleString()}</p>
               <p className="text-xs text-green-600">+${(safeStats.previousPeriod || 0).toLocaleString()} (+15%)</p>
             </div>
           </div>
@@ -145,39 +145,39 @@ const Payments = () => {
 
         <Card className="p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <CheckCircle className="w-5 h-5 text-blue-600" />
+            <div className="w-10 h-10 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
+              <CheckCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Processed</p>
-              <p className="text-2xl font-bold text-gray-900">${(safeStats.processedAmount || 0).toLocaleString()}</p>
-              <p className="text-xs text-gray-600">Card/online payments</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Processed</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">${(safeStats.processedAmount || 0).toLocaleString()}</p>
+              <p className="text-xs text-gray-600 dark:text-text-secondary">Card/online payments</p>
             </div>
           </div>
         </Card>
 
         <Card className="p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-yellow-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
               <Clock className="w-5 h-5 text-yellow-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Pending</p>
-              <p className="text-2xl font-bold text-gray-900">${(safeStats.pendingAmount || 0).toLocaleString()}</p>
-              <p className="text-xs text-gray-600">Outstanding balance</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Pending</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">${(safeStats.pendingAmount || 0).toLocaleString()}</p>
+              <p className="text-xs text-gray-600 dark:text-text-secondary">Outstanding balance</p>
             </div>
           </div>
         </Card>
 
         <Card className="p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-purple-600" />
+            <div className="w-10 h-10 bg-purple-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             </div>
             <div>
-              <p className="text-sm text-gray-600">Success Rate</p>
-              <p className="text-2xl font-bold text-gray-900">{safeStats.successRate || 0}%</p>
-              <p className="text-xs text-gray-600">Very good</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Success Rate</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{safeStats.successRate || 0}%</p>
+              <p className="text-xs text-gray-600 dark:text-text-secondary">Very good</p>
             </div>
           </div>
         </Card>
@@ -186,16 +186,16 @@ const Payments = () => {
       <Card className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
               <CheckCircle className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <p className="font-medium text-gray-900">Connected: {safeProcessor.name}</p>
-              <p className="text-sm text-gray-600">Status: Active • Processing smoothly</p>
+              <p className="font-medium text-gray-900 dark:text-text-primary">Connected: {safeProcessor.name}</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Status: Active • Processing smoothly</p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-sm text-gray-600">Your rate</p>
+            <p className="text-sm text-gray-600 dark:text-text-secondary">Your rate</p>
             <p className="font-medium">{safeProcessor.rate}</p>
           </div>
         </div>

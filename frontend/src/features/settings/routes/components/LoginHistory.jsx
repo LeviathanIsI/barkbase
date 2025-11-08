@@ -82,19 +82,19 @@ const LoginHistory = () => {
   return (
     <Card title="Login History" icon={Calendar}>
       <div className="space-y-6">
-        <p className="text-gray-600">
+        <p className="text-gray-600 dark:text-text-secondary">
           Track all login attempts to your account.
         </p>
 
         {/* Filters */}
         <div className="flex flex-wrap gap-4">
-          <select className="px-3 py-2 border border-gray-300 rounded-md text-sm">
+          <select className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm bg-white dark:bg-surface-primary">
             <option value="all">All Activity</option>
             <option value="success">Successful Logins</option>
             <option value="failed">Failed Attempts</option>
             <option value="suspicious">Suspicious Activity</option>
           </select>
-          <select className="px-3 py-2 border border-gray-300 rounded-md text-sm">
+          <select className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm bg-white dark:bg-surface-primary">
             <option value="30">Last 30 days</option>
             <option value="90">Last 90 days</option>
             <option value="365">Last year</option>
@@ -109,27 +109,27 @@ const LoginHistory = () => {
         <div className="space-y-6">
           {loginHistory.map((day) => (
             <div key={day.date}>
-              <h3 className="font-medium text-gray-900 mb-3">{day.date}</h3>
+              <h3 className="font-medium text-gray-900 dark:text-text-primary mb-3">{day.date}</h3>
               <div className="space-y-3">
                 {day.events.map((event) => {
                   const Icon = event.icon || getEventIcon(event.type, event.suspicious);
                   const iconColor = getEventColor(event.type, event.suspicious);
 
                   return (
-                    <div key={event.id} className="flex items-start gap-4 p-4 border border-gray-200 rounded-lg">
-                      <div className={`p-2 rounded-full ${event.suspicious ? 'bg-red-100' : event.type === 'success' ? 'bg-green-100' : 'bg-red-100'}`}>
+                    <div key={event.id} className="flex items-start gap-4 p-4 border border-gray-200 dark:border-surface-border rounded-lg">
+                      <div className={`p-2 rounded-full ${event.suspicious ? 'bg-red-100 dark:bg-surface-secondary' : event.type === 'success' ? 'bg-green-100' : 'bg-red-100'}`}>
                         <Icon className={`w-4 h-4 ${iconColor}`} />
                       </div>
 
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium text-gray-900">
+                          <span className="font-medium text-gray-900 dark:text-text-primary">
                             {getEventText(event.type, event.suspicious)}
                           </span>
-                          <span className="text-sm text-gray-500">{event.time}</span>
+                          <span className="text-sm text-gray-500 dark:text-text-secondary">{event.time}</span>
                         </div>
 
-                        <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+                        <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-text-secondary mb-2">
                           <div className="flex items-center gap-1">
                             <Monitor className="w-3 h-3" />
                             <span>{event.device}</span>
@@ -142,7 +142,7 @@ const LoginHistory = () => {
 
                         {event.suspicious && (
                           <div className="flex items-center gap-2 mt-2">
-                            <Button variant="outline" size="sm" className="text-red-600 border-red-300 hover:bg-red-50">
+                            <Button variant="outline" size="sm" className="text-red-600 border-red-300 hover:bg-red-50 dark:bg-surface-primary">
                               Report Suspicious Activity
                             </Button>
                           </div>
@@ -164,8 +164,8 @@ const LoginHistory = () => {
         </div>
 
         {/* Email Notifications */}
-        <div className="border-t border-gray-200 pt-6">
-          <h4 className="font-medium text-gray-900 mb-3">Email me when:</h4>
+        <div className="border-t border-gray-200 dark:border-surface-border pt-6">
+          <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3">Email me when:</h4>
           <div className="space-y-2">
             {[
               'Login from new device',
@@ -177,7 +177,7 @@ const LoginHistory = () => {
                 <input
                   type="checkbox"
                   defaultChecked
-                  className="rounded border-gray-300"
+                  className="rounded border-gray-300 dark:border-surface-border"
                 />
                 <span className="text-sm">{notification}</span>
               </label>

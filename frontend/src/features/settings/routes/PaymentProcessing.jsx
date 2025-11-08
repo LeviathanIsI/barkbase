@@ -62,12 +62,12 @@ const PaymentProcessing = () => {
             </Select>
           </div>
 
-          <div className="flex items-center justify-between p-4 bg-yellow-50 rounded-lg">
+          <div className="flex items-center justify-between p-4 bg-yellow-50 dark:bg-surface-primary rounded-lg">
             <div className="flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-yellow-600" />
               <div>
                 <p className="font-medium text-sm">Test Mode</p>
-                <p className="text-xs text-gray-600">Process test transactions only</p>
+                <p className="text-xs text-gray-600 dark:text-text-secondary">Process test transactions only</p>
               </div>
             </div>
             <Switch
@@ -76,10 +76,10 @@ const PaymentProcessing = () => {
             />
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+          <div className="bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-md p-3">
             <div className="flex">
-              <Shield className="h-5 w-5 text-blue-600 mr-2 flex-shrink-0" />
-              <div className="text-sm text-blue-800">
+              <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400 mr-2 flex-shrink-0" />
+              <div className="text-sm text-blue-800 dark:text-blue-200">
                 <p className="font-medium">PCI Compliance Status</p>
                 <div className="flex items-center gap-1 mt-1">
                   <CheckCircle className="w-4 h-4 text-green-600" />
@@ -99,10 +99,10 @@ const PaymentProcessing = () => {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <CreditCard className="w-5 h-5 text-gray-600" />
+              <CreditCard className="w-5 h-5 text-gray-600 dark:text-text-secondary" />
               <div>
                 <h4 className="font-medium">Credit/Debit Cards</h4>
-                <p className="text-sm text-gray-600">Visa, MasterCard, Amex, Discover</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">Visa, MasterCard, Amex, Discover</p>
               </div>
             </div>
             <Switch
@@ -113,10 +113,10 @@ const PaymentProcessing = () => {
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <DollarSign className="w-5 h-5 text-gray-600" />
+              <DollarSign className="w-5 h-5 text-gray-600 dark:text-text-secondary" />
               <div>
                 <h4 className="font-medium">ACH Bank Transfer</h4>
-                <p className="text-sm text-gray-600">Direct bank account payments</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">Direct bank account payments</p>
               </div>
             </div>
             <Switch
@@ -127,10 +127,10 @@ const PaymentProcessing = () => {
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <DollarSign className="w-5 h-5 text-gray-600" />
+              <DollarSign className="w-5 h-5 text-gray-600 dark:text-text-secondary" />
               <div>
                 <h4 className="font-medium">Cash</h4>
-                <p className="text-sm text-gray-600">Accept cash payments in-person</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">Accept cash payments in-person</p>
               </div>
             </div>
             <Switch
@@ -141,10 +141,10 @@ const PaymentProcessing = () => {
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <DollarSign className="w-5 h-5 text-gray-600" />
+              <DollarSign className="w-5 h-5 text-gray-600 dark:text-text-secondary" />
               <div>
                 <h4 className="font-medium">Check</h4>
-                <p className="text-sm text-gray-600">Accept paper checks</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">Accept paper checks</p>
               </div>
             </div>
             <Switch
@@ -175,7 +175,7 @@ const PaymentProcessing = () => {
                   min="0"
                   className="w-20 px-3 py-2 border rounded-md"
                 />
-                <span className="text-sm text-gray-600">%</span>
+                <span className="text-sm text-gray-600 dark:text-text-secondary">%</span>
               </div>
             </div>
 
@@ -184,7 +184,7 @@ const PaymentProcessing = () => {
                 Transaction Fee
               </label>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">$</span>
+                <span className="text-sm text-gray-600 dark:text-text-secondary">$</span>
                 <input
                   type="number"
                   value={settings.transactionFee}
@@ -209,7 +209,7 @@ const PaymentProcessing = () => {
                   min="0"
                   className="w-20 px-3 py-2 border rounded-md"
                 />
-                <span className="text-sm text-gray-600">%</span>
+                <span className="text-sm text-gray-600 dark:text-text-secondary">%</span>
               </div>
             </div>
           </div>
@@ -225,7 +225,7 @@ const PaymentProcessing = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Save Customer Cards</h4>
-              <p className="text-sm text-gray-600">Securely store cards for future use</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Securely store cards for future use</p>
             </div>
             <Switch
               checked={settings.saveCards}
@@ -236,7 +236,7 @@ const PaymentProcessing = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Auto-Charge on Check-In</h4>
-              <p className="text-sm text-gray-600">Automatically process payments at check-in</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Automatically process payments at check-in</p>
             </div>
             <Switch
               checked={settings.autoCharge}
@@ -247,7 +247,7 @@ const PaymentProcessing = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Email Receipts</h4>
-              <p className="text-sm text-gray-600">Send payment receipts via email</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Send payment receipts via email</p>
             </div>
             <Switch
               checked={settings.sendReceipts}

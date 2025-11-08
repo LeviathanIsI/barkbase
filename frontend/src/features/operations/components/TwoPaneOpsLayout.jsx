@@ -52,7 +52,7 @@ const TwoPaneOpsLayout = () => {
 
       {/* Resizer */}
       <div 
-        className="w-1 bg-gray-300 cursor-col-resize hover:bg-primary-400 transition-colors"
+        className="w-1 bg-gray-300 dark:bg-surface-border cursor-col-resize hover:bg-primary-400 transition-colors"
         onMouseDown={(e) => {
           const startX = e.clientX;
           const startRatio = paneRatio;
@@ -171,22 +171,22 @@ const ArrivalsPane = ({ selectedDate }) => {
       <div className="px-4 py-3 border-b">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Arrivals & Departures</h3>
-            <p className="text-sm text-gray-600">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">Arrivals & Departures</h3>
+            <p className="text-sm text-gray-600 dark:text-text-secondary">
               {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
             </p>
           </div>
           
           <div className="flex items-center gap-2">
             {/* View Mode Toggle */}
-            <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+            <div className="flex items-center bg-gray-100 dark:bg-surface-secondary rounded-lg p-0.5">
               <button
                 onClick={() => setViewMode('timeline')}
                 className={cn(
                   "px-3 py-1 rounded text-sm",
                   viewMode === 'timeline' 
-                    ? "bg-white text-gray-900 shadow-sm" 
-                    : "text-gray-600"
+                    ? "bg-white dark:bg-surface-primary text-gray-900 dark:text-text-primary shadow-sm" 
+                    : "text-gray-600 dark:text-text-secondary"
                 )}
               >
                 Timeline
@@ -196,8 +196,8 @@ const ArrivalsPane = ({ selectedDate }) => {
                 className={cn(
                   "px-3 py-1 rounded text-sm",
                   viewMode === 'list' 
-                    ? "bg-white text-gray-900 shadow-sm" 
-                    : "text-gray-600"
+                    ? "bg-white dark:bg-surface-primary text-gray-900 dark:text-text-primary shadow-sm" 
+                    : "text-gray-600 dark:text-text-secondary"
                 )}
               >
                 List
@@ -208,7 +208,7 @@ const ArrivalsPane = ({ selectedDate }) => {
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
+              className="px-3 py-1.5 border border-gray-300 dark:border-surface-border rounded-lg text-sm"
             >
               <option value="all">All Events</option>
               <option value="arrivals">Arrivals Only</option>
@@ -220,20 +220,20 @@ const ArrivalsPane = ({ selectedDate }) => {
         {/* Quick Stats */}
         <div className="flex items-center gap-4 text-sm">
           {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+            <Loader2 className="h-4 w-4 animate-spin text-gray-400 dark:text-text-tertiary" />
           ) : (
             <>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-success-500 rounded-full"></div>
-                <span className="text-gray-600">{events.filter(e => e.type === 'arrival').length} Arrivals</span>
+                <span className="text-gray-600 dark:text-text-secondary">{events.filter(e => e.type === 'arrival').length} Arrivals</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span className="text-gray-600">{events.filter(e => e.type === 'departure').length} Departures</span>
+                <div className="w-2 h-2 bg-blue-50 dark:bg-blue-950/20 rounded-full"></div>
+                <span className="text-gray-600 dark:text-text-secondary">{events.filter(e => e.type === 'departure').length} Departures</span>
               </div>
               <div className="flex items-center gap-2">
                 <AlertCircle className="h-3 w-3 text-warning-600" />
-                <span className="text-gray-600">{events.filter(e => e.status !== 'on-time' && e.status !== 'confirmed').length} Need Attention</span>
+                <span className="text-gray-600 dark:text-text-secondary">{events.filter(e => e.status !== 'on-time' && e.status !== 'confirmed').length} Need Attention</span>
               </div>
             </>
           )}
@@ -244,10 +244,10 @@ const ArrivalsPane = ({ selectedDate }) => {
       <div className="flex-1 overflow-auto p-4">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400 dark:text-text-tertiary" />
           </div>
         ) : filteredEvents.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-gray-500 dark:text-text-secondary">
             No {filterType === 'all' ? 'events' : filterType} scheduled for this date
           </div>
         ) : viewMode === 'timeline' ? (
@@ -258,9 +258,9 @@ const ArrivalsPane = ({ selectedDate }) => {
       </div>
 
       {/* Footer Actions */}
-      <div className="px-4 py-3 border-t bg-gray-50">
+      <div className="px-4 py-3 border-t bg-gray-50 dark:bg-surface-secondary">
         <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-text-secondary">
             {filteredEvents.length > 0 ? (
               <>Showing {filteredEvents.length} {filterType === 'all' ? 'events' : filterType}</>
             ) : (
@@ -297,7 +297,7 @@ const TimelineView = ({ events }) => {
       {/* Hour markers */}
       {hours.map(hour => (
         <div key={hour} className="flex items-start gap-4 h-20 border-b border-gray-100">
-          <div className="w-16 text-sm text-gray-500 pt-2">
+          <div className="w-16 text-sm text-gray-500 dark:text-text-secondary pt-2">
             {hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
           </div>
           <div className="flex-1 relative">
@@ -360,7 +360,7 @@ const EventCard = ({ event, isListView = false }) => {
   
   return (
     <div className={cn(
-      "bg-white border rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer",
+      "bg-white dark:bg-surface-primary border rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow cursor-pointer",
       isArrival ? "border-l-4 border-l-success-500" : "border-l-4 border-l-blue-500",
       !isListView && "max-w-sm"
     )}>
@@ -368,17 +368,17 @@ const EventCard = ({ event, isListView = false }) => {
         <div className="flex items-center gap-2">
           <div className={cn(
             "w-6 h-6 rounded-full flex items-center justify-center",
-            isArrival ? "bg-success-100" : "bg-blue-100"
+            isArrival ? "bg-success-100" : "bg-blue-100 dark:bg-surface-secondary"
           )}>
             {isArrival ? (
               <UserCheck className="h-3 w-3 text-success-600" />
             ) : (
-              <UserX className="h-3 w-3 text-blue-600" />
+              <UserX className="h-3 w-3 text-blue-600 dark:text-blue-400" />
             )}
           </div>
           <div>
-            <p className="font-medium text-sm text-gray-900">{event.time}</p>
-            <p className="text-xs text-gray-500">{event.type}</p>
+            <p className="font-medium text-sm text-gray-900 dark:text-text-primary">{event.time}</p>
+            <p className="text-xs text-gray-500 dark:text-text-secondary">{event.type}</p>
           </div>
         </div>
         
@@ -391,9 +391,9 @@ const EventCard = ({ event, isListView = false }) => {
       </div>
 
       <div className="space-y-1">
-        <p className="font-medium text-gray-900">{event.petName}</p>
-        <p className="text-sm text-gray-600">{event.ownerName}</p>
-        <div className="flex items-center gap-3 text-xs text-gray-500">
+        <p className="font-medium text-gray-900 dark:text-text-primary">{event.petName}</p>
+        <p className="text-sm text-gray-600 dark:text-text-secondary">{event.ownerName}</p>
+        <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-text-secondary">
           <span>{event.service}</span>
           <span>•</span>
           <span>{event.room}</span>
@@ -406,7 +406,7 @@ const EventCard = ({ event, isListView = false }) => {
           {event.balance && (
             <>
               <span>•</span>
-              <span className="font-medium text-gray-700">${event.balance}</span>
+              <span className="font-medium text-gray-700 dark:text-text-primary">${event.balance}</span>
             </>
           )}
         </div>
@@ -417,8 +417,8 @@ const EventCard = ({ event, isListView = false }) => {
         <div className="flex items-center gap-2">
           {event.staffAssigned ? (
             <div className="flex items-center gap-1 text-xs">
-              <Users className="h-3 w-3 text-gray-400" />
-              <span className="text-gray-600">Assigned to {event.staffAssigned}</span>
+              <Users className="h-3 w-3 text-gray-400 dark:text-text-tertiary" />
+              <span className="text-gray-600 dark:text-text-secondary">Assigned to {event.staffAssigned}</span>
             </div>
           ) : (
             <Button variant="secondary" size="sm" className="h-6 text-xs">
@@ -477,8 +477,8 @@ const StaffSchedulePane = ({ selectedDate, selectedStaff, onStaffSelect }) => {
       <div className="px-4 py-3 border-b">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Staff Schedule</h3>
-            <p className="text-sm text-gray-600">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">Staff Schedule</h3>
+            <p className="text-sm text-gray-600 dark:text-text-secondary">
               {isLoading ? 'Loading...' : `${staffMembers.filter(s => s.status === 'clocked-in').length} of ${staffMembers.length} on duty`}
             </p>
           </div>
@@ -497,22 +497,22 @@ const StaffSchedulePane = ({ selectedDate, selectedStaff, onStaffSelect }) => {
 
         {/* Quick Stats */}
         <div className="grid grid-cols-4 gap-3 text-center">
-          <div className="bg-gray-50 rounded-lg p-2">
-            <p className="text-xs text-gray-600">Total Hours</p>
-            <p className="text-lg font-semibold text-gray-900">
+          <div className="bg-gray-50 dark:bg-surface-secondary rounded-lg p-2">
+            <p className="text-xs text-gray-600 dark:text-text-secondary">Total Hours</p>
+            <p className="text-lg font-semibold text-gray-900 dark:text-text-primary">
               {isLoading ? '-' : staffMembers.reduce((sum, s) => sum + (s.totalHours || 0), 0).toFixed(1)}
             </p>
           </div>
-          <div className="bg-gray-50 rounded-lg p-2">
-            <p className="text-xs text-gray-600">Labor Cost</p>
-            <p className="text-lg font-semibold text-gray-900">$427</p>
+          <div className="bg-gray-50 dark:bg-surface-secondary rounded-lg p-2">
+            <p className="text-xs text-gray-600 dark:text-text-secondary">Labor Cost</p>
+            <p className="text-lg font-semibold text-gray-900 dark:text-text-primary">$427</p>
           </div>
-          <div className="bg-gray-50 rounded-lg p-2">
-            <p className="text-xs text-gray-600">Productivity</p>
+          <div className="bg-gray-50 dark:bg-surface-secondary rounded-lg p-2">
+            <p className="text-xs text-gray-600 dark:text-text-secondary">Productivity</p>
             <p className="text-lg font-semibold text-success-600">92%</p>
           </div>
-          <div className="bg-gray-50 rounded-lg p-2">
-            <p className="text-xs text-gray-600">On Break</p>
+          <div className="bg-gray-50 dark:bg-surface-secondary rounded-lg p-2">
+            <p className="text-xs text-gray-600 dark:text-text-secondary">On Break</p>
             <p className="text-lg font-semibold text-warning-600">1</p>
           </div>
         </div>
@@ -522,10 +522,10 @@ const StaffSchedulePane = ({ selectedDate, selectedStaff, onStaffSelect }) => {
       <div className="flex-1 overflow-auto p-4">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400 dark:text-text-tertiary" />
           </div>
         ) : staffMembers.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-gray-500 dark:text-text-secondary">
             No staff members found
           </div>
         ) : (
@@ -544,9 +544,9 @@ const StaffSchedulePane = ({ selectedDate, selectedStaff, onStaffSelect }) => {
       </div>
 
       {/* Footer - Schedule Overview */}
-      <div className="px-4 py-3 border-t bg-gray-50">
+      <div className="px-4 py-3 border-t bg-gray-50 dark:bg-surface-secondary">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-600">
+          <span className="text-gray-600 dark:text-text-secondary">
             Next shift change: <span className="font-medium">3:00 PM (2 staff)</span>
           </span>
           <Button variant="secondary" size="sm">
@@ -563,7 +563,7 @@ const StaffCard = ({ staff, isSelected, onClick, onClockAction }) => {
   const statusConfig = {
     'clocked-in': { icon: CheckCircle, color: 'text-success-600', bg: 'bg-success-50' },
     'on-break': { icon: Coffee, color: 'text-warning-600', bg: 'bg-warning-50' },
-    'clocked-out': { icon: Home, color: 'text-gray-600', bg: 'bg-gray-50' }
+    'clocked-out': { icon: Home, color: 'text-gray-600 dark:text-text-secondary', bg: 'bg-gray-50 dark:bg-surface-secondary' }
   };
 
   const { icon: StatusIcon, color, bg } = statusConfig[staff.status];
@@ -571,8 +571,8 @@ const StaffCard = ({ staff, isSelected, onClick, onClockAction }) => {
   return (
     <div
       className={cn(
-        "bg-white border rounded-lg p-4 cursor-pointer transition-all",
-        isSelected ? "border-primary-600 shadow-md" : "border-gray-200 hover:border-gray-300",
+        "bg-white dark:bg-surface-primary border rounded-lg p-4 cursor-pointer transition-all",
+        isSelected ? "border-primary-600 shadow-md" : "border-gray-200 dark:border-surface-border hover:border-gray-300",
         staff.status === 'clocked-out' && "opacity-60"
       )}
       onClick={onClick}
@@ -583,8 +583,8 @@ const StaffCard = ({ staff, isSelected, onClick, onClockAction }) => {
             <StatusIcon className={cn("h-5 w-5", color)} />
           </div>
           <div>
-            <p className="font-medium text-gray-900">{staff.name}</p>
-            <p className="text-sm text-gray-600">{staff.role} • {staff.shift}</p>
+            <p className="font-medium text-gray-900 dark:text-text-primary">{staff.name}</p>
+            <p className="text-sm text-gray-600 dark:text-text-secondary">{staff.role} • {staff.shift}</p>
           </div>
         </div>
         
@@ -648,20 +648,20 @@ const StaffCard = ({ staff, isSelected, onClick, onClockAction }) => {
       {/* Stats Row */}
       <div className="grid grid-cols-4 gap-2 text-xs">
         <div>
-          <p className="text-gray-500">Hours</p>
-          <p className="font-medium text-gray-900">{staff.totalHours}h</p>
+          <p className="text-gray-500 dark:text-text-secondary">Hours</p>
+          <p className="font-medium text-gray-900 dark:text-text-primary">{staff.totalHours}h</p>
         </div>
         <div>
-          <p className="text-gray-500">Tasks</p>
-          <p className="font-medium text-gray-900">{staff.completedTasks}/{staff.assignedTasks}</p>
+          <p className="text-gray-500 dark:text-text-secondary">Tasks</p>
+          <p className="font-medium text-gray-900 dark:text-text-primary">{staff.completedTasks}/{staff.assignedTasks}</p>
         </div>
         <div>
-          <p className="text-gray-500">Location</p>
-          <p className="font-medium text-gray-900 truncate">{staff.currentLocation}</p>
+          <p className="text-gray-500 dark:text-text-secondary">Location</p>
+          <p className="font-medium text-gray-900 dark:text-text-primary truncate">{staff.currentLocation}</p>
         </div>
         <div>
-          <p className="text-gray-500">Clock In</p>
-          <p className="font-medium text-gray-900">{staff.clockIn || '-'}</p>
+          <p className="text-gray-500 dark:text-text-secondary">Clock In</p>
+          <p className="font-medium text-gray-900 dark:text-text-primary">{staff.clockIn || '-'}</p>
         </div>
       </div>
 
@@ -669,12 +669,12 @@ const StaffCard = ({ staff, isSelected, onClick, onClockAction }) => {
       {staff.status !== 'clocked-out' && (
         <div className="mt-3">
           <div className="flex justify-between text-xs mb-1">
-            <span className="text-gray-500">Task Progress</span>
-            <span className="text-gray-900 font-medium">
+            <span className="text-gray-500 dark:text-text-secondary">Task Progress</span>
+            <span className="text-gray-900 dark:text-text-primary font-medium">
               {Math.round((staff.completedTasks / staff.assignedTasks) * 100)}%
             </span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-1.5">
+          <div className="w-full bg-gray-200 dark:bg-surface-border rounded-full h-1.5">
             <div
               className="bg-primary-600 h-1.5 rounded-full transition-all"
               style={{ width: `${(staff.completedTasks / staff.assignedTasks) * 100}%` }}

@@ -61,7 +61,7 @@ const BookingConfig = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Online Booking</h4>
-              <p className="text-sm text-gray-600">Allow customers to book online</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Allow customers to book online</p>
             </div>
             <Switch
               checked={settings.allowOnlineBooking}
@@ -72,7 +72,7 @@ const BookingConfig = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Require Deposit</h4>
-              <p className="text-sm text-gray-600">Collect deposit for bookings</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Collect deposit for bookings</p>
             </div>
             <Switch
               checked={settings.requireDeposit}
@@ -94,7 +94,7 @@ const BookingConfig = () => {
                   max="100"
                   className="w-20 px-3 py-2 border rounded-md"
                 />
-                <span className="text-sm text-gray-600">%</span>
+                <span className="text-sm text-gray-600 dark:text-text-secondary">%</span>
               </div>
             </div>
           )}
@@ -102,7 +102,7 @@ const BookingConfig = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Vaccination Requirements</h4>
-              <p className="text-sm text-gray-600">Require up-to-date vaccinations</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Require up-to-date vaccinations</p>
             </div>
             <Switch
               checked={settings.requireVaccinations}
@@ -113,7 +113,7 @@ const BookingConfig = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Enable Waitlist</h4>
-              <p className="text-sm text-gray-600">Allow waitlist when fully booked</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Allow waitlist when fully booked</p>
             </div>
             <Switch
               checked={settings.allowWaitlist}
@@ -142,7 +142,7 @@ const BookingConfig = () => {
                 min="1"
                 className="w-20 px-3 py-2 border rounded-md"
               />
-              <span className="text-sm text-gray-600">days</span>
+              <span className="text-sm text-gray-600 dark:text-text-secondary">days</span>
             </div>
           </div>
 
@@ -159,7 +159,7 @@ const BookingConfig = () => {
                 min="0"
                 className="w-20 px-3 py-2 border rounded-md"
               />
-              <span className="text-sm text-gray-600">hours</span>
+              <span className="text-sm text-gray-600 dark:text-text-secondary">hours</span>
             </div>
           </div>
 
@@ -176,7 +176,7 @@ const BookingConfig = () => {
                 min="0"
                 className="w-20 px-3 py-2 border rounded-md"
               />
-              <span className="text-sm text-gray-600">hours before check-in</span>
+              <span className="text-sm text-gray-600 dark:text-text-secondary">hours before check-in</span>
             </div>
           </div>
         </div>
@@ -217,7 +217,7 @@ const BookingConfig = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Extended Hours</h4>
-              <p className="text-sm text-gray-600">Allow early drop-off and late pickup</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Allow early drop-off and late pickup</p>
             </div>
             <Switch
               checked={settings.extendedHours}

@@ -46,21 +46,21 @@ const DataQuality = () => {
         description="Overall health of your database"
       >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
+          <div className="text-center p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg">
             <div className="text-3xl font-bold text-green-600">{qualityStatus.score}%</div>
-            <p className="text-sm text-gray-600 mt-1">Quality Score</p>
+            <p className="text-sm text-gray-600 dark:text-text-secondary mt-1">Quality Score</p>
           </div>
           
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
+          <div className="text-center p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg">
             <div className="text-3xl font-bold text-yellow-600">{qualityStatus.issues}</div>
-            <p className="text-sm text-gray-600 mt-1">Issues Found</p>
+            <p className="text-sm text-gray-600 dark:text-text-secondary mt-1">Issues Found</p>
           </div>
           
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
+          <div className="text-center p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg">
             <div className="text-sm font-medium">
               {new Date(qualityStatus.lastCheck).toLocaleDateString()}
             </div>
-            <p className="text-sm text-gray-600 mt-1">Last Check</p>
+            <p className="text-sm text-gray-600 dark:text-text-secondary mt-1">Last Check</p>
           </div>
         </div>
 
@@ -91,7 +91,7 @@ const DataQuality = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Automatic Cleanup</h4>
-              <p className="text-sm text-gray-600">Remove orphaned records and fix inconsistencies</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Remove orphaned records and fix inconsistencies</p>
             </div>
             <Switch
               checked={settings.autoCleanup}
@@ -102,7 +102,7 @@ const DataQuality = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Duplicate Detection</h4>
-              <p className="text-sm text-gray-600">Automatically detect and flag duplicate entries</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Automatically detect and flag duplicate entries</p>
             </div>
             <Switch
               checked={settings.duplicateDetection}
@@ -113,7 +113,7 @@ const DataQuality = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Data Validation</h4>
-              <p className="text-sm text-gray-600">Validate data integrity on save</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Validate data integrity on save</p>
             </div>
             <Switch
               checked={settings.dataValidation}

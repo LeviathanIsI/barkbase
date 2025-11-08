@@ -51,51 +51,51 @@ const ExpressCheckInModal = ({ pet, isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-surface-primary rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Express Check-In</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-surface-border">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">Express Check-In</h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary rounded-full">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="p-6 space-y-6">
           {/* Pet Header */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-4">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
                 {pet.name[0]}
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-blue-900">{pet.name} - {pet.breed}</h3>
-                <p className="text-blue-700">{pet.owner.name} • Scheduled: {pet.scheduledTime}</p>
+                <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">{pet.name} - {pet.breed}</h3>
+                <p className="text-blue-700 dark:text-blue-300">{pet.owner.name} • Scheduled: {pet.scheduledTime}</p>
               </div>
             </div>
           </div>
 
           {/* Arrival Verification */}
-          <div className="border border-gray-200 rounded-lg p-4">
-            <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <div className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
+            <h3 className="font-semibold text-gray-900 dark:text-text-primary mb-4 flex items-center gap-2">
               🏁 ARRIVAL VERIFICATION
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                   Check-in Time
                 </label>
                 <input
                   type="text"
                   value={checkInTime}
                   onChange={(e) => setCheckInTime(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <p className="text-xs text-gray-500 mt-1">Scheduled: {pet.scheduledTime}</p>
+                <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">Scheduled: {pet.scheduledTime}</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                   Owner Present
                 </label>
                 <div className="space-y-2">
@@ -124,7 +124,7 @@ const ExpressCheckInModal = ({ pet, isOpen, onClose }) => {
             </div>
 
             <div className="mb-4">
-              <h4 className="font-medium text-gray-900 mb-2">Health Check</h4>
+              <h4 className="font-medium text-gray-900 dark:text-text-primary mb-2">Health Check</h4>
               <div className="space-y-2">
                 <label className="flex items-center">
                   <input
@@ -166,7 +166,7 @@ const ExpressCheckInModal = ({ pet, isOpen, onClose }) => {
 
               {healthChecks.flagAttention && (
                 <div className="mt-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                     Reason for flag:
                   </label>
                   <textarea
@@ -174,7 +174,7 @@ const ExpressCheckInModal = ({ pet, isOpen, onClose }) => {
                     onChange={(e) => setFlagReason(e.target.value)}
                     placeholder="Describe any concerns..."
                     rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               )}
@@ -182,13 +182,13 @@ const ExpressCheckInModal = ({ pet, isOpen, onClose }) => {
           </div>
 
           {/* Belongings & Instructions */}
-          <div className="border border-gray-200 rounded-lg p-4">
-            <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <div className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
+            <h3 className="font-semibold text-gray-900 dark:text-text-primary mb-4 flex items-center gap-2">
               🎒 BELONGINGS & INSTRUCTIONS
             </h3>
 
             <div className="mb-4">
-              <h4 className="font-medium text-gray-900 mb-2">Items brought:</h4>
+              <h4 className="font-medium text-gray-900 dark:text-text-primary mb-2">Items brought:</h4>
               <div className="grid grid-cols-2 gap-2">
                 <label className="flex items-center">
                   <input
@@ -234,14 +234,14 @@ const ExpressCheckInModal = ({ pet, isOpen, onClose }) => {
                   value={belongings.other}
                   onChange={(e) => handleBelongingsChange('other', e.target.value)}
                   placeholder="Other items..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                   Owner instructions/notes:
                 </label>
                 <textarea
@@ -249,12 +249,12 @@ const ExpressCheckInModal = ({ pet, isOpen, onClose }) => {
                   onChange={(e) => setOwnerNotes(e.target.value)}
                   placeholder="Bella had a small breakfast. Please give lunch at noon..."
                   rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                   Staff notes (internal only):
                 </label>
                 <textarea
@@ -262,15 +262,15 @@ const ExpressCheckInModal = ({ pet, isOpen, onClose }) => {
                   onChange={(e) => setStaffNotes(e.target.value)}
                   placeholder="Watch for scratching, bring own toys..."
                   rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
           </div>
 
           {/* Scheduled Activities Today */}
-          <div className="border border-gray-200 rounded-lg p-4">
-            <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <div className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
+            <h3 className="font-semibold text-gray-900 dark:text-text-primary mb-4 flex items-center gap-2">
               🕐 SCHEDULED ACTIVITIES TODAY
             </h3>
 
@@ -308,18 +308,18 @@ const ExpressCheckInModal = ({ pet, isOpen, onClose }) => {
           </div>
 
           {/* Photo & Notification */}
-          <div className="border border-gray-200 rounded-lg p-4">
-            <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <div className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
+            <h3 className="font-semibold text-gray-900 dark:text-text-primary mb-4 flex items-center gap-2">
               📸 PHOTO & NOTIFICATION
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <h4 className="font-medium text-gray-900 mb-2">Take arrival photo:</h4>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                  <Camera className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-600 mb-2">Click to take photo</p>
-                  <p className="text-sm text-gray-500">or drag & drop</p>
+                <h4 className="font-medium text-gray-900 dark:text-text-primary mb-2">Take arrival photo:</h4>
+                <div className="border-2 border-dashed border-gray-300 dark:border-surface-border rounded-lg p-8 text-center">
+                  <Camera className="w-12 h-12 text-gray-400 dark:text-text-tertiary mx-auto mb-2" />
+                  <p className="text-gray-600 dark:text-text-secondary mb-2">Click to take photo</p>
+                  <p className="text-sm text-gray-500 dark:text-text-secondary">or drag & drop</p>
                   <Button size="sm" className="mt-2">
                     Capture Photo
                   </Button>
@@ -349,7 +349,7 @@ const ExpressCheckInModal = ({ pet, isOpen, onClose }) => {
                   </label>
 
                   <div className="ml-6 space-y-2">
-                    <h4 className="font-medium text-gray-900">Notification method:</h4>
+                    <h4 className="font-medium text-gray-900 dark:text-text-primary">Notification method:</h4>
                     <label className="flex items-center">
                       <input
                         type="checkbox"
@@ -384,8 +384,8 @@ const ExpressCheckInModal = ({ pet, isOpen, onClose }) => {
           </div>
 
           {/* Payment & Billing */}
-          <div className="border border-gray-200 rounded-lg p-4">
-            <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <div className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
+            <h3 className="font-semibold text-gray-900 dark:text-text-primary mb-4 flex items-center gap-2">
               💳 PAYMENT & BILLING
             </h3>
 
@@ -406,13 +406,13 @@ const ExpressCheckInModal = ({ pet, isOpen, onClose }) => {
                 <span>Photo updates</span>
                 <span>Free</span>
               </div>
-              <div className="flex justify-between font-semibold border-t border-gray-300 pt-2">
+              <div className="flex justify-between font-semibold border-t border-gray-300 dark:border-surface-border pt-2">
                 <span>Total</span>
                 <span>${calculateTotal()}.00</span>
               </div>
             </div>
 
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+            <div className="bg-green-50 dark:bg-surface-primary border border-green-200 dark:border-green-900/30 rounded-lg p-3">
               <div className="flex items-center gap-2 text-green-800">
                 <CheckCircle className="w-4 h-4" />
                 <span className="font-medium">Payment Status: ✅ Prepaid (Membership active)</span>
@@ -425,7 +425,7 @@ const ExpressCheckInModal = ({ pet, isOpen, onClose }) => {
           </div>
 
           {/* Reminders */}
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+          <div className="bg-orange-50 dark:bg-surface-primary border border-orange-200 rounded-lg p-4">
             <h3 className="font-semibold text-orange-900 mb-2">⚠️ REMINDERS</h3>
             <ul className="space-y-1 text-sm text-orange-800">
               <li>• Medication due at 2 PM - Set reminder for staff</li>
@@ -436,7 +436,7 @@ const ExpressCheckInModal = ({ pet, isOpen, onClose }) => {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-surface-border">
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>

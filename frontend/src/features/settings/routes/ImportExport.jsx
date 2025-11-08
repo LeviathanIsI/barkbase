@@ -55,25 +55,25 @@ const ImportExport = () => {
                 type="file"
                 accept=".csv,.xlsx,.xls,.json"
                 onChange={handleFileChange}
-                className="block w-full text-sm text-gray-500
+                className="block w-full text-sm text-gray-500 dark:text-text-secondary
                   file:mr-4 file:py-2 file:px-4
                   file:rounded-md file:border-0
                   file:text-sm file:font-semibold
-                  file:bg-blue-50 file:text-blue-700
-                  hover:file:bg-blue-100"
+                  file:bg-blue-50 dark:bg-surface-primary file:text-blue-700 dark:text-blue-300
+                  hover:file:bg-blue-100 dark:bg-surface-secondary"
               />
             </div>
             {importFile && (
-              <p className="mt-2 text-sm text-gray-600">
+              <p className="mt-2 text-sm text-gray-600 dark:text-text-secondary">
                 Selected: {importFile.name} ({(importFile.size / 1024).toFixed(2)} KB)
               </p>
             )}
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+          <div className="bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-md p-3">
             <div className="flex">
-              <AlertCircle className="h-5 w-5 text-blue-600 mr-2 flex-shrink-0" />
-              <div className="text-sm text-blue-800">
+              <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mr-2 flex-shrink-0" />
+              <div className="text-sm text-blue-800 dark:text-blue-200">
                 <p className="font-medium">Supported formats:</p>
                 <ul className="list-disc list-inside mt-1">
                   <li>CSV - Comma separated values</li>
@@ -144,13 +144,13 @@ const ImportExport = () => {
       >
         <div className="space-y-2">
           {recentJobs.map(job => (
-            <div key={job.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+            <div key={job.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-surface-secondary rounded-md">
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded ${
-                  job.type === 'import' ? 'bg-blue-100' : 'bg-green-100'
+                  job.type === 'import' ? 'bg-blue-100 dark:bg-surface-secondary' : 'bg-green-100'
                 }`}>
                   {job.type === 'import' ? 
-                    <Upload className="w-4 h-4 text-blue-600" /> : 
+                    <Upload className="w-4 h-4 text-blue-600 dark:text-blue-400" /> : 
                     <Download className="w-4 h-4 text-green-600" />
                   }
                 </div>
@@ -158,7 +158,7 @@ const ImportExport = () => {
                   <p className="font-medium text-sm">
                     {job.type === 'import' ? 'Data Import' : 'Data Export'}
                   </p>
-                  <p className="text-xs text-gray-600">
+                  <p className="text-xs text-gray-600 dark:text-text-secondary">
                     {new Date(job.date).toLocaleDateString()} - {job.records} records
                   </p>
                 </div>

@@ -76,7 +76,7 @@ const DefaultConfig = ({ node, onUpdate }) => {
           <div className="text-xs text-muted mb-4">
             Action Type: {node?.data?.actionType || 'Not specified'}
           </div>
-          <div className="p-3 rounded-lg border border-yellow-500/30 bg-yellow-500/10">
+          <div className="p-3 rounded-lg border border-yellow-500/30 bg-yellow-50 dark:bg-yellow-950/10">
             <p className="text-xs text-yellow-300">
               {node?.data?.actionType
                 ? `Configuration panel for "${node.data.actionType}" is not implemented yet.`

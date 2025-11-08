@@ -118,23 +118,23 @@ const CalendarOverview = () => {
       <CapacityOverviewSection currentDate={currentDate} />
 
       {/* Smart Scheduling Assistant - Placeholder */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
+      <div className="bg-white dark:bg-surface-primary border border-gray-200 dark:border-surface-border rounded-lg p-6">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-            <Brain className="w-5 h-5 text-blue-600" />
+          <div className="w-10 h-10 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
+            <Brain className="w-5 h-5 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">
               Smart Scheduling Assistant
             </h3>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-text-secondary">
               AI-powered scheduling recommendations
             </p>
           </div>
         </div>
         <div className="text-center py-8">
-          <Brain className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-          <p className="text-sm text-gray-500">
+          <Brain className="h-12 w-12 text-gray-400 dark:text-text-tertiary mx-auto mb-2" />
+          <p className="text-sm text-gray-500 dark:text-text-secondary">
             Smart scheduling features will be available once AI recommendations
             API is implemented
           </p>
@@ -142,23 +142,23 @@ const CalendarOverview = () => {
       </div>
 
       {/* Daily Operations Checklist - Placeholder */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
+      <div className="bg-white dark:bg-surface-primary border border-gray-200 dark:border-surface-border rounded-lg p-6">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+          <div className="w-10 h-10 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
             <CheckSquare className="w-5 h-5 text-green-600" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">
               Daily Operations Checklist
             </h3>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-text-secondary">
               Track daily tasks and operations
             </p>
           </div>
         </div>
         <div className="text-center py-8">
-          <CheckSquare className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-          <p className="text-sm text-gray-500">
+          <CheckSquare className="h-12 w-12 text-gray-400 dark:text-text-tertiary mx-auto mb-2" />
+          <p className="text-sm text-gray-500 dark:text-text-secondary">
             Daily checklist features will be available once operations tracking
             API is implemented
           </p>

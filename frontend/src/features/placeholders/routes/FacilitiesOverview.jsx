@@ -125,18 +125,18 @@ const FacilitiesOverview = () => {
           {/* Quick Setup Wizard */}
           <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setShowSetupWizard(true)}>
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Zap className="w-6 h-6 text-blue-600" />
+              <div className="w-12 h-12 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
+                <Zap className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Quick Setup Wizard</h3>
-                <p className="text-sm text-gray-600">Recommended • 10 minutes</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">Quick Setup Wizard</h3>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">Recommended • 10 minutes</p>
               </div>
             </div>
-            <p className="text-gray-700 mb-4">
+            <p className="text-gray-700 dark:text-text-primary mb-4">
               Step-by-step guided setup for your facility. Perfect for first-time setup.
             </p>
-            <div className="text-sm text-blue-600 font-medium">
+            <div className="text-sm text-blue-600 dark:text-blue-400 font-medium">
               What we'll configure: facility info, kennels, daycare, pricing
             </div>
           </Card>
@@ -144,18 +144,18 @@ const FacilitiesOverview = () => {
           {/* Advanced Setup */}
           <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Settings className="w-6 h-6 text-purple-600" />
+              <div className="w-12 h-12 bg-purple-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
+                <Settings className="w-6 h-6 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Advanced Setup</h3>
-                <p className="text-sm text-gray-600">Complex facilities • 20-30 minutes</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">Advanced Setup</h3>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">Complex facilities • 20-30 minutes</p>
               </div>
             </div>
-            <p className="text-gray-700 mb-4">
+            <p className="text-gray-700 dark:text-text-primary mb-4">
               Manual configuration for multi-building facilities with custom rules.
             </p>
-            <div className="text-sm text-purple-600 font-medium">
+            <div className="text-sm text-purple-600 dark:text-purple-400 font-medium">
               Additional features: visual layout designer, custom capacity rules
             </div>
           </Card>
@@ -163,15 +163,15 @@ const FacilitiesOverview = () => {
           {/* Use Template */}
           <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+              <div className="w-12 h-12 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                 <FileText className="w-6 h-6 text-green-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Use Template</h3>
-                <p className="text-sm text-gray-600">Common layouts • 5 minutes</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">Use Template</h3>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">Common layouts • 5 minutes</p>
               </div>
             </div>
-            <p className="text-gray-700 mb-4">
+            <p className="text-gray-700 dark:text-text-primary mb-4">
               Start with pre-built facility layouts for common configurations.
             </p>
             <div className="text-sm text-green-600 font-medium">
@@ -182,8 +182,8 @@ const FacilitiesOverview = () => {
 
         {/* Import Options */}
         <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Or Import from Existing System</h3>
-          <p className="text-gray-600 mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">Or Import from Existing System</h3>
+          <p className="text-gray-600 dark:text-text-secondary mb-6">
             Switching from another kennel software? Import your facility layout to get started quickly.
           </p>
 
@@ -208,40 +208,40 @@ const FacilitiesOverview = () => {
         </Card>
 
         {/* Benefits */}
-        <Card className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-          <h3 className="text-lg font-semibold text-blue-900 mb-4">Why This Matters</h3>
+        <Card className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-surface-primary dark:to-surface-primary border-blue-200 dark:border-blue-900/30">
+          <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-4">Why This Matters</h3>
           <div className="grid gap-4 md:grid-cols-3">
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Shield className="w-4 h-4 text-blue-600" />
+              <div className="w-8 h-8 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center flex-shrink-0">
+                <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <div className="font-medium text-blue-900">Automatic Overbooking Prevention</div>
-                <div className="text-sm text-blue-700">Smart capacity tracking prevents double-bookings</div>
+                <div className="font-medium text-blue-900 dark:text-blue-100">Automatic Overbooking Prevention</div>
+                <div className="text-sm text-blue-700 dark:text-blue-300">Smart capacity tracking prevents double-bookings</div>
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Eye className="w-4 h-4 text-blue-600" />
+              <div className="w-8 h-8 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center flex-shrink-0">
+                <Eye className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <div className="font-medium text-blue-900">Real-time Capacity Tracking</div>
-                <div className="text-sm text-blue-700">Live occupancy across all kennels and play areas</div>
+                <div className="font-medium text-blue-900 dark:text-blue-100">Real-time Capacity Tracking</div>
+                <div className="text-sm text-blue-700 dark:text-blue-300">Live occupancy across all kennels and play areas</div>
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <BarChart3 className="w-4 h-4 text-blue-600" />
+              <div className="w-8 h-8 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center flex-shrink-0">
+                <BarChart3 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <div className="font-medium text-blue-900">Revenue Optimization</div>
-                <div className="text-sm text-blue-700">Identify underutilized spaces and pricing opportunities</div>
+                <div className="font-medium text-blue-900 dark:text-blue-100">Revenue Optimization</div>
+                <div className="text-sm text-blue-700 dark:text-blue-300">Identify underutilized spaces and pricing opportunities</div>
               </div>
             </div>
           </div>
 
-          <div className="mt-6 p-4 bg-blue-100 rounded-lg">
-            <div className="flex items-center gap-2 text-blue-800">
+          <div className="mt-6 p-4 bg-blue-100 dark:bg-surface-secondary rounded-lg">
+            <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
               <Zap className="w-5 h-5" />
               <span className="font-medium">Setup time: 10-15 minutes</span>
             </div>
@@ -269,7 +269,7 @@ const FacilitiesOverview = () => {
         actions={
           <div className="flex items-center gap-2">
             {/* View Toggle */}
-            <div className="flex items-center bg-gray-100 rounded-lg p-1">
+            <div className="flex items-center bg-gray-100 dark:bg-surface-secondary rounded-lg p-1">
               <Button
                 variant={currentView === 'overview' ? 'primary' : 'ghost'}
                 size="sm"

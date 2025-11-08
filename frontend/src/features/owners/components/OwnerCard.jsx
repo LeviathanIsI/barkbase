@@ -25,7 +25,7 @@ const OwnerCard = ({
       <div className={cn('p-4', compact ? 'space-y-2' : 'space-y-3')}>
         {/* Header */}
         <div className="flex items-start gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 text-purple-600 flex-shrink-0">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100 dark:bg-surface-secondary text-purple-600 dark:text-purple-400 flex-shrink-0">
             <Users className={cn(compact ? 'h-5 w-5' : 'h-6 w-6')} />
           </div>
           <div className="flex-1 min-w-0">
@@ -55,14 +55,14 @@ const OwnerCard = ({
             {pets.slice(0, compact ? 2 : 3).map((pet, idx) => (
               <span
                 key={idx}
-                className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700"
+                className="inline-flex items-center gap-1 rounded-full bg-blue-50 dark:bg-surface-primary px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300"
               >
                 <PawPrint className="h-3 w-3" />
                 {pet.name}
               </span>
             ))}
             {pets.length > (compact ? 2 : 3) && (
-              <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+              <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-surface-secondary px-2 py-0.5 text-xs font-medium text-gray-700 dark:text-text-primary">
                 +{pets.length - (compact ? 2 : 3)} more
               </span>
             )}

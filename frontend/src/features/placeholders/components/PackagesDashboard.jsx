@@ -133,7 +133,7 @@ const PackagesDashboard = ({ onCreatePackage, onShowAnalytics }) => {
       {/* Performance Overview */}
       <Card className="p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">PACKAGE PERFORMANCE OVERVIEW</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">PACKAGE PERFORMANCE OVERVIEW</h3>
           <Select
             value="last30"
             onChange={() => {}}
@@ -147,83 +147,83 @@ const PackagesDashboard = ({ onCreatePackage, onShowAnalytics }) => {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200">
+          <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-surface-primary dark:to-surface-secondary rounded-lg border border-blue-200 dark:border-blue-900/30">
             <div className="flex items-center justify-center gap-2 mb-2">
-              <DollarSign className="w-5 h-5 text-blue-600" />
-              <p className="text-xs font-medium text-blue-900 uppercase">Package Revenue</p>
+              <DollarSign className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <p className="text-xs font-medium text-blue-900 dark:text-blue-100 uppercase">Package Revenue</p>
             </div>
-            <p className="text-2xl font-bold text-blue-900">${performanceMetrics.packageRevenue.toLocaleString()}</p>
-            <p className="text-xs text-blue-700">{performanceMetrics.packageRevenuePeriod}</p>
+            <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">${performanceMetrics.packageRevenue.toLocaleString()}</p>
+            <p className="text-xs text-blue-700 dark:text-blue-300">{performanceMetrics.packageRevenuePeriod}</p>
           </div>
 
-          <div className="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200">
+          <div className="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/20 dark:to-green-900/20 rounded-lg border border-green-200 dark:border-green-900/30">
             <div className="flex items-center justify-center gap-2 mb-2">
-              <Package className="w-5 h-5 text-green-600" />
-              <p className="text-xs font-medium text-green-900 uppercase">Active Packages</p>
+              <Package className="w-5 h-5 text-green-600 dark:text-green-400" />
+              <p className="text-xs font-medium text-green-900 dark:text-green-100 uppercase">Active Packages</p>
             </div>
-            <p className="text-2xl font-bold text-green-900">{performanceMetrics.activePackages}</p>
-            <p className="text-xs text-green-700">Customers</p>
+            <p className="text-2xl font-bold text-green-900 dark:text-green-100">{performanceMetrics.activePackages}</p>
+            <p className="text-xs text-green-700 dark:text-green-300">Customers</p>
           </div>
 
-          <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200">
+          <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200 dark:border-purple-900/30">
             <div className="flex items-center justify-center gap-2 mb-2">
-              <CreditCard className="w-5 h-5 text-purple-600" />
-              <p className="text-xs font-medium text-purple-900 uppercase">Redeemed Visits</p>
+              <CreditCard className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              <p className="text-xs font-medium text-purple-900 dark:text-purple-100 uppercase">Redeemed Visits</p>
             </div>
-            <p className="text-2xl font-bold text-purple-900">{performanceMetrics.redeemedVisits}</p>
-            <p className="text-xs text-purple-700">{performanceMetrics.redeemedPeriod}</p>
+            <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">{performanceMetrics.redeemedVisits}</p>
+            <p className="text-xs text-purple-700 dark:text-purple-300">{performanceMetrics.redeemedPeriod}</p>
           </div>
 
-          <div className="text-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg border border-orange-200">
+          <div className="text-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/20 dark:to-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-900/30">
             <div className="flex items-center justify-center gap-2 mb-2">
-              <TrendingUp className="w-5 h-5 text-orange-600" />
-              <p className="text-xs font-medium text-orange-900 uppercase">Revenue Growth</p>
+              <TrendingUp className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              <p className="text-xs font-medium text-orange-900 dark:text-orange-100 uppercase">Revenue Growth</p>
             </div>
-            <p className="text-2xl font-bold text-orange-900">+{performanceMetrics.revenueGrowth}%</p>
-            <p className="text-xs text-orange-700">vs last mo</p>
+            <p className="text-2xl font-bold text-orange-900 dark:text-orange-100">+{performanceMetrics.revenueGrowth}%</p>
+            <p className="text-xs text-orange-700 dark:text-orange-300">vs last mo</p>
           </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center p-4 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg border border-indigo-200">
+          <div className="text-center p-4 bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-950/20 dark:to-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-900/30">
             <div className="flex items-center justify-center gap-2 mb-2">
-              <TrendingUp className="w-5 h-5 text-indigo-600" />
-              <p className="text-xs font-medium text-indigo-900 uppercase">Recurring Revenue</p>
+              <TrendingUp className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              <p className="text-xs font-medium text-indigo-900 dark:text-indigo-100 uppercase">Recurring Revenue</p>
             </div>
-            <p className="text-2xl font-bold text-indigo-900">${performanceMetrics.recurringRevenue.toLocaleString()}{performanceMetrics.recurringPeriod}</p>
-            <p className="text-xs text-indigo-700">Memberships</p>
+            <p className="text-2xl font-bold text-indigo-900 dark:text-indigo-100">${performanceMetrics.recurringRevenue.toLocaleString()}{performanceMetrics.recurringPeriod}</p>
+            <p className="text-xs text-indigo-700 dark:text-indigo-300">Memberships</p>
           </div>
 
-          <div className="text-center p-4 bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg border border-yellow-200">
+          <div className="text-center p-4 bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-950/20 dark:to-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-900/30">
             <div className="flex items-center justify-center gap-2 mb-2">
-              <AlertTriangle className="w-5 h-5 text-yellow-600" />
-              <p className="text-xs font-medium text-yellow-900 uppercase">Expiring Soon</p>
+              <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+              <p className="text-xs font-medium text-yellow-900 dark:text-yellow-100 uppercase">Expiring Soon</p>
             </div>
-            <p className="text-2xl font-bold text-yellow-900">{performanceMetrics.expiringSoon}</p>
-            <p className="text-xs text-yellow-700">{performanceMetrics.expiringPeriod}</p>
+            <p className="text-2xl font-bold text-yellow-900 dark:text-yellow-100">{performanceMetrics.expiringSoon}</p>
+            <p className="text-xs text-yellow-700 dark:text-yellow-300">{performanceMetrics.expiringPeriod}</p>
           </div>
 
-          <div className="text-center p-4 bg-gradient-to-br from-pink-50 to-pink-100 rounded-lg border border-pink-200">
+          <div className="text-center p-4 bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-950/20 dark:to-pink-900/20 rounded-lg border border-pink-200 dark:border-pink-900/30">
             <div className="flex items-center justify-center gap-2 mb-2">
-              <DollarSign className="w-5 h-5 text-pink-600" />
-              <p className="text-xs font-medium text-pink-900 uppercase">Avg Value</p>
+              <DollarSign className="w-5 h-5 text-pink-600 dark:text-pink-400" />
+              <p className="text-xs font-medium text-pink-900 dark:text-pink-100 uppercase">Avg Value</p>
             </div>
-            <p className="text-2xl font-bold text-pink-900">${performanceMetrics.avgValue}</p>
-            <p className="text-xs text-pink-700">Per package</p>
+            <p className="text-2xl font-bold text-pink-900 dark:text-pink-100">${performanceMetrics.avgValue}</p>
+            <p className="text-xs text-pink-700 dark:text-pink-300">Per package</p>
           </div>
 
-          <div className="text-center p-4 bg-gradient-to-br from-teal-50 to-teal-100 rounded-lg border border-teal-200">
+          <div className="text-center p-4 bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-950/20 dark:to-teal-900/20 rounded-lg border border-teal-200 dark:border-teal-900/30">
             <div className="flex items-center justify-center gap-2 mb-2">
-              <BarChart3 className="w-5 h-5 text-teal-600" />
-              <p className="text-xs font-medium text-teal-900 uppercase">Attach Rate</p>
+              <BarChart3 className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+              <p className="text-xs font-medium text-teal-900 dark:text-teal-100 uppercase">Attach Rate</p>
             </div>
-            <p className="text-2xl font-bold text-teal-900">{performanceMetrics.attachRate}%</p>
-            <p className="text-xs text-teal-700">{performanceMetrics.attachPeriod}</p>
+            <p className="text-2xl font-bold text-teal-900 dark:text-teal-100">{performanceMetrics.attachRate}%</p>
+            <p className="text-xs text-teal-700 dark:text-teal-300">{performanceMetrics.attachPeriod}</p>
           </div>
         </div>
 
-        <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <p className="text-sm text-blue-900">
+        <div className="mt-4 bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-3">
+          <p className="text-sm text-blue-900 dark:text-blue-100">
             <strong>💡 INSIGHT:</strong> Package revenue up 32% this month! Top performer: "10-Day Boarding Pass" 
             with 23 sales ($10,350 revenue)
           </p>
@@ -235,7 +235,7 @@ const PackagesDashboard = ({ onCreatePackage, onShowAnalytics }) => {
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-text-tertiary" />
               <Input
                 placeholder="Search packages..."
                 value={searchQuery}
@@ -287,14 +287,14 @@ const PackagesDashboard = ({ onCreatePackage, onShowAnalytics }) => {
           </div>
         </div>
 
-        <div className="mt-2 text-sm text-gray-600">
+        <div className="mt-2 text-sm text-gray-600 dark:text-text-secondary">
           Showing {filteredPackages.length} of {mockPackages.length} packages
         </div>
       </Card>
 
       {/* Packages List */}
       <div>
-        <h3 className="text-xl font-bold text-gray-900 mb-4">YOUR PACKAGES</h3>
+        <h3 className="text-xl font-bold text-gray-900 dark:text-text-primary mb-4">YOUR PACKAGES</h3>
         <div className="space-y-4">
           {filteredPackages.map((pkg) => (
             <PackageCard

@@ -26,12 +26,12 @@ const AddPetToOwnerModal = ({ open, onClose, onAdd, currentPetIds = [] }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+      <div className="w-full max-w-md rounded-lg bg-white dark:bg-surface-primary p-6 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-text">Add Pet to Owner</h2>
           <button
             onClick={onClose}
-            className="rounded-md p-1 text-muted hover:bg-gray-100"
+            className="rounded-md p-1 text-muted hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
           >
             <X className="h-5 w-5" />
           </button>
@@ -55,7 +55,7 @@ const AddPetToOwnerModal = ({ open, onClose, onAdd, currentPetIds = [] }) => {
                 <select
                   value={selectedPetId}
                   onChange={(e) => setSelectedPetId(e.target.value)}
-                  className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full rounded-md border border-border bg-white dark:bg-surface-primary px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   required
                 >
                   <option value="">Choose a pet...</option>

@@ -10,7 +10,7 @@ const actionCategories = [
   { recordId: 'communication',
     name: 'Owner Communication',
     icon: <Mail className="w-5 h-5" />,
-    color: 'text-blue-600',
+    color: 'text-blue-600 dark:text-blue-400',
     actions: [
       { recordId: 'send-email',
         label: 'Send email to owner',
@@ -35,7 +35,7 @@ const actionCategories = [
   { recordId: 'staff',
     name: 'Staff & Tasks',
     icon: <CheckSquare className="w-5 h-5" />,
-    color: 'text-purple-600',
+    color: 'text-purple-600 dark:text-purple-400',
     actions: [
       { recordId: 'create-task',
         label: 'Create staff task',
@@ -203,7 +203,7 @@ const actionCategories = [
   { recordId: 'advanced',
     name: 'Advanced',
     icon: <Code className="w-5 h-5" />,
-    color: 'text-gray-600',
+    color: 'text-gray-600 dark:text-text-secondary',
     actions: [
       { recordId: 'custom-code',
         label: 'Custom code',

@@ -111,17 +111,17 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
     const { label, type, required, options } = formData;
 
     return (
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4">PREVIEW</h4>
-        <p className="text-sm text-gray-600 mb-4">
+      <div className="bg-gray-50 dark:bg-surface-secondary border border-gray-200 dark:border-surface-border rounded-lg p-4">
+        <h4 className="font-medium text-gray-900 dark:text-text-primary mb-4">PREVIEW</h4>
+        <p className="text-sm text-gray-600 dark:text-text-secondary mb-4">
           See how this will look to staff and customers
         </p>
 
         {/* Staff View */}
         <div className="mb-6">
-          <h5 className="font-medium text-gray-800 mb-2">Staff View (on {objectType.slice(0, -1)} profile):</h5>
-          <div className="bg-white border border-gray-200 rounded p-3">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+          <h5 className="font-medium text-gray-800 dark:text-text-primary mb-2">Staff View (on {objectType.slice(0, -1)} profile):</h5>
+          <div className="bg-white dark:bg-surface-primary border border-gray-200 dark:border-surface-border rounded p-3">
+            <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
               {label} {required && <span className="text-red-500">*</span>}
             </label>
 
@@ -129,7 +129,7 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
               <input
                 type="text"
                 placeholder="Enter value..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm"
                 disabled
               />
             )}
@@ -138,13 +138,13 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
               <textarea
                 placeholder="Enter detailed information..."
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm"
                 disabled
               />
             )}
 
             {type === 'enum' && (
-              <select className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" disabled>
+              <select className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm bg-white dark:bg-surface-primary" disabled>
                 <option>Select an option...</option>
                 {options.map((option, index) => (
                   <option key={index} value={option}>{option}</option>
@@ -173,7 +173,7 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
             {type === 'date' && (
               <input
                 type="date"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm"
                 disabled
               />
             )}
@@ -182,14 +182,14 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
               <input
                 type="number"
                 placeholder="Enter number..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm"
                 disabled
               />
             )}
 
             {type === 'file' && (
-              <div className="border-2 border-dashed border-gray-300 rounded-md p-4 text-center">
-                <p className="text-sm text-gray-500">Drop files here or click to upload</p>
+              <div className="border-2 border-dashed border-gray-300 dark:border-surface-border rounded-md p-4 text-center">
+                <p className="text-sm text-gray-500 dark:text-text-secondary">Drop files here or click to upload</p>
               </div>
             )}
           </div>
@@ -198,11 +198,11 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
         {/* Customer View (if applicable) */}
         {!formData.staffOnly && (objectType === 'bookings' || objectType === 'pets') && (
           <div>
-            <h5 className="font-medium text-gray-800 mb-2">
+            <h5 className="font-medium text-gray-800 dark:text-text-primary mb-2">
               Customer View (on {objectType === 'bookings' ? 'booking form' : 'profile'}):
             </h5>
-            <div className="bg-white border border-gray-200 rounded p-3">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="bg-white dark:bg-surface-primary border border-gray-200 dark:border-surface-border rounded p-3">
+              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
                 {label} {required && <span className="text-red-500">*</span>}
               </label>
 
@@ -210,13 +210,13 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
                 <input
                   type="text"
                   placeholder="Enter value..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm"
                   disabled
                 />
               )}
 
               {type === 'enum' && (
-                <select className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" disabled>
+                <select className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm bg-white dark:bg-surface-primary" disabled>
                   <option>Select an option...</option>
                   {options.map((option, index) => (
                     <option key={index} value={option}>{option}</option>
@@ -233,7 +233,7 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
                     </label>
                   ))}
                   {options.length > 3 && (
-                    <p className="text-xs text-gray-500">+{options.length - 3} more options...</p>
+                    <p className="text-xs text-gray-500 dark:text-text-secondary">+{options.length - 3} more options...</p>
                   )}
                 </div>
               )}
@@ -255,17 +255,17 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden">
+      <div className="bg-white dark:bg-surface-primary rounded-lg w-full max-w-6xl max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-gray-200 dark:border-surface-border">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">
                 {existingProperty ? 'Edit Property' : 'Create Custom Property'}
               </h2>
               <button
                 onClick={onClose}
-                className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full"
+                className="absolute top-4 right-4 p-2 hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary rounded-full"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -279,17 +279,17 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Basic Information */}
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Property Details</h3>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-text-primary mb-4">Property Details</h3>
 
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                       Applies to
                     </label>
                     <select
                       value={formData.objectType}
                       onChange={(e) => setFormData(prev => ({ ...prev, objectType: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="pets">Pets</option>
                       <option value="owners">Owners</option>
@@ -303,7 +303,7 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                       Property Name *
                     </label>
                     <input
@@ -311,16 +311,16 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
                       value={formData.label}
                       onChange={handleLabelChange}
                       placeholder="Dietary Restrictions"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     />
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">
                       This will appear on {formData.objectType.slice(0, -1)} profiles and forms
                     </p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                       Internal Name
                     </label>
                     <input
@@ -328,14 +328,14 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
                       value={formData.name}
                       onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                       placeholder="dietary_restrictions"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
                     />
-                    <p className="text-xs text-gray-500 mt-1">Auto-generated for API/exports</p>
+                    <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">Auto-generated for API/exports</p>
                   </div>
                 </div>
 
                 <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                     Description (optional)
                   </label>
                   <input
@@ -343,9 +343,9 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
                     value={formData.description}
                     onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                     placeholder="Track food allergies and special diet requirements"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">
                     Helpful for staff to understand when to use this field
                   </p>
                 </div>
@@ -353,14 +353,14 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
 
               {/* Field Type */}
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Field Type</h3>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-text-primary mb-4">Field Type</h3>
 
                 <div className="grid grid-cols-2 gap-4">
                   {fieldTypes.map((type) => (
                     <label
                       key={type.value}
                       className={`border rounded-lg p-4 cursor-pointer transition-colors ${
-                        formData.type === type.value ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'
+                        formData.type === type.value ? 'border-blue-500 bg-blue-50 dark:bg-surface-primary' : 'border-gray-200 dark:border-surface-border hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary'
                       }`}
                     >
                       <input
@@ -371,8 +371,8 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
                         onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value, options: [] }))}
                         className="sr-only"
                       />
-                      <div className="font-medium text-gray-900">{type.label}</div>
-                      <div className="text-sm text-gray-600 mt-1">{type.description}</div>
+                      <div className="font-medium text-gray-900 dark:text-text-primary">{type.label}</div>
+                      <div className="text-sm text-gray-600 dark:text-text-secondary mt-1">{type.description}</div>
                     </label>
                   ))}
                 </div>
@@ -381,7 +381,7 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
               {/* Options (for select fields) */}
               {(formData.type === 'enum' || formData.type === 'multi_enum') && (
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Dropdown Options</h3>
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-text-primary mb-4">Dropdown Options</h3>
 
                   <div className="space-y-2 mb-4">
                     {formData.options.map((option, index) => (
@@ -394,12 +394,12 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
                             newOptions[index] = e.target.value;
                             setFormData(prev => ({ ...prev, options: newOptions }));
                           }}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm"
                         />
                         <button
                           type="button"
                           onClick={() => handleRemoveOption(index)}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded"
+                          className="p-2 text-red-500 hover:bg-red-50 dark:bg-surface-primary rounded"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -413,7 +413,7 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
                       value={newOption}
                       onChange={(e) => setNewOption(e.target.value)}
                       placeholder="Add new option..."
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm"
                       onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddOption())}
                     />
                     <Button type="button" onClick={handleAddOption} size="sm">
@@ -425,7 +425,7 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
 
               {/* Display Settings */}
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Display Settings</h3>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-text-primary mb-4">Display Settings</h3>
 
                 <div className="grid grid-cols-2 gap-6">
                   <div className="space-y-3">
@@ -467,13 +467,13 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
                       Property Group
                     </label>
                     <select
                       value={formData.group}
                       onChange={(e) => setFormData(prev => ({ ...prev, group: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       {(suggestedGroups[formData.objectType] || []).map((group) => (
                         <option key={group} value={group}>{group}</option>
@@ -485,10 +485,10 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
 
               {/* Access Control */}
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Access Control</h3>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-text-primary mb-4">Access Control</h3>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
                     Who can edit this field?
                   </label>
                   <div className="space-y-2">
@@ -507,8 +507,8 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
                   </div>
 
                   {formData.accessLevel === 'specific' && (
-                    <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded">
-                      <p className="text-sm text-gray-600">Select specific roles that can edit this field</p>
+                    <div className="mt-3 p-3 bg-gray-50 dark:bg-surface-secondary border border-gray-200 dark:border-surface-border rounded">
+                      <p className="text-sm text-gray-600 dark:text-text-secondary">Select specific roles that can edit this field</p>
                       {/* Role selection would go here */}
                     </div>
                   )}
@@ -516,7 +516,7 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
               </div>
 
               {/* Action Buttons */}
-              <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
+              <div className="flex justify-end gap-3 pt-6 border-t border-gray-200 dark:border-surface-border">
                 <Button type="button" variant="outline" onClick={onClose}>
                   Cancel
                 </Button>
@@ -528,10 +528,10 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
           </div>
 
           {/* Preview Panel */}
-          <div className="w-96 border-l border-gray-200 p-6 bg-gray-50">
+          <div className="w-96 border-l border-gray-200 dark:border-surface-border p-6 bg-gray-50 dark:bg-surface-secondary">
             <div className="sticky top-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-medium text-gray-900">Live Preview</h3>
+                <h3 className="font-medium text-gray-900 dark:text-text-primary">Live Preview</h3>
                 <Button
                   type="button"
                   variant="outline"

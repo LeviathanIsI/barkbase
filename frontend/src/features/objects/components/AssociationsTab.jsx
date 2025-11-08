@@ -128,7 +128,7 @@ const AssociationsTab = ({ objectType }) => {
               placeholder="Search associations..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-64 rounded-lg border border-border bg-white py-2 pl-9 pr-4 text-sm text-text placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-64 rounded-lg border border-border bg-white dark:bg-surface-primary py-2 pl-9 pr-4 text-sm text-text placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
@@ -136,7 +136,7 @@ const AssociationsTab = ({ objectType }) => {
           <select
             value={selectedToObjectType}
             onChange={(e) => setSelectedToObjectType(e.target.value)}
-            className="rounded-lg border border-border bg-white pl-3 pr-8 py-2 text-sm text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="rounded-lg border border-border bg-white dark:bg-surface-primary pl-3 pr-8 py-2 text-sm text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           >
             <option value="">All associated objects</option>
             {Object.entries(OBJECT_TYPE_LABELS).map(([value, label]) => (
@@ -162,7 +162,7 @@ const AssociationsTab = ({ objectType }) => {
           </div>
         </div>
       ) : filteredAssociations.length === 0 ? (
-        <div className="rounded-lg border border-border bg-white p-12 text-center">
+        <div className="rounded-lg border border-border bg-white dark:bg-surface-primary p-12 text-center">
           <ExternalLink className="h-12 w-12 text-muted mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-text mb-2">No associations found</h3>
           <p className="text-sm text-muted mb-4">
@@ -175,10 +175,10 @@ const AssociationsTab = ({ objectType }) => {
           )}
         </div>
       ) : (
-        <div className="rounded-lg border border-border bg-white overflow-hidden">
+        <div className="rounded-lg border border-border bg-white dark:bg-surface-primary overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-border bg-gray-50">
+              <tr className="border-b border-border bg-gray-50 dark:bg-surface-secondary">
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">
                   Label
                 </th>
@@ -206,7 +206,7 @@ const AssociationsTab = ({ objectType }) => {
               {filteredAssociations.map((association) => (
                 <tr
                   key={association.recordId}
-                  className={`hover:bg-gray-50 transition-colors ${
+                  className={`hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary transition-colors ${
                     association.archived ? 'opacity-50' : ''
                   }`}
                 >
@@ -216,7 +216,7 @@ const AssociationsTab = ({ objectType }) => {
                         {association.label}
                       </span>
                       {association.archived && (
-                        <span className="px-2 py-0.5 text-xs font-medium text-gray-600 bg-gray-100 rounded">
+                        <span className="px-2 py-0.5 text-xs font-medium text-gray-600 dark:text-text-secondary bg-gray-100 dark:bg-surface-secondary rounded">
                           Archived
                         </span>
                       )}
@@ -229,7 +229,7 @@ const AssociationsTab = ({ objectType }) => {
                     {getObjectTypeLabel(association.toObjectType)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded">
+                    <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-700 dark:text-text-primary bg-gray-100 dark:bg-surface-secondary rounded">
                       {formatLimitType(association.limitType)}
                     </span>
                   </td>
@@ -238,11 +238,11 @@ const AssociationsTab = ({ objectType }) => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {association.isSystemDefined ? (
-                      <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded">
+                      <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-surface-primary rounded">
                         System
                       </span>
                     ) : (
-                      <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-purple-700 bg-purple-50 rounded">
+                      <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-surface-primary rounded">
                         Custom
                       </span>
                     )}

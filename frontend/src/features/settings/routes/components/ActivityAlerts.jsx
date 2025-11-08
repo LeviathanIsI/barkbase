@@ -106,17 +106,17 @@ const ActivityAlerts = ({ alerts, onUpdate }) => {
             return (
               <div
                 key={section.id}
-                className="border border-gray-200 rounded-lg p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                className="border border-gray-200 dark:border-surface-border rounded-lg p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary transition-colors"
                 onClick={() => toggleSection(section.id)}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 rounded-full">
-                      <Icon className="w-4 h-4 text-blue-600" />
+                    <div className="p-2 bg-blue-100 dark:bg-surface-secondary rounded-full">
+                      <Icon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div>
-                      <h3 className="font-medium text-gray-900">{section.title}</h3>
-                      <p className="text-sm text-gray-600">
+                      <h3 className="font-medium text-gray-900 dark:text-text-primary">{section.title}</h3>
+                      <p className="text-sm text-gray-600 dark:text-text-secondary">
                         {section.enabled} of {section.total} enabled
                       </p>
                     </div>
@@ -133,9 +133,9 @@ const ActivityAlerts = ({ alerts, onUpdate }) => {
                       Manage
                     </Button>
                     {expandedSection === section.id ? (
-                      <ChevronDown className="w-5 h-5 text-gray-500" />
+                      <ChevronDown className="w-5 h-5 text-gray-500 dark:text-text-secondary" />
                     ) : (
-                      <ChevronRight className="w-5 h-5 text-gray-500" />
+                      <ChevronRight className="w-5 h-5 text-gray-500 dark:text-text-secondary" />
                     )}
                   </div>
                 </div>
@@ -146,17 +146,17 @@ const ActivityAlerts = ({ alerts, onUpdate }) => {
 
         {/* Expanded Section Details */}
         {expandedSection && (
-          <div className="border border-gray-200 rounded-lg p-4">
+          <div className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
             <div className="flex items-center gap-3 mb-4">
               {(() => {
                 const section = sections.find(s => s.id === expandedSection);
                 const Icon = section.icon;
                 return (
                   <>
-                    <div className="p-2 bg-blue-100 rounded-full">
-                      <Icon className="w-5 h-5 text-blue-600" />
+                    <div className="p-2 bg-blue-100 dark:bg-surface-secondary rounded-full">
+                      <Icon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                     </div>
-                    <h3 className="text-lg font-medium text-gray-900">{section.title}</h3>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-text-primary">{section.title}</h3>
                   </>
                 );
               })()}
@@ -169,7 +169,7 @@ const ActivityAlerts = ({ alerts, onUpdate }) => {
                     type="checkbox"
                     checked={alerts[expandedSection][item.key]}
                     onChange={(e) => handleAlertToggle(expandedSection, item.key, e.target.checked)}
-                    className="rounded border-gray-300"
+                    className="rounded border-gray-300 dark:border-surface-border"
                   />
                   <span className="text-sm">{item.label}</span>
                 </label>

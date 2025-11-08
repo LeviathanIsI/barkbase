@@ -13,7 +13,7 @@ const ArchivePropertyDialog = ({ isOpen, property, onClose, onConfirm }) => {
       ariaLabel="Archive property dialog"
     >
       <div className="space-y-4">
-        <div className="flex items-start gap-3 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+        <div className="flex items-start gap-3 p-4 bg-orange-50 dark:bg-surface-primary border border-orange-200 rounded-lg">
           <AlertTriangle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm text-orange-900 font-medium">

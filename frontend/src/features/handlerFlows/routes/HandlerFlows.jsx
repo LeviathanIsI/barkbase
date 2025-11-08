@@ -38,7 +38,7 @@ const FlowTable = ({ flows, onView, onPublish, onTest, isPublishing, isTesting }
             <th className="px-4 py-3 text-right">Actions</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-border/50 bg-white">
+        <tbody className="divide-y divide-border/50 bg-white dark:bg-surface-primary">
           {flows.map((flow) => {
             const trigger = flow.handler_triggers?.[0];
             return (

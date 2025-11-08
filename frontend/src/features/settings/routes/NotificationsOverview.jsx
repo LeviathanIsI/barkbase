@@ -135,8 +135,8 @@ const NotificationsOverview = () => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Notifications</h1>
-        <p className="text-gray-600">Email and communication preferences</p>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-text-primary">Notifications</h1>
+        <p className="text-gray-600 dark:text-text-secondary">Email and communication preferences</p>
       </div>
 
       {/* Communication Channels */}

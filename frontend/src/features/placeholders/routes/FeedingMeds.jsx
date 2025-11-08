@@ -124,7 +124,7 @@ const FeedingCard = ({ feeding }) => {
       </div>
 
       {feeding.dietaryNotes && (
-        <div className="flex items-start gap-2 p-2 bg-yellow-50 rounded-lg">
+        <div className="flex items-start gap-2 p-2 bg-yellow-50 dark:bg-surface-primary rounded-lg">
           <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />
           <p className="text-xs text-yellow-800">{feeding.dietaryNotes}</p>
         </div>
@@ -145,10 +145,10 @@ const FeedingCard = ({ feeding }) => {
 const MedicationCard = ({ medication }) => {
   const getStatusColor = (status) => {
     switch (status) {
-      case 'completed': return 'bg-green-50 border-green-200 text-green-800';
-      case 'due': return 'bg-orange-50 border-orange-200 text-orange-800';
-      case 'overdue': return 'bg-red-50 border-red-200 text-red-800';
-      default: return 'bg-gray-50 border-gray-200 text-gray-800';
+      case 'completed': return 'bg-green-50 dark:bg-surface-primary border-green-200 dark:border-green-900/30 text-green-800';
+      case 'due': return 'bg-orange-50 dark:bg-surface-primary border-orange-200 text-orange-800';
+      case 'overdue': return 'bg-red-50 dark:bg-surface-primary border-red-200 dark:border-red-900/30 text-red-800 dark:text-red-200';
+      default: return 'bg-gray-50 dark:bg-surface-secondary border-gray-200 dark:border-surface-border text-gray-800 dark:text-text-primary';
     }
   };
 
@@ -272,8 +272,8 @@ const FeedingMeds = () => {
                   <p className="text-sm font-medium text-[#64748B]">Total Pets</p>
                   <p className="text-2xl font-bold text-[#263238]">{feedingStats.total}</p>
                 </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Utensils className="h-6 w-6 text-blue-600" />
+                <div className="w-12 h-12 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
+                  <Utensils className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                 </div>
               </div>
             </Card>
@@ -284,7 +284,7 @@ const FeedingMeds = () => {
                   <p className="text-sm font-medium text-[#64748B]">Completed</p>
                   <p className="text-2xl font-bold text-[#4CAF50]">{feedingStats.completed}</p>
                 </div>
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <CheckCircle className="h-6 w-6 text-green-600" />
                 </div>
               </div>
@@ -296,7 +296,7 @@ const FeedingMeds = () => {
                   <p className="text-sm font-medium text-[#64748B]">Pending</p>
                   <p className="text-2xl font-bold text-[#FF9800]">{feedingStats.pending}</p>
                 </div>
-                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 bg-orange-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <Clock className="h-6 w-6 text-orange-600" />
                 </div>
               </div>
@@ -308,7 +308,7 @@ const FeedingMeds = () => {
                   <p className="text-sm font-medium text-[#64748B]">Overdue</p>
                   <p className="text-2xl font-bold text-[#F44336]">{feedingStats.overdue}</p>
                 </div>
-                <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 bg-red-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <AlertTriangle className="h-6 w-6 text-red-600" />
                 </div>
               </div>
@@ -322,8 +322,8 @@ const FeedingMeds = () => {
                   <p className="text-sm font-medium text-[#64748B]">Total Medications</p>
                   <p className="text-2xl font-bold text-[#263238]">{medicationStats.total}</p>
                 </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Pill className="h-6 w-6 text-blue-600" />
+                <div className="w-12 h-12 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
+                  <Pill className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                 </div>
               </div>
             </Card>
@@ -334,7 +334,7 @@ const FeedingMeds = () => {
                   <p className="text-sm font-medium text-[#64748B]">Due Today</p>
                   <p className="text-2xl font-bold text-[#FF9800]">{medicationStats.due}</p>
                 </div>
-                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 bg-orange-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <Clock className="h-6 w-6 text-orange-600" />
                 </div>
               </div>
@@ -346,7 +346,7 @@ const FeedingMeds = () => {
                   <p className="text-sm font-medium text-[#64748B]">Completed</p>
                   <p className="text-2xl font-bold text-[#4CAF50]">{medicationStats.completed}</p>
                 </div>
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <CheckCircle className="h-6 w-6 text-green-600" />
                 </div>
               </div>
@@ -358,8 +358,8 @@ const FeedingMeds = () => {
                   <p className="text-sm font-medium text-[#64748B]">Compliance Rate</p>
                   <p className="text-2xl font-bold text-[#9C27B0]">96%</p>
                 </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <User className="h-6 w-6 text-purple-600" />
+                <div className="w-12 h-12 bg-purple-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
+                  <User className="h-6 w-6 text-purple-600 dark:text-purple-400" />
                 </div>
               </div>
             </Card>

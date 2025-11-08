@@ -132,9 +132,9 @@ export default function PlansTab() {
       );
     }
     if (value === '') {
-      return <span className="font-medium text-gray-900">{value}</span>;
+      return <span className="font-medium text-gray-900 dark:text-text-primary">{value}</span>;
     }
-    return <span className="text-gray-700">{value}</span>;
+    return <span className="text-gray-700 dark:text-text-primary">{value}</span>;
   };
 
   return (
@@ -156,25 +156,25 @@ export default function PlansTab() {
             )}
 
             <div className="pt-6 text-center">
-              <h3 className="text-xl font-bold text-gray-900">{plan.name}</h3>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-text-primary">{plan.name}</h3>
               <div className="mt-2">
-                <span className="text-3xl font-bold text-gray-900">{plan.price}</span>
-                {plan.period && <span className="text-gray-600">{plan.period}</span>}
+                <span className="text-3xl font-bold text-gray-900 dark:text-text-primary">{plan.price}</span>
+                {plan.period && <span className="text-gray-600 dark:text-text-secondary">{plan.period}</span>}
                 {plan.name === 'PRO' && (
-                  <div className="text-xs text-gray-500 mt-1">
+                  <div className="text-xs text-gray-500 dark:text-text-secondary mt-1">
                     (based on booking volume)
                   </div>
                 )}
               </div>
-              <p className="text-sm text-gray-600 mt-3">{plan.description}</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary mt-3">{plan.description}</p>
             </div>
 
             <div className="mt-6 space-y-3">
               <div>
-                <h4 className="font-medium text-gray-900 mb-2">Includes:</h4>
+                <h4 className="font-medium text-gray-900 dark:text-text-primary mb-2">Includes:</h4>
                 <ul className="space-y-1">
                   {plan.features.map((feature, index) => (
-                    <li key={index} className="text-sm text-gray-700 flex items-center gap-2">
+                    <li key={index} className="text-sm text-gray-700 dark:text-text-primary flex items-center gap-2">
                       <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
                       {feature.substring(2)}
                     </li>
@@ -184,10 +184,10 @@ export default function PlansTab() {
 
               {plan.missing.length > 0 && (
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Missing:</h4>
+                  <h4 className="font-medium text-gray-900 dark:text-text-primary mb-2">Missing:</h4>
                   <ul className="space-y-1">
                     {plan.missing.map((missing, index) => (
-                      <li key={index} className="text-sm text-gray-500 flex items-center gap-2">
+                      <li key={index} className="text-sm text-gray-500 dark:text-text-secondary flex items-center gap-2">
                         <X className="w-4 h-4 text-red-400 flex-shrink-0" />
                         {missing.substring(2)}
                       </li>
@@ -221,7 +221,7 @@ export default function PlansTab() {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="border-b border-gray-200">
+              <tr className="border-b border-gray-200 dark:border-surface-border">
                 {comparisonData.headers.map((header, index) => (
                   <th
                     key={index}
@@ -236,16 +236,16 @@ export default function PlansTab() {
             </thead>
             <tbody>
               {comparisonData.rows.map((row, rowIndex) => (
-                <tr key={rowIndex} className={`border-b border-gray-100 ${row[1] === '' ? 'bg-gray-50' : ''}`}>
+                <tr key={rowIndex} className={`border-b border-gray-100 ${row[1] === '' ? 'bg-gray-50 dark:bg-surface-secondary' : ''}`}>
                   {row.map((cell, cellIndex) => (
                     <td
                       key={cellIndex}
                       className={`py-3 px-4 ${
                         cellIndex === 0
-                          ? 'font-medium text-gray-900'
+                          ? 'font-medium text-gray-900 dark:text-text-primary'
                           : 'text-center'
                       } ${
-                        cell === '' ? 'font-semibold text-gray-900 bg-gray-50' : ''
+                        cell === '' ? 'font-semibold text-gray-900 dark:text-text-primary bg-gray-50 dark:bg-surface-secondary' : ''
                       }`}
                     >
                       {cellIndex === 0 ? (
@@ -276,15 +276,15 @@ export default function PlansTab() {
       {/* Upgrade Modal */}
       {showUpgradeModal && selectedPlan && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
+          <div className="bg-white dark:bg-surface-primary rounded-lg w-full max-w-2xl max-h-[90vh] overflow-hidden">
+            <div className="p-6 border-b border-gray-200 dark:border-surface-border">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">
                   Upgrade to {selectedPlan.name} Plan
                 </h2>
                 <button
                   onClick={() => setShowUpgradeModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full"
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary rounded-full"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -294,31 +294,31 @@ export default function PlansTab() {
             <div className="p-6 space-y-6">
               {/* Billing Options */}
               <div>
-                <h3 className="font-medium text-gray-900 mb-4">SELECT BILLING CYCLE</h3>
+                <h3 className="font-medium text-gray-900 dark:text-text-primary mb-4">SELECT BILLING CYCLE</h3>
                 <div className="space-y-3">
-                  <label className="flex items-center justify-between p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                  <label className="flex items-center justify-between p-4 border border-gray-200 dark:border-surface-border rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary">
                     <div>
                       <div className="font-medium">Monthly - $149/month</div>
-                      <div className="text-sm text-gray-600">Bill monthly, cancel anytime</div>
+                      <div className="text-sm text-gray-600 dark:text-text-secondary">Bill monthly, cancel anytime</div>
                     </div>
-                    <input type="radio" name="billing" value="monthly" className="w-4 h-4 text-blue-600" />
+                    <input type="radio" name="billing" value="monthly" className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                   </label>
-                  <label className="flex items-center justify-between p-4 border border-blue-200 rounded-lg cursor-pointer hover:bg-blue-50 bg-blue-50">
+                  <label className="flex items-center justify-between p-4 border border-blue-200 dark:border-blue-900/30 rounded-lg cursor-pointer hover:bg-blue-50 dark:bg-surface-primary bg-blue-50 dark:bg-blue-950/20">
                     <div>
                       <div className="font-medium">Annual - $79/month ($948/year)</div>
-                      <div className="text-sm text-blue-600 flex items-center gap-1">
+                      <div className="text-sm text-blue-600 dark:text-blue-400 flex items-center gap-1">
                         💰 Save $852/year (47% off)
                       </div>
-                      <div className="text-sm text-gray-600">Bill annually, 14-day money-back guarantee</div>
+                      <div className="text-sm text-gray-600 dark:text-text-secondary">Bill annually, 14-day money-back guarantee</div>
                     </div>
-                    <input type="radio" name="billing" value="annual" defaultChecked className="w-4 h-4 text-blue-600" />
+                    <input type="radio" name="billing" value="annual" defaultChecked className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                   </label>
                 </div>
               </div>
 
               {/* What You'll Get */}
               <div>
-                <h3 className="font-medium text-gray-900 mb-3">Your upgrade includes:</h3>
+                <h3 className="font-medium text-gray-900 dark:text-text-primary mb-3">Your upgrade includes:</h3>
                 <ul className="space-y-2">
                   <li className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-green-600" />
@@ -348,8 +348,8 @@ export default function PlansTab() {
               </div>
 
               {/* Billing Summary */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="font-medium text-gray-900 mb-3">BILLING SUMMARY</h3>
+              <div className="bg-gray-50 dark:bg-surface-secondary p-4 rounded-lg">
+                <h3 className="font-medium text-gray-900 dark:text-text-primary mb-3">BILLING SUMMARY</h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Pro Plan (Annual)</span>
@@ -359,7 +359,7 @@ export default function PlansTab() {
                     <span>Prorated credit (12 days)</span>
                     <span>-$31.60</span>
                   </div>
-                  <div className="flex justify-between font-medium text-lg pt-2 border-t border-gray-200">
+                  <div className="flex justify-between font-medium text-lg pt-2 border-t border-gray-200 dark:border-surface-border">
                     <span>Due today:</span>
                     <span>$916.40</span>
                   </div>
@@ -370,9 +370,9 @@ export default function PlansTab() {
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-medium">Payment method:</span>
-                  <button className="text-blue-600 text-sm">Change</button>
+                  <button className="text-blue-600 dark:text-blue-400 text-sm">Change</button>
                 </div>
-                <div className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
+                <div className="flex items-center gap-3 p-3 border border-gray-200 dark:border-surface-border rounded-lg">
                   <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
                     <span className="text-white text-xs font-bold">VISA</span>
                   </div>
@@ -382,13 +382,13 @@ export default function PlansTab() {
 
               {/* Terms */}
               <div className="flex items-center gap-2">
-                <input type="checkbox" className="w-4 h-4 text-blue-600 rounded" />
+                <input type="checkbox" className="w-4 h-4 text-blue-600 dark:text-blue-400 rounded" />
                 <span className="text-sm">I agree to the Terms of Service</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
-              <div className="text-xs text-gray-500">
+            <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-surface-border bg-gray-50 dark:bg-surface-secondary">
+              <div className="text-xs text-gray-500 dark:text-text-secondary">
                 🔒 Secure payment • 14-day money-back guarantee
               </div>
               <div className="flex gap-3">

@@ -13,19 +13,19 @@ const KennelMapCard = ({ kennel, onClick }) => {
   const occupancyRate = capacity > 0 ? (occupied / capacity) * 100 : 0;
   
   const getOccupancyColor = (rate) => {
-    if (rate >= 100) return 'bg-gray-400 border-gray-500';
-    if (rate >= 95) return 'bg-red-500 border-red-600';
+    if (rate >= 100) return 'bg-gray-400 dark:bg-surface-secondary border-gray-500';
+    if (rate >= 95) return 'bg-red-50 dark:bg-red-950/20 border-red-600';
     if (rate >= 80) return 'bg-orange-500 border-orange-600';
-    if (rate >= 50) return 'bg-yellow-500 border-yellow-600';
-    return 'bg-green-500 border-green-600';
+    if (rate >= 50) return 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-600';
+    return 'bg-green-50 dark:bg-green-950/20 border-green-600';
   };
 
   const getBadgeColor = (rate) => {
-    if (rate >= 100) return 'bg-gray-100 text-gray-700 border-gray-300';
-    if (rate >= 95) return 'bg-red-100 text-red-700 border-red-300';
-    if (rate >= 80) return 'bg-orange-100 text-orange-700 border-orange-300';
-    if (rate >= 50) return 'bg-yellow-100 text-yellow-700 border-yellow-300';
-    return 'bg-green-100 text-green-700 border-green-300';
+    if (rate >= 100) return 'bg-gray-100 dark:bg-surface-secondary text-gray-700 dark:text-text-primary border-gray-300 dark:border-surface-border';
+    if (rate >= 95) return 'bg-red-100 dark:bg-surface-secondary text-red-700 border-red-300';
+    if (rate >= 80) return 'bg-orange-100 dark:bg-surface-secondary text-orange-700 border-orange-300';
+    if (rate >= 50) return 'bg-yellow-100 dark:bg-surface-secondary text-yellow-700 border-yellow-300';
+    return 'bg-green-100 dark:bg-surface-secondary text-green-700 border-green-300';
   };
 
   const getTypeIcon = (type) => {
@@ -44,10 +44,10 @@ const KennelMapCard = ({ kennel, onClick }) => {
       className={cn(
         'relative cursor-pointer transition-all hover:scale-105 hover:shadow-lg',
         'w-32 h-32 rounded-lg border-2 flex flex-col items-center justify-center p-2',
-        'bg-white shadow-md',
+        'bg-white dark:bg-surface-primary shadow-md',
         occupied === 0 && 'border-green-300',
         occupied > 0 && occupied < capacity && 'border-blue-300',
-        occupied >= capacity && 'border-gray-400'
+        occupied >= capacity && 'border-gray-400 dark:border-surface-border'
       )}
       onClick={() => onClick?.(kennel)}
     >
@@ -66,27 +66,27 @@ const KennelMapCard = ({ kennel, onClick }) => {
       <div className="text-3xl mb-1">{getTypeIcon(kennel.type)}</div>
 
       {/* Kennel Name */}
-      <div className="text-xs font-semibold text-center text-gray-900 mb-1">
+      <div className="text-xs font-semibold text-center text-gray-900 dark:text-text-primary mb-1">
         {kennel.name}
       </div>
 
       {/* Availability Status */}
-      <div className="text-xs text-gray-600 flex items-center gap-1">
+      <div className="text-xs text-gray-600 dark:text-text-secondary flex items-center gap-1">
         {available > 0 ? (
           <>
-            <span className="w-2 h-2 rounded-full bg-green-500"></span>
+            <span className="w-2 h-2 rounded-full bg-green-50 dark:bg-green-950/20"></span>
             {available} open
           </>
         ) : (
           <>
-            <span className="w-2 h-2 rounded-full bg-red-500"></span>
+            <span className="w-2 h-2 rounded-full bg-red-50 dark:bg-red-950/20"></span>
             Full
           </>
         )}
       </div>
 
       {/* Capacity Bar */}
-      <div className="w-full h-1 bg-gray-200 rounded-full mt-2">
+      <div className="w-full h-1 bg-gray-200 dark:bg-surface-border rounded-full mt-2">
         <div
           className={cn('h-full rounded-full transition-all', getOccupancyColor(occupancyRate))}
           style={{ width: `${occupancyRate}%` }}

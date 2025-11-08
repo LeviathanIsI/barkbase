@@ -75,7 +75,7 @@ const NodeActions = ({ nodeId, onClone, onMoveUp, onMoveDown, onDelete, canMoveU
         {/* Delete */}
         <button
           onClick={handleDeleteClick}
-          className="w-7 h-7 rounded bg-surface border border-border hover:bg-red-500 hover:text-white hover:border-red-500 transition-colors flex items-center justify-center shadow-md"
+          className="w-7 h-7 rounded bg-surface border border-border hover:bg-red-50 dark:bg-red-950/20 hover:text-white hover:border-red-500 transition-colors flex items-center justify-center shadow-md"
           title="Delete this step"
           aria-label="Delete step"
         >

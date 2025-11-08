@@ -63,19 +63,19 @@ const SecurityAudit = () => {
   return (
     <Card title="Security Audit Log" icon={FileText}>
       <div className="space-y-4">
-        <p className="text-gray-600">
+        <p className="text-gray-600 dark:text-text-secondary">
           Track all security-related changes to your account.
         </p>
 
         {/* Filters */}
         <div className="flex flex-wrap gap-4">
-          <select className="px-3 py-2 border border-gray-300 rounded-md text-sm">
+          <select className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm bg-white dark:bg-surface-primary">
             <option value="all">All Events</option>
             <option value="auth">Authentication</option>
             <option value="access">Access Control</option>
             <option value="settings">Settings Changes</option>
           </select>
-          <select className="px-3 py-2 border border-gray-300 rounded-md text-sm">
+          <select className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm bg-white dark:bg-surface-primary">
             <option value="90">Last 90 days</option>
             <option value="30">Last 30 days</option>
             <option value="7">Last 7 days</option>
@@ -90,29 +90,29 @@ const SecurityAudit = () => {
         <div className="space-y-4">
           {['Today', 'Jan 10, 2025', 'Jan 5, 2025', 'Dec 28, 2024'].map((dateGroup) => (
             <div key={dateGroup}>
-              <h3 className="font-medium text-gray-900 mb-3">{dateGroup}</h3>
+              <h3 className="font-medium text-gray-900 dark:text-text-primary mb-3">{dateGroup}</h3>
               <div className="space-y-3">
                 {auditEvents
                   .filter(event => event.date === dateGroup)
                   .map((event) => {
                     const Icon = event.icon;
                     return (
-                      <div key={event.id} className="flex items-start gap-4 p-4 border border-gray-200 rounded-lg">
-                        <div className="p-2 bg-blue-100 rounded-full">
-                          <Icon className="w-4 h-4 text-blue-600" />
+                      <div key={event.id} className="flex items-start gap-4 p-4 border border-gray-200 dark:border-surface-border rounded-lg">
+                        <div className="p-2 bg-blue-100 dark:bg-surface-secondary rounded-full">
+                          <Icon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                         </div>
 
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium text-gray-900">{event.event}</span>
-                            <span className="text-sm text-gray-500">{event.time}</span>
+                            <span className="font-medium text-gray-900 dark:text-text-primary">{event.event}</span>
+                            <span className="text-sm text-gray-500 dark:text-text-secondary">{event.time}</span>
                           </div>
 
                           {event.details && (
-                            <p className="text-sm text-gray-600 mb-2">{event.details}</p>
+                            <p className="text-sm text-gray-600 dark:text-text-secondary mb-2">{event.details}</p>
                           )}
 
-                          <div className="flex items-center gap-4 text-sm text-gray-600">
+                          <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-text-secondary">
                             <span>By: {event.actor}</span>
                             <div className="flex items-center gap-1">
                               <MapPin className="w-3 h-3" />
@@ -136,14 +136,14 @@ const SecurityAudit = () => {
         </div>
 
         {/* Retention Notice */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-4">
           <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <AlertTriangle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
             <div>
-              <h4 className="font-medium text-blue-900 mb-1">
+              <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-1">
                 Audit logs retained for 90 days
               </h4>
-              <p className="text-sm text-blue-800">
+              <p className="text-sm text-blue-800 dark:text-blue-200">
                 Upgrade to Pro for 1-year retention, Enterprise for 365 days
               </p>
             </div>

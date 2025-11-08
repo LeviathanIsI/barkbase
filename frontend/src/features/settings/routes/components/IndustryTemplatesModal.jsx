@@ -98,19 +98,19 @@ const IndustryTemplatesModal = ({ isOpen, onClose, onImportTemplates }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-5xl max-h-[90vh] overflow-hidden">
+      <div className="bg-white dark:bg-surface-primary rounded-lg w-full max-w-5xl max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-gray-200 dark:border-surface-border">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Choose Your Service Template</h2>
-              <p className="text-sm text-gray-600 mt-1">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">Choose Your Service Template</h2>
+              <p className="text-sm text-gray-600 dark:text-text-secondary mt-1">
                 Start with pre-configured services for your facility type
               </p>
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-full"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary rounded-full"
             >
               <X className="w-5 h-5" />
             </button>
@@ -129,23 +129,23 @@ const IndustryTemplatesModal = ({ isOpen, onClose, onImportTemplates }) => {
                 <div
                   key={template.id}
                   className={`border rounded-lg p-6 cursor-pointer transition-all ${
-                    isSelected ? 'border-blue-500 bg-blue-50 shadow-md' : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                    isSelected ? 'border-blue-500 bg-blue-50 dark:bg-surface-primary shadow-md' : 'border-gray-200 dark:border-surface-border hover:border-gray-300 hover:shadow-sm'
                   }`}
                   onClick={() => handleTemplateToggle(template.id)}
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <div className={`p-3 rounded-full ${isSelected ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                        <Icon className={`w-6 h-6 ${isSelected ? 'text-blue-600' : 'text-gray-600'}`} />
+                      <div className={`p-3 rounded-full ${isSelected ? 'bg-blue-100' : 'bg-gray-100 dark:bg-surface-secondary'}`}>
+                        <Icon className={`w-6 h-6 ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-text-secondary'}`} />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-gray-900">{template.name}</h3>
+                          <h3 className="font-semibold text-gray-900 dark:text-text-primary">{template.name}</h3>
                           {template.popular && (
                             <Star className="w-4 h-4 text-yellow-500 fill-current" />
                           )}
                         </div>
-                        <p className="text-sm text-gray-600">{template.description}</p>
+                        <p className="text-sm text-gray-600 dark:text-text-secondary">{template.description}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -164,35 +164,35 @@ const IndustryTemplatesModal = ({ isOpen, onClose, onImportTemplates }) => {
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => handleTemplateToggle(template.id)}
-                        className="rounded border-gray-300"
+                        className="rounded border-gray-300 dark:border-surface-border"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <h4 className="font-medium text-gray-900 text-sm">Includes:</h4>
+                    <h4 className="font-medium text-gray-900 dark:text-text-primary text-sm">Includes:</h4>
                     <ul className="space-y-1">
                       {template.includes.slice(0, 4).map((item, index) => (
-                        <li key={index} className="text-sm text-gray-600 flex items-center gap-2">
-                          <span className="w-1.5 h-1.5 bg-gray-400 rounded-full flex-shrink-0"></span>
+                        <li key={index} className="text-sm text-gray-600 dark:text-text-secondary flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 bg-gray-400 dark:bg-surface-secondary rounded-full flex-shrink-0"></span>
                           {item}
                         </li>
                       ))}
                       {template.includes.length > 4 && (
-                        <li className="text-sm text-gray-500">
+                        <li className="text-sm text-gray-500 dark:text-text-secondary">
                           +{template.includes.length - 4} more services...
                         </li>
                       )}
                     </ul>
                   </div>
 
-                  <div className="mt-4 pt-4 border-t border-gray-200">
+                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-surface-border">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">
+                      <span className="text-gray-600 dark:text-text-secondary">
                         {template.serviceCount} services included
                       </span>
                       {template.popular && (
-                        <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
+                        <span className="text-xs bg-yellow-100 dark:bg-surface-secondary text-yellow-800 px-2 py-1 rounded-full">
                           Most Popular
                         </span>
                       )}
@@ -205,13 +205,13 @@ const IndustryTemplatesModal = ({ isOpen, onClose, onImportTemplates }) => {
 
           {/* Selection Summary */}
           {selectedTemplates.length > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-4 mb-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="font-medium text-blue-900">
+                  <h4 className="font-medium text-blue-900 dark:text-blue-100">
                     {selectedTemplates.length} template{selectedTemplates.length > 1 ? 's' : ''} selected
                   </h4>
-                  <p className="text-sm text-blue-700">
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
                     {templates.filter(t => selectedTemplates.includes(t.id)).reduce((sum, t) => sum + t.serviceCount, 0)} services total
                   </p>
                 </div>
@@ -228,9 +228,9 @@ const IndustryTemplatesModal = ({ isOpen, onClose, onImportTemplates }) => {
           )}
 
           {/* Start from Scratch Option */}
-          <div className="border-t border-gray-200 pt-6">
+          <div className="border-t border-gray-200 dark:border-surface-border pt-6">
             <div className="text-center">
-              <p className="text-gray-600 mb-4">
+              <p className="text-gray-600 dark:text-text-secondary mb-4">
                 Prefer to build your services from scratch?
               </p>
               <Button variant="outline" onClick={handleStartFromScratch}>
@@ -241,8 +241,8 @@ const IndustryTemplatesModal = ({ isOpen, onClose, onImportTemplates }) => {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200">
-          <div className="text-sm text-gray-600">
+        <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-surface-border">
+          <div className="text-sm text-gray-600 dark:text-text-secondary">
             Templates can be customized after import
           </div>
           <div className="flex gap-3">

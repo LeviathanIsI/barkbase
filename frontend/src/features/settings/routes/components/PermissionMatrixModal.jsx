@@ -286,19 +286,19 @@ const PermissionMatrixModal = ({ member, onClose, onSave }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
+      <div className="bg-white dark:bg-surface-primary rounded-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-surface-border">
           <div className="flex items-center gap-4">
             <Avatar size="lg" fallback={formData.name} />
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Edit Team Member</h2>
-              <p className="text-gray-600">{formData.name}</p>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">Edit Team Member</h2>
+              <p className="text-gray-600 dark:text-text-secondary">{formData.name}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary rounded-full transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -308,44 +308,44 @@ const PermissionMatrixModal = ({ member, onClose, onSave }) => {
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {/* Basic Info */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4 flex items-center gap-2">
               <User className="w-5 h-5" />
               Basic Info
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Name</label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Email</label>
                 <input
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Phone</label>
                 <input
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Role</label>
                 <select
                   value={formData.role}
                   onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select Role</option>
                   <option value="Owner">Owner</option>
@@ -361,7 +361,7 @@ const PermissionMatrixModal = ({ member, onClose, onSave }) => {
           {/* Role Templates */}
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Permissions</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">Permissions</h3>
               <div className="relative">
                 <Button
                   variant="outline"
@@ -372,15 +372,15 @@ const PermissionMatrixModal = ({ member, onClose, onSave }) => {
                   <ChevronDown className="w-4 h-4" />
                 </Button>
                 {showTemplateDropdown && (
-                  <div className="absolute right-0 mt-1 w-64 bg-white border border-gray-200 rounded-md shadow-lg z-20">
+                  <div className="absolute right-0 mt-1 w-64 bg-white dark:bg-surface-primary border border-gray-200 dark:border-surface-border rounded-md shadow-lg z-20">
                     {Object.entries(roleTemplates).map(([key, template]) => (
                       <button
                         key={key}
                         onClick={() => applyTemplate(key)}
-                        className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                        className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary border-b border-gray-100 last:border-b-0"
                       >
                         <div className="font-medium">{template.name}</div>
-                        <div className="text-sm text-gray-600">{template.description}</div>
+                        <div className="text-sm text-gray-600 dark:text-text-secondary">{template.description}</div>
                       </button>
                     ))}
                   </div>
@@ -393,8 +393,8 @@ const PermissionMatrixModal = ({ member, onClose, onSave }) => {
               {permissionCategories.map((category) => {
                 const Icon = category.icon;
                 return (
-                  <div key={category.title} className="border border-gray-200 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+                  <div key={category.title} className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
+                    <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3 flex items-center gap-2">
                       <Icon className="w-4 h-4" />
                       {category.title}
                     </h4>
@@ -405,7 +405,7 @@ const PermissionMatrixModal = ({ member, onClose, onSave }) => {
                             type="checkbox"
                             checked={formData.permissions[permission.key]}
                             onChange={(e) => updatePermission(permission.key, e.target.checked)}
-                            className="rounded border-gray-300"
+                            className="rounded border-gray-300 dark:border-surface-border"
                           />
                           <span className="text-sm">{permission.label}</span>
                         </label>
@@ -419,20 +419,20 @@ const PermissionMatrixModal = ({ member, onClose, onSave }) => {
 
           {/* Schedule & Availability */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4 flex items-center gap-2">
               <Clock className="w-5 h-5" />
               Schedule & Availability
             </h3>
             <div className="space-y-3">
               {daysOfWeek.map((day) => (
-                <div key={day.key} className="flex items-center gap-4 p-3 border border-gray-200 rounded-lg">
+                <div key={day.key} className="flex items-center gap-4 p-3 border border-gray-200 dark:border-surface-border rounded-lg">
                   <div className="w-16 text-sm font-medium">{day.label}</div>
                   <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={formData.schedule[day.key].enabled}
                       onChange={(e) => updateSchedule(day.key, 'enabled', e.target.checked)}
-                      className="rounded border-gray-300"
+                      className="rounded border-gray-300 dark:border-surface-border"
                     />
                     <span className="text-sm">Available</span>
                   </label>
@@ -442,19 +442,19 @@ const PermissionMatrixModal = ({ member, onClose, onSave }) => {
                         type="time"
                         value={formData.schedule[day.key].start}
                         onChange={(e) => updateSchedule(day.key, 'start', e.target.value)}
-                        className="px-2 py-1 text-sm border border-gray-300 rounded"
+                        className="px-2 py-1 text-sm border border-gray-300 dark:border-surface-border rounded"
                       />
-                      <span className="text-sm text-gray-500">to</span>
+                      <span className="text-sm text-gray-500 dark:text-text-secondary">to</span>
                       <input
                         type="time"
                         value={formData.schedule[day.key].end}
                         onChange={(e) => updateSchedule(day.key, 'end', e.target.value)}
-                        className="px-2 py-1 text-sm border border-gray-300 rounded"
+                        className="px-2 py-1 text-sm border border-gray-300 dark:border-surface-border rounded"
                       />
                     </>
                   )}
                   {!formData.schedule[day.key].enabled && (
-                    <span className="text-sm text-gray-500 italic">Not scheduled</span>
+                    <span className="text-sm text-gray-500 dark:text-text-secondary italic">Not scheduled</span>
                   )}
                 </div>
               ))}
@@ -462,7 +462,7 @@ const PermissionMatrixModal = ({ member, onClose, onSave }) => {
 
             <div className="grid grid-cols-2 gap-4 mt-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1 flex items-center gap-2">
                   <DollarSign className="w-4 h-4" />
                   Hourly Rate
                 </label>
@@ -470,17 +470,17 @@ const PermissionMatrixModal = ({ member, onClose, onSave }) => {
                   type="number"
                   value={formData.hourlyRate}
                   onChange={(e) => setFormData(prev => ({ ...prev, hourlyRate: parseFloat(e.target.value) || 0 }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   step="0.01"
                   min="0"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Primary Location</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Primary Location</label>
                 <select
                   value={formData.primaryLocation}
                   onChange={(e) => setFormData(prev => ({ ...prev, primaryLocation: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="Building A">Building A</option>
                   <option value="Building B">Building B</option>
@@ -492,7 +492,7 @@ const PermissionMatrixModal = ({ member, onClose, onSave }) => {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-surface-border bg-gray-50 dark:bg-surface-secondary">
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>

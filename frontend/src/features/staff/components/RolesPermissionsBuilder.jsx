@@ -8,8 +8,8 @@ const RolesPermissionsBuilder = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold text-gray-900">Roles & Permissions</h2>
-          <p className="text-gray-600">Define custom roles with granular access control</p>
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-text-primary">Roles & Permissions</h2>
+          <p className="text-gray-600 dark:text-text-secondary">Define custom roles with granular access control</p>
         </div>
         <Button>
           <Plus className="w-4 h-4 mr-1" />
@@ -19,31 +19,31 @@ const RolesPermissionsBuilder = () => {
 
       {/* Existing Roles */}
       <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Existing Roles (4)</h3>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">Existing Roles (4)</h3>
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="p-4 border border-gray-200 rounded-lg">
+          <div className="p-4 border border-gray-200 dark:border-surface-border rounded-lg">
             <div className="flex items-center justify-between mb-2">
-              <span className="font-medium text-gray-900">👑 Admin (2 staff)</span>
+              <span className="font-medium text-gray-900 dark:text-text-primary">👑 Admin (2 staff)</span>
             </div>
-            <p className="text-sm text-gray-600">Full access to all features</p>
+            <p className="text-sm text-gray-600 dark:text-text-secondary">Full access to all features</p>
           </div>
-          <div className="p-4 border border-gray-200 rounded-lg">
+          <div className="p-4 border border-gray-200 dark:border-surface-border rounded-lg">
             <div className="flex items-center justify-between mb-2">
-              <span className="font-medium text-gray-900">👔 Manager (2 staff)</span>
+              <span className="font-medium text-gray-900 dark:text-text-primary">👔 Manager (2 staff)</span>
             </div>
-            <p className="text-sm text-gray-600">Operational oversight</p>
+            <p className="text-sm text-gray-600 dark:text-text-secondary">Operational oversight</p>
           </div>
-          <div className="p-4 border border-gray-200 rounded-lg">
+          <div className="p-4 border border-gray-200 dark:border-surface-border rounded-lg">
             <div className="flex items-center justify-between mb-2">
-              <span className="font-medium text-gray-900">👤 Kennel Attendant (4 staff)</span>
+              <span className="font-medium text-gray-900 dark:text-text-primary">👤 Kennel Attendant (4 staff)</span>
             </div>
-            <p className="text-sm text-gray-600">Day-to-day pet care</p>
+            <p className="text-sm text-gray-600 dark:text-text-secondary">Day-to-day pet care</p>
           </div>
-          <div className="p-4 border border-gray-200 rounded-lg">
+          <div className="p-4 border border-gray-200 dark:border-surface-border rounded-lg">
             <div className="flex items-center justify-between mb-2">
-              <span className="font-medium text-gray-900">✂️ Groomer (1 staff)</span>
+              <span className="font-medium text-gray-900 dark:text-text-primary">✂️ Groomer (1 staff)</span>
             </div>
-            <p className="text-sm text-gray-600">Professional grooming</p>
+            <p className="text-sm text-gray-600 dark:text-text-secondary">Professional grooming</p>
           </div>
         </div>
       </Card>
@@ -51,7 +51,7 @@ const RolesPermissionsBuilder = () => {
       {/* Selected Role */}
       <Card className="p-6">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-900">Kennel Attendant</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">Kennel Attendant</h3>
           <div className="flex gap-2">
             <Button variant="outline" size="sm">Edit</Button>
             <Button variant="outline" size="sm">Duplicate</Button>
@@ -59,12 +59,12 @@ const RolesPermissionsBuilder = () => {
           </div>
         </div>
 
-        <h4 className="font-medium text-gray-900 mb-4">Permissions Matrix</h4>
+        <h4 className="font-medium text-gray-900 dark:text-text-primary mb-4">Permissions Matrix</h4>
 
         {/* Sample Permissions */}
         <div className="space-y-4">
           <div>
-            <h5 className="font-medium text-gray-900 mb-3">BOOKINGS & SCHEDULING</h5>
+            <h5 className="font-medium text-gray-900 dark:text-text-primary mb-3">BOOKINGS & SCHEDULING</h5>
             <div className="grid gap-3 md:grid-cols-2">
               <label className="flex items-center gap-3">
                 <input type="checkbox" checked className="rounded" />
@@ -82,7 +82,7 @@ const RolesPermissionsBuilder = () => {
           </div>
 
           <div>
-            <h5 className="font-medium text-gray-900 mb-3">PET CARE</h5>
+            <h5 className="font-medium text-gray-900 dark:text-text-primary mb-3">PET CARE</h5>
             <div className="grid gap-3 md:grid-cols-2">
               <label className="flex items-center gap-3">
                 <input type="checkbox" checked className="rounded" />
@@ -100,7 +100,7 @@ const RolesPermissionsBuilder = () => {
           </div>
 
           <div>
-            <h5 className="font-medium text-gray-900 mb-3">FINANCIAL</h5>
+            <h5 className="font-medium text-gray-900 dark:text-text-primary mb-3">FINANCIAL</h5>
             <div className="grid gap-3 md:grid-cols-2">
               <label className="flex items-center gap-3">
                 <input type="checkbox" className="rounded" />
@@ -114,7 +114,7 @@ const RolesPermissionsBuilder = () => {
           </div>
         </div>
 
-        <div className="flex gap-3 pt-6 border-t border-gray-200 mt-6">
+        <div className="flex gap-3 pt-6 border-t border-gray-200 dark:border-surface-border mt-6">
           <Button variant="outline">Cancel Changes</Button>
           <Button>💾 Save Permissions</Button>
         </div>

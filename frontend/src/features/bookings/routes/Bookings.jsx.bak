@@ -24,8 +24,8 @@ const Bookings = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-text-primary">Bookings & Availability</h1>
-          <p className="text-sm text-gray-600 dark:text-text-secondary mt-1">
+          <h1 className="text-2xl font-bold text-gray-900">Bookings & Availability</h1>
+          <p className="text-sm text-gray-600 mt-1">
             Manage reservations and facility capacity
           </p>
         </div>
@@ -33,13 +33,13 @@ const Bookings = () => {
         <div className="flex items-center gap-3">
           {/* View Mode Toggles - Hidden when in New Booking mode */}
           {!showNewBooking && (
-            <div className="flex items-center bg-gray-100 dark:bg-surface-secondary rounded-lg p-1">
+            <div className="flex items-center bg-gray-100 rounded-lg p-1">
               <button
                 onClick={() => setViewMode('calendar')}
                 className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${
                   viewMode === 'calendar'
-                    ? 'bg-white dark:bg-surface-primary text-gray-900 dark:text-text-primary shadow-sm' 
-                    : 'text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary dark:text-text-primary'
+                    ? 'bg-white text-gray-900 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
                 <Calendar className="h-4 w-4 inline mr-1.5" />
@@ -49,8 +49,8 @@ const Bookings = () => {
                 onClick={() => setViewMode('list')}
                 className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${
                   viewMode === 'list'
-                    ? 'bg-white dark:bg-surface-primary text-gray-900 dark:text-text-primary shadow-sm' 
-                    : 'text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary dark:text-text-primary'
+                    ? 'bg-white text-gray-900 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
                 <List className="h-4 w-4 inline mr-1.5" />

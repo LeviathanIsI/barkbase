@@ -98,7 +98,7 @@ const ReservationCreateConfig = ({ node, onUpdate }) => {
         </div>
 
         {errors.length > 0 && (
-          <div className="mt-3 p-3 bg-red-500/10 border border-red-500/30 rounded">
+          <div className="mt-3 p-3 bg-red-50 dark:bg-red-950/10 border border-red-500/30 rounded">
             <div className="text-xs font-medium text-red-400 mb-1">Validation Errors:</div>
             <ul className="text-xs text-red-300 list-disc list-inside">
               {errors.map((err, i) => <li key={i}>{err}</li>)}

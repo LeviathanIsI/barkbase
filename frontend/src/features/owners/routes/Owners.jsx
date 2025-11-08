@@ -175,8 +175,8 @@ const Owners = () => {
                   <p className="text-sm font-medium text-[#64748B]">Total Owners</p>
                   <p className="text-2xl font-bold text-[#263238]">{stats.total}</p>
                 </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Users className="h-6 w-6 text-blue-600" />
+                <div className="w-12 h-12 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
+                  <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                 </div>
               </div>
             </Card>
@@ -187,7 +187,7 @@ const Owners = () => {
                   <p className="text-sm font-medium text-[#64748B]">Active Clients</p>
                   <p className="text-2xl font-bold text-[#263238]">{stats.active}</p>
                 </div>
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <Heart className="h-6 w-6 text-green-600" />
                 </div>
               </div>
@@ -199,8 +199,8 @@ const Owners = () => {
                   <p className="text-sm font-medium text-[#64748B]">High Value</p>
                   <p className="text-2xl font-bold text-[#263238]">{stats.highValue}</p>
                 </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <DollarSign className="h-6 w-6 text-purple-600" />
+                <div className="w-12 h-12 bg-purple-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
+                  <DollarSign className="h-6 w-6 text-purple-600 dark:text-purple-400" />
                 </div>
               </div>
             </Card>
@@ -211,7 +211,7 @@ const Owners = () => {
                   <p className="text-sm font-medium text-[#64748B]">Total Revenue</p>
                   <p className="text-2xl font-bold text-[#263238]">{formatCurrency(stats.totalRevenue)}</p>
                 </div>
-                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 bg-orange-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <Calendar className="h-6 w-6 text-orange-600" />
                 </div>
               </div>

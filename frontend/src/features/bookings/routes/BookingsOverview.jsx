@@ -135,7 +135,7 @@ const BookingsOverview = () => {
         actions={
           <div className="flex items-center gap-2">
             {/* View Toggle */}
-            <div className="flex items-center bg-gray-100 rounded-lg p-1">
+            <div className="flex items-center bg-gray-100 dark:bg-surface-secondary rounded-lg p-1">
               <Button
                 variant={activeView === 'list' ? 'primary' : 'ghost'}
                 size="sm"
@@ -195,25 +195,25 @@ const BookingsOverview = () => {
       <OverbookingAlert onResolveOverbooking={() => setShowOverbookingAlert(true)} />
 
       {/* Search and Filter Bar */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4">
+      <div className="bg-white dark:bg-surface-primary border border-gray-200 dark:border-surface-border rounded-lg p-4">
         <div className="flex items-center gap-4">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-text-tertiary" />
             <input
               type="text"
               placeholder="Search bookings, pets, owners..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm text-gray-900 placeholder:text-gray-600 placeholder:opacity-75 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary dark:text-text-secondary placeholder:opacity-75 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-text-secondary">
             {filteredBookings.length} of {bookings.length} bookings
           </div>
 
           {selectedBookings.size > 0 && (
-            <div className="text-sm text-blue-600 font-medium">
+            <div className="text-sm text-blue-600 dark:text-blue-400 font-medium">
               {selectedBookings.size} selected
             </div>
           )}
@@ -221,9 +221,9 @@ const BookingsOverview = () => {
 
         {/* Batch Actions */}
         {selectedBookings.size > 0 && (
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="mt-4 p-3 bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-blue-900">
+              <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
                 {selectedBookings.size} bookings selected
               </span>
               <div className="flex gap-2">

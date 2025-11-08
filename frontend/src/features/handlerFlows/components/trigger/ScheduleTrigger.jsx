@@ -24,11 +24,11 @@ const ScheduleTrigger = ({ schedule, onUpdate, onRemove }) => {
   return (
     <div className="bg-background rounded-lg border border-border overflow-hidden">
       {/* Header */}
-      <div className="p-3 flex items-center justify-between bg-green-500/5 border-b border-border">
+      <div className="p-3 flex items-center justify-between bg-green-50 dark:bg-green-950/5 border-b border-border">
         <span className="text-sm font-semibold text-text">Group 1</span>
         <button
           onClick={onRemove}
-          className="p-1.5 hover:bg-red-500/10 rounded text-muted hover:text-red-600 transition-colors"
+          className="p-1.5 hover:bg-red-50 dark:bg-red-950/10 rounded text-muted hover:text-red-600 transition-colors"
           title="Delete schedule"
         >
           <Trash2 className="w-4 h-4" />

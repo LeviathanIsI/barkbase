@@ -55,7 +55,7 @@ export default function CommunicationForm({ ownerId, onSuccess, onCancel }) {
                   p-3 rounded-lg border transition-all
                   ${isSelected 
                     ? 'border-primary bg-primary/5 text-primary' 
-                    : 'border-border hover:border-gray-300'
+                    : 'border-border hover:border-gray-300 dark:border-surface-border'
                   }
                 `}
               >

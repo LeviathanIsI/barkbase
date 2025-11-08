@@ -46,12 +46,12 @@ const IntegrationRecipes = () => {
   ];
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-6">
+    <div className="bg-white dark:bg-surface-primary border border-gray-200 dark:border-surface-border rounded-lg p-6">
       <div className="flex items-center gap-3 mb-6">
         <Zap className="w-6 h-6 text-yellow-600" />
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Popular Automation Recipes</h2>
-          <p className="text-sm text-gray-600">Pre-built workflows you can enable with one click</p>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">Popular Automation Recipes</h2>
+          <p className="text-sm text-gray-600 dark:text-text-secondary">Pre-built workflows you can enable with one click</p>
         </div>
       </div>
 
@@ -59,16 +59,16 @@ const IntegrationRecipes = () => {
         {recipes.map((recipe, index) => {
           const Icon = recipe.icon;
           return (
-            <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
+            <div key={index} className="border border-gray-200 dark:border-surface-border rounded-lg p-4 hover:shadow-sm transition-shadow">
               <div className="flex items-start gap-3 mb-3">
-                <Icon className="w-5 h-5 text-blue-600 flex-shrink-0 mt-1" />
+                <Icon className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-1" />
                 <div className="flex-1">
-                  <h4 className="font-medium text-gray-900 text-sm">{recipe.title}</h4>
-                  <p className="text-xs text-gray-600 mt-1">{recipe.description}</p>
+                  <h4 className="font-medium text-gray-900 dark:text-text-primary text-sm">{recipe.title}</h4>
+                  <p className="text-xs text-gray-600 dark:text-text-secondary mt-1">{recipe.description}</p>
                 </div>
               </div>
 
-              <div className="text-xs text-gray-600 space-y-1 mb-4">
+              <div className="text-xs text-gray-600 dark:text-text-secondary space-y-1 mb-4">
                 <div><strong>Trigger:</strong> {recipe.trigger}</div>
                 <div><strong>Action:</strong> {recipe.action}</div>
               </div>

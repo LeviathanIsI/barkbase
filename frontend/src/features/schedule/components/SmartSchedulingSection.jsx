@@ -21,7 +21,7 @@ const SmartSchedulingSection = ({ currentDate = new Date() }) => {
       icon: AlertTriangle,
       title: 'High Capacity Alert',
       message: `Facility is at ${Math.round(stats.occupancyPct)}% capacity. Consider limiting new bookings.`,
-      color: 'text-orange-600 bg-orange-50 border-orange-200'
+      color: 'text-orange-600 bg-orange-50 dark:bg-surface-primary border-orange-200'
     });
   } else if (stats.occupancyPct >= 80) {
     insights.push({
@@ -29,7 +29,7 @@ const SmartSchedulingSection = ({ currentDate = new Date() }) => {
       icon: Info,
       title: 'Moderate Capacity',
       message: `Facility is at ${Math.round(stats.occupancyPct)}% capacity. ${stats.availableSpots} spots remaining.`,
-      color: 'text-blue-600 bg-blue-50 border-blue-200'
+      color: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-surface-primary border-blue-200 dark:border-blue-900/30'
     });
   } else {
     insights.push({
@@ -37,7 +37,7 @@ const SmartSchedulingSection = ({ currentDate = new Date() }) => {
       icon: CheckCircle,
       title: 'Good Availability',
       message: `${stats.availableSpots} of ${stats.totalCapacity} spots available. Great time to accept new bookings.`,
-      color: 'text-green-600 bg-green-50 border-green-200'
+      color: 'text-green-600 bg-green-50 dark:bg-surface-primary border-green-200 dark:border-green-900/30'
     });
   }
 
@@ -48,7 +48,7 @@ const SmartSchedulingSection = ({ currentDate = new Date() }) => {
       icon: Info,
       title: 'Pending Check-ins',
       message: `${stats.checkInsPending} guest${stats.checkInsPending > 1 ? 's' : ''} scheduled to check in today. Ensure kennels are prepared.`,
-      color: 'text-blue-600 bg-blue-50 border-blue-200'
+      color: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-surface-primary border-blue-200 dark:border-blue-900/30'
     });
   }
 
@@ -62,7 +62,7 @@ const SmartSchedulingSection = ({ currentDate = new Date() }) => {
       icon: AlertTriangle,
       title: 'Unassigned Kennels',
       message: `${bookingsWithoutKennels.length} booking${bookingsWithoutKennels.length > 1 ? 's' : ''} need kennel assignments.`,
-      color: 'text-orange-600 bg-orange-50 border-orange-200'
+      color: 'text-orange-600 bg-orange-50 dark:bg-surface-primary border-orange-200'
     });
   }
 
@@ -72,21 +72,21 @@ const SmartSchedulingSection = ({ currentDate = new Date() }) => {
       icon: CheckCircle,
       title: 'All Systems Optimal',
       message: 'No scheduling conflicts or recommendations at this time.',
-      color: 'text-green-600 bg-green-50 border-green-200'
+      color: 'text-green-600 bg-green-50 dark:bg-surface-primary border-green-200 dark:border-green-900/30'
     });
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-6">
+    <div className="bg-white dark:bg-surface-primary border border-gray-200 dark:border-surface-border rounded-lg p-6">
       <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-          <Brain className="w-5 h-5 text-blue-600" />
+        <div className="w-10 h-10 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
+          <Brain className="w-5 h-5 text-blue-600 dark:text-blue-400" />
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">
             Smart Scheduling Assistant
           </h3>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 dark:text-text-secondary">
             Real-time insights and recommendations
           </p>
         </div>

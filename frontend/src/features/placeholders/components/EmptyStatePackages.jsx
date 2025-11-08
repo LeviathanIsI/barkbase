@@ -103,16 +103,16 @@ const EmptyStatePackages = ({ onCreatePackage, onBrowseTemplates }) => {
   return (
     <div className="space-y-8">
       {/* Why Packages Matter */}
-      <Card className="p-8 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+      <Card className="p-8 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-surface-primary dark:to-surface-primary border-blue-200 dark:border-blue-900/30">
         <div className="flex items-start gap-4 mb-6">
           <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
             <TrendingUp className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-text-primary mb-2">
               WHY PACKAGES & MEMBERSHIPS MATTER
             </h2>
-            <p className="text-gray-700">
+            <p className="text-gray-700 dark:text-text-primary">
               Transform one-time customers into loyal, recurring revenue
             </p>
           </div>
@@ -120,50 +120,50 @@ const EmptyStatePackages = ({ onCreatePackage, onBrowseTemplates }) => {
 
         <div className="grid md:grid-cols-2 gap-6 mb-8">
           {/* Revenue Impact */}
-          <div className="bg-white rounded-lg p-6 border border-blue-200">
-            <h3 className="font-semibold text-blue-900 mb-4">REVENUE IMPACT</h3>
+          <div className="bg-white dark:bg-surface-primary rounded-lg p-6 border border-blue-200 dark:border-blue-900/30">
+            <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-4">REVENUE IMPACT</h3>
             <div className="space-y-3 text-sm">
-              <p className="text-gray-700">Facilities using packages see:</p>
+              <p className="text-gray-700 dark:text-text-primary">Facilities using packages see:</p>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                  <span className="text-gray-800"><strong>35%</strong> higher customer lifetime value</span>
+                  <span className="text-gray-800 dark:text-text-primary"><strong>35%</strong> higher customer lifetime value</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                  <span className="text-gray-800"><strong>28%</strong> increase in booking frequency</span>
+                  <span className="text-gray-800 dark:text-text-primary"><strong>28%</strong> increase in booking frequency</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                  <span className="text-gray-800"><strong>42%</strong> better customer retention</span>
+                  <span className="text-gray-800 dark:text-text-primary"><strong>42%</strong> better customer retention</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                  <span className="text-gray-800">Predictable recurring revenue</span>
+                  <span className="text-gray-800 dark:text-text-primary">Predictable recurring revenue</span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Package Benefits */}
-          <div className="bg-white rounded-lg p-6 border border-blue-200">
-            <h3 className="font-semibold text-blue-900 mb-4">AVERAGE PACKAGE BENEFITS</h3>
+          <div className="bg-white dark:bg-surface-primary rounded-lg p-6 border border-blue-200 dark:border-blue-900/30">
+            <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-4">AVERAGE PACKAGE BENEFITS</h3>
             <div className="space-y-3 text-sm">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                <span className="text-gray-800">Customers save <strong>15-25%</strong> vs individual bookings</span>
+                <span className="text-gray-800 dark:text-text-primary">Customers save <strong>15-25%</strong> vs individual bookings</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                <span className="text-gray-800">You get paid <strong>upfront</strong> for future services</span>
+                <span className="text-gray-800 dark:text-text-primary">You get paid <strong>upfront</strong> for future services</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                <span className="text-gray-800">Reduces booking friction (already paid)</span>
+                <span className="text-gray-800 dark:text-text-primary">Reduces booking friction (already paid)</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-600 rounded-full"></div>
-                <span className="text-gray-800">Creates customer commitment and loyalty</span>
+                <span className="text-gray-800 dark:text-text-primary">Creates customer commitment and loyalty</span>
               </div>
             </div>
           </div>
@@ -172,26 +172,26 @@ const EmptyStatePackages = ({ onCreatePackage, onBrowseTemplates }) => {
 
       {/* Package Types */}
       <Card className="p-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-6">PACKAGE TYPES YOU CAN CREATE</h2>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-text-primary mb-6">PACKAGE TYPES YOU CAN CREATE</h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {packageTypes.map((type, index) => {
             const Icon = type.icon;
             const colorClasses = {
-              blue: 'bg-blue-100 text-blue-600',
-              green: 'bg-green-100 text-green-600',
-              purple: 'bg-purple-100 text-purple-600',
-              yellow: 'bg-yellow-100 text-yellow-600',
-              pink: 'bg-pink-100 text-pink-600',
-              orange: 'bg-orange-100 text-orange-600'
+              blue: 'bg-blue-100 dark:bg-surface-secondary text-blue-600 dark:text-blue-400',
+              green: 'bg-green-100 dark:bg-surface-secondary text-green-600',
+              purple: 'bg-purple-100 dark:bg-surface-secondary text-purple-600 dark:text-purple-400',
+              yellow: 'bg-yellow-100 dark:bg-surface-secondary text-yellow-600',
+              pink: 'bg-pink-100 dark:bg-surface-secondary text-pink-600',
+              orange: 'bg-orange-100 dark:bg-surface-secondary text-orange-600'
             };
             return (
-              <div key={index} className="border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-sm transition-all">
+              <div key={index} className="border border-gray-200 dark:border-surface-border rounded-lg p-4 hover:border-blue-300 hover:shadow-sm transition-all">
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${colorClasses[type.color]}`}>
                   <Icon className="w-5 h-5" />
                 </div>
-                <h3 className="font-semibold text-gray-900 text-sm mb-2">{type.title}</h3>
-                <p className="text-xs text-gray-600 mb-2">{type.description}</p>
-                <p className="text-xs text-gray-500 italic">{type.example}</p>
+                <h3 className="font-semibold text-gray-900 dark:text-text-primary text-sm mb-2">{type.title}</h3>
+                <p className="text-xs text-gray-600 dark:text-text-secondary mb-2">{type.description}</p>
+                <p className="text-xs text-gray-500 dark:text-text-secondary italic">{type.example}</p>
               </div>
             );
           })}
@@ -200,33 +200,33 @@ const EmptyStatePackages = ({ onCreatePackage, onBrowseTemplates }) => {
 
       {/* Get Started */}
       <Card className="p-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-2">GET STARTED</h2>
-        <p className="text-gray-600 mb-6">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-text-primary mb-2">GET STARTED</h2>
+        <p className="text-gray-600 dark:text-text-secondary mb-6">
           No packages yet. Create your first package to start increasing customer loyalty and lifetime value!
         </p>
 
         <div className="grid md:grid-cols-2 gap-6">
           {/* Quick Start Templates */}
-          <div className="border-2 border-blue-200 rounded-lg p-6 bg-blue-50">
+          <div className="border-2 border-blue-200 dark:border-blue-900/30 rounded-lg p-6 bg-blue-50 dark:bg-surface-primary">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <Package className="w-4 h-4 text-white" />
               </div>
-              <h3 className="font-bold text-blue-900">QUICK START TEMPLATES</h3>
+              <h3 className="font-bold text-blue-900 dark:text-blue-100">QUICK START TEMPLATES</h3>
             </div>
-            <p className="text-sm text-blue-800 mb-4">
+            <p className="text-sm text-blue-800 dark:text-blue-200 mb-4">
               Pre-built packages you can customize:
             </p>
             <div className="space-y-3 mb-4">
               {quickStartTemplates.map((template, index) => {
                 const Icon = template.icon;
                 return (
-                  <div key={index} className="bg-white rounded-lg p-3 border border-blue-200">
+                  <div key={index} className="bg-white dark:bg-surface-primary rounded-lg p-3 border border-blue-200 dark:border-blue-900/30">
                     <div className="flex items-start gap-3">
-                      <Icon className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <Icon className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-gray-900 text-sm">{template.title}</h4>
-                        <p className="text-xs text-gray-600">{template.description}</p>
+                        <h4 className="font-medium text-gray-900 dark:text-text-primary text-sm">{template.title}</h4>
+                        <p className="text-xs text-gray-600 dark:text-text-secondary">{template.description}</p>
                       </div>
                     </div>
                   </div>
@@ -239,17 +239,17 @@ const EmptyStatePackages = ({ onCreatePackage, onBrowseTemplates }) => {
           </div>
 
           {/* Build from Scratch */}
-          <div className="border-2 border-gray-200 rounded-lg p-6">
+          <div className="border-2 border-gray-200 dark:border-surface-border rounded-lg p-6">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 bg-gray-700 rounded-lg flex items-center justify-center">
                 <Plus className="w-4 h-4 text-white" />
               </div>
-              <h3 className="font-bold text-gray-900">BUILD FROM SCRATCH</h3>
+              <h3 className="font-bold text-gray-900 dark:text-text-primary">BUILD FROM SCRATCH</h3>
             </div>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 dark:text-text-secondary mb-4">
               Create a completely custom package
             </p>
-            <p className="text-xs text-gray-500 mb-6">
+            <p className="text-xs text-gray-500 dark:text-text-secondary mb-6">
               Perfect for: Unique offerings, complex structures
             </p>
             <Button variant="outline" className="w-full" onClick={onCreatePackage}>
@@ -261,22 +261,22 @@ const EmptyStatePackages = ({ onCreatePackage, onBrowseTemplates }) => {
       </Card>
 
       {/* Real Examples */}
-      <Card className="p-8 bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
-        <h2 className="text-xl font-bold text-gray-900 mb-2">
+      <Card className="p-8 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-surface-primary dark:to-surface-primary border-green-200 dark:border-green-900/30">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-text-primary mb-2">
           REAL EXAMPLES FROM OTHER FACILITIES
         </h2>
-        <p className="text-sm text-gray-600 mb-6">See what's working for facilities like yours</p>
+        <p className="text-sm text-gray-600 dark:text-text-secondary mb-6">See what's working for facilities like yours</p>
         <div className="space-y-4">
           {realExamples.map((example, index) => (
-            <div key={index} className="bg-white rounded-lg p-4 border border-green-200">
+            <div key={index} className="bg-white dark:bg-surface-primary rounded-lg p-4 border border-green-200 dark:border-green-900/30">
               <div className="flex items-start gap-3">
                 <div className="w-2 h-2 bg-green-600 rounded-full mt-2 flex-shrink-0"></div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-semibold text-gray-900">{example.name}</span>
+                    <span className="font-semibold text-gray-900 dark:text-text-primary">{example.name}</span>
                     <Badge variant="success" className="text-xs">{example.price}</Badge>
                   </div>
-                  <p className="text-sm text-gray-700 mb-1">{example.description}</p>
+                  <p className="text-sm text-gray-700 dark:text-text-primary mb-1">{example.description}</p>
                   <p className="text-xs text-green-700 font-medium">
                     Result: {example.result}
                   </p>
@@ -291,12 +291,12 @@ const EmptyStatePackages = ({ onCreatePackage, onBrowseTemplates }) => {
       </Card>
 
       {/* Help Section */}
-      <div className="text-center pt-4 border-t border-gray-200">
-        <p className="text-sm text-gray-500">
+      <div className="text-center pt-4 border-t border-gray-200 dark:border-surface-border">
+        <p className="text-sm text-gray-500 dark:text-text-secondary">
           Need help getting started? Check out our{' '}
-          <a href="#" className="text-blue-600 hover:underline">documentation</a>
+          <a href="#" className="text-blue-600 dark:text-blue-400 hover:underline">documentation</a>
           {' '}or{' '}
-          <a href="#" className="text-blue-600 hover:underline">contact support</a>
+          <a href="#" className="text-blue-600 dark:text-blue-400 hover:underline">contact support</a>
           {' '}for personalized guidance.
         </p>
       </div>

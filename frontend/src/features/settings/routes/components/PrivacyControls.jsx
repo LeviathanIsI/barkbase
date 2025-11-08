@@ -27,11 +27,11 @@ const PrivacyControls = () => {
         <div className="space-y-6">
           {/* Data Retention */}
           <div>
-            <h3 className="font-medium text-gray-900 mb-2">DATA RETENTION</h3>
-            <p className="text-gray-600 mb-4">
+            <h3 className="font-medium text-gray-900 dark:text-text-primary mb-2">DATA RETENTION</h3>
+            <p className="text-gray-600 dark:text-text-secondary mb-4">
               Your data is automatically backed up daily and retained for:
             </p>
-            <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+            <div className="bg-gray-50 dark:bg-surface-secondary rounded-lg p-4 space-y-2">
               <div className="flex justify-between text-sm">
                 <span>Active data:</span>
                 <span className="font-medium">Indefinitely (while account active)</span>
@@ -49,14 +49,14 @@ const PrivacyControls = () => {
 
           {/* Account Deletion */}
           <div>
-            <h3 className="font-medium text-gray-900 mb-2">ACCOUNT DELETION</h3>
-            <p className="text-gray-600 mb-4">
+            <h3 className="font-medium text-gray-900 dark:text-text-primary mb-2">ACCOUNT DELETION</h3>
+            <p className="text-gray-600 dark:text-text-secondary mb-4">
               Permanently delete your account and all associated data.
               <strong className="text-red-600"> This action cannot be undone!</strong>
             </p>
             <Button
               variant="outline"
-              className="text-red-600 border-red-300 hover:bg-red-50"
+              className="text-red-600 border-red-300 hover:bg-red-50 dark:bg-surface-primary"
               onClick={() => setShowDeleteModal(true)}
             >
               <Trash2 className="w-4 h-4 mr-2" />
@@ -66,20 +66,20 @@ const PrivacyControls = () => {
 
           {/* Data Export */}
           <div>
-            <h3 className="font-medium text-gray-900 mb-2">DATA EXPORT</h3>
-            <p className="text-gray-600 mb-4">
+            <h3 className="font-medium text-gray-900 dark:text-text-primary mb-2">DATA EXPORT</h3>
+            <p className="text-gray-600 dark:text-text-secondary mb-4">
               Download all your data in machine-readable format.
             </p>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-              <h4 className="font-medium text-blue-900 mb-2">Includes:</h4>
-              <ul className="text-sm text-blue-800 space-y-1">
+            <div className="bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-4 mb-4">
+              <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Includes:</h4>
+              <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
                 <li>• Customer & pet profiles</li>
                 <li>• Booking history</li>
                 <li>• Payment records</li>
                 <li>• Staff data</li>
                 <li>• Settings & configurations</li>
               </ul>
-              <p className="text-sm text-blue-700 mt-2">
+              <p className="text-sm text-blue-700 dark:text-blue-300 mt-2">
                 Last export: Never • File size: ~25 MB
               </p>
             </div>
@@ -94,24 +94,24 @@ const PrivacyControls = () => {
       {/* Account Deletion Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-lg">
-            <div className="p-6 border-b border-gray-200">
+          <div className="bg-white dark:bg-surface-primary rounded-lg w-full max-w-lg">
+            <div className="p-6 border-b border-gray-200 dark:border-surface-border">
               <div className="flex items-center gap-3">
                 <AlertTriangle className="w-6 h-6 text-red-600" />
-                <h2 className="text-xl font-semibold text-gray-900">Delete Your Account</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">Delete Your Account</h2>
               </div>
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full"
+                className="absolute top-4 right-4 p-2 hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary rounded-full"
               >
                 ×
               </button>
             </div>
 
             <div className="p-6 space-y-6">
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <h4 className="font-medium text-red-900 mb-2">⚠️ WARNING: This will permanently delete:</h4>
-                <ul className="text-sm text-red-800 space-y-1">
+              <div className="bg-red-50 dark:bg-surface-primary border border-red-200 dark:border-red-900/30 rounded-lg p-4">
+                <h4 className="font-medium text-red-900 dark:text-red-100 mb-2">⚠️ WARNING: This will permanently delete:</h4>
+                <ul className="text-sm text-red-800 dark:text-red-200 space-y-1">
                   <li>• All bookings and customer data</li>
                   <li>• All pet records and photos</li>
                   <li>• All team member accounts</li>
@@ -121,7 +121,7 @@ const PrivacyControls = () => {
               </div>
 
               <div>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm text-gray-600 dark:text-text-secondary mb-4">
                   Before deleting, you can download all your data:
                 </p>
                 <Button variant="outline" className="w-full">
@@ -132,7 +132,7 @@ const PrivacyControls = () => {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                     Type your email to confirm:
                   </label>
                   <input
@@ -140,12 +140,12 @@ const PrivacyControls = () => {
                     value={deleteConfirm.email}
                     onChange={(e) => setDeleteConfirm(prev => ({ ...prev, email: e.target.value }))}
                     placeholder="joshua.r.bradford1@gmail.com"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                     Type "DELETE" to confirm:
                   </label>
                   <input
@@ -153,13 +153,13 @@ const PrivacyControls = () => {
                     value={deleteConfirm.confirmation}
                     onChange={(e) => setDeleteConfirm(prev => ({ ...prev, confirmation: e.target.value }))}
                     placeholder="DELETE"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-6 border-t border-gray-200">
+            <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-surface-border">
               <Button variant="outline" onClick={() => setShowDeleteModal(false)}>
                 Cancel
               </Button>

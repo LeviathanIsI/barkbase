@@ -339,35 +339,35 @@ const Profile = () => {
       label: 'View My Schedule',
       icon: Calendar,
       path: '/calendar',
-      color: 'bg-blue-50 hover:bg-blue-100 text-blue-700',
+      color: 'bg-blue-50 dark:bg-surface-primary hover:bg-blue-100 dark:bg-surface-secondary text-blue-700 dark:text-blue-300',
     },
     {
       id: 'reports',
       label: 'Today\'s Report',
       icon: BarChart3,
       path: '/reports',
-      color: 'bg-green-50 hover:bg-green-100 text-green-700',
+      color: 'bg-green-50 dark:bg-surface-primary hover:bg-green-100 dark:bg-surface-secondary text-green-700',
     },
     {
       id: 'business',
       label: 'Business Settings',
       icon: Settings,
       path: '/settings/business',
-      color: 'bg-purple-50 hover:bg-purple-100 text-purple-700',
+      color: 'bg-purple-50 dark:bg-surface-primary hover:bg-purple-100 dark:bg-surface-secondary text-purple-700 dark:text-purple-300',
     },
     {
       id: 'payments',
       label: 'Recent Payments',
       icon: CreditCard,
       path: '/payments',
-      color: 'bg-orange-50 hover:bg-orange-100 text-orange-700',
+      color: 'bg-orange-50 dark:bg-surface-primary hover:bg-orange-100 dark:bg-surface-secondary text-orange-700',
     },
     {
       id: 'messages',
       label: 'Messages',
       icon: MessageSquare,
       path: '/messages',
-      color: 'bg-pink-50 hover:bg-pink-100 text-pink-700',
+      color: 'bg-pink-50 dark:bg-surface-primary hover:bg-pink-100 dark:bg-surface-secondary text-pink-700',
       badge: '3',
     },
     {
@@ -375,7 +375,7 @@ const Profile = () => {
       label: 'Notifications',
       icon: Bell,
       path: '/notifications',
-      color: 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700',
+      color: 'bg-indigo-50 dark:bg-surface-primary hover:bg-indigo-100 dark:bg-surface-secondary text-indigo-700',
       badge: '3',
     },
   ];
@@ -408,7 +408,7 @@ const Profile = () => {
           <AlertTitle>Email Not Verified</AlertTitle>
           <AlertDescription>
             Please verify your email to receive important notifications.
-            <button className="text-blue-600 underline ml-2">
+            <button className="text-blue-600 dark:text-blue-400 underline ml-2">
               Resend Verification Email
             </button>
           </AlertDescription>
@@ -442,7 +442,7 @@ const Profile = () => {
       </Card>
 
       {/* Profile Header with Photo Upload */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="bg-white dark:bg-surface-primary rounded-lg border border-gray-200 dark:border-surface-border p-6">
         <div className="flex items-start gap-6">
           <Avatar
             size="xl"
@@ -452,12 +452,12 @@ const Profile = () => {
             onUpload={handleProfilePhotoUpload}
           />
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-gray-900">{profile?.name || user?.name || 'Your Profile'}</h1>
-            <p className="text-gray-600">{profile?.email || user?.email}</p>
-            <p className="text-sm text-gray-500 mt-1">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-text-primary">{profile?.name || user?.name || 'Your Profile'}</h1>
+            <p className="text-gray-600 dark:text-text-secondary">{profile?.email || user?.email}</p>
+            <p className="text-sm text-gray-500 dark:text-text-secondary mt-1">
               Member since {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'January 15, 2024'}
             </p>
-            <button className="text-blue-600 text-sm mt-2 hover:underline flex items-center gap-1">
+            <button className="text-blue-600 dark:text-blue-400 text-sm mt-2 hover:underline flex items-center gap-1">
               <Camera className="w-4 h-4" />
               Change Photo
             </button>
@@ -470,11 +470,11 @@ const Profile = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
                 Full Name
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-text-tertiary" />
                 <input
                   type="text"
                   name="name"
@@ -482,57 +482,57 @@ const Profile = () => {
                   onChange={handleChange}
                   placeholder="Enter your full name"
                   required
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
                 Email Address
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-text-tertiary" />
                 <input
                   type="email"
                   value={profile?.email || user?.email}
                   disabled
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-md bg-gray-50 text-gray-500 cursor-not-allowed"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-surface-border rounded-md bg-gray-50 dark:bg-surface-secondary text-gray-500 dark:text-text-secondary cursor-not-allowed"
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1">Email cannot be changed here</p>
+              <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">Email cannot be changed here</p>
             </div>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
                 Phone Number
               </label>
               <div className="relative">
-                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-text-tertiary" />
                 <input
                   type="tel"
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
                   placeholder="+1 (555) 123-4567"
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
                 Language
               </label>
               <div className="relative">
-                <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
+                <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-text-tertiary z-10" />
                 <select
                   name="language"
                   value={formData.language}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white dark:bg-surface-primary"
                 >
                   <option value="en">English</option>
                   <option value="es">Spanish</option>
@@ -544,16 +544,16 @@ const Profile = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
               Timezone
             </label>
             <div className="relative">
-              <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
+              <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-text-tertiary z-10" />
               <select
                 name="timezone"
                 value={formData.timezone}
                 onChange={handleChange}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white dark:bg-surface-primary"
               >
                 <option value="">Auto-detect</option>
                 <option value="America/New_York">Eastern Time (US)</option>
@@ -568,7 +568,7 @@ const Profile = () => {
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
+          <div className="flex justify-end gap-3 pt-6 border-t border-gray-200 dark:border-surface-border">
             <Button
               type="button"
               variant="outline"
@@ -589,7 +589,7 @@ const Profile = () => {
       <Card title="Notification Settings" description="Choose how you want to be notified about important updates">
         <div className="space-y-6">
           <div>
-            <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+            <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3 flex items-center gap-2">
               <Mail className="w-4 h-4" />
               Email Notifications
             </h4>
@@ -610,7 +610,7 @@ const Profile = () => {
                       type="checkbox"
                       checked={value}
                       onChange={(e) => handleNotificationChange('email', key, e.target.checked)}
-                      className="rounded border-gray-300"
+                      className="rounded border-gray-300 dark:border-surface-border"
                     />
                     <span className="text-sm">{labels[key]}</span>
                   </label>
@@ -620,7 +620,7 @@ const Profile = () => {
           </div>
 
           <div>
-            <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+            <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3 flex items-center gap-2">
               <Smartphone className="w-4 h-4" />
               SMS Notifications (if phone verified)
             </h4>
@@ -637,7 +637,7 @@ const Profile = () => {
                       type="checkbox"
                       checked={value}
                       onChange={(e) => handleNotificationChange('sms', key, e.target.checked)}
-                      className="rounded border-gray-300"
+                      className="rounded border-gray-300 dark:border-surface-border"
                     />
                     <span className="text-sm">{labels[key]}</span>
                   </label>
@@ -647,7 +647,7 @@ const Profile = () => {
           </div>
 
           <div>
-            <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+            <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3 flex items-center gap-2">
               <BellRing className="w-4 h-4" />
               Push Notifications (browser)
             </h4>
@@ -663,7 +663,7 @@ const Profile = () => {
                       type="checkbox"
                       checked={value}
                       onChange={(e) => handleNotificationChange('push', key, e.target.checked)}
-                      className="rounded border-gray-300"
+                      className="rounded border-gray-300 dark:border-surface-border"
                     />
                     <span className="text-sm">{labels[key]}</span>
                   </label>
@@ -673,7 +673,7 @@ const Profile = () => {
           </div>
 
           <div>
-            <h4 className="font-medium text-gray-900 mb-3">Notification Frequency</h4>
+            <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3">Notification Frequency</h4>
             <div className="space-y-2">
               {[
                 { value: 'real-time', label: 'Real-time (immediate)' },
@@ -687,7 +687,7 @@ const Profile = () => {
                     value={option.value}
                     checked={notificationSettings.frequency === option.value}
                     onChange={(e) => setNotificationSettings(prev => ({ ...prev, frequency: e.target.value }))}
-                    className="border-gray-300"
+                    className="border-gray-300 dark:border-surface-border"
                   />
                   <span className="text-sm">{option.label}</span>
                   {option.value.includes('digest-daily') && (
@@ -695,7 +695,7 @@ const Profile = () => {
                       type="time"
                       value={notificationSettings.digestTime}
                       onChange={(e) => setNotificationSettings(prev => ({ ...prev, digestTime: e.target.value }))}
-                      className="text-sm border border-gray-300 rounded px-2 py-1"
+                      className="text-sm border border-gray-300 dark:border-surface-border rounded px-2 py-1"
                     />
                   )}
                 </label>
@@ -708,13 +708,13 @@ const Profile = () => {
       {/* Security Section with 2FA and Password */}
       <Card title="Security" description="Manage your account security and authentication">
         <div className="space-y-6">
-          <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+          <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-surface-border rounded-lg">
             <div>
-              <h4 className="font-medium text-gray-900 flex items-center gap-2">
+              <h4 className="font-medium text-gray-900 dark:text-text-primary flex items-center gap-2">
                 <Shield className="w-4 h-4" />
                 Two-Factor Authentication
               </h4>
-              <p className="text-sm text-gray-600">Protect your account with an extra layer of security</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Protect your account with an extra layer of security</p>
             </div>
             <div className="text-right">
               <Badge variant={twoFactorEnabled ? 'success' : 'error'}>
@@ -734,13 +734,13 @@ const Profile = () => {
             </div>
           </div>
 
-          <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+          <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-surface-border rounded-lg">
             <div>
-              <h4 className="font-medium text-gray-900 flex items-center gap-2">
+              <h4 className="font-medium text-gray-900 dark:text-text-primary flex items-center gap-2">
                 <Key className="w-4 h-4" />
                 Password Security
               </h4>
-              <p className="text-sm text-gray-600">Last changed: Never</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Last changed: Never</p>
             </div>
             <Button onClick={() => setShowPasswordModal(true)}>
               Change Password
@@ -753,16 +753,16 @@ const Profile = () => {
       <Card title="Active Sessions" description="View and manage devices where you're logged in">
         <div className="space-y-4">
           {activeSessions.map((session) => (
-            <div key={session.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+            <div key={session.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-surface-border rounded-lg">
               <div className="flex items-center gap-3">
                 {session.current ? (
-                  <Monitor className="w-5 h-5 text-blue-600" />
+                  <Monitor className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 ) : (
-                  <Smartphone className="w-5 h-5 text-gray-400" />
+                  <Smartphone className="w-5 h-5 text-gray-400 dark:text-text-tertiary" />
                 )}
                 <div>
-                  <p className="font-medium text-gray-900">{session.device}</p>
-                  <p className="text-sm text-gray-600">
+                  <p className="font-medium text-gray-900 dark:text-text-primary">{session.device}</p>
+                  <p className="text-sm text-gray-600 dark:text-text-secondary">
                     Last active: {session.lastActive} • {session.location}
                     {session.current && ' (current session)'}
                   </p>
@@ -779,7 +779,7 @@ const Profile = () => {
               )}
             </div>
           ))}
-          <div className="pt-4 border-t border-gray-200">
+          <div className="pt-4 border-t border-gray-200 dark:border-surface-border">
             <Button variant="outline" onClick={handleSignOutAllSessions}>
               Sign Out All Other Sessions
             </Button>
@@ -792,11 +792,11 @@ const Profile = () => {
         <div className="space-y-4">
           <div className="flex items-center gap-3">
             <Badge variant="success">Owner</Badge>
-            <span className="text-sm text-gray-600">Business Owner</span>
+            <span className="text-sm text-gray-600 dark:text-text-secondary">Business Owner</span>
           </div>
 
           <div>
-            <h4 className="font-medium text-gray-900 mb-2">Permissions</h4>
+            <h4 className="font-medium text-gray-900 dark:text-text-primary mb-2">Permissions</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               {[
                 'Full access to all features',
@@ -804,7 +804,7 @@ const Profile = () => {
                 'Can view financial reports',
                 'Can modify business settings',
               ].map((permission, index) => (
-                <div key={index} className="flex items-center gap-2 text-sm text-gray-600">
+                <div key={index} className="flex items-center gap-2 text-sm text-gray-600 dark:text-text-secondary">
                   <CheckCircle className="w-4 h-4 text-green-600" />
                   {permission}
                 </div>
@@ -823,16 +823,16 @@ const Profile = () => {
         <div className="space-y-4">
           {['Today', 'Yesterday'].map((date) => (
             <div key={date}>
-              <h4 className="font-medium text-gray-900 mb-3">{date}</h4>
+              <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3">{date}</h4>
               <div className="space-y-3">
                 {recentActivity
                   .filter((activity) => activity.date === date.toLowerCase())
                   .map((activity) => (
-                    <div key={activity.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      <Activity className="w-4 h-4 text-blue-600" />
+                    <div key={activity.id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-surface-secondary rounded-lg">
+                      <Activity className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                       <div className="flex-1">
-                        <p className="text-sm text-gray-900">{activity.action}</p>
-                        <p className="text-xs text-gray-500">{activity.timestamp}</p>
+                        <p className="text-sm text-gray-900 dark:text-text-primary">{activity.action}</p>
+                        <p className="text-xs text-gray-500 dark:text-text-secondary">{activity.timestamp}</p>
                       </div>
                     </div>
                   ))}
@@ -840,7 +840,7 @@ const Profile = () => {
             </div>
           ))}
 
-          <div className="pt-4 border-t border-gray-200">
+          <div className="pt-4 border-t border-gray-200 dark:border-surface-border">
             <Button variant="outline">
               View Full Activity Log →
             </Button>
@@ -852,7 +852,7 @@ const Profile = () => {
       <Card title="Display Preferences" description="Customize how information appears in the system">
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
               Dashboard Layout
             </label>
             <div className="space-y-2">
@@ -868,7 +868,7 @@ const Profile = () => {
                     value={option.value}
                     checked={personalization.dashboardLayout === option.value}
                     onChange={(e) => setPersonalization(prev => ({ ...prev, dashboardLayout: e.target.value }))}
-                    className="border-gray-300"
+                    className="border-gray-300 dark:border-surface-border"
                   />
                   <span className="text-sm">{option.label}</span>
                 </label>
@@ -878,13 +878,13 @@ const Profile = () => {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
                 Default Landing Page
               </label>
               <select
                 value={personalization.defaultLandingPage}
                 onChange={(e) => setPersonalization(prev => ({ ...prev, defaultLandingPage: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="dashboard">Dashboard</option>
                 <option value="schedule">Today's Schedule</option>
@@ -894,13 +894,13 @@ const Profile = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
                 Date Format
               </label>
               <select
                 value={personalization.dateFormat}
                 onChange={(e) => setPersonalization(prev => ({ ...prev, dateFormat: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="MM/DD/YYYY">MM/DD/YYYY (US)</option>
                 <option value="DD/MM/YYYY">DD/MM/YYYY (International)</option>
@@ -909,13 +909,13 @@ const Profile = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
                 Time Format
               </label>
               <select
                 value={personalization.timeFormat}
                 onChange={(e) => setPersonalization(prev => ({ ...prev, timeFormat: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="12-hour">12-hour (2:30 PM)</option>
                 <option value="24-hour">24-hour (14:30)</option>
@@ -923,13 +923,13 @@ const Profile = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
                 Number Format
               </label>
               <select
                 value={personalization.numberFormat}
                 onChange={(e) => setPersonalization(prev => ({ ...prev, numberFormat: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="us">1,234.56 (US)</option>
                 <option value="european">1.234,56 (European)</option>
@@ -942,10 +942,10 @@ const Profile = () => {
       {/* Privacy & Data */}
       <Card title="Privacy & Data" description="You have full control over your personal information">
         <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+          <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-surface-border rounded-lg">
             <div>
-              <h4 className="font-medium text-gray-900">Download My Data</h4>
-              <p className="text-sm text-gray-600">Export all your profile data and activity (JSON/CSV)</p>
+              <h4 className="font-medium text-gray-900 dark:text-text-primary">Download My Data</h4>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Export all your profile data and activity (JSON/CSV)</p>
             </div>
             <Button variant="outline">
               <Download className="w-4 h-4 mr-2" />
@@ -953,22 +953,22 @@ const Profile = () => {
             </Button>
           </div>
 
-          <div className="flex items-center justify-between p-4 border border-red-200 rounded-lg">
+          <div className="flex items-center justify-between p-4 border border-red-200 dark:border-red-900/30 rounded-lg">
             <div>
-              <h4 className="font-medium text-red-900">Request Account Deletion</h4>
+              <h4 className="font-medium text-red-900 dark:text-red-100">Request Account Deletion</h4>
               <p className="text-sm text-red-700">Permanently delete your account and data (requires confirmation)</p>
             </div>
-            <Button variant="outline" className="text-red-600 border-red-300 hover:bg-red-50">
+            <Button variant="outline" className="text-red-600 border-red-300 hover:bg-red-50 dark:bg-surface-primary">
               <Trash2 className="w-4 h-4 mr-2" />
               Request Deletion
             </Button>
           </div>
 
-          <div className="text-xs text-gray-500 space-y-1">
+          <div className="text-xs text-gray-500 dark:text-text-secondary space-y-1">
             <p>Data Retention: All personal data retained per GDPR guidelines</p>
             <p>
-              Privacy Policy: <button className="text-blue-600 underline">Link</button> |
-              Terms of Service: <button className="text-blue-600 underline ml-1">Link</button>
+              Privacy Policy: <button className="text-blue-600 dark:text-blue-400 underline">Link</button> |
+              Terms of Service: <button className="text-blue-600 dark:text-blue-400 underline ml-1">Link</button>
             </p>
           </div>
         </div>
@@ -980,12 +980,12 @@ const Profile = () => {
           {connectedApps.map((app) => {
             const Icon = app.icon;
             return (
-              <div key={app.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+              <div key={app.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-surface-border rounded-lg">
                 <div className="flex items-center gap-3">
-                  <Icon className="w-6 h-6 text-gray-600" />
+                  <Icon className="w-6 h-6 text-gray-600 dark:text-text-secondary" />
                   <div>
-                    <h4 className="font-medium text-gray-900">{app.name}</h4>
-                    <p className="text-sm text-gray-600">{app.description}</p>
+                    <h4 className="font-medium text-gray-900 dark:text-text-primary">{app.name}</h4>
+                    <p className="text-sm text-gray-600 dark:text-text-secondary">{app.description}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1006,7 +1006,7 @@ const Profile = () => {
             );
           })}
 
-          <div className="pt-4 border-t border-gray-200">
+          <div className="pt-4 border-t border-gray-200 dark:border-surface-border">
             <Button variant="outline">
               Manage All Integrations →
             </Button>
@@ -1035,23 +1035,23 @@ const Profile = () => {
           </Button>
         </div>
 
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <h4 className="font-medium text-gray-900 mb-2">System Information</h4>
+        <div className="mt-6 pt-6 border-t border-gray-200 dark:border-surface-border">
+          <h4 className="font-medium text-gray-900 dark:text-text-primary mb-2">System Information</h4>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
-              <span className="text-gray-500">Account ID:</span>
+              <span className="text-gray-500 dark:text-text-secondary">Account ID:</span>
               <p className="font-mono">#12345</p>
             </div>
             <div>
-              <span className="text-gray-500">Plan:</span>
+              <span className="text-gray-500 dark:text-text-secondary">Plan:</span>
               <p>Professional</p>
             </div>
             <div>
-              <span className="text-gray-500">Version:</span>
+              <span className="text-gray-500 dark:text-text-secondary">Version:</span>
               <p>2.1.4</p>
             </div>
             <div>
-              <span className="text-gray-500">Last Updated:</span>
+              <span className="text-gray-500 dark:text-text-secondary">Last Updated:</span>
               <p>Jan 15, 2024</p>
             </div>
           </div>
@@ -1062,23 +1062,23 @@ const Profile = () => {
       <Card title="Account Information" description="View your account details and status">
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="block text-sm text-gray-500 mb-1">Account Created</label>
+            <label className="block text-sm text-gray-500 dark:text-text-secondary mb-1">Account Created</label>
             <p className="font-medium">
               {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'January 15, 2024'}
             </p>
           </div>
           <div>
-            <label className="block text-sm text-gray-500 mb-1">Email Status</label>
+            <label className="block text-sm text-gray-500 dark:text-text-secondary mb-1">Email Status</label>
             <Badge variant={profile?.emailVerified ? 'success' : 'warning'}>
               {profile?.emailVerified ? 'Verified' : 'Not Verified'}
             </Badge>
           </div>
           <div>
-            <label className="block text-sm text-gray-500 mb-1">Last Login</label>
+            <label className="block text-sm text-gray-500 dark:text-text-secondary mb-1">Last Login</label>
             <p className="font-medium">Just now</p>
           </div>
           <div>
-            <label className="block text-sm text-gray-500 mb-1">Account Type</label>
+            <label className="block text-sm text-gray-500 dark:text-text-secondary mb-1">Account Type</label>
             <p className="font-medium">Business Owner</p>
           </div>
         </div>
@@ -1087,48 +1087,48 @@ const Profile = () => {
       {/* Password Change Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+          <div className="bg-white dark:bg-surface-primary rounded-lg p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-semibold mb-4">Change Password</h3>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                   Current Password
                 </label>
                 <input
                   type="password"
                   value={passwordForm.current}
                   onChange={(e) => handlePasswordChange('current', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                   New Password
                 </label>
                 <input
                   type="password"
                   value={passwordForm.new}
                   onChange={(e) => handlePasswordChange('new', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <PasswordStrength password={passwordForm.new} className="mt-2" />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                   Confirm New Password
                 </label>
                 <input
                   type="password"
                   value={passwordForm.confirm}
                   onChange={(e) => handlePasswordChange('confirm', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
-              <div className="text-xs text-gray-500 space-y-1">
+              <div className="text-xs text-gray-500 dark:text-text-secondary space-y-1">
                 <p>✓ At least 8 characters</p>
                 <p>✓ One uppercase letter</p>
                 <p>✓ One number</p>
@@ -1151,32 +1151,32 @@ const Profile = () => {
       {/* 2FA Setup Modal */}
       {show2FAModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+          <div className="bg-white dark:bg-surface-primary rounded-lg p-6 w-full max-w-md mx-4">
             <h3 className="text-lg font-semibold mb-4">Secure Your Account</h3>
 
             <div className="space-y-4">
               <div className="text-center">
-                <QrCode className="w-32 h-32 mx-auto mb-4 border border-gray-200 rounded-lg p-2" />
-                <p className="text-sm text-gray-600 mb-4">
+                <QrCode className="w-32 h-32 mx-auto mb-4 border border-gray-200 dark:border-surface-border rounded-lg p-2" />
+                <p className="text-sm text-gray-600 dark:text-text-secondary mb-4">
                   1. Download authenticator app (Google Authenticator, Authy)
                 </p>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm text-gray-600 dark:text-text-secondary mb-4">
                   2. Scan the QR code above with your app
                 </p>
-                <p className="text-sm text-gray-600 mb-4">
+                <p className="text-sm text-gray-600 dark:text-text-secondary mb-4">
                   3. Enter the 6-digit code from your app
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                   Verification Code
                 </label>
                 <input
                   type="text"
                   placeholder="000000"
                   maxLength="6"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-center text-lg font-mono"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-center text-lg font-mono"
                 />
               </div>
             </div>

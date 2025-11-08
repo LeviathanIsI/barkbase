@@ -14,17 +14,17 @@ const TeamMemberCard = ({ member, isSelected, onSelect, onEdit }) => {
 
   const getRoleColor = (role) => {
     switch (role.toLowerCase()) {
-      case 'owner': return 'bg-purple-100 text-purple-800';
-      case 'manager': return 'bg-blue-100 text-blue-800';
-      case 'staff': return 'bg-green-100 text-green-800';
-      case 'groomer': return 'bg-pink-100 text-pink-800';
-      case 'trainer': return 'bg-orange-100 text-orange-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'owner': return 'bg-purple-100 dark:bg-surface-secondary text-purple-800 dark:text-purple-200';
+      case 'manager': return 'bg-blue-100 dark:bg-surface-secondary text-blue-800 dark:text-blue-200';
+      case 'staff': return 'bg-green-100 dark:bg-surface-secondary text-green-800';
+      case 'groomer': return 'bg-pink-100 dark:bg-surface-secondary text-pink-800';
+      case 'trainer': return 'bg-orange-100 dark:bg-surface-secondary text-orange-800';
+      default: return 'bg-gray-100 dark:bg-surface-secondary text-gray-800 dark:text-text-primary';
     }
   };
 
   const getStatusColor = (isOnline) => {
-    return isOnline ? 'bg-green-500' : 'bg-gray-400';
+    return isOnline ? 'bg-green-50 dark:bg-green-950/20' : 'bg-gray-400 dark:bg-surface-secondary';
   };
 
   const formatPermissions = (permissions) => {
@@ -55,7 +55,7 @@ const TeamMemberCard = ({ member, isSelected, onSelect, onEdit }) => {
           type="checkbox"
           checked={isSelected}
           onChange={() => onSelect(member.id)}
-          className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+          className="w-4 h-4 text-blue-600 dark:text-blue-400 rounded border-gray-300 dark:border-surface-border focus:ring-blue-500"
         />
       </div>
 
@@ -64,13 +64,13 @@ const TeamMemberCard = ({ member, isSelected, onSelect, onEdit }) => {
         <div className="relative">
           <button
             onClick={() => setShowMenu(!showMenu)}
-            className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+            className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary transition-colors"
           >
-            <MoreVertical className="w-4 h-4 text-gray-500" />
+            <MoreVertical className="w-4 h-4 text-gray-500 dark:text-text-secondary" />
           </button>
 
           {showMenu && (
-            <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-20">
+            <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-surface-primary border border-gray-200 dark:border-surface-border rounded-md shadow-lg z-20">
               {menuActions.map((action, index) => {
                 const Icon = action.icon;
                 return (
@@ -80,8 +80,8 @@ const TeamMemberCard = ({ member, isSelected, onSelect, onEdit }) => {
                       action.action();
                       setShowMenu(false);
                     }}
-                    className={`w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-gray-50 transition-colors ${
-                      action.danger ? 'text-red-600 hover:text-red-700' : 'text-gray-700'
+                    className={`w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary transition-colors ${
+                      action.danger ? 'text-red-600 hover:text-red-700' : 'text-gray-700 dark:text-text-primary'
                     }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -102,11 +102,11 @@ const TeamMemberCard = ({ member, isSelected, onSelect, onEdit }) => {
             <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${getStatusColor(member.isOnline)}`} />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-gray-900 truncate">{member.name}</h3>
-            <p className="text-sm text-gray-600 truncate">{member.email}</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary truncate">{member.name}</h3>
+            <p className="text-sm text-gray-600 dark:text-text-secondary truncate">{member.email}</p>
             <div className="flex items-center gap-2 mt-1">
               <Badge className={getRoleColor(member.role)}>{member.role}</Badge>
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-gray-500 dark:text-text-secondary">
                 {member.isOnline ? '● Online now' : member.lastActive}
               </span>
             </div>
@@ -115,15 +115,15 @@ const TeamMemberCard = ({ member, isSelected, onSelect, onEdit }) => {
 
         {/* Quick Permissions */}
         <div className="mb-4">
-          <p className="text-sm font-medium text-gray-700 mb-2">Quick Permissions:</p>
+          <p className="text-sm font-medium text-gray-700 dark:text-text-primary mb-2">Quick Permissions:</p>
           <div className="flex flex-wrap gap-1">
             {formatPermissions(member.permissions).map((perm, index) => (
               <span
                 key={index}
                 className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full ${
                   perm.enabled
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-gray-100 text-gray-600'
+                    ? 'bg-green-100 dark:bg-surface-secondary text-green-800'
+                    : 'bg-gray-100 dark:bg-surface-secondary text-gray-600 dark:text-text-secondary'
                 }`}
               >
                 {perm.enabled ? (
@@ -139,11 +139,11 @@ const TeamMemberCard = ({ member, isSelected, onSelect, onEdit }) => {
 
         {/* Schedule and Location */}
         <div className="space-y-2 mb-4">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
+          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-text-secondary">
             <Calendar className="w-4 h-4" />
             <span>{member.schedule}</span>
           </div>
-          <div className="flex items-center gap-2 text-sm text-gray-600">
+          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-text-secondary">
             <span className="w-4 h-4 flex items-center justify-center">📍</span>
             <span>{member.location}</span>
           </div>
@@ -151,8 +151,8 @@ const TeamMemberCard = ({ member, isSelected, onSelect, onEdit }) => {
 
         {/* Performance Metrics (if available) */}
         {member.performance && (
-          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-            <p className="text-sm font-medium text-gray-700 mb-2">Performance (This Month)</p>
+          <div className="mb-4 p-3 bg-gray-50 dark:bg-surface-secondary rounded-lg">
+            <p className="text-sm font-medium text-gray-700 dark:text-text-primary mb-2">Performance (This Month)</p>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>Check-ins: {member.performance.checkInsProcessed}</div>
               <div>Bookings: {member.performance.bookingsCreated}</div>
@@ -166,7 +166,7 @@ const TeamMemberCard = ({ member, isSelected, onSelect, onEdit }) => {
         )}
 
         {/* Join Date */}
-        <div className="text-xs text-gray-500">
+        <div className="text-xs text-gray-500 dark:text-text-secondary">
           Joined: {member.joinedAt ? new Date(member.joinedAt).toLocaleDateString() : 'Pending'}
         </div>
 

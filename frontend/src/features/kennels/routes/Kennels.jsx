@@ -192,8 +192,8 @@ const Kennels = () => {
                   <p className="text-sm font-medium text-[#64748B]">Total Kennels</p>
                   <p className="text-2xl font-bold text-[#263238]">{stats.total}</p>
                 </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Building className="h-6 w-6 text-blue-600" />
+                <div className="w-12 h-12 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
+                  <Building className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                 </div>
               </div>
             </Card>
@@ -204,7 +204,7 @@ const Kennels = () => {
                   <p className="text-sm font-medium text-[#64748B]">Active Kennels</p>
                   <p className="text-2xl font-bold text-[#263238]">{stats.active}</p>
                 </div>
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <Home className="h-6 w-6 text-green-600" />
                 </div>
               </div>
@@ -217,8 +217,8 @@ const Kennels = () => {
                   <p className="text-2xl font-bold text-[#263238]">{stats.totalCapacity}</p>
                   <p className="text-xs text-[#64748B] mt-1">{stats.occupiedCapacity} occupied</p>
                 </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <MapPin className="h-6 w-6 text-purple-600" />
+                <div className="w-12 h-12 bg-purple-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
+                  <MapPin className="h-6 w-6 text-purple-600 dark:text-purple-400" />
                 </div>
               </div>
             </Card>
@@ -229,7 +229,7 @@ const Kennels = () => {
                   <p className="text-sm font-medium text-[#64748B]">Buildings</p>
                   <p className="text-2xl font-bold text-[#263238]">{stats.buildings}</p>
                 </div>
-                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                <div className="w-12 h-12 bg-orange-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <Building className="h-6 w-6 text-orange-600" />
                 </div>
               </div>

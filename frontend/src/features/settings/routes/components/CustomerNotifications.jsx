@@ -81,13 +81,13 @@ const CustomerNotifications = ({ notifications, onUpdate }) => {
   return (
     <Card title="Customer Notifications" icon={User}>
       <div className="space-y-6">
-        <p className="text-gray-600">
+        <p className="text-gray-600 dark:text-text-secondary">
           Control what your customers receive
         </p>
 
         {/* Booking Confirmations */}
         <div>
-          <h3 className="font-medium text-gray-900 mb-3">BOOKING CONFIRMATIONS</h3>
+          <h3 className="font-medium text-gray-900 dark:text-text-primary mb-3">BOOKING CONFIRMATIONS</h3>
           <div className="space-y-2">
             <label className="flex items-center gap-3">
               <input
@@ -96,11 +96,11 @@ const CustomerNotifications = ({ notifications, onUpdate }) => {
                 value="immediate"
                 checked={notifications.confirmations === 'immediate'}
                 onChange={() => handleConfirmationChange('immediate')}
-                className="text-blue-600"
+                className="text-blue-600 dark:text-blue-400"
               />
               <div>
                 <span className="font-medium">Send immediately after booking</span>
-                <p className="text-sm text-gray-600">Customers get instant confirmation</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">Customers get instant confirmation</p>
               </div>
             </label>
             <label className="flex items-center gap-3">
@@ -110,11 +110,11 @@ const CustomerNotifications = ({ notifications, onUpdate }) => {
                 value="batch"
                 checked={notifications.confirmations === 'batch'}
                 onChange={() => handleConfirmationChange('batch')}
-                className="text-blue-600"
+                className="text-blue-600 dark:text-blue-400"
               />
               <div>
                 <span className="font-medium">Send within 1 hour (batch multiple services)</span>
-                <p className="text-sm text-gray-600">Combine services into one confirmation</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">Combine services into one confirmation</p>
               </div>
             </label>
             <label className="flex items-center gap-3">
@@ -124,11 +124,11 @@ const CustomerNotifications = ({ notifications, onUpdate }) => {
                 value="manual"
                 checked={notifications.confirmations === 'manual'}
                 onChange={() => handleConfirmationChange('manual')}
-                className="text-blue-600"
+                className="text-blue-600 dark:text-blue-400"
               />
               <div>
                 <span className="font-medium">Don't send (manual only)</span>
-                <p className="text-sm text-gray-600">Staff sends confirmations manually</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">Staff sends confirmations manually</p>
               </div>
             </label>
           </div>
@@ -143,14 +143,14 @@ const CustomerNotifications = ({ notifications, onUpdate }) => {
 
         {/* Reminders */}
         <div>
-          <h3 className="font-medium text-gray-900 mb-3">REMINDERS</h3>
+          <h3 className="font-medium text-gray-900 dark:text-text-primary mb-3">REMINDERS</h3>
           <div className="space-y-3">
             <label className="flex items-center gap-3">
               <input
                 type="checkbox"
                 checked={notifications.reminders.sevenDays}
                 onChange={(e) => handleReminderToggle('sevenDays', e.target.checked)}
-                className="rounded border-gray-300"
+                className="rounded border-gray-300 dark:border-surface-border"
               />
               <span>7 days before check-in</span>
             </label>
@@ -159,7 +159,7 @@ const CustomerNotifications = ({ notifications, onUpdate }) => {
                 type="checkbox"
                 checked={notifications.reminders.twentyFourHours}
                 onChange={(e) => handleReminderToggle('twentyFourHours', e.target.checked)}
-                className="rounded border-gray-300"
+                className="rounded border-gray-300 dark:border-surface-border"
               />
               <span>24 hours before check-in</span>
             </label>
@@ -168,13 +168,13 @@ const CustomerNotifications = ({ notifications, onUpdate }) => {
                 type="checkbox"
                 checked={notifications.reminders.dayOf}
                 onChange={(e) => handleReminderToggle('dayOf', e.target.checked)}
-                className="rounded border-gray-300"
+                className="rounded border-gray-300 dark:border-surface-border"
               />
               <span>Day-of check-in (</span>
               <select
                 value={notifications.reminders.hoursBefore}
                 onChange={(e) => handleHoursChange(parseInt(e.target.value))}
-                className="px-2 py-1 border border-gray-300 rounded text-sm"
+                className="px-2 py-1 border border-gray-300 dark:border-surface-border rounded text-sm"
                 disabled={!notifications.reminders.dayOf}
               >
                 <option value={1}>1 hour</option>
@@ -189,14 +189,14 @@ const CustomerNotifications = ({ notifications, onUpdate }) => {
 
         {/* Report Cards & Updates */}
         <div>
-          <h3 className="font-medium text-gray-900 mb-3">REPORT CARDS & UPDATES</h3>
+          <h3 className="font-medium text-gray-900 dark:text-text-primary mb-3">REPORT CARDS & UPDATES</h3>
           <div className="space-y-3">
             <label className="flex items-center gap-3">
               <input
                 type="checkbox"
                 checked={notifications.reportCards.enabled}
                 onChange={(e) => handleReportCardToggle(e.target.checked)}
-                className="rounded border-gray-300"
+                className="rounded border-gray-300 dark:border-surface-border"
               />
               <span>Send report card after each visit</span>
             </label>
@@ -205,13 +205,13 @@ const CustomerNotifications = ({ notifications, onUpdate }) => {
                 type="checkbox"
                 checked={notifications.reportCards.photoUpdates}
                 onChange={(e) => handlePhotoUpdatesToggle(e.target.checked)}
-                className="rounded border-gray-300"
+                className="rounded border-gray-300 dark:border-surface-border"
                 disabled={!notifications.reportCards.enabled}
               />
               <span>Send photo updates during stay</span>
             </label>
             <div className="ml-6">
-              <span className="text-sm text-gray-600">Timing: </span>
+              <span className="text-sm text-gray-600 dark:text-text-secondary">Timing: </span>
               <label className="inline-flex items-center gap-2 ml-2">
                 <input
                   type="radio"
@@ -220,7 +220,7 @@ const CustomerNotifications = ({ notifications, onUpdate }) => {
                   checked={notifications.reportCards.timing === 'real-time'}
                   onChange={() => handleTimingChange('real-time')}
                   disabled={!notifications.reportCards.photoUpdates}
-                  className="text-blue-600"
+                  className="text-blue-600 dark:text-blue-400"
                 />
                 <span className="text-sm">Real-time</span>
               </label>
@@ -232,7 +232,7 @@ const CustomerNotifications = ({ notifications, onUpdate }) => {
                   checked={notifications.reportCards.timing === 'end-of-day'}
                   onChange={() => handleTimingChange('end-of-day')}
                   disabled={!notifications.reportCards.photoUpdates}
-                  className="text-blue-600"
+                  className="text-blue-600 dark:text-blue-400"
                 />
                 <span className="text-sm">End of day (6:00 PM)</span>
               </label>
@@ -242,14 +242,14 @@ const CustomerNotifications = ({ notifications, onUpdate }) => {
 
         {/* Marketing Communications */}
         <div>
-          <h3 className="font-medium text-gray-900 mb-3">MARKETING COMMUNICATIONS</h3>
+          <h3 className="font-medium text-gray-900 dark:text-text-primary mb-3">MARKETING COMMUNICATIONS</h3>
           <div className="space-y-3">
             <label className="flex items-center gap-3">
               <input
                 type="checkbox"
                 checked={notifications.marketing.birthdays}
                 onChange={(e) => handleMarketingToggle('birthdays', e.target.checked)}
-                className="rounded border-gray-300"
+                className="rounded border-gray-300 dark:border-surface-border"
               />
               <span>Birthday wishes</span>
             </label>
@@ -258,7 +258,7 @@ const CustomerNotifications = ({ notifications, onUpdate }) => {
                 type="checkbox"
                 checked={notifications.marketing.rebooking}
                 onChange={(e) => handleMarketingToggle('rebooking', e.target.checked)}
-                className="rounded border-gray-300"
+                className="rounded border-gray-300 dark:border-surface-border"
               />
               <span>Re-booking reminders (inactive 30+ days)</span>
             </label>
@@ -267,7 +267,7 @@ const CustomerNotifications = ({ notifications, onUpdate }) => {
                 type="checkbox"
                 checked={notifications.marketing.seasonal}
                 onChange={(e) => handleMarketingToggle('seasonal', e.target.checked)}
-                className="rounded border-gray-300"
+                className="rounded border-gray-300 dark:border-surface-border"
               />
               <span>Seasonal promotions</span>
             </label>
@@ -276,7 +276,7 @@ const CustomerNotifications = ({ notifications, onUpdate }) => {
                 type="checkbox"
                 checked={notifications.marketing.newsletter}
                 onChange={(e) => handleMarketingToggle('newsletter', e.target.checked)}
-                className="rounded border-gray-300"
+                className="rounded border-gray-300 dark:border-surface-border"
               />
               <span>Newsletter and updates</span>
             </label>
@@ -284,7 +284,7 @@ const CustomerNotifications = ({ notifications, onUpdate }) => {
         </div>
 
         {/* Preview Button */}
-        <div className="pt-4 border-t border-gray-200">
+        <div className="pt-4 border-t border-gray-200 dark:border-surface-border">
           <Button variant="outline" onClick={handlePreviewExperience}>
             <Eye className="w-4 h-4 mr-2" />
             Preview Customer Experience

@@ -128,15 +128,15 @@ const TeamOverview = () => {
         />
 
         {/* Value Proposition */}
-        <Card className="p-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+        <Card className="p-8 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-surface-primary dark:to-surface-primary border-blue-200 dark:border-blue-900/30">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Users className="w-8 h-8 text-blue-600" />
+            <div className="w-16 h-16 bg-blue-100 dark:bg-surface-secondary rounded-full flex items-center justify-center mx-auto mb-4">
+              <Users className="w-8 h-8 text-blue-600 dark:text-blue-400" />
             </div>
-            <h3 className="text-2xl font-semibold text-blue-900 mb-2">
+            <h3 className="text-2xl font-semibold text-blue-900 dark:text-blue-100 mb-2">
               Why Team Management Matters
             </h3>
-            <p className="text-blue-800 max-w-2xl mx-auto">
+            <p className="text-blue-800 dark:text-blue-200 max-w-2xl mx-auto">
               Proper team setup enables automated shift scheduling, task
               assignment and tracking, time clock and payroll integration,
               permission-based access control, and staff performance analytics.
@@ -144,39 +144,39 @@ const TeamOverview = () => {
           </div>
 
           <div className="grid gap-4 md:grid-cols-3 mb-8">
-            <div className="flex items-start gap-3 p-4 bg-white rounded-lg">
+            <div className="flex items-start gap-3 p-4 bg-white dark:bg-surface-primary rounded-lg">
               <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
               <div>
-                <div className="font-medium text-gray-900">
+                <div className="font-medium text-gray-900 dark:text-text-primary">
                   Automated Scheduling
                 </div>
-                <div className="text-sm text-gray-600">
+                <div className="text-sm text-gray-600 dark:text-text-secondary">
                   Visual calendar with coverage analysis
                 </div>
               </div>
             </div>
-            <div className="flex items-start gap-3 p-4 bg-white rounded-lg">
+            <div className="flex items-start gap-3 p-4 bg-white dark:bg-surface-primary rounded-lg">
               <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
               <div>
-                <div className="font-medium text-gray-900">Task Management</div>
-                <div className="text-sm text-gray-600">
+                <div className="font-medium text-gray-900 dark:text-text-primary">Task Management</div>
+                <div className="text-sm text-gray-600 dark:text-text-secondary">
                   Assign, track, and complete daily tasks
                 </div>
               </div>
             </div>
-            <div className="flex items-start gap-3 p-4 bg-white rounded-lg">
+            <div className="flex items-start gap-3 p-4 bg-white dark:bg-surface-primary rounded-lg">
               <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
               <div>
-                <div className="font-medium text-gray-900">Time Tracking</div>
-                <div className="text-sm text-gray-600">
+                <div className="font-medium text-gray-900 dark:text-text-primary">Time Tracking</div>
+                <div className="text-sm text-gray-600 dark:text-text-secondary">
                   GPS-verified clock in/out system
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-blue-100 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-center gap-2 text-blue-800">
+          <div className="bg-blue-100 dark:bg-surface-secondary border border-blue-200 dark:border-blue-900/30 rounded-lg p-4">
+            <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
               <Clock className="w-5 h-5" />
               <span className="font-medium">
                 Setup time: 5 minutes per staff member
@@ -193,21 +193,21 @@ const TeamOverview = () => {
             onClick={handleAddStaff}
           >
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <UserPlus className="w-6 h-6 text-blue-600" />
+              <div className="w-12 h-12 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
+                <UserPlus className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <h4 className="text-lg font-semibold text-gray-900">
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-text-primary">
                   Quick Add
                 </h4>
-                <p className="text-sm text-gray-600">Recommended</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">Recommended</p>
               </div>
             </div>
-            <p className="text-gray-700 mb-4">
+            <p className="text-gray-700 dark:text-text-primary mb-4">
               Add staff member in under 2 minutes. Basic info, role, and working
               hours.
             </p>
-            <ul className="text-sm text-gray-600 space-y-1 mb-4">
+            <ul className="text-sm text-gray-600 dark:text-text-secondary space-y-1 mb-4">
               <li>• Name, email, phone</li>
               <li>• Job title and permissions</li>
               <li>• Working hours and availability</li>
@@ -218,17 +218,17 @@ const TeamOverview = () => {
           {/* Bulk Import */}
           <Card className="p-6">
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+              <div className="w-12 h-12 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                 <TrendingUp className="w-6 h-6 text-green-600" />
               </div>
               <div>
-                <h4 className="text-lg font-semibold text-gray-900">
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-text-primary">
                   Bulk Import
                 </h4>
-                <p className="text-sm text-gray-600">5+ staff members</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">5+ staff members</p>
               </div>
             </div>
-            <p className="text-gray-700 mb-4">
+            <p className="text-gray-700 dark:text-text-primary mb-4">
               Add multiple staff at once via CSV/Excel. Perfect for existing
               teams.
             </p>
@@ -244,12 +244,12 @@ const TeamOverview = () => {
         </div>
 
         {/* Alternative Option */}
-        <Card className="p-6 border-dashed border-2 border-gray-300">
+        <Card className="p-6 border-dashed border-2 border-gray-300 dark:border-surface-border">
           <div className="text-center">
-            <h4 className="text-lg font-semibold text-gray-900 mb-2">
+            <h4 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">
               Send Invitations
             </h4>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 dark:text-text-secondary mb-4">
               Send email invitations to staff members. They'll complete their
               own profiles.
             </p>
@@ -278,7 +278,7 @@ const TeamOverview = () => {
         actions={
           <div className="flex items-center gap-2">
             {/* View Toggle */}
-            <div className="flex items-center bg-gray-100 rounded-lg p-1">
+            <div className="flex items-center bg-gray-100 dark:bg-surface-secondary rounded-lg p-1">
               <Button
                 key="overview"
                 variant={currentView === "overview" ? "primary" : "ghost"}

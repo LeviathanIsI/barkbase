@@ -7,13 +7,13 @@ import { Card } from '@/components/ui/Card';
 const Step1FacilityBasics = ({ data, onUpdate, onNext }) => (
   <div className="space-y-6">
     <div>
-      <h3 className="text-xl font-semibold text-gray-900 mb-2">Facility Information</h3>
-      <p className="text-gray-600">Let's start with basic information about your facility.</p>
+      <h3 className="text-xl font-semibold text-gray-900 dark:text-text-primary mb-2">Facility Information</h3>
+      <p className="text-gray-600 dark:text-text-secondary">Let's start with basic information about your facility.</p>
     </div>
 
     <div className="grid gap-6 md:grid-cols-2">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
           Facility Name
         </label>
         <input
@@ -21,18 +21,18 @@ const Step1FacilityBasics = ({ data, onUpdate, onNext }) => (
           value={data.facilityName || ''}
           onChange={(e) => onUpdate({ facilityName: e.target.value })}
           placeholder="Happy Paws Boarding & Daycare"
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
           Facility Size
         </label>
         <select
           value={data.facilitySize || 'medium'}
           onChange={(e) => onUpdate({ facilitySize: e.target.value })}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="small">Small (1-15 accommodations)</option>
           <option value="medium">Medium (16-40 accommodations)</option>
@@ -43,7 +43,7 @@ const Step1FacilityBasics = ({ data, onUpdate, onNext }) => (
     </div>
 
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-3">
+      <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-3">
         Facility Type (You can offer multiple services)
       </label>
       <div className="grid gap-3 md:grid-cols-2">
@@ -53,7 +53,7 @@ const Step1FacilityBasics = ({ data, onUpdate, onNext }) => (
           { key: 'grooming', label: 'Grooming', desc: 'Bath, haircut, nail trim' },
           { key: 'training', label: 'Training', desc: 'Obedience classes, behavior training' }
         ].map(service => (
-          <label key={service.key} className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
+          <label key={service.key} className="flex items-start gap-3 p-3 border border-gray-200 dark:border-surface-border rounded-lg hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary cursor-pointer">
             <input
               type="checkbox"
               checked={data.services?.includes(service.key) || false}
@@ -68,8 +68,8 @@ const Step1FacilityBasics = ({ data, onUpdate, onNext }) => (
               className="mt-1"
             />
             <div>
-              <div className="font-medium text-gray-900">{service.label}</div>
-              <div className="text-sm text-gray-600">{service.desc}</div>
+              <div className="font-medium text-gray-900 dark:text-text-primary">{service.label}</div>
+              <div className="text-sm text-gray-600 dark:text-text-secondary">{service.desc}</div>
             </div>
           </label>
         ))}
@@ -77,7 +77,7 @@ const Step1FacilityBasics = ({ data, onUpdate, onNext }) => (
     </div>
 
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-3">
+      <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-3">
         Primary Species (Check all that apply)
       </label>
       <div className="grid gap-2 md:grid-cols-3">
@@ -107,8 +107,8 @@ const Step1FacilityBasics = ({ data, onUpdate, onNext }) => (
       </div>
     </div>
 
-    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-      <div className="flex items-center gap-2 text-blue-800">
+    <div className="bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-4">
+      <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
         <Check className="w-5 h-5" />
         <span className="font-medium">This information helps customers know when they can drop off and pick up their pets</span>
       </div>
@@ -120,16 +120,16 @@ const Step1FacilityBasics = ({ data, onUpdate, onNext }) => (
 const Step2Hours = ({ data, onUpdate, onNext, onBack }) => (
   <div className="space-y-6">
     <div>
-      <h3 className="text-xl font-semibold text-gray-900 mb-2">Hours of Operation</h3>
-      <p className="text-gray-600">Set your operating hours for check-ins and check-outs.</p>
+      <h3 className="text-xl font-semibold text-gray-900 dark:text-text-primary mb-2">Hours of Operation</h3>
+      <p className="text-gray-600 dark:text-text-secondary">Set your operating hours for check-ins and check-outs.</p>
     </div>
 
     <div className="space-y-4">
       <div>
-        <h4 className="font-medium text-gray-900 mb-3">Check-in Hours</h4>
+        <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3">Check-in Hours</h4>
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="block text-sm text-gray-700 mb-1">Weekdays</label>
+            <label className="block text-sm text-gray-700 dark:text-text-primary mb-1">Weekdays</label>
             <div className="flex gap-2">
               <input
                 type="time"
@@ -140,9 +140,9 @@ const Step2Hours = ({ data, onUpdate, onNext, onBack }) => (
                     weekdays: { ...data.checkInHours?.weekdays, start: e.target.value }
                   }
                 })}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm"
               />
-              <span className="self-center text-gray-500">to</span>
+              <span className="self-center text-gray-500 dark:text-text-secondary">to</span>
               <input
                 type="time"
                 value={data.checkInHours?.weekdays?.end || '20:00'}
@@ -152,12 +152,12 @@ const Step2Hours = ({ data, onUpdate, onNext, onBack }) => (
                     weekdays: { ...data.checkInHours?.weekdays, end: e.target.value }
                   }
                 })}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm"
               />
             </div>
           </div>
           <div>
-            <label className="block text-sm text-gray-700 mb-1">Weekends</label>
+            <label className="block text-sm text-gray-700 dark:text-text-primary mb-1">Weekends</label>
             <div className="flex gap-2">
               <input
                 type="time"
@@ -168,9 +168,9 @@ const Step2Hours = ({ data, onUpdate, onNext, onBack }) => (
                     weekends: { ...data.checkInHours?.weekends, start: e.target.value }
                   }
                 })}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm"
               />
-              <span className="self-center text-gray-500">to</span>
+              <span className="self-center text-gray-500 dark:text-text-secondary">to</span>
               <input
                 type="time"
                 value={data.checkInHours?.weekends?.end || '18:00'}
@@ -180,7 +180,7 @@ const Step2Hours = ({ data, onUpdate, onNext, onBack }) => (
                     weekends: { ...data.checkInHours?.weekends, end: e.target.value }
                   }
                 })}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm"
               />
             </div>
           </div>
@@ -188,10 +188,10 @@ const Step2Hours = ({ data, onUpdate, onNext, onBack }) => (
       </div>
 
       <div>
-        <h4 className="font-medium text-gray-900 mb-3">Check-out Hours</h4>
+        <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3">Check-out Hours</h4>
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="block text-sm text-gray-700 mb-1">Weekdays</label>
+            <label className="block text-sm text-gray-700 dark:text-text-primary mb-1">Weekdays</label>
             <div className="flex gap-2">
               <input
                 type="time"
@@ -202,9 +202,9 @@ const Step2Hours = ({ data, onUpdate, onNext, onBack }) => (
                     weekdays: { ...data.checkOutHours?.weekdays, start: e.target.value }
                   }
                 })}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm"
               />
-              <span className="self-center text-gray-500">to</span>
+              <span className="self-center text-gray-500 dark:text-text-secondary">to</span>
               <input
                 type="time"
                 value={data.checkOutHours?.weekdays?.end || '12:00'}
@@ -214,12 +214,12 @@ const Step2Hours = ({ data, onUpdate, onNext, onBack }) => (
                     weekdays: { ...data.checkOutHours?.weekdays, end: e.target.value }
                   }
                 })}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm"
               />
             </div>
           </div>
           <div>
-            <label className="block text-sm text-gray-700 mb-1">Weekends</label>
+            <label className="block text-sm text-gray-700 dark:text-text-primary mb-1">Weekends</label>
             <div className="flex gap-2">
               <input
                 type="time"
@@ -230,9 +230,9 @@ const Step2Hours = ({ data, onUpdate, onNext, onBack }) => (
                     weekends: { ...data.checkOutHours?.weekends, start: e.target.value }
                   }
                 })}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm"
               />
-              <span className="self-center text-gray-500">to</span>
+              <span className="self-center text-gray-500 dark:text-text-secondary">to</span>
               <input
                 type="time"
                 value={data.checkOutHours?.weekends?.end || '12:00'}
@@ -242,7 +242,7 @@ const Step2Hours = ({ data, onUpdate, onNext, onBack }) => (
                     weekends: { ...data.checkOutHours?.weekends, end: e.target.value }
                   }
                 })}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
+                className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm"
               />
             </div>
           </div>
@@ -256,7 +256,7 @@ const Step2Hours = ({ data, onUpdate, onNext, onBack }) => (
             checked={data.sameHoursEveryDay || false}
             onChange={(e) => onUpdate({ sameHoursEveryDay: e.target.checked })}
           />
-          <span className="text-sm text-gray-700">Same hours every day (override above)</span>
+          <span className="text-sm text-gray-700 dark:text-text-primary">Same hours every day (override above)</span>
         </label>
       </div>
     </div>
@@ -267,14 +267,14 @@ const Step2Hours = ({ data, onUpdate, onNext, onBack }) => (
 const Step3Kennels = ({ data, onUpdate, onNext, onBack }) => (
   <div className="space-y-6">
     <div>
-      <h3 className="text-xl font-semibold text-gray-900 mb-2">Kennel Configuration</h3>
-      <p className="text-gray-600">Configure your boarding kennels/runs/suites.</p>
+      <h3 className="text-xl font-semibold text-gray-900 dark:text-text-primary mb-2">Kennel Configuration</h3>
+      <p className="text-gray-600 dark:text-text-secondary">Configure your boarding kennels/runs/suites.</p>
     </div>
 
     <div className="space-y-6">
       <div>
-        <h4 className="font-medium text-gray-900 mb-4">Boarding Kennels (For Dogs)</h4>
-        <p className="text-sm text-gray-600 mb-4">How many boarding kennels do you have?</p>
+        <h4 className="font-medium text-gray-900 dark:text-text-primary mb-4">Boarding Kennels (For Dogs)</h4>
+        <p className="text-sm text-gray-600 dark:text-text-secondary mb-4">How many boarding kennels do you have?</p>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[
@@ -283,10 +283,10 @@ const Step3Kennels = ({ data, onUpdate, onNext, onBack }) => (
             { key: 'largeKennels', label: 'Large Kennels', desc: '60-90 lbs', examples: 'Lab, Golden' },
             { key: 'xlKennels', label: 'X-Large Kennels', desc: '90+ lbs', examples: 'Great Dane, Mastiff' }
           ].map(kennel => (
-            <div key={kennel.key} className="border border-gray-200 rounded-lg p-4">
-              <h5 className="font-medium text-gray-900 mb-2">{kennel.label}</h5>
-              <p className="text-sm text-gray-600 mb-1">{kennel.desc}</p>
-              <p className="text-xs text-gray-500 mb-3">Examples: {kennel.examples}</p>
+            <div key={kennel.key} className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
+              <h5 className="font-medium text-gray-900 dark:text-text-primary mb-2">{kennel.label}</h5>
+              <p className="text-sm text-gray-600 dark:text-text-secondary mb-1">{kennel.desc}</p>
+              <p className="text-xs text-gray-500 dark:text-text-secondary mb-3">Examples: {kennel.examples}</p>
               <input
                 type="number"
                 min="0"
@@ -297,19 +297,19 @@ const Step3Kennels = ({ data, onUpdate, onNext, onBack }) => (
                     [kennel.key]: parseInt(e.target.value) || 0
                   }
                 })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-center"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-center"
                 placeholder="0"
               />
-              <p className="text-xs text-gray-500 mt-1">Quantity</p>
+              <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">Quantity</p>
             </div>
           ))}
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="border border-gray-200 rounded-lg p-4">
-          <h5 className="font-medium text-gray-900 mb-2">Luxury Suites</h5>
-          <p className="text-sm text-gray-600 mb-3">Premium accommodations with extra amenities</p>
+        <div className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
+          <h5 className="font-medium text-gray-900 dark:text-text-primary mb-2">Luxury Suites</h5>
+          <p className="text-sm text-gray-600 dark:text-text-secondary mb-3">Premium accommodations with extra amenities</p>
           <input
             type="number"
             min="0"
@@ -320,15 +320,15 @@ const Step3Kennels = ({ data, onUpdate, onNext, onBack }) => (
                 luxurySuites: parseInt(e.target.value) || 0
               }
             })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-center"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-center"
             placeholder="0"
           />
-          <p className="text-xs text-gray-500 mt-1">Suites</p>
+          <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">Suites</p>
         </div>
 
-        <div className="border border-gray-200 rounded-lg p-4">
-          <h5 className="font-medium text-gray-900 mb-2">Outdoor Runs</h5>
-          <p className="text-sm text-gray-600 mb-3">Weather-dependent outdoor kennels</p>
+        <div className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
+          <h5 className="font-medium text-gray-900 dark:text-text-primary mb-2">Outdoor Runs</h5>
+          <p className="text-sm text-gray-600 dark:text-text-secondary mb-3">Weather-dependent outdoor kennels</p>
           <input
             type="number"
             min="0"
@@ -339,20 +339,20 @@ const Step3Kennels = ({ data, onUpdate, onNext, onBack }) => (
                 outdoorRuns: parseInt(e.target.value) || 0
               }
             })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md text-center"
+            className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-center"
             placeholder="0"
           />
-          <p className="text-xs text-gray-500 mt-1">Runs</p>
+          <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">Runs</p>
         </div>
       </div>
 
-      <div className="border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-3">Cat Boarding (Optional)</h4>
-        <p className="text-sm text-gray-600 mb-4">Do you board cats separately?</p>
+      <div className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
+        <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3">Cat Boarding (Optional)</h4>
+        <p className="text-sm text-gray-600 dark:text-text-secondary mb-4">Do you board cats separately?</p>
 
         <div className="grid gap-4 md:grid-cols-3">
           <div>
-            <label className="block text-sm text-gray-700 mb-1">Cat Condos</label>
+            <label className="block text-sm text-gray-700 dark:text-text-primary mb-1">Cat Condos</label>
             <input
               type="number"
               min="0"
@@ -363,12 +363,12 @@ const Step3Kennels = ({ data, onUpdate, onNext, onBack }) => (
                   catCondos: parseInt(e.target.value) || 0
                 }
               })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-center"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-center"
               placeholder="0"
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-700 mb-1">Max cats per area</label>
+            <label className="block text-sm text-gray-700 dark:text-text-primary mb-1">Max cats per area</label>
             <input
               type="number"
               min="1"
@@ -379,15 +379,15 @@ const Step3Kennels = ({ data, onUpdate, onNext, onBack }) => (
                   maxCatsPerArea: parseInt(e.target.value) || 8
                 }
               })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-center"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-center"
             />
           </div>
         </div>
       </div>
     </div>
 
-    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-      <div className="flex items-center gap-2 text-blue-800">
+    <div className="bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-4">
+      <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
         <Check className="w-5 h-5" />
         <span className="font-medium">We'll use these numbers to prevent overbooking and optimize your facility utilization</span>
       </div>
@@ -447,22 +447,22 @@ const SetupWizard = ({ isOpen, onClose, onComplete }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-surface-primary rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Quick Setup Wizard</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-surface-border">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">Quick Setup Wizard</h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary rounded-full">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Progress Bar */}
-        <div className="px-6 py-4 border-b border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-surface-border">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-700">Step {currentStep} of {totalSteps}</span>
-            <span className="text-sm text-gray-500">{Math.round((currentStep / totalSteps) * 100)}% Complete</span>
+            <span className="text-sm font-medium text-gray-700 dark:text-text-primary">Step {currentStep} of {totalSteps}</span>
+            <span className="text-sm text-gray-500 dark:text-text-secondary">{Math.round((currentStep / totalSteps) * 100)}% Complete</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
+          <div className="w-full bg-gray-200 dark:bg-surface-border rounded-full h-2">
             <div
               className="bg-blue-600 h-2 rounded-full transition-all duration-300"
               style={{ width: `${(currentStep / totalSteps) * 100}%` }}
@@ -484,7 +484,7 @@ const SetupWizard = ({ isOpen, onClose, onComplete }) => {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-surface-border">
           <Button variant="outline" onClick={onClose}>
             Cancel Setup
           </Button>

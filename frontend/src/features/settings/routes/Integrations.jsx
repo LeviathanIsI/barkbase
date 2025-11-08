@@ -86,21 +86,21 @@ const Integrations = () => {
             return (
               <div
                 key={integration.id}
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary transition-colors"
               >
                 <div className="flex items-center gap-4">
                   <div className={`p-3 rounded-lg ${
-                    integration.connected ? 'bg-green-100' : 'bg-gray-100'
+                    integration.connected ? 'bg-green-100' : 'bg-gray-100 dark:bg-surface-secondary'
                   }`}>
                     <Icon className={`w-6 h-6 ${
-                      integration.connected ? 'text-green-600' : 'text-gray-600'
+                      integration.connected ? 'text-green-600' : 'text-gray-600 dark:text-text-secondary'
                     }`} />
                   </div>
                   <div>
                     <h4 className="font-medium">{integration.name}</h4>
-                    <p className="text-sm text-gray-600">{integration.description}</p>
+                    <p className="text-sm text-gray-600 dark:text-text-secondary">{integration.description}</p>
                     {integration.connected && integration.lastSync && (
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">
                         Last synced: {new Date(integration.lastSync).toLocaleString()}
                       </p>
                     )}
@@ -144,21 +144,21 @@ const Integrations = () => {
       >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="p-4 border rounded-lg text-center hover:shadow-md transition-shadow cursor-pointer">
-            <Calendar className="w-8 h-8 mx-auto mb-2 text-blue-600" />
+            <Calendar className="w-8 h-8 mx-auto mb-2 text-blue-600 dark:text-blue-400" />
             <h4 className="font-medium">Calendar & Scheduling</h4>
-            <p className="text-sm text-gray-600 mt-1">3 integrations</p>
+            <p className="text-sm text-gray-600 dark:text-text-secondary mt-1">3 integrations</p>
           </div>
           
           <div className="p-4 border rounded-lg text-center hover:shadow-md transition-shadow cursor-pointer">
             <CreditCard className="w-8 h-8 mx-auto mb-2 text-green-600" />
             <h4 className="font-medium">Payments & Billing</h4>
-            <p className="text-sm text-gray-600 mt-1">5 integrations</p>
+            <p className="text-sm text-gray-600 dark:text-text-secondary mt-1">5 integrations</p>
           </div>
           
           <div className="p-4 border rounded-lg text-center hover:shadow-md transition-shadow cursor-pointer">
-            <Mail className="w-8 h-8 mx-auto mb-2 text-purple-600" />
+            <Mail className="w-8 h-8 mx-auto mb-2 text-purple-600 dark:text-purple-400" />
             <h4 className="font-medium">Marketing & CRM</h4>
-            <p className="text-sm text-gray-600 mt-1">4 integrations</p>
+            <p className="text-sm text-gray-600 dark:text-text-secondary mt-1">4 integrations</p>
           </div>
         </div>
       </Card>
@@ -168,12 +168,12 @@ const Integrations = () => {
         title="Developer API" 
         description="Build custom integrations"
       >
-        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+        <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg">
           <div className="flex items-center gap-3">
             <Link2 className="w-8 h-8 text-indigo-600" />
             <div>
               <h4 className="font-medium">REST API Access</h4>
-              <p className="text-sm text-gray-600">Create custom integrations with our API</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Create custom integrations with our API</p>
             </div>
           </div>
           <Button variant="outline" onClick={() => alert('Opening API documentation...')}>

@@ -66,16 +66,16 @@ export default function FacilitySettings() {
   return (
     <div className="p-6">
       {/* Breadcrumb */}
-      <div className="text-sm text-gray-500 mb-2">Home &gt; Facility</div>
+      <div className="text-sm text-gray-500 dark:text-text-secondary mb-2">Home &gt; Facility</div>
 
       {/* Page Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-semibold text-gray-900">Facility</h1>
-        <p className="text-gray-600">Kennels, locations, and inventory</p>
+        <h1 className="text-3xl font-semibold text-gray-900 dark:text-text-primary">Facility</h1>
+        <p className="text-gray-600 dark:text-text-secondary">Kennels, locations, and inventory</p>
       </div>
 
       {/* Sub-Tab Navigation */}
-      <div className="border-b border-gray-200 mb-6">
+      <div className="border-b border-gray-200 dark:border-surface-border mb-6">
         <nav className="flex space-x-8">
           {TABS.map((tab) => (
             <button
@@ -84,8 +84,8 @@ export default function FacilitySettings() {
               className={`
                 flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm
                 ${activeTab === tab.id
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 dark:text-text-secondary hover:text-gray-700 dark:hover:text-text-primary hover:border-gray-300 dark:border-surface-border'
                 }
               `}
             >
@@ -97,12 +97,12 @@ export default function FacilitySettings() {
       </div>
 
       {/* Tab Content */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="bg-white dark:bg-surface-primary rounded-lg shadow-sm p-6">
         {renderTabContent()}
       </div>
 
       {/* Sticky Save Button */}
-      <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 flex justify-end mt-6">
+      <div className="sticky bottom-0 bg-white dark:bg-surface-primary border-t border-gray-200 dark:border-surface-border p-4 flex justify-end mt-6">
         <Button onClick={handleSave}>Save Changes</Button>
       </div>
     </div>

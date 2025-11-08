@@ -83,7 +83,7 @@ const ActiveSessions = () => {
   return (
     <Card title="Active Sessions" icon={Monitor}>
       <div className="space-y-4">
-        <p className="text-gray-600">
+        <p className="text-gray-600 dark:text-text-secondary">
           Manage all devices where you're currently logged in.
         </p>
 
@@ -91,27 +91,27 @@ const ActiveSessions = () => {
           {sessions.map((session) => {
             const Icon = session.icon;
             return (
-              <div key={session.id} className="border border-gray-200 rounded-lg p-4">
+              <div key={session.id} className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3">
                     <div className="relative">
-                      <Icon className="w-6 h-6 text-gray-600" />
+                      <Icon className="w-6 h-6 text-gray-600 dark:text-text-secondary" />
                       {session.current && (
-                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-50 dark:bg-green-950/20 rounded-full border-2 border-white" />
                       )}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-medium text-gray-900">
+                        <h4 className="font-medium text-gray-900 dark:text-text-primary">
                           {session.device}
                         </h4>
                         {session.current && (
-                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                          <span className="text-xs bg-blue-100 dark:bg-surface-secondary text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded-full">
                             Current Session
                           </span>
                         )}
                       </div>
-                      <div className="space-y-1 text-sm text-gray-600">
+                      <div className="space-y-1 text-sm text-gray-600 dark:text-text-secondary">
                         <div className="flex items-center gap-4">
                           <div className="flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
@@ -124,7 +124,7 @@ const ActiveSessions = () => {
                             <span>Last active: {session.lastActive}</span>
                           </div>
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-500 dark:text-text-secondary">
                           Signed in: {session.signedIn}
                         </div>
                       </div>
@@ -148,13 +148,13 @@ const ActiveSessions = () => {
         </div>
 
         {/* Session Settings */}
-        <div className="border-t border-gray-200 pt-4">
+        <div className="border-t border-gray-200 dark:border-surface-border pt-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h4 className="font-medium text-gray-900">Session Timeout</h4>
-              <p className="text-sm text-gray-600">Automatically sign out after period of inactivity</p>
+              <h4 className="font-medium text-gray-900 dark:text-text-primary">Session Timeout</h4>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Automatically sign out after period of inactivity</p>
             </div>
-            <select className="px-3 py-2 border border-gray-300 rounded-md text-sm">
+            <select className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm bg-white dark:bg-surface-primary">
               <option value="30">30 minutes</option>
               <option value="60">1 hour</option>
               <option value="120">2 hours</option>
@@ -164,17 +164,17 @@ const ActiveSessions = () => {
 
           <div className="flex items-center justify-between mb-4">
             <div>
-              <span className="text-sm text-gray-700">Require password after timeout</span>
+              <span className="text-sm text-gray-700 dark:text-text-primary">Require password after timeout</span>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" defaultChecked className="sr-only peer" />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              <div className="w-11 h-6 bg-gray-200 dark:bg-surface-border peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:bg-surface-primary after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
             </label>
           </div>
         </div>
 
         {/* Sign Out All Warning */}
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <div className="bg-yellow-50 dark:bg-surface-primary border border-yellow-200 dark:border-yellow-900/30 rounded-lg p-4">
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
@@ -188,7 +188,7 @@ const ActiveSessions = () => {
                 variant="outline"
                 size="sm"
                 onClick={handleSignOutAll}
-                className="text-yellow-800 border-yellow-300 hover:bg-yellow-100"
+                className="text-yellow-800 border-yellow-300 hover:bg-yellow-100 dark:bg-surface-secondary"
               >
                 Sign out all other sessions
               </Button>

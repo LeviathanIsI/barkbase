@@ -158,7 +158,7 @@ export default function SegmentList() {
       ) : segments?.length === 0 ? (
         <Card>
           <div className="text-center py-12">
-            <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <Users className="w-12 h-12 text-gray-400 dark:text-text-tertiary mx-auto mb-4" />
             <h3 className="text-lg font-medium text-text mb-2">No segments yet</h3>
             <p className="text-text-secondary mb-4">
               Create your first segment to start organizing customers

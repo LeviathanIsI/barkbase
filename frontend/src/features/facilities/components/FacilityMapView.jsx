@@ -28,7 +28,7 @@ const getFacilityIcon = (type) => {
  * Get border color class based on occupancy rate
  */
 const getBorderColor = (occupancyRate) => {
-  if (occupancyRate >= 95) return 'border-gray-400';
+  if (occupancyRate >= 95) return 'border-gray-400 dark:border-surface-border';
   if (occupancyRate >= 80) return 'border-red-500';
   if (occupancyRate >= 50) return 'border-yellow-500';
   return 'border-green-500';
@@ -38,10 +38,10 @@ const getBorderColor = (occupancyRate) => {
  * Get background color class based on occupancy rate
  */
 const getBgColor = (occupancyRate) => {
-  if (occupancyRate >= 95) return 'bg-gray-50';
-  if (occupancyRate >= 80) return 'bg-red-50';
-  if (occupancyRate >= 50) return 'bg-yellow-50';
-  return 'bg-green-50';
+  if (occupancyRate >= 95) return 'bg-gray-50 dark:bg-surface-secondary';
+  if (occupancyRate >= 80) return 'bg-red-50 dark:bg-surface-primary';
+  if (occupancyRate >= 50) return 'bg-yellow-50 dark:bg-surface-primary';
+  return 'bg-green-50 dark:bg-surface-primary';
 };
 
 /**
@@ -153,20 +153,20 @@ const DraggableFacilityCard = ({ facility, position, onPositionChange, onClick, 
       {/* Drag Handle + Full Badge */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2 flex-1">
-          <div className={`p-2 rounded-lg ${borderColor} bg-white`}>
+          <div className={`p-2 rounded-lg ${borderColor} bg-white dark:bg-surface-primary`}>
             {getFacilityIcon(facility.type)}
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-gray-900 truncate text-sm">
+            <h3 className="font-semibold text-gray-900 dark:text-text-primary truncate text-sm">
               {facility.name}
             </h3>
-            <p className="text-xs text-gray-500 capitalize">
+            <p className="text-xs text-gray-500 dark:text-text-secondary capitalize">
               {(facility.type || 'kennel').toLowerCase()}
             </p>
           </div>
         </div>
         {isFull && (
-          <span className="px-2 py-1 text-xs font-bold bg-gray-400 text-white rounded-full">
+          <span className="px-2 py-1 text-xs font-bold bg-gray-400 dark:bg-surface-secondary text-white rounded-full">
             FULL
           </span>
         )}
@@ -180,32 +180,32 @@ const DraggableFacilityCard = ({ facility, position, onPositionChange, onClick, 
           onClick(facility);
         }}
       >
-        <p className="text-2xl font-bold text-gray-900">
-          {available}<span className="text-base text-gray-500">/{facility.capacity}</span>
+        <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">
+          {available}<span className="text-base text-gray-500 dark:text-text-secondary">/{facility.capacity}</span>
         </p>
-        <p className="text-xs text-gray-600 mt-1">
+        <p className="text-xs text-gray-600 dark:text-text-secondary mt-1">
           {available === 0 ? 'Fully booked' : `${available} available`}
         </p>
       </div>
       
       {/* Progress Bar */}
-      <div className="mt-3 w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+      <div className="mt-3 w-full bg-gray-200 dark:bg-surface-border rounded-full h-2 overflow-hidden">
         <div
           className={`h-full transition-all ${
             isFull
-              ? 'bg-gray-400'
+              ? 'bg-gray-400 dark:bg-surface-secondary'
               : occupancyRate >= 80
-              ? 'bg-red-500'
+              ? 'bg-red-50 dark:bg-red-950/20'
               : occupancyRate >= 50
-              ? 'bg-yellow-500'
-              : 'bg-green-500'
+              ? 'bg-yellow-50 dark:bg-yellow-950/20'
+              : 'bg-green-50 dark:bg-green-950/20'
           }`}
           style={{ width: `${Math.min(occupancyRate, 100)}%` }}
         />
       </div>
       
       {/* Hover Indicator */}
-      <div className="mt-3 text-xs text-gray-400 group-hover:text-primary transition-colors click-area">
+      <div className="mt-3 text-xs text-gray-400 dark:text-text-tertiary group-hover:text-primary transition-colors click-area">
         Click for details →
       </div>
     </div>
@@ -319,7 +319,7 @@ const FacilityMapView = ({ kennels = [] }) => {
   };
 
   return (
-    <div className="relative w-full h-screen bg-gray-50">
+    <div className="relative w-full h-screen bg-gray-50 dark:bg-surface-secondary">
       {/* Canvas Controls */}
       <TransformWrapper
         initialScale={1}
@@ -340,7 +340,7 @@ const FacilityMapView = ({ kennels = [] }) => {
                 variant="outline"
                 size="sm"
                 onClick={() => zoomIn()}
-                className="bg-white shadow-lg"
+                className="bg-white dark:bg-surface-primary shadow-lg"
                 title="Zoom In"
               >
                 <ZoomIn className="h-4 w-4" />
@@ -349,7 +349,7 @@ const FacilityMapView = ({ kennels = [] }) => {
             variant="outline" 
             size="sm"
                 onClick={() => zoomOut()}
-                className="bg-white shadow-lg"
+                className="bg-white dark:bg-surface-primary shadow-lg"
                 title="Zoom Out"
           >
                 <ZoomOut className="h-4 w-4" />
@@ -358,7 +358,7 @@ const FacilityMapView = ({ kennels = [] }) => {
             variant="outline" 
             size="sm"
                 onClick={() => handleResetView(resetTransform)}
-                className="bg-white shadow-lg"
+                className="bg-white dark:bg-surface-primary shadow-lg"
                 title="Reset View"
           >
                 <Maximize2 className="h-4 w-4" />
@@ -367,7 +367,7 @@ const FacilityMapView = ({ kennels = [] }) => {
             variant="outline" 
             size="sm"
                 onClick={handleResetLayout}
-                className="bg-white shadow-lg"
+                className="bg-white dark:bg-surface-primary shadow-lg"
                 title="Reset Layout"
           >
                 <RotateCcw className="h-4 w-4" />
@@ -375,37 +375,37 @@ const FacilityMapView = ({ kennels = [] }) => {
         </div>
             
             {/* Instructions */}
-            <div className="absolute top-4 left-4 z-10 bg-white p-3 rounded-lg shadow-lg max-w-xs">
-              <p className="text-xs text-gray-600 mb-1">
+            <div className="absolute top-4 left-4 z-10 bg-white dark:bg-surface-primary p-3 rounded-lg shadow-lg max-w-xs">
+              <p className="text-xs text-gray-600 dark:text-text-secondary mb-1">
                 <strong>Pan:</strong> Click and drag background
               </p>
-              <p className="text-xs text-gray-600 mb-1">
+              <p className="text-xs text-gray-600 dark:text-text-secondary mb-1">
                 <strong>Zoom:</strong> Scroll or use buttons
               </p>
-              <p className="text-xs text-gray-600">
+              <p className="text-xs text-gray-600 dark:text-text-secondary">
                 <strong>Move Facilities:</strong> Drag facility cards
               </p>
       </div>
 
       {/* Legend */}
-            <div className="absolute bottom-4 left-4 z-10 bg-white p-3 rounded-lg shadow-lg">
-              <p className="text-xs font-semibold text-gray-700 mb-2">Status:</p>
+            <div className="absolute bottom-4 left-4 z-10 bg-white dark:bg-surface-primary p-3 rounded-lg shadow-lg">
+              <p className="text-xs font-semibold text-gray-700 dark:text-text-primary mb-2">Status:</p>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded border-2 border-green-500 bg-green-50"></div>
-                  <span className="text-xs text-gray-600">Available (&lt;50%)</span>
+                  <div className="w-4 h-4 rounded border-2 border-green-500 bg-green-50 dark:bg-surface-primary"></div>
+                  <span className="text-xs text-gray-600 dark:text-text-secondary">Available (&lt;50%)</span>
         </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded border-2 border-yellow-500 bg-yellow-50"></div>
-                  <span className="text-xs text-gray-600">Moderate (50-80%)</span>
+                  <div className="w-4 h-4 rounded border-2 border-yellow-500 bg-yellow-50 dark:bg-surface-primary"></div>
+                  <span className="text-xs text-gray-600 dark:text-text-secondary">Moderate (50-80%)</span>
         </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded border-2 border-red-500 bg-red-50"></div>
-                  <span className="text-xs text-gray-600">High (80-95%)</span>
+                  <div className="w-4 h-4 rounded border-2 border-red-500 bg-red-50 dark:bg-surface-primary"></div>
+                  <span className="text-xs text-gray-600 dark:text-text-secondary">High (80-95%)</span>
         </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded border-2 border-gray-400 bg-gray-50"></div>
-                  <span className="text-xs text-gray-600">Full (95-100%)</span>
+                  <div className="w-4 h-4 rounded border-2 border-gray-400 dark:border-surface-border bg-gray-50 dark:bg-surface-secondary"></div>
+                  <span className="text-xs text-gray-600 dark:text-text-secondary">Full (95-100%)</span>
                 </div>
               </div>
             </div>
@@ -415,7 +415,7 @@ const FacilityMapView = ({ kennels = [] }) => {
               wrapperClass="w-full h-full"
               contentClass="w-full h-full"
             >
-              <div className="relative w-[3000px] h-[2000px] bg-white">
+              <div className="relative w-[3000px] h-[2000px] bg-white dark:bg-surface-primary">
                 {/* Grid Background */}
                 <div 
                   className="absolute inset-0"

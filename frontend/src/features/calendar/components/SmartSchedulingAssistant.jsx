@@ -72,15 +72,15 @@ const SmartSchedulingAssistant = () => {
 
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'high': return 'border-red-200 bg-red-50';
-      case 'medium': return 'border-yellow-200 bg-yellow-50';
-      default: return 'border-blue-200 bg-blue-50';
+      case 'high': return 'border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-surface-primary';
+      case 'medium': return 'border-yellow-200 dark:border-yellow-900/30 bg-yellow-50 dark:bg-surface-primary';
+      default: return 'border-blue-200 dark:border-blue-900/30 bg-blue-50 dark:bg-surface-primary';
     }
   };
 
   if (activeRecommendations.length === 0) {
     return (
-      <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+      <div className="bg-green-50 dark:bg-surface-primary border border-green-200 dark:border-green-900/30 rounded-lg p-6">
         <div className="flex items-center gap-3">
           <Check className="w-6 h-6 text-green-600" />
           <div>
@@ -93,17 +93,17 @@ const SmartSchedulingAssistant = () => {
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-6">
+    <div className="bg-white dark:bg-surface-primary border border-gray-200 dark:border-surface-border rounded-lg p-6">
       <div className="flex items-center gap-3 mb-6">
-        <Brain className="w-6 h-6 text-purple-600" />
+        <Brain className="w-6 h-6 text-purple-600 dark:text-purple-400" />
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">🤖 SMART SCHEDULING ASSISTANT</h3>
-          <p className="text-sm text-gray-600">AI-powered suggestions to optimize your schedule</p>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">🤖 SMART SCHEDULING ASSISTANT</h3>
+          <p className="text-sm text-gray-600 dark:text-text-secondary">AI-powered suggestions to optimize your schedule</p>
         </div>
       </div>
 
       <div className="space-y-4">
-        <h4 className="font-medium text-gray-900">Active Recommendations:</h4>
+        <h4 className="font-medium text-gray-900 dark:text-text-primary">Active Recommendations:</h4>
 
         {activeRecommendations.map((rec) => {
           const Icon = rec.icon;
@@ -112,13 +112,13 @@ const SmartSchedulingAssistant = () => {
               <div className="flex items-start gap-4">
                 <Icon className={`w-5 h-5 flex-shrink-0 mt-1 ${
                   rec.priority === 'high' ? 'text-red-600' :
-                  rec.priority === 'medium' ? 'text-yellow-600' : 'text-blue-600'
+                  rec.priority === 'medium' ? 'text-yellow-600' : 'text-blue-600 dark:text-blue-400'
                 }`} />
 
                 <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900 mb-1">{rec.title}</h4>
-                  <p className="text-sm text-gray-700 mb-2">{rec.description}</p>
-                  <div className="text-xs text-gray-600 mb-3">
+                  <h4 className="font-semibold text-gray-900 dark:text-text-primary mb-1">{rec.title}</h4>
+                  <p className="text-sm text-gray-700 dark:text-text-primary mb-2">{rec.description}</p>
+                  <div className="text-xs text-gray-600 dark:text-text-secondary mb-3">
                     <strong>Impact:</strong> {rec.impact}
                   </div>
 
@@ -142,9 +142,9 @@ const SmartSchedulingAssistant = () => {
         })}
       </div>
 
-      <div className="mt-6 pt-4 border-t border-gray-200">
+      <div className="mt-6 pt-4 border-t border-gray-200 dark:border-surface-border">
         <div className="flex items-center justify-between text-sm">
-          <div className="text-gray-600">
+          <div className="text-gray-600 dark:text-text-secondary">
             <span>Last analyzed: 5 minutes ago</span>
             <span className="mx-2">•</span>
             <span>{activeRecommendations.length} recommendations pending</span>
@@ -158,7 +158,7 @@ const SmartSchedulingAssistant = () => {
 
       {/* Applied Actions Summary */}
       {recommendations.some(rec => rec.applied) && (
-        <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+        <div className="mt-4 p-3 bg-green-50 dark:bg-surface-primary border border-green-200 dark:border-green-900/30 rounded-lg">
           <div className="flex items-center gap-2 text-sm text-green-800">
             <Check className="w-4 h-4" />
             <span>

@@ -62,30 +62,30 @@ const Records = () => {
         description="Current records statistics"
       >
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <FileText className="w-8 h-8 mx-auto mb-2 text-blue-600" />
+          <div className="text-center p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg">
+            <FileText className="w-8 h-8 mx-auto mb-2 text-blue-600 dark:text-blue-400" />
             <div className="text-2xl font-bold">{recordStats.totalRecords.toLocaleString()}</div>
-            <p className="text-sm text-gray-600">Total Records</p>
+            <p className="text-sm text-gray-600 dark:text-text-secondary">Total Records</p>
           </div>
           
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <Archive className="w-8 h-8 mx-auto mb-2 text-purple-600" />
+          <div className="text-center p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg">
+            <Archive className="w-8 h-8 mx-auto mb-2 text-purple-600 dark:text-purple-400" />
             <div className="text-2xl font-bold">{recordStats.archivedRecords.toLocaleString()}</div>
-            <p className="text-sm text-gray-600">Archived</p>
+            <p className="text-sm text-gray-600 dark:text-text-secondary">Archived</p>
           </div>
           
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
+          <div className="text-center p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg">
             <Download className="w-8 h-8 mx-auto mb-2 text-green-600" />
             <div className="text-lg font-medium">{recordStats.storageUsed}</div>
-            <p className="text-sm text-gray-600">Storage Used</p>
+            <p className="text-sm text-gray-600 dark:text-text-secondary">Storage Used</p>
           </div>
           
-          <div className="text-center p-4 bg-gray-50 rounded-lg">
+          <div className="text-center p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg">
             <Clock className="w-8 h-8 mx-auto mb-2 text-orange-600" />
             <div className="text-sm font-medium">
               {new Date(recordStats.lastBackup).toLocaleDateString()}
             </div>
-            <p className="text-sm text-gray-600">Last Backup</p>
+            <p className="text-sm text-gray-600 dark:text-text-secondary">Last Backup</p>
           </div>
         </div>
       </Card>
@@ -99,7 +99,7 @@ const Records = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Automatic Archival</h4>
-              <p className="text-sm text-gray-600">Archive old records automatically</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Archive old records automatically</p>
             </div>
             <Switch
               checked={settings.autoArchive}
@@ -121,7 +121,7 @@ const Records = () => {
                   max="1095"
                   className="w-24 px-3 py-2 border rounded-md"
                 />
-                <span className="text-sm text-gray-600">days</span>
+                <span className="text-sm text-gray-600 dark:text-text-secondary">days</span>
               </div>
             </div>
           )}
@@ -140,7 +140,7 @@ const Records = () => {
               <option value="seven-years">7 Years</option>
               <option value="indefinite">Indefinite</option>
             </Select>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">
               Medical records may have legal retention requirements
             </p>
           </div>
@@ -156,7 +156,7 @@ const Records = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Encrypt Records</h4>
-              <p className="text-sm text-gray-600">Use encryption for stored records</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Use encryption for stored records</p>
             </div>
             <Switch
               checked={settings.encryptRecords}
@@ -167,7 +167,7 @@ const Records = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Audit Trail</h4>
-              <p className="text-sm text-gray-600">Track all record access and changes</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Track all record access and changes</p>
             </div>
             <Switch
               checked={settings.auditTrail}
@@ -178,7 +178,7 @@ const Records = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Version Control</h4>
-              <p className="text-sm text-gray-600">Keep history of record changes</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Keep history of record changes</p>
             </div>
             <Switch
               checked={settings.recordVersioning}
@@ -189,7 +189,7 @@ const Records = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Require Approval</h4>
-              <p className="text-sm text-gray-600">Changes require manager approval</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Changes require manager approval</p>
               <Badge variant="warning" className="mt-1">Premium</Badge>
             </div>
             <Switch
@@ -209,7 +209,7 @@ const Records = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Automatic Backups</h4>
-              <p className="text-sm text-gray-600">Regularly backup all records</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Regularly backup all records</p>
             </div>
             <Switch
               checked={settings.backupEnabled}
@@ -234,10 +234,10 @@ const Records = () => {
             </div>
           )}
 
-          <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+          <div className="bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-md p-3">
             <div className="flex">
-              <Shield className="h-5 w-5 text-blue-600 mr-2 flex-shrink-0" />
-              <div className="text-sm text-blue-800">
+              <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400 mr-2 flex-shrink-0" />
+              <div className="text-sm text-blue-800 dark:text-blue-200">
                 <p className="font-medium">HIPAA Compliance</p>
                 <p className="mt-1">
                   Your records management settings meet HIPAA requirements for 

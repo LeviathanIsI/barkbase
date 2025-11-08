@@ -46,7 +46,7 @@ const Facilities = () => {
             <p className="text-sm text-muted mb-4">
               Kennels must be created in Settings before they appear on the capacity map
             </p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 dark:text-text-secondary">
               Go to Settings → Facilities to configure your kennels
             </p>
           </div>

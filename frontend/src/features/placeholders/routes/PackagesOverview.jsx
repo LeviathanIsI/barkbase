@@ -52,12 +52,12 @@ const PackagesOverview = () => {
       <div className="mb-6">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-sm text-gray-500 mb-2">Home &gt; Records &gt; Packages & Memberships</div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <Package className="w-8 h-8 text-blue-600" />
+            <div className="text-sm text-gray-500 dark:text-text-secondary mb-2">Home &gt; Records &gt; Packages & Memberships</div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-text-primary flex items-center gap-3">
+              <Package className="w-8 h-8 text-blue-600 dark:text-blue-400" />
               Packages & Memberships
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-gray-600 dark:text-text-secondary mt-1">
               Increase revenue with packages, memberships, and loyalty plans
             </p>
           </div>

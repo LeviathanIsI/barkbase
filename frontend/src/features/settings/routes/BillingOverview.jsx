@@ -50,15 +50,15 @@ export default function BillingOverview() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Billing</h1>
-        <p className="text-gray-600">Subscription and payment settings</p>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-text-primary">Billing</h1>
+        <p className="text-gray-600 dark:text-text-secondary">Subscription and payment settings</p>
       </div>
 
       {/* Financial Dashboard */}
       <FinancialDashboard />
 
       {/* Sub-Tab Navigation */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-gray-200 dark:border-surface-border">
         <nav className="flex space-x-8">
           {TABS.map((tab) => (
             <button
@@ -67,8 +67,8 @@ export default function BillingOverview() {
               className={`
                 flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm
                 ${activeTab === tab.id
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 dark:text-text-secondary hover:text-gray-700 dark:hover:text-text-primary hover:border-gray-300 dark:border-surface-border'
                 }
               `}
             >
@@ -80,7 +80,7 @@ export default function BillingOverview() {
       </div>
 
       {/* Tab Content */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="bg-white dark:bg-surface-primary rounded-lg shadow-sm p-6">
         {renderTabContent()}
       </div>
     </div>

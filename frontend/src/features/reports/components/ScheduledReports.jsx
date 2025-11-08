@@ -26,8 +26,8 @@ const ScheduledReports = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Scheduled Reports</h3>
-          <p className="text-gray-600">Automatically receive reports via email</p>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">Scheduled Reports</h3>
+          <p className="text-gray-600 dark:text-text-secondary">Automatically receive reports via email</p>
         </div>
         <Button>
           <Clock className="w-4 h-4 mr-2" />
@@ -36,7 +36,7 @@ const ScheduledReports = () => {
       </div>
 
       <Card className="p-6">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">ACTIVE SCHEDULES (2)</h4>
+        <h4 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">ACTIVE SCHEDULES (2)</h4>
 
         <div className="space-y-4">
           {scheduledReports.map((report, index) => (
@@ -44,14 +44,14 @@ const ScheduledReports = () => {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <Mail className="w-5 h-5 text-blue-600" />
-                    <h5 className="font-semibold text-gray-900">{report.name}</h5>
-                    <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                    <Mail className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    <h5 className="font-semibold text-gray-900 dark:text-text-primary">{report.name}</h5>
+                    <span className="px-2 py-1 bg-green-100 dark:bg-surface-secondary text-green-800 text-xs font-medium rounded-full">
                       Active
                     </span>
                   </div>
 
-                  <div className="grid gap-2 md:grid-cols-2 text-sm text-gray-600">
+                  <div className="grid gap-2 md:grid-cols-2 text-sm text-gray-600 dark:text-text-secondary">
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4" />
                       {report.frequency}

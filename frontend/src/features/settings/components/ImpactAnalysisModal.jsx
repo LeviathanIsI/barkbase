@@ -20,10 +20,10 @@ import Alert from '@/components/ui/Alert';
 
 const RiskLevelBadge = ({ level }) => {
   const variants = {
-    low: { color: 'bg-green-100 text-green-800', icon: CheckCircle },
-    medium: { color: 'bg-yellow-100 text-yellow-800', icon: Info },
-    high: { color: 'bg-orange-100 text-orange-800', icon: AlertTriangle },
-    critical: { color: 'bg-red-100 text-red-800', icon: XCircle },
+    low: { color: 'bg-green-100 dark:bg-surface-secondary text-green-800', icon: CheckCircle },
+    medium: { color: 'bg-yellow-100 dark:bg-surface-secondary text-yellow-800', icon: Info },
+    high: { color: 'bg-orange-100 dark:bg-surface-secondary text-orange-800', icon: AlertTriangle },
+    critical: { color: 'bg-red-100 dark:bg-surface-secondary text-red-800 dark:text-red-200', icon: XCircle },
   };
 
   const config = variants[level] || variants.medium;
@@ -98,31 +98,31 @@ export const ImpactAnalysisModal = ({
               <h3 className="text-sm font-semibold mb-3">Impact Summary</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="border rounded-lg p-3">
-                  <div className="text-2xl font-bold text-blue-600">
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                     {impactSummary.affectedPropertiesCount}
                   </div>
-                  <div className="text-xs text-gray-600">Affected Properties</div>
+                  <div className="text-xs text-gray-600 dark:text-text-secondary">Affected Properties</div>
                 </div>
                 
                 <div className="border rounded-lg p-3">
                   <div className="text-2xl font-bold text-red-600">
                     {impactSummary.criticalDependenciesCount}
                   </div>
-                  <div className="text-xs text-gray-600">Critical Dependencies</div>
+                  <div className="text-xs text-gray-600 dark:text-text-secondary">Critical Dependencies</div>
                 </div>
                 
                 <div className="border rounded-lg p-3">
-                  <div className="text-2xl font-bold text-purple-600">
+                  <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
                     {impactSummary.recordsWithValuesCount?.toLocaleString()}
                   </div>
-                  <div className="text-xs text-gray-600">Records with Values</div>
+                  <div className="text-xs text-gray-600 dark:text-text-secondary">Records with Values</div>
                 </div>
                 
                 <div className="border rounded-lg p-3">
                   <div className="text-2xl font-bold text-green-600">
                     {impactSummary.maxDependencyDepth}
                   </div>
-                  <div className="text-xs text-gray-600">Max Dependency Depth</div>
+                  <div className="text-xs text-gray-600 dark:text-text-secondary">Max Dependency Depth</div>
                 </div>
               </div>
             </div>
@@ -136,11 +136,11 @@ export const ImpactAnalysisModal = ({
                 </h3>
                 <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
                   {affectedProperties.map((prop) => (
-                    <div key={prop.propertyId} className="p-3 hover:bg-gray-50">
+                    <div key={prop.propertyId} className="p-3 hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary">
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="text-sm font-medium">{prop.displayLabel}</div>
-                          <div className="text-xs text-gray-500 font-mono">{prop.propertyName}</div>
+                          <div className="text-xs text-gray-500 dark:text-text-secondary font-mono">{prop.propertyName}</div>
                         </div>
                         <Badge variant="outline" className="text-xs">
                           Depth: {prop.depth}
@@ -194,7 +194,7 @@ export const ImpactAnalysisModal = ({
                       <AlertDescription>
                         <div className="font-medium text-sm mb-1">{rec.message}</div>
                         {rec.action && (
-                          <div className="text-xs text-gray-600">
+                          <div className="text-xs text-gray-600 dark:text-text-secondary">
                             Action: {rec.action}
                           </div>
                         )}

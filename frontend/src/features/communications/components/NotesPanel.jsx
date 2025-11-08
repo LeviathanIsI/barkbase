@@ -48,7 +48,7 @@ const NoteItem = ({ note, onEdit, onDelete }) => {
         <div className="flex items-center gap-1">
           <button
             onClick={() => togglePin.mutate(note.recordId)}
-            className={`p-1 rounded hover:bg-gray-100 ${note.isPinned ? 'text-primary' : 'text-gray-400'}`}
+            className={`p-1 rounded hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary ${note.isPinned ? 'text-primary' : 'text-gray-400 dark:text-text-tertiary'}`}
             title={note.isPinned ? 'Unpin note' : 'Pin note'}
           >
             <Pin className="w-4 h-4" />
@@ -57,7 +57,7 @@ const NoteItem = ({ note, onEdit, onDelete }) => {
           {isAuthor && (
             <button
               onClick={() => onEdit(note)}
-              className="p-1 rounded hover:bg-gray-100 text-gray-400"
+              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary text-gray-400 dark:text-text-tertiary"
               title="Edit note"
             >
               <Edit2 className="w-4 h-4" />
@@ -67,7 +67,7 @@ const NoteItem = ({ note, onEdit, onDelete }) => {
           {canEdit && (
             <button
               onClick={() => onDelete(note)}
-              className="p-1 rounded hover:bg-gray-100 text-danger"
+              className="p-1 rounded hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary text-danger"
               title="Delete note"
             >
               <Trash2 className="w-4 h-4" />
@@ -240,7 +240,7 @@ export default function NotesPanel({ entityType, entityId }) {
       </div>
       
       {(showForm || editingNote) && (
-        <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+        <div className="mb-4 p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg">
           <NoteForm
             entityType={entityType}
             entityId={entityId}

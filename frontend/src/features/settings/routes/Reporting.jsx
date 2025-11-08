@@ -56,7 +56,7 @@ const Reporting = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Daily Summary Report</h4>
-              <p className="text-sm text-gray-600">Receive daily activity summary</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Receive daily activity summary</p>
             </div>
             <Switch
               checked={settings.dailyReport}
@@ -67,7 +67,7 @@ const Reporting = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Weekly Analytics Report</h4>
-              <p className="text-sm text-gray-600">Comprehensive weekly business metrics</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Comprehensive weekly business metrics</p>
             </div>
             <Switch
               checked={settings.weeklyReport}
@@ -78,7 +78,7 @@ const Reporting = () => {
           <div className="flex items-center justify-between">
             <div>
               <h4 className="font-medium">Monthly Financial Report</h4>
-              <p className="text-sm text-gray-600">Monthly revenue and expense breakdown</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">Monthly revenue and expense breakdown</p>
             </div>
             <Switch
               checked={settings.monthlyReport}

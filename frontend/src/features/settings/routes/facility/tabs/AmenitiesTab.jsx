@@ -101,7 +101,7 @@ export default function AmenitiesTab() {
             </label>
           ))}
         </div>
-        <p className="text-xs text-gray-500 mt-3">
+        <p className="text-xs text-gray-500 dark:text-text-secondary mt-3">
           These are shown to customers during booking.
         </p>
       </Card>
@@ -123,7 +123,7 @@ export default function AmenitiesTab() {
             </label>
           ))}
         </div>
-        <p className="text-xs text-gray-500 mt-3">
+        <p className="text-xs text-gray-500 dark:text-text-secondary mt-3">
           These premium features are highlighted to customers.
         </p>
       </Card>
@@ -145,7 +145,7 @@ export default function AmenitiesTab() {
             </label>
           ))}
         </div>
-        <p className="text-xs text-gray-500 mt-3">
+        <p className="text-xs text-gray-500 dark:text-text-secondary mt-3">
           Daycare-specific amenities and activities.
         </p>
       </Card>
@@ -161,7 +161,7 @@ export default function AmenitiesTab() {
       >
         <div className="space-y-3">
           {addonServices.map((addon) => (
-            <div key={addon.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+            <div key={addon.id} className="flex items-center justify-between p-3 border border-gray-200 dark:border-surface-border rounded-lg">
               <div className="flex items-center gap-3">
                 <input
                   type="checkbox"
@@ -172,19 +172,19 @@ export default function AmenitiesTab() {
                 <span className="text-sm">{addon.label}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500">$</span>
+                <span className="text-sm text-gray-500 dark:text-text-secondary">$</span>
                 <input
                   type="number"
                   value={addon.price}
                   onChange={(e) => handleAddonPriceChange(addon.id, e.target.value)}
-                  className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="w-16 px-2 py-1 text-sm border border-gray-300 dark:border-surface-border rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                   min="0"
                 />
               </div>
             </div>
           ))}
         </div>
-        <p className="text-xs text-gray-500 mt-3">
+        <p className="text-xs text-gray-500 dark:text-text-secondary mt-3">
           Add-on services are shown during the booking process and can be selected by customers.
         </p>
       </Card>

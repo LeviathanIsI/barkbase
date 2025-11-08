@@ -41,7 +41,7 @@ const OwnerDetailModal = ({
         {/* Header with Actions */}
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-purple-100 text-purple-600">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-purple-100 dark:bg-surface-secondary text-purple-600 dark:text-purple-400">
               <Users className="h-8 w-8" />
             </div>
             <div>
@@ -65,7 +65,7 @@ const OwnerDetailModal = ({
               size="sm"
               onClick={() => onDelete(owner.recordId)}
               disabled={isDeleting}
-              className="text-red-600 hover:bg-red-50"
+              className="text-red-600 hover:bg-red-50 dark:bg-surface-primary"
             >
               <Trash2 className="h-4 w-4 mr-2" />
               {isDeleting ? 'Deleting...' : 'Delete'}
@@ -83,7 +83,7 @@ const OwnerDetailModal = ({
                   <Mail className="h-4 w-4 text-muted" />
                   <a
                     href={`mailto:${owner.email}`}
-                    className="text-sm text-blue-600 hover:underline"
+                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
                   >
                     {owner.email}
                   </a>
@@ -94,7 +94,7 @@ const OwnerDetailModal = ({
                   <Phone className="h-4 w-4 text-muted" />
                   <a
                     href={`tel:${owner.phone}`}
-                    className="text-sm text-blue-600 hover:underline"
+                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
                   >
                     {owner.phone}
                   </a>
@@ -152,7 +152,7 @@ const OwnerDetailModal = ({
                   key={pet.recordId}
                   className="flex items-center gap-3 rounded-lg border border-border bg-surface/50 p-3 hover:bg-surface transition-colors"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-surface-secondary text-blue-600 dark:text-blue-400">
                     <PawPrint className="h-5 w-5" />
                   </div>
                   <div className="flex-1 min-w-0">

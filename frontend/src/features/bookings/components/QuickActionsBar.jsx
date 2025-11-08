@@ -9,9 +9,9 @@ const QuickActionsBar = ({
   onAnalytics
 }) => {
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
+    <div className="bg-white dark:bg-surface-primary border border-gray-200 dark:border-surface-border rounded-lg p-4">
       <div className="flex items-center justify-between">
-        <h4 className="font-semibold text-gray-900">QUICK ACTIONS</h4>
+        <h4 className="font-semibold text-gray-900 dark:text-text-primary">QUICK ACTIONS</h4>
 
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" className="flex items-center gap-2" onClick={onNewBooking}>
