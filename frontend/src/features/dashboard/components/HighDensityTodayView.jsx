@@ -550,7 +550,7 @@ const WarningIndicators = ({ warnings, notes }) => {
         </div>
       )}
       {warnings.includes('special-diet') && (
-        <div className="w-5 h-5 bg-blue-50 dark:bg-blue-950/20 text-white rounded flex items-center justify-center" title="Special diet">
+        <div className="w-5 h-5 bg-blue-50 dark:bg-surface-primary text-white rounded flex items-center justify-center" title="Special diet">
           <span className="text-[10px] font-bold">D</span>
         </div>
       )}
