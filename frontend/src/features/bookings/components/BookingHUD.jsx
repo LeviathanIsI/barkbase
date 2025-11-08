@@ -39,9 +39,9 @@ const BookingHUD = ({
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
         <HUDCard icon={Dog} label="Pets Today" value={totals.petsToday} color="text-blue-600 dark:text-blue-400"/>
-        <HUDCard icon={Home} label="Check-ins" value={totals.checkIns} color="text-emerald-600"/>
-        <HUDCard icon={Home} label="Check-outs" value={totals.checkOuts} color="text-amber-600"/>
-        <HUDCard icon={User} label="Occupancy" value={`${Math.round(totals.occupancyPct)}%`} color="text-violet-600"/>
+        <HUDCard icon={Home} label="Check-ins" value={totals.checkIns} color="text-emerald-600 dark:text-emerald-400"/>
+        <HUDCard icon={Home} label="Check-outs" value={totals.checkOuts} color="text-amber-600 dark:text-amber-400"/>
+        <HUDCard icon={User} label="Occupancy" value={`${Math.round(totals.occupancyPct)}%`} color="text-violet-600 dark:text-violet-400"/>
       </div>
     </div>
   );

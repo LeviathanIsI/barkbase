@@ -21,7 +21,7 @@ const ListView = ({
               </span>
               <button
                 onClick={onDeselectAll}
-                className="text-sm text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:text-blue-100 underline"
+                className="text-sm text-blue-700 dark:text-blue-300 hover:text-blue-900 dark:hover:text-blue-100 underline"
               >
                 Deselect all
               </button>
