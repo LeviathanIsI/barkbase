@@ -22,7 +22,7 @@ export default function SectionCard({
   return (
     <section
       className={cn(
-        'rounded-lg border border-border bg-white shadow-sm shadow-black/5',
+        'rounded-lg border border-border bg-white dark:bg-surface-primary shadow-sm shadow-black/5',
         className,
       )}
     >

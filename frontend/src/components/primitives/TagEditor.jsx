@@ -34,7 +34,7 @@ export default function TagEditor({
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             placeholder={inputPlaceholder}
-            className="flex-1 rounded-md border border-border bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="flex-1 rounded-md border border-border bg-white dark:bg-surface-primary px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             disabled={isSaving}
           />
           <Button type="submit" size="sm" disabled={isSaving || !draft.trim()} icon={<Plus className="h-4 w-4" />}>

@@ -21,7 +21,7 @@ export default function Page({
       {(title || breadcrumbs || actions || toolbar) && (
         <div
           className={cn(
-            'border-b border-border bg-white',
+            'border-b border-border bg-white dark:bg-surface-primary',
             stickyHeader && 'sticky top-0 z-10',
             headerClassName,
           )}

@@ -14,7 +14,7 @@ export default function EmptyState({
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-white px-8 py-12 text-center',
+        'flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-white dark:bg-surface-primary px-8 py-12 text-center',
         align === 'start' && 'items-start text-left',
         className,
       )}
