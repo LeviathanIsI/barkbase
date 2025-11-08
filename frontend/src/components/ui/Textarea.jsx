@@ -11,7 +11,7 @@ const Textarea = React.forwardRef(
     return (
       <div className="w-full">
         {label && (
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
+          <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1.5">
             {label}
             {props.required && <span className="text-error-600 ml-1">*</span>}
           </label>
@@ -19,10 +19,10 @@ const Textarea = React.forwardRef(
         <textarea
           rows={rows}
           className={cn(
-            'flex w-full rounded-md border border-gray-300 bg-white px-3 py-2',
-            'text-sm text-gray-900 placeholder:text-gray-600 placeholder:opacity-75',
-            'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent',
-            'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-50',
+            'flex w-full rounded-md border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary px-3 py-2',
+            'text-sm text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-tertiary placeholder:opacity-75',
+            'focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600 focus:border-transparent',
+            'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-50 dark:disabled:bg-surface-secondary',
             'transition-colors resize-y',
             error && 'border-error-500 focus:ring-error-500',
             className
@@ -34,7 +34,7 @@ const Textarea = React.forwardRef(
           <p className="mt-1.5 text-sm text-error-600">{error}</p>
         )}
         {helpText && !error && (
-          <p className="mt-1.5 text-sm text-gray-500">{helpText}</p>
+          <p className="mt-1.5 text-sm text-gray-500 dark:text-text-secondary">{helpText}</p>
         )}
       </div>
     );
