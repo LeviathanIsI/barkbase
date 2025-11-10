@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npm run prisma:generate:*)",
       "Bash(npm run prisma:migrate:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []

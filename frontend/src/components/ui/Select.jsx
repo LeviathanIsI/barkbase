@@ -48,4 +48,13 @@ const Select = React.forwardRef(
 
 Select.displayName = 'Select';
 
+// Create placeholder components for compatibility
+const SelectTrigger = Select;
+const SelectValue = ({ children, ...props }) => children;
+const SelectContent = ({ children }) => children;
+const SelectItem = ({ children, value, ...props }) => (
+  <option value={value} {...props}>{children}</option>
+);
+
+export { Select, SelectTrigger, SelectValue, SelectContent, SelectItem };
 export default Select;

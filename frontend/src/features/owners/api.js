@@ -189,3 +189,7 @@ export const useRemovePetFromOwnerMutation = (ownerId) => {
     },
   });
 };
+
+// Aliases for convenience
+export const useOwner = useOwnerQuery;
+export const useOwners = useOwnersQuery;
