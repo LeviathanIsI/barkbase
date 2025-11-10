@@ -1,24 +1,326 @@
-# Logs
-logs
-*.log
+# =============================================================================
+# BARKBASE ENTERPRISE .GITIGNORE - ZERO TOLERANCE FOR SECRETS
+# =============================================================================
+# This .gitignore prevents ALL sensitive data from entering Git
+# For B2B SaaS / Enterprise applications - NO EXCEPTIONS
+# =============================================================================
+
+# =============================================================================
+# 🚨 CRITICAL SECURITY - SECRETS & CREDENTIALS 
+# =============================================================================
+# These patterns prevent ANY form of credential leakage
+
+# Environment files (ALL variations)
+.env
+.env.*
+.environment
+.env.local
+.env.development
+.env.staging
+.env.production
+.env.test
+.env.backup
+.env.example.real
+environment.js
+environment.ts
+config.local.*
+
+# Database credentials (ALL formats)
+db_creds.*
+database_creds.*
+db_config.*
+database_config.*
+connection_string.*
+db_password.*
+postgres_creds.*
+rds_creds.*
+aurora_creds.*
+
+# AWS credentials & config
+.aws/
+aws-credentials.*
+aws-config.*
+credentials
+credentials.*
+aws_access_key*
+aws_secret_key*
+aws-exports.js
+aws-outputs.json
+amplify-meta.json
+
+# API Keys & Tokens
+api_keys.*
+api-keys.*
+*_api_key*
+*_token*
+*_secret*
+jwt_secret*
+jwt-secret*
+cognito_*
+auth0_*
+stripe_*
+sendgrid_*
+
+# SSL/TLS Certificates & Keys
+*.pem
+*.key
+*.crt
+*.cert
+*.p12
+*.pfx
+*.jks
+*.keystore
+server.key
+server.crt
+private-key*
+public-key*
+ssl/
+certs/
+certificates/
+
+# SSH Keys
+id_rsa
+id_rsa.pub
+id_ecdsa
+id_ed25519
+*.ppk
+known_hosts
+authorized_keys
+
+# =============================================================================
+# 🔧 AWS CDK & SERVERLESS
+# =============================================================================
+
+# CDK outputs & context
+cdk.out/
+cdk.context.json
+.cdk.staging/
+cdk-outputs.json
+stack-outputs.json
+
+# CDK bootstrap
+**/bootstrap-template.yaml
+**/cdk-toolkit-*
+
+# SAM & Serverless Framework
+.aws-sam/
+.serverless/
+serverless-output.*
+.serverless_nextjs/
+.sls/
+
+# Terraform (if used)
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform/
+.terraform.lock.hcl
+terraform.rc
+.terraformrc
+
+# Pulumi (if used)
+Pulumi.*.yaml
+.pulumi/
+
+# =============================================================================
+# 📱 FRONTEND BUILD & DEPENDENCIES
+# =============================================================================
+
+# Node.js
+node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
 lerna-debug.log*
+.pnpm-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Package manager files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.yarn/
+.pnp.*
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# Build outputs
+build/
+dist/
+out/
+.next/
+.nuxt/
+.output/
+.vercel/
+.netlify/
+
+# React/Vite/Build tools
+.vite/
+vite.config.js.timestamp-*
+.rollup.cache/
+.parcel-cache/
+
+# =============================================================================
+# 🧪 TESTING & DEVELOPMENT
+# =============================================================================
+
+# Testing
+coverage/
+.nyc_output/
+junit.xml
+test-results/
+playwright-report/
+test-results/
+.coverage/
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+Thumbs.db
+*.log
+
+# Debug & temporary files
+debug.log
+*.tmp
+*.temp
+.cache/
+.temp/
+tmp/
+
+# =============================================================================
+# 🐳 CONTAINERIZATION
+# =============================================================================
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+docker-compose.local.yml
+.docker/
+
+# =============================================================================
+# 📊 MONITORING & LOGS
+# =============================================================================
+
+# Application logs
+*.log
+logs/
+log/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Error tracking
+.sentryrc
+.sentry/
+
+# =============================================================================
+# 💾 DATABASES & BACKUPS
+# =============================================================================
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# Database dumps & backups
+*.sql
+*.dump
+backup/
+dumps/
+migrations/data/
+
+# =============================================================================
+# 🎨 ASSETS & UPLOADS
+# =============================================================================
+
+# User uploads (configure S3 instead)
+uploads/
+user-uploads/
+temp-uploads/
+public/uploads/
+
+# Generated assets
+public/assets/generated/
+assets/generated/
+
+# =============================================================================
+# 📋 DOCUMENTATION & MISC
+# =============================================================================
+
+# Documentation builds
+docs/build/
+.docusaurus/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# =============================================================================
+# 🏗️ PROJECT SPECIFIC - BARKBASE
+# =============================================================================
+
+# BarkBase specific patterns
+barkbase-credentials.*
+kennel-*-creds.*
+**/secrets/
+local-config.*
+
+# Lambda deployment packages
+lambda-deploy-*.zip
+deployment-*.zip
+
+# CloudFormation templates with secrets
+*-secrets.yaml
+*-secrets.yml
+*-with-secrets.*
+
+# Local development overrides
+local.*.json
+dev.*.json
+*.local.js
+*.local.ts
+
+# =============================================================================
+# 🚦 ALLOW PATTERNS (Explicitly allowed files)
+# =============================================================================
+# Use ! to explicitly allow files that might match above patterns
+
+# Allow example environment files (no real secrets)
+!.env.example
+!.env.template
+!config.example.js
+!aws-config.example.json
+
+# Allow public certificates (not private keys)
+!public.crt
+!ca-bundle.crt
+
+# =============================================================================
+# 📝 NOTES FOR DEVELOPERS
+# =============================================================================
+#
+# IMPORTANT REMINDERS:
+# 1. NEVER commit real secrets, even temporarily
+# 2. Use AWS Secrets Manager / Parameter Store for all secrets
+# 3. Use environment variables with proper defaults
+# 4. Regularly audit git history for accidentally committed secrets
+# 5. Consider using git-secrets or similar tools
+#
+# To check for secrets in existing commits:
+# git log --oneline -S "password" --all
+# git log --oneline -S "secret" --all 
+# git log --oneline -S "key" --all
+#
+# To remove secrets from git history:
+# git filter-branch --force --index-filter 'git rm --cached --ignore-unmatch .env' --prune-empty --tag-name-filter cat -- --all
+# OR use BFG Repo-Cleaner (faster): 
+# bfg --delete-files .env --delete-files db_creds.txt
+#
+# =============================================================================

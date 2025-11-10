@@ -1,1 +1,0 @@
-{"password":"d9ZOrLo13E1iAjtUlWN1LiRm.1GZ-s","dbname":"barkbase","engine":"postgres","port":5432,"dbInstanceIdentifier":"barkbase-dev-postgresinstance19cdd68a-2kflsaf4vwvj","host":"barkbase-dev-postgresinstance19cdd68a-2kflsaf4vwvj.ctuea6sg4d0d.us-east-2.rds.amazonaws.com","username":"postgres"}
