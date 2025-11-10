@@ -10,74 +10,142 @@ const HEADERS = {
   "Access-Control-Allow-Methods": "OPTIONS,POST,GET,PUT,DELETE",
 };
 
+const BCRYPT_ROUNDS = 12; // OWASP recommended minimum
+
+// Error codes for standardized responses
+const ERROR_CODES = {
+  UNAUTHORIZED: 'USER_001',
+  FORBIDDEN: 'USER_002',
+  NOT_FOUND: 'USER_003',
+  DUPLICATE: 'USER_004',
+  INVALID_INPUT: 'USER_005',
+  INTERNAL_ERROR: 'SYS_001'
+};
+
+/**
+ * Extract user info from API Gateway JWT authorizer
+ * @param {Object} event - Lambda event object
+ * @returns {Object|null} User info with sub, tenantId, role
+ */
+function getUserInfoFromEvent(event) {
+  const claims = event?.requestContext?.authorizer?.jwt?.claims;
+  if (!claims) {
+    console.error('[USERS] No JWT claims found in event');
+    return null;
+  }
+
+  return {
+    sub: claims.sub, // User ID
+    email: claims.email,
+    tenantId: claims['custom:tenantId'] || claims.tenantId,
+    role: claims['custom:role'] || claims.role
+  };
+}
+
+/**
+ * Create standardized error response
+ * @param {number} statusCode - HTTP status code
+ * @param {string} errorCode - Application error code
+ * @param {string} message - User-facing error message
+ * @param {Object} error - Original error for logging
+ * @returns {Object} Lambda response object
+ */
+function errorResponse(statusCode, errorCode, message, error = null) {
+  if (error) {
+    console.error(`[USERS_ERROR] ${errorCode}: ${message}`, {
+      error: error.message,
+      stack: error.stack
+    });
+  }
+
+  return {
+    statusCode,
+    headers: HEADERS,
+    body: JSON.stringify({
+      error: errorCode,
+      message
+    })
+  };
+}
+
 exports.handler = async (event) => {
 
   const httpMethod = event.requestContext.http.method;
   const path = event.requestContext.http.path;
 
-  // A simple router
+  // SECURITY: Extract and validate user authentication
+  const requestingUser = getUserInfoFromEvent(event);
+
+  if (!requestingUser || !requestingUser.sub || !requestingUser.tenantId) {
+    return errorResponse(401, ERROR_CODES.UNAUTHORIZED, 'Unauthorized');
+  }
+
+  // A simple router with tenant isolation
   try {
     if (httpMethod === "GET" && event.pathParameters?.id) {
-      return await getUserById(event);
+      return await getUserById(event, requestingUser);
     }
     if (httpMethod === "GET" && path === "/users") {
-      return await listUsers(event);
+      return await listUsers(event, requestingUser);
     }
     if (httpMethod === "POST" && path === "/users") {
-      return await createUser(event);
+      return await createUser(event, requestingUser);
     }
     if (httpMethod === "PUT" && event.pathParameters?.id) {
-      return await updateUser(event);
+      return await updateUser(event, requestingUser);
     }
     if (httpMethod === "DELETE" && event.pathParameters?.id) {
-      return await deleteUser(event);
+      return await deleteUser(event, requestingUser);
     }
 
     return {
       statusCode: 404,
       headers: HEADERS,
-      body: JSON.stringify({ message: "Not Found" }),
+      body: JSON.stringify({ error: 'NOT_FOUND', message: "Not Found" }),
     };
   } catch (error) {
-    console.error("Error processing request:", error);
-    return {
-      statusCode: 500,
-      headers: HEADERS,
-      body: JSON.stringify({
-        message: "Internal Server Error",
-        error: error.message,
-      }),
-    };
+    return errorResponse(500, ERROR_CODES.INTERNAL_ERROR, 'Internal Server Error', error);
   }
 };
 
-const getUserById = async (event) => {
-  // Note: In a real implementation, authorization logic will be added here
-  // to check if the requesting user (from the JWT) is allowed to view the
-  // requested user's data, likely by checking for a shared tenant in the
-  // Membership table.
-
+/**
+ * CRITICAL SECURITY FIX: Get user by ID with tenant isolation
+ *
+ * SECURITY REQUIREMENTS:
+ * 1. Only allow access to users within requesting user's tenant
+ * 2. Verify shared tenant membership via Membership table JOIN
+ * 3. Return 404 (not 403) to maintain security through obscurity
+ * 4. Never expose user data across tenant boundaries
+ *
+ * @param {Object} event - Lambda event
+ * @param {Object} requestingUser - Authenticated user from JWT
+ * @returns {Object} Lambda response
+ */
+const getUserById = async (event, requestingUser) => {
   const userId = event.pathParameters.id;
   if (!userId) {
-    return {
-      statusCode: 400,
-      headers: HEADERS,
-      body: JSON.stringify({ message: "User ID is missing from path" }),
-    };
+    return errorResponse(400, ERROR_CODES.INVALID_INPUT, "User ID is required");
   }
 
   const pool = getPool();
+
+  // SECURITY: Verify requesting user has access to target user via shared tenant
+  // Using JOIN with Membership table to ensure tenant isolation
   const { rows } = await pool.query(
-    'SELECT "recordId", "email", "name", "phone", "avatarUrl", "createdAt" FROM "User" WHERE "recordId" = $1',
-    [userId]
+    `SELECT DISTINCT u."recordId", u."email", u."name", u."phone", u."avatarUrl", u."createdAt"
+     FROM "User" u
+     INNER JOIN "Membership" m1 ON u."recordId" = m1."userId"
+     INNER JOIN "Membership" m2 ON m1."tenantId" = m2."tenantId"
+     WHERE u."recordId" = $1
+       AND m2."userId" = $2
+       AND m2."tenantId" = $3`,
+    [userId, requestingUser.sub, requestingUser.tenantId]
   );
 
+  // SECURITY: Return 404 instead of 403 to prevent tenant enumeration
   if (rows.length === 0) {
-    return {
-      statusCode: 404,
-      headers: HEADERS,
-      body: JSON.stringify({ message: "User not found" }),
-    };
+    console.log(`[USERS] Access denied: User ${requestingUser.sub} attempted to access user ${userId} (tenant: ${requestingUser.tenantId})`);
+    return errorResponse(404, ERROR_CODES.NOT_FOUND, "User not found");
   }
 
   return {
@@ -87,20 +155,51 @@ const getUserById = async (event) => {
   };
 };
 
-const listUsers = async (event) => {
-  // Note: This is a simplified list function. A production implementation
-  // would filter users by tenant based on the requester's memberships.
+/**
+ * CRITICAL SECURITY FIX: List users with tenant isolation
+ *
+ * SECURITY REQUIREMENTS:
+ * 1. Only return users within requesting user's tenant
+ * 2. Filter via Membership table JOIN
+ * 3. Include role information for UI
+ *
+ * @param {Object} event - Lambda event
+ * @param {Object} requestingUser - Authenticated user from JWT
+ * @returns {Object} Lambda response
+ */
+const listUsers = async (event, requestingUser) => {
   const limit = parseInt(event.queryStringParameters?.limit) || 20;
   const offset = parseInt(event.queryStringParameters?.offset) || 0;
 
+  // Input validation
+  if (limit > 100) {
+    return errorResponse(400, ERROR_CODES.INVALID_INPUT, "Limit cannot exceed 100");
+  }
+  if (limit < 1 || offset < 0) {
+    return errorResponse(400, ERROR_CODES.INVALID_INPUT, "Invalid pagination parameters");
+  }
+
   const pool = getPool();
+
+  // SECURITY: Only return users in requesting user's tenant
   const { rows } = await pool.query(
-    'SELECT "recordId", "email", "name", "createdAt" FROM "User" ORDER BY "createdAt" DESC LIMIT $1 OFFSET $2',
-    [limit, offset]
+    `SELECT DISTINCT u."recordId", u."email", u."name", u."createdAt", m."role"
+     FROM "User" u
+     INNER JOIN "Membership" m ON u."recordId" = m."userId"
+     WHERE m."tenantId" = $1
+     ORDER BY u."createdAt" DESC
+     LIMIT $2 OFFSET $3`,
+    [requestingUser.tenantId, limit, offset]
   );
 
-  // Also get the total count for pagination headers
-  const { rows: countRows } = await pool.query('SELECT COUNT(*) FROM "User"');
+  // SECURITY: Count only users in requesting user's tenant
+  const { rows: countRows } = await pool.query(
+    `SELECT COUNT(DISTINCT u."recordId") as count
+     FROM "User" u
+     INNER JOIN "Membership" m ON u."recordId" = m."userId"
+     WHERE m."tenantId" = $1`,
+    [requestingUser.tenantId]
+  );
   const totalCount = parseInt(countRows[0].count, 10);
 
   return {
@@ -113,28 +212,44 @@ const listUsers = async (event) => {
   };
 };
 
-const createUser = async (event) => {
+/**
+ * Create user (Note: Consider using /api/v1/auth/register instead for production)
+ * This endpoint is kept for backward compatibility but should verify tenant permissions
+ *
+ * @param {Object} event - Lambda event
+ * @param {Object} requestingUser - Authenticated user from JWT
+ * @returns {Object} Lambda response
+ */
+const createUser = async (event, requestingUser) => {
   const body = JSON.parse(event.body);
   const { email, password, name, phone } = body;
 
   if (!email || !password) {
-    return {
-      statusCode: 400,
-      headers: HEADERS,
-      body: JSON.stringify({ message: "Email and password are required" }),
-    };
+    return errorResponse(400, ERROR_CODES.INVALID_INPUT, "Email and password are required");
   }
 
-  // Hash the password
-  const salt = await bcrypt.genSalt(10);
-  const passwordHash = await bcrypt.hash(password, salt);
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return errorResponse(400, ERROR_CODES.INVALID_INPUT, "Invalid email format");
+  }
+
+  // Validate password strength
+  if (password.length < 8) {
+    return errorResponse(400, ERROR_CODES.INVALID_INPUT, "Password must be at least 8 characters");
+  }
+
+  // SECURITY: Hash password with OWASP recommended rounds
+  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
   const pool = getPool();
   try {
     const { rows } = await pool.query(
       'INSERT INTO "User" ("recordId", "email", "passwordHash", "name", "phone", "updatedAt") VALUES (gen_random_uuid(), $1, $2, $3, $4, NOW()) RETURNING "recordId", "email", "name", "createdAt"',
-      [email, passwordHash, name, phone]
+      [email.toLowerCase(), passwordHash, name, phone]
     );
+
+    console.log(`[USERS] User created: ${rows[0].recordId} by ${requestingUser.sub}`);
 
     return {
       statusCode: 201,
@@ -144,19 +259,21 @@ const createUser = async (event) => {
   } catch (error) {
     // Check for unique constraint violation (duplicate email)
     if (error.code === "23505") {
-      return {
-        statusCode: 409,
-        headers: HEADERS,
-        body: JSON.stringify({
-          message: "A user with this email already exists",
-        }),
-      };
+      return errorResponse(409, ERROR_CODES.DUPLICATE, "A user with this email already exists");
     }
     throw error; // Rethrow other errors to be caught by the main handler
   }
 };
 
-const updateUser = async (event) => {
+/**
+ * SECURITY FIX: Update user with tenant isolation
+ * Users can only update other users in their tenant, or themselves
+ *
+ * @param {Object} event - Lambda event
+ * @param {Object} requestingUser - Authenticated user from JWT
+ * @returns {Object} Lambda response
+ */
+const updateUser = async (event, requestingUser) => {
   const userId = event.pathParameters.id;
   const body = JSON.parse(event.body);
   const { name, phone, avatarUrl, timezone, language, preferences } = body;
@@ -192,27 +309,39 @@ const updateUser = async (event) => {
   }
 
   if (fields.length === 0) {
-    return {
-      statusCode: 400,
-      headers: HEADERS,
-      body: JSON.stringify({ message: "No valid fields provided for update" }),
-    };
+    return errorResponse(400, ERROR_CODES.INVALID_INPUT, "No valid fields provided for update");
+  }
+
+  const pool = getPool();
+
+  // SECURITY: Verify user has access to target user via shared tenant
+  const accessCheck = await pool.query(
+    `SELECT COUNT(*) as count
+     FROM "User" u
+     INNER JOIN "Membership" m1 ON u."recordId" = m1."userId"
+     INNER JOIN "Membership" m2 ON m1."tenantId" = m2."tenantId"
+     WHERE u."recordId" = $1
+       AND m2."userId" = $2
+       AND m2."tenantId" = $3`,
+    [userId, requestingUser.sub, requestingUser.tenantId]
+  );
+
+  if (parseInt(accessCheck.rows[0].count) === 0) {
+    console.log(`[USERS] Update denied: User ${requestingUser.sub} attempted to update user ${userId}`);
+    return errorResponse(404, ERROR_CODES.NOT_FOUND, "User not found");
   }
 
   const setClause = fields.join(", ");
-  const query = `UPDATE "User" SET ${setClause} WHERE "recordId" = $${paramCount} RETURNING "recordId", "email", "name", "phone", "avatarUrl", "updatedAt"`;
+  const query = `UPDATE "User" SET ${setClause}, "updatedAt" = NOW() WHERE "recordId" = $${paramCount} RETURNING "recordId", "email", "name", "phone", "avatarUrl", "updatedAt"`;
   values.push(userId);
 
-  const pool = getPool();
   const { rows } = await pool.query(query, values);
 
   if (rows.length === 0) {
-    return {
-      statusCode: 404,
-      headers: HEADERS,
-      body: JSON.stringify({ message: "User not found" }),
-    };
+    return errorResponse(404, ERROR_CODES.NOT_FOUND, "User not found");
   }
+
+  console.log(`[USERS] User updated: ${userId} by ${requestingUser.sub}`);
 
   return {
     statusCode: 200,
@@ -221,22 +350,53 @@ const updateUser = async (event) => {
   };
 };
 
-const deleteUser = async (event) => {
+/**
+ * SECURITY FIX: Delete user with tenant isolation
+ * Only OWNER/ADMIN can delete users, and only within their tenant
+ *
+ * @param {Object} event - Lambda event
+ * @param {Object} requestingUser - Authenticated user from JWT
+ * @returns {Object} Lambda response
+ */
+const deleteUser = async (event, requestingUser) => {
   const userId = event.pathParameters.id;
 
+  // SECURITY: Only OWNER/ADMIN can delete users
+  if (!['OWNER', 'ADMIN'].includes(requestingUser.role)) {
+    return errorResponse(403, ERROR_CODES.FORBIDDEN, "Insufficient permissions");
+  }
+
   const pool = getPool();
+
+  // SECURITY: Verify user exists in requesting user's tenant before deleting
+  const accessCheck = await pool.query(
+    `SELECT COUNT(*) as count
+     FROM "User" u
+     INNER JOIN "Membership" m ON u."recordId" = m."userId"
+     WHERE u."recordId" = $1 AND m."tenantId" = $2`,
+    [userId, requestingUser.tenantId]
+  );
+
+  if (parseInt(accessCheck.rows[0].count) === 0) {
+    console.log(`[USERS] Delete denied: User ${requestingUser.sub} attempted to delete user ${userId}`);
+    return errorResponse(404, ERROR_CODES.NOT_FOUND, "User not found");
+  }
+
+  // Prevent self-deletion
+  if (userId === requestingUser.sub) {
+    return errorResponse(400, ERROR_CODES.INVALID_INPUT, "Cannot delete your own account");
+  }
+
   const { rowCount } = await pool.query(
     'DELETE FROM "User" WHERE "recordId" = $1',
     [userId]
   );
 
   if (rowCount === 0) {
-    return {
-      statusCode: 404,
-      headers: HEADERS,
-      body: JSON.stringify({ message: "User not found" }),
-    };
+    return errorResponse(404, ERROR_CODES.NOT_FOUND, "User not found");
   }
+
+  console.log(`[USERS] User deleted: ${userId} by ${requestingUser.sub}`);
 
   return {
     statusCode: 204, // No Content

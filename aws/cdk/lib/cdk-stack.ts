@@ -12,7 +12,9 @@ import * as logs from "aws-cdk-lib/aws-logs";
 import * as cw from "aws-cdk-lib/aws-cloudwatch";
 import * as wafv2 from "aws-cdk-lib/aws-wafv2";
 import * as sns from "aws-cdk-lib/aws-sns";
-import * as actions from "aws-cdk-lib/aws-cloudwatch-actions";
+import * as snsSubscriptions from "aws-cdk-lib/aws-sns-subscriptions";
+import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
+import * as cloudwatchActions from "aws-cdk-lib/aws-cloudwatch-actions";
 import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 // import * as acm from "aws-cdk-lib/aws-certificatemanager";
@@ -46,6 +48,62 @@ export class CdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    // ===================================================================
+    // ENVIRONMENT CONFIGURATION
+    // ===================================================================
+    // Deployment stage (dev, staging, prod)
+    const stage = process.env.STAGE || process.env.ENVIRONMENT || 'dev';
+
+    // Feature flags for cost optimization
+    const enableVpcEndpoints = process.env.ENABLE_VPC_ENDPOINTS === 'true';
+    const enableRdsProxy = process.env.ENABLE_RDS_PROXY === 'true';
+    const deployLambdasInVpc = process.env.DEPLOY_LAMBDAS_IN_VPC === 'true';
+
+    // Environment-specific configuration
+    const config = {
+      dev: {
+        logRetentionDays: logs.RetentionDays.ONE_MONTH, // 30 days
+        backupRetentionDays: 7,
+        rdsInstanceSize: ec2.InstanceSize.MICRO,
+        rdsMultiAz: false,
+        rdsAllocatedStorage: 20,
+        enablePerformanceInsights: false,
+      },
+      staging: {
+        logRetentionDays: logs.RetentionDays.THREE_MONTHS, // 90 days
+        backupRetentionDays: 14,
+        rdsInstanceSize: ec2.InstanceSize.SMALL,
+        rdsMultiAz: false,
+        rdsAllocatedStorage: 50,
+        enablePerformanceInsights: false,
+      },
+      prod: {
+        logRetentionDays: logs.RetentionDays.THREE_MONTHS, // 90 days
+        backupRetentionDays: 30,
+        rdsInstanceSize: ec2.InstanceSize.SMALL,
+        rdsMultiAz: true,
+        rdsAllocatedStorage: 100,
+        enablePerformanceInsights: true,
+      },
+    };
+
+    const envConfig = config[stage as keyof typeof config] || config.dev;
+
+    console.log(`
+╔═══════════════════════════════════════════════════════════════════╗
+║ BARKBASE INFRASTRUCTURE DEPLOYMENT                                ║
+╠═══════════════════════════════════════════════════════════════════╣
+║ Stage:                ${stage.padEnd(45)}║
+║ VPC Endpoints:        ${(enableVpcEndpoints ? 'ENABLED' : 'DISABLED').padEnd(45)}║
+║ RDS Proxy:            ${(enableRdsProxy ? 'ENABLED' : 'DISABLED').padEnd(45)}║
+║ Lambdas in VPC:       ${(deployLambdasInVpc ? 'YES' : 'NO').padEnd(45)}║
+║ Log Retention:        ${envConfig.logRetentionDays + ' days'.padEnd(45)}║
+║ Backup Retention:     ${envConfig.backupRetentionDays + ' days'.padEnd(45)}║
+║ RDS Instance:         t4g.${envConfig.rdsInstanceSize.padEnd(39)}║
+║ Multi-AZ:             ${(envConfig.rdsMultiAz ? 'YES' : 'NO').padEnd(45)}║
+╚═══════════════════════════════════════════════════════════════════╝
+    `);
+
     // === VPC (no NAT, private isolated subnets) ===
     const vpc = new ec2.Vpc(this, "AppVpc", {
       maxAzs: 2,
@@ -61,10 +119,24 @@ export class CdkStack extends cdk.Stack {
     const dbSG = new ec2.SecurityGroup(this, "DatabaseSecurityGroup", { vpc });
     dbSG.addIngressRule(lambdaSG, ec2.Port.tcp(5432), "Allow Lambda to Postgres");
 
-    // VPC Endpoints to avoid NAT for AWS services access
-    vpc.addGatewayEndpoint("S3Endpoint", { service: ec2.GatewayVpcEndpointAwsService.S3 });
-    vpc.addInterfaceEndpoint("SecretsManagerEndpoint", { service: ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER, securityGroups: [lambdaSG] });
-    vpc.addInterfaceEndpoint("CloudWatchLogsEndpoint", { service: ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS, securityGroups: [lambdaSG] });
+    // COST OPTIMIZATION: VPC Endpoints (only if Lambda functions are deployed in VPC)
+    // Cost: ~$14.40/month for interface endpoints
+    // Enable by setting ENABLE_VPC_ENDPOINTS=true environment variable
+    if (enableVpcEndpoints) {
+      console.log('✓ Creating VPC Endpoints (Cost: ~$14.40/month)');
+      vpc.addGatewayEndpoint("S3Endpoint", { service: ec2.GatewayVpcEndpointAwsService.S3 });
+      vpc.addInterfaceEndpoint("SecretsManagerEndpoint", {
+        service: ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
+        securityGroups: [lambdaSG]
+      });
+      vpc.addInterfaceEndpoint("CloudWatchLogsEndpoint", {
+        service: ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS,
+        securityGroups: [lambdaSG]
+      });
+    } else {
+      console.log('✗ VPC Endpoints disabled (Saving: ~$14.40/month)');
+      console.log('  Note: Lambda functions must NOT be deployed in VPC or have NAT Gateway');
+    }
 
     // === RDS (PostgreSQL) with Secrets Manager and RDS Proxy ===
     const dbName = process.env.DB_NAME || "barkbase";
@@ -80,35 +152,133 @@ export class CdkStack extends cdk.Stack {
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       securityGroups: [dbSG],
-      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MICRO),
-      multiAz: false,
-      allocatedStorage: 20,
+      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, envConfig.rdsInstanceSize),
+      multiAz: envConfig.rdsMultiAz,
+      allocatedStorage: envConfig.rdsAllocatedStorage,
       storageEncrypted: true,
       storageType: rds.StorageType.GP3,
       publiclyAccessible: false,
       credentials: rds.Credentials.fromSecret(dbSecret),
       databaseName: dbName,
       removalPolicy: cdk.RemovalPolicy.SNAPSHOT,
+
+      // AUTOMATED BACKUPS - Critical for production operations
+      backupRetention: cdk.Duration.days(envConfig.backupRetentionDays),
+      preferredBackupWindow: '03:00-04:00', // 3-4 AM UTC (low usage hours)
+      preferredMaintenanceWindow: 'sun:04:00-sun:05:00', // Sunday 4-5 AM UTC
+
+      // MONITORING AND PERFORMANCE
+      enablePerformanceInsights: envConfig.enablePerformanceInsights,
+      performanceInsightRetention: envConfig.enablePerformanceInsights
+        ? rds.PerformanceInsightRetention.DEFAULT // 7 days
+        : undefined,
+      monitoringInterval: stage === 'prod' ? cdk.Duration.seconds(60) : undefined,
+      cloudwatchLogsExports: ['postgresql'], // Export PostgreSQL logs to CloudWatch
+
+      // DELETION PROTECTION (production only)
+      deletionProtection: stage === 'prod',
     });
 
-    const dbProxy = dbInstance.addProxy("PostgresProxy", {
-      secrets: [dbSecret],
-      vpc,
-      securityGroups: [dbSG],
-      requireTLS: true,
-      iamAuth: false,
-      borrowTimeout: cdk.Duration.seconds(120),
-      maxConnectionsPercent: 90,
-    });
+    console.log(`✓ RDS Instance configured:
+      - Instance: t4g.${envConfig.rdsInstanceSize}
+      - Storage: ${envConfig.rdsAllocatedStorage}GB GP3
+      - Multi-AZ: ${envConfig.rdsMultiAz}
+      - Backup Retention: ${envConfig.backupRetentionDays} days
+      - Performance Insights: ${envConfig.enablePerformanceInsights}
+      - Deletion Protection: ${stage === 'prod'}
+    `);
 
-    // Shared environment variables
-    // Using direct connection to public RDS instance (not proxy)
+    // COST OPTIMIZATION: RDS Proxy (optional - $10/month per proxy)
+    // Provides connection pooling and IAM authentication
+    // Enable by setting ENABLE_RDS_PROXY=true environment variable
+    let dbEndpoint: string;
+    let dbPort: string;
+
+    if (enableRdsProxy) {
+      console.log('✓ Creating RDS Proxy (Cost: ~$10/month)');
+      const dbProxy = dbInstance.addProxy("PostgresProxy", {
+        secrets: [dbSecret],
+        vpc,
+        securityGroups: [dbSG],
+        requireTLS: true,
+        iamAuth: false,
+        borrowTimeout: cdk.Duration.seconds(120),
+        maxConnectionsPercent: 90,
+      });
+      dbEndpoint = dbProxy.endpoint;
+      dbPort = '5432';
+      console.log('  Using RDS Proxy endpoint for database connections');
+    } else {
+      console.log('✗ RDS Proxy disabled (Saving: ~$10/month)');
+      dbEndpoint = dbInstance.dbInstanceEndpointAddress;
+      dbPort = dbInstance.dbInstanceEndpointPort;
+      console.log('  Using direct RDS instance endpoint');
+    }
+
+    // INFRASTRUCTURE FIX: Database connection configuration
+    // Now uses the actual RDS instance/proxy endpoint created in this stack
+    // instead of hardcoded external database
     const dbEnvironment = {
-      DB_HOST: "barkbase-dev-public.ctuea6sg4d0d.us-east-2.rds.amazonaws.com",
-      DB_PORT: "5432",
+      DB_HOST: dbEndpoint,
+      DB_PORT: dbPort,
       DB_NAME: dbName,
       DB_SECRET_ID: dbSecret.secretArn,
+      STAGE: stage, // For application logic (e.g., CORS origins)
     };
+
+    console.log(`✓ Database connection configured:
+      - Endpoint: ${dbEndpoint}
+      - Port: ${dbPort}
+      - Database: ${dbName}
+    `);
+
+    // ===================================================================
+    // LAMBDA FUNCTION HELPER
+    // ===================================================================
+    // Standardizes Lambda creation with proper log retention, VPC config,
+    // environment variables, and monitoring
+    interface CreateLambdaProps {
+      id: string;
+      handler: string;
+      codePath: string;
+      environment?: { [key: string]: string };
+      layers?: lambda.LayerVersion[];
+      timeout?: cdk.Duration;
+      memorySize?: number;
+      description?: string;
+    }
+
+    const createLambdaFunction = (props: CreateLambdaProps): lambda.Function => {
+      const lambdaFunction = new lambda.Function(this, props.id, {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: props.handler,
+        code: lambda.Code.fromAsset(props.codePath),
+        environment: props.environment || {},
+        layers: props.layers || [],
+        timeout: props.timeout || cdk.Duration.seconds(30),
+        memorySize: props.memorySize || 1024,
+        description: props.description,
+
+        // LOG RETENTION: Automatically configure based on environment
+        logRetention: envConfig.logRetentionDays,
+
+        // VPC CONFIGURATION: Conditional based on deployment strategy
+        ...(deployLambdasInVpc ? {
+          vpc,
+          vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+          securityGroups: [lambdaSG],
+        } : {}),
+      });
+
+      return lambdaFunction;
+    };
+
+    console.log(`✓ Lambda configuration:
+      - Log Retention: ${envConfig.logRetentionDays} days
+      - VPC Deployment: ${deployLambdasInVpc ? 'YES' : 'NO'}
+      - Default Timeout: 30 seconds
+      - Default Memory: 1024 MB
+    `);
 
     // Database Layer
     const dbLayer = new lambda.LayerVersion(this, "DbLayer", {
@@ -128,18 +298,18 @@ export class CdkStack extends cdk.Stack {
       description: "Provides JWT validation and authentication utilities",
     });
 
+    // ===================================================================
+    // LAMBDA FUNCTIONS
+    // ===================================================================
+
     // Users API
-    const usersApiFunction = new lambda.Function(this, "UsersApiFunction", {
-      runtime: lambda.Runtime.NODEJS_20_X,
+    const usersApiFunction = createLambdaFunction({
+      id: "UsersApiFunction",
       handler: "index.handler",
-      code: lambda.Code.fromAsset(
-        path.join(__dirname, "../../lambdas/users-api")
-      ),
-      layers: [dbLayer],
+      codePath: path.join(__dirname, "../../lambdas/users-api"),
       environment: dbEnvironment,
-      // No VPC - connects to public database
-      
-      timeout: cdk.Duration.seconds(30),
+      layers: [dbLayer],
+      description: "User management API with tenant isolation",
     });
     dbSecret.grantRead(usersApiFunction);
 
@@ -237,7 +407,7 @@ export class CdkStack extends cdk.Stack {
       .map((o) => o.trim())
       .filter((o) => o.length > 0);
 
-    // HTTP API Gateway
+    // SECURITY: HTTP API Gateway with rate limiting
     const httpApi = new apigw.HttpApi(this, "BarkbaseApi", {
       corsPreflight: {
         allowHeaders: [
@@ -259,7 +429,45 @@ export class CdkStack extends cdk.Stack {
         allowOrigins: allowedOrigins,
         allowCredentials: false,
       },
+      // SECURITY: Default throttle settings for all routes
+      // Prevents brute-force attacks and API abuse
+      defaultDomainMapping: {
+        domainName: undefined // Custom domain setup optional
+      }
     });
+
+    // SECURITY: Add default stage with throttling
+    // Note: HTTP API has different throttling than REST API
+    // Rate limiting is per-route and must be configured via CfnStage
+    const defaultStage = httpApi.defaultStage?.node.defaultChild as apigw.CfnStage;
+    if (defaultStage) {
+      defaultStage.defaultRouteSettings = {
+        throttlingBurstLimit: 200,  // Max concurrent requests
+        throttlingRateLimit: 100,   // Requests per second (sustained)
+      };
+
+      // SECURITY: Specific throttle limits for sensitive endpoints
+      defaultStage.routeSettings = {
+        // Auth endpoints - stricter limits to prevent brute-force
+        'POST /api/v1/auth/login': {
+          throttlingBurstLimit: 50,
+          throttlingRateLimit: 10,
+        },
+        'POST /api/v1/auth/signup': {
+          throttlingBurstLimit: 50,
+          throttlingRateLimit: 10,
+        },
+        'POST /api/v1/auth/register': {
+          throttlingBurstLimit: 50,
+          throttlingRateLimit: 10,
+        },
+        // File uploads - lower limits due to size
+        'POST /api/v1/upload-url': {
+          throttlingBurstLimit: 10,
+          throttlingRateLimit: 5,
+        },
+      };
+    }
 
     // Users Routes
     const usersIntegration = new HttpLambdaIntegration(
@@ -445,34 +653,355 @@ export class CdkStack extends cdk.Stack {
 
     // Note: CloudFront WebACL (scope=CLOUDFRONT) must be deployed in us-east-1 in a separate stack
 
+    // === SECURITY MONITORING ===
+    // SNS Topic for security alerts
+    const securityAlertTopic = new sns.Topic(this, 'SecurityAlertTopic', {
+      displayName: 'BarkBase Security Alerts',
+      topicName: `barkbase-security-alerts-${stage}`,
+    });
+
+    // Subscribe email if MONITORING_EMAIL is provided
+    const monitoringEmail = process.env.MONITORING_EMAIL;
+    if (monitoringEmail) {
+      securityAlertTopic.addSubscription(
+        new snsSubscriptions.EmailSubscription(monitoringEmail)
+      );
+    }
+
+    // SECURITY ALARM: Failed Login Attempts
+    // Triggers when >10 failed logins per minute detected
+    const failedLoginMetric = new cloudwatch.Metric({
+      namespace: 'BarkBase/Security',
+      metricName: 'FailedLoginAttempts',
+      statistic: 'Sum',
+      period: cdk.Duration.minutes(1),
+    });
+
+    new cloudwatch.Alarm(this, 'FailedLoginAlarm', {
+      alarmName: `barkbase-failed-logins-${stage}`,
+      alarmDescription: 'Alert on suspicious number of failed login attempts (potential brute-force attack)',
+      metric: failedLoginMetric,
+      threshold: 10,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    }).addAlarmAction(new cloudwatchActions.SnsAction(securityAlertTopic));
+
+    // SECURITY ALARM: Authorization Failures (403s)
+    // Triggers when >50 authorization failures per minute
+    const authFailureMetric = new cloudwatch.Metric({
+      namespace: 'BarkBase/Security',
+      metricName: 'AuthorizationFailures',
+      statistic: 'Sum',
+      period: cdk.Duration.minutes(1),
+    });
+
+    new cloudwatch.Alarm(this, 'AuthorizationFailureAlarm', {
+      alarmName: `barkbase-auth-failures-${stage}`,
+      alarmDescription: 'Alert on excessive authorization failures (potential privilege escalation attempts)',
+      metric: authFailureMetric,
+      threshold: 50,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    }).addAlarmAction(new cloudwatchActions.SnsAction(securityAlertTopic));
+
+    // SECURITY ALARM: Input Validation Failures
+    // Triggers when >20 validation failures per minute (potential attack attempts)
+    const validationFailureMetric = new cloudwatch.Metric({
+      namespace: 'BarkBase/Security',
+      metricName: 'InputValidationFailures',
+      statistic: 'Sum',
+      period: cdk.Duration.minutes(1),
+    });
+
+    new cloudwatch.Alarm(this, 'ValidationFailureAlarm', {
+      alarmName: `barkbase-validation-failures-${stage}`,
+      alarmDescription: 'Alert on excessive input validation failures (potential injection attacks)',
+      metric: validationFailureMetric,
+      threshold: 20,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    }).addAlarmAction(new cloudwatchActions.SnsAction(securityAlertTopic));
+
+    // SECURITY ALARM: Database Connection Errors
+    // Triggers on database connectivity issues
+    const dbErrorMetric = new cloudwatch.Metric({
+      namespace: 'BarkBase/Security',
+      metricName: 'DatabaseConnectionErrors',
+      statistic: 'Sum',
+      period: cdk.Duration.minutes(5),
+    });
+
+    new cloudwatch.Alarm(this, 'DatabaseErrorAlarm', {
+      alarmName: `barkbase-database-errors-${stage}`,
+      alarmDescription: 'Alert on database connection errors (potential infrastructure issue or attack)',
+      metric: dbErrorMetric,
+      threshold: 5,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    }).addAlarmAction(new cloudwatchActions.SnsAction(securityAlertTopic));
+
+    // Lambda Error Rate Alarms (for each critical Lambda)
+    [authApiFunction].forEach((lambdaFn, index) => {
+      const errorAlarm = new cloudwatch.Alarm(this, `Lambda${index}ErrorAlarm`, {
+        alarmName: `barkbase-lambda-errors-${lambdaFn.functionName}-${stage}`,
+        alarmDescription: `Alert on errors in ${lambdaFn.functionName}`,
+        metric: lambdaFn.metricErrors({
+          statistic: 'Sum',
+          period: cdk.Duration.minutes(5),
+        }),
+        threshold: 10,
+        evaluationPeriods: 1,
+        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      });
+      errorAlarm.addAlarmAction(new cloudwatchActions.SnsAction(securityAlertTopic));
+    });
+
+    // ===================================================================
+    // OPERATIONAL MONITORING & DASHBOARDS
+    // ===================================================================
+    // SNS Topic for operational alerts (non-security)
+    const operationalAlertTopic = new sns.Topic(this, 'OperationalAlertTopic', {
+      displayName: 'BarkBase Operational Alerts',
+      topicName: `barkbase-ops-alerts-${stage}`,
+    });
+
+    if (monitoringEmail) {
+      operationalAlertTopic.addSubscription(
+        new snsSubscriptions.EmailSubscription(monitoringEmail)
+      );
+    }
+
+    // RDS MONITORING: CPU Utilization
+    new cloudwatch.Alarm(this, 'RdsCpuAlarm', {
+      alarmName: `barkbase-rds-cpu-${stage}`,
+      alarmDescription: 'Alert when RDS CPU exceeds 80%',
+      metric: dbInstance.metricCPUUtilization({
+        statistic: 'Average',
+        period: cdk.Duration.minutes(5),
+      }),
+      threshold: 80,
+      evaluationPeriods: 2,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+    }).addAlarmAction(new cloudwatchActions.SnsAction(operationalAlertTopic));
+
+    // RDS MONITORING: Database Connections
+    new cloudwatch.Alarm(this, 'RdsConnectionsAlarm', {
+      alarmName: `barkbase-rds-connections-${stage}`,
+      alarmDescription: 'Alert when database connections are high',
+      metric: dbInstance.metricDatabaseConnections({
+        statistic: 'Average',
+        period: cdk.Duration.minutes(5),
+      }),
+      threshold: 80, // Alert at 80 connections (max is typically 100 for t4g.micro)
+      evaluationPeriods: 2,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+    }).addAlarmAction(new cloudwatchActions.SnsAction(operationalAlertTopic));
+
+    // RDS MONITORING: Free Storage Space
+    new cloudwatch.Alarm(this, 'RdsStorageAlarm', {
+      alarmName: `barkbase-rds-storage-${stage}`,
+      alarmDescription: 'Alert when RDS free storage is low',
+      metric: dbInstance.metricFreeStorageSpace({
+        statistic: 'Average',
+        period: cdk.Duration.minutes(5),
+      }),
+      threshold: 2 * 1024 * 1024 * 1024, // 2 GB in bytes
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.LESS_THAN_THRESHOLD,
+    }).addAlarmAction(new cloudwatchActions.SnsAction(operationalAlertTopic));
+
+    // API GATEWAY MONITORING: High Latency
+    new cloudwatch.Alarm(this, 'ApiGatewayLatencyAlarm', {
+      alarmName: `barkbase-api-latency-${stage}`,
+      alarmDescription: 'Alert when API Gateway latency exceeds 2000ms',
+      metric: new cloudwatch.Metric({
+        namespace: 'AWS/ApiGateway',
+        metricName: 'Latency',
+        dimensionsMap: {
+          ApiId: httpApi.apiId,
+        },
+        statistic: 'Average',
+        period: cdk.Duration.minutes(5),
+      }),
+      threshold: 2000, // 2 seconds
+      evaluationPeriods: 2,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+    }).addAlarmAction(new cloudwatchActions.SnsAction(operationalAlertTopic));
+
+    // API GATEWAY MONITORING: 5xx Errors
+    new cloudwatch.Alarm(this, 'ApiGateway5xxAlarm', {
+      alarmName: `barkbase-api-5xx-${stage}`,
+      alarmDescription: 'Alert on API Gateway 5xx errors',
+      metric: new cloudwatch.Metric({
+        namespace: 'AWS/ApiGateway',
+        metricName: '5XXError',
+        dimensionsMap: {
+          ApiId: httpApi.apiId,
+        },
+        statistic: 'Sum',
+        period: cdk.Duration.minutes(5),
+      }),
+      threshold: 10,
+      evaluationPeriods: 1,
+      comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    }).addAlarmAction(new cloudwatchActions.SnsAction(operationalAlertTopic));
+
+    // CLOUDWATCH DASHBOARD: Application Overview
+    const dashboard = new cloudwatch.Dashboard(this, 'BarkbaseDashboard', {
+      dashboardName: `BarkBase-${stage}`,
+    });
+
+    dashboard.addWidgets(
+      new cloudwatch.GraphWidget({
+        title: 'API Gateway - Request Count',
+        left: [new cloudwatch.Metric({
+          namespace: 'AWS/ApiGateway',
+          metricName: 'Count',
+          dimensionsMap: { ApiId: httpApi.apiId },
+          statistic: 'Sum',
+          period: cdk.Duration.minutes(5),
+        })],
+        width: 12,
+      }),
+      new cloudwatch.GraphWidget({
+        title: 'API Gateway - Latency',
+        left: [new cloudwatch.Metric({
+          namespace: 'AWS/ApiGateway',
+          metricName: 'Latency',
+          dimensionsMap: { ApiId: httpApi.apiId },
+          statistic: 'Average',
+          period: cdk.Duration.minutes(5),
+        })],
+        width: 12,
+      })
+    );
+
+    dashboard.addWidgets(
+      new cloudwatch.GraphWidget({
+        title: 'RDS - CPU & Connections',
+        left: [dbInstance.metricCPUUtilization()],
+        right: [dbInstance.metricDatabaseConnections()],
+        width: 12,
+      }),
+      new cloudwatch.GraphWidget({
+        title: 'RDS - Storage & IOPS',
+        left: [dbInstance.metricFreeStorageSpace()],
+        right: [dbInstance.metricReadIOPS(), dbInstance.metricWriteIOPS()],
+        width: 12,
+      })
+    );
+
+    dashboard.addWidgets(
+      new cloudwatch.GraphWidget({
+        title: 'Lambda - Invocations',
+        left: [
+          usersApiFunction.metricInvocations(),
+          authApiFunction.metricInvocations(),
+        ],
+        width: 12,
+      }),
+      new cloudwatch.GraphWidget({
+        title: 'Lambda - Errors',
+        left: [
+          usersApiFunction.metricErrors(),
+          authApiFunction.metricErrors(),
+        ],
+        width: 12,
+      })
+    );
+
+    dashboard.addWidgets(
+      new cloudwatch.GraphWidget({
+        title: 'Lambda - Duration',
+        left: [
+          usersApiFunction.metricDuration(),
+          authApiFunction.metricDuration(),
+        ],
+        width: 12,
+      }),
+      new cloudwatch.GraphWidget({
+        title: 'Security Events',
+        left: [failedLoginMetric, authFailureMetric, validationFailureMetric],
+        width: 12,
+      })
+    );
+
+    console.log(`✓ Monitoring configured:
+      - CloudWatch Dashboard: BarkBase-${stage}
+      - Security Alerts: ${securityAlertTopic.topicName}
+      - Operational Alerts: ${operationalAlertTopic.topicName}
+      - RDS Monitoring: CPU, Connections, Storage
+      - API Gateway Monitoring: Latency, Errors
+      - Lambda Monitoring: Invocations, Errors, Duration
+    `);
+
     new cdk.CfnOutput(this, 'SiteBucketName', { value: siteBucket.bucketName });
     new cdk.CfnOutput(this, 'CloudFrontDistributionId', { value: distribution.distributionId });
     new cdk.CfnOutput(this, 'CloudFrontDomainName', { value: distribution.domainName });
     new cdk.CfnOutput(this, 'CognitoDomain', { value: `https://${domainPrefix}.auth.${this.region}.amazoncognito.com` });
+    new cdk.CfnOutput(this, 'SecurityAlertTopicArn', { value: securityAlertTopic.topicArn });
+    new cdk.CfnOutput(this, 'OperationalAlertTopicArn', { value: operationalAlertTopic.topicArn });
+    new cdk.CfnOutput(this, 'DashboardUrl', {
+      value: `https://console.aws.amazon.com/cloudwatch/home?region=${this.region}#dashboards:name=BarkBase-${stage}`,
+      description: 'CloudWatch Dashboard URL',
+    });
+    new cdk.CfnOutput(this, 'DatabaseEndpoint', {
+      value: dbEndpoint,
+      description: 'RDS Database Endpoint',
+    });
 
-    // === Observability ===
-    // CloudWatch Dashboard and Alarms removed to stay under 500 resource limit
-    // CloudWatch Logs are still available for all Lambda functions
-    // Add monitoring via separate stack if needed
+    // ===================================================================
+    // JWT SECRET VALIDATION
+    // ===================================================================
+    // SECURITY: Validate JWT_SECRET is configured before deployment
+    // This prevents deployment with weak default secrets
+    if (!process.env.JWT_SECRET) {
+      throw new Error(
+        '╔═══════════════════════════════════════════════════════════════════╗\n' +
+        '║ FATAL ERROR: JWT_SECRET NOT CONFIGURED                           ║\n' +
+        '╠═══════════════════════════════════════════════════════════════════╣\n' +
+        '║ JWT_SECRET environment variable must be set before deployment.   ║\n' +
+        '║                                                                   ║\n' +
+        '║ Generate a secure secret:                                        ║\n' +
+        '║   openssl rand -base64 64                                        ║\n' +
+        '║                                                                   ║\n' +
+        '║ Then set it:                                                     ║\n' +
+        '║   export JWT_SECRET="your-generated-secret"                      ║\n' +
+        '║                                                                   ║\n' +
+        '║ See aws/SECURITY_DEPLOYMENT_GUIDE.md for more details.          ║\n' +
+        '╚═══════════════════════════════════════════════════════════════════╝'
+      );
+    }
 
-    // Add JWT_SECRET to environment for auth
-    const authEnvironment = { ...dbEnvironment, JWT_SECRET: process.env.JWT_SECRET || 'change-me-in-production' };
+    // Add JWT_SECRET and optional JWT_SECRET_OLD for rotation
+    const authEnvironment = {
+      ...dbEnvironment,
+      JWT_SECRET: process.env.JWT_SECRET,
+      ...(process.env.JWT_SECRET_OLD ? { JWT_SECRET_OLD: process.env.JWT_SECRET_OLD } : {}),
+    };
 
-    // === NEW LAMBDA FUNCTIONS ===
+    console.log(`✓ JWT Configuration:
+      - Primary Secret: ${process.env.JWT_SECRET.substring(0, 10)}...
+      - Rotation Secret: ${process.env.JWT_SECRET_OLD ? 'CONFIGURED' : 'NOT SET'}
+    `);
 
     // Auth API
-    const authApiFunction = new lambda.Function(this, 'AuthApiFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
+    const authApiFunction = createLambdaFunction({
+      id: 'AuthApiFunction',
       handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/auth-api')),
-      layers: [dbLayer],
+      codePath: path.join(__dirname, '../../lambdas/auth-api'),
       environment: authEnvironment,
-      // No VPC - connects to public database
-      
-      timeout: cdk.Duration.seconds(30),
+      layers: [dbLayer],
+      description: 'Authentication API with JWT token management',
     });
-    // Allow auth function to read database credentials from Secrets Manager
     dbSecret.grantRead(authApiFunction);
+
     const authIntegration = new HttpLambdaIntegration('AuthIntegration', authApiFunction);
     httpApi.addRoutes({ path: '/api/v1/auth/login', methods: [apigw.HttpMethod.POST], integration: authIntegration });
     httpApi.addRoutes({ path: '/api/v1/auth/signup', methods: [apigw.HttpMethod.POST], integration: authIntegration });

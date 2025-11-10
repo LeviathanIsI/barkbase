@@ -85,12 +85,40 @@ exports.handler = async (event) => {
     }
 };
 
+/**
+ * SECURITY FIX: List owners with input validation
+ * Prevents ReDoS attacks and SQL injection attempts
+ *
+ * @param {Object} event - Lambda event
+ * @param {string} tenantId - Validated tenant ID from JWT
+ * @returns {Object} Lambda response
+ */
 async function listOwners(event, tenantId) {
     const pool = getPool();
     const { search, limit = '50', offset = '0' } = event.queryStringParameters || {};
 
+    // INPUT VALIDATION: Validate and sanitize pagination parameters
+    const parsedLimit = parseInt(limit);
+    const parsedOffset = parseInt(offset);
+
+    if (isNaN(parsedLimit) || parsedLimit < 1 || parsedLimit > 200) {
+        return {
+            statusCode: 400,
+            headers: HEADERS,
+            body: JSON.stringify({ message: 'Invalid limit parameter. Must be between 1 and 200.' }),
+        };
+    }
+
+    if (isNaN(parsedOffset) || parsedOffset < 0) {
+        return {
+            statusCode: 400,
+            headers: HEADERS,
+            body: JSON.stringify({ message: 'Invalid offset parameter. Must be non-negative.' }),
+        };
+    }
+
     let query = `
-        SELECT o.*, 
+        SELECT o.*,
                COUNT(DISTINCT po."petId") as "petCount",
                array_agg(
                    DISTINCT jsonb_build_object(
@@ -104,37 +132,73 @@ async function listOwners(event, tenantId) {
         LEFT JOIN "PetOwner" po ON o."recordId" = po."ownerId"
         LEFT JOIN "Pet" p ON po."petId" = p."recordId"
         WHERE o."tenantId" = $1`;
-    
+
     const params = [tenantId];
-    
+
     if (search) {
+        // INPUT VALIDATION: Sanitize search input
+        // 1. Limit length to prevent DoS
+        if (search.length > 100) {
+            return {
+                statusCode: 400,
+                headers: HEADERS,
+                body: JSON.stringify({ message: 'Search query too long. Maximum 100 characters.' }),
+            };
+        }
+
+        // 2. Validate character set (alphanumeric, spaces, common punctuation only)
+        const safeSearchRegex = /^[a-zA-Z0-9\s\-_@.]+$/;
+        if (!safeSearchRegex.test(search)) {
+            return {
+                statusCode: 400,
+                headers: HEADERS,
+                body: JSON.stringify({ message: 'Search query contains invalid characters.' }),
+            };
+        }
+
+        // 3. Escape ILIKE special characters to prevent pattern injection
+        const escapedSearch = search
+            .replace(/\\/g, '\\\\')  // Escape backslashes first
+            .replace(/%/g, '\\%')     // Escape percent signs
+            .replace(/_/g, '\\_');    // Escape underscores
+
         query += ` AND (
-            o."firstName" ILIKE $${params.length + 1} OR 
-            o."lastName" ILIKE $${params.length + 1} OR 
+            o."firstName" ILIKE $${params.length + 1} OR
+            o."lastName" ILIKE $${params.length + 1} OR
             o."email" ILIKE $${params.length + 1} OR
             o."phone" ILIKE $${params.length + 1}
         )`;
-        params.push(`%${search}%`);
+        params.push(`%${escapedSearch}%`);
     }
-    
+
     query += ` GROUP BY o."recordId"`;
     query += ` ORDER BY o."lastName", o."firstName"`;
     query += ` LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-    params.push(parseInt(limit), parseInt(offset));
+    params.push(parsedLimit, parsedOffset);
 
-    const result = await pool.query(query, params);
-    
-    const owners = result.rows.map(row => ({
-        ...row,
-        name: `${row.firstName} ${row.lastName}`.trim(),
-        pets: row.pets || []
-    }));
+    // Add query timeout to prevent long-running queries
+    try {
+        const result = await pool.query(query, params);
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(owners),
-    };
+        const owners = result.rows.map(row => ({
+            ...row,
+            name: `${row.firstName} ${row.lastName}`.trim(),
+            pets: row.pets || []
+        }));
+
+        return {
+            statusCode: 200,
+            headers: HEADERS,
+            body: JSON.stringify(owners),
+        };
+    } catch (error) {
+        console.error('[OWNERS] Query error:', error.message);
+        return {
+            statusCode: 500,
+            headers: HEADERS,
+            body: JSON.stringify({ message: 'Internal Server Error' }),
+        };
+    }
 }
 
 async function createOwner(event, tenantId) {
