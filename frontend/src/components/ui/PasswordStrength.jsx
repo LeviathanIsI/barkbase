@@ -40,10 +40,10 @@ const PasswordStrength = ({ password, className }) => {
       </div>
       {password && (
         <p className={cn('text-xs', {
-          'text-red-600': strength.score < 3,
-          'text-yellow-600': strength.score === 3,
+          'text-red-600 dark:text-red-400': strength.score < 3,
+          'text-yellow-600 dark:text-yellow-400': strength.score === 3,
           'text-blue-600 dark:text-blue-400': strength.score === 4,
-          'text-green-600': strength.score === 5,
+          'text-green-600 dark:text-green-400': strength.score === 5,
         })}>
           Password strength: {strength.label}
         </p>

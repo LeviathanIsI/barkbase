@@ -58,7 +58,7 @@ export default function ConfirmDialog({
       case 'danger':
         return (
           <svg
-            className="h-6 w-6 text-red-600"
+            className="h-6 w-6 text-red-600 dark:text-red-400"
             fill="none"
             viewBox="0 0 24 24"
             strokeWidth="1.5"

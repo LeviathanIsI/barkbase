@@ -52,8 +52,8 @@ const EmptyStatePets = ({ onAddPet, onImport }) => {
             return (
               <div key={index} className="bg-white dark:bg-surface-primary rounded-lg p-4 border border-gray-200 dark:border-surface-border">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-primary-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Icon className="w-5 h-5 text-primary-600" />
+                  <div className="w-10 h-10 bg-primary-50 dark:bg-primary-900/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Icon className="w-5 h-5 text-primary-600 dark:text-primary-400" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900 dark:text-text-primary mb-1">{benefit.title}</h3>

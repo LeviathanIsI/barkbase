@@ -851,7 +851,7 @@ const DataTable = ({
               <div className="flex items-center justify-between border-t border-gray-200 dark:border-surface-border px-6 py-4">
                 <button
                   onClick={removeAllColumns}
-                  className="text-sm font-medium text-red-600 hover:text-red-700"
+                  className="text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                 >
                   Remove All Columns
                 </button>
@@ -1122,7 +1122,7 @@ const DataTable = ({
               <div className="flex items-center justify-between border-t border-gray-200 dark:border-surface-border px-6 py-4">
                 <button
                   onClick={handleClearAllFilters}
-                  className="text-sm font-medium text-red-600 hover:text-red-700"
+                  className="text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                   disabled={advancedFilters.length === 0 && Object.keys(activeFilters).length === 0}
                 >
                   Clear all filters

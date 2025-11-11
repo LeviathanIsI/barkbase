@@ -78,12 +78,12 @@ const JumboHeader = ({ onMenuToggle }) => {
         {/* Center - Search Bar */}
         <div className="flex-1 max-w-md mx-8">
           <div className="relative">
-            <div className="flex items-center bg-black/20 rounded-lg px-4 py-2 border border-white/10">
-              <Search className="h-4 w-4 text-white/60 mr-2" />
+            <div className="flex items-center bg-white/10 hover:bg-white/15 rounded-lg px-4 py-2 border border-white/20 dark:border-white/10 transition-colors">
+              <Search className="h-4 w-4 text-white/70 mr-2" />
               <input
                 type="text"
                 placeholder="Search..."
-                className="bg-black/20 border-0 outline-none text-white placeholder-white/40 flex-1 text-sm focus:outline-none"
+                className="bg-transparent border-0 outline-none text-white placeholder-white/50 flex-1 text-sm focus:outline-none"
                 onFocus={() => setSearchOpen(true)}
                 onBlur={() => setSearchOpen(false)}
               />

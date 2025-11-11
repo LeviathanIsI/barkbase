@@ -322,7 +322,7 @@ const PropertyConditionBuilder = ({
         {showRemove && (
           <button
             onClick={onRemove}
-            className="mt-8 p-2 text-muted hover:text-red-600 transition-colors"
+            className="mt-8 p-2 text-muted hover:text-red-600 dark:hover:text-red-400 transition-colors"
             title="Remove condition"
           >
             <X className="h-4 w-4" />

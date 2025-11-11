@@ -445,8 +445,8 @@ const TaskDetailsSheet = ({ task, onClose, onComplete, isLoading: isCompleting }
               </div>
 
               {task.notes && (
-                <div className="mt-3 p-3 bg-warning-50 rounded-lg">
-                  <p className="text-sm text-warning-800">
+                <div className="mt-3 p-3 bg-warning-50 dark:bg-warning-900/20 rounded-lg">
+                  <p className="text-sm text-warning-800 dark:text-warning-200">
                     <AlertCircle className="h-4 w-4 inline mr-1" />
                     {task.notes}
                   </p>
