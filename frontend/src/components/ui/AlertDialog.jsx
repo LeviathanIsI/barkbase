@@ -35,7 +35,7 @@ const AlertDialog = ({ children, open, onOpenChange }) => {
       <div className="fixed inset-0 z-50 bg-black/80" />
 
       {/* Dialog */}
-      <div className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border border-[#E0E0E0] bg-white dark:bg-surface-primary p-6 shadow-lg duration-200 sm:rounded-lg">
+      <div className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary p-6 shadow-lg duration-200 sm:rounded-lg">
         <div ref={dialogRef}>
           {children}
         </div>
@@ -60,11 +60,11 @@ const AlertDialogHeader = ({ className, ...props }) => (
 );
 
 const AlertDialogTitle = ({ className, ...props }) => (
-  <h2 className={cn('text-lg font-semibold leading-none tracking-tight text-[#263238]', className)} {...props} />
+  <h2 className={cn('text-lg font-semibold leading-none tracking-tight text-gray-900 dark:text-text-primary', className)} {...props} />
 );
 
 const AlertDialogDescription = ({ className, ...props }) => (
-  <p className={cn('text-sm text-[#64748B]', className)} {...props} />
+  <p className={cn('text-sm text-gray-600 dark:text-text-secondary', className)} {...props} />
 );
 
 const AlertDialogFooter = ({ className, ...props }) => (

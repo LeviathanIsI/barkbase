@@ -32,9 +32,9 @@ const BookingCard = ({ booking, isDragging = false }) => {
         isDragging ? 'opacity-50 rotate-2' : ''
       }`}
     >
-      <div className="font-semibold text-[#263238] truncate">{petName}</div>
-      <div className="text-xs text-[#64748B] truncate">{ownerName}</div>
-      <div className="mt-2 text-xs font-medium text-[#263238]">
+      <div className="font-semibold text-gray-900 dark:text-text-primary truncate">{petName}</div>
+      <div className="text-xs text-gray-600 dark:text-text-secondary truncate">{ownerName}</div>
+      <div className="mt-2 text-xs font-medium text-gray-900 dark:text-text-primary">
         {format(parseISO(booking.checkIn), 'HH:mm')} - {format(parseISO(booking.checkOut), 'HH:mm')}
       </div>
     </div>
@@ -104,46 +104,46 @@ const CapacityHeatmap = ({ occupancy }) => {
   if (!occupancy) return null;
 
   return (
-    <div className="bg-white dark:bg-surface-primary rounded-lg border border-[#E0E0E0] p-6 mb-6">
-      <h3 className="text-lg font-semibold text-[#263238] mb-4">Capacity Overview</h3>
+    <div className="bg-white dark:bg-surface-primary rounded-lg border border-gray-300 dark:border-surface-border p-6 mb-6">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">Capacity Overview</h3>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
         <div className="text-center">
-          <div className="text-3xl font-bold text-[#4B5DD3]">{occupancy.summary.overallUtilization}%</div>
-          <div className="text-sm text-[#64748B] mt-1">Overall Utilization</div>
+          <div className="text-3xl font-bold text-primary-600">{occupancy.summary.overallUtilization}%</div>
+          <div className="text-sm text-gray-600 dark:text-text-secondary mt-1">Overall Utilization</div>
         </div>
         <div className="text-center">
-          <div className="text-3xl font-bold text-[#263238]">{occupancy.summary.totalOccupied}</div>
-          <div className="text-sm text-[#64748B] mt-1">Occupied</div>
+          <div className="text-3xl font-bold text-gray-900 dark:text-text-primary">{occupancy.summary.totalOccupied}</div>
+          <div className="text-sm text-gray-600 dark:text-text-secondary mt-1">Occupied</div>
         </div>
         <div className="text-center">
-          <div className="text-3xl font-bold text-[#4CAF50]">{occupancy.summary.totalAvailable}</div>
-          <div className="text-sm text-[#64748B] mt-1">Available</div>
+          <div className="text-3xl font-bold text-success-600">{occupancy.summary.totalAvailable}</div>
+          <div className="text-sm text-gray-600 dark:text-text-secondary mt-1">Available</div>
         </div>
         <div className="text-center">
-          <div className="text-3xl font-bold text-[#263238]">{occupancy.summary.totalCapacity}</div>
-          <div className="text-sm text-[#64748B] mt-1">Total Capacity</div>
+          <div className="text-3xl font-bold text-gray-900 dark:text-text-primary">{occupancy.summary.totalCapacity}</div>
+          <div className="text-sm text-gray-600 dark:text-text-secondary mt-1">Total Capacity</div>
         </div>
       </div>
       <div className="mt-6 flex items-center gap-6 text-sm">
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded border border-[#E0E0E0] bg-gray-50 dark:bg-surface-secondary"></div>
-          <span className="text-[#64748B]">Empty</span>
+          <div className="w-4 h-4 rounded border border-gray-300 dark:border-surface-border bg-gray-50 dark:bg-surface-secondary"></div>
+          <span className="text-gray-600 dark:text-text-secondary">Empty</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded border border-[#E0E0E0] bg-green-50 dark:bg-surface-primary"></div>
-          <span className="text-[#64748B]">&lt;50%</span>
+          <div className="w-4 h-4 rounded border border-gray-300 dark:border-surface-border bg-green-50 dark:bg-surface-primary"></div>
+          <span className="text-gray-600 dark:text-text-secondary">&lt;50%</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded border border-[#E0E0E0] bg-yellow-50 dark:bg-surface-primary"></div>
-          <span className="text-[#64748B]">50-80%</span>
+          <div className="w-4 h-4 rounded border border-gray-300 dark:border-surface-border bg-yellow-50 dark:bg-surface-primary"></div>
+          <span className="text-gray-600 dark:text-text-secondary">50-80%</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded border border-[#E0E0E0] bg-orange-50 dark:bg-surface-primary"></div>
-          <span className="text-[#64748B]">80-100%</span>
+          <div className="w-4 h-4 rounded border border-gray-300 dark:border-surface-border bg-orange-50 dark:bg-surface-primary"></div>
+          <span className="text-gray-600 dark:text-text-secondary">80-100%</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded border border-[#E0E0E0] bg-red-50 dark:bg-surface-primary"></div>
-          <span className="text-[#64748B]">Full</span>
+          <div className="w-4 h-4 rounded border border-gray-300 dark:border-surface-border bg-red-50 dark:bg-surface-primary"></div>
+          <span className="text-gray-600 dark:text-text-secondary">Full</span>
         </div>
       </div>
     </div>
@@ -274,7 +274,7 @@ const WeekView = () => {
             Next →
           </Button>
         </div>
-        <h2 className="text-xl font-semibold text-[#263238]">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">
           {format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}
         </h2>
       </div>
@@ -284,26 +284,26 @@ const WeekView = () => {
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="overflow-x-auto">
           <div className="min-w-[1200px]">
-            <div className="grid grid-cols-8 border border-[#E0E0E0] rounded-lg overflow-hidden bg-white dark:bg-surface-primary shadow-sm">
+            <div className="grid grid-cols-8 border border-gray-300 dark:border-surface-border rounded-lg overflow-hidden bg-white dark:bg-surface-primary shadow-sm">
               {/* Header row */}
-              <div className="bg-[#F5F6FA] border-r border-[#E0E0E0] p-4 font-semibold text-[#263238] sticky left-0">Kennel</div>
+              <div className="bg-gray-100 dark:bg-gray-700 border-r border-gray-300 dark:border-surface-border p-4 font-semibold text-gray-900 dark:text-text-primary sticky left-0">Kennel</div>
               {days.map((day) => (
-                <div key={day.toISOString()} className="bg-[#F5F6FA] border-r border-[#E0E0E0] p-4 text-center">
-                  <div className="font-semibold text-[#263238]">{format(day, 'EEE')}</div>
-                  <div className="text-sm text-[#64748B] mt-1">{format(day, 'MMM d')}</div>
+                <div key={day.toISOString()} className="bg-gray-100 dark:bg-gray-700 border-r border-gray-300 dark:border-surface-border p-4 text-center">
+                  <div className="font-semibold text-gray-900 dark:text-text-primary">{format(day, 'EEE')}</div>
+                  <div className="text-sm text-gray-600 dark:text-text-secondary mt-1">{format(day, 'MMM d')}</div>
                 </div>
               ))}
 
               {/* Kennel rows */}
               {kennels.length === 0 ? (
                 <div className="col-span-8 p-12 text-center">
-                  <div className="text-[#64748B] mb-2">No kennels with bookings found for this week</div>
-                  <div className="text-sm text-[#64748B]">Add bookings or configure kennels to see them here.</div>
+                  <div className="text-gray-600 dark:text-text-secondary mb-2">No kennels with bookings found for this week</div>
+                  <div className="text-sm text-gray-600 dark:text-text-secondary">Add bookings or configure kennels to see them here.</div>
                 </div>
               ) : (
                 kennels.map((kennel) => (
                   <div key={kennel.recordId} className="contents">
-                    <div className="bg-[#F5F6FA] border-r border-[#E0E0E0] p-4 font-medium text-[#263238] sticky left-0">
+                    <div className="bg-gray-100 dark:bg-gray-700 border-r border-gray-300 dark:border-surface-border p-4 font-medium text-gray-900 dark:text-text-primary sticky left-0">
                       <div className="font-semibold">{kennel.name}</div>
                       <Badge variant="neutral" className="text-xs mt-1">
                         {kennel.type}
