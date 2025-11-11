@@ -59,7 +59,7 @@ src/
 
 ## Theming & White-Labeling
 
-- CSS variables defined in `src/styles/theme.css`
+- CSS variables defined in `src/styles/design-tokens.css` (SINGLE SOURCE OF TRUTH)
 - `tenant` store calls `applyTheme` to inject runtime colors and fonts
 - Tenants API (`/api/v1/tenants/theme`) updates theme JSON persisted in the backend
 

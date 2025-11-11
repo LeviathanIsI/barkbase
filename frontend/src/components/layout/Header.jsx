@@ -186,7 +186,7 @@ const Header = ({ onMenuToggle }) => {
   };
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-border/30 gradient-indigo px-6 text-white shadow-sm">
+    <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-border/30 bg-primary-600 dark:bg-primary-700 px-6 text-white shadow-sm">
       <Button variant="ghost" size="icon" className="lg:hidden" onClick={onMenuToggle}>
         <Menu className="h-5 w-5 text-white" />
       </Button>
