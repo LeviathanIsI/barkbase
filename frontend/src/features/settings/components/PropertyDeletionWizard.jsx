@@ -202,7 +202,7 @@ export const PropertyDeletionWizard = ({
                         <Label className="flex items-center space-x-2 cursor-pointer">
                           <span className="font-medium">{strategy.label}</span>
                           {strategy.recommended && (
-                            <span className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 px-2 py-0.5 rounded">
+                            <span className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200 px-2 py-0.5 rounded">
                               Recommended
                             </span>
                           )}

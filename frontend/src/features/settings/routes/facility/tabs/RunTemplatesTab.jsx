@@ -122,7 +122,7 @@ const RunTemplatesTab = () => {
                   <span
                     className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
                       template.capacityType === 'concurrent'
-                        ? 'bg-green-100 dark:bg-surface-secondary text-green-800'
+                        ? 'bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200'
                         : 'bg-blue-100 dark:bg-surface-secondary text-blue-800 dark:text-blue-200'
                     }`}
                   >

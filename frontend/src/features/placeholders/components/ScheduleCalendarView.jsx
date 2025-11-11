@@ -84,13 +84,13 @@ const ScheduleCalendarView = () => {
               <tr className="border-b border-gray-200 dark:border-surface-border">
                 <td className="p-4 font-medium border-r border-gray-200 dark:border-surface-border">Jenny Martinez</td>
                 <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
-                  <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 px-2 py-1 rounded">8-5 🟢</div>
+                  <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200 px-2 py-1 rounded">8-5 🟢</div>
                 </td>
                 <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
-                  <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 px-2 py-1 rounded">8-5 🟢</div>
+                  <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200 px-2 py-1 rounded">8-5 🟢</div>
                 </td>
                 <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border bg-blue-50 dark:bg-surface-primary">
-                  <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 px-2 py-1 rounded">8-5 🟢NOW</div>
+                  <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200 px-2 py-1 rounded">8-5 🟢NOW</div>
                 </td>
                 <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
                   <div className="text-xs bg-gray-100 dark:bg-surface-secondary text-gray-600 dark:text-text-secondary px-2 py-1 rounded">8-5</div>
@@ -108,13 +108,13 @@ const ScheduleCalendarView = () => {
               <tr className="border-b border-gray-200 dark:border-surface-border">
                 <td className="p-4 font-medium border-r border-gray-200 dark:border-surface-border">Mike Thompson</td>
                 <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
-                  <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 px-2 py-1 rounded">7-4 🟢</div>
+                  <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200 px-2 py-1 rounded">7-4 🟢</div>
                 </td>
                 <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
-                  <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 px-2 py-1 rounded">7-4 🟢</div>
+                  <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200 px-2 py-1 rounded">7-4 🟢</div>
                 </td>
                 <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border bg-blue-50 dark:bg-surface-primary">
-                  <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 px-2 py-1 rounded">7-4 🟢NOW</div>
+                  <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200 px-2 py-1 rounded">7-4 🟢NOW</div>
                 </td>
                 <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
                   <div className="text-xs bg-gray-100 dark:bg-surface-secondary text-gray-600 dark:text-text-secondary px-2 py-1 rounded">7-4</div>
@@ -132,10 +132,10 @@ const ScheduleCalendarView = () => {
               <tr className="border-b border-gray-200 dark:border-surface-border">
                 <td className="p-4 font-medium border-r border-gray-200 dark:border-surface-border">Sarah Johnson</td>
                 <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
-                  <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 px-2 py-1 rounded">10-6 🟢</div>
+                  <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200 px-2 py-1 rounded">10-6 🟢</div>
                 </td>
                 <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
-                  <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 px-2 py-1 rounded">10-6 🟢</div>
+                  <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200 px-2 py-1 rounded">10-6 🟢</div>
                 </td>
                 <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border bg-blue-50 dark:bg-surface-primary">
                   <div className="text-xs bg-orange-100 dark:bg-surface-secondary text-orange-800 px-2 py-1 rounded">🏖️PTO</div>

@@ -20,9 +20,9 @@ import Alert from '@/components/ui/Alert';
 
 const RiskLevelBadge = ({ level }) => {
   const variants = {
-    low: { color: 'bg-green-100 dark:bg-surface-secondary text-green-800', icon: CheckCircle },
-    medium: { color: 'bg-yellow-100 dark:bg-surface-secondary text-yellow-800', icon: Info },
-    high: { color: 'bg-orange-100 dark:bg-surface-secondary text-orange-800', icon: AlertTriangle },
+    low: { color: 'bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200', icon: CheckCircle },
+    medium: { color: 'bg-yellow-100 dark:bg-surface-secondary text-yellow-800 dark:text-yellow-200', icon: Info },
+    high: { color: 'bg-orange-100 dark:bg-surface-secondary text-orange-800 dark:text-orange-200', icon: AlertTriangle },
     critical: { color: 'bg-red-100 dark:bg-surface-secondary text-red-800 dark:text-red-200', icon: XCircle },
   };
 

@@ -164,7 +164,7 @@ const PaymentsOverview = () => {
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">Payment Processor</h3>
-            <span className="px-3 py-1 bg-green-100 dark:bg-surface-secondary text-green-800 text-sm font-medium rounded-full">
+            <span className="px-3 py-1 bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200 text-sm font-medium rounded-full">
               ✅ Connected: Stripe
             </span>
           </div>

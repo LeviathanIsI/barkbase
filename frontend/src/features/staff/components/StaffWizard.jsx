@@ -181,7 +181,7 @@ const StaffWizard = ({ isOpen, onClose, onComplete }) => {
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <h5 className="text-lg font-semibold text-gray-900 dark:text-text-primary">Kennel Attendant</h5>
-                        <span className="px-2 py-1 bg-green-100 dark:bg-surface-secondary text-green-800 text-xs font-medium rounded">Recommended</span>
+                        <span className="px-2 py-1 bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200 text-xs font-medium rounded">Recommended</span>
                         {staffData.role === 'kennel-attendant' && (
                           <Check className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                         )}
