@@ -192,7 +192,7 @@ const IndustryTemplatesModal = ({ isOpen, onClose, onImportTemplates }) => {
                         {template.serviceCount} services included
                       </span>
                       {template.popular && (
-                        <span className="text-xs bg-yellow-100 dark:bg-surface-secondary text-yellow-800 px-2 py-1 rounded-full">
+                        <span className="text-xs bg-yellow-100 dark:bg-surface-secondary text-yellow-800 dark:text-yellow-200 px-2 py-1 rounded-full">
                           Most Popular
                         </span>
                       )}

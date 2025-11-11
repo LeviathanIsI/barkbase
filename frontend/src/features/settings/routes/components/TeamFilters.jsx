@@ -134,7 +134,7 @@ const TeamFilters = ({ filters, onFiltersChange }) => {
             </span>
           )}
           {filters.location !== 'all' && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-orange-100 dark:bg-surface-secondary text-orange-800 rounded-full">
+            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-orange-100 dark:bg-surface-secondary text-orange-800 dark:text-orange-200 rounded-full">
               Location: {filters.location.replace('-', ' ')}
               <button
                 onClick={() => updateFilter('location', 'all')}

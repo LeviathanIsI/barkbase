@@ -68,7 +68,7 @@ const TaskManagementSystem = () => {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="px-2 py-1 bg-orange-100 dark:bg-surface-secondary text-orange-800 text-xs font-medium rounded">MEDIUM PRIORITY</span>
+                  <span className="px-2 py-1 bg-orange-100 dark:bg-surface-secondary text-orange-800 dark:text-orange-200 text-xs font-medium rounded">MEDIUM PRIORITY</span>
                   <span className="text-sm text-gray-500 dark:text-text-secondary">⏰ Due in 6 hours</span>
                 </div>
                 <h4 className="font-medium text-gray-900 dark:text-text-primary mb-1">🧹 Deep clean Kennel K-11 (maintenance scheduled)</h4>

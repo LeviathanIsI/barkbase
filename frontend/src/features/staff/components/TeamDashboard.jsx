@@ -223,7 +223,7 @@ const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {
                     <h4 className="text-lg font-semibold text-gray-900 dark:text-text-primary truncate">{member.name || member.email || 'Staff Member'}</h4>
                     <div className="flex items-center gap-2">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        member.isActive === false ? 'bg-gray-100 dark:bg-surface-secondary text-gray-800 dark:text-text-primary' : 'bg-green-100 text-green-800'
+                        member.isActive === false ? 'bg-gray-100 dark:bg-surface-secondary text-gray-800 dark:text-text-primary' : 'bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200'
                       }`}>
                         {member.isActive === false ? 'INACTIVE' : 'ACTIVE'}
                       </span>

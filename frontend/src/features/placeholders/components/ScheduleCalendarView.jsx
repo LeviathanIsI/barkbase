@@ -138,10 +138,10 @@ const ScheduleCalendarView = () => {
                   <div className="text-xs bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200 px-2 py-1 rounded">10-6 🟢</div>
                 </td>
                 <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border bg-blue-50 dark:bg-surface-primary">
-                  <div className="text-xs bg-orange-100 dark:bg-surface-secondary text-orange-800 px-2 py-1 rounded">🏖️PTO</div>
+                  <div className="text-xs bg-orange-100 dark:bg-surface-secondary text-orange-800 dark:text-orange-200 px-2 py-1 rounded">🏖️PTO</div>
                 </td>
                 <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
-                  <div className="text-xs bg-orange-100 dark:bg-surface-secondary text-orange-800 px-2 py-1 rounded">🏖️PTO</div>
+                  <div className="text-xs bg-orange-100 dark:bg-surface-secondary text-orange-800 dark:text-orange-200 px-2 py-1 rounded">🏖️PTO</div>
                 </td>
                 <td className="p-2 text-center border-r border-gray-200 dark:border-surface-border">
                   <span className="text-xs text-gray-400 dark:text-text-tertiary">OFF</span>

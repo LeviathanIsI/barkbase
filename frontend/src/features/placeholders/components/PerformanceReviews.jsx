@@ -24,7 +24,7 @@ const PerformanceReviews = () => {
                 <p className="font-medium text-gray-900 dark:text-text-primary">Jenny Martinez - Annual review</p>
                 <p className="text-sm text-gray-600 dark:text-text-secondary">Due Oct 20</p>
               </div>
-              <span className="px-3 py-1 bg-orange-100 dark:bg-surface-secondary text-orange-800 text-sm rounded">📝 In Progress</span>
+              <span className="px-3 py-1 bg-orange-100 dark:bg-surface-secondary text-orange-800 dark:text-orange-200 text-sm rounded">📝 In Progress</span>
             </div>
           </div>
           <div className="p-4 border border-blue-200 dark:border-blue-900/30 bg-blue-50 dark:bg-surface-primary rounded-lg">
@@ -49,7 +49,7 @@ const PerformanceReviews = () => {
         <div className="mb-4">
           <p className="text-sm text-gray-600 dark:text-text-secondary">Review Period: Oct 2024 - Oct 2025</p>
           <p className="text-sm text-gray-600 dark:text-text-secondary">Reviewer: Mike Thompson (Manager)</p>
-          <span className="px-3 py-1 bg-orange-100 dark:bg-surface-secondary text-orange-800 text-sm rounded mt-2 inline-block">📝 In Progress (70% complete)</span>
+          <span className="px-3 py-1 bg-orange-100 dark:bg-surface-secondary text-orange-800 dark:text-orange-200 text-sm rounded mt-2 inline-block">📝 In Progress (70% complete)</span>
         </div>
 
         <div className="space-y-6">

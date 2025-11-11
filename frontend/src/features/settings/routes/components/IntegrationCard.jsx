@@ -35,7 +35,7 @@ const IntegrationCard = ({ integration, onConnect, onManage }) => {
     }
     if (integration.popular) {
       return (
-        <div className="bg-yellow-100 dark:bg-surface-secondary text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">
+        <div className="bg-yellow-100 dark:bg-surface-secondary text-yellow-800 dark:text-yellow-200 px-2 py-1 rounded-full text-xs font-medium">
           ⭐ MOST POPULAR
         </div>
       );
