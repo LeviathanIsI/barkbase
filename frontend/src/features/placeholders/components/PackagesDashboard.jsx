@@ -147,7 +147,7 @@ const PackagesDashboard = ({ onCreatePackage, onShowAnalytics }) => {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-surface-primary dark:to-surface-secondary rounded-lg border border-blue-200 dark:border-blue-900/30">
+          <div className="text-center p-4 bg-primary-50 dark:bg-surface-primary rounded-lg border border-blue-200 dark:border-blue-900/30">
             <div className="flex items-center justify-center gap-2 mb-2">
               <DollarSign className="w-5 h-5 text-blue-600 dark:text-blue-400" />
               <p className="text-xs font-medium text-blue-900 dark:text-blue-100 uppercase">Package Revenue</p>
@@ -156,7 +156,7 @@ const PackagesDashboard = ({ onCreatePackage, onShowAnalytics }) => {
             <p className="text-xs text-blue-700 dark:text-blue-300">{performanceMetrics.packageRevenuePeriod}</p>
           </div>
 
-          <div className="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/20 dark:to-green-900/20 rounded-lg border border-green-200 dark:border-green-900/30">
+          <div className="text-center p-4 bg-success-50 dark:bg-surface-primary rounded-lg border border-green-200 dark:border-green-900/30">
             <div className="flex items-center justify-center gap-2 mb-2">
               <Package className="w-5 h-5 text-green-600 dark:text-green-400" />
               <p className="text-xs font-medium text-green-900 dark:text-green-100 uppercase">Active Packages</p>
@@ -174,7 +174,7 @@ const PackagesDashboard = ({ onCreatePackage, onShowAnalytics }) => {
             <p className="text-xs text-purple-700 dark:text-purple-300">{performanceMetrics.redeemedPeriod}</p>
           </div>
 
-          <div className="text-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/20 dark:to-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-900/30">
+          <div className="text-center p-4 bg-warning-50 dark:bg-surface-primary rounded-lg border border-orange-200 dark:border-orange-900/30">
             <div className="flex items-center justify-center gap-2 mb-2">
               <TrendingUp className="w-5 h-5 text-orange-600 dark:text-orange-400" />
               <p className="text-xs font-medium text-orange-900 dark:text-orange-100 uppercase">Revenue Growth</p>
@@ -185,7 +185,7 @@ const PackagesDashboard = ({ onCreatePackage, onShowAnalytics }) => {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center p-4 bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-950/20 dark:to-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-900/30">
+          <div className="text-center p-4 bg-primary-50 dark:bg-surface-primary rounded-lg border border-indigo-200 dark:border-indigo-900/30">
             <div className="flex items-center justify-center gap-2 mb-2">
               <TrendingUp className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
               <p className="text-xs font-medium text-indigo-900 dark:text-indigo-100 uppercase">Recurring Revenue</p>
@@ -194,7 +194,7 @@ const PackagesDashboard = ({ onCreatePackage, onShowAnalytics }) => {
             <p className="text-xs text-indigo-700 dark:text-indigo-300">Memberships</p>
           </div>
 
-          <div className="text-center p-4 bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-950/20 dark:to-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-900/30">
+          <div className="text-center p-4 bg-warning-50 dark:bg-surface-primary rounded-lg border border-yellow-200 dark:border-yellow-900/30">
             <div className="flex items-center justify-center gap-2 mb-2">
               <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
               <p className="text-xs font-medium text-yellow-900 dark:text-yellow-100 uppercase">Expiring Soon</p>
@@ -212,7 +212,7 @@ const PackagesDashboard = ({ onCreatePackage, onShowAnalytics }) => {
             <p className="text-xs text-pink-700 dark:text-pink-300">Per package</p>
           </div>
 
-          <div className="text-center p-4 bg-gradient-to-br from-teal-50 to-teal-100 dark:from-teal-950/20 dark:to-teal-900/20 rounded-lg border border-teal-200 dark:border-teal-900/30">
+          <div className="text-center p-4 bg-success-50 dark:bg-surface-primary rounded-lg border border-teal-200 dark:border-teal-900/30">
             <div className="flex items-center justify-center gap-2 mb-2">
               <BarChart3 className="w-5 h-5 text-teal-600 dark:text-teal-400" />
               <p className="text-xs font-medium text-teal-900 dark:text-teal-100 uppercase">Attach Rate</p>

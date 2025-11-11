@@ -285,7 +285,7 @@ const PackageAnalytics = ({ onBack }) => {
       </Card>
 
       {/* Actionable Insights */}
-      <Card className="p-6 bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-surface-primary dark:to-surface-primary border-yellow-200 dark:border-yellow-900/30">
+      <Card className="p-6 bg-warning-50 dark:bg-surface-primary border-yellow-200 dark:border-yellow-900/30">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4 flex items-center gap-2">
           <Lightbulb className="w-5 h-5 text-yellow-600" />
           ACTIONABLE INSIGHTS

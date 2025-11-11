@@ -261,7 +261,7 @@ const EmptyStatePackages = ({ onCreatePackage, onBrowseTemplates }) => {
       </Card>
 
       {/* Real Examples */}
-      <Card className="p-8 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-surface-primary dark:to-surface-primary border-green-200 dark:border-green-900/30">
+      <Card className="p-8 bg-success-50 dark:bg-surface-primary border-green-200 dark:border-green-900/30">
         <h2 className="text-xl font-bold text-gray-900 dark:text-text-primary mb-2">
           REAL EXAMPLES FROM OTHER FACILITIES
         </h2>
