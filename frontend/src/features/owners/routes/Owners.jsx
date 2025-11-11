@@ -169,7 +169,7 @@ const Owners = () => {
           ))
         ) : (
           <>
-            <Card>
+            <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">Total Owners</p>
@@ -181,7 +181,7 @@ const Owners = () => {
               </div>
             </Card>
 
-            <Card>
+            <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">Active Clients</p>
@@ -193,7 +193,7 @@ const Owners = () => {
               </div>
             </Card>
 
-            <Card>
+            <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">High Value</p>
@@ -205,7 +205,7 @@ const Owners = () => {
               </div>
             </Card>
 
-            <Card>
+            <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">Total Revenue</p>
