@@ -9,9 +9,9 @@ export default {
   darkMode: 'class', // Enable class-based dark mode strategy
   theme: {
     extend: {
-      // Dark SaaS Color Palette - Purple/Blue with glassmorphism
+      // Professional B2B Color Palette - References design-tokens.css
       colors: {
-        // CSS variable-based theming for dual mode support
+        // Semantic color tokens from design-tokens.css
         background: {
           primary: 'var(--bg-primary)',
           secondary: 'var(--bg-secondary)',
@@ -30,191 +30,131 @@ export default {
           inverse: 'var(--text-inverse)',
         },
 
-        // Primary - Purple gradients
+        // Primary - Professional Blue (from design-tokens.css)
         primary: {
-          50: '#FAF5FF',
-          100: '#F3E8FF',
-          200: '#E9D5FF',
-          300: '#D8B4FE',
-          400: '#C084FC',
-          500: '#8B5CF6', // Brand purple
-          600: '#7C3AED',
-          700: '#6D28D9',
-          800: '#5B21B6',
-          900: '#4C1D95',
-          950: '#2E1065',
+          50: 'var(--color-primary-50)',
+          100: 'var(--color-primary-100)',
+          200: 'var(--color-primary-200)',
+          300: 'var(--color-primary-300)',
+          400: 'var(--color-primary-400)',
+          500: 'var(--color-primary-500)',
+          600: 'var(--color-primary-600)', // Brand primary #2563EB
+          700: 'var(--color-primary-700)',
+          800: 'var(--color-primary-800)',
+          900: 'var(--color-primary-900)',
         },
 
-        // Secondary - Blue accents
+        // Secondary - Forest Green (from design-tokens.css)
         secondary: {
-          50: '#EFF6FF',
-          100: '#DBEAFE',
-          200: '#BFDBFE',
-          300: '#93C5FD',
-          400: '#60A5FA',
-          500: '#3B82F6', // Brand blue
-          600: '#2563EB',
-          700: '#1D4ED8',
-          800: '#1E40AF',
-          900: '#1E3A8A',
-          950: '#172554',
+          50: 'var(--color-secondary-50)',
+          100: 'var(--color-secondary-100)',
+          200: 'var(--color-secondary-200)',
+          300: 'var(--color-secondary-300)',
+          400: 'var(--color-secondary-400)',
+          500: 'var(--color-secondary-500)',
+          600: 'var(--color-secondary-600)', // Brand secondary #059669
+          700: 'var(--color-secondary-700)',
+          800: 'var(--color-secondary-800)',
+          900: 'var(--color-secondary-900)',
         },
 
-        // Grayscale with dark mode optimizations
+        // Grayscale - Professional Neutrals (from design-tokens.css)
         gray: {
-          50: '#F9FAFB',
-          100: '#F3F4F6',
-          200: '#E5E7EB',
-          300: '#D1D5DB',
-          400: '#9CA3AF',
-          500: '#6B7280',
-          600: '#4B5563',
-          700: '#374151',
-          800: '#1F2937',
-          900: '#111827',
-          950: '#0F0F1A', // Extra dark for dark mode
+          50: 'var(--color-gray-50)',
+          100: 'var(--color-gray-100)',
+          200: 'var(--color-gray-200)',
+          300: 'var(--color-gray-300)',
+          400: 'var(--color-gray-400)',
+          500: 'var(--color-gray-500)',
+          600: 'var(--color-gray-600)',
+          700: 'var(--color-gray-700)',
+          800: 'var(--color-gray-800)',
+          900: 'var(--color-gray-900)',
         },
 
-        // Semantic colors
+        // Semantic colors (from design-tokens.css)
         success: {
-          50: '#F0FDF4',
-          100: '#DCFCE7',
-          200: '#BBF7D0',
-          300: '#86EFAC',
-          400: '#4ADE80',
-          500: '#10B981',
-          600: '#059669',
-          700: '#047857',
-          800: '#065F46',
-          900: '#064E3B',
-          950: '#022C22',
+          100: 'var(--color-success-100)',
+          500: 'var(--color-success-500)',
+          600: 'var(--color-success-600)',
+          700: 'var(--color-success-700)',
         },
         warning: {
-          50: '#FFFBEB',
-          100: '#FEF3C7',
-          200: '#FDE68A',
-          300: '#FCD34D',
-          400: '#FBBF24',
-          500: '#F59E0B',
-          600: '#D97706',
-          700: '#B45309',
-          800: '#92400E',
-          900: '#78350F',
-          950: '#451A03',
+          100: 'var(--color-warning-100)',
+          500: 'var(--color-warning-500)',
+          600: 'var(--color-warning-600)',
+          700: 'var(--color-warning-700)',
         },
         error: {
-          50: '#FEF2F2',
-          100: '#FEE2E2',
-          200: '#FECACA',
-          300: '#FCA5A5',
-          400: '#F87171',
-          500: '#EF4444',
-          600: '#DC2626',
-          700: '#B91C1C',
-          800: '#991B1B',
-          900: '#7F1D1D',
-          950: '#450A0A',
+          100: 'var(--color-error-100)',
+          500: 'var(--color-error-500)',
+          600: 'var(--color-error-600)',
+          700: 'var(--color-error-700)',
         },
 
-        // Accent colors for glow effects
-        accent: {
-          purple: '#8B5CF6',
-          blue: '#3B82F6',
-          pink: '#EC4899',
-          cyan: '#06B6D4',
-        },
+        // Border colors
+        border: 'var(--border-primary)',
       },
 
-      // Typography - Inter Font System
+      // Typography - Inter Font System (from design-tokens.css)
       fontFamily: {
-        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
-        mono: ['JetBrains Mono', 'Fira Code', 'Courier New', 'monospace'],
+        sans: 'var(--font-family-sans)',
+        mono: 'var(--font-family-mono)',
       },
 
-      // Font Sizes - Clear Hierarchy
+      // Font Sizes - Professional Hierarchy (from design-tokens.css)
       fontSize: {
-        xs: ['0.75rem', { lineHeight: '1rem' }],      // 12px
-        sm: ['0.875rem', { lineHeight: '1.25rem' }],  // 14px
-        base: ['1rem', { lineHeight: '1.5rem' }],     // 16px
-        lg: ['1.125rem', { lineHeight: '1.75rem' }],  // 18px
-        xl: ['1.25rem', { lineHeight: '1.75rem' }],   // 20px
-        '2xl': ['1.5rem', { lineHeight: '2rem' }],    // 24px
-        '3xl': ['1.875rem', { lineHeight: '2.25rem' }], // 30px
-        '4xl': ['2.25rem', { lineHeight: '2.5rem' }], // 36px
-        '5xl': ['3rem', { lineHeight: '1' }],         // 48px
+        xs: 'var(--text-xs)',
+        sm: 'var(--text-sm)',
+        base: 'var(--text-base)',
+        lg: 'var(--text-lg)',
+        xl: 'var(--text-xl)',
+        '2xl': 'var(--text-2xl)',
+        '3xl': 'var(--text-3xl)',
+        '4xl': 'var(--text-4xl)',
+        '5xl': 'var(--text-5xl)',
       },
 
-      // Spacing - 8-Point Grid System
+      // Spacing - 8-Point Grid System (from design-tokens.css)
       spacing: {
-        '0': '0',
-        '1': '0.25rem',  // 4px
-        '2': '0.5rem',   // 8px
-        '3': '0.75rem',  // 12px
-        '4': '1rem',     // 16px
-        '5': '1.25rem',  // 20px
-        '6': '1.5rem',   // 24px
-        '8': '2rem',     // 32px
-        '10': '2.5rem',  // 40px
-        '12': '3rem',    // 48px
-        '16': '4rem',    // 64px
-        '20': '5rem',    // 80px
-        '24': '6rem',    // 96px
+        '0': 'var(--space-0)',
+        '1': 'var(--space-1)',
+        '2': 'var(--space-2)',
+        '3': 'var(--space-3)',
+        '4': 'var(--space-4)',
+        '5': 'var(--space-5)',
+        '6': 'var(--space-6)',
+        '8': 'var(--space-8)',
+        '10': 'var(--space-10)',
+        '12': 'var(--space-12)',
+        '16': 'var(--space-16)',
+        '20': 'var(--space-20)',
+        '24': 'var(--space-24)',
       },
 
-      // Border Radius - Modern rounded corners
+      // Border Radius - Modern Professional (from design-tokens.css)
       borderRadius: {
-        'none': '0',
-        'sm': '0.25rem',   // 4px
-        'DEFAULT': '0.5rem', // 8px
-        'md': '0.5rem',    // 8px
-        'lg': '0.75rem',   // 12px
-        'xl': '1rem',      // 16px
-        '2xl': '1.5rem',   // 24px
-        'full': '9999px',
+        'none': 'var(--radius-none)',
+        'sm': 'var(--radius-sm)',
+        'DEFAULT': 'var(--radius-lg)',
+        'md': 'var(--radius-md)',
+        'lg': 'var(--radius-lg)',
+        'xl': 'var(--radius-xl)',
+        '2xl': 'var(--radius-2xl)',
+        'full': 'var(--radius-full)',
       },
 
-      // Shadows - Glow effects for dark SaaS aesthetic
+      // Shadows - Subtle Professional Depth (from design-tokens.css)
       boxShadow: {
-        // Standard shadows
-        'sm': '0 1px 2px 0 rgb(0 0 0 / 0.05)',
-        'DEFAULT': '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
-        'md': '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
-        'lg': '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
-        'xl': '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
-
-        // Glow effects for neon aesthetic
-        'glow-sm': '0 0 10px rgba(139, 92, 246, 0.3)',
-        'glow': '0 0 20px rgba(139, 92, 246, 0.5), 0 0 40px rgba(59, 130, 246, 0.3)',
-        'glow-lg': '0 0 30px rgba(139, 92, 246, 0.6), 0 0 60px rgba(59, 130, 246, 0.4)',
-        'glow-purple': '0 0 20px rgba(139, 92, 246, 0.6)',
-        'glow-blue': '0 0 20px rgba(59, 130, 246, 0.6)',
-        'glow-pink': '0 0 20px rgba(236, 72, 153, 0.6)',
-
-        // Inner glow for glassmorphism
-        'inner-glow': 'inset 0 1px 2px rgba(255, 255, 255, 0.1)',
-
+        'sm': 'var(--shadow-sm)',
+        'DEFAULT': 'var(--shadow-md)',
+        'md': 'var(--shadow-md)',
+        'lg': 'var(--shadow-lg)',
+        'xl': 'var(--shadow-xl)',
         'none': 'none',
       },
 
-      // Background Images - Gradient presets
-      backgroundImage: {
-        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
-        'gradient-purple-blue': 'linear-gradient(135deg, #8B5CF6 0%, #3B82F6 50%, #60A5FA 100%)',
-        'gradient-mesh-dark': 'radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.3) 0px, transparent 50%), radial-gradient(at 100% 0%, rgba(59, 130, 246, 0.3) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.2) 0px, transparent 50%), radial-gradient(at 0% 100%, rgba(59, 130, 246, 0.2) 0px, transparent 50%)',
-        'gradient-mesh-light': 'radial-gradient(at 0% 0%, rgba(124, 58, 237, 0.2) 0px, transparent 50%), radial-gradient(at 100% 0%, rgba(37, 99, 235, 0.2) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(124, 58, 237, 0.15) 0px, transparent 50%), radial-gradient(at 0% 100%, rgba(37, 99, 235, 0.15) 0px, transparent 50%)',
-      },
-
-      // Backdrop Blur for glassmorphism
-      backdropBlur: {
-        xs: '2px',
-        sm: '8px',
-        md: '12px',
-        lg: '16px',
-        xl: '24px',
-      },
-
-      // Z-Index Scale
+      // Z-Index Scale (from design-tokens.css)
       zIndex: {
         '0': 0,
         '10': 10,
@@ -222,24 +162,26 @@ export default {
         '30': 30,
         '40': 40,
         '50': 50,
-        'dropdown': 1000,
-        'sticky': 1020,
-        'fixed': 1030,
-        'modal-backdrop': 1040,
-        'modal': 1050,
-        'popover': 1060,
-        'tooltip': 1070,
+        'dropdown': 'var(--z-dropdown)',
+        'sticky': 'var(--z-sticky)',
+        'fixed': 'var(--z-fixed)',
+        'modal-backdrop': 'var(--z-modal-backdrop)',
+        'modal': 'var(--z-modal)',
+        'popover': 'var(--z-popover)',
+        'tooltip': 'var(--z-tooltip)',
       },
 
-      // Transitions - Smooth & Professional
+      // Transitions - Smooth & Professional (from design-tokens.css)
       transitionDuration: {
         'fast': '150ms',
         'DEFAULT': '200ms',
         'slow': '300ms',
-        'slower': '500ms',
+      },
+      transitionTimingFunction: {
+        'DEFAULT': 'cubic-bezier(0.4, 0, 0.2, 1)',
       },
 
-      // Animation keyframes
+      // Professional Animations - B2B Appropriate Only
       keyframes: {
         'fade-in': {
           '0%': { opacity: '0', transform: 'translateY(10px)' },
@@ -253,53 +195,37 @@ export default {
           '0%': { opacity: '0', transform: 'scale(0.95)' },
           '100%': { opacity: '1', transform: 'scale(1)' },
         },
-        'glow-pulse': {
-          '0%, 100%': { boxShadow: '0 0 20px rgba(139, 92, 246, 0.4)' },
-          '50%': { boxShadow: '0 0 40px rgba(139, 92, 246, 0.8), 0 0 60px rgba(59, 130, 246, 0.6)' },
-        },
-        'gradient-shift': {
-          '0%, 100%': { backgroundPosition: '0% 50%' },
-          '50%': { backgroundPosition: '100% 50%' },
-        },
-        'blob': {
-          '0%': { transform: 'translate(0px, 0px) scale(1)' },
-          '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
-          '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
-          '100%': { transform: 'translate(0px, 0px) scale(1)' },
-        },
       },
 
-      // Animation utilities
+      // Animation Utilities - Professional Only
       animation: {
         'fade-in': 'fade-in 0.3s ease-out',
         'slide-in': 'slide-in 0.3s ease-out',
         'scale-in': 'scale-in 0.2s ease-out',
-        'glow-pulse': 'glow-pulse 2s ease-in-out infinite',
-        'gradient-shift': 'gradient-shift 3s ease infinite',
-        'blob': 'blob 7s infinite',
       },
 
-      // Professional Layout Dimensions
+      // Professional Layout Dimensions (from design-tokens.css)
       width: {
-        'sidebar': '240px',
-        'sidebar-collapsed': '64px',
+        'sidebar': 'var(--sidebar-width)',
+        'sidebar-collapsed': 'var(--sidebar-width-collapsed)',
       },
       height: {
-        'header': '64px',
-        'input': '40px',
-        'button': '40px',
+        'header': 'var(--header-height)',
+        'input': 'var(--input-height)',
+        'button': 'var(--button-height)',
       },
 
-      // Max Width for Content
+      // Max Width for Content (from design-tokens.css)
       maxWidth: {
-        'content': '1440px',
+        'content': 'var(--content-max-width)',
       },
     },
   },
   plugins: [
-    // Custom plugin for glassmorphism utilities and animation delays
+    // Custom plugin for professional B2B utilities
     plugin(function({ addUtilities }) {
-      const glassUtilities = {
+      const professionalUtilities = {
+        // Subtle glassmorphism for modern B2B aesthetic
         '.glass': {
           background: 'rgba(255, 255, 255, 0.05)',
           backdropFilter: 'blur(12px)',
@@ -315,29 +241,9 @@ export default {
           backdropFilter: 'blur(12px)',
           border: '1px solid rgba(255, 255, 255, 0.15)',
         },
-        '.glass-heavy': {
-          background: 'rgba(255, 255, 255, 0.12)',
-          backdropFilter: 'blur(16px)',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-        },
-        '.glass-dark': {
-          background: 'rgba(15, 15, 26, 0.6)',
-          backdropFilter: 'blur(12px)',
-          border: '1px solid rgba(139, 92, 246, 0.2)',
-        },
       };
 
-      const animationDelayUtilities = {
-        '.animation-delay-2000': {
-          animationDelay: '2s',
-        },
-        '.animation-delay-4000': {
-          animationDelay: '4s',
-        },
-      };
-
-      addUtilities(glassUtilities);
-      addUtilities(animationDelayUtilities);
+      addUtilities(professionalUtilities);
     }),
   ],
 }
