@@ -103,7 +103,7 @@ const EmptyStatePackages = ({ onCreatePackage, onBrowseTemplates }) => {
   return (
     <div className="space-y-8">
       {/* Why Packages Matter */}
-      <Card className="p-8 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-surface-primary dark:to-surface-primary border-blue-200 dark:border-blue-900/30">
+      <Card className="p-8 bg-primary-50 dark:bg-surface-primary border-blue-200 dark:border-blue-900/30">
         <div className="flex items-start gap-4 mb-6">
           <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
             <TrendingUp className="w-6 h-6 text-white" />

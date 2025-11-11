@@ -165,7 +165,7 @@ const PackagesDashboard = ({ onCreatePackage, onShowAnalytics }) => {
             <p className="text-xs text-green-700 dark:text-green-300">Customers</p>
           </div>
 
-          <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200 dark:border-purple-900/30">
+          <div className="text-center p-4 bg-primary-50 rounded-lg border border-purple-200 dark:border-purple-900/30">
             <div className="flex items-center justify-center gap-2 mb-2">
               <CreditCard className="w-5 h-5 text-purple-600 dark:text-purple-400" />
               <p className="text-xs font-medium text-purple-900 dark:text-purple-100 uppercase">Redeemed Visits</p>
@@ -203,7 +203,7 @@ const PackagesDashboard = ({ onCreatePackage, onShowAnalytics }) => {
             <p className="text-xs text-yellow-700 dark:text-yellow-300">{performanceMetrics.expiringPeriod}</p>
           </div>
 
-          <div className="text-center p-4 bg-gradient-to-br from-pink-50 to-pink-100 dark:from-pink-950/20 dark:to-pink-900/20 rounded-lg border border-pink-200 dark:border-pink-900/30">
+          <div className="text-center p-4 bg-primary-50 dark:bg-surface-primary rounded-lg border border-pink-200 dark:border-pink-900/30">
             <div className="flex items-center justify-center gap-2 mb-2">
               <DollarSign className="w-5 h-5 text-pink-600 dark:text-pink-400" />
               <p className="text-xs font-medium text-pink-900 dark:text-pink-100 uppercase">Avg Value</p>
