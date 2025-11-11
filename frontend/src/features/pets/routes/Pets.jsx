@@ -337,9 +337,9 @@ const Pets = () => {
 
       {/* Filters and View Toggle */}
       <Card className="mb-6 p-6">
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="flex items-center gap-4 flex-1 w-full sm:w-auto">
-            <div className="relative flex-1 max-w-md">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 flex-1">
+            <div className="relative flex-1 sm:max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#64748B] dark:text-text-secondary pointer-events-none" />
               <input
                 type="text"
@@ -353,7 +353,7 @@ const Pets = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-2.5 border border-[#E0E0E0] rounded-md focus:outline-none focus:ring-2 focus:ring-[#4B5DD3] focus:border-transparent text-sm bg-white dark:bg-surface-primary"
+              className="w-full sm:w-auto px-4 py-2.5 border border-[#E0E0E0] rounded-md focus:outline-none focus:ring-2 focus:ring-[#4B5DD3] focus:border-transparent text-sm bg-white dark:bg-surface-primary"
             >
               <option value="ALL">All Status</option>
               <option value="active">Active</option>

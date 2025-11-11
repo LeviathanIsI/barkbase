@@ -76,9 +76,9 @@ const JumboHeader = ({ onMenuToggle }) => {
         </div>
 
         {/* Center - Search Bar */}
-        <div className="flex-1 max-w-md mx-8">
+        <div className="flex-1 max-w-md mx-2 sm:mx-4 lg:mx-8 hidden sm:block">
           <div className="relative">
-            <div className="flex items-center bg-white/10 hover:bg-white/15 rounded-lg px-4 py-2 border border-white/20 dark:border-white/10 transition-colors">
+            <div className="flex items-center bg-white/10 hover:bg-white/15 rounded-lg px-3 sm:px-4 py-2 border border-white/20 dark:border-white/10 transition-colors">
               <Search className="h-4 w-4 text-white/70 mr-2" />
               <input
                 type="text"
@@ -101,7 +101,7 @@ const JumboHeader = ({ onMenuToggle }) => {
         </div>
 
         {/* Right Side - Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           {/* Apps Dropdown */}
           <div className="relative">
             <Button
