@@ -21,11 +21,9 @@ export const useTheme = () => {
 };
 
 export const ThemeProvider = ({ children }) => {
-  console.log('🎨 ThemeProvider mounting');
   // Initialize theme from localStorage or default to 'dark'
   const [theme, setThemeState] = useState(() => {
     const savedTheme = localStorage.getItem('barkbase-theme');
-    console.log('🎨 Initial theme from localStorage:', savedTheme);
     return savedTheme || 'dark';
   });
 

@@ -50,11 +50,7 @@ export const ThemeToggle = ({ className = '' }) => {
  * ThemeToggleIconButton - Icon-only variant for compact spaces
  */
 export const ThemeToggleIconButton = ({ className = '' }) => {
-  console.log('🎨 ThemeToggleIconButton rendering');
-  const themeContext = useTheme();
-  console.log('🎨 Theme context:', themeContext);
-  const { toggleTheme, isDark } = themeContext;
-  console.log('🎨 isDark:', isDark, 'toggleTheme:', typeof toggleTheme);
+  const { toggleTheme, isDark } = useTheme();
 
   return (
     <button
