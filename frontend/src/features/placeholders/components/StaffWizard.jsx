@@ -393,7 +393,7 @@ const StaffWizard = ({ isOpen, onClose, onComplete }) => {
                         <div className="flex items-center gap-3">
                           <h5 className="text-lg font-semibold text-gray-900 dark:text-text-primary">{role.name}</h5>
                           {role.recommended && (
-                            <span className="px-2 py-1 bg-green-100 dark:bg-surface-secondary text-green-800 text-xs font-medium rounded">
+                            <span className="px-2 py-1 bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200 text-xs font-medium rounded">
                               Recommended
                             </span>
                           )}

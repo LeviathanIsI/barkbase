@@ -65,9 +65,9 @@ const ShiftCoveragePlanner = ({ onClose }) => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'good': return 'bg-green-100 dark:bg-surface-secondary text-green-800';
+      case 'good': return 'bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200';
       case 'adequate': return 'bg-blue-100 dark:bg-surface-secondary text-blue-800 dark:text-blue-200';
-      case 'low': return 'bg-yellow-100 dark:bg-surface-secondary text-yellow-800';
+      case 'low': return 'bg-yellow-100 dark:bg-surface-secondary text-yellow-800 dark:text-yellow-200';
       case 'critical': return 'bg-red-100 dark:bg-surface-secondary text-red-800 dark:text-red-200';
       default: return 'bg-gray-100 dark:bg-surface-secondary text-gray-800 dark:text-text-primary';
     }

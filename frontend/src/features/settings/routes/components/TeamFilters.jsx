@@ -112,7 +112,7 @@ const TeamFilters = ({ filters, onFiltersChange }) => {
             </span>
           )}
           {filters.role !== 'all' && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-green-100 dark:bg-surface-secondary text-green-800 rounded-full">
+            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200 rounded-full">
               Role: {filters.role}
               <button
                 onClick={() => updateFilter('role', 'all')}

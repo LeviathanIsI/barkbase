@@ -148,7 +148,7 @@ const ReportCategories = ({ onGenerateReport, onExportReport }) => {
               </span>
             )}
             {report.tier === 'free' && (
-              <span className="px-2 py-1 bg-green-100 dark:bg-surface-secondary text-green-800 text-xs font-medium rounded-full">
+              <span className="px-2 py-1 bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200 text-xs font-medium rounded-full">
                 FREE
               </span>
             )}

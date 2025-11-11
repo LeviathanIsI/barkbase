@@ -198,7 +198,7 @@ export default function SubscriptionTab() {
               <div className="text-lg font-bold text-purple-900 dark:text-purple-100">
                 ${upgradeRecommendation.price.monthly}/month
               </div>
-              <Badge variant="success" className="bg-green-100 dark:bg-surface-secondary text-green-800">
+              <Badge variant="success" className="bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200">
                 {upgradeRecommendation.savings}
               </Badge>
             </div>

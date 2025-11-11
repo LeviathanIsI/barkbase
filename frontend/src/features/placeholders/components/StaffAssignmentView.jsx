@@ -83,8 +83,8 @@ const StaffAssignmentView = ({ pets }) => {
                       </div>
                     </div>
                     <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      pet.status === 'completed' ? 'bg-green-100 dark:bg-surface-secondary text-green-800' :
-                      pet.status === 'pending' ? 'bg-yellow-100 dark:bg-surface-secondary text-yellow-800' :
+                      pet.status === 'completed' ? 'bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200' :
+                      pet.status === 'pending' ? 'bg-yellow-100 dark:bg-surface-secondary text-yellow-800 dark:text-yellow-200' :
                       'bg-blue-100 dark:bg-surface-secondary text-blue-800 dark:text-blue-200'
                     }`}>
                       {pet.status}

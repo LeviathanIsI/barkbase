@@ -16,9 +16,9 @@ const TeamMemberCard = ({ member, isSelected, onSelect, onEdit }) => {
     switch (role.toLowerCase()) {
       case 'owner': return 'bg-purple-100 dark:bg-surface-secondary text-purple-800 dark:text-purple-200';
       case 'manager': return 'bg-blue-100 dark:bg-surface-secondary text-blue-800 dark:text-blue-200';
-      case 'staff': return 'bg-green-100 dark:bg-surface-secondary text-green-800';
-      case 'groomer': return 'bg-pink-100 dark:bg-surface-secondary text-pink-800';
-      case 'trainer': return 'bg-orange-100 dark:bg-surface-secondary text-orange-800';
+      case 'staff': return 'bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200';
+      case 'groomer': return 'bg-pink-100 dark:bg-surface-secondary text-pink-800 dark:text-pink-200';
+      case 'trainer': return 'bg-orange-100 dark:bg-surface-secondary text-orange-800 dark:text-orange-200';
       default: return 'bg-gray-100 dark:bg-surface-secondary text-gray-800 dark:text-text-primary';
     }
   };
@@ -122,7 +122,7 @@ const TeamMemberCard = ({ member, isSelected, onSelect, onEdit }) => {
                 key={index}
                 className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full ${
                   perm.enabled
-                    ? 'bg-green-100 dark:bg-surface-secondary text-green-800'
+                    ? 'bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200'
                     : 'bg-gray-100 dark:bg-surface-secondary text-gray-600 dark:text-text-secondary'
                 }`}
               >

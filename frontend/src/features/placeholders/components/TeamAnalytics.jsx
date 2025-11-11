@@ -119,8 +119,8 @@ const TeamAnalytics = () => {
         <div className="mb-4">
           <h4 className="font-medium text-gray-900 dark:text-text-primary mb-2">Perfect attendance (this month)</h4>
           <div className="flex gap-2">
-            <span className="px-3 py-1 bg-green-100 dark:bg-surface-secondary text-green-800 rounded-full text-sm">Mike Thompson ⭐</span>
-            <span className="px-3 py-1 bg-green-100 dark:bg-surface-secondary text-green-800 rounded-full text-sm">Amanda Chen ⭐</span>
+            <span className="px-3 py-1 bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200 rounded-full text-sm">Mike Thompson ⭐</span>
+            <span className="px-3 py-1 bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200 rounded-full text-sm">Amanda Chen ⭐</span>
           </div>
         </div>
 

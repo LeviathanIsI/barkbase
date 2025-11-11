@@ -221,7 +221,7 @@ const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {
                       {getStatusIcon(member.status)}
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         member.status === 'clocked-in'
-                          ? 'bg-green-100 dark:bg-surface-secondary text-green-800'
+                          ? 'bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200'
                           : member.status === 'scheduled'
                             ? 'bg-blue-100 dark:bg-surface-secondary text-blue-800 dark:text-blue-200'
                             : 'bg-gray-100 dark:bg-surface-secondary text-gray-800 dark:text-text-primary'

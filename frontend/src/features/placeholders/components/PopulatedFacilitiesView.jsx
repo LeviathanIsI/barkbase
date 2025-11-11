@@ -430,8 +430,8 @@ const PopulatedFacilitiesView = ({ facilitiesData, onRunClick }) => {
             <div className="flex items-center justify-between">
               <div className={`px-3 py-1 rounded-full text-sm font-medium ${
                 area.currentCount >= area.maxCapacity ? 'bg-red-100 dark:bg-surface-secondary text-red-800 dark:text-red-200' :
-                area.currentCount >= area.maxCapacity * 0.8 ? 'bg-yellow-100 dark:bg-surface-secondary text-yellow-800' :
-                'bg-green-100 dark:bg-surface-secondary text-green-800'
+                area.currentCount >= area.maxCapacity * 0.8 ? 'bg-yellow-100 dark:bg-surface-secondary text-yellow-800 dark:text-yellow-200' :
+                'bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200'
               }`}>
                 {area.currentCount >= area.maxCapacity ? 'At Capacity' :
                  area.currentCount >= area.maxCapacity * 0.8 ? 'Limited New Admissions' :
