@@ -318,7 +318,7 @@ async function updateFeatureFlags(event, tenantId) {
 
 ## AUDIT STATUS
 
-**Completed** (16/52 Lambda functions):
+**Completed** (20/52 Lambda functions):
 - ✅ auth-api/index.js (100%)
 - ✅ entity-service/index.js (100%)
 - ✅ config-service/index.js (100%)
@@ -335,9 +335,13 @@ async function updateFeatureFlags(event, tenantId) {
 - ✅ facility-api/index.js (100%)
 - ✅ communication-api/index.js (100%)
 - ✅ analytics-service/index.js (100%)
+- ✅ cognito-post-confirmation/index.js (100%)
+- ✅ cognito-pre-signup/index.js (100%)
+- ✅ users-api/index.js (100%)
+- ✅ user-permissions-api/index.js (100%)
 
 **In Progress**:
-- 🔄 Remaining 36 Lambda functions
+- 🔄 Remaining 32 Lambda functions
 
 **Pending**:
 - ⏳ Authentication layer audit
@@ -350,13 +354,14 @@ async function updateFeatureFlags(event, tenantId) {
 
 ## CRITICAL ISSUES SUMMARY
 
-**Total Issues Found**: 18
-- 🔴 **CRITICAL (P0)**: 3 issues (production breaking)
+**Total Issues Found**: 21
+- 🔴 **CRITICAL (P0)**: 4 issues (production breaking / security breaches)
   - #1: Undefined sourceIp in auth-api login error handler
   - #9: SSL certificate validation disabled (MITM vulnerability)
   - #14: Undefined userId in check-in/check-out functions
+  - #19: Auto-confirm and auto-verify bypasses email verification
 
-- 🟡 **HIGH (P1)**: 9 issues
+- 🟡 **HIGH (P1)**: 10 issues
   - #2: Variable redeclaration in register function
   - #3: Missing input validation on entity fields
   - #4: No rate limiting on API endpoints
@@ -366,14 +371,16 @@ async function updateFeatureFlags(event, tenantId) {
   - #15: No authorization on invite endpoint
   - #16: Unauthenticated file uploads allowed
   - #17: SQL injection via string interpolation
+  - #20: Orphaned users in createUser endpoint
 
-- 🟠 **MEDIUM (P2)**: 6 issues
+- 🟠 **MEDIUM (P2)**: 7 issues
   - #5: Insecure CORS configuration
   - #6: Public tenant endpoint without rate limiting
   - #7: No authorization check on feature flag updates
   - #8: Invalid GROUP BY clause in bookings query
   - #13: No query timeout configuration
   - #18: No input validation on critical fields
+  - #21: Slug collision risk in user registration
 
 ---
 
@@ -918,6 +925,232 @@ const { ownerId, type, direction, content, metadata } = JSON.parse(event.body);
 - **Numbers**: Validate ranges (e.g., weight > 0, conditionRating 1-10)
 
 **Effort**: 3 hours (apply to all affected functions)
+
+---
+
+### 🔴 CRITICAL #19: Auto-Confirm and Auto-Verify in Production
+**File**: `aws/lambdas/cognito-pre-signup/index.js:7-12`
+**Severity**: CRITICAL (P0)
+**Impact**: **SECURITY BREACH** - Bypasses all email verification, allows fake accounts
+
+**Issue**:
+```javascript
+// Line 7-12
+exports.handler = async (event) => {
+    // Auto-confirm the user
+    event.response.autoConfirmUser = true;  // ❌ BYPASSES ACCOUNT VERIFICATION
+
+    // Auto-verify email
+    if (event.request.userAttributes.hasOwnProperty('email')) {
+        event.response.autoVerifyEmail = true;  // ❌ BYPASSES EMAIL VERIFICATION
+    }
+
+    return event;
+};
+```
+
+**Security Problems**:
+1. **Auto-confirms ALL users** - No email verification required
+2. **Auto-verifies email** - Users can sign up with any email (even ones they don't own)
+3. **Allows fake accounts** - Attacker can create thousands of accounts with fake emails
+4. **Bypasses spam prevention** - No CAPTCHA or rate limiting can help if emails aren't verified
+
+**Attack Scenario**:
+```
+1. Attacker signs up with admin@targetcompany.com (email they don't own)
+2. Account is auto-confirmed (no verification needed)
+3. Attacker immediately gets access
+4. Could impersonate real users or spam the system
+```
+
+**Fix**:
+```javascript
+// PRODUCTION VERSION - Remove auto-confirm/verify
+exports.handler = async (event) => {
+    // Let Cognito handle verification flow normally
+    // Users will receive verification email and must confirm
+
+    // Optional: Add custom validation logic here
+    const email = event.request.userAttributes.email;
+
+    // Block disposable email domains
+    const disposableEmailDomains = ['tempmail.com', '10minutemail.com', 'guerrillamail.com'];
+    const emailDomain = email.split('@')[1];
+    if (disposableEmailDomains.includes(emailDomain)) {
+        throw new Error('Disposable email addresses are not allowed');
+    }
+
+    return event;  // Don't modify response - use Cognito defaults
+};
+```
+
+**Environment-Specific Solution**:
+```javascript
+// Use environment variable to control auto-confirm (dev only)
+exports.handler = async (event) => {
+    const IS_DEV = process.env.ENVIRONMENT === 'development' || process.env.ENVIRONMENT === 'local';
+
+    if (IS_DEV) {
+        event.response.autoConfirmUser = true;
+        event.response.autoVerifyEmail = true;
+    }
+    // In production, Cognito will send verification emails normally
+
+    return event;
+};
+```
+
+**Remediation Steps**:
+1. **IMMEDIATE**: Check if this is deployed to production
+2. If in production, deploy fixed version ASAP
+3. Audit all existing accounts for suspicious emails
+4. Consider forcing re-verification of all accounts
+5. Add monitoring for bulk signups
+
+**Effort**: 1 hour (critical hotfix)
+
+---
+
+### 🟡 HIGH #20: Orphaned Users in createUser Endpoint
+**File**: `aws/lambdas/users-api/index.js:223-266`
+**Severity**: HIGH (P1)
+**Impact**: Users created without tenant membership, cannot access system
+
+**Issue**:
+```javascript
+// Line 247-250
+const { rows } = await pool.query(
+    'INSERT INTO "User" ("recordId", "email", "passwordHash", "name", "phone", "updatedAt")
+     VALUES (gen_random_uuid(), $1, $2, $3, $4, NOW())
+     RETURNING "recordId", "email", "name", "createdAt"',
+    [email.toLowerCase(), passwordHash, name, phone]
+);
+
+// ❌ No Membership record created!
+// User exists but has no tenant association
+// User cannot login or access any resources
+```
+
+**Problems**:
+1. Creates user without Membership record
+2. User has no tenant association
+3. User cannot access any resources (all endpoints require tenantId)
+4. No authorization check - any authenticated user can create users
+
+**Fix**:
+```javascript
+const createUser = async (event, requestingUser) => {
+    // SECURITY: Only OWNER/ADMIN can create users
+    if (!['OWNER', 'ADMIN'].includes(requestingUser.role)) {
+        return errorResponse(403, ERROR_CODES.FORBIDDEN, 'Insufficient permissions');
+    }
+
+    const body = JSON.parse(event.body);
+    const { email, password, name, phone, role = 'STAFF' } = body;
+
+    if (!email || !password) {
+        return errorResponse(400, ERROR_CODES.INVALID_INPUT, "Email and password are required");
+    }
+
+    // Validate role
+    const validRoles = ['STAFF', 'MANAGER', 'ADMIN'];
+    if (!validRoles.includes(role)) {
+        return errorResponse(400, ERROR_CODES.INVALID_INPUT, "Invalid role");
+    }
+
+    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+    const pool = getPool();
+
+    // Begin transaction
+    await pool.query('BEGIN');
+
+    try {
+        // Create user
+        const { rows } = await pool.query(
+            'INSERT INTO "User" ("recordId", "email", "passwordHash", "name", "phone", "updatedAt")
+             VALUES (gen_random_uuid(), $1, $2, $3, $4, NOW())
+             RETURNING "recordId", "email", "name", "createdAt"',
+            [email.toLowerCase(), passwordHash, name, phone]
+        );
+
+        const newUserId = rows[0].recordId;
+
+        // Create membership linking user to requesting user's tenant
+        await pool.query(
+            `INSERT INTO "Membership" ("recordId", "userId", "tenantId", "role", "createdAt", "updatedAt")
+             VALUES (gen_random_uuid(), $1, $2, $3, NOW(), NOW())`,
+            [newUserId, requestingUser.tenantId, role]
+        );
+
+        await pool.query('COMMIT');
+
+        console.log(`[USERS] User created with membership: ${newUserId} by ${requestingUser.sub}`);
+
+        return {
+            statusCode: 201,
+            headers: HEADERS,
+            body: JSON.stringify(rows[0]),
+        };
+    } catch (error) {
+        await pool.query('ROLLBACK');
+
+        if (error.code === "23505") {
+            return errorResponse(409, ERROR_CODES.DUPLICATE, "A user with this email already exists");
+        }
+        throw error;
+    }
+};
+```
+
+**Effort**: 30 minutes
+
+---
+
+### 🟠 MEDIUM #21: Slug Collision Risk in User Registration
+**File**: `aws/lambdas/cognito-post-confirmation/index.js:47`
+**Severity**: MEDIUM (P2)
+**Impact**: Tenant slug collisions, registration failures for simultaneous signups
+
+**Issue**:
+```javascript
+// Line 47
+const slug = `${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}`;
+```
+
+**Problems**:
+1. Uses `Date.now()` for uniqueness - millisecond precision
+2. Multiple users signing up in same millisecond will generate same slug
+3. Will cause unique constraint violation and registration failure
+4. No validation on name length before using in slug
+
+**Fix**:
+```javascript
+const { randomUUID } = require('crypto');
+
+// Generate truly unique slug
+const randomSuffix = randomUUID().slice(0, 8);
+const sanitizedName = name.toLowerCase()
+    .replace(/[^a-z0-9]/g, '-')
+    .slice(0, 50)  // Limit length
+    .replace(/^-+|-+$/g, '');  // Remove leading/trailing dashes
+
+const slug = `${sanitizedName}-${randomSuffix}`;
+
+// Verify uniqueness (optional double-check)
+const existingSlug = await pool.query(
+    'SELECT "recordId" FROM "Tenant" WHERE "slug" = $1',
+    [slug]
+);
+
+if (existingSlug.rows.length > 0) {
+    // Extremely rare, but regenerate if collision
+    const newSuffix = randomUUID().slice(0, 8);
+    slug = `${sanitizedName}-${newSuffix}`;
+}
+```
+
+**Effort**: 20 minutes
 
 ---
 
