@@ -122,7 +122,7 @@ const RunColumn = ({ run, assignments }) => {
 
       <div className="w-full bg-surface rounded-full h-2 mb-4">
         <div
-          className="bg-gradient-to-r from-primary to-primary-dark h-2 rounded-full transition-all duration-300"
+          className="bg-primary-600 dark:bg-primary-700 h-2 rounded-full transition-all duration-300"
           style={{ width: `${utilizationPercent}%` }}
         />
       </div>

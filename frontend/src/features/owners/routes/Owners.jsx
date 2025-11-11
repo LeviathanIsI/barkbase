@@ -77,8 +77,8 @@ const Owners = () => {
         <Card>
           <div className="text-center py-12">
             <AlertTriangle className="h-12 w-12 text-red-500 dark:text-red-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-[#263238] mb-2">Error Loading Owners</h3>
-            <p className="text-[#64748B]">Unable to load owner data. Please try again.</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">Error Loading Owners</h3>
+            <p className="text-gray-600 dark:text-text-secondary">Unable to load owner data. Please try again.</p>
           </div>
         </Card>
       </div>
@@ -87,21 +87,21 @@ const Owners = () => {
 
   const OwnerRow = ({ owner }) => {
     return (
-      <tr className="border-b border-[#F5F6FA] hover:bg-[#F5F6FA]/50 cursor-pointer" onClick={() => navigate(`/customers/${owner.recordId}`)}>
+      <tr className="border-b border-[#F5F6FA] hover:bg-gray-100 dark:bg-gray-700/50 cursor-pointer" onClick={() => navigate(`/customers/${owner.recordId}`)}>
         <td className="py-4 px-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-[#4B5DD3] to-[#3A4BC2] rounded-full flex items-center justify-center text-white font-semibold">
+            <div className="w-10 h-10 bg-primary-600 dark:bg-primary-700 rounded-full flex items-center justify-center text-white font-semibold">
               {owner.fullName?.[0]?.toUpperCase() || 'O'}
             </div>
             <div>
-              <p className="font-semibold text-[#263238]">{owner.fullName || 'Unnamed Owner'}</p>
-              <p className="text-sm text-[#64748B]">{owner.email || 'No email'}</p>
+              <p className="font-semibold text-gray-900 dark:text-text-primary">{owner.fullName || 'Unnamed Owner'}</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">{owner.email || 'No email'}</p>
             </div>
           </div>
         </td>
         <td className="py-4 px-4">
           {owner.phone && (
-            <div className="flex items-center gap-2 text-[#64748B]">
+            <div className="flex items-center gap-2 text-gray-600 dark:text-text-secondary">
               <Phone className="h-4 w-4" />
               <span>{owner.phone}</span>
             </div>
@@ -127,15 +127,15 @@ const Owners = () => {
           </Badge>
         </td>
         <td className="py-4 px-4">
-          <p className="font-semibold text-[#263238]">{owner.totalBookings}</p>
+          <p className="font-semibold text-gray-900 dark:text-text-primary">{owner.totalBookings}</p>
           {owner.lastBooking && (
-            <p className="text-xs text-[#64748B]">
+            <p className="text-xs text-gray-600 dark:text-text-secondary">
               Last: {new Date(owner.lastBooking).toLocaleDateString()}
             </p>
           )}
         </td>
         <td className="py-4 px-4">
-          <p className="font-semibold text-[#263238]">{formatCurrency(owner.lifetimeValue)}</p>
+          <p className="font-semibold text-gray-900 dark:text-text-primary">{formatCurrency(owner.lifetimeValue)}</p>
         </td>
       </tr>
     );
@@ -172,8 +172,8 @@ const Owners = () => {
             <Card>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B]">Total Owners</p>
-                  <p className="text-2xl font-bold text-[#263238]">{stats.total}</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">Total Owners</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.total}</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -184,8 +184,8 @@ const Owners = () => {
             <Card>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B]">Active Clients</p>
-                  <p className="text-2xl font-bold text-[#263238]">{stats.active}</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">Active Clients</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.active}</p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <Heart className="h-6 w-6 text-green-600 dark:text-green-400" />
@@ -196,8 +196,8 @@ const Owners = () => {
             <Card>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B]">High Value</p>
-                  <p className="text-2xl font-bold text-[#263238]">{stats.highValue}</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">High Value</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.highValue}</p>
                 </div>
                 <div className="w-12 h-12 bg-purple-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <DollarSign className="h-6 w-6 text-purple-600 dark:text-purple-400" />
@@ -208,8 +208,8 @@ const Owners = () => {
             <Card>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B]">Total Revenue</p>
-                  <p className="text-2xl font-bold text-[#263238]">{formatCurrency(stats.totalRevenue)}</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">Total Revenue</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{formatCurrency(stats.totalRevenue)}</p>
                 </div>
                 <div className="w-12 h-12 bg-orange-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <Calendar className="h-6 w-6 text-orange-600 dark:text-orange-400" />
@@ -225,20 +225,20 @@ const Owners = () => {
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
           <div className="flex items-center gap-4 flex-1">
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#64748B]" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-600 dark:text-text-secondary" />
               <input
                 type="text"
                 placeholder="Search owners..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-[#E0E0E0] rounded-md focus:outline-none focus:ring-2 focus:ring-[#4B5DD3] focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
             </div>
 
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-[#E0E0E0] rounded-md focus:outline-none focus:ring-2 focus:ring-[#4B5DD3] focus:border-transparent"
+              className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             >
               <option value="ALL">All Status</option>
               <option value="ACTIVE">Active Clients</option>
@@ -246,7 +246,7 @@ const Owners = () => {
             </select>
           </div>
 
-          <div className="text-sm text-[#64748B]">
+          <div className="text-sm text-gray-600 dark:text-text-secondary">
             Showing {filteredOwners.length} of {owners.length} owners
           </div>
         </div>
@@ -262,9 +262,9 @@ const Owners = () => {
           </div>
         ) : filteredOwners.length === 0 ? (
           <div className="text-center py-12">
-            <Users className="h-12 w-12 text-[#64748B] mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-[#263238] mb-2">No Owners Found</h3>
-            <p className="text-[#64748B] mb-4">
+            <Users className="h-12 w-12 text-gray-600 dark:text-text-secondary mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">No Owners Found</h3>
+            <p className="text-gray-600 dark:text-text-secondary mb-4">
               {searchTerm || statusFilter !== 'ALL'
                 ? 'Try adjusting your search or filters.'
                 : 'Get started by adding your first pet owner.'}
@@ -278,13 +278,13 @@ const Owners = () => {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-[#E0E0E0]">
-                  <th className="text-left py-3 px-4 font-semibold text-[#263238]">Owner</th>
-                  <th className="text-left py-3 px-4 font-semibold text-[#263238]">Contact</th>
-                  <th className="text-left py-3 px-4 font-semibold text-[#263238]">Pets</th>
-                  <th className="text-left py-3 px-4 font-semibold text-[#263238]">Status</th>
-                  <th className="text-left py-3 px-4 font-semibold text-[#263238]">Bookings</th>
-                  <th className="text-left py-3 px-4 font-semibold text-[#263238]">Lifetime Value</th>
+                <tr className="border-b border-gray-300 dark:border-surface-border">
+                  <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-text-primary">Owner</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-text-primary">Contact</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-text-primary">Pets</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-text-primary">Status</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-text-primary">Bookings</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-text-primary">Lifetime Value</th>
                 </tr>
               </thead>
               <tbody>

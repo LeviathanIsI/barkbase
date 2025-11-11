@@ -88,8 +88,8 @@ const Kennels = () => {
         <Card>
           <div className="text-center py-12">
             <AlertTriangle className="h-12 w-12 text-red-500 dark:text-red-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-[#263238] mb-2">Error Loading Kennels</h3>
-            <p className="text-[#64748B]">Unable to load kennel data. Please try again.</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">Error Loading Kennels</h3>
+            <p className="text-gray-600 dark:text-text-secondary">Unable to load kennel data. Please try again.</p>
           </div>
         </Card>
       </div>
@@ -102,16 +102,16 @@ const Kennels = () => {
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 bg-gradient-to-r from-[#4B5DD3] to-[#3A4BC2] rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-primary-600 dark:bg-primary-700 rounded-lg flex items-center justify-center">
                 <Building className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-[#263238]">{kennel.name}</h3>
-                <p className="text-sm text-[#64748B]">{kennel.location || 'No location'}</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">{kennel.name}</h3>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">{kennel.location || 'No location'}</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-4 text-sm text-[#64748B]">
+            <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-text-secondary">
               <div className="flex items-center gap-1">
                 <Home className="h-4 w-4" />
                 <span>{kennel.building || 'No building'}</span>
@@ -131,27 +131,27 @@ const Kennels = () => {
 
         <div className="grid grid-cols-3 gap-4 mb-4">
           <div className="text-center">
-            <p className="text-2xl font-bold text-[#4B5DD3]">{kennel.capacity || 0}</p>
-            <p className="text-xs text-[#64748B]">Capacity</p>
+            <p className="text-2xl font-bold text-primary-600">{kennel.capacity || 0}</p>
+            <p className="text-xs text-gray-600 dark:text-text-secondary">Capacity</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-[#4CAF50]">{kennel.occupied || 0}</p>
-            <p className="text-xs text-[#64748B]">Occupied</p>
+            <p className="text-2xl font-bold text-success-600">{kennel.occupied || 0}</p>
+            <p className="text-xs text-gray-600 dark:text-text-secondary">Occupied</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-[#FF9800]">{kennel.utilizationRate}%</p>
-            <p className="text-xs text-[#64748B]">Utilization</p>
+            <p className="text-2xl font-bold text-warning-600">{kennel.utilizationRate}%</p>
+            <p className="text-xs text-gray-600 dark:text-text-secondary">Utilization</p>
           </div>
         </div>
 
-        <div className="w-full bg-[#F5F6FA] rounded-full h-2 mb-2">
+        <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 mb-2">
           <div
-            className="bg-gradient-to-r from-[#4B5DD3] to-[#3A4BC2] h-2 rounded-full transition-all duration-300"
+            className="bg-primary-600 dark:bg-primary-700 h-2 rounded-full transition-all duration-300"
             style={{ width: `${kennel.utilizationRate}%` }}
           />
         </div>
 
-        <div className="flex items-center justify-between text-xs text-[#64748B]">
+        <div className="flex items-center justify-between text-xs text-gray-600 dark:text-text-secondary">
           <span>Type: {kennel.type}</span>
           <span>{(kennel.capacity || 0) - (kennel.occupied || 0)} spots available</span>
         </div>
@@ -189,8 +189,8 @@ const Kennels = () => {
             <Card>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B]">Total Kennels</p>
-                  <p className="text-2xl font-bold text-[#263238]">{stats.total}</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">Total Kennels</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.total}</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <Building className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -201,8 +201,8 @@ const Kennels = () => {
             <Card>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B]">Active Kennels</p>
-                  <p className="text-2xl font-bold text-[#263238]">{stats.active}</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">Active Kennels</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.active}</p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <Home className="h-6 w-6 text-green-600 dark:text-green-400" />
@@ -213,9 +213,9 @@ const Kennels = () => {
             <Card>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B]">Total Capacity</p>
-                  <p className="text-2xl font-bold text-[#263238]">{stats.totalCapacity}</p>
-                  <p className="text-xs text-[#64748B] mt-1">{stats.occupiedCapacity} occupied</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">Total Capacity</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.totalCapacity}</p>
+                  <p className="text-xs text-gray-600 dark:text-text-secondary mt-1">{stats.occupiedCapacity} occupied</p>
                 </div>
                 <div className="w-12 h-12 bg-purple-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <MapPin className="h-6 w-6 text-purple-600 dark:text-purple-400" />
@@ -226,8 +226,8 @@ const Kennels = () => {
             <Card>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B]">Buildings</p>
-                  <p className="text-2xl font-bold text-[#263238]">{stats.buildings}</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">Buildings</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.buildings}</p>
                 </div>
                 <div className="w-12 h-12 bg-orange-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <Building className="h-6 w-6 text-orange-600 dark:text-orange-400" />
@@ -243,20 +243,20 @@ const Kennels = () => {
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
           <div className="flex items-center gap-4 flex-1">
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#64748B]" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-600 dark:text-text-secondary" />
               <input
                 type="text"
                 placeholder="Search kennels..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-[#E0E0E0] rounded-md focus:outline-none focus:ring-2 focus:ring-[#4B5DD3] focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
             </div>
 
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-[#E0E0E0] rounded-md focus:outline-none focus:ring-2 focus:ring-[#4B5DD3] focus:border-transparent"
+              className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             >
               <option value="ALL">All Status</option>
               <option value="ACTIVE">Active</option>
@@ -264,7 +264,7 @@ const Kennels = () => {
             </select>
           </div>
 
-          <div className="text-sm text-[#64748B]">
+          <div className="text-sm text-gray-600 dark:text-text-secondary">
             Showing {filteredKennels.length} of {kennels.length} kennels
           </div>
         </div>
@@ -280,9 +280,9 @@ const Kennels = () => {
           </div>
         ) : filteredKennels.length === 0 ? (
           <div className="text-center py-12">
-            <Building className="h-12 w-12 text-[#64748B] mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-[#263238] mb-2">No Kennels Found</h3>
-            <p className="text-[#64748B] mb-4">
+            <Building className="h-12 w-12 text-gray-600 dark:text-text-secondary mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">No Kennels Found</h3>
+            <p className="text-gray-600 dark:text-text-secondary mb-4">
               {searchTerm || statusFilter !== 'ALL'
                 ? 'Try adjusting your search or filters.'
                 : 'Get started by adding your first kennel.'}

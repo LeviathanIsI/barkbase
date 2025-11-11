@@ -54,7 +54,7 @@ const BookingCard = ({ booking, onCheckIn, onCheckOut, onEdit, onCancel, onConta
       {/* Pet & Owner Info */}
       <div className="bg-gray-50 dark:bg-surface-secondary border border-gray-200 dark:border-surface-border rounded-lg p-4 mb-4">
         <div className="flex items-center gap-4 mb-2">
-          <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-full flex items-center justify-center text-white font-semibold text-lg">
+          <div className="w-12 h-12 bg-primary-600 dark:bg-primary-700 rounded-full flex items-center justify-center text-white font-semibold text-lg">
             {booking.pet?.name?.[0] || 'P'}
           </div>
           <div className="flex-1">
