@@ -318,33 +318,76 @@ async function updateFeatureFlags(event, tenantId) {
 
 ## AUDIT STATUS
 
-**Completed**:
+**Completed** (16/52 Lambda functions):
 - ✅ auth-api/index.js (100%)
 - ✅ entity-service/index.js (100%)
 - ✅ config-service/index.js (100%)
+- ✅ bookings-api/index.js (100%)
+- ✅ financial-service/index.js (100%)
+- ✅ db-layer/index.js (100%)
+- ✅ check-in-api/index.js (100%)
+- ✅ check-out-api/index.js (100%)
+- ✅ admin-api/index.js (100%)
+- ✅ invites-api/index.js (100%)
+- ✅ incidents-api/index.js (100%)
+- ✅ get-upload-url/index.js (100%)
+- ✅ get-download-url/index.js (100%)
+- ✅ facility-api/index.js (100%)
+- ✅ communication-api/index.js (100%)
+- ✅ analytics-service/index.js (100%)
 
 **In Progress**:
-- 🔄 bookings-api/index.js
-- 🔄 financial-service/index.js
-- 🔄 Other Lambda functions (70+ remaining)
+- 🔄 Remaining 36 Lambda functions
 
 **Pending**:
 - ⏳ Authentication layer audit
-- ⏳ Database layer audit
 - ⏳ API Gateway configuration audit
 - ⏳ IAM permissions audit
+- ⏳ Frontend security audit
+- ⏳ Database schema audit
+
+---
+
+## CRITICAL ISSUES SUMMARY
+
+**Total Issues Found**: 18
+- 🔴 **CRITICAL (P0)**: 3 issues (production breaking)
+  - #1: Undefined sourceIp in auth-api login error handler
+  - #9: SSL certificate validation disabled (MITM vulnerability)
+  - #14: Undefined userId in check-in/check-out functions
+
+- 🟡 **HIGH (P1)**: 9 issues
+  - #2: Variable redeclaration in register function
+  - #3: Missing input validation on entity fields
+  - #4: No rate limiting on API endpoints
+  - #10: Memory leak in tenant ID cache
+  - #11: Database connection pool too small
+  - #12: Error messages expose stack traces
+  - #15: No authorization on invite endpoint
+  - #16: Unauthenticated file uploads allowed
+  - #17: SQL injection via string interpolation
+
+- 🟠 **MEDIUM (P2)**: 6 issues
+  - #5: Insecure CORS configuration
+  - #6: Public tenant endpoint without rate limiting
+  - #7: No authorization check on feature flag updates
+  - #8: Invalid GROUP BY clause in bookings query
+  - #13: No query timeout configuration
+  - #18: No input validation on critical fields
 
 ---
 
 ## NEXT STEPS
 
-1. Continue auditing remaining Lambda functions
+1. Continue auditing remaining 36 Lambda functions
 2. Test authentication flows end-to-end
-3. Verify multi-tenant data isolation
-4. Test edge cases and error scenarios
-5. Create prioritized fix list
+3. Verify multi-tenant data isolation with test queries
+4. Audit frontend security (token storage, XSS, CSRF)
+5. Database schema and index audit
+6. Create SECURITY_AUDIT.md with all vulnerabilities
+7. Create CRITICAL_FIXES_TODO.md with prioritized action items
 
-**Estimated Time to Complete Full Audit**: 4-6 hours
+**Estimated Time to Complete Full Audit**: 3-4 hours remaining
 
 ---
 
@@ -550,6 +593,331 @@ return {
 ```
 
 **Effort**: 10 minutes
+
+---
+
+### 🔴 CRITICAL #14: Undefined userId in Check-In/Check-Out Functions
+**File**: `aws/lambdas/check-in-api/index.js:151` and `aws/lambdas/check-out-api/index.js:159`
+**Severity**: CRITICAL (P0)
+**Impact**: **PRODUCTION BREAKING** - Check-in and check-out will fail on every request
+
+**Issue**:
+```javascript
+// check-in-api/index.js Line 151
+const checkInResult = await client.query(
+    `INSERT INTO "CheckIn" (
+        "recordId", "bookingId", "checkedInBy",
+        "weight", "conditionRating", "vaccinationsVerified",
+        "belongings", "photoUrls", "notes", "checkedInAt"
+     ) VALUES (
+        gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, NOW()
+     ) RETURNING *`,
+    [
+        bookingId,
+        userInfo.userId,  // ❌ userInfo doesn't have userId property!
+        weight,
+        conditionRating,
+        // ...
+    ]
+);
+
+// check-out-api/index.js Line 159 - Same issue
+const checkOutResult = await client.query(
+    `INSERT INTO "CheckOut" (
+        "recordId", "bookingId", "checkedOutBy",
+        // ...
+     ) VALUES (
+        gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW()
+     ) RETURNING *`,
+    [
+        bookingId,
+        userInfo.userId,  // ❌ userInfo doesn't have userId property!
+        // ...
+    ]
+);
+
+// getUserInfoFromEvent() only returns:
+// { sub, username, email, tenantId }
+// No userId property!
+```
+
+**Root Cause**: `getUserInfoFromEvent()` returns `{sub, username, email, tenantId}` but code references `userInfo.userId` which doesn't exist.
+
+**Fix**:
+```javascript
+// Option 1: Use sub instead of userId
+userInfo.sub
+
+// Option 2: Add userId to getUserInfoFromEvent
+function getUserInfoFromEvent(event) {
+    const claims = event?.requestContext?.authorizer?.jwt?.claims;
+    if (!claims) {
+        console.error('No JWT claims found in event');
+        return null;
+    }
+
+    return {
+        sub: claims.sub,
+        userId: claims.sub,  // Add this
+        username: claims.username,
+        email: claims.email,
+        tenantId: claims['custom:tenantId'] || claims.tenantId
+    };
+}
+```
+
+**Affected Files**:
+- `check-in-api/index.js:151`
+- `check-out-api/index.js:159`
+
+**Remediation Steps**:
+1. Update getUserInfoFromEvent() to include userId OR use userInfo.sub
+2. Test check-in/check-out flows end-to-end
+3. Search all Lambda functions for similar userInfo.userId references
+
+**Effort**: 30 minutes
+
+---
+
+### 🟡 HIGH #15: No Authorization on Invite Endpoint
+**File**: `aws/lambdas/invites-api/index.js:16-23`
+**Severity**: HIGH (P1)
+**Impact**: Any authenticated user can send invites with any role (including OWNER)
+
+**Issue**:
+```javascript
+// Line 16-23
+if (httpMethod === 'POST') {
+    const { email, role } = JSON.parse(event.body);
+    const { rows } = await pool.query(
+        `INSERT INTO "Invite" ("recordId", "tenantId", "email", "role", "token", "expiresAt", "updatedAt")
+         VALUES (gen_random_uuid(), $1, $2, $3, gen_random_uuid(), NOW() + INTERVAL '7 days', NOW()) RETURNING *`,
+        [tenantId, email, role || 'STAFF']
+    );
+    return { statusCode: 201, headers: HEADERS, body: JSON.stringify(rows[0]) };
+}
+```
+
+**Problems**:
+1. No authorization check - any authenticated user can send invites
+2. No role validation - could invite someone as 'OWNER', 'ADMIN', or any role
+3. No email format validation
+4. No duplicate invite check
+
+**Fix**:
+```javascript
+if (httpMethod === 'POST') {
+    // Get current user's role
+    const userInfo = getUserInfoFromEvent(event);
+    const userRole = await getUserRole(pool, tenantId, userInfo.sub);
+
+    // Only OWNER can send invites
+    if (userRole !== 'OWNER') {
+        return {
+            statusCode: 403,
+            headers: HEADERS,
+            body: JSON.stringify({ message: 'Only account owners can send invites' })
+        };
+    }
+
+    const { email, role } = JSON.parse(event.body);
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        return {
+            statusCode: 400,
+            headers: HEADERS,
+            body: JSON.stringify({ message: 'Invalid email format' })
+        };
+    }
+
+    // Validate role
+    const validRoles = ['STAFF', 'MANAGER', 'OWNER'];
+    if (!validRoles.includes(role)) {
+        return {
+            statusCode: 400,
+            headers: HEADERS,
+            body: JSON.stringify({ message: 'Invalid role' })
+        };
+    }
+
+    // Check for duplicate invite
+    const existingInvite = await pool.query(
+        `SELECT * FROM "Invite" WHERE "tenantId" = $1 AND "email" = $2 AND "status" = 'PENDING'`,
+        [tenantId, email]
+    );
+    if (existingInvite.rows.length > 0) {
+        return {
+            statusCode: 409,
+            headers: HEADERS,
+            body: JSON.stringify({ message: 'Invite already exists for this email' })
+        };
+    }
+
+    // Proceed with invite creation...
+}
+```
+
+**Effort**: 1 hour
+
+---
+
+### 🟡 HIGH #16: Unauthenticated File Uploads Allowed
+**File**: `aws/lambdas/get-upload-url/index.js:30-33`
+**Severity**: HIGH (P1)
+**Impact**: Unauthenticated users can upload files to S3, storage abuse, malware uploads
+
+**Issue**:
+```javascript
+// Line 30-33
+const tenantId = event.requestContext?.authorizer?.jwt?.claims?.tenantId
+    || event.requestContext?.authorizer?.jwt?.claims?.['custom:tenantId']
+    || event.headers['x-tenant-id']
+    || 'unauthenticated';  // ❌ Allows unauthenticated uploads!
+```
+
+**Problems**:
+1. Falls back to 'unauthenticated' if no tenantId - allows anonymous uploads
+2. No file size limit validation
+3. No file type whitelist - could upload executables, scripts, malware
+4. No validation on fileName - could have path traversal characters
+
+**Fix**:
+```javascript
+// Require authentication
+const tenantId = event.requestContext?.authorizer?.jwt?.claims?.tenantId
+    || event.requestContext?.authorizer?.jwt?.claims?.['custom:tenantId'];
+
+if (!tenantId) {
+    return {
+        statusCode: 401,
+        headers: HEADERS,
+        body: JSON.stringify({ message: 'Authentication required' }),
+    };
+}
+
+// Validate file type
+const allowedTypes = [
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'application/pdf',
+    'text/plain'
+];
+
+if (!allowedTypes.includes(fileType)) {
+    return {
+        statusCode: 400,
+        headers: HEADERS,
+        body: JSON.stringify({ message: 'File type not allowed' }),
+    };
+}
+
+// Validate file size (add to request body)
+const maxSizeMB = 10;
+if (fileSize && fileSize > maxSizeMB * 1024 * 1024) {
+    return {
+        statusCode: 400,
+        headers: HEADERS,
+        body: JSON.stringify({ message: `File size exceeds ${maxSizeMB}MB limit` }),
+    };
+}
+
+// Sanitize fileName to prevent path traversal
+const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+```
+
+**Effort**: 30 minutes
+
+---
+
+### 🟡 HIGH #17: SQL Injection via String Interpolation
+**File**: `aws/lambdas/analytics-service/index.js:341, 384`
+**Severity**: HIGH (P1)
+**Impact**: SQL injection attack, unauthorized data access
+
+**Issue**:
+```javascript
+// Line 341
+const result = await pool.query(
+    `SELECT ...
+     FROM "Booking" b
+     JOIN "Pet" p ON b."petId" = p."recordId"
+     JOIN "Owner" o ON b."ownerId" = o."recordId"
+     WHERE b."tenantId" = $1
+     AND b."status" IN ('PENDING', 'CONFIRMED')
+     AND b."checkIn" >= CURRENT_DATE
+     AND b."checkIn" <= CURRENT_DATE + INTERVAL '${daysNum} days'  // ❌ String interpolation!
+     ORDER BY b."checkIn", p."name"`,
+    [tenantId]
+);
+
+// Line 384 - Same issue
+AND b."checkOut" <= CURRENT_DATE + INTERVAL '${daysNum} days'
+```
+
+**Problem**: Using string interpolation for `daysNum` instead of parameterized query. If `daysNum` comes from user input (query parameter), it could be exploited.
+
+**Attack Example**:
+```
+GET /api/v1/dashboard/arrivals?days=7'; DROP TABLE "Booking"; --
+```
+
+**Fix**:
+```javascript
+// Use parameterized INTERVAL
+const result = await pool.query(
+    `SELECT ...
+     WHERE b."tenantId" = $1
+     AND b."status" IN ('PENDING', 'CONFIRMED')
+     AND b."checkIn" >= CURRENT_DATE
+     AND b."checkIn" <= CURRENT_DATE + ($2 || ' days')::interval
+     ORDER BY b."checkIn", p."name"`,
+    [tenantId, daysNum]
+);
+```
+
+**Effort**: 15 minutes (fix all occurrences)
+
+---
+
+### 🟠 MEDIUM #18: No Input Validation on Critical Fields
+**File**: Multiple Lambda functions
+**Severity**: MEDIUM (P2)
+**Impact**: Data corruption, XSS attacks, database bloat
+
+**Affected Functions**:
+- `incidents-api/index.js:17` - No validation on description (could be 10MB), severity, petId
+- `communication-api/index.js:16` - No validation on content length, type, metadata
+- `check-in-api/index.js:85-92` - No validation on weight, belongings array, photoUrls array
+- `check-out-api/index.js:85-93` - No validation on financial amounts, signatureUrl format
+
+**Examples**:
+```javascript
+// incidents-api - No validation
+const { petId, description, severity, reportedBy } = JSON.parse(event.body);
+// ❌ description could be 100MB string
+// ❌ severity not validated against enum ['MINOR', 'MODERATE', 'SEVERE', 'CRITICAL']
+// ❌ petId not validated to exist
+
+// communication-api - No validation
+const { ownerId, type, direction, content, metadata } = JSON.parse(event.body);
+// ❌ content could be unlimited length
+// ❌ type not validated against enum
+// ❌ metadata could be malicious JSON
+```
+
+**Recommended Validations**:
+- **Text fields**: Max 5000 characters for description/content, max 500 for notes
+- **Enums**: Validate against allowed values
+- **Foreign keys**: Verify referenced records exist
+- **Arrays**: Validate max length (e.g., max 50 items)
+- **URLs**: Validate URL format and allowed domains
+- **Numbers**: Validate ranges (e.g., weight > 0, conditionRating 1-10)
+
+**Effort**: 3 hours (apply to all affected functions)
 
 ---
 
