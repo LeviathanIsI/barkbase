@@ -88,7 +88,7 @@ const OverviewTab = ({ pet }) => {
           )}
         </div>
         
-        <div className="flex-1 grid grid-cols-2 gap-4">
+        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <InfoItem label="Species" value={pet.species} />
           <InfoItem label="Breed" value={pet.breed} />
           <InfoItem label="Age" value={pet.age} />

@@ -103,7 +103,7 @@ const BookingCard = ({ booking, onCheckIn, onCheckOut, onEdit, onCancel, onConta
       </div>
 
       {/* Dates & Service */}
-      <div className="grid grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div>
           <p className="text-xs text-gray-500 dark:text-text-secondary uppercase tracking-wide">Check-in</p>
           <p className="text-lg font-semibold text-gray-900 dark:text-text-primary">
@@ -179,7 +179,7 @@ const BookingCard = ({ booking, onCheckIn, onCheckOut, onEdit, onCancel, onConta
       {booking.customerHistory && (
         <div className="bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-3 mb-4">
           <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">📊 CUSTOMER HISTORY</h4>
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>
               <span className="text-blue-700 dark:text-blue-300">Total visits:</span>
               <div className="font-semibold text-blue-900 dark:text-blue-100">{booking.customerHistory.totalVisits || 0}</div>

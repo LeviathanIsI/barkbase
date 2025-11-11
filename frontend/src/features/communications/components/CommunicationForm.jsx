@@ -89,7 +89,7 @@ export default function CommunicationForm({ ownerId, onSuccess, onCancel }) {
       />
 
       {selectedType === 'CALL' && (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Select
             label="Call Direction"
             {...register('metadata.callDirection')}

@@ -74,7 +74,7 @@ const OwnerDetailModal = ({
         </div>
 
         {/* Contact Information */}
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <h3 className="text-sm font-semibold text-text mb-3">Contact Information</h3>
             <div className="space-y-3">
@@ -146,7 +146,7 @@ const OwnerDetailModal = ({
               <p className="text-sm text-muted">No pets registered</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {pets.map((pet) => (
                 <div
                   key={pet.recordId}

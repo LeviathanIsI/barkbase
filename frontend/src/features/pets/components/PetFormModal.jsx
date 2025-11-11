@@ -106,7 +106,7 @@ const PetFormModal = ({
     >
       <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
         {/* Basic Info */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-text mb-1">
               Name <span className="text-red-500">*</span>
@@ -139,7 +139,7 @@ const PetFormModal = ({
         </div>
 
         {/* Species and Weight */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-text mb-1">
               Species
@@ -172,7 +172,7 @@ const PetFormModal = ({
         </div>
 
         {/* Additional Info */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-text mb-1">
               Birthdate
@@ -212,7 +212,7 @@ const PetFormModal = ({
         </div>
 
         {/* Vet Visit Dates */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-text mb-1">
               Last Vet Visit
@@ -281,7 +281,7 @@ const PetFormModal = ({
             Behavior Flags
           </label>
           <p className="text-xs text-muted mb-3">Select all behaviors that apply to this pet</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[
               'Friendly',
               'Shy',

@@ -457,7 +457,7 @@ const ServiceStep = ({ bookingData, updateBookingData }) => {
           No services available. Please add services in Settings.
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {services.filter(s => s.isActive !== false).map(service => (
             <button
               key={service.recordId || service.id}
@@ -481,7 +481,7 @@ const ServiceStep = ({ bookingData, updateBookingData }) => {
       {bookingData.service && (
         <div className="space-y-4">
           <h4 className="font-medium text-gray-900 dark:text-text-primary">Select Dates</h4>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Check-in</label>
               <input
@@ -587,7 +587,7 @@ const RoomStep = ({ bookingData, updateBookingData }) => {
           No run templates available. Please configure run templates in Settings.
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {availableRunTemplates.map(template => (
             <button
               key={template.recordId || template.id}
