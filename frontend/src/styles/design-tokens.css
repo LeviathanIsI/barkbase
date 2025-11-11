@@ -61,7 +61,8 @@
   --color-error-500: #EF4444;
   --color-error-100: #FEE2E2;
 
-  /* Accent - Premium Purple (Optional) */
+  /* Accent - Premium Purple (Optional - NOT used for focus/interactive states) */
+  /* Note: Primary blue (#2563EB) is used for all focus states and interactive elements */
   --color-accent-600: #7C3AED;
   --color-accent-500: #8B5CF6;
   --color-accent-100: #EDE9FE;
@@ -247,12 +248,12 @@
   /* Border Colors - Subtle Definition */
   --border-primary: rgba(255, 255, 255, 0.1);
   --border-secondary: rgba(255, 255, 255, 0.05);
-  --border-focus: #8B5CF6; /* Purple focus for brand consistency */
+  --border-focus: var(--color-primary-500); /* Blue focus for brand consistency */
 
   /* Interactive States */
   --hover-overlay: rgba(255, 255, 255, 0.05);
   --active-overlay: rgba(255, 255, 255, 0.1);
-  --focus-ring: 0 0 0 3px rgba(139, 92, 246, 0.3);
+  --focus-ring: 0 0 0 3px rgba(59, 130, 246, 0.3); /* Blue focus ring */
 
   /* Scrollbar styling for dark mode */
   --scrollbar-track: var(--bg-secondary);
@@ -263,7 +264,7 @@
   --input-bg: rgba(30, 30, 46, 0.8);
   --input-border: rgba(255, 255, 255, 0.15);
   --input-border-hover: rgba(255, 255, 255, 0.25);
-  --input-border-focus: #8B5CF6;
+  --input-border-focus: var(--color-primary-500); /* Blue focus */
   --input-text: #F9FAFB;
   --input-placeholder: #9CA3AF;
 
@@ -272,10 +273,6 @@
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.4);
   --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.6), 0 8px 10px -6px rgb(0 0 0 / 0.5);
-
-  /* Purple glow effects for premium feel */
-  --glow-purple: 0 0 20px rgba(139, 92, 246, 0.4);
-  --glow-purple-strong: 0 0 40px rgba(139, 92, 246, 0.6), 0 0 60px rgba(59, 130, 246, 0.4);
 }
 
 /* ========================================
