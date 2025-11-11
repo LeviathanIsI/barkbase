@@ -251,18 +251,16 @@ const RunAssignment = () => {
 
       {/* Search and Filters */}
       <Card className="mb-6">
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="flex items-center gap-4 flex-1">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#64748B] dark:text-text-secondary" />
-              <input
-                type="text"
-                placeholder="Search pets..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-[#4B5DD3] focus:border-transparent"
-              />
-            </div>
+        <div className="flex flex-col gap-4">
+          <div className="relative flex-1 sm:max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#64748B] dark:text-text-secondary" />
+            <input
+              type="text"
+              placeholder="Search pets..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-[#4B5DD3] focus:border-transparent"
+            />
           </div>
 
           <div className="text-sm text-[#64748B] dark:text-text-secondary">

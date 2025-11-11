@@ -240,9 +240,9 @@ const Kennels = () => {
 
       {/* Filters and Search */}
       <Card className="mb-6">
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="flex items-center gap-4 flex-1">
-            <div className="relative flex-1 max-w-md">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 flex-1">
+            <div className="relative flex-1 sm:max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-600 dark:text-text-secondary" />
               <input
                 type="text"
@@ -256,7 +256,7 @@ const Kennels = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full sm:w-auto px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             >
               <option value="ALL">All Status</option>
               <option value="ACTIVE">Active</option>

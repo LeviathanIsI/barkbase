@@ -230,7 +230,7 @@ const FeedingMeds = () => {
         title="Feeding & Medications"
         actions={
           <>
-            <div className="flex items-center gap-2 mr-4">
+            <div className="flex flex-wrap items-center gap-2 sm:mr-4">
               <Button
                 variant={activeTab === 'feeding' ? 'primary' : 'outline'}
                 size="sm"
@@ -249,7 +249,7 @@ const FeedingMeds = () => {
               </Button>
             </div>
 
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="w-full sm:w-auto">
               <Filter className="h-4 w-4 mr-2" />
               Filters
             </Button>
