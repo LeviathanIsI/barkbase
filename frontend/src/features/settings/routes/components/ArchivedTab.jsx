@@ -62,7 +62,7 @@ const ArchivedTab = ({ objectType, onRestore, onDelete }) => {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-surface-primary border border-gray-200 dark:border-surface-border rounded-lg overflow-hidden">
+      <div className="bg-white dark:bg-surface-primary border border-gray-200 dark:border-surface-border rounded-lg overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-surface-border">
           <thead className="bg-gray-50 dark:bg-surface-secondary">
             <tr>

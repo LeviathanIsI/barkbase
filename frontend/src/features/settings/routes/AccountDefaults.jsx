@@ -574,7 +574,7 @@ const SchedulingSection = ({
       description="These hours drive booking availability and appear on customer confirmations."
       className="border-border/80 shadow-sm"
     >
-      <div className="overflow-hidden rounded-xl border border-border/60">
+      <div className="overflow-x-auto rounded-xl border border-border/60">
         <table className="min-w-full divide-y divide-border/70 text-sm">
           <thead className="bg-surface/80 text-xs uppercase tracking-wide text-muted">
             <tr>

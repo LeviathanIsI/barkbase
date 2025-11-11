@@ -58,8 +58,8 @@ const Schedules = () => {
             </Button>
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-border">
-            <table className="w-full">
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table className="w-full min-w-[700px]">
               <thead className="bg-surface/50">
                 <tr className="text-left text-xs font-medium text-muted uppercase tracking-wide">
                   <th className="px-4 py-3">Training Program</th>
@@ -114,8 +114,8 @@ const Schedules = () => {
             </Button>
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-border">
-            <table className="w-full">
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table className="w-full min-w-[700px]">
               <thead className="bg-surface/50">
                 <tr className="text-left text-xs font-medium text-muted uppercase tracking-wide">
                   <th className="px-4 py-3">Maintenance Task</th>
