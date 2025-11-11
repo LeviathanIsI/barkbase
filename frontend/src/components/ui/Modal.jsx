@@ -91,7 +91,7 @@ const Modal = ({ open, onClose, title, ariaLabel = 'Dialog', children, footer, c
         aria-labelledby={title ? headingId : undefined}
         aria-label={!title ? ariaLabel : undefined}
         className={cn(
-          'relative z-[101] w-full max-w-2xl scale-100 rounded-2xl border border-border/50 dark:border-surface-border bg-surface dark:bg-surface-primary p-8 shadow-2xl focus:outline-none animate-scale-in',
+          'relative z-[101] w-full max-w-[95vw] sm:max-w-lg md:max-w-2xl scale-100 rounded-2xl border border-border/50 dark:border-surface-border bg-surface dark:bg-surface-primary p-4 sm:p-6 md:p-8 shadow-2xl focus:outline-none animate-scale-in',
           className,
         )}
         tabIndex={-1}
