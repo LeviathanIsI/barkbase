@@ -80,10 +80,10 @@ const mockMedications = [
 const FeedingCard = ({ feeding }) => {
   const getStatusColor = (status) => {
     switch (status) {
-      case 'completed': return 'text-[#4CAF50]';
-      case 'pending': return 'text-[#FF9800]';
-      case 'overdue': return 'text-[#F44336]';
-      default: return 'text-[#64748B]';
+      case 'completed': return 'text-[#4CAF50] dark:text-green-400';
+      case 'pending': return 'text-[#FF9800] dark:text-orange-400';
+      case 'overdue': return 'text-[#F44336] dark:text-red-400';
+      default: return 'text-[#64748B] dark:text-text-secondary';
     }
   };
 
@@ -101,10 +101,10 @@ const FeedingCard = ({ feeding }) => {
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
-            <h3 className="text-lg font-semibold text-[#263238]">{feeding.petName}</h3>
+            <h3 className="text-lg font-semibold text-[#263238] dark:text-text-primary">{feeding.petName}</h3>
             <Badge variant="secondary">{feeding.petBreed}</Badge>
           </div>
-          <p className="text-sm text-[#64748B]">{feeding.ownerName}</p>
+          <p className="text-sm text-[#64748B] dark:text-text-secondary">{feeding.ownerName}</p>
         </div>
         <div className={`flex items-center gap-1 ${getStatusColor(feeding.status)}`}>
           {getStatusIcon(feeding.status)}
@@ -114,12 +114,12 @@ const FeedingCard = ({ feeding }) => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
         <div>
-          <p className="text-sm font-medium text-[#263238]">{feeding.foodType}</p>
-          <p className="text-xs text-[#64748B]">Portion: {feeding.portion}</p>
+          <p className="text-sm font-medium text-[#263238] dark:text-text-primary">{feeding.foodType}</p>
+          <p className="text-xs text-[#64748B] dark:text-text-secondary">Portion: {feeding.portion}</p>
         </div>
         <div>
-          <p className="text-sm font-medium text-[#263238]">{feeding.feedingTime}</p>
-          <p className="text-xs text-[#64748B]">Next: {feeding.nextFeeding}</p>
+          <p className="text-sm font-medium text-[#263238] dark:text-text-primary">{feeding.feedingTime}</p>
+          <p className="text-xs text-[#64748B] dark:text-text-secondary">Next: {feeding.nextFeeding}</p>
         </div>
       </div>
 
@@ -156,8 +156,8 @@ const MedicationCard = ({ medication }) => {
     <div className={`border rounded-lg p-4 ${getStatusColor(medication.status)}`}>
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
-          <h4 className="font-semibold text-[#263238]">{medication.petName}</h4>
-          <p className="text-sm text-[#64748B]">{medication.medication}</p>
+          <h4 className="font-semibold text-[#263238] dark:text-text-primary">{medication.petName}</h4>
+          <p className="text-sm text-[#64748B] dark:text-text-secondary">{medication.medication}</p>
         </div>
         <Badge variant={medication.status === 'completed' ? 'success' : medication.status === 'due' ? 'warning' : 'danger'}>
           {medication.status}
@@ -166,13 +166,13 @@ const MedicationCard = ({ medication }) => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
         <div>
-          <p className="text-sm font-medium text-[#263238]">{medication.dosage}</p>
-          <p className="text-xs text-[#64748B]">{medication.frequency}</p>
+          <p className="text-sm font-medium text-[#263238] dark:text-text-primary">{medication.dosage}</p>
+          <p className="text-xs text-[#64748B] dark:text-text-secondary">{medication.frequency}</p>
         </div>
         <div>
-          <p className="text-sm font-medium text-[#263238]">Next: {medication.nextDose}</p>
+          <p className="text-sm font-medium text-[#263238] dark:text-text-primary">Next: {medication.nextDose}</p>
           {medication.administeredBy && (
-            <p className="text-xs text-[#64748B]">By: {medication.administeredBy}</p>
+            <p className="text-xs text-[#64748B] dark:text-text-secondary">By: {medication.administeredBy}</p>
           )}
         </div>
       </div>
@@ -269,8 +269,8 @@ const FeedingMeds = () => {
             <Card>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B]">Total Pets</p>
-                  <p className="text-2xl font-bold text-[#263238]">{feedingStats.total}</p>
+                  <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary">Total Pets</p>
+                  <p className="text-2xl font-bold text-[#263238] dark:text-text-primary">{feedingStats.total}</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <Utensils className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -281,8 +281,8 @@ const FeedingMeds = () => {
             <Card>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B]">Completed</p>
-                  <p className="text-2xl font-bold text-[#4CAF50]">{feedingStats.completed}</p>
+                  <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary">Completed</p>
+                  <p className="text-2xl font-bold text-[#4CAF50] dark:text-green-400">{feedingStats.completed}</p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <CheckCircle className="h-6 w-6 text-green-600" />
@@ -293,8 +293,8 @@ const FeedingMeds = () => {
             <Card>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B]">Pending</p>
-                  <p className="text-2xl font-bold text-[#FF9800]">{feedingStats.pending}</p>
+                  <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary">Pending</p>
+                  <p className="text-2xl font-bold text-[#FF9800] dark:text-orange-400">{feedingStats.pending}</p>
                 </div>
                 <div className="w-12 h-12 bg-orange-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <Clock className="h-6 w-6 text-orange-600" />
@@ -305,8 +305,8 @@ const FeedingMeds = () => {
             <Card>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B]">Overdue</p>
-                  <p className="text-2xl font-bold text-[#F44336]">{feedingStats.overdue}</p>
+                  <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary">Overdue</p>
+                  <p className="text-2xl font-bold text-[#F44336] dark:text-red-400">{feedingStats.overdue}</p>
                 </div>
                 <div className="w-12 h-12 bg-red-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <AlertTriangle className="h-6 w-6 text-red-600" />
@@ -319,8 +319,8 @@ const FeedingMeds = () => {
             <Card>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B]">Total Medications</p>
-                  <p className="text-2xl font-bold text-[#263238]">{medicationStats.total}</p>
+                  <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary">Total Medications</p>
+                  <p className="text-2xl font-bold text-[#263238] dark:text-text-primary">{medicationStats.total}</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <Pill className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -331,8 +331,8 @@ const FeedingMeds = () => {
             <Card>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B]">Due Today</p>
-                  <p className="text-2xl font-bold text-[#FF9800]">{medicationStats.due}</p>
+                  <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary">Due Today</p>
+                  <p className="text-2xl font-bold text-[#FF9800] dark:text-orange-400">{medicationStats.due}</p>
                 </div>
                 <div className="w-12 h-12 bg-orange-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <Clock className="h-6 w-6 text-orange-600" />
@@ -343,8 +343,8 @@ const FeedingMeds = () => {
             <Card>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B]">Completed</p>
-                  <p className="text-2xl font-bold text-[#4CAF50]">{medicationStats.completed}</p>
+                  <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary">Completed</p>
+                  <p className="text-2xl font-bold text-[#4CAF50] dark:text-green-400">{medicationStats.completed}</p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <CheckCircle className="h-6 w-6 text-green-600" />
@@ -355,8 +355,8 @@ const FeedingMeds = () => {
             <Card>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B]">Compliance Rate</p>
-                  <p className="text-2xl font-bold text-[#9C27B0]">96%</p>
+                  <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary">Compliance Rate</p>
+                  <p className="text-2xl font-bold text-[#9C27B0] dark:text-purple-400">96%</p>
                 </div>
                 <div className="w-12 h-12 bg-purple-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
                   <User className="h-6 w-6 text-purple-600 dark:text-purple-400" />
@@ -371,7 +371,7 @@ const FeedingMeds = () => {
       <Card className="mb-6">
         <div className="flex items-center gap-4">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#64748B]" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#64748B] dark:text-text-secondary" />
             <input
               type="text"
               placeholder={`Search ${activeTab === 'feeding' ? 'pets' : 'medications'}...`}
@@ -401,10 +401,10 @@ const FeedingMeds = () => {
       {/* Instructions */}
       <Card className="mt-6">
         <div className="flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-[#64748B] mt-0.5" />
+          <AlertTriangle className="h-5 w-5 text-[#64748B] dark:text-text-secondary mt-0.5" />
           <div>
-            <h3 className="font-semibold text-[#263238] mb-1">Management Guidelines</h3>
-            <ul className="text-sm text-[#64748B] space-y-1">
+            <h3 className="font-semibold text-[#263238] dark:text-text-primary mb-1">Management Guidelines</h3>
+            <ul className="text-sm text-[#64748B] dark:text-text-secondary space-y-1">
               <li>• Always check dietary restrictions before feeding</li>
               <li>• Administer medications at the correct time and dosage</li>
               <li>• Log all feedings and medication administration</li>

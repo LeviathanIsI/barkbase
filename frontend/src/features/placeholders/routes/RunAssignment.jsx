@@ -46,8 +46,8 @@ const PetCard = ({ pet, isDragging = false }) => {
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <h4 className="font-semibold text-gray-900 dark:text-text-primary">{pet.name}</h4>
-          <p className="text-sm text-[#64748B]">{pet.breed}</p>
-          <p className="text-xs text-[#64748B]">{pet.owner}</p>
+          <p className="text-sm text-[#64748B] dark:text-text-secondary">{pet.breed}</p>
+          <p className="text-xs text-[#64748B] dark:text-text-secondary">{pet.owner}</p>
         </div>
         <Badge variant={pet.size === 'Small' ? 'secondary' : pet.size === 'Medium' ? 'info' : 'warning'}>
           {pet.size}
@@ -74,7 +74,7 @@ const RunColumn = ({ run, assignedPets, onDrop }) => {
         </Badge>
       </div>
 
-      <div className="flex items-center gap-2 mb-3 text-sm text-[#64748B]">
+      <div className="flex items-center gap-2 mb-3 text-sm text-[#64748B] dark:text-text-secondary">
         <Clock className="h-4 w-4" />
         <span>{run.time}</span>
       </div>
@@ -96,7 +96,7 @@ const RunColumn = ({ run, assignedPets, onDrop }) => {
           <PetCard key={pet.id} pet={pet} />
         ))}
         {assignedPets.length === 0 && (
-          <div className="flex items-center justify-center h-full text-[#64748B] text-sm">
+          <div className="flex items-center justify-center h-full text-[#64748B] dark:text-text-secondary text-sm">
             Drop pets here
           </div>
         )}
@@ -201,7 +201,7 @@ const RunAssignment = () => {
         <Card>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-[#64748B]">Total Pets</p>
+              <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary">Total Pets</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{mockPets.length}</p>
             </div>
             <div className="w-12 h-12 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
@@ -213,7 +213,7 @@ const RunAssignment = () => {
         <Card>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-[#64748B]">Active Runs</p>
+              <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary">Active Runs</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{mockRuns.length}</p>
             </div>
             <div className="w-12 h-12 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
@@ -225,7 +225,7 @@ const RunAssignment = () => {
         <Card>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-[#64748B]">Total Capacity</p>
+              <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary">Total Capacity</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">
                 {mockRuns.reduce((sum, run) => sum + run.capacity, 0)}
               </p>
@@ -239,7 +239,7 @@ const RunAssignment = () => {
         <Card>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-[#64748B]">Avg. Utilization</p>
+              <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary">Avg. Utilization</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">68%</p>
             </div>
             <div className="w-12 h-12 bg-orange-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
@@ -254,7 +254,7 @@ const RunAssignment = () => {
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
           <div className="flex items-center gap-4 flex-1">
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#64748B]" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#64748B] dark:text-text-secondary" />
               <input
                 type="text"
                 placeholder="Search pets..."
@@ -265,7 +265,7 @@ const RunAssignment = () => {
             </div>
           </div>
 
-          <div className="text-sm text-[#64748B]">
+          <div className="text-sm text-[#64748B] dark:text-text-secondary">
             Showing {filteredPets.length} of {mockPets.length} pets
           </div>
         </div>
@@ -309,10 +309,10 @@ const RunAssignment = () => {
       {/* Instructions */}
       <Card className="mt-6">
         <div className="flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-[#64748B] mt-0.5" />
+          <AlertTriangle className="h-5 w-5 text-[#64748B] dark:text-text-secondary mt-0.5" />
           <div>
             <h3 className="font-semibold text-gray-900 dark:text-text-primary mb-1">How to Assign Runs</h3>
-            <ul className="text-sm text-[#64748B] space-y-1">
+            <ul className="text-sm text-[#64748B] dark:text-text-secondary space-y-1">
               <li>• Drag pets from the unassigned list to any run</li>
               <li>• Move pets between runs by dragging them</li>
               <li>• Monitor capacity utilization in real-time</li>

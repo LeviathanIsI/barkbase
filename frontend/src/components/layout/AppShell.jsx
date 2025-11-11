@@ -33,7 +33,7 @@ const AppShell = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#F5F6FA] dark:bg-[#0F0F1A] text-[#263238] dark:text-text-primary">
+    <div className="flex min-h-screen bg-[#F5F6FA] dark:bg-[#0F0F1A] text-[#263238] dark:text-text-primary dark:text-text-primary">
       {/* Jumbo Dark Sidebar */}
       <JumboSidebar collapsed={collapsed} />
 
@@ -70,8 +70,8 @@ const AppShell = () => {
           <div className="max-w-lg space-y-6 rounded-2xl border border-[#FF9800]/40 dark:border-[#FF9800]/60 bg-white dark:bg-surface-primary/95 p-8 shadow-2xl">
             <div className="space-y-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-[#FF9800] dark:text-[#FFA726]">Recovery mode</p>
-              <h2 className="text-2xl font-semibold text-[#263238] dark:text-text-primary">We detected database issues</h2>
-              <p className="text-sm text-[#64748B] dark:text-text-secondary">
+              <h2 className="text-2xl font-semibold text-[#263238] dark:text-text-primary dark:text-text-primary">We detected database issues</h2>
+              <p className="text-sm text-[#64748B] dark:text-text-secondary dark:text-text-secondary">
                 BarkBase opened in read-only recovery mode. Download your most recent export or backup before making
                 changes. Support cannot restore local data—use your latest export/backup to recover.
               </p>
@@ -83,7 +83,7 @@ const AppShell = () => {
               <Button variant="outline" onClick={() => window.location.reload()}>
                 Reload after restore
               </Button>
-              <p className="text-xs text-[#64748B] dark:text-text-secondary">
+              <p className="text-xs text-[#64748B] dark:text-text-secondary dark:text-text-secondary">
                 Tip: You can generate fresh exports from another device if this copy is unusable.
               </p>
             </div>

@@ -151,7 +151,7 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
         {collapsed && !isMobile ? (
           // Collapsed state - just show logo/icon
           <div className="flex flex-col items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#4B5DD3]/20 text-[#4B5DD3]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#4B5DD3]/20 text-[#4B5DD3] dark:text-primary-400">
               {tenant?.assets?.logo ? (
                 <img
                   src={tenant.assets.logo}
@@ -175,7 +175,7 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
           // Expanded state - show logo, name, and collapse button
           <>
             <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-[#4B5DD3]/20 text-[#4B5DD3]">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-[#4B5DD3]/20 text-[#4B5DD3] dark:text-primary-400">
                 {tenant?.assets?.logo ? (
                   <img
                     src={tenant.assets.logo}
@@ -223,7 +223,7 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
                 className={cn(
                   "group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors",
                   sectionActive
-                    ? "text-[#4B5DD3]"
+                    ? "text-[#4B5DD3] dark:text-primary-400"
                     : "text-white/60 hover:text-white",
                   collapsed && !isMobile && "justify-center"
                 )}

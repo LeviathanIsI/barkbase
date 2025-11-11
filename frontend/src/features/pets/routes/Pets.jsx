@@ -79,8 +79,8 @@ const Pets = () => {
         <Card>
           <div className="text-center py-12">
             <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-[#263238] mb-2">Error Loading Pets</h3>
-            <p className="text-[#64748B]">Unable to load pets data. Please try again.</p>
+            <h3 className="text-lg font-semibold text-[#263238] dark:text-text-primary mb-2">Error Loading Pets</h3>
+            <p className="text-[#64748B] dark:text-text-secondary">Unable to load pets data. Please try again.</p>
           </div>
         </Card>
       </div>
@@ -123,9 +123,9 @@ const Pets = () => {
             <PawPrint className="h-6 w-6 text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-[#263238] truncate">{pet.name}</h3>
-            <p className="text-sm text-[#64748B] truncate">{pet.breed || 'Unknown breed'}</p>
-            {pet.age && <p className="text-xs text-[#64748B]">{pet.age} years old</p>}
+            <h3 className="font-semibold text-[#263238] dark:text-text-primary truncate">{pet.name}</h3>
+            <p className="text-sm text-[#64748B] dark:text-text-secondary truncate">{pet.breed || 'Unknown breed'}</p>
+            {pet.age && <p className="text-xs text-[#64748B] dark:text-text-secondary">{pet.age} years old</p>}
           </div>
           <Badge variant={status === 'active' ? 'success' : 'neutral'} className="flex-shrink-0">
             {status === 'active' ? 'Active' : 'Inactive'}
@@ -135,18 +135,18 @@ const Pets = () => {
         <div className="space-y-2">
           {primaryOwner && (
             <div className="flex items-center gap-2 text-sm">
-              <Users className="h-4 w-4 text-[#64748B] flex-shrink-0" />
-              <span className="text-[#64748B] truncate">{primaryOwner.name || primaryOwner.email}</span>
+              <Users className="h-4 w-4 text-[#64748B] dark:text-text-secondary flex-shrink-0" />
+              <span className="text-[#64748B] dark:text-text-secondary truncate">{primaryOwner.name || primaryOwner.email}</span>
             </div>
           )}
 
           <div className="flex items-center justify-between text-sm">
             <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-[#64748B]" />
-              <span className="text-[#64748B]">{bookingCount} booking{bookingCount !== 1 ? 's' : ''}</span>
+              <Calendar className="h-4 w-4 text-[#64748B] dark:text-text-secondary" />
+              <span className="text-[#64748B] dark:text-text-secondary">{bookingCount} booking{bookingCount !== 1 ? 's' : ''}</span>
             </div>
             {lastBooking && (
-              <span className="text-xs text-[#64748B]">
+              <span className="text-xs text-[#64748B] dark:text-text-secondary">
                 Last: {new Date(lastBooking.checkIn).toLocaleDateString()}
               </span>
             )}
@@ -187,13 +187,13 @@ const Pets = () => {
               <PawPrint className="h-5 w-5 text-white" />
             </div>
             <div>
-              <p className="font-semibold text-[#263238]">{pet.name}</p>
-              <p className="text-sm text-[#64748B]">{pet.breed || 'Unknown breed'}</p>
+              <p className="font-semibold text-[#263238] dark:text-text-primary">{pet.name}</p>
+              <p className="text-sm text-[#64748B] dark:text-text-secondary">{pet.breed || 'Unknown breed'}</p>
             </div>
           </div>
         </td>
         <td className="py-4 px-6">
-          <p className="text-[#263238]">{primaryOwner?.name || primaryOwner?.email || '--'}</p>
+          <p className="text-[#263238] dark:text-text-primary">{primaryOwner?.name || primaryOwner?.email || '--'}</p>
         </td>
         <td className="py-4 px-6">
           <Badge variant={status === 'active' ? 'success' : 'neutral'}>
@@ -201,7 +201,7 @@ const Pets = () => {
           </Badge>
         </td>
         <td className="py-4 px-6">
-          <p className="text-[#263238]">{bookingCount}</p>
+          <p className="text-[#263238] dark:text-text-primary">{bookingCount}</p>
         </td>
         <td className="py-4 px-6">
           {pet.medicalNotes && <Heart className="h-4 w-4 text-orange-500 inline mr-2" title="Medical notes" />}
@@ -268,8 +268,8 @@ const Pets = () => {
             <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B] mb-1">Total Pets</p>
-                  <p className="text-2xl font-bold text-[#263238]">{stats.total}</p>
+                  <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary mb-1">Total Pets</p>
+                  <p className="text-2xl font-bold text-[#263238] dark:text-text-primary">{stats.total}</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center flex-shrink-0">
                   <PawPrint className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -280,8 +280,8 @@ const Pets = () => {
             <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B] mb-1">Active Pets</p>
-                  <p className="text-2xl font-bold text-[#263238]">{stats.active}</p>
+                  <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary mb-1">Active Pets</p>
+                  <p className="text-2xl font-bold text-[#263238] dark:text-text-primary">{stats.active}</p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center flex-shrink-0">
                   <Heart className="h-6 w-6 text-green-600" />
@@ -292,8 +292,8 @@ const Pets = () => {
             <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B] mb-1">With Bookings</p>
-                  <p className="text-2xl font-bold text-[#263238]">{stats.withBookings}</p>
+                  <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary mb-1">With Bookings</p>
+                  <p className="text-2xl font-bold text-[#263238] dark:text-text-primary">{stats.withBookings}</p>
                 </div>
                 <div className="w-12 h-12 bg-purple-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center flex-shrink-0">
                   <Calendar className="h-6 w-6 text-purple-600 dark:text-purple-400" />
@@ -304,8 +304,8 @@ const Pets = () => {
             <Card className={`p-6 ${stats.expiringVaccinations > 0 ? 'border-yellow-300 bg-yellow-50 dark:bg-surface-primary' : ''}`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B] mb-1">Expiring Vaccines</p>
-                  <p className="text-2xl font-bold text-[#263238]">{stats.expiringVaccinations}</p>
+                  <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary mb-1">Expiring Vaccines</p>
+                  <p className="text-2xl font-bold text-[#263238] dark:text-text-primary">{stats.expiringVaccinations}</p>
                   {stats.expiringVaccinations > 0 && (
                     <p className="text-xs text-yellow-700 mt-1">Needs attention</p>
                   )}
@@ -323,8 +323,8 @@ const Pets = () => {
             <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#64748B] mb-1">Inactive</p>
-                  <p className="text-2xl font-bold text-[#263238]">{stats.inactive}</p>
+                  <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary mb-1">Inactive</p>
+                  <p className="text-2xl font-bold text-[#263238] dark:text-text-primary">{stats.inactive}</p>
                 </div>
                 <div className="w-12 h-12 bg-gray-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center flex-shrink-0">
                   <Users className="h-6 w-6 text-gray-600 dark:text-text-secondary" />
@@ -340,7 +340,7 @@ const Pets = () => {
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
           <div className="flex items-center gap-4 flex-1 w-full sm:w-auto">
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#64748B] pointer-events-none" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#64748B] dark:text-text-secondary pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search pets..."
@@ -362,19 +362,19 @@ const Pets = () => {
           </div>
 
           <div className="flex items-center gap-3 w-full sm:w-auto">
-            <div className="text-sm text-[#64748B] whitespace-nowrap">
+            <div className="text-sm text-[#64748B] dark:text-text-secondary whitespace-nowrap">
               Showing {filteredPets.length} of {pets.length} pets
             </div>
             <div className="flex border border-[#E0E0E0] rounded-md overflow-hidden">
               <button
                 onClick={() => setViewMode('grid')}
-                className={`p-2.5 transition-colors ${viewMode === 'grid' ? 'bg-[#4B5DD3] text-white' : 'text-[#64748B] hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary'}`}
+                className={`p-2.5 transition-colors ${viewMode === 'grid' ? 'bg-[#4B5DD3] text-white' : 'text-[#64748B] dark:text-text-secondary hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary'}`}
               >
                 <Grid3x3 className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
-                className={`p-2.5 transition-colors border-l border-[#E0E0E0] ${viewMode === 'list' ? 'bg-[#4B5DD3] text-white' : 'text-[#64748B] hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary'}`}
+                className={`p-2.5 transition-colors border-l border-[#E0E0E0] ${viewMode === 'list' ? 'bg-[#4B5DD3] text-white' : 'text-[#64748B] dark:text-text-secondary hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary'}`}
               >
                 <List className="h-4 w-4" />
               </button>
@@ -401,9 +401,9 @@ const Pets = () => {
           )
         ) : filteredPets.length === 0 ? (
           <div className="text-center py-12">
-            <PawPrint className="h-12 w-12 text-[#64748B] mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-[#263238] mb-2">No Pets Found</h3>
-            <p className="text-[#64748B] mb-4">
+            <PawPrint className="h-12 w-12 text-[#64748B] dark:text-text-secondary mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-[#263238] dark:text-text-primary mb-2">No Pets Found</h3>
+            <p className="text-[#64748B] dark:text-text-secondary mb-4">
               {searchTerm || statusFilter !== 'ALL'
                 ? 'Try adjusting your search or filters.'
                 : 'Get started by adding your first pet.'}
@@ -424,11 +424,11 @@ const Pets = () => {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[#E0E0E0] bg-gray-50 dark:bg-surface-secondary">
-                  <th className="text-left py-4 px-6 text-sm font-semibold text-[#64748B]">Pet</th>
-                  <th className="text-left py-4 px-6 text-sm font-semibold text-[#64748B]">Owner</th>
-                  <th className="text-left py-4 px-6 text-sm font-semibold text-[#64748B]">Status</th>
-                  <th className="text-left py-4 px-6 text-sm font-semibold text-[#64748B]">Bookings</th>
-                  <th className="text-left py-4 px-6 text-sm font-semibold text-[#64748B]">Notes</th>
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-[#64748B] dark:text-text-secondary">Pet</th>
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-[#64748B] dark:text-text-secondary">Owner</th>
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-[#64748B] dark:text-text-secondary">Status</th>
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-[#64748B] dark:text-text-secondary">Bookings</th>
+                  <th className="text-left py-4 px-6 text-sm font-semibold text-[#64748B] dark:text-text-secondary">Notes</th>
                 </tr>
               </thead>
               <tbody>
