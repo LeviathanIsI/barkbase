@@ -79,7 +79,7 @@ const DeveloperAPISection = () => {
       </div>
 
       <div className="mt-4 flex justify-center">
-        <Button className="bg-gradient-to-r from-purple-600 to-pink-600">
+        <Button className="bg-primary-600 dark:bg-primary-700">
           <ExternalLink className="w-4 h-4 mr-2" />
           Upgrade to Pro for API Access
         </Button>
