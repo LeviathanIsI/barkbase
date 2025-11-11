@@ -281,7 +281,7 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
               <div>
                 <h3 className="text-lg font-medium text-gray-900 dark:text-text-primary mb-4">Property Details</h3>
 
-                <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                       Applies to
@@ -301,7 +301,7 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                       Property Name *
@@ -355,7 +355,7 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
               <div>
                 <h3 className="text-lg font-medium text-gray-900 dark:text-text-primary mb-4">Field Type</h3>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {fieldTypes.map((type) => (
                     <label
                       key={type.value}
@@ -427,7 +427,7 @@ const EnhancedCreatePropertyModal = ({ isOpen, onClose, objectType, existingProp
               <div>
                 <h3 className="text-lg font-medium text-gray-900 dark:text-text-primary mb-4">Display Settings</h3>
 
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-3">
                     <label className="flex items-center gap-3">
                       <input

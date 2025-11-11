@@ -95,7 +95,7 @@ const CustomerPackageView = () => {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 text-sm mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm mb-4">
                   <div>
                     <p className="text-gray-600 dark:text-text-secondary">Purchased</p>
                     <p className="font-medium text-gray-900 dark:text-text-primary">{pkg.purchased}</p>

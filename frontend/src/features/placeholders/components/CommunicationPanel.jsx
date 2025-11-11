@@ -33,7 +33,7 @@ const CommunicationPanel = ({ pet, isOpen, onClose }) => {
 
           <div className="space-y-3 mb-4">
             <h4 className="font-medium text-gray-900 dark:text-text-primary">QUICK ACTIONS:</h4>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <Button variant="outline" className="flex items-center gap-2">
                 <Phone className="w-4 h-4" />
                 Call

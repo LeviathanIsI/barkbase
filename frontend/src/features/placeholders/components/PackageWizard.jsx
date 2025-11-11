@@ -397,7 +397,7 @@ const PackageWizard = ({ isOpen, onClose, onComplete, template }) => {
         
         <div>
           <p className="text-sm font-medium text-gray-700 dark:text-text-primary mb-2">Days of week:</p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
               <Checkbox key={day} label={day} defaultChecked={!day.includes('day')} />
             ))}
@@ -510,7 +510,7 @@ const PackageWizard = ({ isOpen, onClose, onComplete, template }) => {
             </div>
 
             {packageData.refundPolicy !== 'none' && (
-              <div className="grid grid-cols-2 gap-4 mt-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
                     Refund percentage

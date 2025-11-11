@@ -112,7 +112,7 @@ const FeedingCard = ({ feeding }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
         <div>
           <p className="text-sm font-medium text-[#263238]">{feeding.foodType}</p>
           <p className="text-xs text-[#64748B]">Portion: {feeding.portion}</p>
@@ -164,7 +164,7 @@ const MedicationCard = ({ medication }) => {
         </Badge>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
         <div>
           <p className="text-sm font-medium text-[#263238]">{medication.dosage}</p>
           <p className="text-xs text-[#64748B]">{medication.frequency}</p>

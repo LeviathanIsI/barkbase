@@ -124,6 +124,12 @@ exports.handler = async (event) => {
             if (httpMethod === 'GET' && event.pathParameters?.staffId) {
                 return await getStaffById(event, tenantId);
             }
+            if (httpMethod === 'PUT' && event.pathParameters?.staffId) {
+                return await updateStaff(event, tenantId);
+            }
+            if (httpMethod === 'DELETE' && event.pathParameters?.staffId) {
+                return await deleteStaff(event, tenantId);
+            }
         }
 
         return {
@@ -855,11 +861,105 @@ async function createStaff(event, tenantId) {
 async function getStaffById(event, tenantId) {
     const pool = getPool();
     const { rows } = await pool.query(
-        `SELECT * FROM "Staff" WHERE "recordId" = $1 AND "tenantId" = $2`,
+        `SELECT s.*, m."role", u."name" as "userName", u."email" as "userEmail"
+         FROM "Staff" s
+         LEFT JOIN "Membership" m ON s."membershipId" = m."recordId"
+         LEFT JOIN "User" u ON m."userId" = u."recordId"
+         WHERE s."recordId" = $1 AND s."tenantId" = $2`,
         [event.pathParameters.staffId, tenantId]
     );
     if (rows.length === 0) {
-        return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Not found' }) };
+        return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Staff member not found' }) };
     }
     return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows[0]) };
+}
+
+async function updateStaff(event, tenantId) {
+    const staffId = event.pathParameters.staffId;
+    const body = JSON.parse(event.body || '{}');
+    const pool = getPool();
+
+    // Build dynamic update query
+    const fields = [];
+    const values = [];
+    let paramCount = 1;
+
+    const updatableFields = ['membershipId', 'position', 'phone', 'emergencyContact', 'notes', 'hourlyRate', 'status'];
+
+    for (const field of updatableFields) {
+        if (body[field] !== undefined) {
+            fields.push(`"${field}" = $${paramCount++}`);
+            values.push(body[field]);
+        }
+    }
+
+    if (fields.length === 0) {
+        return {
+            statusCode: 400,
+            headers: HEADERS,
+            body: JSON.stringify({ message: 'No valid fields provided for update' }),
+        };
+    }
+
+    const setClause = fields.join(', ');
+    const query = `UPDATE "Staff" SET ${setClause}, "updatedAt" = NOW() WHERE "recordId" = $${paramCount} AND "tenantId" = $${paramCount + 1} RETURNING *`;
+    values.push(staffId, tenantId);
+
+    const { rows } = await pool.query(query, values);
+
+    if (rows.length === 0) {
+        return {
+            statusCode: 404,
+            headers: HEADERS,
+            body: JSON.stringify({ message: 'Staff member not found or you do not have permission to update it' }),
+        };
+    }
+
+    return {
+        statusCode: 200,
+        headers: HEADERS,
+        body: JSON.stringify(rows[0]),
+    };
+}
+
+async function deleteStaff(event, tenantId) {
+    const staffId = event.pathParameters.staffId;
+    const pool = getPool();
+
+    // Check if staff has any active schedules or assignments
+    const checkResult = await pool.query(
+        `SELECT COUNT(*) FROM "Schedule"
+         WHERE "staffId" = $1 AND "tenantId" = $2
+         AND "date" >= CURRENT_DATE`,
+        [staffId, tenantId]
+    );
+
+    if (parseInt(checkResult.rows[0].count) > 0) {
+        return {
+            statusCode: 400,
+            headers: HEADERS,
+            body: JSON.stringify({
+                message: 'Cannot delete staff member with active schedules. Please reassign or remove schedules first.'
+            }),
+        };
+    }
+
+    const { rowCount } = await pool.query(
+        'DELETE FROM "Staff" WHERE "recordId" = $1 AND "tenantId" = $2',
+        [staffId, tenantId]
+    );
+
+    if (rowCount === 0) {
+        return {
+            statusCode: 404,
+            headers: HEADERS,
+            body: JSON.stringify({ message: 'Staff member not found or you do not have permission to delete it' }),
+        };
+    }
+
+    return {
+        statusCode: 204, // No Content
+        headers: HEADERS,
+        body: '',
+    };
 }

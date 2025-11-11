@@ -4,7 +4,7 @@ const { getPool, getTenantIdFromEvent } = require('/opt/nodejs');
 const HEADERS = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type,Authorization,x-tenant-id,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
-    'Access-Control-Allow-Methods': 'OPTIONS,GET,POST,PATCH'
+    'Access-Control-Allow-Methods': 'OPTIONS,GET,POST,PUT,PATCH,DELETE'
 };
 
 // Extract user info from API Gateway authorizer (JWT already validated by API Gateway)
@@ -82,6 +82,22 @@ exports.handler = async (event) => {
             if (httpMethod === 'POST') {
                 return await createInvoice(event, tenantId);
             }
+        }
+
+        if (path.match(/^\/api\/v1\/invoices\/[^\/]+$/) && event.pathParameters?.invoiceId) {
+            if (httpMethod === 'GET') {
+                return await getInvoiceById(event, tenantId);
+            }
+            if (httpMethod === 'PUT') {
+                return await updateInvoice(event, tenantId);
+            }
+            if (httpMethod === 'DELETE') {
+                return await deleteInvoice(event, tenantId);
+            }
+        }
+
+        if (path.match(/^\/api\/v1\/invoices\/[^\/]+\/status$/) && event.pathParameters?.invoiceId && httpMethod === 'PATCH') {
+            return await updateInvoiceStatus(event, tenantId);
         }
 
         // ============================================
@@ -227,6 +243,176 @@ async function createInvoice(event, tenantId) {
         statusCode: 201,
         headers: HEADERS,
         body: JSON.stringify(rows[0])
+    };
+}
+
+async function getInvoiceById(event, tenantId) {
+    const invoiceId = event.pathParameters.invoiceId;
+    const pool = getPool();
+
+    const { rows } = await pool.query(
+        `SELECT
+            i.*,
+            b."checkIn" as "bookingCheckIn",
+            b."checkOut" as "bookingCheckOut",
+            b."status" as "bookingStatus",
+            o."firstName" as "ownerFirstName",
+            o."lastName" as "ownerLastName",
+            o."email" as "ownerEmail",
+            o."phone" as "ownerPhone",
+            pet."name" as "petName"
+         FROM "Invoice" i
+         LEFT JOIN "Booking" b ON i."bookingId" = b."recordId"
+         LEFT JOIN "Pet" pet ON b."petId" = pet."recordId"
+         LEFT JOIN "Owner" o ON pet."ownerId" = o."recordId"
+         WHERE i."recordId" = $1 AND i."tenantId" = $2`,
+        [invoiceId, tenantId]
+    );
+
+    if (rows.length === 0) {
+        return {
+            statusCode: 404,
+            headers: HEADERS,
+            body: JSON.stringify({ message: 'Invoice not found' })
+        };
+    }
+
+    return {
+        statusCode: 200,
+        headers: HEADERS,
+        body: JSON.stringify(rows[0])
+    };
+}
+
+async function updateInvoice(event, tenantId) {
+    const invoiceId = event.pathParameters.invoiceId;
+    const body = JSON.parse(event.body || '{}');
+    const pool = getPool();
+
+    // Build dynamic update query
+    const fields = [];
+    const values = [];
+    let paramCount = 1;
+
+    const updatableFields = ['amountCents', 'dueDate', 'items', 'notes'];
+
+    for (const field of updatableFields) {
+        if (body[field] !== undefined) {
+            fields.push(`"${field}" = $${paramCount++}`);
+            values.push(field === 'items' ? JSON.stringify(body[field]) : body[field]);
+        }
+    }
+
+    if (fields.length === 0) {
+        return {
+            statusCode: 400,
+            headers: HEADERS,
+            body: JSON.stringify({ message: 'No valid fields provided for update' })
+        };
+    }
+
+    fields.push(`"updatedAt" = NOW()`);
+    const setClause = fields.join(', ');
+    const query = `UPDATE "Invoice" SET ${setClause} WHERE "recordId" = $${paramCount} AND "tenantId" = $${paramCount + 1} RETURNING *`;
+    values.push(invoiceId, tenantId);
+
+    const { rows } = await pool.query(query, values);
+
+    if (rows.length === 0) {
+        return {
+            statusCode: 404,
+            headers: HEADERS,
+            body: JSON.stringify({ message: 'Invoice not found or you do not have permission to update it' })
+        };
+    }
+
+    return {
+        statusCode: 200,
+        headers: HEADERS,
+        body: JSON.stringify(rows[0])
+    };
+}
+
+async function updateInvoiceStatus(event, tenantId) {
+    const invoiceId = event.pathParameters.invoiceId;
+    const { status } = JSON.parse(event.body || '{}');
+    const pool = getPool();
+
+    // Validate status
+    const validStatuses = ['DRAFT', 'SENT', 'PAID', 'OVERDUE', 'CANCELLED'];
+    if (!status || !validStatuses.includes(status)) {
+        return {
+            statusCode: 400,
+            headers: HEADERS,
+            body: JSON.stringify({ message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` })
+        };
+    }
+
+    const { rows } = await pool.query(
+        `UPDATE "Invoice" SET "status" = $1, "updatedAt" = NOW() WHERE "recordId" = $2 AND "tenantId" = $3 RETURNING *`,
+        [status, invoiceId, tenantId]
+    );
+
+    if (rows.length === 0) {
+        return {
+            statusCode: 404,
+            headers: HEADERS,
+            body: JSON.stringify({ message: 'Invoice not found' })
+        };
+    }
+
+    return {
+        statusCode: 200,
+        headers: HEADERS,
+        body: JSON.stringify(rows[0])
+    };
+}
+
+async function deleteInvoice(event, tenantId) {
+    const invoiceId = event.pathParameters.invoiceId;
+    const pool = getPool();
+
+    // Check if invoice has associated payments
+    const paymentCheck = await pool.query(
+        `SELECT COUNT(*) FROM "Payment" WHERE "invoiceId" = $1 AND "tenantId" = $2`,
+        [invoiceId, tenantId]
+    );
+
+    if (parseInt(paymentCheck.rows[0].count) > 0) {
+        // Soft delete - just cancel it
+        const { rows } = await pool.query(
+            `UPDATE "Invoice" SET "status" = 'CANCELLED', "updatedAt" = NOW() WHERE "recordId" = $1 AND "tenantId" = $2 RETURNING *`,
+            [invoiceId, tenantId]
+        );
+
+        return {
+            statusCode: 200,
+            headers: HEADERS,
+            body: JSON.stringify({
+                message: 'Invoice cancelled (has associated payments)',
+                invoice: rows[0]
+            })
+        };
+    }
+
+    // Hard delete if no payments
+    const { rowCount } = await pool.query(
+        `DELETE FROM "Invoice" WHERE "recordId" = $1 AND "tenantId" = $2`,
+        [invoiceId, tenantId]
+    );
+
+    if (rowCount === 0) {
+        return {
+            statusCode: 404,
+            headers: HEADERS,
+            body: JSON.stringify({ message: 'Invoice not found' })
+        };
+    }
+
+    return {
+        statusCode: 204,
+        headers: HEADERS,
+        body: ''
     };
 }
 

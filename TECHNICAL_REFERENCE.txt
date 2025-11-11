@@ -1,0 +1,48 @@
+BARKBASE TECHNICAL REFERENCE
+Detailed Component Specifications
+
+========================================
+ALERT COMPONENT
+========================================
+Location: C:arkbase-reactrontend\src\components\ui\Alert.jsx
+Padding: p-4 (16px all sides)
+Gap: gap-3 (icon to content)
+Icon Size: h-5 w-5 (20px x 20px)
+Title Margin: mb-1 (4px)
+Text Size: text-sm (14px)
+Border Radius: rounded-lg (8px)
+
+Variants: default, info, success, warning, error, destructive
+Exports: Alert, AlertTitle, AlertDescription
+
+========================================
+BADGE COMPONENT
+========================================
+Location: C:arkbase-reactrontend\src\components\ui\Badge.jsx
+Padding: px-2 py-0.5 (8px horiz, 2px vert)
+Text Size: text-xs (12px)
+Gap: gap-1 (4px)
+Border Radius: rounded-md (4px)
+Font Weight: font-medium
+
+Variants: default, primary, secondary, success, warning, error, info, outline
+Usage Count: 99 imports
+
+========================================
+STATUS PILL COMPONENT
+========================================
+Location: C:arkbase-reactrontend\src\components\primitives\StatusPill.jsx
+Padding: px-2.5 py-1 (10px horiz, 4px vert)
+Text Size: text-xs (12px)
+Border Radius: rounded-full (pill shape)
+Font Weight: font-medium
+Border: Yes (1px)
+
+Variants: active, inactive, pending, canceled, warning, success, info
+
+========================================
+TOAST NOTIFICATIONS
+========================================
+Library: react-hot-toast
+Total Usage: 195 instances
+- toast.error(): 103 (52.8

@@ -417,7 +417,7 @@ const TriggerConfigurator = ({ trigger, onClose, onUpdate }) => {
                     <option value="exponential">Exponential backoff</option>
                   </select>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
                     <label className="text-sm text-muted">Initial delay (ms)</label>
                     <input

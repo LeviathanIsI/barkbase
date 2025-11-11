@@ -1,0 +1,204 @@
+BARKBASE COMPONENT AUDIT REPORT
+Notification, Alert, and Badge Components
+
+EXECUTIVE SUMMARY:
+- 99 imports of proper Badge/Alert components
+- 195 toast notifications (103 errors, 79 success, 13 info)
+- 25+ files with custom status color functions
+- Inconsistent error message spacing
+- Multiple custom badge implementations
+
+===============================================================================
+1. ALERT COMPONENT
+===============================================================================
+Location: C:\barkbase-react\frontend\src\components\ui\Alert.jsx
+
+STANDARD SPACING (ALL CORRECT):
+- Padding: p-4 (line 53) ✓
+- Gap: gap-3 (line 59) ✓
+- Icon sizing: h-5 w-5 (line 60) ✓
+- Title margin: mb-1 (line 63) ✓
+
+VARIANTS: default, info, success, warning, error, destructive
+
+STATUS: 100% Compliant but UNDERUSED
+
+===============================================================================
+2. BADGE COMPONENT  
+===============================================================================
+Location: C:\barkbase-react\frontend\src\components\ui\Badge.jsx
+
+STANDARD SIZING (CORRECT):
+- Padding: px-2 py-0.5 ✓
+- Text size: text-xs ✓
+- Gap: gap-1 ✓
+
+USAGE COUNT: 99 proper imports
+
+COMPLIANCE ISSUES:
+- Header.jsx line 204: className override with bg-green-50
+- Some files mix Badge with custom className overrides
+
+===============================================================================
+3. CUSTOM IMPLEMENTATIONS
+===============================================================================
+
+FILES WITH CUSTOM STATUS FUNCTIONS (25+):
+1. BookingCard.jsx - getStatusColor() [4 cases]
+2. BookingDetailModal.jsx - getStatusColor()
+3. CalendarWeekView.jsx - getStatusColor()
+4. CheckInOutDashboard.jsx - getStatusColor()
+5. PaymentsDashboard.jsx - getStatusColor()
+6. PetCard.jsx - getStatusBadgeColor()
+7. PopulatedFacilitiesView.jsx - getStatusColor()
+8. FeedingMeds.jsx - getStatusColor()
+9. ShiftCoveragePlanner.jsx - getStatusColor()
+10. TeamMemberCard.jsx - getRoleColor() + getStatusColor()
+
+CUSTOM BADGE SPACING ISSUES:
+BookingCard.jsx (line 45):
+  Current: px-3 py-1 text-sm
+  Issue: Larger than Badge standard px-2 py-0.5 text-xs
+
+TeamMemberCard.jsx (lines 120-136):
+  Current: py-1 (should be py-0.5)
+
+HighDensityTodayView.jsx - StatusIndicator:
+  Current: px-2 py-1 gap-1.5 h-3 w-3 icons
+  Issue: Custom implementation, not using Badge/StatusPill
+
+===============================================================================
+4. TOAST NOTIFICATIONS
+===============================================================================
+
+Library: react-hot-toast (STANDARDIZED)
+
+TOTAL: 195 instances
+- toast.error(): 103 (52.8%)
+- toast.success(): 79 (40.5%)
+- toast.info(): 13 (6.7%)
+
+COMPLIANCE: 100% - All using react-hot-toast library
+
+===============================================================================
+5. ERROR MESSAGE SPACING
+===============================================================================
+
+STANDARD (Input/Select/Textarea):
+  mt-1.5 text-sm text-error-600
+
+INCONSISTENT FILES:
+1. OwnerFormModal.jsx (lines 98, 116, 142):
+   Current: mt-1 text-xs text-red-500 (WRONG)
+
+2. PetFormModal.jsx (line 124):
+   Current: mt-1 text-xs text-red-500 (WRONG)
+
+3. VaccinationFormModal.jsx (lines 120, 139, 156):
+   Current: mt-1 text-xs text-red-500 (WRONG)
+
+4. MobileTaskView.jsx (line 487):
+   Current: mt-1 text-error-700 (WRONG)
+
+5. Roles.jsx (line 131):
+   Current: mt-2 text-muted (WRONG)
+
+COMPLIANCE: 40% - Significant inconsistency
+
+===============================================================================
+6. STATUS INDICATORS
+===============================================================================
+
+STANDARD COMPONENT (StatusPill.jsx):
+- Padding: px-2.5 py-1
+- Border radius: rounded-full
+- Text size: text-xs font-medium
+
+VARIANTS:
+- active: bg-emerald-50
+- inactive: bg-gray-100
+- pending: bg-amber-50
+- canceled: bg-rose-50
+- warning: bg-amber-50
+- success: bg-emerald-50
+- info: bg-blue-50
+
+CUSTOM IMPLEMENTATIONS:
+- HighDensityTodayView StatusIndicator (h-3 w-3, gap-1.5)
+- TeamMemberCard online/offline dot (w-4 h-4)
+
+===============================================================================
+7. SPACING INCONSISTENCIES
+===============================================================================
+
+Badge Sizes:
+- Standard Badge: px-2 py-0.5 text-xs
+- StatusPill: px-2.5 py-1 text-xs
+- HighDensityIndicator: px-2 py-1 text-xs
+- BookingCard: px-3 py-1 text-sm
+- TeamMemberCard permissions: px-2 py-1 text-xs
+
+Icon Sizes:
+- Standard Alert: h-5 w-5
+- HighDensityIndicator: h-3 w-3
+- TeamMemberCard dot: w-4 h-4
+
+===============================================================================
+8. COMPLIANCE SUMMARY
+===============================================================================
+
+Component             Compliance  Count  Status
+Alert Component       100%         Low    ✓ Correct but underused
+Badge Component       95%          99     ✓ Good, minor overrides
+Toast Notifications   100%         195    ✓ Standardized
+Error Messages        40%          8+     ✗ Inconsistent
+Status Indicators     80%          25+    ~ Fragmented
+Custom Badges         0%           30+    ✗ Not standardized
+
+===============================================================================
+9. RECOMMENDATIONS
+===============================================================================
+
+HIGH PRIORITY:
+1. Standardize error messages (5 files):
+   Change: mt-1 text-xs text-red-500 → mt-1.5 text-sm text-error-600
+   Impact: 8+ locations
+
+2. Consolidate status functions (10+ files):
+   Create: useStatusVariant hook or shared utility
+   Impact: Remove 25+ duplicate functions
+
+3. Remove Badge className overrides (2 files):
+   Files: Header.jsx line 204, TeamMemberCard.jsx line 108
+   Change: Use variant instead of className
+
+MEDIUM PRIORITY:
+4. Increase Alert component usage
+5. Standardize status indicator sizing
+6. Create shared status color mapping utility
+
+===============================================================================
+10. FILES REQUIRING UPDATES
+===============================================================================
+
+ERROR MESSAGE FIXES:
+- C:\barkbase-react\frontend\src\features\owners\components\OwnerFormModal.jsx
+- C:\barkbase-react\frontend\src\features\pets\components\PetFormModal.jsx
+- C:\barkbase-react\frontend\src\features\pets\components\VaccinationFormModal.jsx
+- C:\barkbase-react\frontend\src\features\mobile\components\MobileTaskView.jsx
+- C:\barkbase-react\frontend\src\features\roles\routes\Roles.jsx
+
+CUSTOM STATUS CONSOLIDATION:
+- C:\barkbase-react\frontend\src\features\bookings\components\BookingCard.jsx
+- C:\barkbase-react\frontend\src\features\calendar\components\BookingDetailModal.jsx
+- C:\barkbase-react\frontend\src\features\calendar\components\CheckInOutDashboard.jsx
+- C:\barkbase-react\frontend\src\features\placeholders\components\PaymentsDashboard.jsx
+- C:\barkbase-react\frontend\src\features\settings\routes\components\TeamMemberCard.jsx
+
+BADGE OVERRIDE REMOVAL:
+- C:\barkbase-react\frontend\src\components\layout\Header.jsx
+- C:\barkbase-react\frontend\src\features\settings\routes\components\TeamMemberCard.jsx
+
+===============================================================================
+END OF REPORT
+Generated: November 11, 2025

@@ -82,7 +82,7 @@ const PetCard = ({ pet, onCheckIn, onCheckOut, onCommunication }) => {
       </div>
 
       {/* Schedule Info */}
-      <div className="grid grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
           <p className="text-xs text-gray-500 dark:text-text-secondary uppercase tracking-wide">Scheduled</p>
           <p className="text-lg font-semibold text-gray-900 dark:text-text-primary">{pet.scheduledTime}</p>
@@ -141,7 +141,7 @@ const PetCard = ({ pet, onCheckIn, onCheckOut, onCommunication }) => {
       )}
 
       {/* Health & Vaccination Status */}
-      <div className="grid grid-cols-3 gap-4 mb-4 text-center">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4 text-center">
         <div>
           <div className="text-xs text-gray-500 dark:text-text-secondary uppercase tracking-wide mb-1">Vaccinations</div>
           <div className="text-green-600 font-medium">

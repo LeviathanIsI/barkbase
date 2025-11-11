@@ -38,7 +38,7 @@ const ExpressCheckOutModal = ({ pet, isOpen, onClose }) => {
           {/* Stay Summary */}
           <div className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
             <h4 className="font-semibold text-gray-900 dark:text-text-primary mb-4">📊 STAY SUMMARY</h4>
-            <div className="grid grid-cols-3 gap-4 text-center">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-center">
               <div>
                 <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">7h 15m</p>
                 <p className="text-sm text-gray-600 dark:text-text-secondary">Duration</p>
@@ -57,7 +57,7 @@ const ExpressCheckOutModal = ({ pet, isOpen, onClose }) => {
           {/* Health & Behavior */}
           <div className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
             <h4 className="font-semibold text-gray-900 dark:text-text-primary mb-4">🏥 HEALTH & BEHAVIOR</h4>
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Health status today:</label>
                 <select

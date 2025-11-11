@@ -189,7 +189,7 @@ const ExpressCheckInModal = ({ pet, isOpen, onClose }) => {
 
             <div className="mb-4">
               <h4 className="font-medium text-gray-900 dark:text-text-primary mb-2">Items brought:</h4>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <label className="flex items-center">
                   <input
                     type="checkbox"

@@ -125,11 +125,20 @@ exports.handler = async (event) => {
 
         // ========== PACKAGES ROUTES ==========
         if (path.startsWith('/api/v1/packages')) {
-            if (httpMethod === 'GET') {
+            if (httpMethod === 'GET' && path === '/api/v1/packages') {
                 return await getPackages(event, tenantId);
             }
-            if (httpMethod === 'POST') {
+            if (httpMethod === 'POST' && path === '/api/v1/packages') {
                 return await createPackage(event, tenantId);
+            }
+            if (httpMethod === 'GET' && event.pathParameters?.packageId) {
+                return await getPackageById(event, tenantId, event.pathParameters.packageId);
+            }
+            if (httpMethod === 'PUT' && event.pathParameters?.packageId) {
+                return await updatePackage(event, tenantId, event.pathParameters.packageId);
+            }
+            if (httpMethod === 'DELETE' && event.pathParameters?.packageId) {
+                return await deletePackage(event, tenantId, event.pathParameters.packageId);
             }
         }
 

@@ -96,28 +96,28 @@ export const ImpactAnalysisModal = ({
             {/* Impact Summary */}
             <div>
               <h3 className="text-sm font-semibold mb-3">Impact Summary</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="border rounded-lg p-3">
                   <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                     {impactSummary.affectedPropertiesCount}
                   </div>
                   <div className="text-xs text-gray-600 dark:text-text-secondary">Affected Properties</div>
                 </div>
-                
+
                 <div className="border rounded-lg p-3">
                   <div className="text-2xl font-bold text-red-600">
                     {impactSummary.criticalDependenciesCount}
                   </div>
                   <div className="text-xs text-gray-600 dark:text-text-secondary">Critical Dependencies</div>
                 </div>
-                
+
                 <div className="border rounded-lg p-3">
                   <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
                     {impactSummary.recordsWithValuesCount?.toLocaleString()}
                   </div>
                   <div className="text-xs text-gray-600 dark:text-text-secondary">Records with Values</div>
                 </div>
-                
+
                 <div className="border rounded-lg p-3">
                   <div className="text-2xl font-bold text-green-600">
                     {impactSummary.maxDependencyDepth}
@@ -159,7 +159,7 @@ export const ImpactAnalysisModal = ({
                   <FileCode className="w-4 h-4 mr-2" />
                   Asset Usage
                 </h3>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {usageBreakdown.workflows > 0 && (
                     <div className="text-sm">
                       <span className="font-medium">{usageBreakdown.workflows}</span> Workflows
