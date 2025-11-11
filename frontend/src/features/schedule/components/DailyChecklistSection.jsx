@@ -153,7 +153,7 @@ const DailyChecklistSection = ({ currentDate = new Date() }) => {
                   {task.label}
                 </span>
                 {task.priority === 'high' && !isCompleted && (
-                  <span className="px-2 py-1 text-xs font-medium bg-red-100 dark:bg-surface-secondary text-red-700 rounded">
+                  <span className="px-2 py-1 text-xs font-medium bg-red-100 dark:bg-surface-secondary text-red-700 dark:text-red-200 rounded">
                     Priority
                   </span>
                 )}

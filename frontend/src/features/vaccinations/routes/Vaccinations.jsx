@@ -151,7 +151,7 @@ const Vaccinations = () => {
                       <a href={`/pets/${v.petId}`} className="font-semibold text-gray-900 dark:text-text-primary hover:underline">{v.petName || 'Unknown Pet'}</a>
                       <span className="text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-surface-secondary text-gray-700 dark:text-text-primary">{v.type || 'Vaccine'}</span>
                       {!isVaccineAppropriate(v.type, v.petSpecies) && (
-                        <span className="text-xs px-2 py-1 rounded-full bg-red-100 dark:bg-surface-secondary text-red-700 font-medium" title="This vaccine is not typically given to this species">
+                        <span className="text-xs px-2 py-1 rounded-full bg-red-100 dark:bg-surface-secondary text-red-700 dark:text-red-200 font-medium" title="This vaccine is not typically given to this species">
                           ⚠️ Invalid
                         </span>
                       )}
