@@ -175,8 +175,8 @@ const AssociationsTab = ({ objectType }) => {
           )}
         </div>
       ) : (
-        <div className="rounded-lg border border-border bg-white dark:bg-surface-primary overflow-hidden">
-          <table className="w-full">
+        <div className="rounded-lg border border-border bg-white dark:bg-surface-primary overflow-x-auto">
+          <table className="w-full min-w-[700px]">
             <thead>
               <tr className="border-b border-border bg-gray-50 dark:bg-surface-secondary">
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">

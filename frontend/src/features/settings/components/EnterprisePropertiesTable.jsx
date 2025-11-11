@@ -82,8 +82,8 @@ export const EnterprisePropertiesTable = ({
   const isAllSelected = properties.length > 0 && selectedProperties.length === properties.filter(p => p.propertyType === 'custom').length;
 
   return (
-    <div className="border rounded-lg overflow-hidden">
-      <table className="w-full">
+    <div className="border rounded-lg overflow-x-auto">
+      <table className="w-full min-w-[900px]">
         <thead className="bg-gray-50 dark:bg-surface-secondary border-b">
           <tr>
             <th className="w-12 px-4 py-3 text-left">

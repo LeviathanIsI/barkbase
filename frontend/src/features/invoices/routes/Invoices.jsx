@@ -98,7 +98,8 @@ const Invoices = () => {
       </div>
 
       <Card>
-        <table className="w-full">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[800px]">
           <thead>
             <tr className="border-b border-border">
               <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted">Invoice #</th>
@@ -158,6 +159,7 @@ const Invoices = () => {
             ))}
           </tbody>
         </table>
+        </div>
 
         {filteredInvoices.length === 0 && (
           <div className="text-center py-12">
@@ -198,7 +200,8 @@ const Invoices = () => {
             {/* Line Items */}
             <div>
               <h4 className="text-sm font-semibold mb-3 text-muted uppercase">Line Items</h4>
-              <table className="w-full">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[500px]">
                 <thead>
                   <tr className="border-b border-border text-left">
                     <th className="pb-2 text-xs font-medium text-muted">Description</th>
@@ -218,6 +221,7 @@ const Invoices = () => {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
 
             {/* Totals */}

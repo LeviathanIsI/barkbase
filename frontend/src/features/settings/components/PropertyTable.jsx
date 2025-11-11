@@ -82,8 +82,8 @@ const PropertyTable = ({
   };
 
   return (
-    <div className="rounded-lg border border-border bg-surface">
-      <table className="w-full">
+    <div className="rounded-lg border border-border bg-surface overflow-x-auto">
+      <table className="w-full min-w-[800px]">
         <thead className="bg-surface border-b border-border">
           <tr>
             <th className="w-1/6 px-6 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">
