@@ -269,7 +269,7 @@ const APIKeys = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-gray-500 dark:text-text-secondary">Name:</span>
                   <div className="font-medium">{newKeyData.name}</div>

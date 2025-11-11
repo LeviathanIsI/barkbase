@@ -312,7 +312,7 @@ const PermissionMatrixModal = ({ member, onClose, onSave }) => {
               <User className="w-5 h-5" />
               Basic Info
             </h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Name</label>
                 <input
@@ -398,7 +398,7 @@ const PermissionMatrixModal = ({ member, onClose, onSave }) => {
                       <Icon className="w-4 h-4" />
                       {category.title}
                     </h4>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {category.permissions.map((permission) => (
                         <label key={permission.key} className="flex items-center gap-3">
                           <input
@@ -460,7 +460,7 @@ const PermissionMatrixModal = ({ member, onClose, onSave }) => {
               ))}
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1 flex items-center gap-2">
                   <DollarSign className="w-4 h-4" />

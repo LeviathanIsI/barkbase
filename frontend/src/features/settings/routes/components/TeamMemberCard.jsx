@@ -153,7 +153,7 @@ const TeamMemberCard = ({ member, isSelected, onSelect, onEdit }) => {
         {member.performance && (
           <div className="mb-4 p-3 bg-gray-50 dark:bg-surface-secondary rounded-lg">
             <p className="text-sm font-medium text-gray-700 dark:text-text-primary mb-2">Performance (This Month)</p>
-            <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
               <div>Check-ins: {member.performance.checkInsProcessed}</div>
               <div>Bookings: {member.performance.bookingsCreated}</div>
               <div className="flex items-center gap-1">

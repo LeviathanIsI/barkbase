@@ -91,7 +91,7 @@ const PackageDetailModal = ({ package: pkg, isOpen, onClose }) => {
           {/* Package Information */}
           <div className="border border-gray-200 dark:border-surface-border rounded-lg p-6 bg-gray-50 dark:bg-surface-secondary">
             <h3 className="font-semibold text-gray-900 dark:text-text-primary mb-4">PACKAGE INFORMATION</h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-gray-600 dark:text-text-secondary">Name:</p>
                 <p className="font-medium text-gray-900 dark:text-text-primary">{pkg.name}</p>
@@ -115,7 +115,7 @@ const PackageDetailModal = ({ package: pkg, isOpen, onClose }) => {
           <div className="border border-gray-200 dark:border-surface-border rounded-lg p-6">
             <h3 className="font-semibold text-gray-900 dark:text-text-primary mb-4">PRICING & VALUE</h3>
             <div className="space-y-3 text-sm">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <p className="text-gray-600 dark:text-text-secondary">Package Price:</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">${pkg.price}</p>
