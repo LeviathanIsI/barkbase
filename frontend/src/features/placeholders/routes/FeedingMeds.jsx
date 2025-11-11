@@ -266,7 +266,7 @@ const FeedingMeds = () => {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
         {activeTab === 'feeding' ? (
           <>
-            <Card>
+            <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary">Total Pets</p>
@@ -278,7 +278,7 @@ const FeedingMeds = () => {
               </div>
             </Card>
 
-            <Card>
+            <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary">Completed</p>
@@ -290,7 +290,7 @@ const FeedingMeds = () => {
               </div>
             </Card>
 
-            <Card>
+            <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary">Pending</p>
@@ -302,7 +302,7 @@ const FeedingMeds = () => {
               </div>
             </Card>
 
-            <Card>
+            <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary">Overdue</p>
@@ -316,7 +316,7 @@ const FeedingMeds = () => {
           </>
         ) : (
           <>
-            <Card>
+            <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary">Total Medications</p>
@@ -328,7 +328,7 @@ const FeedingMeds = () => {
               </div>
             </Card>
 
-            <Card>
+            <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary">Due Today</p>
@@ -340,7 +340,7 @@ const FeedingMeds = () => {
               </div>
             </Card>
 
-            <Card>
+            <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary">Completed</p>
@@ -352,7 +352,7 @@ const FeedingMeds = () => {
               </div>
             </Card>
 
-            <Card>
+            <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-[#64748B] dark:text-text-secondary">Compliance Rate</p>
