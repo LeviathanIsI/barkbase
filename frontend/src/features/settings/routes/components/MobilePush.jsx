@@ -91,7 +91,7 @@ const MobilePush = () => {
         </div>
 
         {/* Download Prompt */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-surface-primary dark:to-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-6">
+        <div className="bg-primary-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-6">
           <div className="text-center">
             <Smartphone className="w-12 h-12 text-blue-600 dark:text-blue-400 mx-auto mb-4" />
             <h4 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">

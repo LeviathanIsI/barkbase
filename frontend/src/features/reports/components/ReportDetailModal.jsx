@@ -7,7 +7,7 @@ const ReportDetailModal = ({ report, data, isOpen, onClose, onExport }) => {
   const renderRevenueSummary = () => (
     <div className="space-y-8">
       {/* Overview */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-surface-primary dark:to-surface-primary rounded-lg p-6">
+      <div className="bg-primary-50 dark:bg-surface-primary rounded-lg p-6">
         <div className="grid gap-4 md:grid-cols-4 text-center">
           <div>
             <p className="text-3xl font-bold text-gray-900 dark:text-text-primary">{data.totalRevenue}</p>
@@ -134,7 +134,7 @@ const ReportDetailModal = ({ report, data, isOpen, onClose, onExport }) => {
       </div>
 
       {/* Actionable Insights */}
-      <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-surface-primary dark:to-surface-primary border border-green-200 dark:border-green-900/30 rounded-lg p-6">
+      <div className="bg-success-50 dark:bg-surface-primary border border-green-200 dark:border-green-900/30 rounded-lg p-6">
         <h4 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">Actionable Insights</h4>
 
         <div className="grid gap-6 md:grid-cols-2">

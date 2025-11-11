@@ -31,7 +31,7 @@ const PetCard = ({ pet, onCheckIn, onCheckOut, onCommunication }) => {
       {/* Header with Status */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-full flex items-center justify-center text-white font-semibold text-lg">
+          <div className="w-12 h-12 bg-primary-600 dark:bg-primary-700 rounded-full flex items-center justify-center text-white font-semibold text-lg">
             {pet.name[0]}
           </div>
           <div>

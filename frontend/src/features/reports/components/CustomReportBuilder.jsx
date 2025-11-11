@@ -22,13 +22,13 @@ const CustomReportBuilder = () => {
   return (
     <div className="space-y-6">
       <div className="text-center py-12">
-        <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="w-16 h-16 bg-primary-600 dark:bg-primary-700 rounded-full flex items-center justify-center mx-auto mb-4">
           <Settings className="w-8 h-8 text-white" />
         </div>
         <h3 className="text-2xl font-semibold text-gray-900 dark:text-text-primary mb-2">Custom Report Builder</h3>
         <p className="text-gray-600 dark:text-text-secondary mb-8">Build reports tailored to your business needs</p>
 
-        <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-surface-primary dark:to-surface-primary border border-purple-200 dark:border-purple-900/30 rounded-lg p-6 mb-8">
+        <div className="bg-primary-50 dark:bg-surface-primary border border-purple-200 dark:border-purple-900/30 rounded-lg p-6 mb-8">
           <h4 className="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-4">What You Can Build With PRO</h4>
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 text-left">
             <div className="flex items-center gap-2">

@@ -128,7 +128,7 @@ const TeamRouting = () => {
         </div>
 
         {/* Upgrade Prompt */}
-        <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-surface-primary dark:to-surface-primary border border-purple-200 dark:border-purple-900/30 rounded-lg p-6">
+        <div className="bg-primary-50 dark:bg-surface-primary border border-purple-200 dark:border-purple-900/30 rounded-lg p-6">
           <div className="text-center">
             <Users className="w-12 h-12 text-purple-600 dark:text-purple-400 mx-auto mb-4" />
             <h4 className="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-2">

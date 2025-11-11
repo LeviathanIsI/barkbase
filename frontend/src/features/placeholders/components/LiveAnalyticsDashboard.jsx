@@ -205,7 +205,7 @@ const LiveAnalyticsDashboard = () => {
       </Card>
 
       {/* PRO Features Upsell */}
-      <Card className="p-6 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-surface-primary dark:to-surface-primary border-purple-200 dark:border-purple-900/30">
+      <Card className="p-6 bg-primary-50 dark:bg-surface-primary border-purple-200 dark:border-purple-900/30">
         <div className="text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
             <Target className="w-8 h-8 text-purple-600 dark:text-purple-400" />

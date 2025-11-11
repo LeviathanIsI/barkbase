@@ -157,7 +157,7 @@ const CapacityOverviewSection = ({ currentDate }) => {
       </div>
 
       {/* Overall Capacity Card */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-surface-primary dark:to-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-4 mb-6">
+      <div className="bg-primary-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-4 mb-6">
         <div className="flex items-center justify-between">
           <div>
             <div className="text-3xl font-bold text-blue-900 dark:text-blue-100">{capacityData.overall}%</div>

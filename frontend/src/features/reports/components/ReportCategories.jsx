@@ -142,7 +142,7 @@ const ReportCategories = ({ onGenerateReport, onExportReport }) => {
           <div className="flex items-center gap-2 mb-1">
             <h4 className="font-semibold text-gray-900 dark:text-text-primary">{report.name}</h4>
             {report.tier === 'pro' && (
-              <span className="px-2 py-1 bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs font-medium rounded-full flex items-center gap-1">
+              <span className="px-2 py-1 bg-primary-600 dark:bg-primary-700 text-white text-xs font-medium rounded-full flex items-center gap-1">
                 <Star className="w-3 h-3" />
                 PRO
               </span>

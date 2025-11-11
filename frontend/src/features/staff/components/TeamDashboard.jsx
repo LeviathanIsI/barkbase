@@ -214,7 +214,7 @@ const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {
           <Card key={member.id} className="p-6 hover:shadow-lg transition-shadow">
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-4 flex-1">
-                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                <div className="w-12 h-12 bg-primary-600 dark:bg-primary-700 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
                   {member.name ? member.name.split(' ').map(n => n[0]).join('') : (member.email ? member.email[0].toUpperCase() : '?')}
                 </div>
 

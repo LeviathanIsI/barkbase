@@ -100,7 +100,7 @@ const SecurityScore = () => {
   };
 
   return (
-    <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-surface-primary dark:to-surface-primary border-blue-200 dark:border-blue-900/30">
+    <Card className="bg-primary-50 dark:bg-surface-primary border-blue-200 dark:border-blue-900/30">
       <div className="flex items-center gap-4 mb-6">
         <Shield className="w-12 h-12 text-blue-600 dark:text-blue-400" />
         <div>

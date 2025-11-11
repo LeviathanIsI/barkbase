@@ -60,7 +60,7 @@ const BenchmarkingComparisons = () => {
   return (
     <div className="space-y-6">
       <div className="text-center py-8">
-        <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="w-16 h-16 bg-primary-600 dark:bg-primary-700 rounded-full flex items-center justify-center mx-auto mb-4">
           <Target className="w-8 h-8 text-white" />
         </div>
         <h3 className="text-2xl font-semibold text-gray-900 dark:text-text-primary mb-2">Industry Benchmarks</h3>
@@ -122,7 +122,7 @@ const BenchmarkingComparisons = () => {
         </div>
       </Card>
 
-      <Card className="p-6 bg-gradient-to-r from-green-50 to-blue-50 dark:from-surface-primary dark:to-surface-primary border-green-200 dark:border-green-900/30">
+      <Card className="p-6 bg-success-50 dark:bg-surface-primary border-green-200 dark:border-green-900/30">
         <h4 className="text-lg font-semibold text-green-900 mb-4">ACTIONABLE RECOMMENDATIONS</h4>
         <p className="text-sm text-green-800 mb-4">Based on benchmarking data:</p>
 

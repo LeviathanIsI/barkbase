@@ -73,7 +73,7 @@ const TeamAnalytics = () => {
       </div>
 
       {/* Health Score */}
-      <Card className="p-6 bg-gradient-to-r from-green-50 to-blue-50 dark:from-surface-primary dark:to-surface-primary">
+      <Card className="p-6 bg-success-50 dark:bg-surface-primary">
         <div className="text-center">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">Overall Team Health Score</h3>
           {tasksLoading ? (
@@ -159,7 +159,7 @@ const TeamAnalytics = () => {
       </Card>
 
       {/* Actionable Insights (derived from current metrics) */}
-      <Card className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-surface-primary dark:to-surface-primary">
+      <Card className="p-6 bg-primary-50 dark:bg-surface-primary">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">Actionable Insights</h3>
         <div className="space-y-2 text-sm text-gray-800 dark:text-text-primary">
           {overdueOpen.length > 0 && (

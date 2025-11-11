@@ -17,8 +17,8 @@ export const ThemeToggle = ({ className = '' }) => {
         transition-all duration-300 ease-in-out
         focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2
         ${isDark
-          ? 'bg-gradient-to-r from-primary-600 to-secondary-600 shadow-glow-purple'
-          : 'bg-gradient-to-r from-secondary-400 to-primary-400 shadow-md'
+          ? 'bg-primary-600 dark:bg-primary-700 shadow-md'
+          : 'bg-primary-500 shadow-sm'
         }
         ${className}
       `}

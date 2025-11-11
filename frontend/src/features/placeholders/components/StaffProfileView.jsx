@@ -44,7 +44,7 @@ const StaffProfileView = ({ staff, onBack }) => {
 
         <div className="flex items-start gap-6">
           <div className="flex-shrink-0">
-            <div className="w-24 h-24 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-2xl">
+            <div className="w-24 h-24 bg-primary-600 dark:bg-primary-700 rounded-full flex items-center justify-center text-white font-bold text-2xl">
               {staff.name.split(' ').map(n => n[0]).join('')}
             </div>
             <Button variant="outline" size="sm" className="mt-2">

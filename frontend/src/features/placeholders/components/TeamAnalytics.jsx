@@ -21,7 +21,7 @@ const TeamAnalytics = () => {
       </div>
 
       {/* Health Score */}
-      <Card className="p-6 bg-gradient-to-r from-green-50 to-blue-50 dark:from-surface-primary dark:to-surface-primary">
+      <Card className="p-6 bg-success-50 dark:bg-surface-primary">
         <div className="text-center">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">Overall Team Health Score</h3>
           <div className="text-6xl font-bold text-green-600 mb-2">87/100</div>
@@ -174,7 +174,7 @@ const TeamAnalytics = () => {
       </Card>
 
       {/* Actionable Insights */}
-      <Card className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-surface-primary dark:to-surface-primary">
+      <Card className="p-6 bg-primary-50 dark:bg-surface-primary">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">Actionable Insights</h3>
 
         <div className="space-y-4">

@@ -19,14 +19,14 @@ export default function FinancialDashboard() {
 
   if (isLoading || !billingOverview) {
     return (
-      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-surface-primary dark:to-surface-primary border-blue-200 dark:border-blue-900/30">
+      <Card className="bg-primary-50 dark:bg-surface-primary border-blue-200 dark:border-blue-900/30">
         <Skeleton className="h-64" />
       </Card>
     );
   }
 
   return (
-    <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-surface-primary dark:to-surface-primary border-blue-200 dark:border-blue-900/30">
+    <Card className="bg-primary-50 dark:bg-surface-primary border-blue-200 dark:border-blue-900/30">
       <div className="p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-text-primary flex items-center gap-2">

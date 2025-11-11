@@ -620,7 +620,7 @@ const StaffWizard = ({ isOpen, onClose, onComplete }) => {
 
                 <div className="grid gap-6 md:grid-cols-2">
                   <div>
-                    <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg mb-3">
+                    <div className="w-16 h-16 bg-primary-600 dark:bg-primary-700 rounded-full flex items-center justify-center text-white font-bold text-lg mb-3">
                       {staffData.firstName[0]}{staffData.lastName[0]}
                     </div>
                     <h5 className="text-xl font-semibold text-gray-900 dark:text-text-primary">{staffData.firstName} {staffData.lastName}</h5>

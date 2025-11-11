@@ -38,7 +38,7 @@ const UsageAnalytics = ({ data }) => {
   ];
 
   return (
-    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-surface-primary dark:to-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-6">
+    <div className="bg-primary-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-6">
       <div className="flex items-center gap-3 mb-4">
         <BarChart3 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
         <h2 className="text-xl font-semibold text-blue-900 dark:text-blue-100">Property Usage Insights</h2>

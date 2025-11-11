@@ -208,7 +208,7 @@ const FacilitiesOverview = () => {
         </Card>
 
         {/* Benefits */}
-        <Card className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-surface-primary dark:to-surface-primary border-blue-200 dark:border-blue-900/30">
+        <Card className="p-6 bg-primary-50 dark:bg-surface-primary border-blue-200 dark:border-blue-900/30">
           <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-4">Why This Matters</h3>
           <div className="grid gap-4 md:grid-cols-3">
             <div className="flex items-start gap-3">

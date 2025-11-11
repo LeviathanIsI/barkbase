@@ -58,7 +58,7 @@ const EnhancedDaycareStats = ({ pets, currentDate }) => {
   return (
     <div className="space-y-6">
       {/* Today's Dashboard Header */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-surface-primary dark:to-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-4">
+      <div className="bg-primary-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-blue-900 dark:text-blue-100">📊 DAYCARE DASHBOARD</h2>

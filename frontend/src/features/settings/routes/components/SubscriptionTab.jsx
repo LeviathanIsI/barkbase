@@ -176,7 +176,7 @@ export default function SubscriptionTab() {
       </div>
 
       {/* Upgrade Recommendation */}
-      <Card className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-surface-primary dark:to-surface-primary border-purple-200 dark:border-purple-900/30">
+      <Card className="bg-primary-50 dark:bg-surface-primary border-purple-200 dark:border-purple-900/30">
         <div className="flex items-start gap-4">
           <TrendingUp className="w-8 h-8 text-purple-600 dark:text-purple-400 flex-shrink-0 mt-1" />
           <div className="flex-1">

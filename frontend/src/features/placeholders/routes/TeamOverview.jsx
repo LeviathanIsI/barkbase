@@ -144,7 +144,7 @@ const TeamOverview = () => {
         />
 
         {/* Value Proposition */}
-        <Card className="p-8 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-surface-primary dark:to-surface-primary border-blue-200 dark:border-blue-900/30">
+        <Card className="p-8 bg-primary-50 dark:bg-surface-primary border-blue-200 dark:border-blue-900/30">
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-blue-100 dark:bg-surface-secondary rounded-full flex items-center justify-center mx-auto mb-4">
               <Users className="w-8 h-8 text-blue-600 dark:text-blue-400" />
