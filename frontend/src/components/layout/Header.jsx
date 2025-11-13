@@ -29,7 +29,7 @@ const Header = ({ onMenuToggle }) => {
   const role = useAuthStore((state) => state.role);
   const offline = useUIStore((state) => state.offline);
   const navigate = useNavigate();
-  const { accessToken } = useAuthStore(); // Get accessToken for signOut
+  // SECURITY: accessToken is now in httpOnly cookies (not accessible)
 
   const permissionContext = {
     role,
@@ -174,10 +174,10 @@ const Header = ({ onMenuToggle }) => {
 
   const handleLogout = async () => {
     try {
-      // Pass the accessToken to invalidate it on the backend
-      await auth.signOut({ accessToken });
+      // SECURITY: accessToken comes from httpOnly cookies (automatically sent)
+      await auth.signOut();
     } catch (error) {
-      console.error('Failed to sign out from Cognito, clearing session locally anyway.', error);
+      console.error('Failed to sign out from backend, clearing session locally anyway.', error);
     } finally {
       // No matter what, clear the local session and redirect
       useAuthStore.getState().clearAuth();

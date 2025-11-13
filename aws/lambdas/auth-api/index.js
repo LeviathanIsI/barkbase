@@ -28,6 +28,94 @@ const JWT_REFRESH_TTL = '30d';
 const BCRYPT_ROUNDS = 12; // OWASP recommended minimum
 
 /**
+ * Parse cookies from Cookie header string
+ * @param {string} cookieHeader - Cookie header value
+ * @returns {Object} Parsed cookies as key-value pairs
+ */
+function parseCookies(cookieHeader) {
+    if (!cookieHeader) return {};
+    return cookieHeader.split(';').reduce((cookies, cookie) => {
+        const [name, value] = cookie.trim().split('=');
+        if (name && value) {
+            cookies[name] = decodeURIComponent(value);
+        }
+        return cookies;
+    }, {});
+}
+
+/**
+ * Create Set-Cookie header for JWT tokens
+ * Implements httpOnly, secure, sameSite for XSS/CSRF protection
+ *
+ * @param {string} name - Cookie name
+ * @param {string} value - Cookie value
+ * @param {number} maxAge - Max age in seconds
+ * @returns {string} Set-Cookie header value
+ */
+function createCookieHeader(name, value, maxAge) {
+    const environment = process.env.ENVIRONMENT || 'production';
+    const isProduction = environment === 'production' || environment === 'staging';
+
+    // Cookie options for security
+    const options = [
+        `${name}=${encodeURIComponent(value)}`,
+        'Path=/',
+        `Max-Age=${maxAge}`,
+        'HttpOnly',  // Prevents JavaScript access (XSS protection)
+        'SameSite=Strict',  // CSRF protection
+    ];
+
+    // Only set Secure flag in production (requires HTTPS)
+    if (isProduction) {
+        options.push('Secure');
+    }
+
+    // Set domain for production (allows cookies across subdomains)
+    if (isProduction && process.env.COOKIE_DOMAIN) {
+        options.push(`Domain=${process.env.COOKIE_DOMAIN}`);
+    }
+
+    return options.join('; ');
+}
+
+/**
+ * Create cookie headers for clearing tokens on logout
+ * @returns {string[]} Array of Set-Cookie headers to clear tokens
+ */
+function createClearCookieHeaders() {
+    return [
+        createCookieHeader('accessToken', '', 0),
+        createCookieHeader('refreshToken', '', 0)
+    ];
+}
+
+/**
+ * Extract access token from cookies or Authorization header
+ * Supports both cookie-based (new) and header-based (legacy) auth
+ *
+ * @param {Object} event - Lambda event object
+ * @returns {string|null} Access token or null if not found
+ */
+function extractAccessToken(event) {
+    // Try Authorization header first (for API clients, backward compatibility)
+    const authHeader = event.headers?.authorization || event.headers?.Authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+        return authHeader.substring(7);
+    }
+
+    // Try cookies (for browser clients)
+    const cookieHeader = event.headers?.cookie || event.headers?.Cookie;
+    if (cookieHeader) {
+        const cookies = parseCookies(cookieHeader);
+        if (cookies.accessToken) {
+            return cookies.accessToken;
+        }
+    }
+
+    return null;
+}
+
+/**
  * Verify JWT token with support for multiple secrets (rotation)
  * Tries primary secret first, falls back to secondary if available
  *
@@ -260,12 +348,23 @@ async function login(event) {
             ...metadata
         });
 
-        return createSuccessResponse(200, {
-            accessToken,
-            refreshToken,
+        // SECURITY: Set JWT tokens as httpOnly cookies (XSS protection)
+        const accessTokenCookie = createCookieHeader('accessToken', accessToken, 900); // 15 minutes
+        const refreshTokenCookie = createCookieHeader('refreshToken', refreshToken, 2592000); // 30 days
+
+        // Create response without tokens in body
+        const response = createSuccessResponse(200, {
             user: { recordId: user.recordId, email: user.email, role: user.role },
             tenant: { recordId: tenant.recordId, slug: tenant.slug, name: tenant.name, plan: tenant.plan }
         }, event);
+
+        // Add Set-Cookie headers (multiple Set-Cookie headers require multiValueHeaders)
+        if (!response.multiValueHeaders) {
+            response.multiValueHeaders = {};
+        }
+        response.multiValueHeaders['Set-Cookie'] = [accessTokenCookie, refreshTokenCookie];
+
+        return response;
     } catch (err) {
         return errorResponse(500, ERROR_CODES.INTERNAL_ERROR, 'Internal Server Error', {
             error: err,
@@ -383,13 +482,24 @@ async function signup(event) {
             ...metadata
         });
 
-        return createSuccessResponse(201, {
+        // SECURITY: Set JWT tokens as httpOnly cookies (XSS protection)
+        const accessTokenCookie = createCookieHeader('accessToken', accessToken, 900); // 15 minutes
+        const refreshTokenCookie = createCookieHeader('refreshToken', refreshToken, 2592000); // 30 days
+
+        // Create response without tokens in body
+        const response = createSuccessResponse(201, {
             message: 'Workspace created successfully',
-            accessToken,
-            refreshToken,
             user,
             tenant
         }, event);
+
+        // Add Set-Cookie headers
+        if (!response.multiValueHeaders) {
+            response.multiValueHeaders = {};
+        }
+        response.multiValueHeaders['Set-Cookie'] = [accessTokenCookie, refreshTokenCookie];
+
+        return response;
     } catch (err) {
         return errorResponse(500, ERROR_CODES.INTERNAL_ERROR, 'Internal Server Error', {
             error: err,
@@ -400,7 +510,22 @@ async function signup(event) {
 }
 
 async function refresh(event) {
-    const { refreshToken } = JSON.parse(event.body || '{}');
+    // SECURITY: Extract refresh token from cookies first, fallback to body for backward compatibility
+    let refreshToken = null;
+
+    // Try cookies first (new method)
+    const cookieHeader = event.headers?.cookie || event.headers?.Cookie;
+    if (cookieHeader) {
+        const cookies = parseCookies(cookieHeader);
+        refreshToken = cookies.refreshToken;
+    }
+
+    // Fallback to body (legacy method)
+    if (!refreshToken) {
+        const body = JSON.parse(event.body || '{}');
+        refreshToken = body.refreshToken;
+    }
+
     if (!refreshToken) {
         return errorResponse(400, ERROR_CODES.MISSING_FIELDS, 'Missing refresh token', {}, event);
     }
@@ -430,18 +555,29 @@ async function refresh(event) {
             { expiresIn: JWT_ACCESS_TTL }
         );
 
-        return createSuccessResponse(200, { accessToken, role: membership.role }, event);
+        // SECURITY: Set new access token as httpOnly cookie
+        const accessTokenCookie = createCookieHeader('accessToken', accessToken, 900); // 15 minutes
+
+        const response = createSuccessResponse(200, { role: membership.role }, event);
+
+        // Add Set-Cookie header
+        if (!response.multiValueHeaders) {
+            response.multiValueHeaders = {};
+        }
+        response.multiValueHeaders['Set-Cookie'] = [accessTokenCookie];
+
+        return response;
     } catch (error) {
         return errorResponse(401, ERROR_CODES.INVALID_TOKEN, 'Invalid or expired token', {}, event);
     }
 }
 
 async function logout(event) {
-    const authHeader = event.headers.authorization || event.headers.Authorization;
+    // SECURITY: Extract token from cookies or Authorization header
+    const token = extractAccessToken(event);
 
-    if (authHeader && authHeader.startsWith('Bearer ')) {
+    if (token) {
         try {
-            const token = authHeader.split(' ')[1];
             // SECURITY: Use verifyJWT to support token rotation
             const payload = verifyJWT(token);
 
@@ -464,7 +600,18 @@ async function logout(event) {
         }
     }
 
-    return createSuccessResponse(204, '', event);
+    // SECURITY: Clear httpOnly cookies
+    const clearCookies = createClearCookieHeaders();
+
+    const response = createSuccessResponse(204, '', event);
+
+    // Add Set-Cookie headers to clear cookies
+    if (!response.multiValueHeaders) {
+        response.multiValueHeaders = {};
+    }
+    response.multiValueHeaders['Set-Cookie'] = clearCookies;
+
+    return response;
 }
 
 /**

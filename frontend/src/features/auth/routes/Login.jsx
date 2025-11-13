@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate, Link } from 'react-router-dom';
-import { jwtDecode } from 'jwt-decode';
 import { useAuthStore } from '@/stores/auth';
 import { useTenantStore } from '@/stores/tenant';
-import { auth, apiClient } from '@/lib/apiClient';
+import { auth } from '@/lib/apiClient';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 
@@ -23,66 +22,24 @@ const Login = () => {
       const { email, password } = data;
       const result = await auth.signIn({ email, password });
 
-      if (result?.accessToken) {
-        // Decode JWT to extract user information (no tenant info in JWT)
-        let userInfo = null;
+      // SECURITY: Tokens are in httpOnly cookies, response contains user/tenant data
+      if (result?.user) {
+        const userInfo = result.user;
+        const tenantData = result.tenant;
 
-        try {
-          const decoded = jwtDecode(result.accessToken);
-          userInfo = {
-            id: decoded.sub,
-            email: decoded.email,
-            role: decoded['custom:role'] || decoded.role,
-          };
-        } catch (jwtError) {
-          console.error('[Login] Failed to decode JWT:', jwtError);
-        }
+        console.log('[Login] Login successful:', { userId: userInfo.recordId, tenantId: tenantData?.recordId });
 
-        // Set auth state with tokens first (tenant will be populated below)
+        // Set auth state with user and tenant data
         setAuth({
-          accessToken: result.accessToken,
-          refreshToken: result.refreshToken,
-          tenantId: null, // Will be populated after fetching tenant
           user: userInfo,
+          tenantId: tenantData?.recordId,
+          role: userInfo.role,
           rememberMe,
         });
 
-        // Check if tenant is already being loaded
-        const { isLoading } = useTenantStore.getState();
-        if (isLoading) {
-          console.log('[Login] Tenant already being loaded by another component, skipping...');
-          navigate('/dashboard');
-          return;
-        }
-
-        // ALWAYS fetch tenant from backend (uses JWT sub to find tenant via database)
-        // Backend extracts Cognito sub from JWT → queries User table → gets tenant
-        setLoading(true);
-        try {
-          console.log('[Login] Fetching tenant from backend using JWT sub...');
-          const tenantResponse = await apiClient.get('/api/v1/tenants/current');
-          
-          if (tenantResponse.data) {
-            const tenantData = tenantResponse.data;
-            console.log('[Login] Tenant fetched successfully:', tenantData.recordId);
-
-            // Update auth store with the tenantId from backend
-            setAuth({
-              accessToken: result.accessToken,
-              refreshToken: result.refreshToken,
-              tenantId: tenantData.recordId,
-              user: userInfo,
-              rememberMe,
-            });
-
-            // Set full tenant object
-            setTenant(tenantData);
-          }
-        } catch (tenantError) {
-          console.error('[Login] Failed to fetch tenant from backend:', tenantError);
-          // Don't block login if tenant fetch fails - user can still access some pages
-        } finally {
-          setLoading(false);
+        // Set tenant in tenant store
+        if (tenantData) {
+          setTenant(tenantData);
         }
 
         navigate('/dashboard');

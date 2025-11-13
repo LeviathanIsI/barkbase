@@ -61,10 +61,9 @@ const buildUrl = (path, params) => {
   return url.toString();
 };
 
+// SECURITY: Tokens are in httpOnly cookies, no Authorization header needed
 const buildHeaders = async (path = "") => {
-  const { useAuthStore } = await import("@/stores/auth");
   const { useTenantStore } = await import("@/stores/tenant");
-  const accessToken = useAuthStore.getState().accessToken;
   const tenant = useTenantStore.getState().tenant;
   const tenantId = tenant?.recordId;
 
@@ -77,7 +76,7 @@ const buildHeaders = async (path = "") => {
 
   return {
     "Content-Type": "application/json",
-    ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
+    // REMOVED: Authorization header (tokens are in httpOnly cookies)
     ...(tenantId && { "X-Tenant-Id": tenantId }),
   };
 };
@@ -85,7 +84,8 @@ const buildHeaders = async (path = "") => {
 const get = async (path, { params } = {}) => {
   const url = buildUrl(path, params);
   const headers = await buildHeaders(path);
-  const res = await fetch(url, { method: 'GET', headers });
+  // SECURITY: Include credentials to send httpOnly cookies
+  const res = await fetch(url, { method: 'GET', headers, credentials: 'include' });
   if (!res.ok) {
     const errorText = await res.text();
     console.error('API Error:', res.status, errorText); // Debug log
@@ -97,7 +97,8 @@ const get = async (path, { params } = {}) => {
 const post = async (path, body) => {
   const url = buildUrl(path);
   const headers = await buildHeaders(path);
-  const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+  // SECURITY: Include credentials to send httpOnly cookies
+  const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), credentials: 'include' });
   if (!res.ok) {
     throw new Error(await res.text());
   }
@@ -107,7 +108,8 @@ const post = async (path, body) => {
 const put = async (path, body) => {
   const url = buildUrl(path);
   const headers = await buildHeaders(path);
-  const res = await fetch(url, { method: 'PUT', headers, body: JSON.stringify(body) });
+  // SECURITY: Include credentials to send httpOnly cookies
+  const res = await fetch(url, { method: 'PUT', headers, body: JSON.stringify(body), credentials: 'include' });
   if (!res.ok) {
     throw new Error(await res.text());
   }
@@ -117,10 +119,12 @@ const put = async (path, body) => {
 const del = async (path, options = {}) => {
   const url = buildUrl(path, options.params);
   const headers = await buildHeaders(path);
+  // SECURITY: Include credentials to send httpOnly cookies
   const res = await fetch(url, {
     method: 'DELETE',
     headers,
     body: options?.data ? JSON.stringify(options.data) : undefined,
+    credentials: 'include',
   });
   if (!res.ok) {
     throw new Error(await res.text());
