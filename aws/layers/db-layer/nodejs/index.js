@@ -1,6 +1,8 @@
 const pg = require('pg');
 const { Pool } = pg;
 const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
+const fs = require('fs');
+const path = require('path');
 
 const secretsClient = new SecretsManagerClient({});
 let cachedSecret = null;
@@ -36,16 +38,45 @@ async function getDbConfig() {
 		userPresent: !!user,
 	});
 
+	// SECURITY: Configure SSL based on environment
+	const environment = process.env.ENVIRONMENT || 'production';
+	const isProduction = environment === 'production' || environment === 'staging';
+
+	let sslConfig;
+	if (isProduction) {
+		// Production: Enable SSL certificate validation
+		const caPath = path.join(__dirname, 'rds-ca-bundle.pem');
+
+		if (fs.existsSync(caPath)) {
+			// Use RDS CA bundle for certificate validation
+			sslConfig = {
+				rejectUnauthorized: true,
+				ca: fs.readFileSync(caPath).toString()
+			};
+			console.log('[DB] SSL enabled with certificate validation');
+		} else {
+			// CA bundle missing - log warning but allow connection
+			console.warn('[DB] WARNING: RDS CA bundle not found, SSL validation disabled!');
+			console.warn('[DB] Download from: https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem');
+			sslConfig = { rejectUnauthorized: false };
+		}
+	} else {
+		// Development: Disable SSL validation for local development
+		sslConfig = { rejectUnauthorized: false };
+		console.log('[DB] SSL validation disabled (development mode)');
+	}
+
 	return {
 		host,
 		port,
 		database,
 		user,
 		password,
-		ssl: { rejectUnauthorized: false },
-		max: 5,
+		ssl: sslConfig,
+		max: 10,  // Increased from 5 for better performance
 		idleTimeoutMillis: 30000,
 		connectionTimeoutMillis: 10000,
+		statement_timeout: 30000,  // 30 second query timeout
 	};
 }
 
