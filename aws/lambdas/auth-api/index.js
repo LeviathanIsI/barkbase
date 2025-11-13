@@ -47,6 +47,9 @@ function parseCookies(cookieHeader) {
  * Create Set-Cookie header for JWT tokens
  * Implements httpOnly, secure, sameSite for XSS/CSRF protection
  *
+ * SECURITY NOTE: SameSite=Lax allows cookies to work cross-origin (frontend/backend on different domains)
+ * while still providing CSRF protection. SameSite=Strict would block all cross-origin cookies.
+ *
  * @param {string} name - Cookie name
  * @param {string} value - Cookie value
  * @param {number} maxAge - Max age in seconds
@@ -62,7 +65,7 @@ function createCookieHeader(name, value, maxAge) {
         'Path=/',
         `Max-Age=${maxAge}`,
         'HttpOnly',  // Prevents JavaScript access (XSS protection)
-        'SameSite=Strict',  // CSRF protection
+        'SameSite=Lax',  // CSRF protection + cross-origin support
     ];
 
     // Only set Secure flag in production (requires HTTPS)
@@ -74,6 +77,8 @@ function createCookieHeader(name, value, maxAge) {
     if (isProduction && process.env.COOKIE_DOMAIN) {
         options.push(`Domain=${process.env.COOKIE_DOMAIN}`);
     }
+
+    console.log(`[COOKIE] Creating ${name} cookie: HttpOnly, SameSite=Lax, MaxAge=${maxAge}s, Secure=${isProduction}`);
 
     return options.join('; ');
 }
@@ -352,6 +357,8 @@ async function login(event) {
         const accessTokenCookie = createCookieHeader('accessToken', accessToken, 900); // 15 minutes
         const refreshTokenCookie = createCookieHeader('refreshToken', refreshToken, 2592000); // 30 days
 
+        console.log('[LOGIN] Setting cookies in response headers');
+
         // Create response without tokens in body
         const response = createSuccessResponse(200, {
             user: { recordId: user.recordId, email: user.email, role: user.role },
@@ -363,6 +370,14 @@ async function login(event) {
             response.multiValueHeaders = {};
         }
         response.multiValueHeaders['Set-Cookie'] = [accessTokenCookie, refreshTokenCookie];
+
+        console.log('[LOGIN] Response structure:', {
+            statusCode: response.statusCode,
+            hasCookies: !!response.multiValueHeaders['Set-Cookie'],
+            cookieCount: response.multiValueHeaders['Set-Cookie'].length,
+            hasUser: !!response.body.includes('recordId'),
+            headers: Object.keys(response.headers)
+        });
 
         return response;
     } catch (err) {

@@ -20,16 +20,32 @@ const Login = () => {
   const onSubmit = async (data) => {
     try {
       const { email, password } = data;
+      console.log('[Login] Starting login for:', email);
+
       const result = await auth.signIn({ email, password });
+      console.log('[Login] SignIn returned:', result);
 
       // SECURITY: Tokens are in httpOnly cookies, response contains user/tenant data
       if (result?.user) {
         const userInfo = result.user;
         const tenantData = result.tenant;
 
-        console.log('[Login] Login successful:', { userId: userInfo.recordId, tenantId: tenantData?.recordId });
+        console.log('[Login] Login successful:', {
+          userId: userInfo.recordId,
+          userRole: userInfo.role,
+          tenantId: tenantData?.recordId,
+          hasUser: !!userInfo,
+          hasTenant: !!tenantData
+        });
+
+        // Check cookies were set
+        console.log('[Login] Checking cookies:', {
+          allCookies: document.cookie,
+          note: 'httpOnly cookies will not be visible here'
+        });
 
         // Set auth state with user and tenant data
+        console.log('[Login] Setting auth state...');
         setAuth({
           user: userInfo,
           tenantId: tenantData?.recordId,
@@ -37,16 +53,30 @@ const Login = () => {
           rememberMe,
         });
 
+        // Verify auth state was set
+        const authState = useAuthStore.getState();
+        console.log('[Login] Auth state after setAuth:', {
+          hasUser: !!authState.user,
+          role: authState.role,
+          tenantId: authState.tenantId,
+          isAuthenticated: authState.isAuthenticated()
+        });
+
         // Set tenant in tenant store
         if (tenantData) {
+          console.log('[Login] Setting tenant data...');
           setTenant(tenantData);
         }
 
+        console.log('[Login] Navigating to dashboard...');
         navigate('/dashboard');
+      } else {
+        console.error('[Login] No user data in response:', result);
+        throw new Error('Login response missing user data');
       }
       return;
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error('[Login] Login failed:', error);
       setError('root.serverError', {
         type: 'manual',
         message: error.message || 'Unable to sign in. Please try again.',

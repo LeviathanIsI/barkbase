@@ -6,6 +6,9 @@ export class DbAuthClient {
 
   async signIn({ email, password }) {
     if (!email || !password) throw new Error('Email and password are required');
+
+    console.log('[DB-AUTH] Attempting login to:', `${this.apiUrl}/api/v1/auth/login`);
+
     // SECURITY: credentials: 'include' sends httpOnly cookies
     const res = await fetch(`${this.apiUrl}/api/v1/auth/login`, {
       method: 'POST',
@@ -13,8 +16,24 @@ export class DbAuthClient {
       body: JSON.stringify({ email, password }),
       credentials: 'include', // Send and receive cookies
     });
+
+    console.log('[DB-AUTH] Login response status:', res.status);
+    console.log('[DB-AUTH] Response headers:', {
+      'set-cookie': res.headers.get('set-cookie'),
+      'access-control-allow-credentials': res.headers.get('access-control-allow-credentials'),
+      'access-control-allow-origin': res.headers.get('access-control-allow-origin')
+    });
+
     if (!res.ok) throw new Error((await res.json().catch(()=>({message:''}))).message || 'Invalid credentials');
     const data = await res.json();
+
+    console.log('[DB-AUTH] Login response data:', {
+      hasUser: !!data.user,
+      hasTenant: !!data.tenant,
+      userRole: data.user?.role,
+      tenantId: data.tenant?.recordId
+    });
+
     // SECURITY: Tokens are in httpOnly cookies (not in response body)
     return {
       user: data.user,
