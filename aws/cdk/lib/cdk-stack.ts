@@ -313,6 +313,29 @@ export class CdkStack extends cdk.Stack {
     });
     dbSecret.grantRead(usersApiFunction);
 
+    // Add JWT_SECRET and optional JWT_SECRET_OLD for rotation
+    const authEnvironment = {
+      ...dbEnvironment,
+      JWT_SECRET: process.env.JWT_SECRET!,
+      ...(process.env.JWT_SECRET_OLD ? { JWT_SECRET_OLD: process.env.JWT_SECRET_OLD } : {}),
+    };
+
+    console.log(`✓ JWT Configuration:
+      - Primary Secret: ${process.env.JWT_SECRET!.substring(0, 10)}...
+      - Rotation Secret: ${process.env.JWT_SECRET_OLD ? 'CONFIGURED' : 'NOT SET'}
+    `);
+
+    // Auth API
+    const authApiFunction = createLambdaFunction({
+      id: 'AuthApiFunction',
+      handler: 'index.handler',
+      codePath: path.join(__dirname, '../../lambdas/auth-api'),
+      environment: authEnvironment,
+      layers: [dbLayer],
+      description: 'Authentication API with JWT token management',
+    });
+    dbSecret.grantRead(authApiFunction);
+
     // === Cognito Pre-SignUp Trigger (auto-confirm for dev) ===
     const preSignUpFunction = new lambda.Function(this, "CognitoPreSignUpFunction", {
       runtime: lambda.Runtime.NODEJS_20_X,
@@ -431,9 +454,7 @@ export class CdkStack extends cdk.Stack {
       },
       // SECURITY: Default throttle settings for all routes
       // Prevents brute-force attacks and API abuse
-      defaultDomainMapping: {
-        domainName: undefined // Custom domain setup optional
-      }
+      // Custom domain setup optional - omitted for now
     });
 
     // SECURITY: Add default stage with throttling
@@ -744,23 +765,6 @@ export class CdkStack extends cdk.Stack {
       treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
     }).addAlarmAction(new cloudwatchActions.SnsAction(securityAlertTopic));
 
-    // Lambda Error Rate Alarms (for each critical Lambda)
-    [authApiFunction].forEach((lambdaFn, index) => {
-      const errorAlarm = new cloudwatch.Alarm(this, `Lambda${index}ErrorAlarm`, {
-        alarmName: `barkbase-lambda-errors-${lambdaFn.functionName}-${stage}`,
-        alarmDescription: `Alert on errors in ${lambdaFn.functionName}`,
-        metric: lambdaFn.metricErrors({
-          statistic: 'Sum',
-          period: cdk.Duration.minutes(5),
-        }),
-        threshold: 10,
-        evaluationPeriods: 1,
-        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
-        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-      });
-      errorAlarm.addAlarmAction(new cloudwatchActions.SnsAction(securityAlertTopic));
-    });
-
     // ===================================================================
     // OPERATIONAL MONITORING & DASHBOARDS
     // ===================================================================
@@ -979,35 +983,29 @@ export class CdkStack extends cdk.Stack {
       );
     }
 
-    // Add JWT_SECRET and optional JWT_SECRET_OLD for rotation
-    const authEnvironment = {
-      ...dbEnvironment,
-      JWT_SECRET: process.env.JWT_SECRET,
-      ...(process.env.JWT_SECRET_OLD ? { JWT_SECRET_OLD: process.env.JWT_SECRET_OLD } : {}),
-    };
-
-    console.log(`✓ JWT Configuration:
-      - Primary Secret: ${process.env.JWT_SECRET.substring(0, 10)}...
-      - Rotation Secret: ${process.env.JWT_SECRET_OLD ? 'CONFIGURED' : 'NOT SET'}
-    `);
-
-    // Auth API
-    const authApiFunction = createLambdaFunction({
-      id: 'AuthApiFunction',
-      handler: 'index.handler',
-      codePath: path.join(__dirname, '../../lambdas/auth-api'),
-      environment: authEnvironment,
-      layers: [dbLayer],
-      description: 'Authentication API with JWT token management',
-    });
-    dbSecret.grantRead(authApiFunction);
-
     const authIntegration = new HttpLambdaIntegration('AuthIntegration', authApiFunction);
     httpApi.addRoutes({ path: '/api/v1/auth/login', methods: [apigw.HttpMethod.POST], integration: authIntegration });
     httpApi.addRoutes({ path: '/api/v1/auth/signup', methods: [apigw.HttpMethod.POST], integration: authIntegration });
     httpApi.addRoutes({ path: '/api/v1/auth/refresh', methods: [apigw.HttpMethod.POST], integration: authIntegration });
     httpApi.addRoutes({ path: '/api/v1/auth/logout', methods: [apigw.HttpMethod.POST], integration: authIntegration });
     httpApi.addRoutes({ path: '/api/v1/auth/register', methods: [apigw.HttpMethod.POST], integration: authIntegration });
+
+    // Lambda Error Rate Alarms (for each critical Lambda)
+    [authApiFunction].forEach((lambdaFn, index) => {
+      const errorAlarm = new cloudwatch.Alarm(this, `Lambda${index}ErrorAlarm`, {
+        alarmName: `barkbase-lambda-errors-${lambdaFn.functionName}-${stage}`,
+        alarmDescription: `Alert on errors in ${lambdaFn.functionName}`,
+        metric: lambdaFn.metricErrors({
+          statistic: 'Sum',
+          period: cdk.Duration.minutes(5),
+        }),
+        threshold: 10,
+        evaluationPeriods: 1,
+        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      });
+      errorAlarm.addAlarmAction(new cloudwatchActions.SnsAction(securityAlertTopic));
+    });
 
     // Bookings API - REPLACED BY OperationsServiceFunction
     // const bookingsApiFunction = new lambda.Function(this, 'BookingsApiFunction', {
