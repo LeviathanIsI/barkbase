@@ -458,36 +458,17 @@ export class CdkStack extends cdk.Stack {
     });
 
     // SECURITY: Add default stage with throttling
-    // Note: HTTP API has different throttling than REST API
-    // Rate limiting is per-route and must be configured via CfnStage
+    // Note: HTTP API (API Gateway v2) only supports default throttling, not per-route
+    // Per-route throttling is only available in REST API (API Gateway v1)
     const defaultStage = httpApi.defaultStage?.node.defaultChild as apigw.CfnStage;
     if (defaultStage) {
       defaultStage.defaultRouteSettings = {
-        throttlingBurstLimit: 200,  // Max concurrent requests
-        throttlingRateLimit: 100,   // Requests per second (sustained)
+        throttlingBurstLimit: 100,  // Max concurrent requests (conservative for all routes)
+        throttlingRateLimit: 50,    // Requests per second (sustained)
       };
 
-      // SECURITY: Specific throttle limits for sensitive endpoints
-      defaultStage.routeSettings = {
-        // Auth endpoints - stricter limits to prevent brute-force
-        'POST /api/v1/auth/login': {
-          throttlingBurstLimit: 50,
-          throttlingRateLimit: 10,
-        },
-        'POST /api/v1/auth/signup': {
-          throttlingBurstLimit: 50,
-          throttlingRateLimit: 10,
-        },
-        'POST /api/v1/auth/register': {
-          throttlingBurstLimit: 50,
-          throttlingRateLimit: 10,
-        },
-        // File uploads - lower limits due to size
-        'POST /api/v1/upload-url': {
-          throttlingBurstLimit: 10,
-          throttlingRateLimit: 5,
-        },
-      };
+      // For stricter per-route limits, consider using AWS WAF rate-based rules
+      // or implement application-level rate limiting in Lambda functions
     }
 
     // Users Routes
