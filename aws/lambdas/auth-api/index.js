@@ -8,7 +8,7 @@ const {
     getRequestMetadata,
     errorResponse: createErrorResponse,
     successResponse: createSuccessResponse
-} = require('../shared/security-utils');
+} = require('./security-utils');
 
 // SECURITY: Fail fast if JWT_SECRET is not configured
 // This prevents deployment with weak default secrets
