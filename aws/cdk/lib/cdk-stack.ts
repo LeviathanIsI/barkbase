@@ -325,23 +325,14 @@ export class CdkStack extends cdk.Stack {
       - Rotation Secret: ${process.env.JWT_SECRET_OLD ? 'CONFIGURED' : 'NOT SET'}
     `);
 
-    // Auth API - MUST be in VPC to access RDS
-    // SECURITY: Lambda in same VPC as RDS for secure database access
-    const authApiFunction = new lambda.Function(this, 'AuthApiFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
+    // Auth API
+    const authApiFunction = createLambdaFunction({
+      id: 'AuthApiFunction',
       handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/auth-api')),
+      codePath: path.join(__dirname, '../../lambdas/auth-api'),
       environment: authEnvironment,
       layers: [dbLayer],
-      timeout: cdk.Duration.seconds(30),
-      memorySize: 1024,
       description: 'Authentication API with JWT token management',
-      logRetention: envConfig.logRetentionDays,
-
-      // VPC CONFIGURATION: Lambda MUST be in VPC to reach private RDS
-      vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
-      securityGroups: [lambdaSG],
     });
     dbSecret.grantRead(authApiFunction);
 
