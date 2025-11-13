@@ -1,4 +1,4 @@
-const { 
+const {
     CognitoIdentityProviderClient,
     SignUpCommand,
     InitiateAuthCommand,
@@ -70,7 +70,7 @@ class CognitoClient {
         try {
             const command = new InitiateAuthCommand(params);
             const response = await this.client.send(command);
-            
+
             if (!response.AuthenticationResult) {
                 throw new Error('Authentication failed. Please check your credentials.');
             }
@@ -117,7 +117,7 @@ class CognitoClient {
         try {
             const command = new GetUserCommand(params);
             const response = await this.client.send(command);
-            
+
             // The response contains user attributes in a specific format.
             // We can map them to a simpler object.
             const user = {
@@ -162,7 +162,7 @@ class CognitoClient {
         try {
             const command = new InitiateAuthCommand(params);
             const response = await this.client.send(command);
-            
+
             if (!response.AuthenticationResult) {
                 throw new Error('Failed to refresh session.');
             }
@@ -178,7 +178,7 @@ class CognitoClient {
             throw new Error(error.message || 'Could not refresh session.');
         }
     }
-    
+
     /**
      * Initiates the forgot password flow for a user.
      */
@@ -240,7 +240,4 @@ class CognitoClient {
     }
 }
 
-const { JWTValidator } = require('./nodejs/jwt-validator');
-const { PermissionFilter } = require('./nodejs/permission-filter');
-
-module.exports = { CognitoClient, JWTValidator, PermissionFilter };
+module.exports = { CognitoClient };

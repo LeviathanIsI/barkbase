@@ -2,9 +2,10 @@
  * Permission Filter Middleware
  * Enforces field-level security at query time
  * Filters response fields based on user's effective permissions
+ *
+ * NOTE: This module requires the db-layer for database access.
+ * Make sure your Lambda function includes both auth-layer and db-layer.
  */
-
-const { getPool } = require('./index');
 
 /**
  * Filter response object based on user's permissions
@@ -12,15 +13,16 @@ const { getPool } = require('./index');
  * @param {string} userId - User ID
  * @param {number} tenantId - Tenant ID
  * @param {string} objectType - Object type
+ * @param {object} pool - Database pool from db-layer
  * @returns {object} - Filtered response data
  */
-async function filterResponse(responseData, userId, tenantId, objectType) {
+async function filterResponse(responseData, userId, tenantId, objectType, pool) {
   if (!responseData) {
     return responseData;
   }
 
   // Get user's permissions for this object type
-  const permissions = await getUserPermissionsForObjectType(userId, tenantId, objectType);
+  const permissions = await getUserPermissionsForObjectType(userId, tenantId, objectType, pool);
 
   // Build permission map: propertyName → accessLevel
   const permissionMap = new Map();
@@ -69,11 +71,10 @@ function filterObject(obj, permissionMap) {
  * @param {string} userId - User ID
  * @param {number} tenantId - Tenant ID
  * @param {string} objectType - Object type
+ * @param {object} pool - Database pool from db-layer
  * @returns {Array} - Array of { property_name, effective_access }
  */
-async function getUserPermissionsForObjectType(userId, tenantId, objectType) {
-  const pool = getPool();
-
+async function getUserPermissionsForObjectType(userId, tenantId, objectType, pool) {
   const result = await pool.query(
     'SELECT * FROM get_accessible_properties($1, $2, $3, $4)',
     [userId, tenantId, objectType, 'read-only']
@@ -88,10 +89,11 @@ async function getUserPermissionsForObjectType(userId, tenantId, objectType) {
  * @param {string} userId - User ID
  * @param {number} tenantId - Tenant ID
  * @param {string} objectType - Object type
+ * @param {object} pool - Database pool from db-layer
  * @returns {object} - Map of fieldName → canWrite (boolean)
  */
-async function checkWriteAccess(fieldNames, userId, tenantId, objectType) {
-  const permissions = await getUserPermissionsForObjectType(userId, tenantId, objectType);
+async function checkWriteAccess(fieldNames, userId, tenantId, objectType, pool) {
+  const permissions = await getUserPermissionsForObjectType(userId, tenantId, objectType, pool);
 
   const permissionMap = new Map();
   for (const perm of permissions) {
@@ -113,11 +115,12 @@ async function checkWriteAccess(fieldNames, userId, tenantId, objectType) {
  * @param {string} userId - User ID
  * @param {number} tenantId - Tenant ID
  * @param {string} objectType - Object type
+ * @param {object} pool - Database pool from db-layer
  * @returns {object} - { canProceed: boolean, deniedFields: string[] }
  */
-async function validateUpdatePermissions(updateData, userId, tenantId, objectType) {
+async function validateUpdatePermissions(updateData, userId, tenantId, objectType, pool) {
   const fieldNames = Object.keys(updateData);
-  const writeAccessMap = await checkWriteAccess(fieldNames, userId, tenantId, objectType);
+  const writeAccessMap = await checkWriteAccess(fieldNames, userId, tenantId, objectType, pool);
 
   const deniedFields = [];
   for (const fieldName of fieldNames) {
@@ -135,9 +138,10 @@ async function validateUpdatePermissions(updateData, userId, tenantId, objectTyp
 /**
  * Create middleware function for Express/Lambda
  * @param {string} objectType - Object type
+ * @param {object} pool - Database pool from db-layer
  * @returns {function} - Middleware function
  */
-function createPermissionMiddleware(objectType) {
+function createPermissionMiddleware(objectType, pool) {
   return async (event, responseData) => {
     // Extract user and tenant from event
     const claims = event?.requestContext?.authorizer?.jwt?.claims || {};
@@ -148,32 +152,46 @@ function createPermissionMiddleware(objectType) {
       return responseData;
     }
 
-    // Get tenant ID (you may have a helper for this)
-    const tenantId = await getTenantIdFromEvent(event);
+    // Get tenant ID from claims
+    const tenantId = claims['custom:tenantId'] || claims['tenantId'] || null;
 
     if (!tenantId) {
       return responseData;
     }
 
     // Filter response
-    return await filterResponse(responseData, userId, tenantId, objectType);
+    return await filterResponse(responseData, userId, tenantId, objectType, pool);
   };
 }
 
-/**
- * Helper to get tenant ID from event
- * (This is a placeholder - implement based on your actual logic)
- */
-async function getTenantIdFromEvent(event) {
-  const { getTenantIdFromEvent: getTenantId } = require('./index');
-  return await getTenantId(event);
+// Export a class-based interface for backward compatibility
+class PermissionFilter {
+  constructor(pool) {
+    this.pool = pool;
+  }
+
+  async filterResponse(responseData, userId, tenantId, objectType) {
+    return filterResponse(responseData, userId, tenantId, objectType, this.pool);
+  }
+
+  async checkWriteAccess(fieldNames, userId, tenantId, objectType) {
+    return checkWriteAccess(fieldNames, userId, tenantId, objectType, this.pool);
+  }
+
+  async validateUpdatePermissions(updateData, userId, tenantId, objectType) {
+    return validateUpdatePermissions(updateData, userId, tenantId, objectType, this.pool);
+  }
+
+  createMiddleware(objectType) {
+    return createPermissionMiddleware(objectType, this.pool);
+  }
 }
 
 module.exports = {
+  PermissionFilter,
   filterResponse,
   filterObject,
   checkWriteAccess,
   validateUpdatePermissions,
   createPermissionMiddleware,
 };
-
