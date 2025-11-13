@@ -146,6 +146,9 @@ exports.handler = async (event) => {
 
 async function login(event) {
     const metadata = getRequestMetadata(event);
+    const sourceIp = event.requestContext?.http?.sourceIp ||
+                     event.headers?.['x-forwarded-for'] ||
+                     'unknown';
 
     try {
         const { email, password } = JSON.parse(event.body || '{}');
