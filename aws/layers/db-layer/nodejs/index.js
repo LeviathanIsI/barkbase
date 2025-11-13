@@ -132,8 +132,8 @@ async function testConnection() {
 	}
 }
 
-// Import JWT validator from auth layer
-const { JWTValidator } = require('/opt/auth/nodejs/jwt-validator');
+// Import JWT validator from auth layer (correct path after auth-layer restructuring)
+const { JWTValidator } = require('/opt/nodejs');
 
 // Create a singleton JWT validator instance
 let jwtValidator = null;
