@@ -24,15 +24,34 @@ export class DbAuthClient {
       'access-control-allow-origin': res.headers.get('access-control-allow-origin')
     });
 
-    if (!res.ok) throw new Error((await res.json().catch(()=>({message:''}))).message || 'Invalid credentials');
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({message: ''}));
+      console.error('[DB-AUTH] Login failed:', errorData);
+      throw new Error(errorData.message || 'Invalid credentials');
+    }
+
     const data = await res.json();
 
+    console.log('[DB-AUTH] Raw response data:', data);
     console.log('[DB-AUTH] Login response data:', {
       hasUser: !!data.user,
       hasTenant: !!data.tenant,
       userRole: data.user?.role,
-      tenantId: data.tenant?.recordId
+      userRecordId: data.user?.recordId,
+      tenantId: data.tenant?.recordId,
+      tenantSlug: data.tenant?.slug
     });
+
+    // Validate response structure
+    if (!data.user) {
+      console.error('[DB-AUTH] ERROR: Response missing user data!', data);
+      throw new Error('Login response missing user data');
+    }
+
+    if (!data.tenant) {
+      console.error('[DB-AUTH] ERROR: Response missing tenant data!', data);
+      throw new Error('Login response missing tenant data');
+    }
 
     // SECURITY: Tokens are in httpOnly cookies (not in response body)
     return {
@@ -63,6 +82,8 @@ export class DbAuthClient {
   }
 
   async signUp({ email, password, tenantName, tenantSlug, name }) {
+    console.log('[DB-AUTH] Attempting signup to:', `${this.apiUrl}/api/v1/auth/signup`);
+
     // SECURITY: credentials: 'include' to receive httpOnly cookies
     const res = await fetch(`${this.apiUrl}/api/v1/auth/signup`, {
       method: 'POST',
@@ -70,8 +91,35 @@ export class DbAuthClient {
       body: JSON.stringify({ email, password, tenantName, tenantSlug, name }),
       credentials: 'include',
     });
-    if (!res.ok) throw new Error((await res.json().catch(()=>({message:''}))).message || 'Sign up failed');
-    return await res.json();
+
+    console.log('[DB-AUTH] Signup response status:', res.status);
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({message: ''}));
+      console.error('[DB-AUTH] Signup failed:', errorData);
+      throw new Error(errorData.message || 'Sign up failed');
+    }
+
+    const data = await res.json();
+
+    console.log('[DB-AUTH] Signup response data:', {
+      hasUser: !!data.user,
+      hasTenant: !!data.tenant,
+      message: data.message
+    });
+
+    // Validate response structure
+    if (!data.user) {
+      console.error('[DB-AUTH] ERROR: Signup response missing user data!', data);
+      throw new Error('Signup response missing user data');
+    }
+
+    if (!data.tenant) {
+      console.error('[DB-AUTH] ERROR: Signup response missing tenant data!', data);
+      throw new Error('Signup response missing tenant data');
+    }
+
+    return data;
   }
 }
 

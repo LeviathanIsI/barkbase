@@ -371,13 +371,20 @@ async function login(event) {
         }
         response.multiValueHeaders['Set-Cookie'] = [accessTokenCookie, refreshTokenCookie];
 
+        // Parse body to verify structure
+        const bodyData = JSON.parse(response.body);
         console.log('[LOGIN] Response structure:', {
             statusCode: response.statusCode,
             hasCookies: !!response.multiValueHeaders['Set-Cookie'],
             cookieCount: response.multiValueHeaders['Set-Cookie'].length,
-            hasUser: !!response.body.includes('recordId'),
+            bodyHasUser: !!bodyData.user,
+            bodyHasTenant: !!bodyData.tenant,
+            userRecordId: bodyData.user?.recordId,
+            tenantRecordId: bodyData.tenant?.recordId,
             headers: Object.keys(response.headers)
         });
+
+        console.log('[LOGIN] Full response body:', response.body);
 
         return response;
     } catch (err) {
@@ -513,6 +520,17 @@ async function signup(event) {
             response.multiValueHeaders = {};
         }
         response.multiValueHeaders['Set-Cookie'] = [accessTokenCookie, refreshTokenCookie];
+
+        // Parse body to verify structure
+        const bodyData = JSON.parse(response.body);
+        console.log('[SIGNUP] Response structure:', {
+            statusCode: response.statusCode,
+            hasCookies: !!response.multiValueHeaders['Set-Cookie'],
+            bodyHasUser: !!bodyData.user,
+            bodyHasTenant: !!bodyData.tenant,
+            userRecordId: bodyData.user?.recordId,
+            tenantRecordId: bodyData.tenant?.recordId
+        });
 
         return response;
     } catch (err) {
