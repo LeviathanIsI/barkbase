@@ -16,6 +16,7 @@ function getUserInfoFromEvent(event) {
 
     return {
         sub: claims.sub,
+        userId: claims.sub,  // Map userId to sub for compatibility
         username: claims.username,
         email: claims.email,
         tenantId: claims['custom:tenantId'] || claims.tenantId
