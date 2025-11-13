@@ -430,7 +430,7 @@ export class CdkStack extends cdk.Stack {
       .map((o) => o.trim())
       .filter((o) => o.length > 0);
 
-    // SECURITY: HTTP API Gateway with rate limiting
+    // SECURITY: HTTP API Gateway with rate limiting and credential support
     const httpApi = new apigw.HttpApi(this, "BarkbaseApi", {
       corsPreflight: {
         allowHeaders: [
@@ -450,7 +450,8 @@ export class CdkStack extends cdk.Stack {
           apigw.CorsHttpMethod.DELETE,
         ],
         allowOrigins: allowedOrigins,
-        allowCredentials: false,
+        allowCredentials: true, // 🔥 CRITICAL: Required for httpOnly cookie authentication
+        maxAge: cdk.Duration.hours(1), // Cache preflight for 1 hour
       },
       // SECURITY: Default throttle settings for all routes
       // Prevents brute-force attacks and API abuse
