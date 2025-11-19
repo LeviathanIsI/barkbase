@@ -1,6 +1,7 @@
 const { getPool } = require('/opt/nodejs');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { CognitoIdentityProviderClient, InitiateAuthCommand } = require('@aws-sdk/client-cognito-identity-provider');
 const {
     getSecureHeaders,
     auditLog,
@@ -9,6 +10,15 @@ const {
     errorResponse: createErrorResponse,
     successResponse: createSuccessResponse
 } = require('./security-utils');
+
+// Initialize Cognito client
+const cognitoClient = new CognitoIdentityProviderClient({
+    region: process.env.AWS_REGION || 'us-east-2'
+});
+
+// Cognito configuration from environment
+const COGNITO_USER_POOL_ID = process.env.USER_POOL_ID || process.env.COGNITO_USER_POOL_ID;
+const COGNITO_CLIENT_ID = process.env.CLIENT_ID || process.env.COGNITO_CLIENT_ID;
 
 // SECURITY: Fail fast if JWT_SECRET is not configured
 // This prevents deployment with weak default secrets
@@ -299,7 +309,66 @@ async function login(event) {
             plan: user.plan
         };
 
-        const validPassword = await bcrypt.compare(password, user.passwordHash || '');
+        // Check if user is a Cognito OAuth user
+        let validPassword = false;
+        if (user.passwordHash === 'COGNITO_AUTH') {
+            // User is authenticated through Cognito
+            console.log(`[AUTH] User ${email} uses Cognito authentication`);
+
+            try {
+                // Authenticate through AWS Cognito
+                const authCommand = new InitiateAuthCommand({
+                    ClientId: COGNITO_CLIENT_ID,
+                    AuthFlow: 'USER_PASSWORD_AUTH',
+                    AuthParameters: {
+                        USERNAME: email,
+                        PASSWORD: password
+                    }
+                });
+
+                const cognitoResponse = await cognitoClient.send(authCommand);
+
+                if (cognitoResponse.AuthenticationResult) {
+                    // Cognito authentication successful
+                    validPassword = true;
+                    console.log(`[AUTH] Cognito authentication successful for ${email}`);
+                }
+            } catch (cognitoError) {
+                console.error('[AUTH] Cognito authentication failed:', cognitoError.message);
+                auditLog('LOGIN_FAILED', {
+                    reason: 'cognito_auth_failed',
+                    email,
+                    userId: user.recordId,
+                    error: cognitoError.message,
+                    result: 'FAILURE',
+                    ...metadata
+                });
+                securityEvent('LOGIN_FAILED_COGNITO_AUTH', 'MEDIUM', {
+                    email,
+                    userId: user.recordId,
+                    error: cognitoError.message,
+                    ...metadata
+                });
+                return errorResponse(401, ERROR_CODES.INVALID_CREDENTIALS, 'Invalid email or password', { event });
+            }
+        } else {
+            // Traditional database password authentication
+            validPassword = await bcrypt.compare(password, user.passwordHash || '');
+
+            if (validPassword) {
+                // SECURITY: Check if password hash needs upgrading (for backward compatibility)
+                const needsRehash = await bcrypt.getRounds(user.passwordHash) < BCRYPT_ROUNDS;
+                if (needsRehash) {
+                    const newHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+                    await pool.query(
+                        `UPDATE "User" SET "passwordHash" = $1, "updatedAt" = NOW() WHERE "recordId" = $2`,
+                        [newHash, user.recordId]
+                    );
+                    console.log(`[AUTH] Password hash upgraded for user ${user.recordId}`);
+                }
+            }
+        }
+
         if (!validPassword) {
             auditLog('LOGIN_FAILED', {
                 reason: 'invalid_password',
@@ -314,17 +383,6 @@ async function login(event) {
                 ...metadata
             });
             return errorResponse(401, ERROR_CODES.INVALID_CREDENTIALS, 'Invalid email or password', { event });
-        }
-
-        // SECURITY: Check if password hash needs upgrading (for backward compatibility)
-        const needsRehash = await bcrypt.getRounds(user.passwordHash) < BCRYPT_ROUNDS;
-        if (needsRehash) {
-            const newHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-            await pool.query(
-                `UPDATE "User" SET "passwordHash" = $1, "updatedAt" = NOW() WHERE "recordId" = $2`,
-                [newHash, user.recordId]
-            );
-            console.log(`[AUTH] Password hash upgraded for user ${user.recordId}`);
         }
 
         const accessToken = jwt.sign(
@@ -344,7 +402,7 @@ async function login(event) {
             [refreshToken, user.membershipId]
         );
 
-        const metadata = getRequestMetadata(event);
+        // metadata already declared at line 242, no need to redeclare
         auditLog('LOGIN_SUCCESS', {
             userId: user.recordId,
             tenantId: tenant.recordId,

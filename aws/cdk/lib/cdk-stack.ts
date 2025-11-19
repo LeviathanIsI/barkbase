@@ -20,6 +20,7 @@ import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 // import * as acm from "aws-cdk-lib/aws-certificatemanager";
 import * as codedeploy from "aws-cdk-lib/aws-codedeploy";
 import * as rds from "aws-cdk-lib/aws-rds";
+import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import * as events from "aws-cdk-lib/aws-events";
 import * as targets from "aws-cdk-lib/aws-events-targets";
 import { Construct } from "constructs";
@@ -115,9 +116,11 @@ export class CdkStack extends cdk.Stack {
     });
 
     // Security groups
+    // NOTE: Lambda functions are NOT deployed in VPC for cost optimization
+    // If you deploy Lambdas in VPC, uncomment the security groups below
     const lambdaSG = new ec2.SecurityGroup(this, "LambdaSecurityGroup", { vpc });
-    const dbSG = new ec2.SecurityGroup(this, "DatabaseSecurityGroup", { vpc });
-    dbSG.addIngressRule(lambdaSG, ec2.Port.tcp(5432), "Allow Lambda to Postgres");
+    // const dbSG = new ec2.SecurityGroup(this, "DatabaseSecurityGroup", { vpc });
+    // dbSG.addIngressRule(lambdaSG, ec2.Port.tcp(5432), "Allow Lambda to Postgres");
 
     // COST OPTIMIZATION: VPC Endpoints (only if Lambda functions are deployed in VPC)
     // Cost: ~$14.40/month for interface endpoints
@@ -138,82 +141,39 @@ export class CdkStack extends cdk.Stack {
       console.log('  Note: Lambda functions must NOT be deployed in VPC or have NAT Gateway');
     }
 
-    // === RDS (PostgreSQL) with Secrets Manager and RDS Proxy ===
+    // === IMPORT EXISTING RDS INSTANCE (barkbase-dev-public) ===
+    // IMPORTANT: For dev environment, we import the existing manually-created RDS instance
+    // This prevents duplicate RDS instances and reduces costs while keeping all monitoring
     const dbName = process.env.DB_NAME || "barkbase";
-    const masterUsername = process.env.DB_USER || "postgres";
 
-    const dbSecret = new rds.DatabaseSecret(this, "DbSecret", {
-      username: masterUsername,
-      secretName: `${id}-db-credentials`,
+    // Import existing Secrets Manager secret for DB credentials
+    const dbSecret = secretsmanager.Secret.fromSecretCompleteArn(
+      this,
+      "DbSecret",
+      "arn:aws:secretsmanager:us-east-2:211125574375:secret:Barkbase-dev-db-credentials-VybGGM"
+    );
+
+    // Import existing RDS instance so monitoring/alarms still work
+    const dbInstance = rds.DatabaseInstance.fromDatabaseInstanceAttributes(this, 'ExistingDB', {
+      instanceIdentifier: 'barkbase-dev-public',
+      instanceEndpointAddress: 'barkbase-dev-public.ctuea6sg4d0d.us-east-2.rds.amazonaws.com',
+      port: 5432,
+      securityGroups: [ec2.SecurityGroup.fromSecurityGroupId(this, 'ExistingDBSG', 'sg-0ec9960ae33807760')]
     });
 
-    const dbInstance = new rds.DatabaseInstance(this, "PostgresInstance", {
-      engine: rds.DatabaseInstanceEngine.postgres({ version: rds.PostgresEngineVersion.of('14', '14.10') }),
-      vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
-      securityGroups: [dbSG],
-      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, envConfig.rdsInstanceSize),
-      multiAz: envConfig.rdsMultiAz,
-      allocatedStorage: envConfig.rdsAllocatedStorage,
-      storageEncrypted: true,
-      storageType: rds.StorageType.GP3,
-      publiclyAccessible: false,
-      credentials: rds.Credentials.fromSecret(dbSecret),
-      databaseName: dbName,
-      removalPolicy: cdk.RemovalPolicy.SNAPSHOT,
+    // Use the imported instance endpoints
+    const dbEndpoint = dbInstance.dbInstanceEndpointAddress;
+    const dbPort = dbInstance.dbInstanceEndpointPort;
 
-      // AUTOMATED BACKUPS - Critical for production operations
-      backupRetention: cdk.Duration.days(envConfig.backupRetentionDays),
-      preferredBackupWindow: '03:00-04:00', // 3-4 AM UTC (low usage hours)
-      preferredMaintenanceWindow: 'sun:04:00-sun:05:00', // Sunday 4-5 AM UTC
-
-      // MONITORING AND PERFORMANCE
-      enablePerformanceInsights: envConfig.enablePerformanceInsights,
-      performanceInsightRetention: envConfig.enablePerformanceInsights
-        ? rds.PerformanceInsightRetention.DEFAULT // 7 days
-        : undefined,
-      monitoringInterval: stage === 'prod' ? cdk.Duration.seconds(60) : undefined,
-      cloudwatchLogsExports: ['postgresql'], // Export PostgreSQL logs to CloudWatch
-
-      // DELETION PROTECTION (production only)
-      deletionProtection: stage === 'prod',
-    });
-
-    console.log(`✓ RDS Instance configured:
-      - Instance: t4g.${envConfig.rdsInstanceSize}
-      - Storage: ${envConfig.rdsAllocatedStorage}GB GP3
-      - Multi-AZ: ${envConfig.rdsMultiAz}
-      - Backup Retention: ${envConfig.backupRetentionDays} days
-      - Performance Insights: ${envConfig.enablePerformanceInsights}
-      - Deletion Protection: ${stage === 'prod'}
+    console.log(`✓ Using existing RDS instance:
+      - Instance: barkbase-dev-public
+      - Endpoint: ${dbEndpoint}
+      - Port: ${dbPort}
+      - Database: ${dbName}
+      - Secret: Barkbase-dev-db-credentials-VybGGM
     `);
 
-    // COST OPTIMIZATION: RDS Proxy (optional - $10/month per proxy)
-    // Provides connection pooling and IAM authentication
-    // Enable by setting ENABLE_RDS_PROXY=true environment variable
-    let dbEndpoint: string;
-    let dbPort: string;
-
-    if (enableRdsProxy) {
-      console.log('✓ Creating RDS Proxy (Cost: ~$10/month)');
-      const dbProxy = dbInstance.addProxy("PostgresProxy", {
-        secrets: [dbSecret],
-        vpc,
-        securityGroups: [dbSG],
-        requireTLS: true,
-        iamAuth: false,
-        borrowTimeout: cdk.Duration.seconds(120),
-        maxConnectionsPercent: 90,
-      });
-      dbEndpoint = dbProxy.endpoint;
-      dbPort = '5432';
-      console.log('  Using RDS Proxy endpoint for database connections');
-    } else {
-      console.log('✗ RDS Proxy disabled (Saving: ~$10/month)');
-      dbEndpoint = dbInstance.dbInstanceEndpointAddress;
-      dbPort = dbInstance.dbInstanceEndpointPort;
-      console.log('  Using direct RDS instance endpoint');
-    }
+    console.log('✗ RDS Proxy disabled (using direct connection to existing instance)');
 
     // INFRASTRUCTURE FIX: Database connection configuration
     // Now uses the actual RDS instance/proxy endpoint created in this stack
@@ -222,7 +182,9 @@ export class CdkStack extends cdk.Stack {
       DB_HOST: dbEndpoint,
       DB_PORT: dbPort,
       DB_NAME: dbName,
-      DB_SECRET_ID: dbSecret.secretArn,
+      DB_SECRET_ID: 'Barkbase-dev-db-credentials',  // Use secret NAME for easy fetching
+      DB_SECRET_ARN: dbSecret.secretArn,  // Also provide ARN for IAM permissions
+      ENVIRONMENT: stage,  // For SSL config and other environment-specific logic
       STAGE: stage, // For application logic (e.g., CORS origins)
     };
 
@@ -313,28 +275,7 @@ export class CdkStack extends cdk.Stack {
     });
     dbSecret.grantRead(usersApiFunction);
 
-    // Add JWT_SECRET and optional JWT_SECRET_OLD for rotation
-    const authEnvironment = {
-      ...dbEnvironment,
-      JWT_SECRET: process.env.JWT_SECRET!,
-      ...(process.env.JWT_SECRET_OLD ? { JWT_SECRET_OLD: process.env.JWT_SECRET_OLD } : {}),
-    };
-
-    console.log(`✓ JWT Configuration:
-      - Primary Secret: ${process.env.JWT_SECRET!.substring(0, 10)}...
-      - Rotation Secret: ${process.env.JWT_SECRET_OLD ? 'CONFIGURED' : 'NOT SET'}
-    `);
-
-    // Auth API
-    const authApiFunction = createLambdaFunction({
-      id: 'AuthApiFunction',
-      handler: 'index.handler',
-      codePath: path.join(__dirname, '../../lambdas/auth-api'),
-      environment: authEnvironment,
-      layers: [dbLayer],
-      description: 'Authentication API with JWT token management',
-    });
-    dbSecret.grantRead(authApiFunction);
+    // Auth API will be created after Cognito resources are defined
 
     // === Cognito Pre-SignUp Trigger (auto-confirm for dev) ===
     const preSignUpFunction = new lambda.Function(this, "CognitoPreSignUpFunction", {
@@ -362,6 +303,7 @@ export class CdkStack extends cdk.Stack {
     dbSecret.grantRead(postConfirmationFunction);
 
     // === Authentication (Cognito) ===
+    // NOTE: Auth API Lambda will be created after Cognito resources
     const userPool = new cognito.UserPool(this, "BarkbaseUserPool", {
       selfSignUpEnabled: true,
       signInAliases: { email: true },
@@ -423,6 +365,40 @@ export class CdkStack extends cdk.Stack {
         identitySource: ["$request.header.Authorization"],
       }
     );
+
+    // === Auth API Lambda (created after Cognito resources) ===
+    // Add JWT_SECRET and Cognito configuration for authentication
+    const authEnvironment = {
+      ...dbEnvironment,
+      JWT_SECRET: process.env.JWT_SECRET!,
+      ...(process.env.JWT_SECRET_OLD ? { JWT_SECRET_OLD: process.env.JWT_SECRET_OLD } : {}),
+      // Cognito configuration for OAuth users
+      COGNITO_USER_POOL_ID: userPool.userPoolId,
+      COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
+      USER_POOL_ID: userPool.userPoolId,  // Alternative name for compatibility
+      CLIENT_ID: userPoolClient.userPoolClientId,  // Alternative name for compatibility
+    };
+
+    console.log(`✓ JWT Configuration:
+      - Primary Secret: ${process.env.JWT_SECRET!.substring(0, 10)}...
+      - Rotation Secret: ${process.env.JWT_SECRET_OLD ? 'CONFIGURED' : 'NOT SET'}
+      - Cognito User Pool: ${userPool.userPoolId}
+      - Cognito Client ID: ${userPoolClient.userPoolClientId}
+    `);
+
+    // Auth API Lambda
+    const authApiFunction = createLambdaFunction({
+      id: 'AuthApiFunction',
+      handler: 'index.handler',
+      codePath: path.join(__dirname, '../../lambdas/auth-api'),
+      environment: authEnvironment,
+      layers: [dbLayer],
+      description: 'Authentication API with JWT and Cognito support',
+    });
+    dbSecret.grantRead(authApiFunction);
+
+    // Grant Cognito permissions to auth Lambda
+    userPool.grant(authApiFunction, 'cognito-idp:InitiateAuth');
 
     // Allowed origins for CORS come from env (comma-separated), fallback to "*" for dev
     const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:5173")
@@ -1866,6 +1842,39 @@ export class CdkStack extends cdk.Stack {
     });
     const migrationIntegration = new HttpLambdaIntegration('MigrationIntegration', migrationApiFunction);
     httpApi.addRoutes({ path: '/api/v1/migration', methods: [apigw.HttpMethod.POST], integration: migrationIntegration, authorizer: httpAuthorizer });
+
+    // === GRANT DATABASE SECRET READ PERMISSIONS TO ALL LAMBDA FUNCTIONS ===
+    // Grant all Lambda functions that need DB access permission to read the secret
+    const lambdasNeedingDbAccess = [
+      // Already granted individually above:
+      // usersApiFunction, authApiFunction, postConfirmationFunction,
+      // wsConnectFunction, wsDisconnectFunction, wsMessageFunction, wsBroadcastFunction
+
+      // Active Lambda functions that need DB access:
+      propertiesApiFunction,
+      propertiesApiV2Function,
+      adminApiFunction,
+      financialServiceFunction,
+      analyticsServiceFunction,
+      userProfileServiceFunction,
+      propertyArchivalJobFunction,
+      propertyPermanentDeletionJobFunction,
+      configServiceFunction,
+      entityServiceFunction,  // Fixed: was customerServiceFunction
+      operationsServiceFunction,
+      migrationApiFunction,
+      // These may not need DB access but included for completeness:
+      featuresServiceFunction,
+    ];
+
+    // Grant read access to the database secret for all Lambda functions
+    lambdasNeedingDbAccess.forEach(fn => {
+      if (fn) {
+        dbSecret.grantRead(fn);
+      }
+    });
+
+    console.log(`✓ Granted database secret read access to ${lambdasNeedingDbAccess.filter(fn => fn).length} Lambda functions`);
 
     // === WEBSOCKET API FOR REAL-TIME ===
 
