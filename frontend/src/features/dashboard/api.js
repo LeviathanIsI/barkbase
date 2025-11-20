@@ -12,7 +12,7 @@ export const useDashboardStatsQuery = (options = {}) => {
     queryKey: [...queryKeys.dashboard(tenantKey), 'stats'],
     queryFn: async () => {
       try {
-        const res = await apiClient.get('/api/v1/dashboard/stats');
+        const res = await apiClient.get('/api/v1/reports/dashboard');
         return res?.data ?? {};
       } catch (e) {
         console.warn('[dashboard-stats] Error:', e?.message || e);
@@ -44,7 +44,7 @@ export const useTodaysPetsQuery = (options = {}) => {
     queryKey: [...queryKeys.dashboard(tenantKey), 'today-pets'],
     queryFn: async () => {
       try {
-        const res = await apiClient.get('/api/v1/dashboard/today-pets');
+        const res = await apiClient.get('/api/v1/reports/today-pets');
         return Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
       } catch (e) {
         console.warn('[today-pets] Error:', e?.message || e);
@@ -64,7 +64,7 @@ export const useUpcomingArrivalsQuery = (days = 7, options = {}) => {
     queryKey: [...queryKeys.dashboard(tenantKey), 'arrivals', days],
     queryFn: async () => {
       try {
-        const res = await apiClient.get('/api/v1/dashboard/arrivals', { 
+        const res = await apiClient.get('/api/v1/reports/arrivals', { 
           params: { days } 
         });
         return Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
@@ -85,7 +85,7 @@ export const useUpcomingDeparturesQuery = (days = 7, options = {}) => {
     queryKey: [...queryKeys.dashboard(tenantKey), 'departures', days],
     queryFn: async () => {
       try {
-        const res = await apiClient.get('/api/v1/dashboard/departures', { 
+        const res = await apiClient.get('/api/v1/reports/departures', { 
           params: { days } 
         });
         return Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
@@ -106,7 +106,7 @@ export const useOccupancyQuery = (options = {}) => {
     queryKey: [...queryKeys.dashboard(tenantKey), 'occupancy'],
     queryFn: async () => {
       try {
-        const res = await apiClient.get('/api/v1/dashboard/occupancy');
+        const res = await apiClient.get('/api/v1/reports/occupancy');
         return res?.data ?? {
           current: 0,
           total: 0,
@@ -135,7 +135,7 @@ export const useRevenueMetricsQuery = (period = 'month', options = {}) => {
     queryKey: [...queryKeys.dashboard(tenantKey), 'revenue', period],
     queryFn: async () => {
       try {
-        const res = await apiClient.get('/api/v1/dashboard/revenue', { 
+        const res = await apiClient.get('/api/v1/reports/revenue', { 
           params: { period } 
         });
         return res?.data ?? {
@@ -168,7 +168,7 @@ export const useActivityFeedQuery = (limit = 20, options = {}) => {
     queryKey: [...queryKeys.dashboard(tenantKey), 'activity', limit],
     queryFn: async () => {
       try {
-        const res = await apiClient.get('/api/v1/dashboard/activity', { 
+        const res = await apiClient.get('/api/v1/reports/activity', { 
           params: { limit } 
         });
         return Array.isArray(res.data) ? res.data : (res.data?.data ?? []);

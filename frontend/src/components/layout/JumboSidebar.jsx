@@ -22,32 +22,25 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 
-// Jumbo Navigation Structure for BarkBase
+// Simplified Navigation Structure for BarkBase
+// Addresses research finding: "5 sections require mental mapping, reduce to 3"
 const navigationSections = [
   {
-    title: "MAIN",
+    title: "TODAY",
     items: [
-      { to: "/dashboard", label: "Dashboard", icon: Grid3x3 },
-      { to: "/settings", label: "Settings", icon: Settings },
-    ],
-  },
-  {
-    title: "INTAKE",
-    items: [
-      { to: "/schedule", label: "Today's Schedule", icon: Calendar },
-      { to: "/operations", label: "Operations Center", icon: Grid3x3 },
-      { to: "/tasks", label: "Tasks & Reminders", icon: CheckCircle },
+      { to: "/today", label: "Command Center", icon: Grid3x3 },
       { to: "/bookings", label: "Bookings", icon: BookOpen },
-      { to: "/facilities", label: "Capacity View", icon: BarChart3 },
+      { to: "/tasks", label: "Tasks", icon: CheckCircle },
       { to: "/runs", label: "Run Assignment", icon: Clock },
     ],
   },
   {
-    title: "CLIENTS",
+    title: "PETS & PEOPLE",
     items: [
-      { to: "/owners", label: "Pet Owners", icon: Users },
-      { to: "/pets", label: "Pets", icon: PawPrint },
+      { to: "/pets-people", label: "All Clients", icon: Users },
+      { to: "/pets", label: "Pets Directory", icon: PawPrint },
       { to: "/vaccinations", label: "Vaccinations", icon: Shield },
+      { to: "/owners", label: "Owners", icon: Users },
     ],
   },
   {
@@ -56,11 +49,9 @@ const navigationSections = [
       { to: "/reports", label: "Reports", icon: BarChart3 },
       { to: "/payments", label: "Payments", icon: DollarSign },
       { to: "/packages", label: "Packages", icon: Gift },
+      { to: "/staff", label: "Team", icon: Users },
+      { to: "/settings", label: "Settings", icon: Settings },
     ],
-  },
-  {
-    title: "STAFF",
-    items: [{ to: "/staff", label: "Team", icon: Users }],
   },
 ];
 

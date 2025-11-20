@@ -8,7 +8,7 @@ export const useUserProfileQuery = () => {
   return useQuery({
     queryKey: ['user', 'profile'],
     queryFn: async () => {
-      const response = await apiClient.get('/users/profile');
+      const response = await apiClient.get('/api/v1/users/profile');
       return response; // apiClient returns data directly, not wrapped in .data
     },
   });
@@ -22,7 +22,7 @@ export const useUpdateUserProfileMutation = () => {
 
   return useMutation({
     mutationFn: async (data) => {
-      const response = await apiClient.patch('/users/profile', data);
+      const response = await apiClient.patch('/api/v1/users/profile', data);
       return response.data;
     },
     onSuccess: (data) => {
@@ -38,7 +38,7 @@ export const useUpdateUserProfileMutation = () => {
 export const useUpdatePasswordMutation = () => {
   return useMutation({
     mutationFn: async ({ currentPassword, newPassword }) => {
-      const response = await apiClient.post('/users/password', {
+      const response = await apiClient.post('/api/v1/users/password', {
         currentPassword,
         newPassword,
       });
@@ -55,7 +55,7 @@ export const useUpdateAvatarMutation = () => {
 
   return useMutation({
     mutationFn: async (avatarUrl) => {
-      const response = await apiClient.patch('/users/avatar', { avatarUrl });
+      const response = await apiClient.patch('/api/v1/users/avatar', { avatarUrl });
       return response.data;
     },
     onSuccess: (data) => {

@@ -61,11 +61,14 @@ const buildUrl = (path, params) => {
   return url.toString();
 };
 
-// SECURITY: Tokens are in httpOnly cookies, no Authorization header needed
+// Build headers with JWT token for API Gateway authentication
 const buildHeaders = async (path = "") => {
   const { useTenantStore } = await import("@/stores/tenant");
+  const { useAuthStore } = await import("@/stores/auth");
+
   const tenant = useTenantStore.getState().tenant;
   const tenantId = tenant?.recordId;
+  const accessToken = useAuthStore.getState().accessToken;
 
   // Skip tenant check for tenant fetch endpoints (chicken-and-egg problem)
   const isTenantFetchEndpoint = path.includes("/tenants/current") || path.includes("/tenants?");
@@ -76,7 +79,8 @@ const buildHeaders = async (path = "") => {
 
   return {
     "Content-Type": "application/json",
-    // REMOVED: Authorization header (tokens are in httpOnly cookies)
+    // Include Authorization header for API Gateway JWT authorizer
+    ...(accessToken && { "Authorization": `Bearer ${accessToken}` }),
     ...(tenantId && { "X-Tenant-Id": tenantId }),
   };
 };

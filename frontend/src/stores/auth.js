@@ -10,7 +10,8 @@ const initialState = {
   memberships: [],
   role: null,
   tenantId: null,
-  // REMOVED: accessToken and refreshToken (now in httpOnly cookies)
+  accessToken: null, // Needed for API Gateway Authorization header
+  // refreshToken stays in httpOnly cookies for security
   // REMOVED: expiresAt (server handles expiration)
   rememberMe: false,
 };
@@ -19,9 +20,9 @@ export const useAuthStore = create(
   persist(
     (set, get) => ({
       ...initialState,
-      // SECURITY: Tokens are in httpOnly cookies, only store user data
+      // Store user data and accessToken (needed for API Gateway Authorization header)
       setAuth: (payload = {}) => {
-        const { user, role, tenantId, memberships, rememberMe } = payload;
+        const { user, role, tenantId, memberships, rememberMe, accessToken } = payload;
 
         const resolvedRoleRaw = role ?? user?.role ?? null;
         const resolvedRole = resolvedRoleRaw ? String(resolvedRoleRaw).toUpperCase() : null;
@@ -35,15 +36,17 @@ export const useAuthStore = create(
           tenantId: resolvedTenantId,
           memberships: resolvedMemberships,
           rememberMe: shouldRemember,
+          accessToken: accessToken ?? null, // Store for API Gateway Authorization header
         });
       },
-      // SECURITY: Tokens are in httpOnly cookies, only update user metadata
-      updateTokens: ({ role, tenantId }) => {
+      // Update tokens and user metadata
+      updateTokens: ({ role, tenantId, accessToken }) => {
         const resolvedRole = role ? String(role).toUpperCase() : undefined;
 
         set((state) => ({
           role: resolvedRole ?? state.role,
           tenantId: tenantId ?? state.tenantId,
+          accessToken: accessToken ?? state.accessToken, // Update accessToken for API Gateway
         }));
       },
 
@@ -111,13 +114,14 @@ export const useAuthStore = create(
     {
       name: 'barkbase-auth',
       storage: createJSONStorage(getStorage),
-      // SECURITY: Only persist user metadata (tokens are in httpOnly cookies)
-      partialize: ({ user, role, tenantId, memberships, rememberMe }) => ({
+      // Persist user metadata and accessToken (needed for API Gateway)
+      partialize: ({ user, role, tenantId, memberships, rememberMe, accessToken }) => ({
         user,
         role,
         tenantId,
         memberships,
         rememberMe,
+        accessToken, // Persist for API Gateway Authorization header
       }),
     },
   ),

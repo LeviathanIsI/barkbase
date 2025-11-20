@@ -53,11 +53,12 @@ export class DbAuthClient {
       throw new Error('Login response missing tenant data');
     }
 
-    // SECURITY: Tokens are in httpOnly cookies (not in response body)
+    // Return user data and accessToken (needed for API Gateway Authorization header)
+    // refreshToken stays in httpOnly cookies for security
     return {
       user: data.user,
       tenant: data.tenant,
-      // REMOVED: accessToken and refreshToken (now in httpOnly cookies)
+      accessToken: data.accessToken || data.token, // Include for API Gateway Authorization header
     };
   }
 
@@ -70,7 +71,10 @@ export class DbAuthClient {
     });
     if (!res.ok) throw new Error('Failed to refresh');
     const data = await res.json();
-    return { role: data.role };
+    return {
+      role: data.role,
+      accessToken: data.accessToken || data.token, // Include for API Gateway Authorization header
+    };
   }
 
   async signOut() {

@@ -44,13 +44,14 @@ const Login = () => {
           note: 'httpOnly cookies will not be visible here'
         });
 
-        // Set auth state with user and tenant data
+        // Set auth state with user, tenant data, and accessToken
         console.log('[Login] Setting auth state...');
         setAuth({
           user: userInfo,
           tenantId: tenantData?.recordId,
           role: userInfo.role,
           rememberMe,
+          accessToken: result.accessToken, // Include accessToken for API Gateway
         });
 
         // Verify auth state was set
@@ -68,8 +69,8 @@ const Login = () => {
           setTenant(tenantData);
         }
 
-        console.log('[Login] Navigating to dashboard...');
-        navigate('/dashboard');
+        console.log('[Login] Navigating to today command center...');
+        navigate('/today');
       } else {
         console.error('[Login] No user data in response:', result);
         throw new Error('Login response missing user data');

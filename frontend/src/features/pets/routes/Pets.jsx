@@ -5,6 +5,7 @@ import Button from '@/components/ui/Button';
 import { Card, PageHeader } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
+import PetAvatar from '@/components/ui/PetAvatar';
 import { usePetsQuery, useCreatePetMutation } from '../api';
 import { useExpiringVaccinationsQuery } from '../api-vaccinations';
 import { PetFormModal } from '../components';
@@ -119,9 +120,12 @@ const Pets = () => {
         )}
 
         <div className="flex items-start gap-3 mb-4 pr-8">
-          <div className="w-12 h-12 bg-primary-600 dark:bg-primary-700 rounded-full flex items-center justify-center flex-shrink-0">
-            <PawPrint className="h-6 w-6 text-white" />
-          </div>
+          <PetAvatar
+            pet={pet}
+            size="lg"
+            className="flex-shrink-0"
+            showStatus={false}
+          />
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-[#263238] dark:text-text-primary truncate">{pet.name}</h3>
             <p className="text-sm text-[#64748B] dark:text-text-secondary truncate">{pet.breed || 'Unknown breed'}</p>
@@ -183,9 +187,12 @@ const Pets = () => {
       <tr className="border-b border-[#F5F6FA] hover:bg-[#F5F6FA]/50 cursor-pointer transition-colors" onClick={() => setSelectedPet(pet)}>
         <td className="py-4 px-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary-600 dark:bg-primary-700 rounded-full flex items-center justify-center">
-              <PawPrint className="h-5 w-5 text-white" />
-            </div>
+            <PetAvatar
+              pet={pet}
+              size="md"
+              className="flex-shrink-0"
+              showStatus={false}
+            />
             <div>
               <p className="font-semibold text-[#263238] dark:text-text-primary">{pet.name}</p>
               <p className="text-sm text-[#64748B] dark:text-text-secondary">{pet.breed || 'Unknown breed'}</p>

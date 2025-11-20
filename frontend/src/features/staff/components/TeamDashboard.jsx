@@ -210,8 +210,8 @@ const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {
 
       {/* Staff List */}
       <div className="space-y-4">
-        {filteredStaff.map((member) => (
-          <Card key={member.id} className="p-6 hover:shadow-lg transition-shadow">
+        {filteredStaff.map((member, index) => (
+          <Card key={member.id || member.recordId || member.email || `staff-${index}`} className="p-6 hover:shadow-lg transition-shadow">
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-4 flex-1">
                 <div className="w-12 h-12 bg-primary-600 dark:bg-primary-700 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">

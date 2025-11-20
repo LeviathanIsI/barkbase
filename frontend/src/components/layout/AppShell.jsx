@@ -3,6 +3,9 @@ import { Outlet, useLocation } from 'react-router-dom';
 import JumboSidebar from './JumboSidebar';
 import JumboHeader from './JumboHeader';
 import Button from '@/components/ui/Button';
+import AlertBanner from '@/components/AlertBanner';
+import QuickAccessBar from '@/components/QuickAccessBar';
+import GlobalKeyboardShortcuts from '@/components/GlobalKeyboardShortcuts';
 import { useUIStore } from '@/stores/ui';
 import { useTenantStore } from '@/stores/tenant';
 import { cn } from '@/lib/cn';
@@ -40,6 +43,15 @@ const AppShell = () => {
       <div className="flex w-full flex-col">
         {/* Jumbo Blue Header */}
         <JumboHeader onMenuToggle={handleMenuToggle} />
+
+        {/* Alert Banner for urgent notifications */}
+        <AlertBanner />
+
+        {/* Quick Access Bar for global actions */}
+        <QuickAccessBar />
+
+        {/* Global Keyboard Shortcuts Handler */}
+        <GlobalKeyboardShortcuts />
 
         {/* Main Content Area */}
         <main className="flex flex-1 flex-col overflow-hidden">
