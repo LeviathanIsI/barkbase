@@ -132,18 +132,57 @@ async function testConnection() {
 	}
 }
 
-// Import JWT validator from auth layer (correct path after auth-layer restructuring)
-const { JWTValidator } = require('/opt/nodejs');
-
-// Create a singleton JWT validator instance
+// Lazy-load JWT validator to avoid circular dependency issues
+// At Lambda runtime, both auth-layer and db-layer are merged in /opt/nodejs
 let jwtValidator = null;
+let JWTValidator = null;
+
 const getJWTValidator = () => {
     if (!jwtValidator) {
-        jwtValidator = new JWTValidator({
-            region: process.env.AWS_REGION || 'us-east-1',
-            userPoolId: process.env.USER_POOL_ID,
-            clientId: process.env.CLIENT_ID
-        });
+        try {
+            // Try to require JWTValidator at runtime when it's actually needed
+            // This avoids circular dependency issues during layer initialization
+            if (!JWTValidator) {
+                // First try to import from jwt-validator file directly (both layers merged at runtime)
+                try {
+                    const jwtValidatorModule = require('./jwt-validator');
+                    JWTValidator = jwtValidatorModule.JWTValidator;
+                    console.log('[JWT] Successfully loaded JWTValidator from ./jwt-validator');
+                } catch (e) {
+                    // Fallback to auth-layer's index export
+                    console.log('[JWT] Failed to load from ./jwt-validator, trying auth layer exports');
+                    const authLayer = require('/opt/nodejs');
+                    JWTValidator = authLayer.JWTValidator;
+                    console.log('[JWT] Successfully loaded JWTValidator from auth layer');
+                }
+            }
+
+            const userPoolId = process.env.USER_POOL_ID || process.env.COGNITO_USER_POOL_ID;
+            const clientId = process.env.CLIENT_ID || process.env.COGNITO_CLIENT_ID;
+
+            if (!userPoolId || !clientId) {
+                console.error('[JWT] Missing USER_POOL_ID or CLIENT_ID environment variables');
+                console.error('[JWT] USER_POOL_ID:', userPoolId);
+                console.error('[JWT] CLIENT_ID:', clientId);
+                console.error('[JWT] Environment:', {
+                    USER_POOL_ID: process.env.USER_POOL_ID,
+                    COGNITO_USER_POOL_ID: process.env.COGNITO_USER_POOL_ID,
+                    CLIENT_ID: process.env.CLIENT_ID,
+                    COGNITO_CLIENT_ID: process.env.COGNITO_CLIENT_ID
+                });
+                throw new Error('JWT configuration missing: USER_POOL_ID and CLIENT_ID required');
+            }
+
+            console.log('[JWT] Creating JWTValidator with userPoolId:', userPoolId);
+            jwtValidator = new JWTValidator({
+                region: process.env.AWS_REGION || 'us-east-1',
+                userPoolId: userPoolId,
+                clientId: clientId
+            });
+        } catch (error) {
+            console.error('[JWT] Failed to initialize JWTValidator:', error.message);
+            throw error;
+        }
     }
     return jwtValidator;
 };

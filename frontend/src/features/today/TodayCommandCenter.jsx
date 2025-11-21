@@ -10,6 +10,8 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import PetAvatar from '@/components/ui/PetAvatar';
 import BatchCheckIn from '@/features/bookings/components/BatchCheckIn';
+import { StatCard } from '@/components/dashboard/StatCard';
+import { DashboardCard } from '@/components/dashboard/DashboardCard';
 import apiClient from '@/lib/apiClient';
 import { cn } from '@/lib/cn';
 
@@ -17,6 +19,70 @@ import { cn } from '@/lib/cn';
  * TodayCommandCenter Component
  * Unified operational view combining dashboard and schedule
  * Addresses research finding: "need single-screen operational command center"
+ *
+ * PHASE 5 IMPLEMENTATION: HubSpot 5-10 Metrics Pattern
+ * - Exactly 5 hero stat cards (max recommended by HubSpot research)
+ * - 4 focus cards below (Arrivals, Departures, Facility Status, Operations)
+ * - All metrics use REAL data from API
+ * - Status colors: success (green), warning (orange), error (red), neutral
+ * - Page scannable in under 10 seconds
+ *
+ * ACTUAL API DATA STRUCTURES:
+ *
+ * arrivals: Array<{
+ *   id: string,
+ *   petName: string,
+ *   pet: { name: string, ... },
+ *   ownerName: string,
+ *   owner: { name: string, ... },
+ *   status: 'PENDING' | 'CONFIRMED',
+ *   startDate: string (ISO date),
+ *   checkInDate: string (ISO date),
+ *   arrivalTime: string,
+ *   ...
+ * }>
+ *
+ * departures: Array<{
+ *   id: string,
+ *   petName: string,
+ *   pet: { name: string, ... },
+ *   ownerName: string,
+ *   owner: { name: string, ... },
+ *   status: 'CHECKED_IN',
+ *   endDate: string (ISO date),
+ *   checkOutDate: string (ISO date),
+ *   departureTime: string,
+ *   ...
+ * }>
+ *
+ * inFacility: Array<Booking> - Currently CHECKED_IN bookings
+ *
+ * dashboardStats: {
+ *   arrivals: number,
+ *   departures: number,
+ *   inFacility: number,
+ *   occupancyRate: number (0-100),
+ *   availableRuns: number,
+ *   revenueToday: number,
+ *   staffActive: number,
+ *   upcomingCheckouts: number,
+ *   upcomingCheckins: number
+ * }
+ *
+ * runs/kennels: Array<{
+ *   id: string,
+ *   name: string,
+ *   size: 'small' | 'medium' | 'large',
+ *   occupied: boolean,
+ *   pet: Pet | null,
+ *   booking: Booking | null
+ * }>
+ *
+ * HERO STAT THRESHOLDS:
+ * - Occupancy > 90%: Warning status (orange)
+ * - Available Runs < 5: Warning status (orange)
+ * - Staff Active = 0: Neutral status
+ * - Default: Success status (green)
  */
 const TodayCommandCenter = () => {
   const [activeView, setActiveView] = useState('overview'); // overview, checkin, checkout
@@ -25,34 +91,60 @@ const TodayCommandCenter = () => {
   // Fetch today's data
   const today = new Date().toISOString().split('T')[0];
 
-  // Fetch arrivals
+  // Fetch arrivals - bookings starting today (PENDING or CONFIRMED)
   const { data: arrivals = [], isLoading: loadingArrivals } = useQuery({
     queryKey: ['bookings', 'arrivals', today],
     queryFn: async () => {
-      const response = await apiClient.get(`/api/v1/bookings?date=${today}&type=arrival`);
-      return Array.isArray(response) ? response : response?.data || [];
+      // Fetch all bookings for today and filter by status
+      const response = await apiClient.get(`/api/v1/bookings?date=${today}`);
+      const bookings = Array.isArray(response) ? response : response?.data || [];
+
+      // Filter to PENDING or CONFIRMED bookings starting today
+      return bookings.filter(b => {
+        const status = b.status || b.bookingStatus;
+        const isPendingOrConfirmed = status === 'PENDING' || status === 'CONFIRMED';
+        const startDate = new Date(b.startDate || b.checkInDate).toISOString().split('T')[0];
+        return isPendingOrConfirmed && startDate === today;
+      });
     },
     refetchInterval: 30000
   });
 
-  // Fetch departures
+  // Fetch departures - bookings ending today (currently CHECKED_IN)
   const { data: departures = [], isLoading: loadingDepartures } = useQuery({
     queryKey: ['bookings', 'departures', today],
     queryFn: async () => {
-      const response = await apiClient.get(`/api/v1/bookings?date=${today}&type=departure`);
+      // Fetch checked-in bookings ending today
+      const response = await apiClient.get(`/api/v1/bookings?status=CHECKED_IN`);
+      const bookings = Array.isArray(response) ? response : response?.data || [];
+
+      // Filter to only those ending today
+      return bookings.filter(b => {
+        const endDate = new Date(b.endDate || b.checkOutDate).toISOString().split('T')[0];
+        return endDate === today;
+      });
+    },
+    refetchInterval: 30000
+  });
+
+  // Fetch current occupancy - pets currently checked in
+  const { data: inFacility = [], isLoading: loadingOccupancy } = useQuery({
+    queryKey: ['bookings', 'checked-in', today],
+    queryFn: async () => {
+      const response = await apiClient.get(`/api/v1/bookings?status=CHECKED_IN`);
       return Array.isArray(response) ? response : response?.data || [];
     },
     refetchInterval: 30000
   });
 
-  // Fetch current occupancy
-  const { data: inFacility = [], isLoading: loadingOccupancy } = useQuery({
-    queryKey: ['bookings', 'current'],
+  // Fetch dashboard stats from backend
+  const { data: dashboardStats } = useQuery({
+    queryKey: ['dashboard', 'stats', today],
     queryFn: async () => {
-      const response = await apiClient.get(`/api/v1/bookings?status=checked-in`);
-      return Array.isArray(response) ? response : response?.data || [];
+      const response = await apiClient.get('/api/v1/dashboard/stats');
+      return response?.data || response || {};
     },
-    refetchInterval: 30000
+    refetchInterval: 60000 // Refresh every minute
   });
 
   // Fetch runs/kennels
@@ -76,27 +168,30 @@ const TodayCommandCenter = () => {
     refetchInterval: 30000
   });
 
-  // Calculate stats
+  // Calculate stats - use backend data if available, fallback to calculated
   const stats = useMemo(() => {
     const occupiedRuns = runs.filter(r => r.occupied).length;
     const totalRuns = runs.length || 1; // Avoid division by zero
-    const occupancyRate = Math.round((occupiedRuns / totalRuns) * 100);
+    const calculatedOccupancyRate = Math.round((occupiedRuns / totalRuns) * 100);
 
-    // Calculate today's revenue (mock)
-    const revenueToday = inFacility.reduce((sum, booking) => {
-      return sum + (booking.price || 50); // Default $50 per day
+    // Calculate today's revenue from in-facility bookings
+    const calculatedRevenue = inFacility.reduce((sum, booking) => {
+      return sum + (parseFloat(booking.price || booking.total || booking.dailyRate) || 0);
     }, 0);
 
+    // Use backend stats if available, otherwise use calculated values
     return {
-      arrivals: arrivals.length,
-      departures: departures.length,
-      inFacility: inFacility.length,
-      occupancyRate,
-      availableRuns: totalRuns - occupiedRuns,
-      revenueToday,
-      staffActive: 4 // Mock data
+      arrivals: dashboardStats?.arrivals ?? arrivals.length,
+      departures: dashboardStats?.departures ?? departures.length,
+      inFacility: dashboardStats?.inFacility ?? inFacility.length,
+      occupancyRate: dashboardStats?.occupancyRate ?? calculatedOccupancyRate,
+      availableRuns: dashboardStats?.availableRuns ?? (totalRuns - occupiedRuns),
+      revenueToday: dashboardStats?.revenueToday ?? calculatedRevenue,
+      staffActive: dashboardStats?.staffActive ?? 0,
+      upcomingCheckouts: dashboardStats?.upcomingCheckouts ?? departures.length,
+      upcomingCheckins: dashboardStats?.upcomingCheckins ?? arrivals.length
     };
-  }, [arrivals, departures, inFacility, runs]);
+  }, [arrivals, departures, inFacility, runs, dashboardStats]);
 
   // Format time
   const formatTime = (dateString) => {
@@ -227,51 +322,64 @@ const TodayCommandCenter = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header with Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-gray-600 dark:text-text-secondary">ARRIVALS</p>
-              <p className="text-2xl font-bold">{stats.arrivals}</p>
-              <p className="text-xs text-green-600">Expected today</p>
-            </div>
-            <UserCheck className="w-8 h-8 text-green-600 opacity-20" />
-          </div>
-        </Card>
+      {/* Page Header */}
+      <div>
+        <h1 className="text-3xl font-semibold text-[var(--text-primary)] mb-1">
+          Today
+        </h1>
+        <p className="text-sm text-[var(--text-secondary)]">
+          {new Date().toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          })}
+        </p>
+      </div>
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-gray-600 dark:text-text-secondary">IN FACILITY</p>
-              <p className="text-2xl font-bold">{stats.inFacility}</p>
-              <p className="text-xs text-blue-600">{stats.occupancyRate}% capacity</p>
-            </div>
-            <Home className="w-8 h-8 text-blue-600 opacity-20" />
-          </div>
-        </Card>
+      {/* Hero Stats - EXACTLY 5 cards (HubSpot pattern) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <StatCard
+          label="Checking In Today"
+          value={stats.arrivals}
+          icon={UserCheck}
+          status="success"
+          loading={loadingArrivals}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-gray-600 dark:text-text-secondary">DEPARTURES</p>
-              <p className="text-2xl font-bold">{stats.departures}</p>
-              <p className="text-xs text-orange-600">Leaving today</p>
-            </div>
-            <UserX className="w-8 h-8 text-orange-600 opacity-20" />
-          </div>
-        </Card>
+        <StatCard
+          label="Current Occupancy"
+          value={stats.inFacility}
+          icon={Home}
+          trend={`${stats.occupancyRate}% capacity`}
+          trendDirection="neutral"
+          status={stats.occupancyRate > 90 ? 'warning' : 'success'}
+          loading={loadingOccupancy}
+        />
 
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-gray-600 dark:text-text-secondary">REVENUE</p>
-              <p className="text-2xl font-bold">${stats.revenueToday}</p>
-              <p className="text-xs text-green-600">Today's total</p>
-            </div>
-            <DollarSign className="w-8 h-8 text-green-600 opacity-20" />
-          </div>
-        </Card>
+        <StatCard
+          label="Checking Out Today"
+          value={stats.departures}
+          icon={UserX}
+          status="neutral"
+          loading={loadingDepartures}
+        />
+
+        <StatCard
+          label="Available Runs"
+          value={stats.availableRuns}
+          icon={MapPin}
+          status={stats.availableRuns < 5 ? 'warning' : 'success'}
+          loading={loadingRuns}
+        />
+
+        <StatCard
+          label="Revenue Today"
+          value={`$${Math.round(stats.revenueToday)}`}
+          icon={DollarSign}
+          status="success"
+          loading={loadingOccupancy}
+        />
       </div>
 
       {/* View Toggle */}
@@ -305,12 +413,14 @@ const TodayCommandCenter = () => {
           {/* Left Column - Arrivals & Departures */}
           <div className="space-y-6">
             {/* Arrivals */}
-            <Card className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold flex items-center gap-2">
+            <DashboardCard
+              title={
+                <span className="flex items-center gap-2">
                   <UserCheck className="w-5 h-5 text-green-600" />
-                  Arrivals ({stats.arrivals})
-                </h3>
+                  Today's Arrivals ({stats.arrivals})
+                </span>
+              }
+              action={
                 <Button
                   size="sm"
                   variant="outline"
@@ -319,17 +429,20 @@ const TodayCommandCenter = () => {
                   Batch Check-in
                   <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
-              </div>
+              }
+            >
               <ArrivalDepartureList items={arrivals} type="arrival" />
-            </Card>
+            </DashboardCard>
 
             {/* Departures */}
-            <Card className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold flex items-center gap-2">
+            <DashboardCard
+              title={
+                <span className="flex items-center gap-2">
                   <UserX className="w-5 h-5 text-orange-600" />
-                  Departures ({stats.departures})
-                </h3>
+                  Today's Departures ({stats.departures})
+                </span>
+              }
+              action={
                 <Button
                   size="sm"
                   variant="outline"
@@ -338,55 +451,71 @@ const TodayCommandCenter = () => {
                   Batch Check-out
                   <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
-              </div>
+              }
+            >
               <ArrivalDepartureList items={departures} type="departure" />
-            </Card>
+            </DashboardCard>
           </div>
 
           {/* Right Column - Visual Run Board */}
           <div className="space-y-6">
-            <Card className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold flex items-center gap-2">
+            <DashboardCard
+              title={
+                <span className="flex items-center gap-2">
                   <MapPin className="w-5 h-5 text-blue-600" />
                   Facility Status
-                </h3>
+                </span>
+              }
+              action={
                 <Badge variant="info">
-                  {stats.availableRuns} runs available
+                  {stats.availableRuns} available
                 </Badge>
-              </div>
+              }
+            >
               <VisualRunBoard />
-            </Card>
+            </DashboardCard>
 
-            {/* Quick Stats */}
-            <Card className="p-6">
-              <h3 className="font-semibold mb-4 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-purple-600" />
-                Operations
-              </h3>
+            {/* Operations Quick Stats */}
+            <DashboardCard
+              title={
+                <span className="flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-purple-600" />
+                  Operations
+                </span>
+              }
+            >
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-text-secondary">Staff Active</span>
-                  <Badge variant="success">{stats.staffActive} on duty</Badge>
+                  <span className="text-sm text-[var(--text-secondary)]">Staff Active</span>
+                  <Badge variant={stats.staffActive > 0 ? "success" : "neutral"}>
+                    {stats.staffActive || 0} on duty
+                  </Badge>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-text-secondary">Occupancy</span>
+                  <span className="text-sm text-[var(--text-secondary)]">Occupancy Rate</span>
                   <div className="flex items-center gap-2">
-                    <div className="w-24 bg-gray-200 rounded-full h-2">
+                    <div className="w-24 bg-gray-200 dark:bg-[var(--bg-secondary)] rounded-full h-2">
                       <div
-                        className="bg-blue-600 h-2 rounded-full transition-all"
+                        className={cn(
+                          "h-2 rounded-full transition-all",
+                          stats.occupancyRate > 90 ? "bg-orange-600" : "bg-blue-600"
+                        )}
                         style={{ width: `${stats.occupancyRate}%` }}
                       />
                     </div>
-                    <span className="text-sm font-medium">{stats.occupancyRate}%</span>
+                    <span className="text-sm font-medium text-[var(--text-primary)]">
+                      {stats.occupancyRate}%
+                    </span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-text-secondary">Today's Tasks</span>
-                  <Badge variant="warning">12 pending</Badge>
+                  <span className="text-sm text-[var(--text-secondary)]">Available Runs</span>
+                  <Badge variant={stats.availableRuns < 5 ? "warning" : "success"}>
+                    {stats.availableRuns} runs
+                  </Badge>
                 </div>
               </div>
-            </Card>
+            </DashboardCard>
           </div>
         </div>
       )}

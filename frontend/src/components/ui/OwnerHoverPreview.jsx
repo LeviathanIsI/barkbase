@@ -178,13 +178,15 @@ const OwnerHoverPreview = ({ children, owner, className }) => {
             )}
 
             {/* Address */}
-            {(owner.address || owner.city) && (
+            {(owner.address?.street || owner.city) && (
               <div className="flex items-start gap-2">
                 <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
                 <span className="text-sm text-gray-600 dark:text-gray-400">
-                  {owner.address && <div>{owner.address}</div>}
-                  {owner.city && owner.state && (
-                    <div>{owner.city}, {owner.state} {owner.zip}</div>
+                  {owner.address?.street && <div>{owner.address.street}</div>}
+                  {(owner.address?.city || owner.city) && (owner.address?.state || owner.state) && (
+                    <div>
+                      {owner.address?.city || owner.city}, {owner.address?.state || owner.state} {owner.address?.zip || owner.zip}
+                    </div>
                   )}
                 </span>
               </div>

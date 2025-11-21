@@ -19,78 +19,103 @@ const AlertBanner = () => {
   const { data: alerts = [], isLoading } = useQuery({
     queryKey: ['alerts', 'urgent'],
     queryFn: async () => {
+      const allAlerts = [];
+
       try {
-        // These would come from the backend in production
-        // For now, let's simulate with local data
-        const mockAlerts = [];
+        // Fetch expiring vaccinations from dedicated endpoint
+        const vaccinationsResponse = await apiClient.get('/api/v1/pets/vaccinations/expiring');
+        const vaccinations = Array.isArray(vaccinationsResponse) ? vaccinationsResponse : vaccinationsResponse?.data || [];
 
-        // Check for expired vaccinations
-        const petsResponse = await apiClient.get('/api/v1/pets');
-        const pets = Array.isArray(petsResponse) ? petsResponse : petsResponse?.data || [];
+        vaccinations.forEach(vaccination => {
+          const daysUntilExpiry = vaccination.daysUntilExpiry || 0;
+          const petId = vaccination.petId || vaccination.pet_id;
+          const petName = vaccination.petName || vaccination.pet_name || 'Unknown Pet';
 
-        pets.forEach(pet => {
-          if (pet.hasExpiringVaccinations) {
-            const daysUntilExpiry = pet.vaccinationExpiryDays || 0;
-            if (daysUntilExpiry <= 0) {
-              mockAlerts.push({
-                id: `vacc-expired-${pet.id}`,
-                type: 'critical',
-                icon: 'shield',
-                message: `${pet.name} has EXPIRED vaccinations`,
-                action: { label: 'Update Now', href: `/pets/${pet.id}?tab=vaccinations` },
-                priority: 1
-              });
-            } else if (daysUntilExpiry <= 7) {
-              mockAlerts.push({
-                id: `vacc-expiring-${pet.id}`,
-                type: 'warning',
-                icon: 'clock',
-                message: `${pet.name}'s vaccinations expire in ${daysUntilExpiry} days`,
-                action: { label: 'View', href: `/pets/${pet.id}?tab=vaccinations` },
-                priority: 2
-              });
-            }
-          }
-
-          // Medical alerts
-          if (pet.hasMedicalAlerts) {
-            mockAlerts.push({
-              id: `medical-${pet.id}`,
+          if (daysUntilExpiry <= 0) {
+            allAlerts.push({
+              id: `vacc-expired-${petId}-${vaccination.id}`,
+              type: 'critical',
+              icon: 'shield',
+              message: `${petName} has EXPIRED ${vaccination.vaccinationType || 'vaccination'}`,
+              action: { label: 'Update Now', href: `/pets/${petId}?tab=vaccinations` },
+              priority: 1
+            });
+          } else if (daysUntilExpiry <= 7) {
+            allAlerts.push({
+              id: `vacc-expiring-${petId}-${vaccination.id}`,
               type: 'warning',
-              icon: 'heart',
-              message: `${pet.name} requires medication at scheduled times`,
-              action: { label: 'View Schedule', href: `/pets/${pet.id}` },
-              priority: 3
+              icon: 'clock',
+              message: `${petName}'s ${vaccination.vaccinationType || 'vaccination'} expires in ${daysUntilExpiry} days`,
+              action: { label: 'View', href: `/pets/${petId}?tab=vaccinations` },
+              priority: 2
             });
           }
         });
-
-        // Check for overdue payments
-        try {
-          const invoicesResponse = await apiClient.get('/api/v1/invoices?status=overdue');
-          const overdueInvoices = Array.isArray(invoicesResponse) ? invoicesResponse : invoicesResponse?.data || [];
-
-          if (overdueInvoices.length > 0) {
-            const totalOverdue = overdueInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0);
-            mockAlerts.push({
-              id: 'payments-overdue',
-              type: 'warning',
-              icon: 'dollar',
-              message: `${overdueInvoices.length} overdue payments totaling $${totalOverdue.toFixed(2)}`,
-              action: { label: 'View Invoices', href: '/payments?filter=overdue' },
-              priority: 4
-            });
-          }
-        } catch (err) {
-          // Silently handle if invoices endpoint doesn't exist yet
-        }
-
-        // Sort by priority (lower number = higher priority)
-        return mockAlerts.sort((a, b) => a.priority - b.priority);
       } catch (error) {
-        console.error('Failed to fetch alerts:', error);
-        return [];
+        console.error('Failed to fetch vaccination alerts:', error);
       }
+
+      try {
+        // Fetch medical alerts from database
+        const medicalAlertsResponse = await apiClient.get('/api/v1/pets/medical-alerts');
+        const medicalAlerts = Array.isArray(medicalAlertsResponse) ? medicalAlertsResponse : medicalAlertsResponse?.data || [];
+
+        medicalAlerts.forEach(alert => {
+          const petId = alert.petId || alert.pet_id;
+          const petName = alert.petName || alert.pet_name || 'Unknown Pet';
+
+          allAlerts.push({
+            id: `medical-${petId}-${alert.id}`,
+            type: alert.severity === 'critical' ? 'critical' : 'warning',
+            icon: 'heart',
+            message: alert.message || `${petName} requires medication at scheduled times`,
+            action: { label: 'View Schedule', href: `/pets/${petId}` },
+            priority: alert.severity === 'critical' ? 1 : 3
+          });
+        });
+      } catch (error) {
+        console.error('Failed to fetch medical alerts:', error);
+      }
+
+      try {
+        // Fetch PENDING payments and filter for overdue ones client-side
+        // Note: "overdue" is not a valid PaymentStatus enum - it's calculated from dueDate
+        const paymentsResponse = await apiClient.get('/api/v1/payments?status=PENDING');
+        const allPendingPayments = Array.isArray(paymentsResponse) ? paymentsResponse : paymentsResponse?.data || [];
+
+        // Filter for overdue payments (past due date)
+        const now = new Date();
+        const overduePayments = allPendingPayments.filter(payment => {
+          if (!payment.dueDate) return false;
+          const dueDate = new Date(payment.dueDate);
+          return dueDate < now;
+        });
+
+        if (overduePayments.length > 0) {
+          const totalOverdue = overduePayments.reduce((sum, payment) => {
+            // Payment amount might be in cents or dollars - handle both
+            const amount = payment.amountCents
+              ? payment.amountCents / 100
+              : parseFloat(payment.amount || payment.total || 0);
+            return sum + amount;
+          }, 0);
+
+          allAlerts.push({
+            id: 'payments-overdue',
+            type: 'warning',
+            icon: 'dollar',
+            message: `${overduePayments.length} overdue payments totaling $${totalOverdue.toFixed(2)}`,
+            action: { label: 'View Payments', href: '/payments?filter=overdue' },
+            priority: 4
+          });
+        }
+      } catch (error) {
+        // Silently handle if payments endpoint doesn't exist or returns error
+        console.error('Failed to fetch payment alerts:', error);
+      }
+
+      // Sort by priority (lower number = higher priority)
+      return allAlerts.sort((a, b) => a.priority - b.priority);
     },
     refetchInterval: 60000, // Refresh every minute
     staleTime: 30000, // Consider data stale after 30 seconds

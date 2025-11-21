@@ -117,7 +117,7 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
   return (
     <aside
       className={cn(
-        "bg-[#1E1E2D] dark:bg-[#1A1A2E] text-white transition-all duration-200 shadow-lg",
+        "bg-gray-900 dark:bg-background-secondary text-white transition-all duration-200 shadow-lg",
         !isMobile && "lg:sticky lg:top-0 lg:h-screen lg:self-start",
         isMobile
           ? "flex w-64 flex-col"
@@ -142,7 +142,7 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
         {collapsed && !isMobile ? (
           // Collapsed state - just show logo/icon
           <div className="flex flex-col items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#4B5DD3]/20 text-[#4B5DD3] dark:text-primary-400">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-600/20 text-primary-600 dark:text-primary-400">
               {tenant?.assets?.logo ? (
                 <img
                   src={tenant.assets.logo}
@@ -150,12 +150,12 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
                   className="h-10 w-10 rounded-lg object-cover"
                 />
               ) : (
-                <span className="text-lg font-bold">BB</span>
+                <span className="text-lg font-semibold">BB</span>
               )}
             </div>
             <button
               onClick={toggleSidebar}
-              className="rounded-lg p-1 text-white/70 transition-colors hover:bg-white dark:hover:bg-surface-primary dark:bg-surface-primary/10 hover:text-white"
+              className="rounded-lg p-1 text-white/70 transition-colors hover:bg-gray-100 dark:hover:bg-background-tertiary hover:text-white"
               aria-label="Expand sidebar"
               title="Expand sidebar"
             >
@@ -166,7 +166,7 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
           // Expanded state - show logo, name, and collapse button
           <>
             <div className="flex items-center gap-3 min-w-0">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-[#4B5DD3]/20 text-[#4B5DD3] dark:text-primary-400">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary-600/20 text-primary-600 dark:text-primary-400">
                 {tenant?.assets?.logo ? (
                   <img
                     src={tenant.assets.logo}
@@ -174,7 +174,7 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
                     className="h-10 w-10 rounded-lg object-cover"
                   />
                 ) : (
-                  <span className="text-lg font-bold">BB</span>
+                  <span className="text-lg font-semibold">BB</span>
                 )}
               </div>
               <div className="min-w-0 flex-1">
@@ -189,7 +189,7 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
             {!isMobile && (
               <button
                 onClick={toggleSidebar}
-                className="flex-shrink-0 rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white dark:hover:bg-surface-primary dark:bg-surface-primary/10 hover:text-white"
+                className="flex-shrink-0 rounded-lg p-1.5 text-white/70 transition-colors hover:bg-gray-100 dark:hover:bg-background-tertiary hover:text-white"
                 aria-label="Collapse sidebar"
                 title="Collapse sidebar"
               >
@@ -214,7 +214,7 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
                 className={cn(
                   "group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors",
                   sectionActive
-                    ? "text-[#4B5DD3] dark:text-primary-400"
+                    ? "text-primary-600 dark:text-primary-400"
                     : "text-white/60 hover:text-white",
                   collapsed && !isMobile && "justify-center"
                 )}
@@ -249,8 +249,8 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
                           cn(
                             "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                             active
-                              ? "bg-[#4B5DD3] text-white shadow-md border-l-4 border-l-[#4B5DD3]"
-                              : "text-white/80 hover:bg-white dark:hover:bg-surface-primary dark:bg-surface-primary/10 hover:text-white",
+                              ? "bg-primary-600 text-white shadow-md border-l-4 border-l-primary-600"
+                              : "text-white/80 hover:bg-gray-100 dark:hover:bg-background-tertiary hover:text-white",
                             collapsed && !isMobile && "justify-center px-2"
                           )
                         }

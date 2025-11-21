@@ -246,6 +246,9 @@ const SegmentList = lazy(() =>
 const Roles = lazy(() => import("@/features/roles/routes/Roles"));
 const RoleEditor = lazy(() => import("@/features/roles/routes/RoleEditor"));
 
+// Mobile Views
+const MobileCheckIn = lazy(() => import("@/features/mobile/MobileCheckIn"));
+
 export const router = createBrowserRouter([
   {
     path: "/",
@@ -291,6 +294,7 @@ export const router = createBrowserRouter([
               { path: "daycare/runs", element: <RunAssignment /> },
               { path: "operations", element: <Operations /> },
               { path: "mobile/tasks", element: <MobileTasks /> },
+              { path: "mobile/check-in", element: <MobileCheckIn /> },
               // Records
               { path: "facilities", element: <Facilities /> },
               { path: "services", element: <Services /> },

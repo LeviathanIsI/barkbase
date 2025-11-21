@@ -1,4 +1,4 @@
-const { getPool, getTenantIdFromEvent } = require('/opt/nodejs');
+const { getPool, getTenantIdFromEvent, getJWTValidator } = require('/opt/nodejs');
 
 // Unified CORS headers (superset of all 3 original Lambdas)
 const HEADERS = {
@@ -7,34 +7,111 @@ const HEADERS = {
     'Access-Control-Allow-Methods': 'OPTIONS,GET'
 };
 
-// Extract user info from API Gateway authorizer (JWT already validated by API Gateway)
-function getUserInfoFromEvent(event) {
+// Enhanced authorization with fallback JWT validation
+async function getUserInfoFromEvent(event) {
+    // First, try to get claims from API Gateway JWT authorizer
     const claims = event?.requestContext?.authorizer?.jwt?.claims;
-    if (!claims) {
-        console.error('No JWT claims found in event');
-        return null;
+
+    if (claims) {
+        console.log('[AUTH] Using API Gateway JWT claims');
+
+        // Cognito tokens don't have tenantId - fetch from database
+        let tenantId = claims['custom:tenantId'] || claims.tenantId;
+
+        if (!tenantId && claims.sub) {
+            console.log('[AUTH] Fetching tenantId from database for Cognito user:', claims.sub);
+            const pool = getPool();
+
+            try {
+                // Query for user's tenant based on Cognito sub or email
+                const result = await pool.query(
+                    `SELECT m."tenantId"
+                     FROM public."Membership" m
+                     JOIN public."User" u ON m."userId" = u."recordId"
+                     WHERE (u."cognitoSub" = $1 OR u."email" = $2)
+                     AND m."deletedAt" IS NULL
+                     ORDER BY m."updatedAt" DESC
+                     LIMIT 1`,
+                    [claims.sub, claims.email || claims['cognito:username']]
+                );
+
+                if (result.rows.length > 0) {
+                    tenantId = result.rows[0].tenantId;
+                    console.log('[AUTH] Found tenantId from database:', tenantId);
+                } else {
+                    console.error('[AUTH] No tenant found for user:', claims.sub);
+                }
+            } catch (error) {
+                console.error('[AUTH] Error fetching tenantId from database:', error.message);
+            }
+        }
+
+        return {
+            sub: claims.sub,
+            username: claims.username || claims['cognito:username'],
+            email: claims.email,
+            tenantId: tenantId,
+            userId: claims.sub,
+            role: claims['custom:role'] || 'USER'
+        };
     }
 
-    return {
-        sub: claims.sub,
-        username: claims.username,
-        email: claims.email,
-        tenantId: claims['custom:tenantId'] || claims.tenantId
-    };
+    // Fallback: Manual JWT validation
+    console.log('[AUTH] No API Gateway claims found, falling back to manual JWT validation');
+
+    try {
+        // Get Authorization header
+        const authHeader = event?.headers?.Authorization || event?.headers?.authorization;
+
+        if (!authHeader) {
+            console.error('[AUTH] No Authorization header found');
+            return null;
+        }
+
+        // Initialize JWT validator and validate token
+        const jwtValidator = getJWTValidator();
+        const userInfo = await jwtValidator.validateRequest(event);
+
+        if (!userInfo) {
+            console.error('[AUTH] JWT validation failed');
+            return null;
+        }
+
+        console.log('[AUTH] Manual JWT validation successful');
+
+        // Get tenant ID from the validated token or database
+        const tenantId = userInfo.tenantId || userInfo['custom:tenantId'] || await getTenantIdFromEvent(event);
+
+        return {
+            sub: userInfo.sub,
+            username: userInfo.username || userInfo['cognito:username'],
+            email: userInfo.email,
+            tenantId: tenantId,
+            userId: userInfo.sub,
+            role: userInfo.role || userInfo['custom:role'] || 'USER'
+        };
+    } catch (error) {
+        console.error('[AUTH] Manual JWT validation error:', error.message);
+        return null;
+    }
 }
 
 exports.handler = async (event) => {
+    // Debug logging to see actual event structure
+    console.log('[DEBUG] Full event:', JSON.stringify(event, null, 2));
+    console.log('[DEBUG] requestContext:', JSON.stringify(event.requestContext, null, 2));
+    console.log('[DEBUG] headers:', JSON.stringify(event.headers, null, 2));
 
-    const httpMethod = event.requestContext.http.method;
-    const path = event.requestContext.http.path;
+    const httpMethod = event.requestContext?.http?.method || event.httpMethod;
+    const path = event.requestContext?.http?.path || event.path;
 
     // Handle CORS preflight
     if (httpMethod === 'OPTIONS') {
         return { statusCode: 200, headers: HEADERS, body: '' };
     }
 
-    // Extract user info from API Gateway authorizer (JWT already validated)
-    const userInfo = getUserInfoFromEvent(event);
+    // Extract user info from API Gateway authorizer with fallback to manual JWT validation
+    const userInfo = await getUserInfoFromEvent(event);
     if (!userInfo) {
         return {
             statusCode: 401,
@@ -90,6 +167,12 @@ exports.handler = async (event) => {
         }
         if (httpMethod === 'GET' && path === '/api/v1/reports/occupancy') {
             return await getOccupancyReport(event, tenantId);
+        }
+        if (httpMethod === 'GET' && path === '/api/v1/reports/arrivals') {
+            return await getReportArrivals(event, tenantId);
+        }
+        if (httpMethod === 'GET' && path === '/api/v1/reports/departures') {
+            return await getReportDepartures(event, tenantId);
         }
 
         // ============================================
@@ -692,6 +775,99 @@ async function getOccupancyReport(event, tenantId) {
         statusCode: 200,
         headers: HEADERS,
         body: JSON.stringify(rows)
+    };
+}
+
+async function getReportArrivals(event, tenantId) {
+    const pool = getPool();
+    const { days = '7' } = event.queryStringParameters || {};
+    const daysNum = parseInt(days);
+
+    const result = await pool.query(
+        `SELECT
+            b."recordId", b."checkIn", b."status",
+            p."recordId" as "petId", p."name" as "petName", p."breed",
+            o."recordId" as "ownerId", o."firstName", o."lastName", o."phone", o."email"
+         FROM "Booking" b
+         JOIN "Pet" p ON b."petId" = p."recordId"
+         JOIN "Owner" o ON b."ownerId" = o."recordId"
+         WHERE b."tenantId" = $1
+         AND b."status" IN ('PENDING', 'CONFIRMED')
+         AND b."checkIn" >= CURRENT_DATE
+         AND b."checkIn" <= CURRENT_DATE + INTERVAL '${daysNum} days'
+         ORDER BY b."checkIn", p."name"`,
+        [tenantId]
+    );
+
+    return {
+        statusCode: 200,
+        headers: HEADERS,
+        body: JSON.stringify({
+            arrivals: result.rows.map(row => ({
+                bookingId: row.recordId,
+                checkIn: row.checkIn,
+                status: row.status,
+                pet: {
+                    id: row.petId,
+                    name: row.petName,
+                    breed: row.breed
+                },
+                owner: {
+                    id: row.ownerId,
+                    firstName: row.firstName,
+                    lastName: row.lastName,
+                    phone: row.phone,
+                    email: row.email
+                }
+            }))
+        })
+    };
+}
+
+async function getReportDepartures(event, tenantId) {
+    const pool = getPool();
+    const { days = '7' } = event.queryStringParameters || {};
+    const daysNum = parseInt(days);
+
+    const result = await pool.query(
+        `SELECT
+            b."recordId", b."checkOut", b."status", b."balanceDueCents",
+            p."recordId" as "petId", p."name" as "petName", p."breed",
+            o."recordId" as "ownerId", o."firstName", o."lastName", o."phone", o."email"
+         FROM "Booking" b
+         JOIN "Pet" p ON b."petId" = p."recordId"
+         JOIN "Owner" o ON b."ownerId" = o."recordId"
+         WHERE b."tenantId" = $1
+         AND b."status" IN ('CHECKED_IN', 'CONFIRMED')
+         AND b."checkOut" >= CURRENT_DATE
+         AND b."checkOut" <= CURRENT_DATE + INTERVAL '${daysNum} days'
+         ORDER BY b."checkOut", p."name"`,
+        [tenantId]
+    );
+
+    return {
+        statusCode: 200,
+        headers: HEADERS,
+        body: JSON.stringify({
+            departures: result.rows.map(row => ({
+                bookingId: row.recordId,
+                checkOut: row.checkOut,
+                status: row.status,
+                balanceDueCents: parseInt(row.balanceDueCents || 0),
+                pet: {
+                    id: row.petId,
+                    name: row.petName,
+                    breed: row.breed
+                },
+                owner: {
+                    id: row.ownerId,
+                    firstName: row.firstName,
+                    lastName: row.lastName,
+                    phone: row.phone,
+                    email: row.email
+                }
+            }))
+        })
     };
 }
 

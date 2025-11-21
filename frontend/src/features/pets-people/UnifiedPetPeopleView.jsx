@@ -25,34 +25,44 @@ const UnifiedPetPeopleView = () => {
   const [selectedOwner, setSelectedOwner] = useState(null);
   const [viewMode, setViewMode] = useState('grid'); // grid, list
 
-  // Fetch all owners with their pets
+  // Fetch all owners with their pets (using expand parameter for efficiency)
   const { data: owners = [], isLoading } = useQuery({
     queryKey: ['owners', 'with-pets'],
     queryFn: async () => {
-      const [ownersResponse, petsResponse] = await Promise.all([
-        apiClient.get('/api/v1/owners'),
-        apiClient.get('/api/v1/pets')
-      ]);
-
+      // Use expand parameter to include pets in one request
+      const ownersResponse = await apiClient.get('/api/v1/owners?expand=pets');
       const ownersList = Array.isArray(ownersResponse) ? ownersResponse : ownersResponse?.data || [];
-      const petsList = Array.isArray(petsResponse) ? petsResponse : petsResponse?.data || [];
 
-      // Map pets to owners
-      return ownersList.map(owner => {
-        const ownerPets = petsList.filter(pet => {
-          // Check if pet has this owner
-          if (pet.ownerId === owner.id) return true;
-          if (pet.owners?.some(o => o.id === owner.id)) return true;
-          if (pet.primaryOwnerId === owner.id) return true;
-          return false;
+      // If backend doesn't support expand yet, fallback to separate requests
+      if (ownersList.length > 0 && !ownersList[0].pets) {
+        const petsResponse = await apiClient.get('/api/v1/pets');
+        const petsList = Array.isArray(petsResponse) ? petsResponse : petsResponse?.data || [];
+
+        // Map pets to owners
+        return ownersList.map(owner => {
+          const ownerPets = petsList.filter(pet => {
+            // Check if pet has this owner
+            if (pet.ownerId === owner.id || pet.owner_id === owner.id) return true;
+            if (pet.owners?.some(o => o.id === owner.id)) return true;
+            if (pet.primaryOwnerId === owner.id || pet.primary_owner_id === owner.id) return true;
+            return false;
+          });
+
+          return {
+            ...owner,
+            pets: ownerPets,
+            activePets: ownerPets.filter(p => p.status !== 'inactive'),
+          };
         });
+      }
 
+      // Backend supports expand - process the data
+      return ownersList.map(owner => {
+        const ownerPets = owner.pets || [];
         return {
           ...owner,
           pets: ownerPets,
           activePets: ownerPets.filter(p => p.status !== 'inactive'),
-          totalSpent: owner.totalSpent || Math.floor(Math.random() * 5000), // Mock data
-          lastVisit: owner.lastVisit || new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000)
         };
       });
     },
@@ -126,10 +136,13 @@ const UnifiedPetPeopleView = () => {
                     {owner.phone || 'No phone'}
                   </span>
                 </div>
-                {owner.address && (
+                {(owner.address?.street || owner.address) && (
                   <div className="flex items-center gap-1 mt-1 text-sm text-gray-600 dark:text-text-secondary">
                     <MapPin className="w-3 h-3" />
-                    {owner.address}
+                    {typeof owner.address === 'string'
+                      ? owner.address
+                      : `${owner.address?.street || ''} ${owner.address?.city || ''}, ${owner.address?.state || ''} ${owner.address?.zip || ''}`.trim()
+                    }
                   </div>
                 )}
               </div>
@@ -146,21 +159,21 @@ const UnifiedPetPeopleView = () => {
 
           {/* Quick Stats */}
           <div className="grid grid-cols-4 gap-4 mt-4 pt-4 border-t border-gray-100 dark:border-surface-border">
-            <div>
+            <div key="stat-pets">
               <p className="text-xs text-gray-600 dark:text-text-secondary">Pets</p>
               <p className="text-lg font-semibold">{owner.pets?.length || 0}</p>
             </div>
-            <div>
+            <div key="stat-spent">
               <p className="text-xs text-gray-600 dark:text-text-secondary">Total Spent</p>
               <p className="text-lg font-semibold">${owner.totalSpent || 0}</p>
             </div>
-            <div>
+            <div key="stat-visit">
               <p className="text-xs text-gray-600 dark:text-text-secondary">Last Visit</p>
               <p className="text-sm font-medium">
                 {owner.lastVisit ? new Date(owner.lastVisit).toLocaleDateString() : 'Never'}
               </p>
             </div>
-            <div>
+            <div key="stat-bookings">
               <p className="text-xs text-gray-600 dark:text-text-secondary">Bookings</p>
               <p className="text-lg font-semibold">{owner.totalBookings || 0}</p>
             </div>
@@ -239,13 +252,13 @@ const UnifiedPetPeopleView = () => {
 
                   {/* Quick Actions */}
                   <div className="flex gap-1">
-                    <Button size="sm" variant="outline" className="px-2">
+                    <Button key={`${pet.id}-book`} size="sm" variant="outline" className="px-2">
                       <CalendarPlus className="w-4 h-4" />
                     </Button>
-                    <Button size="sm" variant="outline" className="px-2">
+                    <Button key={`${pet.id}-msg`} size="sm" variant="outline" className="px-2">
                       <MessageSquare className="w-4 h-4" />
                     </Button>
-                    <Button size="sm" variant="outline" className="px-2">
+                    <Button key={`${pet.id}-edit`} size="sm" variant="outline" className="px-2">
                       <Edit className="w-4 h-4" />
                     </Button>
                   </div>
@@ -269,15 +282,15 @@ const UnifiedPetPeopleView = () => {
 
           {/* Action Buttons */}
           <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-surface-border">
-            <Button className="flex-1" size="sm">
+            <Button key={`${owner.id}-booking`} className="flex-1" size="sm">
               <CalendarPlus className="w-4 h-4 mr-1" />
               New Booking
             </Button>
-            <Button variant="outline" className="flex-1" size="sm">
+            <Button key={`${owner.id}-message`} variant="outline" className="flex-1" size="sm">
               <MessageSquare className="w-4 h-4 mr-1" />
               Message
             </Button>
-            <Button variant="outline" size="sm">
+            <Button key={`${owner.id}-more`} variant="outline" size="sm">
               <MoreVertical className="w-4 h-4" />
             </Button>
           </div>
@@ -306,24 +319,24 @@ const UnifiedPetPeopleView = () => {
       {/* Page Header */}
       <PageHeader
         title="Pets & People"
-        breadcrumb="Home > Pets & People"
-        action={
-          <div className="flex gap-2">
-            <Button variant="outline">
+        description="Home > Pets & People"
+        actions={
+          <>
+            <Button key="add-owner" variant="outline">
               <Plus className="w-4 h-4 mr-1" />
               Add Owner
             </Button>
-            <Button>
+            <Button key="add-pet">
               <Plus className="w-4 h-4 mr-1" />
               Add Pet
             </Button>
-          </div>
+          </>
         }
       />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-4 gap-4">
-        <Card className="p-4">
+        <Card key="card-total-owners" className="p-4">
           <div className="flex items-center gap-3">
             <Users className="w-8 h-8 text-blue-600 opacity-20" />
             <div>
@@ -333,7 +346,7 @@ const UnifiedPetPeopleView = () => {
           </div>
         </Card>
 
-        <Card className="p-4">
+        <Card key="card-active-owners" className="p-4">
           <div className="flex items-center gap-3">
             <Users className="w-8 h-8 text-green-600 opacity-20" />
             <div>
@@ -343,7 +356,7 @@ const UnifiedPetPeopleView = () => {
           </div>
         </Card>
 
-        <Card className="p-4">
+        <Card key="card-total-pets" className="p-4">
           <div className="flex items-center gap-3">
             <PawPrint className="w-8 h-8 text-purple-600 opacity-20" />
             <div>
@@ -353,7 +366,7 @@ const UnifiedPetPeopleView = () => {
           </div>
         </Card>
 
-        <Card className="p-4">
+        <Card key="card-active-pets" className="p-4">
           <div className="flex items-center gap-3">
             <PawPrint className="w-8 h-8 text-orange-600 opacity-20" />
             <div>
@@ -390,6 +403,7 @@ const UnifiedPetPeopleView = () => {
 
           <div className="flex items-center gap-2">
             <Button
+              key="view-grid"
               variant={viewMode === 'grid' ? 'primary' : 'outline'}
               size="sm"
               onClick={() => setViewMode('grid')}
@@ -397,6 +411,7 @@ const UnifiedPetPeopleView = () => {
               Grid
             </Button>
             <Button
+              key="view-list"
               variant={viewMode === 'list' ? 'primary' : 'outline'}
               size="sm"
               onClick={() => setViewMode('list')}

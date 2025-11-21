@@ -132,6 +132,20 @@
   --spacing-xl: var(--space-8);   /* 32px */
   --spacing-2xl: var(--space-12); /* 48px */
 
+  /* ===== COMPONENT SPACING - Generous Padding ===== */
+  --card-padding: var(--space-6);           /* 24px - generous card padding */
+  --card-padding-sm: var(--space-4);        /* 16px - compact variant */
+  --section-gap: var(--space-8);            /* 32px - gap between major sections */
+  --content-gap: var(--space-6);            /* 24px - gap between content blocks */
+  --element-gap: var(--space-4);            /* 16px - gap between elements */
+  --content-max-width: 1280px;              /* Prevent ultra-wide layouts */
+  --content-max-width-narrow: 1024px;       /* For reading-focused content */
+
+  /* ===== TYPOGRAPHY SPACING ===== */
+  --heading-margin-bottom: var(--space-4);  /* Space after headings */
+  --paragraph-margin-bottom: var(--space-4); /* Space after paragraphs */
+  --list-item-gap: var(--space-2);          /* Gap between list items */
+
   /* ========================================
      BORDERS & RADII
      ======================================== */
@@ -220,59 +234,96 @@
    ======================================== */
 
 .dark {
-  /* Dark Mode Color System - Deep Professional Backgrounds */
-  --color-dark-950: #0F0F1A; /* Deepest background */
-  --color-dark-900: #1A1A2E; /* Main background */
-  --color-dark-850: #1E1E2E; /* Elevated surfaces */
-  --color-dark-800: #252538; /* Cards/panels */
-  --color-dark-700: #2D2D42; /* Hover states */
+  /* ===== BACKGROUNDS - Material Design Standard ===== */
+  --bg-primary: #121212;              /* Base surface (7% gray - NOT pure black) */
+  --bg-secondary: #1E1E1E;            /* Elevated cards (2% white overlay = 1dp) */
+  --bg-tertiary: #252525;             /* Higher elevation (4% white overlay = 3dp) */
 
-  /* Surface tokens for cards, panels, modals */
-  --surface-primary: rgba(30, 30, 46, 0.6);   /* Main cards - glassmorphism */
-  --surface-secondary: rgba(37, 37, 56, 0.8); /* Elevated cards */
-  --surface-elevated: rgba(45, 45, 66, 0.9);  /* Modals, dropdowns */
-  --surface-border: rgba(255, 255, 255, 0.1); /* Subtle borders */
+  /* ===== SURFACE LAYERS - For elevation hierarchy ===== */
+  --surface-primary: #232323;         /* Cards, main panels (3% white = 2dp) */
+  --surface-elevated: #2C2C2C;        /* Dropdowns, popovers (8% white = 8dp) */
+  --surface-overlay: #383838;         /* Modals, tooltips (16% white = 24dp) */
 
-  /* Text Colors - High Contrast for Readability */
-  --text-primary: #F9FAFB;    /* Primary text - AAA compliant */
-  --text-secondary: #D1D5DB;  /* Secondary text */
-  --text-tertiary: #9CA3AF;   /* Tertiary/muted text */
-  --text-disabled: #6B7280;   /* Disabled state */
-  --text-inverse: #111827;    /* For light backgrounds */
+  /* ===== TEXT - Opacity-based hierarchy (NO pure white) ===== */
+  --text-primary: #DEDEDE;            /* 87% white (#DEDEDE = rgba(255,255,255,0.87)) */
+  --text-secondary: #9E9E9E;          /* 60% white for secondary text */
+  --text-tertiary: #737373;           /* 45% white for captions */
+  --text-disabled: #616161;           /* 38% white for disabled state */
 
-  /* Background Colors - Deep & Professional */
-  --bg-primary: #0F0F1A;      /* Page background */
-  --bg-secondary: #1A1A2E;    /* Section backgrounds */
-  --bg-tertiary: #1E1E2E;     /* Subtle variations */
+  /* ===== BORDERS & DIVIDERS ===== */
+  --border-color: #424242;            /* 20% white for visible borders */
+  --border-light: #2C2C2C;            /* 15% white for subtle dividers */
+  --border-focus: #7C7EF5;            /* Focus state (desaturated primary) */
 
-  /* Border Colors - Subtle Definition */
-  --border-primary: rgba(255, 255, 255, 0.1);
-  --border-secondary: rgba(255, 255, 255, 0.05);
-  --border-focus: var(--color-primary-500); /* Blue focus for brand consistency */
+  /* ===== INPUTS ===== */
+  --input-bg: #252525;                /* Input field backgrounds */
+  --input-border: #424242;            /* Input borders */
+  --input-border-hover: #525252;      /* Hover state */
+  --input-border-focus: #7C7EF5;      /* Focus state */
 
-  /* Interactive States */
-  --hover-overlay: rgba(255, 255, 255, 0.05);
-  --active-overlay: rgba(255, 255, 255, 0.1);
-  --focus-ring: 0 0 0 3px rgba(59, 130, 246, 0.3); /* Blue focus ring */
+  /* ===== STATUS COLORS - DESATURATED for dark mode ===== */
+  /* Success (Green) - Desaturated by ~20 points */
+  --color-success: #66BB6A;           /* Was #10B981 in light mode - now desaturated */
+  --color-success-light: rgba(102, 187, 106, 0.1);
+  --color-success-dark: #4CAF50;
 
-  /* Scrollbar styling for dark mode */
-  --scrollbar-track: var(--bg-secondary);
-  --scrollbar-thumb: rgba(255, 255, 255, 0.2);
-  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
+  /* Warning (Orange) - Desaturated by ~20 points */
+  --color-warning: #FFA726;           /* Was #F59E0B in light mode - now desaturated */
+  --color-warning-light: rgba(255, 167, 38, 0.1);
+  --color-warning-dark: #FB8C00;
 
-  /* Form inputs - proper contrast */
-  --input-bg: rgba(30, 30, 46, 0.8);
-  --input-border: rgba(255, 255, 255, 0.15);
-  --input-border-hover: rgba(255, 255, 255, 0.25);
-  --input-border-focus: var(--color-primary-500); /* Blue focus */
-  --input-text: #F9FAFB;
-  --input-placeholder: #9CA3AF;
+  /* Error (Red) - Desaturated by ~20 points */
+  --color-error: #EF5350;             /* Was #EF4444 in light mode - slightly desaturated */
+  --color-error-light: rgba(239, 83, 80, 0.1);
+  --color-error-dark: #E53935;
 
-  /* Shadows - Adjusted for dark backgrounds */
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.4);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.6), 0 8px 10px -6px rgb(0 0 0 / 0.5);
+  /* Info (Blue) - Desaturated by ~20 points */
+  --color-info: #42A5F5;              /* Was #3B82F6 in light mode - now desaturated */
+  --color-info-light: rgba(66, 165, 245, 0.1);
+  --color-info-dark: #1E88E5;
+
+  /* ===== PRIMARY BRAND - Desaturated purple for dark mode ===== */
+  --color-primary-400: #A5A6F8;       /* Lighter for high contrast */
+  --color-primary-500: #8B8DF6;       /* Desaturated from light mode */
+  --color-primary-600: #7C7EF5;       /* Main brand color for dark mode */
+  --color-primary-700: #6D6FF4;       /* Hover/active state */
+  --color-primary-800: #5E60F3;       /* Pressed state */
+  --color-primary-light: rgba(124, 126, 245, 0.1);
+
+  /* ===== SECONDARY (Green) - Desaturated for dark mode ===== */
+  --color-secondary-400: #7EDB97;
+  --color-secondary-500: #6ED98B;
+  --color-secondary-600: #5ECC7B;     /* Main secondary for dark mode */
+  --color-secondary-700: #4EBF6B;
+  --color-secondary-light: rgba(94, 204, 123, 0.1);
+
+  /* ===== ACCENT (Blue) - Desaturated for dark mode ===== */
+  --color-accent: #5B9CFF;            /* Was #3B82F6 - desaturated */
+  --color-accent-light: rgba(91, 156, 255, 0.1);
+
+  /* ===== SEMANTIC COLORS ===== */
+  --color-link: #5B9CFF;              /* Links in dark mode */
+  --color-link-hover: #7CAFFF;        /* Link hover */
+
+  /* ===== SHADOWS - Lighter for dark mode ===== */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.4);
+
+  /* ===== COMPONENT SPACING - Same as light mode ===== */
+  --card-padding: var(--space-6);           /* 24px - generous card padding */
+  --card-padding-sm: var(--space-4);        /* 16px - compact variant */
+  --section-gap: var(--space-8);            /* 32px - gap between major sections */
+  --content-gap: var(--space-6);            /* 24px - gap between content blocks */
+  --element-gap: var(--space-4);            /* 16px - gap between elements */
+  --content-max-width: 1280px;              /* Prevent ultra-wide layouts */
+  --content-max-width-narrow: 1024px;       /* For reading-focused content */
+
+  /* ===== TYPOGRAPHY SPACING ===== */
+  --heading-margin-bottom: var(--space-4);  /* Space after headings */
+  --paragraph-margin-bottom: var(--space-4); /* Space after paragraphs */
+  --list-item-gap: var(--space-2);          /* Gap between list items */
 }
 
 /* ========================================

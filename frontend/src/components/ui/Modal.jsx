@@ -99,7 +99,7 @@ const Modal = ({ open, onClose, title, ariaLabel = 'Dialog', children, footer, c
         <div className="flex items-start justify-between gap-4">
           <div>
             {title && (
-              <h3 id={headingId} className="text-2xl font-bold text-text dark:text-text-primary">
+              <h3 id={headingId} className="text-2xl font-semibold text-text dark:text-text-primary">
                 {title}
               </h3>
             )}

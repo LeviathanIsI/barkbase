@@ -73,7 +73,7 @@ const PlaceholderPage = ({
       {/* Page Header */}
       <div className="mb-8 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-bold text-text">{title}</h1>
+          <h1 className="text-3xl font-semibold text-text">{title}</h1>
           {badge && (
             <Badge variant={badge.variant || 'secondary'}>
               {badge.label}

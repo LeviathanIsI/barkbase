@@ -28,7 +28,7 @@ const Schedule = () => {
   const [filters, setFilters] = useState({
     services: ["boarding", "daycare", "grooming"],
     kennels: ["all"],
-    status: ["confirmed", "pending", "checked-in"],
+    status: ["CONFIRMED", "PENDING", "CHECKED_IN"],
     highlights: ["check-in-today", "check-out-today", "medication-required"],
   });
 

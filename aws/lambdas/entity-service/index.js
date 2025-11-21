@@ -1,4 +1,4 @@
-const { getPool, getTenantIdFromEvent } = require('/opt/nodejs');
+const { getPool, getTenantIdFromEvent, getJWTValidator } = require('/opt/nodejs');
 
 const HEADERS = {
     'Access-Control-Allow-Origin': '*',
@@ -6,33 +6,107 @@ const HEADERS = {
     'Access-Control-Allow-Methods': 'OPTIONS,GET,POST,PUT,PATCH,DELETE'
 };
 
-// Extract user info from API Gateway authorizer (JWT already validated by API Gateway)
-function getUserInfoFromEvent(event) {
+// Enhanced authorization with fallback JWT validation
+async function getUserInfoFromEvent(event) {
+    // First, try to get claims from API Gateway JWT authorizer
     const claims = event?.requestContext?.authorizer?.jwt?.claims;
-    if (!claims) {
-        console.error('No JWT claims found in event');
-        return null;
+
+    if (claims) {
+        console.log('[AUTH] Using API Gateway JWT claims');
+
+        // Cognito tokens don't have tenantId - fetch from database
+        let tenantId = claims['custom:tenantId'] || claims.tenantId;
+
+        if (!tenantId && claims.sub) {
+            console.log('[AUTH] Fetching tenantId from database for Cognito user:', claims.sub);
+            const pool = getPool();
+
+            try {
+                // Query for user's tenant based on Cognito sub or email
+                const result = await pool.query(
+                    `SELECT m."tenantId"
+                     FROM public."Membership" m
+                     JOIN public."User" u ON m."userId" = u."recordId"
+                     WHERE (u."cognitoSub" = $1 OR u."email" = $2)
+                     AND m."deletedAt" IS NULL
+                     ORDER BY m."updatedAt" DESC
+                     LIMIT 1`,
+                    [claims.sub, claims.email || claims['cognito:username']]
+                );
+
+                if (result.rows.length > 0) {
+                    tenantId = result.rows[0].tenantId;
+                    console.log('[AUTH] Found tenantId from database:', tenantId);
+                } else {
+                    console.error('[AUTH] No tenant found for user:', claims.sub);
+                }
+            } catch (error) {
+                console.error('[AUTH] Error fetching tenantId from database:', error.message);
+            }
+        }
+
+        return {
+            sub: claims.sub,
+            username: claims.username || claims['cognito:username'],
+            email: claims.email,
+            tenantId: tenantId,
+            userId: claims.sub,
+            role: claims['custom:role'] || 'USER'
+        };
     }
 
-    return {
-        sub: claims.sub,
-        username: claims.username,
-        email: claims.email,
-        tenantId: claims['custom:tenantId'] || claims.tenantId
-    };
+    // Fallback: Manual JWT validation
+    console.log('[AUTH] No API Gateway claims found, falling back to manual JWT validation');
+
+    try {
+        const authHeader = event?.headers?.Authorization || event?.headers?.authorization;
+
+        if (!authHeader) {
+            console.error('[AUTH] No Authorization header found');
+            return null;
+        }
+
+        const jwtValidator = getJWTValidator();
+        const userInfo = await jwtValidator.validateRequest(event);
+
+        if (!userInfo) {
+            console.error('[AUTH] JWT validation failed');
+            return null;
+        }
+
+        console.log('[AUTH] Manual JWT validation successful');
+
+        const tenantId = userInfo.tenantId || userInfo['custom:tenantId'] || await getTenantIdFromEvent(event);
+
+        return {
+            sub: userInfo.sub,
+            username: userInfo.username || userInfo['cognito:username'],
+            email: userInfo.email,
+            tenantId: tenantId,
+            userId: userInfo.sub,
+            role: userInfo.role || userInfo['custom:role'] || 'USER'
+        };
+    } catch (error) {
+        console.error('[AUTH] Manual JWT validation error:', error.message);
+        return null;
+    }
 }
 
 exports.handler = async (event) => {
+    // Debug logging to see actual event structure
+    console.log('[DEBUG] Full event:', JSON.stringify(event, null, 2));
+    console.log('[DEBUG] requestContext:', JSON.stringify(event.requestContext, null, 2));
+    console.log('[DEBUG] headers:', JSON.stringify(event.headers, null, 2));
 
-    const httpMethod = event.requestContext.http.method;
-    const path = event.requestContext.http.path;
+    const httpMethod = event.requestContext?.http?.method || event.httpMethod;
+    const path = event.requestContext?.http?.path || event.path;
 
     if (httpMethod === 'OPTIONS') {
         return { statusCode: 200, headers: HEADERS, body: '' };
     }
 
-    // Extract user info from API Gateway authorizer (JWT already validated)
-    const userInfo = getUserInfoFromEvent(event);
+    // Extract user info from API Gateway authorizer with fallback to manual JWT validation
+    const userInfo = await getUserInfoFromEvent(event);
     if (!userInfo) {
         return {
             statusCode: 401,
@@ -57,6 +131,10 @@ exports.handler = async (event) => {
             // Vaccination routes - must come before general pet routes to avoid incorrect matching
             if (httpMethod === 'GET' && path === '/api/v1/pets/vaccinations/expiring') {
                 return await listExpiringVaccinations(event, tenantId);
+            }
+            // Medical alerts route
+            if (httpMethod === 'GET' && path === '/api/v1/pets/medical-alerts') {
+                return await listMedicalAlerts(event, tenantId);
             }
             if (httpMethod === 'POST' && path.endsWith('/vaccinations') && event.pathParameters?.id && event.pathParameters?.vaccinationId === undefined) {
                 return await createPetVaccination(event, tenantId);
@@ -185,6 +263,61 @@ const listExpiringVaccinations = async (event, tenantId) => {
         statusCode: 200,
         headers: HEADERS,
         body: JSON.stringify(rows),
+    };
+};
+
+const listMedicalAlerts = async (event, tenantId) => {
+    const pool = getPool();
+    const { rows } = await pool.query(
+        `
+        SELECT
+            p."recordId" AS "petId",
+            p."name" AS "petName",
+            p."species" AS "petSpecies",
+            p."breed" AS "petBreed",
+            p."medicalNotes",
+            o."recordId" AS "ownerId",
+            o."firstName" AS "ownerFirstName",
+            o."lastName" AS "ownerLastName",
+            o."email" AS "ownerEmail",
+            o."phone" AS "ownerPhone",
+            'critical' AS "severity",
+            p."medicalNotes" AS "message"
+        FROM "Pet" p
+        LEFT JOIN "PetOwner" po ON po."petId" = p."recordId" AND po."tenantId" = p."tenantId" AND po."isPrimary" = true
+        LEFT JOIN "Owner" o ON o."recordId" = po."ownerId" AND o."tenantId" = p."tenantId"
+        WHERE p."tenantId" = $1
+          AND p."medicalNotes" IS NOT NULL
+          AND p."medicalNotes" != ''
+          AND p."status" = 'active'
+          AND LOWER(p."medicalNotes") NOT LIKE '%no known%'
+          AND LOWER(p."medicalNotes") NOT LIKE '%no medical%'
+          AND LOWER(p."medicalNotes") NOT LIKE '%none%'
+          AND LOWER(p."medicalNotes") NOT LIKE '%n/a%'
+        ORDER BY p."name" ASC
+        `,
+        [tenantId]
+    );
+
+    // Format as alert objects
+    const alerts = rows.map(row => ({
+        id: `medical-${row.petId}`,
+        petId: row.petId,
+        petName: row.petName,
+        petSpecies: row.petSpecies,
+        petBreed: row.petBreed,
+        ownerId: row.ownerId,
+        ownerName: `${row.ownerFirstName || ''} ${row.ownerLastName || ''}`.trim(),
+        ownerEmail: row.ownerEmail,
+        ownerPhone: row.ownerPhone,
+        severity: row.severity,
+        message: row.message
+    }));
+
+    return {
+        statusCode: 200,
+        headers: HEADERS,
+        body: JSON.stringify(alerts),
     };
 };
 

@@ -21,7 +21,7 @@ export default {
           primary: 'var(--surface-primary)',
           secondary: 'var(--surface-secondary)',
           elevated: 'var(--surface-elevated)',
-          border: 'var(--surface-border)',
+          overlay: 'var(--surface-overlay)',
         },
         text: {
           primary: 'var(--text-primary)',
@@ -93,7 +93,11 @@ export default {
         },
 
         // Border colors
-        border: 'var(--border-primary)',
+        border: {
+          DEFAULT: 'var(--border-color)',
+          light: 'var(--border-light)',
+          focus: 'var(--border-focus)',
+        },
       },
 
       // Typography - Inter Font System (from design-tokens.css)

@@ -23,16 +23,25 @@ const BatchCheckIn = () => {
     notes: ''
   });
 
-  // Fetch today's arrivals
+  // Fetch today's arrivals (bookings starting today that aren't checked in)
   const { data: arrivals = [], isLoading } = useQuery({
     queryKey: ['bookings', 'arrivals', 'today'],
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];
-      const response = await apiClient.get(`/api/v1/bookings?date=${today}&status=pending&type=arrival`);
+      // Fetch all bookings for today
+      const response = await apiClient.get(`/api/v1/bookings?date=${today}`);
       const bookings = Array.isArray(response) ? response : response?.data || [];
 
+      // Filter to PENDING or CONFIRMED bookings starting today
+      const todaysArrivals = bookings.filter(b => {
+        const status = b.status || b.bookingStatus;
+        const isPendingOrConfirmed = status === 'PENDING' || status === 'CONFIRMED';
+        const startDate = new Date(b.startDate || b.checkInDate).toISOString().split('T')[0];
+        return isPendingOrConfirmed && startDate === today;
+      });
+
       // Sort by arrival time
-      return bookings.sort((a, b) => {
+      return todaysArrivals.sort((a, b) => {
         const timeA = new Date(a.arrivalTime || a.startDate).getTime();
         const timeB = new Date(b.arrivalTime || b.startDate).getTime();
         return timeA - timeB;
@@ -41,32 +50,71 @@ const BatchCheckIn = () => {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
-  // Batch check-in mutation
+  // Track individual check-in results
+  const [checkInResults, setCheckInResults] = useState({ success: [], failed: [] });
+
+  // Batch check-in mutation with individual error handling
   const checkInMutation = useMutation({
     mutationFn: async (data) => {
-      const promises = data.bookingIds.map(bookingId =>
-        apiClient.post(`/api/v1/bookings/${bookingId}/check-in`, {
-          ...data.details,
-          timestamp: new Date().toISOString(),
-          batchCheckIn: true
-        })
-      );
-      return Promise.all(promises);
+      const results = { success: [], failed: [] };
+
+      // Process check-ins sequentially to track individual results
+      for (const bookingId of data.bookingIds) {
+        try {
+          await apiClient.post(`/api/v1/bookings/${bookingId}/check-in`, {
+            ...data.details,
+            timestamp: new Date().toISOString(),
+            batchCheckIn: true,
+            batchSize: data.bookingIds.length
+          });
+
+          // Get pet name for success message
+          const booking = arrivals.find(a => (a.id || a.recordId) === bookingId);
+          const petName = booking?.petName || booking?.pet?.name || 'Unknown';
+          results.success.push({ id: bookingId, name: petName });
+        } catch (error) {
+          const booking = arrivals.find(a => (a.id || a.recordId) === bookingId);
+          const petName = booking?.petName || booking?.pet?.name || 'Unknown';
+          results.failed.push({
+            id: bookingId,
+            name: petName,
+            error: error.message || 'Check-in failed'
+          });
+        }
+      }
+
+      setCheckInResults(results);
+      return results;
     },
-    onSuccess: () => {
+    onSuccess: (results) => {
       queryClient.invalidateQueries(['bookings']);
-      toast.success(`Successfully checked in ${selectedBookings.length} pets!`);
-      setSelectedBookings([]);
-      setStep('select');
-      setBatchData({
-        vaccinationsVerified: true,
-        weightCollected: true,
-        photosRequired: false,
-        notes: ''
-      });
+
+      // Show appropriate toast based on results
+      if (results.failed.length === 0) {
+        toast.success(`Successfully checked in ${results.success.length} pets!`);
+      } else if (results.success.length === 0) {
+        toast.error(`All check-ins failed. Please try again.`);
+      } else {
+        toast.success(`Checked in ${results.success.length} pets. ${results.failed.length} failed.`);
+      }
+
+      // Reset if all successful
+      if (results.failed.length === 0) {
+        setTimeout(() => {
+          setSelectedBookings([]);
+          setStep('select');
+          setBatchData({
+            vaccinationsVerified: true,
+            weightCollected: true,
+            photosRequired: false,
+            notes: ''
+          });
+          setCheckInResults({ success: [], failed: [] });
+        }, 2000);
+      }
     },
     onError: (error) => {
-      toast.error(`Check-in failed: ${error.message}`);
+      toast.error(`Batch check-in failed: ${error.message}`);
     }
   });
 
@@ -427,17 +475,67 @@ const BatchCheckIn = () => {
                   <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-300" />
                 </div>
                 <h3 className="text-lg font-semibold text-green-900 dark:text-green-300">
-                  Success!
+                  {checkInResults.failed.length === 0 ? 'Success!' : 'Partially Complete'}
                 </h3>
-                <p className="text-sm text-gray-600 dark:text-text-secondary">
-                  {selectedBookings.length} pets checked in successfully
-                </p>
-                <Button onClick={() => {
-                  setStep('select');
-                  setSelectedBookings([]);
-                }}>
-                  Check In More Pets
-                </Button>
+
+                {/* Success List */}
+                {checkInResults.success.length > 0 && (
+                  <div className="text-left max-w-md mx-auto">
+                    <p className="text-sm font-medium text-green-700 dark:text-green-400 mb-2">
+                      ✓ Successfully checked in ({checkInResults.success.length}):
+                    </p>
+                    <div className="space-y-1 max-h-40 overflow-y-auto">
+                      {checkInResults.success.map(result => (
+                        <div key={result.id} className="text-sm text-gray-700 dark:text-text-secondary flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                          <span>{result.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Failed List */}
+                {checkInResults.failed.length > 0 && (
+                  <div className="text-left max-w-md mx-auto mt-4">
+                    <p className="text-sm font-medium text-red-700 dark:text-red-400 mb-2">
+                      ✗ Failed check-ins ({checkInResults.failed.length}):
+                    </p>
+                    <div className="space-y-1 max-h-40 overflow-y-auto">
+                      {checkInResults.failed.map(result => (
+                        <div key={result.id} className="text-sm">
+                          <div className="flex items-center gap-2 text-red-700 dark:text-red-400">
+                            <X className="w-4 h-4 flex-shrink-0" />
+                            <span className="font-medium">{result.name}</span>
+                          </div>
+                          <p className="text-xs text-gray-600 dark:text-text-secondary ml-6">
+                            {result.error}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-3 justify-center mt-6">
+                  {checkInResults.failed.length > 0 && (
+                    <Button variant="outline" onClick={() => {
+                      // Retry failed check-ins
+                      setSelectedBookings(checkInResults.failed.map(f => f.id));
+                      setStep('verify');
+                      setCheckInResults({ success: [], failed: [] });
+                    }}>
+                      Retry Failed
+                    </Button>
+                  )}
+                  <Button onClick={() => {
+                    setStep('select');
+                    setSelectedBookings([]);
+                    setCheckInResults({ success: [], failed: [] });
+                  }}>
+                    {checkInResults.failed.length === 0 ? 'Check In More Pets' : 'Back to Selection'}
+                  </Button>
+                </div>
               </>
             ) : (
               <>

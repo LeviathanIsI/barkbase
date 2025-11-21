@@ -216,8 +216,8 @@ function errorResponse(statusCode, errorCode, message, details = {}, event = nul
 // auditLog function now imported from security-utils
 
 exports.handler = async (event) => {
-    const httpMethod = event.requestContext.http.method;
-    const path = event.requestContext.http.path;
+    const httpMethod = event.requestContext?.http?.method || event.httpMethod;
+    const path = event.rawPath || event.path;
 
     try {
         if (httpMethod === 'POST' && path === '/api/v1/auth/login') {
@@ -248,11 +248,13 @@ exports.handler = async (event) => {
 };
 
 async function login(event) {
+    const sourceIp = event.requestContext?.http?.sourceIp ||
+                     event.requestContext?.identity?.sourceIp ||
+                     event.headers?.['x-forwarded-for'] ||
+                     'unknown';
+
     try {
         const metadata = getRequestMetadata(event);
-        const sourceIp = event.requestContext?.http?.sourceIp ||
-                         event.headers?.['x-forwarded-for'] ||
-                         'unknown';
 
         const { email, password } = JSON.parse(event.body || '{}');
 
@@ -311,6 +313,7 @@ async function login(event) {
 
         // Check if user is a Cognito OAuth user
         let validPassword = false;
+        let cognitoTokens = null;
         if (user.passwordHash === 'COGNITO_AUTH') {
             // User is authenticated through Cognito
             console.log(`[AUTH] User ${email} uses Cognito authentication`);
@@ -329,9 +332,10 @@ async function login(event) {
                 const cognitoResponse = await cognitoClient.send(authCommand);
 
                 if (cognitoResponse.AuthenticationResult) {
-                    // Cognito authentication successful
+                    // Cognito authentication successful - SAVE THE REAL TOKENS
                     validPassword = true;
-                    console.log(`[AUTH] Cognito authentication successful for ${email}`);
+                    cognitoTokens = cognitoResponse.AuthenticationResult;
+                    console.log(`[AUTH] Cognito authentication successful for ${email} - using Cognito RS256 tokens`);
                 }
             } catch (cognitoError) {
                 console.error('[AUTH] Cognito authentication failed:', cognitoError.message);
@@ -385,17 +389,29 @@ async function login(event) {
             return errorResponse(401, ERROR_CODES.INVALID_CREDENTIALS, 'Invalid email or password', { event });
         }
 
-        const accessToken = jwt.sign(
-            { sub: user.recordId, tenantId: tenant.recordId, membershipId: user.membershipId, role: user.role },
-            JWT_SECRET_PRIMARY,
-            { expiresIn: JWT_ACCESS_TTL }
-        );
+        // Use Cognito tokens if available (RS256), otherwise create custom tokens (HS256)
+        let accessToken, refreshToken;
 
-        const refreshToken = jwt.sign(
-            { sub: user.recordId, tenantId: tenant.recordId, membershipId: user.membershipId },
-            JWT_SECRET_PRIMARY,
-            { expiresIn: JWT_REFRESH_TTL }
-        );
+        if (cognitoTokens) {
+            // Use real Cognito RS256 tokens for API Gateway
+            accessToken = cognitoTokens.AccessToken || cognitoTokens.IdToken;
+            refreshToken = cognitoTokens.RefreshToken;
+            console.log('[AUTH] Using Cognito RS256 tokens for API Gateway compatibility');
+        } else {
+            // Fallback to custom HS256 tokens for non-Cognito users
+            accessToken = jwt.sign(
+                { sub: user.recordId, tenantId: tenant.recordId, membershipId: user.membershipId, role: user.role },
+                JWT_SECRET_PRIMARY,
+                { expiresIn: JWT_ACCESS_TTL }
+            );
+
+            refreshToken = jwt.sign(
+                { sub: user.recordId, tenantId: tenant.recordId, membershipId: user.membershipId },
+                JWT_SECRET_PRIMARY,
+                { expiresIn: JWT_REFRESH_TTL }
+            );
+            console.log('[AUTH] Using custom HS256 tokens for backward compatibility');
+        }
 
         await pool.query(
             `UPDATE "Membership" SET "refreshToken" = $1, "updatedAt" = NOW() WHERE "recordId" = $2`,
@@ -417,10 +433,12 @@ async function login(event) {
 
         console.log('[LOGIN] Setting cookies in response headers');
 
-        // Create response without tokens in body
+        // Create response with accessToken in body (needed for API Gateway Authorization header)
+        // refreshToken stays in httpOnly cookie for security
         const response = createSuccessResponse(200, {
             user: { recordId: user.recordId, email: user.email, role: user.role },
-            tenant: { recordId: tenant.recordId, slug: tenant.slug, name: tenant.name, plan: tenant.plan }
+            tenant: { recordId: tenant.recordId, slug: tenant.slug, name: tenant.name, plan: tenant.plan },
+            accessToken: accessToken // Include for API Gateway Authorization header
         }, event);
 
         // Add Set-Cookie headers (multiple Set-Cookie headers require multiValueHeaders)
@@ -649,7 +667,10 @@ async function refresh(event) {
         // SECURITY: Set new access token as httpOnly cookie
         const accessTokenCookie = createCookieHeader('accessToken', accessToken, 900); // 15 minutes
 
-        const response = createSuccessResponse(200, { role: membership.role }, event);
+        const response = createSuccessResponse(200, {
+            role: membership.role,
+            accessToken: accessToken // Include for API Gateway Authorization header
+        }, event);
 
         // Add Set-Cookie header
         if (!response.multiValueHeaders) {

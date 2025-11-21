@@ -46,7 +46,7 @@ const ObjectSetup = ({
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
           {Icon && <Icon className="h-8 w-8 text-primary" />}
-          <h1 className="text-3xl font-bold text-text">{objectLabel}</h1>
+          <h1 className="text-3xl font-semibold text-text">{objectLabel}</h1>
         </div>
         {description && (
           <p className="text-sm text-muted">{description}</p>
