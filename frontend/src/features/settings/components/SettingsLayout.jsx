@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { User, Building, Database, Settings as SettingsIcon, Bell, CreditCard, Users, Shield, FileText, AlertTriangle, Tag, Plug } from "lucide-react";
 import { PageHeader } from "@/components/ui/Card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 
 const TAB_CONFIG = [
   {
@@ -116,31 +117,23 @@ export default function SettingsLayout() {
       />
 
       {/* Tab Navigation */}
-      <div className="bg-white dark:bg-surface-primary border-b border-gray-300 dark:border-surface-border mb-6">
-        <div className="max-w-7xl mx-auto px-6">
-          <nav className="flex space-x-8 overflow-x-auto">
-            {TAB_CONFIG.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => handleTabChange(tab.id)}
-                  className={`flex items-center gap-3 px-1 py-4 border-b-2 font-medium text-sm whitespace-nowrap transition-colors ${
-                    isActive
-                      ? 'border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400'
-                      : 'border-transparent text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary hover:border-gray-300 dark:hover:border-surface-border'
-                  }`}
-                >
-                  <Icon className="h-5 w-5" />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </nav>
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
+        <div className="bg-white dark:bg-surface-primary border-b border-gray-300 dark:border-surface-border mb-6">
+          <div className="max-w-7xl mx-auto px-6">
+            <TabsList className="flex overflow-x-auto gap-4 whitespace-nowrap">
+              {TAB_CONFIG.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <TabsTrigger key={tab.id} value={tab.id} className="flex items-center gap-2 text-sm font-medium">
+                    <Icon className="h-5 w-5" />
+                    {tab.label}
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </div>
         </div>
-      </div>
+      </Tabs>
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 pb-12">

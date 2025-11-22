@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card, MetricCard, PageHeader } from '@/components/ui/Card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -137,32 +138,19 @@ const DashboardEnhanced = () => {
         breadcrumb="Home > Dashboard"
         title="Dashboard"
         actions={
-          <div className="flex items-center gap-3">
-            {/* View Mode Toggle */}
-            <div className="flex items-center bg-gray-100 dark:bg-surface-secondary rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('overview')}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${
-                  viewMode === 'overview'
-                    ? 'bg-white dark:bg-surface-primary text-gray-900 dark:text-text-primary shadow-sm'
-                    : 'text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary dark:text-text-primary'
-                }`}
-              >
-                <LayoutDashboard className="h-4 w-4 inline mr-1.5" />
-                Overview
-              </button>
-              <button
-                onClick={() => setViewMode('today')}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${
-                  viewMode === 'today'
-                    ? 'bg-white dark:bg-surface-primary text-gray-900 dark:text-text-primary shadow-sm'
-                    : 'text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary dark:text-text-primary'
-                }`}
-              >
-                <List className="h-4 w-4 inline mr-1.5" />
-                Today's Pets
-              </button>
-            </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Tabs value={viewMode} onValueChange={setViewMode} className="w-full sm:w-auto">
+              <TabsList className="gap-4">
+                <TabsTrigger value="overview" className="flex items-center gap-1.5 text-sm font-medium">
+                  <LayoutDashboard className="h-4 w-4" />
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger value="today" className="flex items-center gap-1.5 text-sm font-medium">
+                  <List className="h-4 w-4" />
+                  Today's Pets
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
             
             <Button variant="secondary" size="sm" onClick={() => navigate('/bookings?action=new')}>
               <UserPlus className="h-4 w-4 mr-2" />

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Calendar, Plus, List } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import SinglePageBookingWizard from '../components/SinglePageBookingWizard';
 import VisualRunBoard from '../components/VisualRunBoard';
 import BookingsOverview from './BookingsOverview';
@@ -33,30 +34,18 @@ const Bookings = () => {
         <div className="flex items-center gap-3">
           {/* View Mode Toggles - Hidden when in New Booking mode */}
           {!showNewBooking && (
-            <div className="flex items-center bg-gray-100 dark:bg-surface-secondary rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('calendar')}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${
-                  viewMode === 'calendar'
-                    ? 'bg-white dark:bg-surface-primary text-gray-900 dark:text-text-primary shadow-sm' 
-                    : 'text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary dark:text-text-primary'
-                }`}
-              >
-                <Calendar className="h-4 w-4 inline mr-1.5" />
-                Run Board
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${
-                  viewMode === 'list'
-                    ? 'bg-white dark:bg-surface-primary text-gray-900 dark:text-text-primary shadow-sm' 
-                    : 'text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary dark:text-text-primary'
-                }`}
-              >
-                <List className="h-4 w-4 inline mr-1.5" />
-                List View
-              </button>
-            </div>
+            <Tabs value={viewMode} onValueChange={setViewMode} className="hidden sm:block">
+              <TabsList className="gap-4">
+                <TabsTrigger value="calendar" className="flex items-center gap-1.5 text-sm font-medium">
+                  <Calendar className="h-4 w-4" />
+                  Run Board
+                </TabsTrigger>
+                <TabsTrigger value="list" className="flex items-center gap-1.5 text-sm font-medium">
+                  <List className="h-4 w-4" />
+                  List View
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           )}
 
           {/* New Booking Button */}

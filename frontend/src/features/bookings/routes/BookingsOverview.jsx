@@ -3,6 +3,7 @@ import { } from 'react-router-dom';
 import { format } from 'date-fns';
 import { Calendar, List, Activity, Layout, Search, Settings } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { Card, PageHeader } from '@/components/ui/Card';
 import BookingCard from '../components/BookingCard';
 import ListView from '../components/ListView';
@@ -133,48 +134,28 @@ const BookingsOverview = () => {
         title="Bookings"
         subtitle="Complete booking management with conflict detection and automated workflows"
         actions={
-          <div className="flex items-center gap-2">
-            {/* View Toggle */}
-            <div className="flex items-center bg-gray-100 dark:bg-surface-secondary rounded-lg p-1">
-              <Button
-                variant={activeView === 'list' ? 'primary' : 'ghost'}
-                size="sm"
-                onClick={() => handleViewChange('list')}
-                className="px-3"
-              >
-                <List className="h-4 w-4 mr-2" />
-                List
-              </Button>
-              <Button
-                variant={activeView === 'calendar' ? 'primary' : 'ghost'}
-                size="sm"
-                onClick={() => handleViewChange('calendar')}
-                className="px-3"
-              >
-                <Calendar className="h-4 w-4 mr-2" />
-                Calendar
-              </Button>
-              <Button
-                variant={activeView === 'timeline' ? 'primary' : 'ghost'}
-                size="sm"
-                onClick={() => handleViewChange('timeline')}
-                className="px-3"
-              >
-                <Activity className="h-4 w-4 mr-2" />
-                Timeline
-              </Button>
-              <Button
-                variant={activeView === 'kanban' ? 'primary' : 'ghost'}
-                size="sm"
-                onClick={() => handleViewChange('kanban')}
-                className="px-3"
-              >
-                <Layout className="h-4 w-4 mr-2" />
-                Kanban
-              </Button>
-            </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Tabs value={activeView} onValueChange={handleViewChange} className="w-full sm:w-auto">
+              <TabsList className="gap-2 sm:gap-4 flex-wrap">
+                <TabsTrigger value="list" className="flex items-center gap-1.5 text-sm font-medium">
+                  <List className="h-4 w-4" />
+                  List
+                </TabsTrigger>
+                <TabsTrigger value="calendar" className="flex items-center gap-1.5 text-sm font-medium">
+                  <Calendar className="h-4 w-4" />
+                  Calendar
+                </TabsTrigger>
+                <TabsTrigger value="timeline" className="flex items-center gap-1.5 text-sm font-medium">
+                  <Activity className="h-4 w-4" />
+                  Timeline
+                </TabsTrigger>
+                <TabsTrigger value="kanban" className="flex items-center gap-1.5 text-sm font-medium">
+                  <Layout className="h-4 w-4" />
+                  Kanban
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
 
-            {/* Action Buttons */}
             <Button variant="outline" size="sm" onClick={() => setShowFilters(true)}>
               <Settings className="h-4 w-4 mr-2" />
               Filters

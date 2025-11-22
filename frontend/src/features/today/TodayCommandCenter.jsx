@@ -8,6 +8,7 @@ import {
 import { Card } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import PetAvatar from '@/components/ui/PetAvatar';
 import BatchCheckIn from '@/features/bookings/components/BatchCheckIn';
 import { StatCard } from '@/components/dashboard/StatCard';
@@ -382,30 +383,19 @@ const TodayCommandCenter = () => {
         />
       </div>
 
-      {/* View Toggle */}
-      <div className="flex gap-2">
-        <Button
-          variant={activeView === 'overview' ? 'primary' : 'outline'}
-          onClick={() => setActiveView('overview')}
-          size="sm"
-        >
-          Overview
-        </Button>
-        <Button
-          variant={activeView === 'checkin' ? 'primary' : 'outline'}
-          onClick={() => setActiveView('checkin')}
-          size="sm"
-        >
-          Batch Check-in
-        </Button>
-        <Button
-          variant={activeView === 'checkout' ? 'primary' : 'outline'}
-          onClick={() => setActiveView('checkout')}
-          size="sm"
-        >
-          Batch Check-out
-        </Button>
-      </div>
+      <Tabs value={activeView} onValueChange={setActiveView}>
+        <TabsList className="gap-4">
+          <TabsTrigger value="overview" className="text-sm font-medium">
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="checkin" className="text-sm font-medium">
+            Batch Check-in
+          </TabsTrigger>
+          <TabsTrigger value="checkout" className="text-sm font-medium">
+            Batch Check-out
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {/* Main Content Area */}
       {activeView === 'overview' && (
