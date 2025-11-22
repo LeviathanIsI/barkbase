@@ -297,58 +297,61 @@ const TodayCommandCenter = () => {
   return (
     <div className="flex h-full flex-col space-y-6 px-4 py-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-950 dark:to-primary-900 rounded-xl p-6 md:p-8">
-        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2">
-          Today{kennelName ? ` at ${kennelName}` : ''}
-        </h1>
-        <p className="text-lg text-gray-600 dark:text-gray-300 mb-6">
-          {formattedDate}
-        </p>
-        
-        {/* Key Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <UserCheck className="w-5 h-5 text-success-600" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">Arriving</span>
-            </div>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.arrivals}</p>
+      <Card className="p-6">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+          {/* Title and Date */}
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-dark-text-primary">
+              Today{kennelName ? ` at ${kennelName}` : ''}
+            </h1>
+            <p className="text-sm text-gray-600 dark:text-dark-text-secondary mt-1">
+              {formattedDate}
+            </p>
           </div>
           
-          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <UserX className="w-5 h-5 text-warning-600" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">Departing</span>
-            </div>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.departures}</p>
-          </div>
-          
-          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Home className="w-5 h-5 text-primary-600" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">In Facility</span>
-            </div>
-            <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.inFacility}</p>
-          </div>
-          
-          {stats.attentionItems > 0 && (
-            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <AlertCircle className="w-5 h-5 text-error-600" />
-                <span className="text-sm text-gray-600 dark:text-gray-400">Attention</span>
-              </div>
-              <p className="text-2xl font-bold text-error-600">{stats.attentionItems}</p>
-            </div>
-          )}
-        </div>
-        
-        {/* Primary CTA */}
-        <div className="mt-6">
-          <Button variant="primary" size="lg" className="font-semibold">
+          {/* Primary CTA */}
+          <Button variant="primary" size="md" className="font-medium">
             New Booking
           </Button>
         </div>
-      </div>
+        
+        {/* Key Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+          <div className="bg-gray-50 dark:bg-dark-bg-tertiary border border-gray-200 dark:border-dark-border rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <UserCheck className="w-4 h-4 text-success-600 dark:text-success-500" />
+              <span className="text-xs text-gray-600 dark:text-dark-text-secondary">Arriving</span>
+            </div>
+            <p className="text-xl font-semibold text-gray-900 dark:text-dark-text-primary">{stats.arrivals}</p>
+          </div>
+          
+          <div className="bg-gray-50 dark:bg-dark-bg-tertiary border border-gray-200 dark:border-dark-border rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <UserX className="w-4 h-4 text-warning-600 dark:text-warning-500" />
+              <span className="text-xs text-gray-600 dark:text-dark-text-secondary">Departing</span>
+            </div>
+            <p className="text-xl font-semibold text-gray-900 dark:text-dark-text-primary">{stats.departures}</p>
+          </div>
+          
+          <div className="bg-gray-50 dark:bg-dark-bg-tertiary border border-gray-200 dark:border-dark-border rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Home className="w-4 h-4 text-primary-600 dark:text-primary-500" />
+              <span className="text-xs text-gray-600 dark:text-dark-text-secondary">In Facility</span>
+            </div>
+            <p className="text-xl font-semibold text-gray-900 dark:text-dark-text-primary">{stats.inFacility}</p>
+          </div>
+          
+          {stats.attentionItems > 0 && (
+            <div className="bg-gray-50 dark:bg-dark-bg-tertiary border border-gray-200 dark:border-dark-border rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <AlertCircle className="w-4 h-4 text-error-600 dark:text-error-500" />
+                <span className="text-xs text-gray-600 dark:text-dark-text-secondary">Attention</span>
+              </div>
+              <p className="text-xl font-semibold text-error-600 dark:text-error-500">{stats.attentionItems}</p>
+            </div>
+          )}
+        </div>
+      </Card>
 
       {/* Main Content - Arrivals and Departures */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
