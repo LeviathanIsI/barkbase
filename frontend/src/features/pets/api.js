@@ -5,6 +5,51 @@ import { useTenantStore } from '@/stores/tenant';
 
 const useTenantId = () => useTenantStore((state) => state.tenant?.recordId ?? 'unknown');
 
+const normalizePetsResponse = (data) => {
+  if (Array.isArray(data)) {
+    return { pets: data, total: data.length, raw: data };
+  }
+  if (data && Array.isArray(data.items)) {
+    return { pets: data.items, total: data.total ?? data.items.length, raw: data };
+  }
+  if (data && Array.isArray(data.pets)) {
+    return { pets: data.pets, total: data.total ?? data.pets.length, raw: data };
+  }
+  if (data && Array.isArray(data.data)) {
+    return { pets: data.data, total: data.total ?? data.data.length, raw: data };
+  }
+  return { pets: [], total: 0, raw: data ?? null };
+};
+
+const ensurePetsArray = (result) => {
+  if (result && Array.isArray(result.pets)) {
+    return result;
+  }
+
+  console.warn('[PETS API WARNING] Normalized pets is not an array. Falling back to empty list.', {
+    result,
+  });
+
+  return { pets: [], total: 0, raw: result?.raw ?? result ?? null };
+};
+
+const shapePetsCache = (data) => {
+  if (!data) {
+    return { pets: [], total: 0, raw: null };
+  }
+  if (Array.isArray(data)) {
+    return { pets: data, total: data.length, raw: null };
+  }
+  if (Array.isArray(data.pets)) {
+    return {
+      pets: data.pets,
+      total: data.total ?? data.pets.length,
+      raw: data.raw ?? data,
+    };
+  }
+  return { pets: [], total: data.total ?? 0, raw: data.raw ?? data };
+};
+
 export const usePetsQuery = (params = {}) => {
   const tenantId = useTenantId();
   
@@ -12,11 +57,12 @@ export const usePetsQuery = (params = {}) => {
     queryKey: queryKeys.pets(tenantId),
     queryFn: async () => {
       try {
-        const res = await apiClient.get('/api/v1/pets');
-        return Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data ?? []);
+        const res = await apiClient.get('/api/v1/pets', { params });
+        const normalized = normalizePetsResponse(res?.data);
+        return ensurePetsArray(normalized);
       } catch (e) {
         console.warn('[pets] Falling back to empty list due to API error:', e?.message || e);
-        return [];
+        return { pets: [], total: 0, raw: null };
       }
     },
     staleTime: 30 * 1000,
@@ -101,13 +147,15 @@ export const useUpdatePetMutation = (petId) => {
       await queryClient.cancelQueries({ queryKey: listKey });
       const previous = queryClient.getQueryData(listKey);
       if (previous) {
-        queryClient.setQueryData(listKey, (old = []) =>
-          old.map((pet) =>
-            pet.recordId === petId
-              ? { ...pet, ...payload }
-              : pet
-          )
-        );
+        queryClient.setQueryData(listKey, (oldValue) => {
+          const current = shapePetsCache(oldValue);
+          return {
+            ...current,
+            pets: current.pets.map((pet) =>
+              pet.recordId === petId ? { ...pet, ...payload } : pet
+            ),
+          };
+        });
       }
       return { previous };
     },
@@ -135,7 +183,14 @@ export const useDeletePetMutation = () => {
       await queryClient.cancelQueries({ queryKey: listKey });
       const previous = queryClient.getQueryData(listKey);
       if (previous) {
-        queryClient.setQueryData(listKey, (old = []) => old.filter((pet) => pet.recordId !== petId));
+        queryClient.setQueryData(listKey, (oldValue) => {
+          const current = shapePetsCache(oldValue);
+          return {
+            ...current,
+            pets: current.pets.filter((pet) => pet.recordId !== petId),
+            total: Math.max((current.total ?? current.pets.length) - 1, 0),
+          };
+        });
       }
       return { previous };
     },
@@ -161,7 +216,14 @@ export const useCreatePetMutation = () => {
     },
     onSuccess: (created) => {
       if (created?.recordId) {
-        queryClient.setQueryData(listKey, (old = []) => [created, ...old]);
+        queryClient.setQueryData(listKey, (oldValue) => {
+          const current = shapePetsCache(oldValue);
+          return {
+            ...current,
+            pets: [created, ...(current.pets ?? [])],
+            total: (current.total ?? current.pets.length ?? 0) + 1,
+          };
+        });
       }
     },
     onSettled: () => {

@@ -308,7 +308,8 @@ const OwnerStep = ({ bookingData, updateBookingData }) => {
 
 const PetStep = ({ bookingData, updateBookingData }) => {
   // Fetch pets for selected owner
-  const { data: allPets = [], isLoading } = usePetsQuery();
+  const { data: petsResult, isLoading } = usePetsQuery();
+  const allPets = petsResult?.pets ?? [];
   
   // Filter pets by selected owner
   const availablePets = useMemo(() => {

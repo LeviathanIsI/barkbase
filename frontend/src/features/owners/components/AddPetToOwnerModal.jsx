@@ -8,7 +8,7 @@ const AddPetToOwnerModal = ({ open, onClose, onAdd, currentPetIds = [] }) => {
   const [isPrimary, setIsPrimary] = useState(false);
 
   const petsQuery = usePetsQuery();
-  const allPets = petsQuery.data?.data ?? [];
+  const allPets = petsQuery.data?.pets ?? [];
 
   // Filter out pets that are already associated
   const availablePets = allPets.filter(pet => !currentPetIds.includes(pet.recordId));

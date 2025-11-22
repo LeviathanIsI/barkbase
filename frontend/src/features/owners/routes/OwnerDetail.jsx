@@ -50,8 +50,7 @@ const OwnerDetail = () => {
   const associationsQuery = useAssociationsForObjectPairQuery('owner', 'pet');
 
   const owner = ownerQuery.data;
-  // FIX: petsQuery.data is already the array of pets, not { data: [...] }
-  const allPets = petsQuery.data ?? [];
+  const allPets = petsQuery.data?.pets ?? [];
 
   // Transform association definitions to the format expected by AssociationModal
   const associationLabels = [

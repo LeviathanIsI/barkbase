@@ -48,7 +48,8 @@ const Pets = () => {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   // REAL API DATA - preserved from existing implementation
-  const { data: pets = [], isLoading: isLoadingData, error } = usePetsQuery();
+  const { data: petsResult, isLoading: isLoadingData, error } = usePetsQuery();
+  const pets = petsResult?.pets ?? [];
   const createPetMutation = useCreatePetMutation();
 
   // Prevent flash of loading state - only show loading if it takes more than 100ms
