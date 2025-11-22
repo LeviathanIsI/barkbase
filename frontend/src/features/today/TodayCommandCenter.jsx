@@ -204,7 +204,7 @@ const TodayCommandCenter = () => {
   const ArrivalDepartureList = ({ items, type }) => {
     const isArrival = type === 'arrival';
     const Icon = isArrival ? UserCheck : UserX;
-    const colorClass = isArrival ? 'text-green-600' : 'text-orange-600';
+    const colorClass = isArrival ? 'text-success-600' : 'text-warning-600';
 
     if (items.length === 0) {
       return (
@@ -275,8 +275,8 @@ const TodayCommandCenter = () => {
                   className={cn(
                     "relative p-2 rounded-lg border-2 cursor-pointer transition-all",
                     run.occupied
-                      ? "border-blue-500 bg-blue-50 dark:bg-blue-950/20"
-                      : "border-gray-200 dark:border-surface-border bg-white dark:bg-surface-secondary hover:border-gray-300"
+                      ? "border-primary-500 bg-primary-50 dark:bg-primary-950/20"
+                      : "border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg-secondary hover:border-gray-300 dark:hover:border-dark-border-strong"
                   )}
                 >
                   <div className="text-center">
@@ -416,7 +416,7 @@ const TodayCommandCenter = () => {
             <DashboardCard
               title={
                 <span className="flex items-center gap-2">
-                  <UserCheck className="w-5 h-5 text-green-600" />
+                  <UserCheck className="w-5 h-5 text-success-600" />
                   Today's Arrivals ({stats.arrivals})
                 </span>
               }
@@ -438,7 +438,7 @@ const TodayCommandCenter = () => {
             <DashboardCard
               title={
                 <span className="flex items-center gap-2">
-                  <UserX className="w-5 h-5 text-orange-600" />
+                  <UserX className="w-5 h-5 text-warning-600" />
                   Today's Departures ({stats.departures})
                 </span>
               }
@@ -462,7 +462,7 @@ const TodayCommandCenter = () => {
             <DashboardCard
               title={
                 <span className="flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-blue-600" />
+                  <MapPin className="w-5 h-5 text-primary-600" />
                   Facility Status
                 </span>
               }
@@ -479,7 +479,7 @@ const TodayCommandCenter = () => {
             <DashboardCard
               title={
                 <span className="flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-purple-600" />
+                  <Activity className="w-5 h-5 text-secondary-600" />
                   Operations
                 </span>
               }
@@ -494,11 +494,11 @@ const TodayCommandCenter = () => {
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-[var(--text-secondary)]">Occupancy Rate</span>
                   <div className="flex items-center gap-2">
-                    <div className="w-24 bg-gray-200 dark:bg-[var(--bg-secondary)] rounded-full h-2">
+                    <div className="w-24 bg-gray-200 dark:bg-dark-bg-tertiary rounded-full h-2">
                       <div
                         className={cn(
                           "h-2 rounded-full transition-all",
-                          stats.occupancyRate > 90 ? "bg-orange-600" : "bg-blue-600"
+                          stats.occupancyRate > 90 ? "bg-warning-600" : "bg-primary-600"
                         )}
                         style={{ width: `${stats.occupancyRate}%` }}
                       />
