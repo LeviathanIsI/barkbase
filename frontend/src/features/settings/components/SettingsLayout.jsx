@@ -107,7 +107,7 @@ export default function SettingsLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-[#0F0F1A]">
+    <div className="min-h-screen bg-background-secondary text-text-primary dark:bg-dark-bg-primary dark:text-dark-text-primary">
       {/* Page Header */}
       <PageHeader
         breadcrumb="Home > Settings"

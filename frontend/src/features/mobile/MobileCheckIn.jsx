@@ -207,7 +207,7 @@ const MobileCheckIn = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-[#0F0F1A]">
+      <div className="flex items-center justify-center h-screen bg-background-secondary dark:bg-dark-bg-primary">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
@@ -215,7 +215,7 @@ const MobileCheckIn = () => {
 
   if (arrivals.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gray-50 dark:bg-[#0F0F1A] p-6 text-center">
+      <div className="flex flex-col items-center justify-center h-screen bg-background-secondary dark:bg-dark-bg-primary p-6 text-center">
         <CheckCircle className="w-16 h-16 text-green-500 mb-4" />
         <h2 className="text-2xl font-bold text-gray-900 dark:text-text-primary mb-2">
           All Caught Up!
@@ -269,7 +269,7 @@ const MobileCheckIn = () => {
   }
 
   return (
-    <div className="h-screen bg-gray-50 dark:bg-[#0F0F1A] flex flex-col">
+    <div className="h-screen bg-background-secondary dark:bg-dark-bg-primary flex flex-col">
       {/* Header */}
       <div className="bg-white dark:bg-surface-primary border-b border-gray-200 dark:border-surface-border p-4 flex items-center justify-between">
         <Button variant="ghost" size="icon">

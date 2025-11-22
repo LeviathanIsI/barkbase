@@ -4,7 +4,7 @@
   "description": "Multi-tenant pet boarding and daycare management system",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0F0F1A",
+  "background_color": "#1a1d23",
   "theme_color": "#3B82F6",
   "orientation": "portrait-primary",
   "icons": [

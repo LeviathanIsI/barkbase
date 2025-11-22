@@ -74,21 +74,21 @@ const designTokensCSS = `/**
 
 .dark {
   /* Background Colors - Dark Mode */
-  --bg-primary: #0F0F1A;
-  --bg-secondary: #1A1A2E;
-  --bg-tertiary: #1E1E2E;
+  --bg-primary: #1a1d23;
+  --bg-secondary: #242930;
+  --bg-tertiary: #2d3139;
 
   /* Surface Colors - Dark Mode with glass effect */
-  --surface-primary: rgba(30, 30, 46, 0.6);
-  --surface-secondary: rgba(45, 45, 64, 0.4);
-  --surface-elevated: rgba(30, 30, 46, 0.8);
-  --surface-border: rgba(139, 92, 246, 0.2);
+  --surface-primary: #242930;
+  --surface-secondary: #2d3139;
+  --surface-elevated: #353a44;
+  --surface-border: rgba(255, 255, 255, 0.12);
 
   /* Text Colors - Dark Mode */
-  --text-primary: #F9FAFB;
-  --text-secondary: #D1D5DB;
-  --text-tertiary: #9CA3AF;
-  --text-inverse: #0F0F1A;
+  --text-primary: #e5e7eb;
+  --text-secondary: #9ca3af;
+  --text-tertiary: #6b7280;
+  --text-inverse: #FFFFFF;
 
   /* Purple Primary Colors - Dark Mode (Brighter) */
   --primary-50: #FAF5FF;

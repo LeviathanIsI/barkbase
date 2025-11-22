@@ -10,18 +10,18 @@ export const themeConfig = {
     colors: {
       // Background colors
       background: {
-        primary: '#0F0F1A',      // Deep navy base
-        secondary: '#1A1A2E',    // Slightly lighter navy
-        tertiary: '#1E1E2E',     // Card/surface background
-        gradient: 'linear-gradient(135deg, #0F0F1A 0%, #1A1A2E 50%, #2D1B4E 100%)', // Mesh gradient
+        primary: '#1a1d23',      // Professional dark canvas
+        secondary: '#242930',    // Page surfaces
+        tertiary: '#2d3139',     // Raised cards / hovers
+        gradient: 'linear-gradient(135deg, #1a1d23 0%, #242930 50%, #2d3139 100%)',
       },
 
       // Surface colors (cards, panels)
       surface: {
-        primary: 'rgba(30, 30, 46, 0.6)',    // Glass effect
-        secondary: 'rgba(45, 45, 64, 0.4)',  // Lighter glass
-        elevated: 'rgba(30, 30, 46, 0.8)',   // More opaque for elevated elements
-        border: 'rgba(139, 92, 246, 0.2)',   // Purple tint border
+        primary: '#242930',
+        secondary: '#2d3139',
+        elevated: '#353a44',
+        border: 'rgba(255, 255, 255, 0.12)',
       },
 
       // Primary purple gradient
@@ -58,12 +58,12 @@ export const themeConfig = {
 
       // Text colors
       text: {
-        primary: '#FFFFFF',       // White for headings
-        secondary: '#E5E7EB',     // Light gray for body
-        tertiary: '#9CA3AF',      // Muted gray for labels
-        disabled: '#6B7280',      // Disabled state
-        link: '#A78BFA',          // Purple tint
-        gradient: 'linear-gradient(135deg, #FFFFFF 0%, #C4B5FD 100%)', // Gradient text
+        primary: '#e5e7eb',
+        secondary: '#9ca3af',
+        tertiary: '#6b7280',
+        disabled: '#616161',
+        link: '#5B9CFF',
+        gradient: 'linear-gradient(135deg, #e5e7eb 0%, #cdd5ff 100%)',
       },
 
       // Semantic colors
@@ -379,7 +379,7 @@ export const gradients = {
 
   // Background meshes
   backgroundMeshDark: `
-    linear-gradient(135deg, #0F0F1A 0%, #1A1A2E 25%, #2D1B4E 50%, #1A1A2E 75%, #0F0F1A 100%),
+    linear-gradient(135deg, #1a1d23 0%, #242930 25%, #2d3139 50%, #242930 75%, #1a1d23 100%),
     radial-gradient(circle at 20% 20%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
     radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.15) 0%, transparent 50%)
   `,
