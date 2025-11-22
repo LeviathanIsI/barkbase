@@ -117,7 +117,7 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
   return (
     <aside
       className={cn(
-        "bg-gray-900 dark:bg-background-secondary text-white transition-all duration-200 shadow-lg",
+        "bg-gray-900 dark:bg-dark-bg-sidebar text-white transition-all duration-200 border-r border-transparent dark:border-dark-border",
         !isMobile && "lg:sticky lg:top-0 lg:h-screen lg:self-start",
         isMobile
           ? "flex w-64 flex-col"

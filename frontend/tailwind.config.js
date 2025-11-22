@@ -96,7 +96,30 @@ export default {
         border: {
           DEFAULT: 'var(--border-color)',
           light: 'var(--border-light)',
+          strong: 'var(--border-strong)',
           focus: 'var(--border-focus)',
+        },
+
+        // Dark mode specific backgrounds (for easier usage)
+        'dark-bg': {
+          primary: 'var(--bg-primary)',
+          secondary: 'var(--bg-secondary)',
+          tertiary: 'var(--bg-tertiary)',
+          sidebar: 'var(--bg-sidebar)',
+        },
+
+        // Dark mode specific text (for easier usage)
+        'dark-text': {
+          primary: 'var(--text-primary)',
+          secondary: 'var(--text-secondary)',
+          tertiary: 'var(--text-tertiary)',
+        },
+
+        // Dark mode specific borders (for easier usage)
+        'dark-border': {
+          DEFAULT: 'var(--border-color)',
+          light: 'var(--border-light)',
+          strong: 'var(--border-strong)',
         },
       },
 

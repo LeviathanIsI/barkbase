@@ -234,61 +234,66 @@
    ======================================== */
 
 .dark {
-  /* ===== BACKGROUNDS - Material Design Standard ===== */
-  --bg-primary: #121212;              /* Base surface (7% gray - NOT pure black) */
-  --bg-secondary: #1E1E1E;            /* Elevated cards (2% white overlay = 1dp) */
-  --bg-tertiary: #252525;             /* Higher elevation (4% white overlay = 3dp) */
+  /* ===== BACKGROUNDS - Professional SaaS Dark Mode ===== */
+  --bg-primary: #1a1d23;              /* Main background - MUCH lighter than Material Design */
+  --bg-secondary: #242930;            /* Card backgrounds - clearly elevated from primary */
+  --bg-tertiary: #2d3139;             /* Hover states, nested cards - even more elevated */
+  --bg-sidebar: #15171c;              /* Sidebar - slightly darker than main for definition */
 
   /* ===== SURFACE LAYERS - For elevation hierarchy ===== */
-  --surface-primary: #232323;         /* Cards, main panels (3% white = 2dp) */
-  --surface-elevated: #2C2C2C;        /* Dropdowns, popovers (8% white = 8dp) */
-  --surface-overlay: #383838;         /* Modals, tooltips (16% white = 24dp) */
+  --surface-primary: #242930;         /* Cards, main panels - matches bg-secondary */
+  --surface-elevated: #2d3139;        /* Dropdowns, popovers - matches bg-tertiary */
+  --surface-overlay: #353a44;         /* Modals, tooltips - highest elevation */
 
-  /* ===== TEXT - Opacity-based hierarchy (NO pure white) ===== */
-  --text-primary: #DEDEDE;            /* 87% white (#DEDEDE = rgba(255,255,255,0.87)) */
-  --text-secondary: #9E9E9E;          /* 60% white for secondary text */
-  --text-tertiary: #737373;           /* 45% white for captions */
+  /* ===== TEXT - Professional hierarchy (improved contrast) ===== */
+  --text-primary: #e5e7eb;            /* Main text - excellent contrast on new backgrounds */
+  --text-secondary: #9ca3af;          /* Secondary text - clear hierarchy */
+  --text-tertiary: #6b7280;           /* Tertiary/disabled text - subtle but readable */
   --text-disabled: #616161;           /* 38% white for disabled state */
 
   /* ===== BORDERS & DIVIDERS ===== */
-  --border-color: #424242;            /* 20% white for visible borders */
-  --border-light: #2C2C2C;            /* 15% white for subtle dividers */
+  --border-color: rgba(255, 255, 255, 0.08);     /* Subtle borders */
+  --border-light: rgba(255, 255, 255, 0.05);     /* Very subtle dividers */
+  --border-strong: rgba(255, 255, 255, 0.12);    /* Emphasized borders */
   --border-focus: #7C7EF5;            /* Focus state (desaturated primary) */
 
   /* ===== INPUTS ===== */
-  --input-bg: #252525;                /* Input field backgrounds */
-  --input-border: #424242;            /* Input borders */
-  --input-border-hover: #525252;      /* Hover state */
+  --input-bg: #2d3139;                /* Input field backgrounds - matches bg-tertiary */
+  --input-border: rgba(255, 255, 255, 0.08);     /* Input borders - subtle */
+  --input-border-hover: rgba(255, 255, 255, 0.12); /* Hover state */
   --input-border-focus: #7C7EF5;      /* Focus state */
 
-  /* ===== STATUS COLORS - DESATURATED for dark mode ===== */
-  /* Success (Green) - Desaturated by ~20 points */
-  --color-success: #66BB6A;           /* Was #10B981 in light mode - now desaturated */
-  --color-success-light: rgba(102, 187, 106, 0.1);
-  --color-success-dark: #4CAF50;
+  /* ===== STATUS COLORS - MUTED for professional dark mode ===== */
+  /* Success (Green) - More muted */
+  --color-success-700: #047857;       /* Dark green */
+  --color-success-600: #059669;       /* Main success color - muted */
+  --color-success-500: #10b981;       /* Light success */
+  --color-success-100: rgba(16, 185, 129, 0.1); /* Background tint */
 
-  /* Warning (Orange) - Desaturated by ~20 points */
-  --color-warning: #FFA726;           /* Was #F59E0B in light mode - now desaturated */
-  --color-warning-light: rgba(255, 167, 38, 0.1);
-  --color-warning-dark: #FB8C00;
+  /* Warning (Orange) - More muted */
+  --color-warning-700: #b45309;       /* Dark orange */
+  --color-warning-600: #d97706;       /* Main warning color - muted */
+  --color-warning-500: #f59e0b;       /* Light warning */
+  --color-warning-100: rgba(217, 119, 6, 0.1);  /* Background tint */
 
-  /* Error (Red) - Desaturated by ~20 points */
-  --color-error: #EF5350;             /* Was #EF4444 in light mode - slightly desaturated */
-  --color-error-light: rgba(239, 83, 80, 0.1);
-  --color-error-dark: #E53935;
+  /* Error (Red) - More muted */
+  --color-error-700: #b91c1c;         /* Dark red */
+  --color-error-600: #dc2626;         /* Main error color - muted */
+  --color-error-500: #ef4444;         /* Light error */
+  --color-error-100: rgba(220, 38, 38, 0.1);    /* Background tint */
 
   /* Info (Blue) - Desaturated by ~20 points */
   --color-info: #42A5F5;              /* Was #3B82F6 in light mode - now desaturated */
   --color-info-light: rgba(66, 165, 245, 0.1);
   --color-info-dark: #1E88E5;
 
-  /* ===== PRIMARY BRAND - Desaturated purple for dark mode ===== */
-  --color-primary-400: #A5A6F8;       /* Lighter for high contrast */
-  --color-primary-500: #8B8DF6;       /* Desaturated from light mode */
-  --color-primary-600: #7C7EF5;       /* Main brand color for dark mode */
-  --color-primary-700: #6D6FF4;       /* Hover/active state */
-  --color-primary-800: #5E60F3;       /* Pressed state */
-  --color-primary-light: rgba(124, 126, 245, 0.1);
+  /* ===== PRIMARY BRAND - Professional indigo for dark mode ===== */
+  --color-primary-400: #8196f8;       /* Lighter shade */
+  --color-primary-500: #6366f1;       /* Main brand - indigo-500 */
+  --color-primary-600: #4f46e5;       /* Slightly darker - indigo-600 */
+  --color-primary-700: #4338ca;       /* Hover/active state - indigo-700 */
+  --color-primary-800: #3730a3;       /* Pressed state - indigo-800 */
+  --color-primary-light: rgba(99, 102, 241, 0.1);
 
   /* ===== SECONDARY (Green) - Desaturated for dark mode ===== */
   --color-secondary-400: #7EDB97;
