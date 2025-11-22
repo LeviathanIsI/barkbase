@@ -497,10 +497,10 @@ const BusinessSection = ({
             {...register('businessInfo.notes')}
           />
         </div>
-        <div className="rounded-xl border border-border/60 bg-surface/70 p-4">
+        <div className="rounded-lg border border-border/60 bg-surface/70 p-4">
           <Subheading title="Logo" description="Square images work best. We crop and optimize for email and PDF output." />
           <div className="mt-4 flex flex-col items-center gap-3">
-            <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-xl border border-border/70 bg-surface">
+            <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-lg border border-border/70 bg-surface">
               {businessInfo?.logo?.url ? (
                 <img src={businessInfo.logo.url} alt="Business logo" className="h-full w-full object-cover" />
               ) : (
@@ -574,7 +574,7 @@ const SchedulingSection = ({
       description="These hours drive booking availability and appear on customer confirmations."
       className="border-border/80 shadow-sm"
     >
-      <div className="overflow-x-auto rounded-xl border border-border/60">
+      <div className="overflow-x-auto rounded-lg border border-border/60">
         <table className="min-w-full divide-y divide-border/70 text-sm">
           <thead className="bg-surface/80 text-xs uppercase tracking-wide text-muted">
             <tr>
@@ -952,7 +952,7 @@ const AccountDefaults = () => {
 
   if (accountDefaultsQuery.isError) {
     return (
-      <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-xl border border-border bg-surface/70 p-6 text-center text-sm text-muted">
+      <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-lg border border-border bg-surface/70 p-6 text-center text-sm text-muted">
         <AlertCircle className="h-6 w-6 text-danger" />
         <p>We couldn't load your account defaults. Refresh to try again.</p>
       </div>

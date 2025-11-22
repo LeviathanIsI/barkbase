@@ -66,7 +66,7 @@ const BookingCard = ({ booking, onCheckIn, onCheckOut }) => {
         transform: transformStyle,
         opacity: isDragging ? 0.5 : 1,
       }}
-      className="cursor-grab rounded-xl border border-border/70 bg-surface p-4 shadow-sm active:cursor-grabbing"
+      className="cursor-grab rounded-lg border border-border/70 bg-surface p-4 shadow-sm active:cursor-grabbing"
       {...listeners}
       {...attributes}
     >
@@ -139,7 +139,7 @@ const KennelColumn = ({ kennel, date, bookings, onNavigate, onCheckIn, onCheckOu
       <div
         ref={setNodeRef}
         className={cn(
-          'flex min-h-[12rem] flex-col gap-3 rounded-xl border border-dashed border-border/70 bg-surface/80 p-3 transition-colors',
+          'flex min-h-[12rem] flex-col gap-3 rounded-lg border border-dashed border-border/70 bg-surface/80 p-3 transition-colors',
           isOver && 'border-primary bg-primary/10',
         )}
       >

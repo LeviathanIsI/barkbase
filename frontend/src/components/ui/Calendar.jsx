@@ -5,7 +5,7 @@ import { cn } from '@/lib/cn';
 const Calendar = ({ className, ...props }) => (
   <DayPicker
     className={cn(
-      'rounded-xl border border-border bg-surface p-3 text-sm text-text shadow-sm',
+      'rounded-lg border border-border bg-surface p-3 text-sm text-text shadow-sm',
       className,
     )}
     captionLayout="dropdown-buttons"

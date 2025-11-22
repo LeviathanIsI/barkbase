@@ -77,7 +77,7 @@ const WaitlistManager = () => {
             const kennelId = entry.kennelId ?? entry.segments?.[0]?.kennelId ?? null;
 
             return (
-              <li key={entry.recordId} className="rounded-xl border border-border/60 bg-surface/60 p-4">
+              <li key={entry.recordId} className="rounded-lg border border-border/60 bg-surface/60 p-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold">{entry.pet?.name ?? entry.petName}</p>

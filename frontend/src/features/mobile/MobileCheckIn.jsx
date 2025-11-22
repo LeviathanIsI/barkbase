@@ -292,7 +292,7 @@ const MobileCheckIn = () => {
       >
         <div className="w-full max-w-md">
           {/* Card */}
-          <div className="bg-white dark:bg-surface-primary rounded-2xl shadow-xl overflow-hidden">
+          <div className="bg-white dark:bg-surface-primary rounded-lg shadow-xl overflow-hidden">
             {/* Pet photo placeholder */}
             <div className="h-64 bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
               {capturedPhoto ? (

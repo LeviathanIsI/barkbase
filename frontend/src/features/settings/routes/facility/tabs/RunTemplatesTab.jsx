@@ -451,7 +451,7 @@ const RunTemplateModal = ({ isOpen, onClose, template, onSave }) => {
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, capacityType: 'total' })}
-                className={`w-full p-6 rounded-xl border-2 text-left transition-all ${
+                className={`w-full p-6 rounded-lg border-2 text-left transition-all ${
                   formData.capacityType === 'total'
                     ? 'border-blue-600 bg-blue-50 dark:bg-surface-primary shadow-lg scale-[1.02]'
                     : 'border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary hover:border-blue-400 hover:bg-blue-50 dark:bg-blue-950/20'
@@ -485,7 +485,7 @@ const RunTemplateModal = ({ isOpen, onClose, template, onSave }) => {
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, capacityType: 'concurrent' })}
-                className={`w-full p-6 rounded-xl border-2 text-left transition-all ${
+                className={`w-full p-6 rounded-lg border-2 text-left transition-all ${
                   formData.capacityType === 'concurrent'
                     ? 'border-green-600 bg-green-50 dark:bg-surface-primary shadow-lg scale-[1.02]'
                     : 'border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary hover:border-green-400 hover:bg-green-50 dark:bg-green-950/20'

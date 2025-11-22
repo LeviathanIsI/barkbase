@@ -69,7 +69,7 @@ const UpgradeWizard = ({ open, onClose }) => {
           {storageSummary.map((tier) => (
             <div
               key={tier.plan}
-              className="rounded-xl border border-border/60 bg-surface/90 p-4 text-sm shadow-sm"
+              className="rounded-lg border border-border/60 bg-surface/90 p-4 text-sm shadow-sm"
             >
               <div className="flex items-center justify-between">
                 <h3 className="text-base font-semibold text-text">{tier.plan}</h3>
@@ -93,7 +93,7 @@ const UpgradeWizard = ({ open, onClose }) => {
           ))}
         </div>
 
-        <div className="rounded-xl border border-primary/40 bg-primary/5 p-4 text-sm text-muted">
+        <div className="rounded-lg border border-primary/40 bg-primary/5 p-4 text-sm text-muted">
           <p className="font-medium text-text">How upgrades work</p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li>We lift your AWS quotas within minutes of checkout.</li>

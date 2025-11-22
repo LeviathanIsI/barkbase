@@ -17,7 +17,7 @@ const EVENT_LABEL_MAP = EVENT_OPTIONS.reduce((acc, option) => {
 const FlowTable = ({ flows, onView, onPublish, onTest, isPublishing, isTesting }) => {
   if (!flows?.length) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-surface/80 py-16 text-center">
+      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border/70 bg-surface/80 py-16 text-center">
         <p className="text-lg font-semibold text-text">No handler flows yet</p>
         <p className="mt-2 max-w-md text-sm text-muted">
           Click "Create workflow" above to build your first automation. BarkBase will start listening for events immediately.
@@ -27,7 +27,7 @@ const FlowTable = ({ flows, onView, onPublish, onTest, isPublishing, isTesting }
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/70 bg-surface/95 shadow-sm">
+    <div className="overflow-hidden rounded-lg border border-border/70 bg-surface/95 shadow-sm">
       <table className="min-w-full divide-y divide-border/60 text-sm">
         <thead className="bg-surface/90 text-left text-xs font-semibold uppercase tracking-wide text-muted">
           <tr>

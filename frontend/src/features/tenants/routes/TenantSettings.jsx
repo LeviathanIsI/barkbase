@@ -24,7 +24,7 @@ const TenantSettings = () => {
     >
       <div className="grid gap-6 lg:grid-cols-2">
         <ThemePreview />
-        <div className="space-y-4 rounded-2xl border border-border/70 bg-surface p-6">
+        <div className="space-y-4 rounded-lg border border-border/70 bg-surface p-6">
           <h3 className="text-lg font-semibold text-text">Domain & SSL</h3>
           <p className="text-sm text-muted">
             Configure custom domains and automatically provision SSL certificates via the edge proxy.

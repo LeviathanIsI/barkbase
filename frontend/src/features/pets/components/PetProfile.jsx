@@ -18,7 +18,7 @@ const PetProfile = ({ pet }) => {
     >
       <div className="flex flex-col gap-4 lg:flex-row">
         <div className="w-full lg:w-48">
-          <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-surface/60">
+          <div className="relative overflow-hidden rounded-lg border border-border/60 bg-surface/60">
             <img
               src={pet.photoUrl || placeholderImage}
               alt={`${pet.name} profile`}

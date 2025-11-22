@@ -24,7 +24,7 @@ const VaccinationTimeline = ({ vaccinations = [] }) => (
           return (
             <li
               key={vaccination.recordId}
-              className="flex items-center justify-between rounded-xl border border-border/60 bg-surface/60 p-3"
+              className="flex items-center justify-between rounded-lg border border-border/60 bg-surface/60 p-3"
             >
               <div>
                 <p className="font-medium text-text">{vaccination.type}</p>

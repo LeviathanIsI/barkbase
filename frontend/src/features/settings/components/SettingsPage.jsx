@@ -10,7 +10,7 @@ const SettingsPage = ({
 }) => (
   <div className={cn('space-y-8', className)}>
     {(title || description || actions) && (
-      <header className="rounded-2xl border border-border/70 bg-surface px-6 py-5 shadow-sm">
+      <header className="rounded-lg border border-border/70 bg-surface px-6 py-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             {title ? <h1 className="text-3xl font-semibold text-text">{title}</h1> : null}

@@ -238,7 +238,7 @@ const ThemePreview = () => {
           </Button>
         </div>
       </form>
-      <div className="mt-6 grid gap-3 rounded-2xl border border-border/60 bg-surface/70 p-4 text-sm">
+      <div className="mt-6 grid gap-3 rounded-lg border border-border/60 bg-surface/70 p-4 text-sm">
         <div className="flex items-center justify-between">
           <span className="font-semibold">Preview Button</span>
           <Button size="sm">Primary Action</Button>
