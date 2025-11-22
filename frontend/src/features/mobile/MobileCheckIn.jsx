@@ -217,7 +217,7 @@ const MobileCheckIn = () => {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-background-secondary dark:bg-dark-bg-primary p-6 text-center">
         <CheckCircle className="w-16 h-16 text-success-500 mb-4" />
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-text-primary mb-2">
+        <h2 className="text-2xl font-semibold text-gray-900 dark:text-text-primary mb-2">
           All Caught Up!
         </h2>
         <p className="text-gray-600 dark:text-text-secondary">
@@ -304,7 +304,7 @@ const MobileCheckIn = () => {
 
             {/* Pet info */}
             <div className="p-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-text-primary mb-2">
+              <h2 className="text-2xl font-semibold text-gray-900 dark:text-text-primary mb-2">
                 {currentBooking.petName}
               </h2>
               <p className="text-lg text-gray-600 dark:text-text-secondary mb-4">

@@ -64,7 +64,7 @@ const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {
             </div>
             <div>
               <p className="text-sm text-gray-600 dark:text-text-secondary">TOTAL STAFF</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.totalStaff}</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-text-primary">{stats.totalStaff}</p>
               <p className="text-xs text-success-600">+2 this month</p>
             </div>
           </div>
@@ -77,7 +77,7 @@ const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {
             </div>
             <div>
               <p className="text-sm text-gray-600 dark:text-text-secondary">ACTIVE MEMBERS</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.activeMembers}</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-text-primary">{stats.activeMembers}</p>
               <p className="text-xs text-gray-600 dark:text-text-secondary">On duty today</p>
             </div>
           </div>
@@ -90,7 +90,7 @@ const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {
             </div>
             <div>
               <p className="text-sm text-gray-600 dark:text-text-secondary">ROLES</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.roles}</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-text-primary">{stats.roles}</p>
               <p className="text-xs text-gray-600 dark:text-text-secondary">Different roles</p>
             </div>
           </div>
@@ -103,7 +103,7 @@ const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {
             </div>
             <div>
               <p className="text-sm text-gray-600 dark:text-text-secondary">AVG TASKS/STAFF</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.avgTasksPerStaff}</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-text-primary">{stats.avgTasksPerStaff}</p>
               <p className="text-xs text-gray-600 dark:text-text-secondary">This week</p>
             </div>
           </div>
@@ -119,7 +119,7 @@ const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {
             </div>
             <div>
               <p className="text-sm text-gray-600 dark:text-text-secondary">CLOCKED IN NOW</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.clockedIn}</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-text-primary">{stats.clockedIn}</p>
               <p className="text-xs text-gray-600 dark:text-text-secondary">Working now</p>
             </div>
           </div>
@@ -132,7 +132,7 @@ const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {
             </div>
             <div>
               <p className="text-sm text-gray-600 dark:text-text-secondary">ON SCHEDULE</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.scheduled}</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-text-primary">{stats.scheduled}</p>
               <p className="text-xs text-gray-600 dark:text-text-secondary">Today's shift</p>
             </div>
           </div>
@@ -145,7 +145,7 @@ const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {
             </div>
             <div>
               <p className="text-sm text-gray-600 dark:text-text-secondary">ON PTO</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.onPto}</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-text-primary">{stats.onPto}</p>
               <p className="text-xs text-gray-600 dark:text-text-secondary">Sarah on vacation</p>
             </div>
           </div>
@@ -158,7 +158,7 @@ const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {
             </div>
             <div>
               <p className="text-sm text-gray-600 dark:text-text-secondary">UTILIZATION</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.utilization}%</p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-text-primary">{stats.utilization}%</p>
               <p className="text-xs text-gray-600 dark:text-text-secondary">Efficiency rate</p>
             </div>
           </div>
@@ -214,7 +214,7 @@ const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {
           <Card key={member.id || member.recordId || member.email || `staff-${index}`} className="p-6 hover:shadow-lg transition-shadow">
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-4 flex-1">
-                <div className="w-12 h-12 bg-primary-600 dark:bg-primary-700 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                <div className="w-12 h-12 bg-primary-600 dark:bg-primary-700 rounded-full flex items-center justify-center text-white font-semibold text-lg flex-shrink-0">
                   {member.name ? member.name.split(' ').map(n => n[0]).join('') : (member.email ? member.email[0].toUpperCase() : '?')}
                 </div>
 

@@ -44,7 +44,7 @@ const StaffProfileView = ({ staff, onBack }) => {
 
         <div className="flex items-start gap-6">
           <div className="flex-shrink-0">
-            <div className="w-24 h-24 bg-primary-600 dark:bg-primary-700 rounded-full flex items-center justify-center text-white font-bold text-2xl">
+            <div className="w-24 h-24 bg-primary-600 dark:bg-primary-700 rounded-full flex items-center justify-center text-white font-semibold text-2xl">
               {staff.name.split(' ').map(n => n[0]).join('')}
             </div>
             <Button variant="outline" size="sm" className="mt-2">
@@ -180,25 +180,25 @@ const StaffProfileView = ({ staff, onBack }) => {
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900 dark:text-text-primary mb-1">⭐⭐⭐⭐⭐ 4.9/5.0</div>
+            <div className="text-2xl font-semibold text-gray-900 dark:text-text-primary mb-1">⭐⭐⭐⭐⭐ 4.9/5.0</div>
             <div className="text-sm text-gray-600 dark:text-text-secondary">Overall Rating</div>
             <div className="text-xs text-gray-500 dark:text-text-secondary">Based on 12 reviews</div>
           </div>
 
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900 dark:text-text-primary mb-1">98.5%</div>
+            <div className="text-2xl font-semibold text-gray-900 dark:text-text-primary mb-1">98.5%</div>
             <div className="text-sm text-gray-600 dark:text-text-secondary">Task Completion</div>
             <div className="text-xs text-gray-500 dark:text-text-secondary">On-time rate</div>
           </div>
 
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900 dark:text-text-primary mb-1">96%</div>
+            <div className="text-2xl font-semibold text-gray-900 dark:text-text-primary mb-1">96%</div>
             <div className="text-sm text-gray-600 dark:text-text-secondary">Attendance</div>
             <div className="text-xs text-gray-500 dark:text-text-secondary">Very Good</div>
           </div>
 
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900 dark:text-text-primary mb-1">247</div>
+            <div className="text-2xl font-semibold text-gray-900 dark:text-text-primary mb-1">247</div>
             <div className="text-sm text-gray-600 dark:text-text-secondary">Tasks Completed</div>
             <div className="text-xs text-gray-500 dark:text-text-secondary">This month</div>
           </div>

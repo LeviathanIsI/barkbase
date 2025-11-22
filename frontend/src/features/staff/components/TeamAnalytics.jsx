@@ -80,7 +80,7 @@ const TeamAnalytics = () => {
             <div className="text-sm text-gray-700 dark:text-text-primary">Calculating…</div>
           ) : (
             <>
-              <div className="text-6xl font-bold text-green-600 mb-2">{isNaN(healthScore) ? 0 : healthScore}/100</div>
+              <div className="text-6xl font-semibold text-green-600 mb-2">{isNaN(healthScore) ? 0 : healthScore}/100</div>
               <div className="text-sm text-green-700 mb-4">Based on completion, on-time, and overdue rates</div>
               <div className="grid gap-4 md:grid-cols-3 text-sm">
                 <div>
@@ -109,19 +109,19 @@ const TeamAnalytics = () => {
         ) : (
           <div className="grid gap-4 md:grid-cols-4 mb-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-gray-900 dark:text-text-primary">{completed.length}</div>
+              <div className="text-2xl font-semibold text-gray-900 dark:text-text-primary">{completed.length}</div>
               <div className="text-sm text-gray-600 dark:text-text-secondary">Tasks completed</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{completed.length > 0 ? Math.round((onTime.length / completed.length) * 100) : 0}%</div>
+              <div className="text-2xl font-semibold text-green-600">{completed.length > 0 ? Math.round((onTime.length / completed.length) * 100) : 0}%</div>
               <div className="text-sm text-gray-600 dark:text-text-secondary">On-time completion</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-red-600">{overdueOpen.length}</div>
+              <div className="text-2xl font-semibold text-red-600">{overdueOpen.length}</div>
               <div className="text-sm text-gray-600 dark:text-text-secondary">Overdue open</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{tasksPerStaff.toFixed(1)}</div>
+              <div className="text-2xl font-semibold text-blue-600 dark:text-blue-400">{tasksPerStaff.toFixed(1)}</div>
               <div className="text-sm text-gray-600 dark:text-text-secondary">Tasks per staff</div>
             </div>
           </div>

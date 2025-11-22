@@ -345,7 +345,7 @@ const RunTemplateModal = ({ isOpen, onClose, template, onSave }) => {
         {!template && step === 1 && (
           <div className="space-y-6">
             <div className="text-center mb-6">
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-text-primary mb-2">Let's name your run! 🏃</h3>
+              <h3 className="text-2xl font-semibold text-gray-900 dark:text-text-primary mb-2">Let's name your run! 🏃</h3>
               <p className="text-gray-600 dark:text-text-secondary">Give it a name that describes when it happens</p>
             </div>
 
@@ -395,7 +395,7 @@ const RunTemplateModal = ({ isOpen, onClose, template, onSave }) => {
         {!template && step === 2 && (
           <div className="space-y-6">
             <div className="text-center mb-6">
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-text-primary mb-2">Set your capacity 📊</h3>
+              <h3 className="text-2xl font-semibold text-gray-900 dark:text-text-primary mb-2">Set your capacity 📊</h3>
               <p className="text-gray-600 dark:text-text-secondary">How many pets can you handle?</p>
             </div>
 
@@ -407,18 +407,18 @@ const RunTemplateModal = ({ isOpen, onClose, template, onSave }) => {
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, maxCapacity: Math.max(1, formData.maxCapacity - 1) })}
-                  className="w-12 h-12 rounded-full bg-gray-200 dark:bg-surface-border hover:bg-gray-300 text-gray-700 dark:text-text-primary text-2xl font-bold transition-all"
+                  className="w-12 h-12 rounded-full bg-gray-200 dark:bg-surface-border hover:bg-gray-300 text-gray-700 dark:text-text-primary text-2xl font-semibold transition-all"
                 >
                   −
                 </button>
                 <div className="flex-1 text-center">
-                  <div className="text-6xl font-bold text-blue-600 dark:text-blue-400">{formData.maxCapacity}</div>
+                  <div className="text-6xl font-semibold text-blue-600 dark:text-blue-400">{formData.maxCapacity}</div>
                   <div className="text-sm text-gray-500 dark:text-text-secondary mt-2">pets maximum</div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, maxCapacity: Math.min(100, formData.maxCapacity + 1) })}
-                  className="w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-2xl font-bold transition-all"
+                  className="w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-2xl font-semibold transition-all"
                 >
                   +
                 </button>
@@ -443,7 +443,7 @@ const RunTemplateModal = ({ isOpen, onClose, template, onSave }) => {
         {!template && step === 3 && (
           <div className="space-y-6">
             <div className="text-center mb-6">
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-text-primary mb-2">How should we count capacity? 🤔</h3>
+              <h3 className="text-2xl font-semibold text-gray-900 dark:text-text-primary mb-2">How should we count capacity? 🤔</h3>
               <p className="text-gray-600 dark:text-text-secondary">This affects how many pets can be scheduled</p>
             </div>
 
@@ -466,9 +466,9 @@ const RunTemplateModal = ({ isOpen, onClose, template, onSave }) => {
                     )}
                   </div>
                   <div className="flex-1">
-                    <div className="text-xl font-bold text-gray-900 dark:text-text-primary mb-2">📅 Total Daily Capacity</div>
+                    <div className="text-xl font-semibold text-gray-900 dark:text-text-primary mb-2">📅 Total Daily Capacity</div>
                     <div className="text-gray-700 dark:text-text-primary mb-3">
-                      Max <span className="font-bold text-blue-600 dark:text-blue-400">{formData.maxCapacity} pets</span> for the entire day,
+                      Max <span className="font-semibold text-blue-600 dark:text-blue-400">{formData.maxCapacity} pets</span> for the entire day,
                       regardless of what time they're scheduled
                     </div>
                     <div className="bg-white dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-3 text-sm">
@@ -500,9 +500,9 @@ const RunTemplateModal = ({ isOpen, onClose, template, onSave }) => {
                     )}
                   </div>
                   <div className="flex-1">
-                    <div className="text-xl font-bold text-gray-900 dark:text-text-primary mb-2">⏰ Concurrent Time Slot Capacity</div>
+                    <div className="text-xl font-semibold text-gray-900 dark:text-text-primary mb-2">⏰ Concurrent Time Slot Capacity</div>
                     <div className="text-gray-700 dark:text-text-primary mb-3">
-                      Max <span className="font-bold text-green-600">{formData.maxCapacity} pets</span> at any single time slot.
+                      Max <span className="font-semibold text-green-600">{formData.maxCapacity} pets</span> at any single time slot.
                       More pets total if scheduled at different times!
                     </div>
                     <div className="bg-white dark:bg-surface-primary border border-green-200 dark:border-green-900/30 rounded-lg p-3 text-sm">

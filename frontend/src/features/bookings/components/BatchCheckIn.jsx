@@ -214,11 +214,11 @@ const BatchCheckIn = () => {
           </div>
           <div className="flex items-center gap-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{arrivals.length}</div>
+              <div className="text-2xl font-semibold text-blue-600">{arrivals.length}</div>
               <div className="text-xs text-gray-600 dark:text-text-secondary">Expected Today</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-success-600">{selectedBookings.length}</div>
+              <div className="text-2xl font-semibold text-success-600">{selectedBookings.length}</div>
               <div className="text-xs text-gray-600 dark:text-text-secondary">Selected</div>
             </div>
           </div>

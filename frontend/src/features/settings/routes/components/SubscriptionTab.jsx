@@ -76,7 +76,7 @@ export default function SubscriptionTab() {
         {/* Usage Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900 dark:text-text-primary">
+            <div className="text-2xl font-semibold text-gray-900 dark:text-text-primary">
               {currentPlan.usage.bookings.used} / {currentPlan.usage.bookings.limit}
             </div>
             <div className="text-sm text-gray-600 dark:text-text-secondary">Bookings this month</div>
@@ -92,7 +92,7 @@ export default function SubscriptionTab() {
           </div>
 
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900 dark:text-text-primary">
+            <div className="text-2xl font-semibold text-gray-900 dark:text-text-primary">
               {currentPlan.usage.activePets}
             </div>
             <div className="text-sm text-gray-600 dark:text-text-secondary">Active pets</div>
@@ -102,7 +102,7 @@ export default function SubscriptionTab() {
           </div>
 
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900 dark:text-text-primary">
+            <div className="text-2xl font-semibold text-gray-900 dark:text-text-primary">
               {currentPlan.usage.storage.used} MB / {currentPlan.usage.storage.limit} MB
             </div>
             <div className="text-sm text-gray-600 dark:text-text-secondary">Storage used</div>
@@ -118,7 +118,7 @@ export default function SubscriptionTab() {
           </div>
 
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900 dark:text-text-primary">
+            <div className="text-2xl font-semibold text-gray-900 dark:text-text-primary">
               {currentPlan.usage.seats.used} / {currentPlan.usage.seats.limit}
             </div>
             <div className="text-sm text-gray-600 dark:text-text-secondary">Team seats</div>
@@ -195,7 +195,7 @@ export default function SubscriptionTab() {
               ))}
             </ul>
             <div className="flex items-center gap-4">
-              <div className="text-lg font-bold text-purple-900 dark:text-purple-100">
+              <div className="text-lg font-semibold text-purple-900 dark:text-purple-100">
                 ${upgradeRecommendation.price.monthly}/month
               </div>
               <Badge variant="success" className="bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200">

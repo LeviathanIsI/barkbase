@@ -38,7 +38,7 @@ const ServiceAnalyticsDashboard = ({ data }) => {
             <DollarSign className="w-4 h-4 text-green-600" />
             <span className="text-sm font-medium text-gray-600 dark:text-text-secondary">Total Revenue</span>
           </div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-text-primary">${totalRevenue.toLocaleString()}</div>
+          <div className="text-2xl font-semibold text-gray-900 dark:text-text-primary">${totalRevenue.toLocaleString()}</div>
           <div className="text-xs text-green-600">+12% vs previous period</div>
         </div>
 
@@ -47,7 +47,7 @@ const ServiceAnalyticsDashboard = ({ data }) => {
             <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
             <span className="text-sm font-medium text-gray-600 dark:text-text-secondary">Total Bookings</span>
           </div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-text-primary">{totalBookings}</div>
+          <div className="text-2xl font-semibold text-gray-900 dark:text-text-primary">{totalBookings}</div>
           <div className="text-xs text-green-600">+8% vs previous period</div>
         </div>
 
@@ -56,7 +56,7 @@ const ServiceAnalyticsDashboard = ({ data }) => {
             <TrendingUp className="w-4 h-4 text-purple-600 dark:text-purple-400" />
             <span className="text-sm font-medium text-gray-600 dark:text-text-secondary">Avg per Booking</span>
           </div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-text-primary">${avgRevenuePerBooking}</div>
+          <div className="text-2xl font-semibold text-gray-900 dark:text-text-primary">${avgRevenuePerBooking}</div>
           <div className="text-xs text-green-600">+15% vs previous period</div>
         </div>
 
@@ -65,7 +65,7 @@ const ServiceAnalyticsDashboard = ({ data }) => {
             <Star className="w-4 h-4 text-yellow-600" />
             <span className="text-sm font-medium text-gray-600 dark:text-text-secondary">Avg Rating</span>
           </div>
-          <div className="text-2xl font-bold text-gray-900 dark:text-text-primary">4.7</div>
+          <div className="text-2xl font-semibold text-gray-900 dark:text-text-primary">4.7</div>
           <div className="text-xs text-green-600">+0.2 vs previous period</div>
         </div>
       </div>
@@ -99,7 +99,7 @@ const ServiceAnalyticsDashboard = ({ data }) => {
           {topPerformers.map((performer, index) => (
             <div key={performer.name} className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ${
                   index === 0 ? 'bg-yellow-100 dark:bg-surface-secondary text-yellow-800' :
                   index === 1 ? 'bg-gray-100 dark:bg-surface-secondary text-gray-800 dark:text-text-primary' :
                   'bg-orange-100 dark:bg-surface-secondary text-orange-800'

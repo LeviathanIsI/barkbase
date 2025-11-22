@@ -218,7 +218,7 @@ const StaffWizard = ({ isOpen, onClose, onComplete }) => {
                 <h4 className="text-lg font-medium text-gray-900 dark:text-text-primary mb-4">Staff Member Summary</h4>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <div className="w-16 h-16 bg-primary-600 dark:bg-primary-700 rounded-full flex items-center justify-center text-white font-bold text-lg mb-3">
+                    <div className="w-16 h-16 bg-primary-600 dark:bg-primary-700 rounded-full flex items-center justify-center text-white font-semibold text-lg mb-3">
                       {staffData.firstName[0]}{staffData.lastName[0]}
                     </div>
                     <h5 className="text-xl font-semibold text-gray-900 dark:text-text-primary">{staffData.firstName} {staffData.lastName}</h5>

@@ -55,7 +55,7 @@ export default function FinancialDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 dark:text-text-secondary">Current Plan</p>
-                <p className="text-xl font-bold text-gray-900 dark:text-text-primary">{billingOverview.currentPlan}</p>
+                <p className="text-xl font-semibold text-gray-900 dark:text-text-primary">{billingOverview.currentPlan}</p>
               </div>
               <Badge variant="neutral" className="text-xs">
                 Free
@@ -67,7 +67,7 @@ export default function FinancialDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 dark:text-text-secondary">Next Billing</p>
-                <p className="text-xl font-bold text-gray-900 dark:text-text-primary">{billingOverview.nextBilling}</p>
+                <p className="text-xl font-semibold text-gray-900 dark:text-text-primary">{billingOverview.nextBilling}</p>
                 <p className="text-xs text-gray-500 dark:text-text-secondary">{billingOverview.daysUntilBilling} days</p>
               </div>
               <Calendar className="w-8 h-8 text-blue-600 dark:text-blue-400" />
@@ -78,7 +78,7 @@ export default function FinancialDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 dark:text-text-secondary">Payment Method</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-text-primary">●●●● 4242</p>
+                <p className="text-lg font-semibold text-gray-900 dark:text-text-primary">●●●● 4242</p>
                 <p className="text-xs text-gray-500 dark:text-text-secondary">Visa ending in 4242</p>
               </div>
               <Button variant="outline" size="sm">
@@ -93,19 +93,19 @@ export default function FinancialDashboard() {
           <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">This Month</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">
+              <div className="text-2xl font-semibold text-green-600">
                 {formatCurrency(billingOverview.thisMonth.processed * 100)}
               </div>
               <div className="text-sm text-gray-600 dark:text-text-secondary">Processed</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+              <div className="text-2xl font-semibold text-blue-600 dark:text-blue-400">
                 {billingOverview.thisMonth.bookings}
               </div>
               <div className="text-sm text-gray-600 dark:text-text-secondary">Bookings</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-orange-600">
+              <div className="text-2xl font-semibold text-orange-600">
                 {formatCurrency(billingOverview.thisMonth.transactionFees * 100)}
               </div>
               <div className="text-sm text-gray-600 dark:text-text-secondary">Transaction Fees</div>
