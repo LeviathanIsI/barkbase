@@ -1,6 +1,7 @@
 /**
  * Professional Tabs Component
- * Clean tab navigation with border indicator
+ * Enterprise underline-style tabs (Linear/HubSpot pattern)
+ * NO pill/segment style - uses bottom border for active state
  */
 
 import React, { createContext, useContext, useState } from 'react';
@@ -31,7 +32,7 @@ const TabsList = React.forwardRef(({ className, children, ...props }, ref) => (
   <div
     ref={ref}
     className={cn(
-      'inline-flex h-10 items-center justify-center rounded-lg bg-gray-100 dark:bg-surface-secondary p-1 text-gray-600 dark:text-text-secondary',
+      'flex items-center border-b border-gray-200 dark:border-dark-border',
       className
     )}
     {...props}
@@ -51,13 +52,14 @@ const TabsTrigger = React.forwardRef(({ className, value, children, ...props }, 
       type="button"
       onClick={() => context.onValueChange(value)}
       className={cn(
-        'inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5',
+        'inline-flex items-center justify-center whitespace-nowrap px-4 py-3',
         'text-sm font-medium transition-all',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
+        'border-b-2 -mb-[1px]', // Offset to overlap parent border
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2',
         'disabled:pointer-events-none disabled:opacity-50',
         isSelected
-          ? 'bg-white dark:bg-surface-primary text-gray-900 dark:text-text-primary shadow-sm'
-          : 'text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary',
+          ? 'border-primary-600 text-primary-600 dark:border-primary-500 dark:text-primary-400'
+          : 'border-transparent text-gray-600 dark:text-dark-text-secondary hover:text-gray-900 dark:hover:text-dark-text-primary hover:border-gray-300 dark:hover:border-dark-border',
         className
       )}
       {...props}
@@ -70,14 +72,14 @@ TabsTrigger.displayName = 'TabsTrigger';
 
 const TabsContent = React.forwardRef(({ className, value, children, ...props }, ref) => {
   const context = useContext(TabsContext);
-  
+
   if (context.value !== value) return null;
 
   return (
     <div
       ref={ref}
       className={cn(
-        'mt-2 ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
+        'mt-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2',
         className
       )}
       {...props}
