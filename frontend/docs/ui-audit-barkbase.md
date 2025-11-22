@@ -1,499 +1,134 @@
-# BarkBase UI/UX Audit Report
-**Date:** 2025-01-22
-**Objective:** Transform BarkBase from consumer-app aesthetic to professional B2B SaaS UI
+# BarkBase UI/UX Audit – Phase 0
 
----
-
-## Executive Summary
-
-BarkBase has a **well-architected design system** with comprehensive design tokens, professional color palettes, and a solid foundation. However, there's a **significant gap between configuration and implementation**:
-
-- ✅ **Design tokens configured** (design-tokens.css with professional dark mode)
-- ✅ **Tailwind extended** with semantic color references
-- ✅ **Border radius limited** to 8px max in config
-- ❌ **Old hard-coded values** still used throughout components
-- ❌ **Tabs use pill style** instead of enterprise underline
-- ❌ **Inconsistent token usage** (mix of var(), direct colors, and hard-coded hex)
-- ❌ **Ultra-dark backgrounds** in main layout (#0F0F1A instead of #1a1d23)
-
-**Bottom Line:** The system is ready, but components haven't been migrated to use it consistently.
+**Date:** 2025-11-22  
+**Objective:** capture the current visual debt before applying the professional B2B SaaS aesthetic.
 
 ---
 
 ## Section 1: Overview
 
-### Current Visual State
-The application currently exhibits:
-- **Too-dark backgrounds**: Main app shell uses `#0F0F1A` (pure black) instead of configured `#1a1d23` (professional dark)
-- **Consumer-style tabs**: Pill/segment controls with rounded backgrounds instead of underline borders
-- **Inconsistent color usage**: Mix of design tokens, hard-coded hex values, and Tailwind direct colors
-- **Excessive border radius** in 20+ files using `rounded-xl`, `rounded-2xl`
-- **Hard-coded status colors**: `text-green-600`, `text-blue-500` instead of semantic tokens
+### Stack snapshot
+- React 19 + Vite 7 with Tailwind 3.4, React Query, CVA-based primitives, and vitest (`package.json`).  
+- Semantic design tokens defined in `src/styles/design-tokens.css` and surfaced through Tailwind (`tailwind.config.js`).  
+- Global utilities (`src/index.css`) already implement the three-weight typography system, shared cards/buttons/tables, and scrollbar styling.  
+- Layout shell sits in `components/layout/AppShell.jsx`, orchestrating `JumboSidebar`, `JumboHeader`, tenant state, and the routed outlet.
 
-### What's Working Well
-- Design tokens system is comprehensive and professional
-- Button component uses CVA with good variant system
-- Card component properly references dark-bg tokens
-- Typography utilities follow 3-weight system
-- 8-point spacing grid is defined
+### Screens reviewed
+- **Structural:** `AppShell.jsx`, `JumboHeader.jsx`, `JumboSidebar.jsx`.  
+- **Operational:** `features/today/TodayCommandCenter.jsx`.  
+- **Bookings workflows:** `features/bookings/routes/Bookings.jsx`, `BookingsOverview.jsx`.  
+- **Data list/detail:** `features/pets/routes/Pets.jsx`.  
+- **Settings hub:** `features/settings/components/SettingsLayout.jsx`.  
+- **Mobile workflow:** `features/mobile/MobileCheckIn.jsx`.
 
 ---
 
-## Section 2: Findings by Category
+## Section 2: Findings by category
 
-### 🎨 **Colors & Dark Mode**
-
-#### Critical Issues:
-1. **AppShell.jsx:37, 52** - Ultra-dark backgrounds
-   ```jsx
-   // ❌ CURRENT: Too dark, pure black
-   bg-[#0F0F1A]
-
-   // ✅ SHOULD BE: Professional dark mode
-   bg-background-primary dark:bg-dark-bg-primary
-   ```
-
-2. **AppShell.jsx:65** - Hard-coded sidebar backgrounds
-   ```jsx
-   // ❌ CURRENT
-   bg-[#1E1E2D] dark:bg-[#1A1A2E]
-
-   // ✅ SHOULD BE
-   bg-dark-bg-sidebar
-   ```
-
-3. **TodayCommandCenter.jsx** - Multiple hard-coded status colors
-   ```jsx
-   // ❌ Lines 207, 419, 441, 465, 482
-   text-green-600, text-orange-600, text-blue-600, text-purple-600
-
-   // ✅ SHOULD BE
-   text-success-600, text-warning-600, text-primary-600, text-secondary-600
-   ```
-
-4. **Badge.jsx:18-23** - Hard-coded color names instead of semantic
-   ```jsx
-   // ❌ CURRENT
-   bg-green-100 dark:bg-green-950/30 text-green-700
-
-   // ✅ SHOULD BE
-   bg-success-100 dark:bg-success-100 text-success-700
-   ```
-
-#### Affected Files:
-- `frontend/src/components/layout/AppShell.jsx` (CRITICAL)
-- `frontend/src/features/today/TodayCommandCenter.jsx` (lines 207, 223, 278, 419, 441, 465, 482, 497, 501)
-- `frontend/src/components/ui/Badge.jsx`
-- `frontend/src/components/ui/StatCard.jsx` (mostly good, uses var())
-
-### 📐 **Border Radius**
-
-#### Critical Issues:
-Files using excessive `rounded-xl`, `rounded-2xl`, `rounded-full` (non-avatar):
-
-1. **CheckInModal.jsx** - Cards and panels
-2. **AppShell.jsx:74** - Recovery modal
-3. **JumboHeader.jsx** - Various elements
-4. **PetDetail.jsx** - Cards and sections
-5. **Timeline.jsx** - Timeline nodes
-6. **BoardView.jsx** - Board cards
-7. **PlaceholderPage.jsx** - Empty states
-8. **OfflineIndicator.jsx** - Notification badge
-9. **PetAvatar.jsx** - Avatars (full is okay here)
-10. **QuickAccessBar.jsx** - Action buttons
-11. **UnifiedPetPeopleView.jsx** - List items
-12. **BatchCheckIn.jsx** - Batch action cards
-13. **MobileCheckIn.jsx** - Mobile cards
-14. **OwnerHoverPreview.jsx** - Preview popover
-15. **TeamDashboard.jsx** (x2) - Dashboard cards
-16. **StaffWizard.jsx** - Wizard steps
-17. **TeamOverview.jsx** - Team cards
-
-**Recommended Fix:**
-- Cards/modals: `rounded-lg` (8px max)
-- Buttons/inputs: `rounded-md` (6px)
-- Badges: `rounded-md` (6px)
-- Avatars only: `rounded-full` (9999px)
-
-### 📑 **Tabs - CRITICAL ISSUE**
-
-**Current Implementation** (`Tabs.jsx:30-40`):
-```jsx
-// ❌ Pill/segment style - consumer look
-<div className="inline-flex h-10 items-center justify-center rounded-lg bg-gray-100 dark:bg-surface-secondary p-1">
-  <button className="rounded-md px-3 py-1.5 bg-white shadow-sm">
+### Colors & dark mode drift
+- Several surfaces still pin to `#0F0F1A`, flattening elevation and deviating from the lighter pro dark palette.
+```110:140:frontend/src/features/settings/components/SettingsLayout.jsx
+  return (
+    <div className="min-h-screen bg-gray-100 dark:bg-[#0F0F1A]">
+      <PageHeader … />
+      <div className="bg-white dark:bg-surface-primary border-b border-gray-300 dark:border-surface-border mb-6">
+        …
+```
+```208:230:frontend/src/features/mobile/MobileCheckIn.jsx
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-[#0F0F1A]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+  if (arrivals.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-gray-50 dark:bg-[#0F0F1A] p-6 text-center">
+        …
+```
+- Data views still hard-code light-mode hex colors (`#263238`, `#F5F6FA`) so the content fails dark-mode contrast.
+```153:245:frontend/src/features/pets/routes/Pets.jsx
+          <div className="flex items-center gap-3 mb-4 pr-8">
+            …
+            <h3 className="font-semibold text-[#263238] dark:text-text-primary truncate">{pet.name}</h3>
+            …
+        <tr className="border-b border-[#F5F6FA] hover:bg-[#F5F6FA]/50 cursor-pointer transition-colors">
+          …
+          <p className="text-[#263238] dark:text-text-primary">{primaryOwner?.name || primaryOwner?.email || '--'}</p>
+```
+- Quick actions inside `JumboHeader` use saturated bespoke fills instead of the desaturated brand/status palette we already defined.
+```127:235:frontend/src/components/layout/JumboHeader.jsx
+                  <Link …>
+                    <div className="w-8 h-8 bg-[#4B5DD3] rounded-lg flex items-center justify-center">
+                      <Grid3x3 className="h-4 w-4 text-white" />
+                    </div>
+                    …
+                  </Link>
+                  <Link …>
+                    <div className="w-8 h-8 bg-[#FF9800] rounded-lg flex items-center justify-center">
+                      <User className="h-4 w-4 text-white" />
+                    </div>
 ```
 
-**Required Enterprise Pattern:**
-```jsx
-// ✅ Underline style - B2B SaaS look
-<div className="border-b border-gray-200 dark:border-dark-border">
-  <button className="border-b-2 border-transparent data-[active]:border-primary-600 px-4 py-3">
+### Borders, chips, and segmented controls
+- Multiple headers still rely on pill toggles rather than the underline tabs component (`components/ui/Tabs`).
+```23:67:frontend/src/features/bookings/routes/Bookings.jsx
+        {!showNewBooking && (
+          <div className="flex items-center bg-gray-100 dark:bg-surface-secondary rounded-lg p-1">
+            <button className={`px-3 py-1.5 rounded text-sm font-medium …`}>Run Board</button>
+            <button className={`px-3 py-1.5 rounded text-sm font-medium …`}>List View</button>
+          </div>
+        )}
 ```
-
-**Reference:** Linear, HubSpot, Salesforce all use underline tabs, not pills.
-
-### 🎯 **Headers & Layout**
-
-#### JumboHeader.jsx (Line 47):
-- Currently uses `bg-primary-600` solid blue header
-- **Status:** Acceptable for now (uses design token)
-- **Consideration:** Many B2B apps use neutral headers with subtle borders
-
-#### Issues:
-1. **AppShell recovery modal (line 74)**: Uses `rounded-2xl` - should be `rounded-lg`
-2. **Inconsistent padding**: Some cards use `p-6`, others `p-4`, some `p-8`
-3. **No consistent PageHeader usage**: DashboardLayout exists but not widely adopted
-
-### 🔲 **Empty States**
-
-#### Observations:
-- TodayCommandCenter.jsx:210-216 has a **good compact empty state**
-- Other files likely have oversized empty states (need to check PlaceholderPage.jsx)
-
-**Best Practice:** Small icon (w-12 h-12), 1-2 lines of text, small button.
-
-### 🏷️ **Card Elevation & Shadows**
-
-#### Current State:
-- Card.jsx:15 uses proper tokens ✅
-- StatCard.jsx:57 uses proper surface tokens ✅
-- DashboardCard wraps Card properly ✅
-
-**Status:** Generally good, but verify shadow intensity in dark mode.
-
-### 🎨 **Accent Color Desaturation**
-
-#### Issues Found:
-Most semantic colors are properly defined in design-tokens.css, but implementation is inconsistent:
-
-- TodayCommandCenter uses hard-coded `blue-500`, `green-600`, `orange-600`
-- Should reference `--color-primary-600`, `--color-success-600`, `--color-warning-600`
-
-### 🔘 **Button Hierarchy**
-
-**Status:** ✅ **GOOD**
-
-Button.jsx (lines 10-49) has professional CVA-based variants:
-- Primary (brand color)
-- Secondary (outlined)
-- Tertiary (text only)
-- Destructive (error color)
-- Ghost (minimal)
-- Success (secondary color)
-
-**Proper usage in components:** TodayCommandCenter uses `variant="primary"`, `variant="outline"` correctly.
-
-### 📝 **Typography**
-
-**Status:** ✅ **MOSTLY GOOD**
-
-- index.css has professional 3-weight utilities (lines 11-77)
-- Headings use semibold (600)
-- Body uses normal (400)
-- Labels use medium (500)
-
-**Minor Issue:** Some components use `font-bold` instead of `font-semibold`:
-- Should audit for `font-bold` and replace with `font-semibold` for consistency
-
-### 📏 **Spacing**
-
-**Issues:**
-1. **Inconsistent card padding**:
-   - Some use `p-6` (24px - correct per design tokens)
-   - Others use `p-4` (16px)
-   - Some use `p-8` (32px)
-
-2. **Inconsistent gaps**:
-   - Some use `gap-3`, others `gap-4`, `gap-6`
-   - Should standardize to `gap-4` (16px) for elements, `gap-6` (24px) for sections
-
-**Design Tokens Define:**
-- Card padding: `var(--card-padding)` = 24px (p-6)
-- Card padding compact: `var(--card-padding-sm)` = 16px (p-4)
-- Element gap: `var(--element-gap)` = 16px (gap-4)
-- Content gap: `var(--content-gap)` = 24px (gap-6)
-- Section gap: `var(--section-gap)` = 32px (gap-8)
-
----
-
-## Section 3: File-Level References
-
-### Primary Target Files (Must Fix):
-
-#### Critical Priority:
-1. **`frontend/src/components/layout/AppShell.jsx`**
-   - Lines 37, 52: Replace `#0F0F1A` with `bg-background-primary dark:bg-dark-bg-primary`
-   - Line 65: Replace hard-coded sidebar backgrounds
-   - Line 74: Change `rounded-2xl` to `rounded-lg`
-
-2. **`frontend/src/components/ui/Tabs.jsx`**
-   - Lines 30-67: Complete redesign from pill to underline style
-   - This is used throughout the app, so high impact
-
-3. **`frontend/src/features/today/TodayCommandCenter.jsx`**
-   - Lines 207, 419, 441, 465, 482: Replace hard-coded status colors
-   - Lines 223, 278-279, 497, 501: Use consistent surface tokens
-
-#### High Priority:
-4. **`frontend/src/components/ui/Badge.jsx`**
-   - Lines 18-23: Use semantic color names (success, warning, error) instead of green, blue, red
-
-5. **`frontend/src/features/bookings/components/CheckInModal.jsx`** (in git status)
-   - Likely has excessive rounding and hard-coded colors
-
-6. **`frontend/src/features/bookings/components/CheckOutModal.jsx`** (in git status)
-   - Same as CheckInModal
-
-#### Medium Priority (Border Radius):
-7. Files using `rounded-xl/2xl` (20 files found):
-   - PetDetail.jsx, Timeline.jsx, BoardView.jsx, PlaceholderPage.jsx
-   - UnifiedPetPeopleView.jsx, BatchCheckIn.jsx, MobileCheckIn.jsx
-   - TeamDashboard.jsx (x2), StaffWizard.jsx, TeamOverview.jsx
-   - OwnerHoverPreview.jsx, QuickAccessBar.jsx, OfflineIndicator.jsx
-
-### Shared Components (Fix Once, Impact Many):
-- ✅ `frontend/src/components/ui/Button.jsx` - Already good
-- ✅ `frontend/src/components/ui/Card.jsx` - Already good
-- ❌ `frontend/src/components/ui/Tabs.jsx` - NEEDS REDESIGN
-- ⚠️ `frontend/src/components/ui/Badge.jsx` - Needs semantic colors
-- ✅ `frontend/src/components/dashboard/StatCard.jsx` - Already good
-- ✅ `frontend/src/components/dashboard/DashboardCard.jsx` - Already good
-- ✅ `frontend/src/components/ui/Modal.jsx` - Already good
-
-### Representative Pages (Test After Changes):
-- `frontend/src/features/today/TodayCommandCenter.jsx` - Dashboard/command center
-- `frontend/src/features/pets/routes/Pets.jsx` - Data-heavy list
-- `frontend/src/features/pets/routes/PetDetail.jsx` - Detail view
-- `frontend/src/features/bookings/components/BatchCheckIn.jsx` - Complex workflow
-
----
-
-## Section 4: Adjusted Implementation Plan
-
-### Phase-by-Phase Breakdown
-
-#### ✅ **Phase 0: Audit & Plan** (CURRENT)
-- Create this audit document
-- Identify all problem areas
-- Prioritize changes by impact
-
-#### **Phase 1: Critical Fixes - Dark Mode Backgrounds** (30 min)
-**Impact:** HIGH - Fixes the "too dark" problem immediately
-- Fix AppShell.jsx backgrounds (lines 37, 52, 65)
-- Replace `#0F0F1A` with `bg-background-primary dark:bg-dark-bg-primary`
-- Test: Open app in dark mode, verify backgrounds are lighter
-
-**Commit:** `fix: replace ultra-dark backgrounds with professional dark mode tokens`
-
-#### **Phase 2: Tabs Redesign - Enterprise Underline Style** (45 min)
-**Impact:** HIGH - Most visible change, affects many pages
-- Redesign Tabs.jsx from pill to underline style
-- Create new TabsList, TabsTrigger with border-b pattern
-- Test: Today page tabs, any other tab usage
-
-**Commit:** `feat: replace pill tabs with professional underline style`
-
-#### **Phase 3: Semantic Color Migration** (1 hour)
-**Impact:** MEDIUM-HIGH - Consistency and maintainability
-- Badge.jsx: Use success/warning/error instead of green/blue/red
-- TodayCommandCenter.jsx: Replace hard-coded status colors
-- Audit other files for `text-green-600`, `text-blue-500` patterns
-
-**Commit:** `refactor: migrate to semantic color tokens (success/warning/error)`
-
-#### **Phase 4: Border Radius Normalization** (1 hour)
-**Impact:** MEDIUM - Visual polish, professional look
-- Fix 20+ files using rounded-xl/2xl
-- Cards → rounded-lg (8px)
-- Buttons → rounded-md (6px)
-- Keep rounded-full only for avatars
-
-**Commit:** `refactor: normalize border radius to max 8px for professional look`
-
-#### **Phase 5: Spacing Standardization** (30 min)
-**Impact:** MEDIUM - Visual consistency
-- Standardize card padding to p-6 (or p-4 for compact variant)
-- Standardize gaps: gap-4 for elements, gap-6 for content blocks
-- Use design token values consistently
-
-**Commit:** `refactor: standardize spacing using design token values`
-
-#### **Phase 6: Typography Audit** (20 min)
-**Impact:** LOW-MEDIUM - Polish
-- Find and replace `font-bold` with `font-semibold`
-- Ensure heading hierarchy is consistent
-- Verify 3-weight system usage
-
-**Commit:** `refactor: enforce 3-weight typography system`
-
-#### **Phase 7: Empty States** (30 min)
-**Impact:** LOW - User experience
-- Audit PlaceholderPage and other empty states
-- Ensure compact design (small icons, minimal text)
-- Create reusable EmptyState component if needed
-
-**Commit:** `refactor: implement compact professional empty states`
-
-#### **Phase 8: Header Consistency** (30 min)
-**Impact:** LOW - Consistency
-- Ensure PageHeader component is used consistently
-- Standardize page header padding and borders
-- Consider if JumboHeader blue is acceptable or needs change
-
-**Commit:** `refactor: standardize page headers across application`
-
-#### **Phase 9: CheckIn/CheckOut Modals** (30 min)
-**Impact:** MEDIUM - User-facing workflows
-- Fix CheckInModal.jsx and CheckOutModal.jsx
-- Apply all previous fixes (colors, radius, spacing)
-- Test workflows
-
-**Commit:** `refactor: apply professional UI standards to check-in/out modals`
-
-#### **Phase 10: Final Verification & Testing** (30 min)
-**Impact:** CRITICAL - Quality assurance
-- Run lint/typecheck/build
-- Visual test: Today, Clients, Pets, Bookings, Settings
-- Verify dark mode across all pages
-- Check mobile responsiveness
-
-**Commit:** `chore: final UI/UX refinement verification`
-
----
-
-## Section 5: Divergences from Original Plan
-
-### Changes to Original 10-Phase Plan:
-
-1. **Combined Color System**: Original plan separated dark mode colors and accent desaturation. We'll do both together in Phase 3 since they're related.
-
-2. **Prioritized Tabs Earlier**: Moved from Phase 3 to Phase 2 because it's highly visible and affects multiple pages.
-
-3. **Added Semantic Color Migration**: Not explicitly in original plan, but critical for consistency.
-
-4. **Deferred Header Changes**: JumboHeader is already using tokens and looks acceptable. Not a priority.
-
-5. **Realistic Time Estimates**: Original plan didn't include time estimates. Added them for planning.
-
-### New Recommendations:
-
-1. **Create EmptyState component** if one doesn't exist
-2. **Audit for `font-bold`** and replace with `font-semibold`
-3. **Consider neutral header** alternative to blue JumboHeader (future)
-4. **Add Storybook** for component documentation (future)
-5. **Create UI checklist** for new component development (future)
-
----
-
-## Section 6: Success Metrics
-
-### Before (Current State):
-- ❌ Main background: `#0F0F1A` (too dark)
-- ❌ Tabs: Pill style with rounded backgrounds
-- ❌ Colors: Mix of hard-coded, tokens, and direct Tailwind
-- ❌ Border radius: Excessive use of rounded-xl/2xl
-- ⚠️ Spacing: Inconsistent padding and gaps
-
-### After (Target State):
-- ✅ Main background: `#1a1d23` (professional dark)
-- ✅ Tabs: Underline style with border-b
-- ✅ Colors: 100% semantic tokens (success/warning/error)
-- ✅ Border radius: Max 8px on cards, 6px on buttons
-- ✅ Spacing: Consistent use of design token values
-
-### Visual Comparison:
-- **Lighter dark mode** - backgrounds clearly differentiate
-- **Professional tabs** - underline style like Linear/HubSpot
-- **Muted status colors** - desaturated, not bright
-- **Subtle rounding** - 6-8px max, not consumer-app bubbles
-- **Systematic spacing** - 8-point grid, generous padding
-
----
-
-## Section 7: Next Steps
-
-### Immediate Actions:
-1. ✅ Review this audit with team/stakeholders
-2. ⬜ Create feature branch: `feature/ui-ux-refinement`
-3. ⬜ Begin Phase 1: Fix dark mode backgrounds
-4. ⬜ Commit after each phase (Git discipline)
-5. ⬜ Test after each phase before proceeding
-
-### Testing Strategy:
-- After each phase: Run `npm run lint` and `npm run build`
-- Visual test key pages: Today, Clients, Pets, Bookings
-- Check dark/light mode toggle works
-- Verify mobile responsiveness
-
-### Risk Mitigation:
-- Small, incremental commits (3-5 files max)
-- Test after each phase, not at the end
-- Keep original plan as backup
-- Screenshot before/after for comparison
-
----
-
-## Appendix A: Design Token Reference
-
-### Current Design Tokens (from design-tokens.css):
-
-```css
-/* Dark Mode Backgrounds */
---bg-primary: #1a1d23;              /* Main background */
---bg-secondary: #242930;            /* Card backgrounds */
---bg-tertiary: #2d3139;             /* Hover states */
---bg-sidebar: #15171c;              /* Sidebar */
-
-/* Text Colors */
---text-primary: #e5e7eb;            /* Main text */
---text-secondary: #9ca3af;          /* Secondary text */
---text-tertiary: #6b7280;           /* Tertiary text */
-
-/* Borders */
---border-color: rgba(255, 255, 255, 0.08);
---border-strong: rgba(255, 255, 255, 0.12);
-
-/* Status Colors */
---color-success-600: #059669;       /* Green */
---color-warning-600: #d97706;       /* Orange */
---color-error-600: #dc2626;         /* Red */
-
-/* Border Radius */
---radius-sm: 4px;                   /* Badges */
---radius-md: 6px;                   /* Buttons, inputs */
---radius-lg: 8px;                   /* Cards, modals (MAX) */
-
-/* Spacing */
---card-padding: 24px;               /* p-6 */
---element-gap: 16px;                /* gap-4 */
---content-gap: 24px;                /* gap-6 */
+- Today view, BookingsOverview, and Settings tabs recreate similar segmented controls, so adopting underline tabs will declutter those headers immediately.
+
+### Headers, elevation, and empty states
+- Most feature pages still render ad-hoc `<h1>` + `<p>` stacks and bespoke action rows instead of the shared `PageHeader`, leading to mismatched spacing and button placement.
+- Empty states on mobile and in Pets stretch to full height with large typography rather than the compact `components/ui/EmptyState.jsx` pattern, so the experience still feels consumer-grade.
+
+### Status colors & badges
+- Badges, quick metrics, and dashboards reference raw Tailwind greens/oranges.
+```60:125:frontend/src/features/staff/components/TeamDashboard.jsx
+          <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.totalStaff}</p>
+          <p className="text-xs text-green-600">+2 this month</p>
+        </Card>
+        …
+            <div className="w-10 h-10 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
+              <CheckCircle className="w-5 h-5 text-green-600" />
 ```
+- TodayCommandCenter mixes `Badge` variants with `text-blue-600`, `text-warning-600`, etc., so status semantics change from card to card.
+
+### Typography and spacing
+- Despite the three-weight system, key headers (`Bookings`, `MobileCheckIn`, staff dashboards) still use `font-bold`, so titles feel heavier than HubSpot/Linear references.
+- Grids mix `gap-3`, `gap-4`, and `gap-6`, and card padding ranges from `p-4` to `p-6`, which breaks the 8-pt rhythm defined in the tokens.
 
 ---
 
-## Appendix B: Quick Reference Commands
+## Section 3: File-level references
 
-```bash
-# Run lint
-npm run lint
+| Theme | Primary files/components |
+| --- | --- |
+| Dark-mode surfaces & colors | `components/layout/AppShell.jsx`, `components/layout/JumboHeader.jsx`, `features/settings/components/SettingsLayout.jsx`, `features/mobile/MobileCheckIn.jsx`, `features/pets/routes/Pets.jsx`, `styles/theme-config.js` |
+| Tabs / segmented controls | `components/ui/Tabs.jsx`, `features/bookings/routes/Bookings.jsx`, `features/bookings/routes/BookingsOverview.jsx`, `features/today/TodayCommandCenter.jsx`, `features/settings/components/SettingsLayout.jsx` |
+| Status chips & badges | `components/ui/Badge.jsx`, `features/staff/components/TeamDashboard.jsx`, `features/today/TodayCommandCenter.jsx`, `components/QuickAccessBar.jsx`, `features/bookings/components/BatchCheckIn.jsx` |
+| Typography & spacing | `features/bookings/routes/Bookings.jsx`, `features/mobile/MobileCheckIn.jsx`, `features/staff/components/TeamDashboard.jsx`, `features/settings/routes/components/SubscriptionTab.jsx`, `features/pets/routes/Pets.jsx` |
+| Empty states & elevation | `components/ui/EmptyState.jsx` (reference), `features/pets/routes/Pets.jsx`, `features/mobile/MobileCheckIn.jsx`, `components/shared/PlaceholderPage.jsx`, `features/today/TodayCommandCenter.jsx` |
 
-# Run typecheck (if available)
-npm run typecheck
-
-# Build for production
-npm run build
-
-# Search for hard-coded colors
-grep -r "text-green-600\|text-blue-500\|bg-\[#" frontend/src
-
-# Search for excessive rounding
-grep -r "rounded-xl\|rounded-2xl" frontend/src
-
-# Search for font-bold
-grep -r "font-bold" frontend/src
-```
+These files hit the most-used workflows, so refactoring them first maximizes the perceived uplift.
 
 ---
 
-**End of Audit Report**
+## Section 4: Adjusted plan
+
+1. **Phase 1 – Dark-mode surface reset**: purge every lingering `#0F0F1A`, `#263238`, `#F5F6FA` usage in AppShell, Settings, Mobile, Pets, and the theme config so the new palette actually ships.
+2. **Phase 2 – Underline tabs everywhere**: finish hardening `components/ui/Tabs` (already underline-based) and replace the pill toggles in Bookings, Today, Settings, and any saved-view switchers.
+3. **Phase 3 – Semantic badges & accents**: refactor `Badge.jsx`, Quick Access tiles, Today metrics, and dashboards to use the `success/warning/error/info` tokens instead of raw Tailwind greens/oranges/hex fills.
+4. **Phase 4 – Border radius + chip normalization**: cap cards/modals at `rounded-lg` (8px) and controls at `rounded-md` (6px), introduce a shared “chip” helper for filters, and remove stray `rounded-full` badges.
+5. **Phase 5 – Header & layout consistency**: adopt `PageHeader` across Bookings, Today, Pets, and Settings; document padding/border defaults so actions line up predictably.
+6. **Phase 6 – Empty states & density**: swap bespoke empty screens for `EmptyState`, enforce `p-6`/`gap-6` defaults (or `p-4` compact), and remove oversized hero illustrations.
+7. **Phase 7 – Typography sweep**: replace `font-bold` with `font-semibold`, align heading sizes to the documented scale, and ensure supporting text uses `text-secondary` tokens.
+8. **Phase 8 – Workflow polish**: once primitives align, revisit Today’s high-density mode, Bookings modals, and Mobile check-in to confirm they inherit the updated system without overrides.
+9. **Phase 9 – Final verification**: lint/typecheck/build, sanity-check Today, Bookings, Pets, Settings, and Mobile in dark/light themes, and capture before/after screenshots for stakeholders.
+
+Compared to the previous assistant’s sequence, this reorders the earliest phases around the most visible regressions (lingering `#0F0F1A`, pill toggles, saturated badges) and adds explicit typography/spacing and empty-state sweeps that were previously missing.
