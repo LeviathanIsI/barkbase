@@ -159,16 +159,16 @@ export default {
         '24': 'var(--space-24)',
       },
 
-      // Border Radius - Modern Professional (from design-tokens.css)
+      // Border Radius - Professional Enterprise (from design-tokens.css)
       borderRadius: {
-        'none': 'var(--radius-none)',
-        'sm': 'var(--radius-sm)',
-        'DEFAULT': 'var(--radius-lg)',
-        'md': 'var(--radius-md)',
-        'lg': 'var(--radius-lg)',
-        'xl': 'var(--radius-xl)',
-        '2xl': 'var(--radius-2xl)',
-        'full': 'var(--radius-full)',
+        'none': 'var(--radius-none)',   // 0
+        'sm': 'var(--radius-sm)',       // 4px - Small elements, badges
+        'DEFAULT': 'var(--radius-md)',  // 6px - Default for buttons, inputs
+        'md': 'var(--radius-md)',       // 6px - Buttons, inputs
+        'lg': 'var(--radius-lg)',       // 8px - Cards, modals (MAXIMUM)
+        'xl': 'var(--radius-xl)',       // 8px - Overridden to same as lg
+        '2xl': 'var(--radius-2xl)',     // 8px - Overridden to same as lg
+        'full': 'var(--radius-full)',   // 9999px - Only for avatars
       },
 
       // Shadows - Subtle Professional Depth (from design-tokens.css)

@@ -154,12 +154,12 @@
   --border-width-2: 2px;
   
   --radius-none: 0;
-  --radius-sm: 0.25rem;  /* 4px */
-  --radius-md: 0.375rem; /* 6px */
-  --radius-lg: 0.5rem;   /* 8px */
-  --radius-xl: 0.75rem;  /* 12px */
-  --radius-2xl: 1rem;    /* 16px */
-  --radius-full: 9999px;
+  --radius-sm: 0.25rem;  /* 4px - Small elements, badges */
+  --radius-md: 0.375rem; /* 6px - Buttons, inputs (PROFESSIONAL STANDARD) */
+  --radius-lg: 0.5rem;   /* 8px - Cards, modals (MAXIMUM ALLOWED) */
+  --radius-xl: 0.5rem;   /* 8px - Override: same as lg (NO EXCESSIVE ROUNDING) */
+  --radius-2xl: 0.5rem;  /* 8px - Override: same as lg (NO EXCESSIVE ROUNDING) */
+  --radius-full: 9999px; /* Only for circular avatars */
 
   /* ========================================
      SHADOWS - Subtle Professional Depth

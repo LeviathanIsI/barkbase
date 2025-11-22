@@ -23,7 +23,7 @@ const Dialog = ({ open, onClose, children, className }) => {
         <div className="flex min-h-full items-center justify-center p-4">
           <div
             className={cn(
-              'relative bg-white dark:bg-surface-primary rounded-xl shadow-xl w-full max-w-lg',
+              'relative bg-white dark:bg-dark-bg-secondary rounded-lg border border-gray-200 dark:border-dark-border shadow-lg w-full max-w-lg',
               'animate-slide-in',
               className
             )}
@@ -45,7 +45,7 @@ const DialogContent = ({ className, children, ...props }) => (
 
 const DialogHeader = ({ className, children, ...props }) => (
   <div
-    className={cn('flex flex-col space-y-1.5 px-6 py-6 border-b border-gray-200 dark:border-surface-border', className)}
+    className={cn('flex flex-col space-y-1.5 px-6 py-6 border-b border-gray-200 dark:border-dark-border', className)}
     {...props}
   >
     {children}
@@ -54,7 +54,7 @@ const DialogHeader = ({ className, children, ...props }) => (
 
 const DialogFooter = ({ className, children, ...props }) => (
   <div
-    className={cn('flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-surface-border', className)}
+    className={cn('flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-dark-border', className)}
     {...props}
   >
     {children}
@@ -63,7 +63,7 @@ const DialogFooter = ({ className, children, ...props }) => (
 
 const DialogTitle = ({ className, children, ...props }) => (
   <h2
-    className={cn('text-xl font-semibold text-gray-900 dark:text-text-primary', className)}
+    className={cn('text-xl font-semibold text-gray-900 dark:text-dark-text-primary', className)}
     {...props}
   >
     {children}
@@ -72,7 +72,7 @@ const DialogTitle = ({ className, children, ...props }) => (
 
 const DialogDescription = ({ className, children, ...props }) => (
   <p
-    className={cn('text-sm text-gray-600 dark:text-text-secondary', className)}
+    className={cn('text-sm text-gray-600 dark:text-dark-text-secondary', className)}
     {...props}
   >
     {children}
