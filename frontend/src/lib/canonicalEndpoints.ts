@@ -1,3 +1,5 @@
+// Guardrail: only define new frontend API usage here.
+// TODO: Collapse properties v1/v2 once the backend migrates CRUD into v2.
 type PathBuilder = (id: string) => string;
 
 const build = (template: string): PathBuilder => (id) => template.replace('{id}', id);
@@ -23,10 +25,8 @@ export const canonicalEndpoints = {
     detail: build('/api/v1/owners/{id}'),
     pets: build('/api/v1/owners/{id}/pets'),
   },
-  /**
-   * TODO: collapse v1/v2 once properties CRUD fully migrates to v2.
-   */
   properties: {
+    // TODO: Mixed domain – v1 remains on CRUD, v2 powers advanced flows for now.
     v1: {
       list: '/api/v1/properties',
       detail: build('/api/v1/properties/{id}'),
