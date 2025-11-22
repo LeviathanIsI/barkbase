@@ -6,8 +6,8 @@ import { useAuthStore } from '@/stores/auth';
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
-// TODO: Properties are still split between v1 (CRUD) and v2 (advanced). Leave this wiring as-is
-// until the backend consolidation migrates every call onto the v2 service.
+// TODO (Consolidation Phase): Properties use mixed v1 (CRUD) + v2 (advanced).
+// Keep these as-is until the backend consolidation is complete.
 // Properties API v1 (Legacy)
 export const usePropertiesQuery = (objectType, options = {}) => {
   const tenantKey = useTenantKey();
@@ -23,7 +23,8 @@ export const usePropertiesQuery = (objectType, options = {}) => {
   });
 };
 
-// TODO: Keep v2-specific helpers (archive/restore/dependency) isolated until CRUD also moves to v2.
+// TODO (Consolidation Phase): Properties use mixed v1 (CRUD) + v2 (advanced).
+// Keep these as-is until the backend consolidation is complete.
 // Properties API v2 (Enterprise - with rich metadata, usage stats, dependencies)
 export const usePropertiesV2Query = (objectType, options = {}) => {
   const tenantKey = useTenantKey();
@@ -47,7 +48,8 @@ export const usePropertiesV2Query = (objectType, options = {}) => {
   });
 };
 
-// TODO: Still relies on the legacy /api/v1/properties CRUD surface until v2 fully replaces it.
+// TODO (Consolidation Phase): Properties use mixed v1 (CRUD) + v2 (advanced).
+// Keep these as-is until the backend consolidation is complete.
 export const useCreatePropertyMutation = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
@@ -66,7 +68,8 @@ export const useCreatePropertyMutation = () => {
   });
 };
 
-// TODO: Still relies on the legacy /api/v1/properties CRUD surface until v2 fully replaces it.
+// TODO (Consolidation Phase): Properties use mixed v1 (CRUD) + v2 (advanced).
+// Keep these as-is until the backend consolidation is complete.
 export const useUpdatePropertyMutation = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
@@ -84,7 +87,8 @@ export const useUpdatePropertyMutation = () => {
   });
 };
 
-// TODO: Still relies on the legacy /api/v1/properties CRUD surface until v2 fully replaces it.
+// TODO (Consolidation Phase): Properties use mixed v1 (CRUD) + v2 (advanced).
+// Keep these as-is until the backend consolidation is complete.
 export const useDeletePropertyMutation = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
@@ -102,7 +106,8 @@ export const useDeletePropertyMutation = () => {
   });
 };
 
-// TODO: Advanced archive/restore flows depend on /api/v2/properties until CRUD migrates.
+// TODO (Consolidation Phase): Properties use mixed v1 (CRUD) + v2 (advanced).
+// Keep these as-is until the backend consolidation is complete.
 // Archive property (v2 - soft delete with cascade strategies)
 export const useArchivePropertyMutation = () => {
   const queryClient = useQueryClient();
@@ -123,6 +128,8 @@ export const useArchivePropertyMutation = () => {
   });
 };
 
+// TODO (Consolidation Phase): Properties use mixed v1 (CRUD) + v2 (advanced).
+// Keep these as-is until the backend consolidation is complete.
 // Restore property (v2 - from soft delete or archive)
 export const useRestorePropertyMutation = () => {
   const queryClient = useQueryClient();
@@ -139,7 +146,8 @@ export const useRestorePropertyMutation = () => {
   });
 };
 
-// TODO: Dependency graph APIs live on /api/v2/properties; consolidate once CRUD is unified.
+// TODO (Consolidation Phase): Properties use mixed v1 (CRUD) + v2 (advanced).
+// Keep these as-is until the backend consolidation is complete.
 // Get dependency graph for a property
 export const useDependencyGraphQuery = (propertyId, options = {}) => {
   const tenantKey = useTenantKey();
@@ -155,7 +163,8 @@ export const useDependencyGraphQuery = (propertyId, options = {}) => {
   });
 };
 
-// TODO: Dependency graph APIs live on /api/v2/properties; consolidate once CRUD is unified.
+// TODO (Consolidation Phase): Properties use mixed v1 (CRUD) + v2 (advanced).
+// Keep these as-is until the backend consolidation is complete.
 // Get impact analysis for a property
 export const useImpactAnalysisMutation = () => {
   return useMutation({
