@@ -166,7 +166,7 @@ const CheckInModal = ({ booking, open, onClose }) => {
         </>
       }
     >
-      <div className="rounded-xl border border-border/60 bg-surface/60 p-4 text-sm">
+      <div className="rounded-lg border border-border/60 bg-surface/60 p-4 text-sm">
         <div className="flex flex-wrap items-center gap-3">
           <Badge variant="info">Scheduled {scheduledCheckIn ? format(new Date(scheduledCheckIn), 'PPpp') : 'n/a'}</Badge>
           {kennelName ? <Badge variant="neutral">Assigned to {kennelName}</Badge> : null}

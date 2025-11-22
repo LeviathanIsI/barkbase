@@ -34,7 +34,7 @@ const AppShell = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#F5F6FA] dark:bg-[#0F0F1A] text-[#263238] dark:text-text-primary dark:text-text-primary">
+    <div className="flex min-h-screen bg-background-secondary dark:bg-dark-bg-primary text-gray-900 dark:text-dark-text-primary">
       {/* Jumbo Dark Sidebar */}
       <JumboSidebar collapsed={collapsed} />
 
@@ -49,7 +49,7 @@ const AppShell = () => {
         <main className="flex flex-1 flex-col overflow-hidden">
           <div
             className={cn(
-              'flex-1 bg-[#F5F6FA] dark:bg-[#0F0F1A]',
+              'flex-1 bg-background-secondary dark:bg-dark-bg-primary',
               isSettingsRoute ? 'overflow-hidden' : 'overflow-y-auto px-4 py-6 sm:px-6 lg:px-8 lg:py-8',
             )}
           >
@@ -62,7 +62,7 @@ const AppShell = () => {
       {mobileSidebarOpen && (
         <div className="fixed inset-0 z-50 flex gap-0 lg:hidden">
           <div className="absolute inset-0 bg-black/40 dark:bg-black/60" onClick={() => setMobileSidebarOpen(false)} aria-hidden="true" />
-          <div className="relative h-full w-64 bg-[#1E1E2D] dark:bg-[#1A1A2E] shadow-xl">
+          <div className="relative h-full w-64 bg-gray-800 dark:bg-dark-bg-sidebar shadow-xl">
             <JumboSidebar collapsed={false} isMobile onNavigate={() => setMobileSidebarOpen(false)} />
           </div>
         </div>
@@ -70,24 +70,24 @@ const AppShell = () => {
 
       {/* Recovery Mode Modal */}
       {tenant?.recoveryMode ? (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-[#F5F6FA]/95 dark:bg-[#0F0F1A]/95 px-4 text-center">
-          <div className="max-w-lg space-y-6 rounded-2xl border border-[#FF9800]/40 dark:border-[#FF9800]/60 bg-white dark:bg-surface-primary/95 p-8 shadow-2xl">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-background-secondary/95 dark:bg-dark-bg-primary/95 px-4 text-center">
+          <div className="max-w-lg space-y-6 rounded-lg border border-warning-600/40 dark:border-warning-600/60 bg-white dark:bg-dark-bg-secondary p-8 shadow-2xl">
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#FF9800] dark:text-[#FFA726]">Recovery mode</p>
-              <h2 className="text-2xl font-semibold text-[#263238] dark:text-text-primary dark:text-text-primary">We detected database issues</h2>
-              <p className="text-sm text-[#64748B] dark:text-text-secondary dark:text-text-secondary">
+              <p className="text-xs font-semibold uppercase tracking-wide text-warning-600 dark:text-warning-500">Recovery mode</p>
+              <h2 className="text-2xl font-semibold text-gray-900 dark:text-dark-text-primary">We detected database issues</h2>
+              <p className="text-sm text-gray-600 dark:text-dark-text-secondary">
                 BarkBase opened in read-only recovery mode. Download your most recent export or backup before making
                 changes. Support cannot restore local data—use your latest export/backup to recover.
               </p>
             </div>
             <div className="flex flex-col gap-3">
-              <Button onClick={handleRestore} disabled={!latestExportPath} className="bg-[#4B5DD3] hover:bg-[#3A4BC2] text-white">
+              <Button onClick={handleRestore} disabled={!latestExportPath} variant="primary">
                 {latestExportPath ? 'Download latest export' : 'No export found yet'}
               </Button>
-              <Button variant="outline" onClick={() => window.location.reload()}>
+              <Button variant="secondary" onClick={() => window.location.reload()}>
                 Reload after restore
               </Button>
-              <p className="text-xs text-[#64748B] dark:text-text-secondary dark:text-text-secondary">
+              <p className="text-xs text-gray-600 dark:text-dark-text-secondary">
                 Tip: You can generate fresh exports from another device if this copy is unusable.
               </p>
             </div>
