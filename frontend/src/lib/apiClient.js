@@ -28,6 +28,84 @@ export const auth = awsClient.auth;
  */
 export const storage = awsClient.storage;
 
+const AUTH_STORAGE_KEYS = ['barkbase-auth', 'barkbase-tenant'];
+const AUTH_SESSION_KEYS = ['pkce_verifier'];
+const FALLBACK_TENANT_STATE = {
+  recordId: null,
+  slug: 'default',
+  name: 'BarkBase',
+  plan: 'FREE',
+};
+
+let logoutTriggered = false;
+
+const clearPersistedState = () => {
+  if (typeof window === 'undefined') return;
+
+  AUTH_STORAGE_KEYS.forEach((key) => {
+    try {
+      window.localStorage?.removeItem(key);
+    } catch {
+      // ignore
+    }
+  });
+
+  AUTH_SESSION_KEYS.forEach((key) => {
+    try {
+      window.sessionStorage?.removeItem(key);
+    } catch {
+      // ignore
+    }
+  });
+};
+
+const resetStores = async () => {
+  try {
+    const [{ useAuthStore }, { useTenantStore }] = await Promise.all([
+      import('@/stores/auth'),
+      import('@/stores/tenant'),
+    ]);
+
+    useAuthStore.getState()?.clearAuth?.();
+
+    useTenantStore.setState((state) => ({
+      tenant: {
+        ...(state?.tenant ?? FALLBACK_TENANT_STATE),
+        ...FALLBACK_TENANT_STATE,
+      },
+      initialized: false,
+      isLoading: false,
+    }));
+
+    useTenantStore.persist?.clearStorage?.();
+  } catch (error) {
+    console.error('[AUTH] Failed to reset stores during auto logout', error);
+  }
+};
+
+const redirectToLogin = () => {
+  if (typeof window === 'undefined') return;
+  window.location.href = '/login';
+};
+
+const triggerAutoLogout = async () => {
+  if (logoutTriggered) return;
+  logoutTriggered = true;
+  console.warn('[AUTH] Token expired or invalid — auto logout triggered');
+  clearPersistedState();
+  await resetStores();
+  redirectToLogin();
+};
+
+const ensureAuthorized = async (response) => {
+  if (response?.status !== 401) {
+    return;
+  }
+
+  await triggerAutoLogout();
+  throw new Error('Unauthorized');
+};
+
 /**
  * Upload client for backward compatibility.
  * This simulates the old upload functionality for development.
@@ -90,6 +168,7 @@ const get = async (path, { params } = {}) => {
   const headers = await buildHeaders(path);
   // SECURITY: Include credentials to send httpOnly cookies
   const res = await fetch(url, { method: 'GET', headers, credentials: 'include' });
+  await ensureAuthorized(res);
   if (!res.ok) {
     const errorText = await res.text();
     console.error('API Error:', res.status, errorText); // Debug log
@@ -103,6 +182,7 @@ const post = async (path, body) => {
   const headers = await buildHeaders(path);
   // SECURITY: Include credentials to send httpOnly cookies
   const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), credentials: 'include' });
+  await ensureAuthorized(res);
   if (!res.ok) {
     throw new Error(await res.text());
   }
@@ -114,6 +194,7 @@ const put = async (path, body) => {
   const headers = await buildHeaders(path);
   // SECURITY: Include credentials to send httpOnly cookies
   const res = await fetch(url, { method: 'PUT', headers, body: JSON.stringify(body), credentials: 'include' });
+  await ensureAuthorized(res);
   if (!res.ok) {
     throw new Error(await res.text());
   }
@@ -130,6 +211,7 @@ const del = async (path, options = {}) => {
     body: options?.data ? JSON.stringify(options.data) : undefined,
     credentials: 'include',
   });
+  await ensureAuthorized(res);
   if (!res.ok) {
     throw new Error(await res.text());
   }
