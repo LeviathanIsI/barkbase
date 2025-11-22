@@ -110,34 +110,34 @@ const SinglePageBookingWizard = ({ onComplete, initialData = {} }) => {
   };
 
   return (
-    <div className="flex h-full gap-6">
+    <div className="flex h-full flex-col gap-6 lg:flex-row">
       {/* Main Wizard Area - Takes up 2/3 of space */}
       <div className="flex-1 flex flex-col">
         {/* Progress Stepper - Always visible */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between">
+        <div className="mb-6 rounded-lg border border-border bg-surface px-4 py-3 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
             {STEPS.map((step, index) => {
               const Icon = step.icon;
               const isActive = index === currentStep;
               const isCompleted = index < currentStep;
               
               return (
-                <div key={step.id} className="flex items-center flex-1">
+                <div key={step.id} className="flex items-center flex-1 min-w-[120px]">
                   <button
                     onClick={() => index <= currentStep && setCurrentStep(index)}
                     className={cn(
-                      "flex items-center gap-2 px-4 py-2 rounded-lg transition-all",
-                      isActive && "bg-primary-600 text-white",
-                      isCompleted && "bg-primary-100 text-primary-700 hover:bg-primary-200",
-                      !isActive && !isCompleted && "bg-gray-100 dark:bg-surface-secondary text-gray-400 dark:text-text-tertiary"
+                      "flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-all",
+                      isActive && "border-primary-500 bg-primary-600 text-white shadow-sm",
+                      isCompleted && "border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100",
+                      !isActive && !isCompleted && "border-border bg-surface-secondary text-text-tertiary dark:bg-dark-bg-tertiary"
                     )}
                     disabled={index > currentStep}
                   >
                     <div className={cn(
-                      "flex items-center justify-center w-8 h-8 rounded-full",
-                      isActive && "bg-white dark:bg-surface-primary/30 text-white",
-                      isCompleted && "bg-primary-600 text-white",
-                      !isActive && !isCompleted && "bg-gray-200 dark:bg-surface-border text-gray-600 dark:text-text-secondary"
+                      "flex h-8 w-8 items-center justify-center rounded-full border",
+                      isActive && "border-white/40 bg-white/10 text-white",
+                      isCompleted && "border-primary-600 bg-primary-600 text-white",
+                      !isActive && !isCompleted && "border-border bg-surface text-text-tertiary"
                     )}>
                       {isCompleted ? (
                         <CheckCircle className="h-5 w-5" />
@@ -148,7 +148,7 @@ const SinglePageBookingWizard = ({ onComplete, initialData = {} }) => {
                     <span className="font-medium hidden sm:block">{step.label}</span>
                   </button>
                   {index < STEPS.length - 1 && (
-                    <ChevronRight className="h-5 w-5 text-gray-300 dark:text-text-tertiary mx-2" />
+                    <ChevronRight className="mx-2 hidden text-gray-300 dark:text-text-tertiary lg:block" />
                   )}
                 </div>
               );
@@ -166,7 +166,7 @@ const SinglePageBookingWizard = ({ onComplete, initialData = {} }) => {
         </Card>
 
         {/* Action Buttons - Always visible */}
-        <div className="flex items-center justify-between mt-6">
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
           <Button
             variant="secondary"
             onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
