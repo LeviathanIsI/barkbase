@@ -29,7 +29,7 @@ export default function TagList({
         <span
           key={tag}
           className={cn(
-            'inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium',
+            'inline-flex items-center gap-1 rounded-md border px-3 py-1 text-xs font-medium',
             toneClass,
           )}
         >
@@ -38,7 +38,7 @@ export default function TagList({
             <button
               type="button"
               onClick={() => onRemove(tag)}
-              className="rounded-full p-0.5 text-muted transition hover:text-text"
+              className="rounded-md p-0.5 text-muted transition hover:text-text"
               aria-label={`Remove tag ${tag}`}
             >
               <X className="h-3 w-3" />

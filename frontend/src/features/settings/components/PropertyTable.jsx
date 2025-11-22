@@ -202,7 +202,7 @@ const PropertyTable = ({
                 </td>
                 <td className="px-6 py-4">
                   {property.required && (
-                    <span className="inline-flex items-center rounded-full bg-red-50 dark:bg-surface-primary px-2 py-0.5 text-xs font-medium text-red-700">
+                    <span className="inline-flex items-center rounded-md bg-red-50 dark:bg-surface-primary px-2 py-0.5 text-xs font-medium text-red-700">
                       Required
                     </span>
                   )}

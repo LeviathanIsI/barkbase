@@ -228,7 +228,7 @@ const CheckInModal = ({ booking, open, onClose }) => {
                   <button
                     type="button"
                     onClick={() => removePhoto(index)}
-                    className="absolute right-1 top-1 rounded-full bg-black/60 px-2 py-1 text-xs text-white"
+                  className="absolute right-1 top-1 rounded-md bg-black/60 px-2 py-1 text-xs text-white"
                     aria-label={`Remove photo ${index + 1}`}
                   >
                     Remove

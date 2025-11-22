@@ -25,7 +25,7 @@ export default function StatusPill({
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium capitalize',
+        'inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium capitalize',
         styles,
         className,
       )}

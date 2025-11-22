@@ -55,14 +55,14 @@ const OwnerCard = ({
             {pets.slice(0, compact ? 2 : 3).map((pet, idx) => (
               <span
                 key={idx}
-                className="inline-flex items-center gap-1 rounded-full bg-blue-50 dark:bg-surface-primary px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300"
+                className="inline-flex items-center gap-1 rounded-md bg-blue-50 dark:bg-surface-primary px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300"
               >
                 <PawPrint className="h-3 w-3" />
                 {pet.name}
               </span>
             ))}
             {pets.length > (compact ? 2 : 3) && (
-              <span className="inline-flex items-center rounded-full bg-gray-100 dark:bg-surface-secondary px-2 py-0.5 text-xs font-medium text-gray-700 dark:text-text-primary">
+              <span className="inline-flex items-center rounded-md bg-gray-100 dark:bg-surface-secondary px-2 py-0.5 text-xs font-medium text-gray-700 dark:text-text-primary">
                 +{pets.length - (compact ? 2 : 3)} more
               </span>
             )}

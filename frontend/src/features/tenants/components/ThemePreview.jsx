@@ -245,7 +245,7 @@ const ThemePreview = () => {
         </div>
         <div className="flex items-center justify-between">
           <span className="font-semibold">Terminology</span>
-          <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+          <span className="rounded-md bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
             {tenant.terminology?.kennel ?? 'Kennel'}
           </span>
         </div>

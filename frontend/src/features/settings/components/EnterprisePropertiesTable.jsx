@@ -215,7 +215,7 @@ export const EnterprisePropertiesTable = ({
                 
                 <td className="px-4 py-4">
                   <div className="flex items-center space-x-2">
-                    <div className="flex-1 bg-gray-200 dark:bg-surface-border rounded-full h-2 max-w-[60px]">
+                    <div className="flex-1 bg-gray-200 dark:bg-surface-border rounded-md h-2 max-w-[60px]">
                       <div 
                         className="bg-green-600 h-2 rounded-full" 
                         style={{ width: `${usage.fillRate || 0}%` }}
