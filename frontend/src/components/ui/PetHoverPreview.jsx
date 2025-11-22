@@ -36,7 +36,7 @@ const PetHoverPreview = ({ children, pet, className }) => {
     if (expiringSoon) {
       return { status: 'expiring', label: 'Vaccinations expiring soon', color: 'text-yellow-600' };
     }
-    return { status: 'current', label: 'Vaccinations current', color: 'text-green-600' };
+    return { status: 'current', label: 'Vaccinations current', color: 'text-success-600' };
   };
 
   const vaccinationStatus = getVaccinationStatus();
@@ -213,7 +213,7 @@ const PetHoverPreview = ({ children, pet, className }) => {
             <button className="flex-1 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30">
               View Profile
             </button>
-            <button className="flex-1 px-3 py-1.5 text-xs font-medium text-green-600 bg-green-50 rounded hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30">
+            <button className="flex-1 px-3 py-1.5 text-xs font-medium text-success-600 bg-success-100 rounded hover:bg-success-200/60 dark:bg-success-600/10 dark:text-success-400 dark:hover:bg-success-600/20">
               Book Stay
             </button>
             <button className="flex-1 px-3 py-1.5 text-xs font-medium text-purple-600 bg-purple-50 rounded hover:bg-purple-100 dark:bg-purple-900/20 dark:text-purple-400 dark:hover:bg-purple-900/30">

@@ -30,7 +30,7 @@ const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {
   const getStatusIcon = (status) => {
     switch (status) {
       case 'clocked-in':
-        return <div className="w-3 h-3 bg-green-50 dark:bg-green-950/20 rounded-full"></div>;
+        return <div className="w-3 h-3 bg-success-100 dark:bg-success-600/30 rounded-full"></div>;
       case 'scheduled':
         return <div className="w-3 h-3 bg-blue-50 dark:bg-blue-950/20 rounded-full"></div>;
       case 'off':
@@ -65,15 +65,15 @@ const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {
             <div>
               <p className="text-sm text-gray-600 dark:text-text-secondary">TOTAL STAFF</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.totalStaff}</p>
-              <p className="text-xs text-green-600">+2 this month</p>
+              <p className="text-xs text-success-600">+2 this month</p>
             </div>
           </div>
         </Card>
 
         <Card className="p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
-              <CheckCircle className="w-5 h-5 text-green-600" />
+            <div className="w-10 h-10 bg-success-100 dark:bg-success-600/10 rounded-lg flex items-center justify-center">
+              <CheckCircle className="w-5 h-5 text-success-600" />
             </div>
             <div>
               <p className="text-sm text-gray-600 dark:text-text-secondary">ACTIVE MEMBERS</p>
@@ -114,8 +114,8 @@ const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
-              <Clock className="w-5 h-5 text-green-600" />
+            <div className="w-10 h-10 bg-success-100 dark:bg-success-600/10 rounded-lg flex items-center justify-center">
+              <Clock className="w-5 h-5 text-success-600" />
             </div>
             <div>
               <p className="text-sm text-gray-600 dark:text-text-secondary">CLOCKED IN NOW</p>
@@ -223,7 +223,7 @@ const TeamDashboard = ({ stats, staff, onViewProfile, onAddStaff }) => {
                     <h4 className="text-lg font-semibold text-gray-900 dark:text-text-primary truncate">{member.name || member.email || 'Staff Member'}</h4>
                     <div className="flex items-center gap-2">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        member.isActive === false ? 'bg-gray-100 dark:bg-surface-secondary text-gray-800 dark:text-text-primary' : 'bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200'
+                        member.isActive === false ? 'bg-gray-100 dark:bg-surface-secondary text-gray-800 dark:text-text-primary' : 'bg-success-100 dark:bg-success-600/10 text-success-800 dark:text-success-200'
                       }`}>
                         {member.isActive === false ? 'INACTIVE' : 'ACTIVE'}
                       </span>

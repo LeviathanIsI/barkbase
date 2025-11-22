@@ -218,7 +218,7 @@ const BatchCheckIn = () => {
               <div className="text-xs text-gray-600 dark:text-text-secondary">Expected Today</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{selectedBookings.length}</div>
+              <div className="text-2xl font-bold text-success-600">{selectedBookings.length}</div>
               <div className="text-xs text-gray-600 dark:text-text-secondary">Selected</div>
             </div>
           </div>
@@ -370,14 +370,14 @@ const BatchCheckIn = () => {
             <div className="space-y-3">
               <label className="flex items-center justify-between p-3 bg-gray-50 dark:bg-surface-secondary rounded-lg">
                 <span className="flex items-center gap-3">
-                  <Check className="w-5 h-5 text-green-600" />
+                  <Check className="w-5 h-5 text-success-600" />
                   <span className="font-medium">Vaccinations Verified</span>
                 </span>
                 <input
                   type="checkbox"
                   checked={batchData.vaccinationsVerified}
                   onChange={(e) => setBatchData({...batchData, vaccinationsVerified: e.target.checked})}
-                  className="w-5 h-5 text-green-600 rounded"
+                  className="w-5 h-5 text-success-600 rounded"
                 />
               </label>
 
@@ -471,23 +471,23 @@ const BatchCheckIn = () => {
               </>
             ) : checkInMutation.isSuccess ? (
               <>
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full">
-                  <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-300" />
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-success-100 dark:bg-success-600/10 rounded-full">
+                  <CheckCircle className="w-8 h-8 text-success-600 dark:text-success-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-green-900 dark:text-green-300">
+                <h3 className="text-lg font-semibold text-success-800 dark:text-success-200">
                   {checkInResults.failed.length === 0 ? 'Success!' : 'Partially Complete'}
                 </h3>
 
                 {/* Success List */}
                 {checkInResults.success.length > 0 && (
                   <div className="text-left max-w-md mx-auto">
-                    <p className="text-sm font-medium text-green-700 dark:text-green-400 mb-2">
+                    <p className="text-sm font-medium text-success-700 dark:text-success-300 mb-2">
                       ✓ Successfully checked in ({checkInResults.success.length}):
                     </p>
                     <div className="space-y-1 max-h-40 overflow-y-auto">
                       {checkInResults.success.map(result => (
                         <div key={result.id} className="text-sm text-gray-700 dark:text-text-secondary flex items-center gap-2">
-                          <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                          <CheckCircle className="w-4 h-4 text-success-600 flex-shrink-0" />
                           <span>{result.name}</span>
                         </div>
                       ))}

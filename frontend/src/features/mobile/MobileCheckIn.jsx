@@ -216,7 +216,7 @@ const MobileCheckIn = () => {
   if (arrivals.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-background-secondary dark:bg-dark-bg-primary p-6 text-center">
-        <CheckCircle className="w-16 h-16 text-green-500 mb-4" />
+        <CheckCircle className="w-16 h-16 text-success-500 mb-4" />
         <h2 className="text-2xl font-bold text-gray-900 dark:text-text-primary mb-2">
           All Caught Up!
         </h2>

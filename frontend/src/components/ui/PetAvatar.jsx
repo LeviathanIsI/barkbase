@@ -41,7 +41,7 @@ const PetAvatar = ({
     const name = pet?.name || pet?.petName || '';
     const colors = [
       'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300',
-      'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
+      'bg-success-100 dark:bg-success-600/10 text-success-700 dark:text-success-300',
       'bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300',
       'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300',
       'bg-pink-100 dark:bg-pink-900 text-pink-700 dark:text-pink-300',

@@ -29,7 +29,7 @@ const OwnerHoverPreview = ({ children, owner, className }) => {
       return {
         status: 'credit',
         label: `Credit: $${owner.accountCredit.toFixed(2)}`,
-        color: 'text-green-600'
+        color: 'text-success-600'
       };
     }
 
@@ -42,7 +42,7 @@ const OwnerHoverPreview = ({ children, owner, className }) => {
       };
     }
 
-    return { status: 'active', label: 'Active account', color: 'text-green-600' };
+    return { status: 'active', label: 'Active account', color: 'text-success-600' };
   };
 
   const accountStatus = getAccountStatus();
@@ -241,11 +241,11 @@ const OwnerHoverPreview = ({ children, owner, className }) => {
               <div className="flex items-center gap-2">
                 <DollarSign className={cn(
                   "h-4 w-4",
-                  owner.balance > 0 ? "text-red-500" : "text-green-500"
+                  owner.balance > 0 ? "text-error-500" : "text-success-500"
                 )} />
                 <span className={cn(
                   "text-sm",
-                  owner.balance > 0 ? "text-red-600" : "text-green-600"
+                  owner.balance > 0 ? "text-error-600" : "text-success-600"
                 )}>
                   Balance: ${Math.abs(owner.balance).toFixed(2)}
                   {owner.balance < 0 && " (Credit)"}
@@ -259,7 +259,7 @@ const OwnerHoverPreview = ({ children, owner, className }) => {
             <button className="flex-1 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30">
               View Profile
             </button>
-            <button className="flex-1 px-3 py-1.5 text-xs font-medium text-green-600 bg-green-50 rounded hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:hover:bg-green-900/30">
+            <button className="flex-1 px-3 py-1.5 text-xs font-medium text-success-600 bg-success-100 rounded hover:bg-success-200/60 dark:bg-success-600/10 dark:text-success-400 dark:hover:bg-success-600/20">
               Send Message
             </button>
             <button className="flex-1 px-3 py-1.5 text-xs font-medium text-purple-600 bg-purple-50 rounded hover:bg-purple-100 dark:bg-purple-900/20 dark:text-purple-400 dark:hover:bg-purple-900/30">

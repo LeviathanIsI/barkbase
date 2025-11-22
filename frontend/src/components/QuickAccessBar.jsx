@@ -171,7 +171,7 @@ const QuickAccessBar = () => {
               onClick={() => navigate('/bookings?view=checkin')}
               className="flex items-center gap-2 px-3"
             >
-              <CheckCircle className="w-4 h-4 text-green-600" />
+              <CheckCircle className="w-4 h-4 text-success-600" />
               <span className="hidden sm:inline">Quick Check-in</span>
               <kbd className="hidden lg:inline px-1.5 py-0.5 text-xs bg-gray-100 dark:bg-surface-secondary rounded">C</kbd>
             </Button>
@@ -381,7 +381,7 @@ const QuickAccessBar = () => {
                       }}
                       className="flex items-center gap-2 p-3 hover:bg-gray-50 dark:hover:bg-surface-secondary rounded-lg"
                     >
-                      <Plus className="w-4 h-4 text-green-600" />
+                      <Plus className="w-4 h-4 text-success-600" />
                       <span>Add New Owner</span>
                     </button>
                     <button
