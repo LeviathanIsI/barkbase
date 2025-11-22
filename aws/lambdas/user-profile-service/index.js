@@ -29,7 +29,24 @@ exports.handler = async (event) => {
   const claims = event?.requestContext?.authorizer?.jwt?.claims || {};
   const currentUserId = claims['sub'] || null;
 
+  console.log('[ROUTING DEBUG]', {
+    route: path,
+    method,
+    tenantId,
+    userId: currentUserId,
+  });
+
   try {
+    // Route: GET /api/v1/users/profile
+    if (method === 'GET' && path === '/api/v1/users/profile') {
+      return await getCurrentUserProfile(currentUserId, tenantId);
+    }
+
+    // Route: PATCH /api/v1/users/profile
+    if (method === 'PATCH' && path === '/api/v1/users/profile') {
+      return await updateCurrentUserProfile(currentUserId, tenantId, body);
+    }
+
     // Route: GET /api/v1/profiles
     if (method === 'GET' && path.endsWith('/profiles')) {
       return await listProfiles(tenantId);
@@ -349,5 +366,109 @@ async function invalidateCache(userId, tenantId) {
       invalidatedCount: result.rowCount,
     }),
   };
+}
+
+async function getCurrentUserProfile(userId, tenantId) {
+  if (!userId) {
+    return {
+      statusCode: 401,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'Unauthorized' }),
+    };
+  }
+
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `SELECT 
+      u."recordId",
+      u."email",
+      u."name",
+      u."phone",
+      u."avatarUrl",
+      u."createdAt",
+      u."updatedAt",
+      m."role" AS "membershipRole",
+      m."tenantId" AS "membershipTenantId"
+     FROM "User" u
+     LEFT JOIN "Membership" m ON m."userId" = u."recordId" AND m."tenantId" = $2
+     WHERE u."recordId" = $1`,
+    [userId, tenantId]
+  );
+
+  if (rows.length === 0) {
+    return {
+      statusCode: 404,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'User not found' }),
+    };
+  }
+
+  const profile = rows[0];
+
+  return {
+    statusCode: 200,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      recordId: profile.recordId,
+      email: profile.email,
+      name: profile.name,
+      phone: profile.phone,
+      avatarUrl: profile.avatarUrl,
+      createdAt: profile.createdAt,
+      updatedAt: profile.updatedAt,
+      role: profile.membershipRole,
+      tenantId: profile.membershipTenantId || tenantId,
+    }),
+  };
+}
+
+async function updateCurrentUserProfile(userId, tenantId, data = {}) {
+  if (!userId) {
+    return {
+      statusCode: 401,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'Unauthorized' }),
+    };
+  }
+
+  const allowedFields = ['name', 'phone', 'avatarUrl'];
+  const updates = [];
+  const values = [];
+
+  allowedFields.forEach((field) => {
+    if (data[field] !== undefined) {
+      updates.push(`"${field}" = $${updates.length + 1}`);
+      values.push(data[field]);
+    }
+  });
+
+  if (updates.length === 0) {
+    return {
+      statusCode: 400,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'No valid fields provided' }),
+    };
+  }
+
+  values.push(userId);
+
+  const pool = getPool();
+  const result = await pool.query(
+    `UPDATE "User"
+     SET ${updates.join(', ')}, "updatedAt" = NOW()
+     WHERE "recordId" = $${values.length}
+     RETURNING "recordId"`,
+    values
+  );
+
+  if (result.rowCount === 0) {
+    return {
+      statusCode: 404,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: 'User not found' }),
+    };
+  }
+
+  return await getCurrentUserProfile(userId, tenantId);
 }
 

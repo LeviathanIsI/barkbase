@@ -118,13 +118,11 @@ exports.handler = async (event) => {
     // Get tenant ID from JWT claims or database
     const tenantId = userInfo.tenantId || await getTenantIdFromEvent(event);
     
-    // TEMPORARY LOGGING
-    console.log('[ENTITY SERVICE DEBUG] Request received:', {
-        httpMethod,
-        path,
+    console.log('[ROUTING DEBUG]', {
+        route: path,
+        method: httpMethod,
         tenantId,
-        userInfo: { sub: userInfo?.sub, email: userInfo?.email, tenantId: userInfo?.tenantId },
-        pathStartsWithPets: path.startsWith('/api/v1/pets')
+        userId: userInfo?.sub,
     });
     
     if (!tenantId) {

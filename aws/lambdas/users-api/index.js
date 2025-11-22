@@ -72,6 +72,10 @@ exports.handler = async (event) => {
 
   const httpMethod = event.requestContext.http.method;
   const path = event.requestContext.http.path;
+  const basePath = '/api/v1/users';
+  const normalizedPath = path?.startsWith('/api/')
+    ? path
+    : `/api/v1${path?.startsWith('/') ? path : `/${path || ''}`}`;
 
   // SECURITY: Extract and validate user authentication
   const requestingUser = getUserInfoFromEvent(event);
@@ -80,21 +84,31 @@ exports.handler = async (event) => {
     return errorResponse(401, ERROR_CODES.UNAUTHORIZED, 'Unauthorized');
   }
 
+  console.log('[ROUTING DEBUG]', {
+    route: normalizedPath,
+    method: httpMethod,
+    tenantId: requestingUser.tenantId,
+    userId: requestingUser.sub,
+  });
+
+  const hasUserId = normalizedPath.startsWith(`${basePath}/`) && Boolean(event.pathParameters?.id);
+  const isUsersCollection = normalizedPath === basePath;
+
   // A simple router with tenant isolation
   try {
-    if (httpMethod === "GET" && event.pathParameters?.id) {
+    if (httpMethod === "GET" && hasUserId) {
       return await getUserById(event, requestingUser);
     }
-    if (httpMethod === "GET" && path === "/users") {
+    if (httpMethod === "GET" && isUsersCollection) {
       return await listUsers(event, requestingUser);
     }
-    if (httpMethod === "POST" && path === "/users") {
+    if (httpMethod === "POST" && isUsersCollection) {
       return await createUser(event, requestingUser);
     }
-    if (httpMethod === "PUT" && event.pathParameters?.id) {
+    if (httpMethod === "PUT" && hasUserId) {
       return await updateUser(event, requestingUser);
     }
-    if (httpMethod === "DELETE" && event.pathParameters?.id) {
+    if (httpMethod === "DELETE" && hasUserId) {
       return await deleteUser(event, requestingUser);
     }
 

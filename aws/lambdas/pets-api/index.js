@@ -6,6 +6,25 @@ const HEADERS = {
     'Access-Control-Allow-Methods': 'OPTIONS,POST,GET,PUT,DELETE'
 };
 
+exports.handler = async (event) => {
+    console.warn('[ROUTING DEBUG]', {
+        route: event?.requestContext?.http?.path,
+        method: event?.requestContext?.http?.method,
+        note: 'Legacy pets-api handler invoked. Routes now use EntityServiceFunction.',
+    });
+
+    return {
+        statusCode: 410,
+        headers: HEADERS,
+        body: JSON.stringify({
+            message: 'Legacy pets-api has been retired. All /api/v1/pets routes are handled by EntityServiceFunction.',
+        }),
+    };
+};
+
+/*
+// Legacy implementation retained for reference. EntityServiceFunction now owns all pet routes.
+
 // Extract user info from API Gateway authorizer (JWT already validated by API Gateway)
 function getUserInfoFromEvent(event) {
     const claims = event?.requestContext?.authorizer?.jwt?.claims;
@@ -116,6 +135,8 @@ exports.handler = async (event) => {
         };
     }
 };
+
+... (legacy helper implementations remain below)
 
 const listExpiringVaccinations = async (event, tenantId) => {
     const daysAhead = parseInt(event.queryStringParameters?.daysAhead || '90', 10);
@@ -549,3 +570,5 @@ const upsertPetOwner = async (event, tenantId) => {
         client.release();
     }
 };
+
+*/
