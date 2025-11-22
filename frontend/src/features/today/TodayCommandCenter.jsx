@@ -5,7 +5,7 @@ import {
   AlertCircle, ChevronRight, Calendar, MapPin,
   UserCheck, UserX, Activity, Home
 } from 'lucide-react';
-import { Card } from '@/components/ui/Card';
+import { Card, PageHeader } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
@@ -306,10 +306,21 @@ const TodayCommandCenter = () => {
     );
   };
 
+  const formattedDate = useMemo(
+    () =>
+      new Date().toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }),
+    [],
+  );
+
   // Loading state
   if (loadingArrivals || loadingDepartures || loadingOccupancy || loadingRuns) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 px-4 py-4 sm:px-6 lg:px-8">
         <div className="animate-pulse">
           <div className="h-32 bg-gray-200 rounded-lg mb-4"></div>
           <div className="grid grid-cols-2 gap-4">
@@ -322,21 +333,27 @@ const TodayCommandCenter = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-semibold text-[var(--text-primary)] mb-1">
-          Today
-        </h1>
-        <p className="text-sm text-[var(--text-secondary)]">
-          {new Date().toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          })}
-        </p>
-      </div>
+    <div className="flex h-full flex-col space-y-6 px-4 py-4 sm:px-6 lg:px-8">
+      <PageHeader
+        breadcrumb="Home > Today"
+        title="Today"
+        description={formattedDate}
+        actions={
+          <Tabs value={activeView} onValueChange={setActiveView} className="w-full sm:w-auto">
+            <TabsList className="gap-4">
+              <TabsTrigger value="overview" className="text-sm font-medium">
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="checkin" className="text-sm font-medium">
+                Batch Check-in
+              </TabsTrigger>
+              <TabsTrigger value="checkout" className="text-sm font-medium">
+                Batch Check-out
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        }
+      />
 
       {/* Hero Stats - EXACTLY 5 cards (HubSpot pattern) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -382,20 +399,6 @@ const TodayCommandCenter = () => {
           loading={loadingOccupancy}
         />
       </div>
-
-      <Tabs value={activeView} onValueChange={setActiveView}>
-        <TabsList className="gap-4">
-          <TabsTrigger value="overview" className="text-sm font-medium">
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="checkin" className="text-sm font-medium">
-            Batch Check-in
-          </TabsTrigger>
-          <TabsTrigger value="checkout" className="text-sm font-medium">
-            Batch Check-out
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
 
       {/* Main Content Area */}
       {activeView === 'overview' && (

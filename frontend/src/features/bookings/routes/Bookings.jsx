@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Calendar, Plus, List } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
+import { PageHeader } from '@/components/ui/Card';
 import SinglePageBookingWizard from '../components/SinglePageBookingWizard';
 import VisualRunBoard from '../components/VisualRunBoard';
 import BookingsOverview from './BookingsOverview';
@@ -21,42 +22,35 @@ const Bookings = () => {
   };
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-text-primary">Bookings & Availability</h1>
-          <p className="text-sm text-gray-600 dark:text-text-secondary mt-1">
-            Manage reservations and facility capacity
-          </p>
-        </div>
+    <div className="flex h-full flex-col px-4 py-4 sm:px-6 lg:px-8">
+      <PageHeader
+        breadcrumb="Home > Intake > Bookings"
+        title="Bookings & Availability"
+        description="Manage reservations and facility capacity"
+        actions={
+          <div className="flex flex-wrap items-center gap-3">
+            {!showNewBooking && (
+              <Tabs value={viewMode} onValueChange={setViewMode} className="w-full sm:w-auto">
+                <TabsList className="gap-4">
+                  <TabsTrigger value="calendar" className="flex items-center gap-1.5 text-sm font-medium">
+                    <Calendar className="h-4 w-4" />
+                    Run Board
+                  </TabsTrigger>
+                  <TabsTrigger value="list" className="flex items-center gap-1.5 text-sm font-medium">
+                    <List className="h-4 w-4" />
+                    List View
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
+            <Button onClick={() => setShowNewBooking(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              New Booking
+            </Button>
+          </div>
+        }
+      />
 
-        <div className="flex items-center gap-3">
-          {/* View Mode Toggles - Hidden when in New Booking mode */}
-          {!showNewBooking && (
-            <Tabs value={viewMode} onValueChange={setViewMode} className="hidden sm:block">
-              <TabsList className="gap-4">
-                <TabsTrigger value="calendar" className="flex items-center gap-1.5 text-sm font-medium">
-                  <Calendar className="h-4 w-4" />
-                  Run Board
-                </TabsTrigger>
-                <TabsTrigger value="list" className="flex items-center gap-1.5 text-sm font-medium">
-                  <List className="h-4 w-4" />
-                  List View
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          )}
-
-          {/* New Booking Button */}
-          <Button onClick={() => setShowNewBooking(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Booking
-          </Button>
-        </div>
-      </div>
-
-      {/* Main Content */}
       <div className="flex-1 min-h-0">
         {showNewBooking ? (
           <SinglePageBookingWizard 
