@@ -13,6 +13,9 @@ const corsHeaders = {
  * Properties API Lambda Handler
  * Manages both system properties (created by BarkBase) and custom properties (created by users)
  */
+// TODO (Consolidation Phase): Properties remain intentionally split.
+// v1 stays responsible for CRUD until Phase 5 migrates these routes into properties-api-v2.
+// Do not retire this handler yet; see docs/PROPERTIES_CONSOLIDATION_PLAN.md for the rollout sequence.
 exports.handler = async (event) => {
 
   // Handle OPTIONS request for CORS

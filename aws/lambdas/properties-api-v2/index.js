@@ -3,6 +3,9 @@
  * Enhanced properties API with rich metadata, dependency tracking, and versioned responses
  * Backward compatible with v1, but adds comprehensive enterprise features
  */
+// TODO (Consolidation Phase): Keep v2 focused on advanced operations while v1 handles CRUD.
+// Phase 5 will migrate v1 CRUD flows into this Lambda and decommission the legacy handler.
+// Until then, avoid collapsing routes; follow docs/PROPERTIES_CONSOLIDATION_PLAN.md for timing.
 
 const { getPool } = require('/opt/nodejs');
 const { getTenantIdFromEvent } = require('/opt/nodejs');
