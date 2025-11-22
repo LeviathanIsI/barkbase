@@ -43,6 +43,16 @@ exports.handler = async (event) => {
 
     // Get tenant ID from JWT claims or database
     const tenantId = userInfo.tenantId || await getTenantIdFromEvent(event);
+    
+    // TEMPORARY LOGGING
+    console.log('[PETS API DEBUG] Request received:', {
+        httpMethod,
+        path,
+        tenantId,
+        userInfo: { sub: userInfo?.sub, email: userInfo?.email, tenantId: userInfo?.tenantId },
+        hasJwtClaims: !!event?.requestContext?.authorizer?.jwt?.claims
+    });
+    
     if (!tenantId) {
         return {
             statusCode: 401,
@@ -211,6 +221,14 @@ const listPets = async (event, tenantId) => {
     const limit = parseInt(event.queryStringParameters?.limit) || 20;
     const offset = parseInt(event.queryStringParameters?.offset) || 0;
 
+    // TEMPORARY LOGGING
+    console.log('[PETS API DEBUG] listPets called with:', {
+        tenantId,
+        limit,
+        offset,
+        queryParams: event.queryStringParameters
+    });
+
     const pool = getPool();
     const { rows } = await pool.query(
         'SELECT * FROM "Pet" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC LIMIT $2 OFFSET $3',
@@ -219,6 +237,14 @@ const listPets = async (event, tenantId) => {
 
     const { rows: countRows } = await pool.query('SELECT COUNT(*) FROM "Pet" WHERE "tenantId" = $1', [tenantId]);
     const totalCount = parseInt(countRows[0].count, 10);
+
+    // TEMPORARY LOGGING
+    console.log('[PETS API DEBUG] Query results:', {
+        tenantId,
+        totalCount,
+        rowsReturned: rows.length,
+        firstRow: rows.length > 0 ? { id: rows[0].recordId, name: rows[0].name } : null
+    });
 
     return {
         statusCode: 200,

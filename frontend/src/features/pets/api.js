@@ -12,10 +12,19 @@ export const usePetsQuery = (params = {}) => {
     queryKey: queryKeys.pets(tenantKey, params),
     queryFn: async () => {
       try {
+        console.log('[PETS FRONTEND DEBUG] Fetching pets with tenantKey:', tenantKey);
         const res = await apiClient.get('/api/v1/pets');
+        console.log('[PETS FRONTEND DEBUG] API Response:', {
+          status: res.status,
+          dataType: typeof res.data,
+          isArray: Array.isArray(res.data),
+          dataLength: Array.isArray(res.data) ? res.data.length : res.data?.length,
+          firstItem: Array.isArray(res.data) ? res.data[0] : res.data?.data?.[0]
+        });
         return Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data ?? []);
       } catch (e) {
         console.warn('[pets] Falling back to empty list due to API error:', e?.message || e);
+        console.error('[PETS FRONTEND DEBUG] Full error:', e);
         return [];
       }
     },
