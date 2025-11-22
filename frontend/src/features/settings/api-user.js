@@ -1,15 +1,22 @@
 import apiClient from '@/lib/apiClient';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryKeys';
+import { useTenantStore } from '@/stores/tenant';
+import { useAuthStore } from '@/stores/auth';
 
 /**
  * Get current user profile
  */
 export const useUserProfileQuery = () => {
+  const tenantId = useTenantStore((state) => state.tenant?.recordId ?? 'unknown');
+  const userId = useAuthStore((state) => state.user?.recordId ?? state.user?.id ?? state.user?.sub ?? 'unknown');
+
   return useQuery({
-    queryKey: ['user', 'profile'],
+    queryKey: queryKeys.userProfile(userId, tenantId),
+    enabled: Boolean(userId),
     queryFn: async () => {
       const response = await apiClient.get('/api/v1/users/profile');
-      return response; // apiClient returns data directly, not wrapped in .data
+      return response.data;
     },
   });
 };
@@ -19,6 +26,9 @@ export const useUserProfileQuery = () => {
  */
 export const useUpdateUserProfileMutation = () => {
   const queryClient = useQueryClient();
+  const tenantId = useTenantStore((state) => state.tenant?.recordId ?? 'unknown');
+  const userId = useAuthStore((state) => state.user?.recordId ?? state.user?.id ?? state.user?.sub ?? 'unknown');
+  const profileKey = queryKeys.userProfile(userId, tenantId);
 
   return useMutation({
     mutationFn: async (data) => {
@@ -26,8 +36,8 @@ export const useUpdateUserProfileMutation = () => {
       return response.data;
     },
     onSuccess: (data) => {
-      queryClient.setQueryData(['user', 'profile'], data);
-      queryClient.invalidateQueries({ queryKey: ['user', 'profile'] });
+      queryClient.setQueryData(profileKey, data);
+      queryClient.invalidateQueries({ queryKey: profileKey });
     },
   });
 };
@@ -52,6 +62,9 @@ export const useUpdatePasswordMutation = () => {
  */
 export const useUpdateAvatarMutation = () => {
   const queryClient = useQueryClient();
+  const tenantId = useTenantStore((state) => state.tenant?.recordId ?? 'unknown');
+  const userId = useAuthStore((state) => state.user?.recordId ?? state.user?.id ?? state.user?.sub ?? 'unknown');
+  const profileKey = queryKeys.userProfile(userId, tenantId);
 
   return useMutation({
     mutationFn: async (avatarUrl) => {
@@ -59,8 +72,8 @@ export const useUpdateAvatarMutation = () => {
       return response.data;
     },
     onSuccess: (data) => {
-      queryClient.setQueryData(['user', 'profile'], data);
-      queryClient.invalidateQueries({ queryKey: ['user', 'profile'] });
+      queryClient.setQueryData(profileKey, data);
+      queryClient.invalidateQueries({ queryKey: profileKey });
     },
   });
 };

@@ -30,7 +30,7 @@ const OwnerDetail = () => {
   const { ownerId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const tenantKey = useTenantStore((state) => state.tenant?.slug ?? 'default');
+  const tenantId = useTenantStore((state) => state.tenant?.recordId ?? 'unknown');
 
   const [addPetModalOpen, setAddPetModalOpen] = useState(false);
   const [deleteOwnerDialogOpen, setDeleteOwnerDialogOpen] = useState(false);
@@ -75,7 +75,7 @@ const OwnerDetail = () => {
     setIsDeletingOwner(true);
     try {
       await deleteOwnerMutation.mutateAsync(ownerId);
-      queryClient.invalidateQueries({ queryKey: queryKeys.owners(tenantKey) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.owners(tenantId) });
       toast.success('Owner deleted successfully');
       navigate('/owners');
     } catch (error) {
@@ -97,8 +97,8 @@ const OwnerDetail = () => {
 
         await addPetMutation.mutateAsync({ petId: recordId, isPrimary });
       }
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.owners(tenantKey), ownerId] });
-      queryClient.invalidateQueries({ queryKey: queryKeys.pets(tenantKey) });
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.owners(tenantId), ownerId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pets(tenantId) });
 
       const count = associations.length;
       toast.success(`${count} pet${count > 1 ? 's' : ''} associated successfully`);
@@ -129,8 +129,8 @@ const OwnerDetail = () => {
       const newPet = await createPetMutation.mutateAsync(petData);
       // Automatically associate the new pet with this owner
       await addPetMutation.mutateAsync({ petId: newPet.recordId, isPrimary: false });
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.owners(tenantKey), ownerId] });
-      queryClient.invalidateQueries({ queryKey: queryKeys.pets(tenantKey) });
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.owners(tenantId), ownerId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pets(tenantId) });
       toast.success('Pet created and associated successfully');
       setAddPetModalOpen(false);
     } catch (error) {
@@ -149,8 +149,8 @@ const OwnerDetail = () => {
     setIsRemovingPet(true);
     try {
       await removePetMutation.mutateAsync(petToRemove.recordId);
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.owners(tenantKey), ownerId] });
-      queryClient.invalidateQueries({ queryKey: queryKeys.pets(tenantKey) });
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.owners(tenantId), ownerId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pets(tenantId) });
       toast.success('Pet removed successfully');
       setRemovePetDialogOpen(false);
       setPetToRemove(null);

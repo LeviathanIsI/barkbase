@@ -10,6 +10,7 @@ import PetAvatar from '@/components/ui/PetAvatar';
 import BatchCheckIn from '@/features/bookings/components/BatchCheckIn';
 import Modal from '@/components/ui/Modal';
 import apiClient from '@/lib/apiClient';
+import { useUserProfileQuery } from '@/features/settings/api-user';
 import { cn } from '@/lib/cn';
 import toast from 'react-hot-toast';
 
@@ -26,17 +27,7 @@ const TodayCommandCenter = () => {
   const today = new Date().toISOString().split('T')[0];
   
   // Get kennel name from user profile or settings
-  const { data: userProfile } = useQuery({
-    queryKey: ['user', 'profile'],
-    queryFn: async () => {
-      try {
-        const response = await apiClient.get('/api/v1/users/profile');
-        return response?.data || response || {};
-      } catch (error) {
-        return {};
-      }
-    }
-  });
+  const { data: userProfile = {} } = useUserProfileQuery();
   
   const kennelName = userProfile?.propertyName || userProfile?.businessName || '';
 
@@ -45,8 +36,8 @@ const TodayCommandCenter = () => {
     queryKey: ['bookings', 'arrivals', today],
     queryFn: async () => {
       // Fetch all bookings for today and filter by status
-      const response = await apiClient.get(`/api/v1/bookings?date=${today}`);
-      const bookings = Array.isArray(response) ? response : response?.data || [];
+      const response = await apiClient.get('/api/v1/bookings', { params: { date: today } });
+      const bookings = Array.isArray(response?.data) ? response.data : response?.data?.data || [];
 
       // Filter to PENDING or CONFIRMED bookings starting today
       return bookings.filter(b => {
@@ -64,8 +55,8 @@ const TodayCommandCenter = () => {
     queryKey: ['bookings', 'departures', today],
     queryFn: async () => {
       // Fetch checked-in bookings ending today
-      const response = await apiClient.get(`/api/v1/bookings?status=CHECKED_IN`);
-      const bookings = Array.isArray(response) ? response : response?.data || [];
+      const response = await apiClient.get('/api/v1/bookings', { params: { status: 'CHECKED_IN' } });
+      const bookings = Array.isArray(response?.data) ? response.data : response?.data?.data || [];
 
       // Filter to only those ending today
       return bookings.filter(b => {
@@ -80,8 +71,8 @@ const TodayCommandCenter = () => {
   const { data: inFacility = [], isLoading: loadingOccupancy } = useQuery({
     queryKey: ['bookings', 'checked-in', today],
     queryFn: async () => {
-      const response = await apiClient.get(`/api/v1/bookings?status=CHECKED_IN`);
-      return Array.isArray(response) ? response : response?.data || [];
+      const response = await apiClient.get('/api/v1/bookings', { params: { status: 'CHECKED_IN' } });
+      return Array.isArray(response?.data) ? response.data : response?.data?.data || [];
     },
     refetchInterval: 30000
   });
@@ -91,7 +82,7 @@ const TodayCommandCenter = () => {
     queryKey: ['dashboard', 'stats', today],
     queryFn: async () => {
       const response = await apiClient.get('/api/v1/dashboard/stats');
-      return response?.data || response || {};
+      return response?.data || {};
     },
     refetchInterval: 60000 // Refresh every minute
   });
@@ -102,8 +93,8 @@ const TodayCommandCenter = () => {
     queryFn: async () => {
       try {
         // Check for bookings with issues
-        const unpaidResponse = await apiClient.get('/api/v1/bookings?status=UNPAID');
-        const unpaidBookings = Array.isArray(unpaidResponse) ? unpaidResponse : unpaidResponse?.data || [];
+        const unpaidResponse = await apiClient.get('/api/v1/bookings', { params: { status: 'UNPAID' } });
+        const unpaidBookings = Array.isArray(unpaidResponse?.data) ? unpaidResponse.data : unpaidResponse?.data?.data || [];
         
         // Check arrivals for vaccination issues
         const vaccinationIssues = arrivals.filter(b => b.hasExpiringVaccinations).length;

@@ -85,7 +85,7 @@ const PetDetail = () => {
   const { petId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const tenantKey = useTenantStore((state) => state.tenant?.slug ?? 'default');
+  const tenantId = useTenantStore((state) => state.tenant?.recordId ?? 'unknown');
 
   // State
   const [activeTab, setActiveTab] = useState('overview');
@@ -223,7 +223,7 @@ const PetDetail = () => {
     try {
       await updatePetMutation.mutateAsync(data);
       setEditModalOpen(false);
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.pets(tenantKey), petId] });
+      queryClient.invalidateQueries({ queryKey: ['pets', { tenantId }, petId] });
       toast.success('Pet updated successfully');
     } catch (error) {
       console.error('Failed to update pet:', error);
@@ -236,7 +236,7 @@ const PetDetail = () => {
     setIsDeletingPet(true);
     try {
       await deletePetMutation.mutateAsync(petId);
-      queryClient.invalidateQueries({ queryKey: queryKeys.pets(tenantKey) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pets(tenantId) });
       toast.success('Pet deleted successfully');
       navigate('/pets');
     } catch (error) {

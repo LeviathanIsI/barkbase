@@ -106,6 +106,47 @@ const ensureAuthorized = async (response) => {
   throw new Error('Unauthorized');
 };
 
+const logRequest = (method, url, tenantId) => {
+  console.log(`[FRONTEND API DEBUG] Calling: ${method} ${url} as tenant=${tenantId || 'unknown'}`);
+};
+
+const logResponse = (status, data) => {
+  console.log(`[FRONTEND API DEBUG] Result: ${status} | Data type: ${typeof data}`);
+};
+
+const parseResponse = async (res) => {
+  if (res.status === 204) {
+    return null;
+  }
+
+  const contentType = res.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    try {
+      return await res.json();
+    } catch {
+      return null;
+    }
+  }
+
+  try {
+    return await res.text();
+  } catch {
+    return null;
+  }
+};
+
+const buildError = (res, data) => {
+  if (typeof data === 'string' && data.trim()) {
+    return new Error(data);
+  }
+
+  if (data && typeof data === 'object') {
+    return new Error(data.message || JSON.stringify(data));
+  }
+
+  return new Error(`Request failed with status ${res.status}`);
+};
+
 /**
  * Upload client for backward compatibility.
  * This simulates the old upload functionality for development.
@@ -156,55 +197,61 @@ const buildHeaders = async (path = "") => {
   }
 
   return {
-    "Content-Type": "application/json",
-    // Include Authorization header for API Gateway JWT authorizer
-    ...(accessToken && { "Authorization": `Bearer ${accessToken}` }),
-    ...(tenantId && { "X-Tenant-Id": tenantId }),
+    headers: {
+      "Content-Type": "application/json",
+      ...(accessToken && { "Authorization": `Bearer ${accessToken}` }),
+      ...(tenantId && { "X-Tenant-Id": tenantId }),
+    },
+    tenantId,
   };
 };
 
 const get = async (path, { params } = {}) => {
   const url = buildUrl(path, params);
-  const headers = await buildHeaders(path);
-  // SECURITY: Include credentials to send httpOnly cookies
+  const { headers, tenantId } = await buildHeaders(path);
+  logRequest('GET', url, tenantId);
   const res = await fetch(url, { method: 'GET', headers, credentials: 'include' });
   await ensureAuthorized(res);
+  const data = await parseResponse(res);
+  logResponse(res.status, data);
   if (!res.ok) {
-    const errorText = await res.text();
-    console.error('API Error:', res.status, errorText); // Debug log
-    throw new Error(errorText);
+    throw buildError(res, data);
   }
-  return { data: await res.json() };
+  return { data };
 };
 
 const post = async (path, body) => {
   const url = buildUrl(path);
-  const headers = await buildHeaders(path);
-  // SECURITY: Include credentials to send httpOnly cookies
+  const { headers, tenantId } = await buildHeaders(path);
+  logRequest('POST', url, tenantId);
   const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), credentials: 'include' });
   await ensureAuthorized(res);
+  const data = await parseResponse(res);
+  logResponse(res.status, data);
   if (!res.ok) {
-    throw new Error(await res.text());
+    throw buildError(res, data);
   }
-  return { data: await res.json() };
+  return { data };
 };
 
 const put = async (path, body) => {
   const url = buildUrl(path);
-  const headers = await buildHeaders(path);
-  // SECURITY: Include credentials to send httpOnly cookies
+  const { headers, tenantId } = await buildHeaders(path);
+  logRequest('PUT', url, tenantId);
   const res = await fetch(url, { method: 'PUT', headers, body: JSON.stringify(body), credentials: 'include' });
   await ensureAuthorized(res);
+  const data = await parseResponse(res);
+  logResponse(res.status, data);
   if (!res.ok) {
-    throw new Error(await res.text());
+    throw buildError(res, data);
   }
-  return { data: await res.json() };
+  return { data };
 };
 
 const del = async (path, options = {}) => {
   const url = buildUrl(path, options.params);
-  const headers = await buildHeaders(path);
-  // SECURITY: Include credentials to send httpOnly cookies
+  const { headers, tenantId } = await buildHeaders(path);
+  logRequest('DELETE', url, tenantId);
   const res = await fetch(url, {
     method: 'DELETE',
     headers,
@@ -212,13 +259,15 @@ const del = async (path, options = {}) => {
     credentials: 'include',
   });
   await ensureAuthorized(res);
+  const data = await parseResponse(res);
+  logResponse(res.status, data);
   if (!res.ok) {
-    throw new Error(await res.text());
+    throw buildError(res, data);
   }
   if (res.status === 204) {
     return { data: null };
   }
-  return { data: await res.json() };
+  return { data };
 };
 
 // The main export is now an object containing the clients,

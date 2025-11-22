@@ -31,12 +31,18 @@ const UnifiedPetPeopleView = () => {
     queryFn: async () => {
       // Use expand parameter to include pets in one request
       const ownersResponse = await apiClient.get('/api/v1/owners?expand=pets');
-      const ownersList = Array.isArray(ownersResponse) ? ownersResponse : ownersResponse?.data || [];
+      const normalizeList = (response) => {
+        if (!response) return [];
+        if (Array.isArray(response.data)) return response.data;
+        if (Array.isArray(response.data?.data)) return response.data.data;
+        return [];
+      };
+      const ownersList = normalizeList(ownersResponse);
 
       // If backend doesn't support expand yet, fallback to separate requests
       if (ownersList.length > 0 && !ownersList[0].pets) {
         const petsResponse = await apiClient.get('/api/v1/pets');
-        const petsList = Array.isArray(petsResponse) ? petsResponse : petsResponse?.data || [];
+        const petsList = normalizeList(petsResponse);
 
         // Map pets to owners
         return ownersList.map(owner => {

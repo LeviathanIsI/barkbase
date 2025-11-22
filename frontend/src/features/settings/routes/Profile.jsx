@@ -218,13 +218,7 @@ const Profile = () => {
       if (response.ok) {
         const data = await response.json();
         toast.success('Profile photo updated successfully');
-        // Update profile with new photo URL
-        await fetch('/api/v1/users/me', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ profilePhoto: data.url })
-        });
+        await updateProfile.mutateAsync({ avatarUrl: data.url });
       } else {
         throw new Error('Upload failed');
       }

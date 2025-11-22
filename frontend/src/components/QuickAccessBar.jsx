@@ -25,7 +25,7 @@ const QuickAccessBar = () => {
     queryFn: async () => {
       try {
         const response = await apiClient.get('/api/v1/notifications/unread-count');
-        return response?.count || 0;
+        return response?.data?.count || 0;
       } catch {
         return 0;
       }
@@ -42,17 +42,24 @@ const QuickAccessBar = () => {
 
     setIsSearching(true);
     try {
+      const normalizeList = (response) => {
+        if (!response) return [];
+        if (Array.isArray(response.data)) return response.data;
+        if (Array.isArray(response.data?.data)) return response.data.data;
+        return [];
+      };
+
       // Search across pets, owners, and bookings
       const [petsResponse, ownersResponse, bookingsResponse] = await Promise.all([
-        apiClient.get(`/api/v1/pets?search=${query}&limit=5`).catch(() => ({ data: [] })),
-        apiClient.get(`/api/v1/owners?search=${query}&limit=5`).catch(() => ({ data: [] })),
-        apiClient.get(`/api/v1/bookings?search=${query}&limit=5`).catch(() => ({ data: [] }))
+        apiClient.get('/api/v1/pets', { params: { search: query, limit: 5 } }).catch(() => ({ data: [] })),
+        apiClient.get('/api/v1/owners', { params: { search: query, limit: 5 } }).catch(() => ({ data: [] })),
+        apiClient.get('/api/v1/bookings', { params: { search: query, limit: 5 } }).catch(() => ({ data: [] }))
       ]);
 
       setSearchResults({
-        pets: Array.isArray(petsResponse) ? petsResponse : petsResponse?.data || [],
-        owners: Array.isArray(ownersResponse) ? ownersResponse : ownersResponse?.data || [],
-        bookings: Array.isArray(bookingsResponse) ? bookingsResponse : bookingsResponse?.data || []
+        pets: normalizeList(petsResponse),
+        owners: normalizeList(ownersResponse),
+        bookings: normalizeList(bookingsResponse),
       });
     } catch (error) {
       console.error('Search error:', error);

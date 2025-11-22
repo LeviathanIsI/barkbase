@@ -3,28 +3,19 @@ import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
 
-const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
+const useTenantId = () => useTenantStore((state) => state.tenant?.recordId ?? 'unknown');
 
 export const usePetsQuery = (params = {}) => {
-  const tenantKey = useTenantKey();
+  const tenantId = useTenantId();
   
   return useQuery({
-    queryKey: queryKeys.pets(tenantKey, params),
+    queryKey: queryKeys.pets(tenantId),
     queryFn: async () => {
       try {
-        console.log('[PETS FRONTEND DEBUG] Fetching pets with tenantKey:', tenantKey);
         const res = await apiClient.get('/api/v1/pets');
-        console.log('[PETS FRONTEND DEBUG] API Response:', {
-          status: res.status,
-          dataType: typeof res.data,
-          isArray: Array.isArray(res.data),
-          dataLength: Array.isArray(res.data) ? res.data.length : res.data?.length,
-          firstItem: Array.isArray(res.data) ? res.data[0] : res.data?.data?.[0]
-        });
         return Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data ?? []);
       } catch (e) {
         console.warn('[pets] Falling back to empty list due to API error:', e?.message || e);
-        console.error('[PETS FRONTEND DEBUG] Full error:', e);
         return [];
       }
     },
@@ -33,11 +24,11 @@ export const usePetsQuery = (params = {}) => {
 };
 
 export const usePetDetailsQuery = (petId, options = {}) => {
-  const tenantKey = useTenantKey();
+  const tenantId = useTenantId();
   const { enabled = Boolean(petId), ...queryOptions } = options;
   
   return useQuery({
-    queryKey: [...queryKeys.pets(tenantKey), petId],
+    queryKey: ['pets', { tenantId }, petId],
     queryFn: async () => {
       try {
         // Call REST endpoint which enriches the pet with owners[] and primaryOwnerId
@@ -57,8 +48,9 @@ export const usePetQuery = (petId, options = {}) => usePetDetailsQuery(petId, op
 
 export const usePetVaccinationsQuery = (petId, options = {}) => {
   const enabled = Boolean(petId) && (options.enabled ?? true);
+  const tenantId = useTenantId();
   return useQuery({
-    queryKey: ['pet', petId, 'vaccinations'],
+    queryKey: ['petVaccinations', { tenantId, petId }],
     enabled,
     queryFn: async () => {
       try {
@@ -98,8 +90,8 @@ export const usePetVaccinationsQuery = (petId, options = {}) => {
 
 export const useUpdatePetMutation = (petId) => {
   const queryClient = useQueryClient();
-  const tenantKey = useTenantKey();
-  const listKey = queryKeys.pets(tenantKey, {});
+  const tenantId = useTenantId();
+  const listKey = queryKeys.pets(tenantId);
   return useMutation({
     mutationFn: async (payload) => {
       const res = await apiClient.put(`/api/v1/pets/${petId}`, payload);
@@ -132,8 +124,8 @@ export const useUpdatePetMutation = (petId) => {
 
 export const useDeletePetMutation = () => {
   const queryClient = useQueryClient();
-  const tenantKey = useTenantKey();
-  const listKey = queryKeys.pets(tenantKey, {});
+  const tenantId = useTenantId();
+  const listKey = queryKeys.pets(tenantId);
   return useMutation({
     mutationFn: async (petId) => {
       await apiClient.delete(`/api/v1/pets/${petId}`);
@@ -160,8 +152,8 @@ export const useDeletePetMutation = () => {
 
 export const useCreatePetMutation = () => {
   const queryClient = useQueryClient();
-  const tenantKey = useTenantKey();
-  const listKey = queryKeys.pets(tenantKey, {});
+  const tenantId = useTenantId();
+  const listKey = queryKeys.pets(tenantId);
   return useMutation({
     mutationFn: async (payload) => {
       const res = await apiClient.post('/api/v1/pets', payload);
@@ -180,39 +172,45 @@ export const useCreatePetMutation = () => {
 
 export const useCreateVaccinationMutation = (petId) => {
   const queryClient = useQueryClient();
+  const tenantId = useTenantId();
+  const vaccinationsKey = ['petVaccinations', { tenantId, petId }];
   return useMutation({
     mutationFn: async (payload) => {
       const res = await apiClient.post(`/api/v1/pets/${petId}/vaccinations`, payload);
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pet', petId, 'vaccinations'] });
+      queryClient.invalidateQueries({ queryKey: vaccinationsKey });
     },
   });
 };
 
 export const useUpdateVaccinationMutation = (petId) => {
   const queryClient = useQueryClient();
+  const tenantId = useTenantId();
+  const vaccinationsKey = ['petVaccinations', { tenantId, petId }];
   return useMutation({
     mutationFn: async ({ vaccinationId, payload }) => {
       const res = await apiClient.put(`/api/v1/pets/${petId}/vaccinations/${vaccinationId}`, payload);
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pet', petId, 'vaccinations'] });
+      queryClient.invalidateQueries({ queryKey: vaccinationsKey });
     },
   });
 };
 
 export const useDeleteVaccinationMutation = (petId) => {
   const queryClient = useQueryClient();
+  const tenantId = useTenantId();
+  const vaccinationsKey = ['petVaccinations', { tenantId, petId }];
   return useMutation({
     mutationFn: async (vaccinationId) => {
       const res = await apiClient.delete(`/api/v1/pets/${petId}/vaccinations/${vaccinationId}`);
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pet', petId, 'vaccinations'] });
+      queryClient.invalidateQueries({ queryKey: vaccinationsKey });
       queryClient.invalidateQueries({ queryKey: ['vaccinations', 'expiring'] });
     },
   });
