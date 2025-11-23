@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
+import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
 import { useAuthStore } from '@/stores/auth';
@@ -14,7 +15,10 @@ export const usePropertiesQuery = (objectType, options = {}) => {
   return useQuery({
     queryKey: queryKeys.properties(tenantKey, { objectType }),
     queryFn: async () => {
-      const res = await apiClient.get(`/api/v1/properties?objectType=${objectType}`);
+      const baseUrl = canonicalEndpoints.properties.v1.list;
+      const params = new URLSearchParams({ objectType });
+      const url = `${baseUrl}&${params.toString()}`;
+      const res = await apiClient.get(url);
       return res.data;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -39,7 +43,9 @@ export const usePropertiesV2Query = (objectType, options = {}) => {
         includeDependencies: includeDependencies.toString(),
         includeArchived: includeArchived.toString(),
       });
-      const res = await apiClient.get(`/api/v2/properties?${params.toString()}`);
+      const baseUrl = canonicalEndpoints.properties.v2.list;
+      const joiner = baseUrl.includes('?') ? '&' : '?';
+      const res = await apiClient.get(`${baseUrl}${joiner}${params.toString()}`);
       return res.data;
     },
     staleTime: 5 * 60 * 1000,
@@ -56,7 +62,7 @@ export const useCreatePropertyMutation = () => {
 
   return useMutation({
     mutationFn: async (propertyData) => {
-      const res = await apiClient.post('/api/v1/properties', propertyData);
+      const res = await apiClient.post(canonicalEndpoints.properties.v1.create, propertyData);
       return res.data;
     },
     onSuccess: (data) => {
@@ -76,7 +82,7 @@ export const useUpdatePropertyMutation = () => {
 
   return useMutation({
     mutationFn: async ({ propertyId, ...propertyData }) => {
-      const res = await apiClient.patch(`/api/v1/properties/${propertyId}`, propertyData);
+      const res = await apiClient.patch(canonicalEndpoints.properties.v1.update(propertyId), propertyData);
       return res.data;
     },
     onSuccess: (data) => {
@@ -95,7 +101,7 @@ export const useDeletePropertyMutation = () => {
 
   return useMutation({
     mutationFn: async ({ propertyId, objectType }) => {
-      await apiClient.delete(`/api/v1/properties/${propertyId}`);
+      await apiClient.delete(canonicalEndpoints.properties.v1.delete(propertyId));
       return { propertyId, objectType };
     },
     onSuccess: (data) => {
@@ -115,7 +121,7 @@ export const useArchivePropertyMutation = () => {
 
   return useMutation({
     mutationFn: async ({ propertyId, reason, confirmed = true, cascadeStrategy = 'cancel' }) => {
-      const res = await apiClient.post(`/api/v2/properties/${propertyId}/archive`, {
+      const res = await apiClient.post(canonicalEndpoints.properties.v2.archive(propertyId), {
         reason,
         confirmed,
         cascadeStrategy,
@@ -137,7 +143,7 @@ export const useRestorePropertyMutation = () => {
 
   return useMutation({
     mutationFn: async (propertyId) => {
-      const res = await apiClient.post(`/api/v2/properties/${propertyId}/restore`);
+      const res = await apiClient.post(canonicalEndpoints.properties.v2.restore(propertyId));
       return res.data;
     },
     onSuccess: () => {
@@ -155,7 +161,7 @@ export const useDependencyGraphQuery = (propertyId, options = {}) => {
   return useQuery({
     queryKey: ['dependencies', tenantKey, propertyId],
     queryFn: async () => {
-      const res = await apiClient.get(`/api/v2/properties/${propertyId}/dependencies`);
+      const res = await apiClient.get(canonicalEndpoints.properties.v2.dependencies(propertyId));
       return res.data;
     },
     enabled: !!propertyId,
@@ -169,7 +175,7 @@ export const useDependencyGraphQuery = (propertyId, options = {}) => {
 export const useImpactAnalysisMutation = () => {
   return useMutation({
     mutationFn: async ({ propertyId, modificationType = 'delete' }) => {
-      const res = await apiClient.post(`/api/v2/properties/${propertyId}/impact-analysis`, {
+      const res = await apiClient.post(canonicalEndpoints.properties.v2.impactAnalysis(propertyId), {
         modificationType,
       });
       return res.data;
