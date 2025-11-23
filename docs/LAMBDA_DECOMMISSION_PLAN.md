@@ -96,3 +96,8 @@ Following this plan will let us retire the duplicate Lambdas safely without intr
 - `operations-service` is now the only deployed backend for `/api/v1/bookings*`, `/api/v1/runs*`, `/api/v1/check-ins*`, `/api/v1/check-outs*`, and `/api/v1/kennels*`.
 - Legacy source folders are retained in the repo as 410 tombstones for historical reference and emergency rollback, but they are no longer synthesized or deployed.
 
+### Phase 12 Milestone
+- `dashboard-api`, `reports-api`, and `schedule-api` have been removed from CDK stacks and API Gateway routing.
+- `analytics-service` is now the sole deployed backend for all `/api/v1/dashboard*`, `/api/v1/reports*`, and `/api/v1/schedule*` routes.
+- Legacy Lambda folders remain in the repo as 410 tombstones for historical reference; no runtime usage.
+

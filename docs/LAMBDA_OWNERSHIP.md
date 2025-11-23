@@ -27,9 +27,9 @@ This reference lists every Lambda under `aws/lambdas/`, the domain(s) it serves,
 | `check-out-api` | Check-out workflow | historical (CDK removed; 410 tombstone) | `/api/v1/check-outs` (returns 410) | Superseded by `operations-service` | Source retained for history only |
 | `runs-api` | Run templates & assignments | historical (CDK removed; 410 tombstone) | `/api/v1/runs`, `/api/v1/run-templates` (returns 410) | Superseded by `operations-service` | Source retained for history only |
 | `kennels-api` | Kennel inventory | historical (CDK removed; 410 tombstone) | `/api/v1/kennels` (returns 410) | Superseded by `operations-service` | Source retained for history only |
-| `dashboard-api` | Dashboard metrics | legacy | `/api/v1/dashboard/stats` | Superseded by `analytics-service` | Decommission |
-| `reports-api` | Reporting | legacy | `/api/v1/reports/*` | Superseded by `analytics-service` | Decommission |
-| `schedule-api` | Calendar capacity | legacy | `/api/v1/schedule`, `/api/v1/schedule/capacity` | Superseded by `analytics-service` | Decommission |
+| `dashboard-api` | Dashboard metrics | historical (CDK removed; 410 tombstone) | `/api/v1/dashboard/*` (returns 410) | Superseded by `analytics-service` | Source retained for history only |
+| `reports-api` | Reporting | historical (CDK removed; 410 tombstone) | `/api/v1/reports/*` (returns 410) | Superseded by `analytics-service` | Source retained for history only |
+| `schedule-api` | Calendar capacity | historical (CDK removed; 410 tombstone) | `/api/v1/schedule*` (returns 410) | Superseded by `analytics-service` | Source retained for history only |
 | `tasks-api` | Task management | legacy | `/api/v1/tasks` | Superseded by `features-service` | Decommission |
 | `notes-api` | Notes | legacy | `/api/v1/notes` | Superseded by `features-service` | Decommission |
 | `incidents-api` | Incidents | legacy | `/api/v1/incidents` | Superseded by `features-service` | Decommission |

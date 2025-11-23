@@ -31,7 +31,7 @@ Each Lambda under `aws/lambdas/` is listed below with its primary domain, exampl
 | `check-in-api` | Check-ins | `/api/v1/check-ins` (returns 410) | historical | Removed from CDK/API Gateway in Phase 11; operations-service handles check-ins. |
 | `check-out-api` | Check-outs | `/api/v1/check-outs` (returns 410) | historical | Removed from CDK/API Gateway in Phase 11; operations-service handles check-outs. |
 | `communication-api` | Owner communications | `GET/POST /api/v1/communications` | legacy | Superseded by `features-service`. |
-| `dashboard-api` | Dashboard metrics | `GET /api/v1/dashboard/stats` | legacy | Routes now terminate on `analytics-service`. |
+| `dashboard-api` | Dashboard metrics | `/api/v1/dashboard/*` (returns 410) | historical | Removed from CDK/API Gateway in Phase 12; analytics-service owns dashboard routes. |
 | `facility-api` | Facility overview | `GET /api/v1/facility` | legacy | Config routines live in `config-service`. |
 | `incidents-api` | Incident tracking | `GET/POST /api/v1/incidents` | legacy | Replaced by `features-service`. |
 | `invites-api` | Staff/customer invites | `POST /api/v1/invites` | legacy | Replaced by `features-service`. |
@@ -43,10 +43,10 @@ Each Lambda under `aws/lambdas/` is listed below with its primary domain, exampl
 | `packages-api` | Service packages | `GET /api/v1/services` | legacy | Functionality absorbed by `config-service` (only `index.js.backup` remains). |
 | `pets-api` | Pet CRUD | `/api/v1/pets` (returns 410) | historical | Removed from CDK/API Gateway in Phase 10; entity-service is canonical. |
 | `properties-api` | Property CRUD (v1) | `/api/v1/properties` (now 410) | historical | Removed from CDK/API Gateway in Phase 8; source folder retained only for investigations. |
-| `reports-api` | Reports | `GET /api/v1/reports/revenue` | legacy | Replaced by `analytics-service`. |
+| `reports-api` | Reports | `/api/v1/reports/*` (returns 410) | historical | Removed from CDK/API Gateway in Phase 12; analytics-service handles reports. |
 | `roles-api` | Role catalog | `GET /api/v1/roles` | legacy | Provided by `config-service`. |
 | `runs-api` | Run scheduling | `/api/v1/runs` (returns 410) | historical | Removed from CDK/API Gateway in Phase 11; operations-service handles all runs/routes. |
-| `schedule-api` | Schedule view | `GET /api/v1/schedule` | legacy | Served via `analytics-service`. |
+| `schedule-api` | Schedule view | `/api/v1/schedule*` (returns 410) | historical | Removed from CDK/API Gateway in Phase 12; analytics-service serves schedule routes. |
 | `segments-api` | Customer segmentation (placeholder) | N/A | legacy | Directory currently empty; kept as a placeholder for future segmentation work. |
 | `services-api` | Service catalog | `GET /api/v1/services` | legacy | Consolidated into `config-service`. |
 | `staff-api` | Staff CRUD | `/api/v1/staff` (returns 410) | historical | Removed from CDK/API Gateway in Phase 10; entity-service handles all staff routes. |
