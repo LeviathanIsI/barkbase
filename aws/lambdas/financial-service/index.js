@@ -5,12 +5,49 @@
 // Do NOT add new logic or endpoints to legacy Lambdas for this domain.
 
 const { getPool, getTenantIdFromEvent } = require('/opt/nodejs');
+const {
+    getSecureHeaders,
+    errorResponse,
+    successResponse,
+} = require('../shared/security-utils');
 
-// Unified CORS headers (superset of all 3 original Lambdas)
-const HEADERS = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization,x-tenant-id,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
-    'Access-Control-Allow-Methods': 'OPTIONS,GET,POST,PUT,PATCH,DELETE'
+const ok = (event, statusCode, data = '', additionalHeaders = {}) => {
+    if (statusCode === 204) {
+        const origin = event?.headers?.origin || event?.headers?.Origin;
+        const stage = process.env.STAGE || 'development';
+        return {
+            statusCode,
+            headers: {
+                ...getSecureHeaders(origin, stage),
+                ...additionalHeaders,
+            },
+            body: '',
+        };
+    }
+    return successResponse(statusCode, data, event, additionalHeaders);
+};
+
+const fail = (event, statusCode, errorCodeOrBody, message, additionalHeaders = {}) => {
+    if (typeof errorCodeOrBody === 'object' && errorCodeOrBody !== null) {
+        const origin = event?.headers?.origin || event?.headers?.Origin;
+        const stage = process.env.STAGE || 'development';
+        return {
+            statusCode,
+            headers: {
+                ...getSecureHeaders(origin, stage),
+                ...additionalHeaders,
+            },
+            body: JSON.stringify(errorCodeOrBody),
+        };
+    }
+    const response = errorResponse(statusCode, errorCodeOrBody, message, event);
+    return {
+        ...response,
+        headers: {
+            ...response.headers,
+            ...additionalHeaders,
+        },
+    };
 };
 
 // Extract user info from API Gateway authorizer (JWT already validated by API Gateway)
@@ -67,27 +104,25 @@ exports.handler = async (event) => {
 
     // Handle CORS preflight
     if (httpMethod === 'OPTIONS') {
-        return { statusCode: 200, headers: HEADERS, body: '' };
+        const origin = event?.headers?.origin || event?.headers?.Origin;
+        const stage = process.env.STAGE || 'development';
+        return {
+            statusCode: 200,
+            headers: getSecureHeaders(origin, stage),
+            body: JSON.stringify({}),
+        };
     }
 
     // Extract user info from API Gateway authorizer (JWT already validated)
     const userInfo = await getUserInfoFromEvent(event);
     if (!userInfo) {
-        return {
-            statusCode: 401,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Unauthorized' }),
-        };
+        return fail(event, 401, { message: 'Unauthorized' });
     }
 
     // Get tenant ID from JWT claims or database
     const tenantId = userInfo.tenantId || await getTenantIdFromEvent(event);
     if (!tenantId) {
-        return {
-            statusCode: 401,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Missing tenant context' }),
-        };
+        return fail(event, 401, { message: 'Missing tenant context' });
     }
 
     try {
@@ -158,19 +193,11 @@ exports.handler = async (event) => {
         }
 
         // No matching route
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Not Found' })
-        };
+        return fail(event, 404, { message: 'Not Found' });
 
     } catch (error) {
         console.error('Financial service error:', error);
-        return {
-            statusCode: 500,
-            headers: HEADERS,
-            body: JSON.stringify({ message: error.message })
-        };
+        return fail(event, 500, { message: error.message });
     }
 };
 
@@ -214,11 +241,7 @@ async function listPayments(event, tenantId) {
 
     const { rows } = await pool.query(query, params);
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(rows)
-    };
+    return ok(event, 200, rows);
 }
 
 async function createPayment(event, tenantId) {
@@ -233,11 +256,7 @@ async function createPayment(event, tenantId) {
         [tenantId, bookingId, amountCents, method || 'CARD', status || 'PENDING', JSON.stringify(metadata || {})]
     );
 
-    return {
-        statusCode: 201,
-        headers: HEADERS,
-        body: JSON.stringify(rows[0])
-    };
+    return ok(event, 201, rows[0]);
 }
 
 async function getPayment(event, tenantId) {
@@ -250,14 +269,10 @@ async function getPayment(event, tenantId) {
     );
 
     if (rows.length === 0) {
-        return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Payment not found' }) };
+        return fail(event, 404, { message: 'Payment not found' });
     }
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(rows[0])
-    };
+    return ok(event, 200, rows[0]);
 }
 
 // ============================================
@@ -272,11 +287,7 @@ async function listInvoices(event, tenantId) {
         [tenantId]
     );
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(rows)
-    };
+    return ok(event, 200, rows);
 }
 
 async function createInvoice(event, tenantId) {
@@ -289,11 +300,7 @@ async function createInvoice(event, tenantId) {
         [tenantId, bookingId, amountCents, dueDate, JSON.stringify(items || [])]
     );
 
-    return {
-        statusCode: 201,
-        headers: HEADERS,
-        body: JSON.stringify(rows[0])
-    };
+    return ok(event, 201, rows[0]);
 }
 
 async function getInvoiceById(event, tenantId) {
@@ -320,18 +327,10 @@ async function getInvoiceById(event, tenantId) {
     );
 
     if (rows.length === 0) {
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Invoice not found' })
-        };
+        return fail(event, 404, { message: 'Invoice not found' });
     }
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(rows[0])
-    };
+    return ok(event, 200, rows[0]);
 }
 
 async function updateInvoice(event, tenantId) {
@@ -354,11 +353,7 @@ async function updateInvoice(event, tenantId) {
     }
 
     if (fields.length === 0) {
-        return {
-            statusCode: 400,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'No valid fields provided for update' })
-        };
+        return fail(event, 400, { message: 'No valid fields provided for update' });
     }
 
     fields.push(`"updatedAt" = NOW()`);
@@ -369,18 +364,10 @@ async function updateInvoice(event, tenantId) {
     const { rows } = await pool.query(query, values);
 
     if (rows.length === 0) {
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Invoice not found or you do not have permission to update it' })
-        };
+        return fail(event, 404, { message: 'Invoice not found or you do not have permission to update it' });
     }
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(rows[0])
-    };
+    return ok(event, 200, rows[0]);
 }
 
 async function updateInvoiceStatus(event, tenantId) {
@@ -391,11 +378,7 @@ async function updateInvoiceStatus(event, tenantId) {
     // Validate status
     const validStatuses = ['DRAFT', 'SENT', 'PAID', 'OVERDUE', 'CANCELLED'];
     if (!status || !validStatuses.includes(status)) {
-        return {
-            statusCode: 400,
-            headers: HEADERS,
-            body: JSON.stringify({ message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` })
-        };
+        return fail(event, 400, { message: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
     }
 
     const { rows } = await pool.query(
@@ -404,18 +387,10 @@ async function updateInvoiceStatus(event, tenantId) {
     );
 
     if (rows.length === 0) {
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Invoice not found' })
-        };
+        return fail(event, 404, { message: 'Invoice not found' });
     }
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(rows[0])
-    };
+    return ok(event, 200, rows[0]);
 }
 
 async function deleteInvoice(event, tenantId) {
@@ -435,14 +410,10 @@ async function deleteInvoice(event, tenantId) {
             [invoiceId, tenantId]
         );
 
-        return {
-            statusCode: 200,
-            headers: HEADERS,
-            body: JSON.stringify({
+        return ok(event, 200, {
                 message: 'Invoice cancelled (has associated payments)',
                 invoice: rows[0]
-            })
-        };
+            });
     }
 
     // Hard delete if no payments
@@ -452,18 +423,10 @@ async function deleteInvoice(event, tenantId) {
     );
 
     if (rowCount === 0) {
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Invoice not found' })
-        };
+        return fail(event, 404, { message: 'Invoice not found' });
     }
 
-    return {
-        statusCode: 204,
-        headers: HEADERS,
-        body: ''
-    };
+    return ok(event, 204);
 }
 
 // ============================================
@@ -487,11 +450,7 @@ async function generateInvoiceFromBooking(event, tenantId) {
     );
 
     if (bookingQuery.rows.length === 0) {
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Booking not found' })
-        };
+        return fail(event, 404, { message: 'Booking not found' });
     }
 
     const booking = bookingQuery.rows[0];
@@ -510,11 +469,7 @@ async function generateInvoiceFromBooking(event, tenantId) {
         [tenantId, bookingId, booking.primaryOwnerId, amountCents]
     );
 
-    return {
-        statusCode: 201,
-        headers: HEADERS,
-        body: JSON.stringify(rows[0])
-    };
+    return ok(event, 201, rows[0]);
 }
 
 async function sendInvoiceEmail(event, tenantId) {
@@ -531,11 +486,7 @@ async function sendInvoiceEmail(event, tenantId) {
     );
 
     if (rows.length === 0) {
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Invoice not found' })
-        };
+        return fail(event, 404, { message: 'Invoice not found' });
     }
 
     const invoice = rows[0];
@@ -547,14 +498,10 @@ async function sendInvoiceEmail(event, tenantId) {
         [invoiceId, tenantId]
     );
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify({
+    return ok(event, 200, {
             message: `Invoice email sent to ${invoice.email}`,
             invoice: { ...invoice, status: 'SENT' }
-        })
-    };
+        });
 }
 
 async function markInvoicePaid(event, tenantId) {
@@ -569,11 +516,7 @@ async function markInvoicePaid(event, tenantId) {
     );
 
     if (invoiceQuery.rows.length === 0) {
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Invoice not found' })
-        };
+        return fail(event, 404, { message: 'Invoice not found' });
     }
 
     const invoice = invoiceQuery.rows[0];
@@ -593,11 +536,7 @@ async function markInvoicePaid(event, tenantId) {
         [invoiceId, tenantId]
     );
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(rows[0])
-    };
+    return ok(event, 200, rows[0]);
 }
 
 // ============================================
@@ -615,12 +554,8 @@ async function getBillingMetrics(event, tenantId) {
         [tenantId]
     );
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify({
+    return ok(event, 200, {
             totalRevenueCents: parseInt(rows[0].total || 0),
             transactionCount: parseInt(rows[0].count || 0)
-        })
-    };
+        });
 }

@@ -5,11 +5,49 @@
 // Do NOT add new logic or endpoints to legacy Lambdas for this domain.
 
 const { getPool, getTenantIdFromEvent, getJWTValidator } = require('/opt/nodejs');
+const {
+    getSecureHeaders,
+    errorResponse,
+    successResponse,
+} = require('../shared/security-utils');
 
-const HEADERS = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization,x-tenant-id,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
-    'Access-Control-Allow-Methods': 'OPTIONS,GET,POST,PUT,PATCH,DELETE'
+const ok = (event, statusCode, data = '', additionalHeaders = {}) => {
+    if (statusCode === 204) {
+        const origin = event?.headers?.origin || event?.headers?.Origin;
+        const stage = process.env.STAGE || 'development';
+        return {
+            statusCode,
+            headers: {
+                ...getSecureHeaders(origin, stage),
+                ...additionalHeaders,
+            },
+            body: '',
+        };
+    }
+    return successResponse(statusCode, data, event, additionalHeaders);
+};
+
+const fail = (event, statusCode, errorCodeOrBody, message, additionalHeaders = {}) => {
+    if (typeof errorCodeOrBody === 'object' && errorCodeOrBody !== null) {
+        const origin = event?.headers?.origin || event?.headers?.Origin;
+        const stage = process.env.STAGE || 'development';
+        return {
+            statusCode,
+            headers: {
+                ...getSecureHeaders(origin, stage),
+                ...additionalHeaders,
+            },
+            body: JSON.stringify(errorCodeOrBody),
+        };
+    }
+    const response = errorResponse(statusCode, errorCodeOrBody, message, event);
+    return {
+        ...response,
+        headers: {
+            ...response.headers,
+            ...additionalHeaders,
+        },
+    };
 };
 
 // Enhanced authorization with fallback JWT validation
@@ -108,27 +146,25 @@ exports.handler = async (event) => {
     const path = event.requestContext?.http?.path || event.path;
 
     if (httpMethod === 'OPTIONS') {
-        return { statusCode: 200, headers: HEADERS, body: '' };
+        const origin = event?.headers?.origin || event?.headers?.Origin;
+        const stage = process.env.STAGE || 'development';
+        return {
+            statusCode: 200,
+            headers: getSecureHeaders(origin, stage),
+            body: JSON.stringify({}),
+        };
     }
 
     // Extract user info from API Gateway authorizer with fallback to manual JWT validation
     const userInfo = await getUserInfoFromEvent(event);
     if (!userInfo) {
-        return {
-            statusCode: 401,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Unauthorized' }),
-        };
+        return fail(event, 401, { message: 'Unauthorized' });
     }
 
     // Get tenant ID from JWT claims or database
     const tenantId = userInfo.tenantId || await getTenantIdFromEvent(event);
     if (!tenantId) {
-        return {
-            statusCode: 401,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Missing tenant context' }),
-        };
+        return fail(event, 401, { message: 'Missing tenant context' });
     }
 
     try {
@@ -241,19 +277,11 @@ exports.handler = async (event) => {
             }
         }
 
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Not Found' }),
-        };
+        return fail(event, 404, { message: 'Not Found' });
 
     } catch (error) {
         console.error('Config service error:', error);
-        return {
-            statusCode: 500,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Internal Server Error', error: error.message }),
-        };
+        return fail(event, 500, { message: 'Internal Server Error', error: error.message });
     }
 };
 
@@ -294,11 +322,7 @@ async function listServices(event, tenantId) {
         bookingCount: parseInt(row.bookingCount)
     }));
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(services),
-    };
+    return ok(event, 200, services);
 }
 
 async function createService(event, tenantId, userInfo) {
@@ -314,20 +338,12 @@ async function createService(event, tenantId, userInfo) {
     } = JSON.parse(event.body || '{}');
 
     if (!name || !category || priceInCents === undefined) {
-        return {
-            statusCode: 400,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Name, category, and priceInCents are required' }),
-        };
+        return fail(event, 400, { message: 'Name, category, and priceInCents are required' });
     }
 
     // Validate role - only OWNER or ADMIN can create services
     if (!['OWNER', 'ADMIN'].includes(userInfo.role)) {
-        return {
-            statusCode: 403,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Insufficient permissions' }),
-        };
+        return fail(event, 403, { message: 'Insufficient permissions' });
     }
 
     const result = await pool.query(
@@ -348,11 +364,7 @@ async function createService(event, tenantId, userInfo) {
     const service = result.rows[0];
     service.price = service.priceInCents / 100;
 
-    return {
-        statusCode: 201,
-        headers: HEADERS,
-        body: JSON.stringify(service),
-    };
+    return ok(event, 201, service);
 }
 
 async function getServiceById(event, tenantId) {
@@ -373,11 +385,7 @@ async function getServiceById(event, tenantId) {
     );
 
     if (result.rows.length === 0) {
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Service not found' }),
-        };
+        return fail(event, 404, { message: 'Service not found' });
     }
 
     const service = result.rows[0];
@@ -385,11 +393,7 @@ async function getServiceById(event, tenantId) {
     service.bookingCount = parseInt(service.bookingCount);
     service.totalRevenue = (service.totalRevenueCents || 0) / 100;
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(service),
-    };
+    return ok(event, 200, service);
 }
 
 async function updateService(event, tenantId, userInfo) {
@@ -399,11 +403,7 @@ async function updateService(event, tenantId, userInfo) {
 
     // Validate role - only OWNER or ADMIN can update services
     if (!['OWNER', 'ADMIN'].includes(userInfo.role)) {
-        return {
-            statusCode: 403,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Insufficient permissions' }),
-        };
+        return fail(event, 403, { message: 'Insufficient permissions' });
     }
 
     // Check if service exists
@@ -413,11 +413,7 @@ async function updateService(event, tenantId, userInfo) {
     );
 
     if (checkResult.rows.length === 0) {
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Service not found' }),
-        };
+        return fail(event, 404, { message: 'Service not found' });
     }
 
     // Build dynamic update query
@@ -438,11 +434,7 @@ async function updateService(event, tenantId, userInfo) {
     });
 
     if (updateFields.length === 0) {
-        return {
-            statusCode: 400,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'No valid fields to update' }),
-        };
+        return fail(event, 400, { message: 'No valid fields to update' });
     }
 
     updateFields.push(`"updatedAt" = NOW()`);
@@ -458,11 +450,7 @@ async function updateService(event, tenantId, userInfo) {
     const service = result.rows[0];
     service.price = service.priceInCents / 100;
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(service),
-    };
+    return ok(event, 200, service);
 }
 
 async function deleteService(event, tenantId, userInfo) {
@@ -471,11 +459,7 @@ async function deleteService(event, tenantId, userInfo) {
 
     // Validate role - only OWNER can delete services
     if (userInfo.role !== 'OWNER') {
-        return {
-            statusCode: 403,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Only owners can delete services' }),
-        };
+        return fail(event, 403, { message: 'Only owners can delete services' });
     }
 
     // Check if service is used in any bookings
@@ -491,13 +475,9 @@ async function deleteService(event, tenantId, userInfo) {
             [id, tenantId]
         );
 
-        return {
-            statusCode: 200,
-            headers: HEADERS,
-            body: JSON.stringify({
+        return ok(event, 200, {
                 message: 'Service deactivated (has existing bookings)'
-            }),
-        };
+            });
     }
 
     // Hard delete if no bookings
@@ -507,18 +487,10 @@ async function deleteService(event, tenantId, userInfo) {
     );
 
     if (result.rows.length === 0) {
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Service not found' }),
-        };
+        return fail(event, 404, { message: 'Service not found' });
     }
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify({ message: 'Service deleted successfully' }),
-    };
+    return ok(event, 200, { message: 'Service deleted successfully' });
 }
 
 // ========================================
@@ -537,23 +509,15 @@ async function getTenantBySlug(event, slug) {
 
 
         if (result.rows.length === 0) {
-            return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Tenant not found' }) };
+            return fail(event, 404, { message: 'Tenant not found' });
         }
 
         const tenant = result.rows[0];
 
-        return {
-            statusCode: 200,
-            headers: HEADERS,
-            body: JSON.stringify(tenant)
-        };
+        return ok(event, 200, tenant);
     } catch (error) {
         console.error('getTenantBySlug error:', error);
-        return {
-            statusCode: 500,
-            headers: HEADERS,
-            body: JSON.stringify({ message: error.message, stack: error.stack })
-        };
+        return fail(event, 500, { message: error.message, stack: error.stack });
     }
 }
 
@@ -567,14 +531,10 @@ async function getCurrentTenant(event, tenantId) {
     );
 
     if (rows.length === 0) {
-        return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Tenant not found' }) };
+        return fail(event, 404, { message: 'Tenant not found' });
     }
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(rows[0])
-    };
+    return ok(event, 200, rows[0]);
 }
 
 async function getTenantPlan(event, tenantId) {
@@ -586,7 +546,7 @@ async function getTenantPlan(event, tenantId) {
     );
 
     if (rows.length === 0) {
-        return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Tenant not found' }) };
+        return fail(event, 404, { message: 'Tenant not found' });
     }
 
     const tenant = rows[0];
@@ -600,11 +560,7 @@ async function getTenantPlan(event, tenantId) {
 
     const features = planFeatures[tenant.plan] || planFeatures.FREE;
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify({ plan: tenant.plan, features, featureFlags: tenant.featureFlags })
-    };
+    return ok(event, 200, { plan: tenant.plan, features, featureFlags: tenant.featureFlags });
 }
 
 async function getOnboarding(event, tenantId) {
@@ -631,11 +587,7 @@ async function getOnboarding(event, tenantId) {
     const completed = Object.values(onboarding).filter(v => v === true).length;
     onboarding.completionPercentage = Math.round((completed / 5) * 100);
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(onboarding)
-    };
+    return ok(event, 200, onboarding);
 }
 
 async function updateOnboarding(event, tenantId) {
@@ -649,11 +601,7 @@ async function updateOnboarding(event, tenantId) {
         [JSON.stringify(dismissed), tenantId]
     );
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(rows[0])
-    };
+    return ok(event, 200, rows[0]);
 }
 
 async function updateTheme(event, tenantId) {
@@ -665,11 +613,7 @@ async function updateTheme(event, tenantId) {
         [JSON.stringify(theme), tenantId]
     );
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(rows[0])
-    };
+    return ok(event, 200, rows[0]);
 }
 
 async function updateFeatureFlags(event, tenantId) {
@@ -681,11 +625,7 @@ async function updateFeatureFlags(event, tenantId) {
         [JSON.stringify(featureFlags), tenantId]
     );
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(rows[0])
-    };
+    return ok(event, 200, rows[0]);
 }
 
 // ========================================
@@ -700,7 +640,7 @@ async function getRoles(event) {
         { recordId: 'READONLY', name: 'Read Only', permissions: ['*:read'] }
     ];
 
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(roles) };
+    return ok(event, 200, roles);
 }
 
 // ========================================
@@ -710,14 +650,14 @@ async function getRoles(event) {
 async function getAccountDefaults(event, tenantId) {
     const pool = getPool();
     const { rows } = await pool.query(`SELECT "settings" FROM "Tenant" WHERE "recordId" = $1`, [tenantId]);
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows[0]?.settings || {}) };
+    return ok(event, 200, rows[0]?.settings || {});
 }
 
 async function updateAccountDefaults(event, tenantId) {
     const pool = getPool();
     const settings = JSON.parse(event.body);
     await pool.query(`UPDATE "Tenant" SET "settings" = $1, "updatedAt" = NOW() WHERE "recordId" = $2`, [JSON.stringify(settings), tenantId]);
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(settings) };
+    return ok(event, 200, settings);
 }
 
 // ========================================
@@ -731,7 +671,7 @@ async function getFacilityOverview(event, tenantId) {
          FROM "Kennel" WHERE "tenantId" = $1 GROUP BY "type"`,
         [tenantId]
     );
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows) };
+    return ok(event, 200, rows);
 }
 
 // ========================================
@@ -746,7 +686,7 @@ async function getPackages(event, tenantId) {
          ORDER BY "displayOrder" ASC, "name" ASC`,
         [tenantId]
     );
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows) };
+    return ok(event, 200, rows);
 }
 
 async function getPackageById(event, tenantId, packageId) {
@@ -758,7 +698,7 @@ async function getPackageById(event, tenantId, packageId) {
     );
 
     if (packageResult.rows.length === 0) {
-        return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Package not found' }) };
+        return fail(event, 404, { message: 'Package not found' });
     }
 
     const servicesResult = await pool.query(
@@ -772,11 +712,7 @@ async function getPackageById(event, tenantId, packageId) {
         [packageId]
     );
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify({ ...packageResult.rows[0], services: servicesResult.rows })
-    };
+    return ok(event, 200, { ...packageResult.rows[0], services: servicesResult.rows });
 }
 
 async function createPackage(event, tenantId) {
@@ -785,7 +721,7 @@ async function createPackage(event, tenantId) {
     const { name, description, price, isActive = true, displayOrder = 0, services = [] } = body;
 
     if (!name) {
-        return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ message: 'Package name is required' }) };
+        return fail(event, 400, { message: 'Package name is required' });
     }
 
     const client = await pool.connect();
@@ -813,7 +749,7 @@ async function createPackage(event, tenantId) {
         }
 
         await client.query('COMMIT');
-        return { statusCode: 201, headers: HEADERS, body: JSON.stringify({ ...newPackage, services: includedServices }) };
+        return ok(event, 201, { ...newPackage, services: includedServices });
     } catch (error) {
         await client.query('ROLLBACK');
         throw error;
@@ -833,7 +769,7 @@ async function updatePackage(event, tenantId, packageId) {
     );
 
     if (existingPackage.rows.length === 0) {
-        return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Package not found' }) };
+        return fail(event, 404, { message: 'Package not found' });
     }
 
     const client = await pool.connect();
@@ -870,7 +806,7 @@ async function updatePackage(event, tenantId, packageId) {
         );
 
         await client.query('COMMIT');
-        return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ ...updateResult.rows[0], services: servicesResult.rows }) };
+        return ok(event, 200, { ...updateResult.rows[0], services: servicesResult.rows });
     } catch (error) {
         await client.query('ROLLBACK');
         throw error;
@@ -888,10 +824,10 @@ async function deletePackage(event, tenantId, packageId) {
     );
 
     if (result.rows.length === 0) {
-        return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Package not found' }) };
+        return fail(event, 404, { message: 'Package not found' });
     }
 
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ message: 'Package deleted successfully', package: result.rows[0] }) };
+    return ok(event, 200, { message: 'Package deleted successfully', package: result.rows[0] });
 }
 
 // ========================================
@@ -904,7 +840,7 @@ async function getMemberships(event, tenantId) {
         `SELECT m.*, u."name", u."email" FROM "Membership" m LEFT JOIN "User" u ON m."userId" = u."recordId" WHERE m."tenantId" = $1`,
         [tenantId]
     );
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows) };
+    return ok(event, 200, rows);
 }
 
 async function updateMembership(event, tenantId) {
@@ -914,7 +850,7 @@ async function updateMembership(event, tenantId) {
         `UPDATE "Membership" SET "role" = $1, "updatedAt" = NOW() WHERE "recordId" = $2 AND "tenantId" = $3 RETURNING *`,
         [role, event.pathParameters.membershipId, tenantId]
     );
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows[0]) };
+    return ok(event, 200, rows[0]);
 }
 
 async function deleteMembership(event, tenantId) {
@@ -924,9 +860,9 @@ async function deleteMembership(event, tenantId) {
         [event.pathParameters.membershipId, tenantId]
     );
     if (rowCount === 0) {
-        return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Membership not found' }) };
+        return fail(event, 404, { message: 'Membership not found' });
     }
-    return { statusCode: 204, headers: HEADERS, body: '' };
+    return ok(event, 204);
 }
 
 // ========================================
@@ -940,5 +876,5 @@ async function getUserPermissions(event) {
         STAFF: ['bookings:read', 'bookings:update', 'pets:read', 'owners:read'],
         READONLY: ['*:read']
     };
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(permissions) };
+    return ok(event, 200, permissions);
 }
