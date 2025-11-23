@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/cn';
@@ -10,6 +10,25 @@ const SlideoutPanel = ({
   children,
   widthClass = 'max-w-xl',
 }) => {
+  const TRANSITION_MS = 250;
+  const [shouldRender, setShouldRender] = useState(isOpen);
+  const [isAnimatingOut, setIsAnimatingOut] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setShouldRender(true);
+      setIsAnimatingOut(false);
+    } else if (shouldRender) {
+      setIsAnimatingOut(true);
+      const timeout = setTimeout(() => {
+        setShouldRender(false);
+        setIsAnimatingOut(false);
+      }, TRANSITION_MS);
+      return () => clearTimeout(timeout);
+    }
+    return undefined;
+  }, [isOpen, shouldRender, TRANSITION_MS]);
+
   useEffect(() => {
     if (!isOpen) return undefined;
 
@@ -24,14 +43,19 @@ const SlideoutPanel = ({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  if (!isOpen) {
+  if (!shouldRender) {
     return null;
   }
+
+  const isVisible = isOpen && !isAnimatingOut;
 
   return createPortal(
     <div className="fixed inset-0 z-[200] flex">
       <div
-        className="flex-1 bg-black/60 backdrop-blur-sm transition-opacity"
+        className={cn(
+          'flex-1 bg-black/60 backdrop-blur-sm transition-opacity duration-300',
+          isVisible ? 'opacity-100' : 'opacity-0',
+        )}
         onClick={onClose}
         aria-hidden="true"
       />
@@ -40,7 +64,8 @@ const SlideoutPanel = ({
         aria-modal="true"
         aria-label={title}
         className={cn(
-          'relative ml-auto flex h-full w-full max-w-xl flex-col bg-white shadow-2xl dark:bg-dark-bg-secondary',
+          'relative ml-auto flex h-full w-full max-w-xl transform flex-col bg-white shadow-2xl transition-transform duration-300 dark:bg-dark-bg-secondary',
+          isVisible ? 'translate-x-0' : 'translate-x-full',
           widthClass,
         )}
       >
