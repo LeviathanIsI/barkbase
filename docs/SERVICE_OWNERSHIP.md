@@ -39,9 +39,9 @@ Each Lambda under `aws/lambdas/` is listed below with its primary domain, exampl
 | `memberships-api` | Tenant memberships | `GET /api/v1/memberships` | legacy | Config service owns memberships. |
 | `messages-api` | Internal messaging | `GET /api/v1/messages` | legacy | Replaced by `features-service`. |
 | `notes-api` | Entity notes | `GET/POST /api/v1/notes` | legacy | Replaced by `features-service`. |
-| `owners-api` | Owner CRUD | `GET /api/v1/owners` | legacy | Superseded by `entity-service`. |
+| `owners-api` | Owner CRUD | `/api/v1/owners` (returns 410) | historical | Removed from CDK/API Gateway in Phase 10; entity-service handles all owner routes. |
 | `packages-api` | Service packages | `GET /api/v1/services` | legacy | Functionality absorbed by `config-service` (only `index.js.backup` remains). |
-| `pets-api` | Pet CRUD | `GET /api/v1/pets` | legacy | Handler now returns `410 Gone`; use `entity-service`. |
+| `pets-api` | Pet CRUD | `/api/v1/pets` (returns 410) | historical | Removed from CDK/API Gateway in Phase 10; entity-service is canonical. |
 | `properties-api` | Property CRUD (v1) | `/api/v1/properties` (now 410) | historical | Removed from CDK/API Gateway in Phase 8; source folder retained only for investigations. |
 | `reports-api` | Reports | `GET /api/v1/reports/revenue` | legacy | Replaced by `analytics-service`. |
 | `roles-api` | Role catalog | `GET /api/v1/roles` | legacy | Provided by `config-service`. |
@@ -49,7 +49,7 @@ Each Lambda under `aws/lambdas/` is listed below with its primary domain, exampl
 | `schedule-api` | Schedule view | `GET /api/v1/schedule` | legacy | Served via `analytics-service`. |
 | `segments-api` | Customer segmentation (placeholder) | N/A | legacy | Directory currently empty; kept as a placeholder for future segmentation work. |
 | `services-api` | Service catalog | `GET /api/v1/services` | legacy | Consolidated into `config-service`. |
-| `staff-api` | Staff CRUD | `GET /api/v1/staff` | legacy | Handled by `entity-service`. |
+| `staff-api` | Staff CRUD | `/api/v1/staff` (returns 410) | historical | Removed from CDK/API Gateway in Phase 10; entity-service handles all staff routes. |
 | `tasks-api` | Task management | `GET /api/v1/tasks` | legacy | Superseded by `features-service`. |
 | `tenants-api` | Tenant lookup | `GET /api/v1/tenants/current` | legacy | Config service is canonical. |
 | `user-permissions-api` | User permission mapping | `GET /api/v1/user-permissions` | legacy | Replaced by `config-service` + `user-profile-service`. |

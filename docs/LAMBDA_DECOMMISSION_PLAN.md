@@ -86,3 +86,8 @@ Following this plan will let us retire the duplicate Lambdas safely without intr
 - Entity-era clean-up (pets/owners/staff) and Properties (already tombstoned) remain straightforward removals once telemetry confirms zero traffic.
 - Actual consolidation work (route moves, DTO adapters, schema cleanup) will occur in later phases (Phase 10+); this phase is analysis/documentation only.
 
+### Phase 10 Milestone
+- `pets-api`, `owners-api`, and `staff-api` have been removed from CDK stacks and API Gateway routing.
+- `entity-service` is now the sole deployed backend for all `/api/v1/pets`, `/api/v1/owners`, and `/api/v1/staff` traffic (with OPTIONS handled by the shared handler).
+- The legacy Lambda source folders remain for historical reference and continue to return `410 Gone`, but they are no longer part of any infrastructure deployment.
+

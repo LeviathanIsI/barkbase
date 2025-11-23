@@ -19,9 +19,9 @@ This reference lists every Lambda under `aws/lambdas/`, the domain(s) it serves,
 ## Legacy / Duplicate Services
 | Lambda | Domain(s) | Status | Example Endpoints | Overlap | Recommendation |
 | --- | --- | --- | --- | --- | --- |
-| `pets-api` | Pets CRUD | legacy | `/api/v1/pets` | Superseded by `entity-service` | Decommission after confirmation |
-| `owners-api` | Owner CRUD | legacy | `/api/v1/owners` | Superseded by `entity-service` | Decommission |
-| `staff-api` | Staff CRUD | legacy | `/api/v1/staff` | Superseded by `entity-service` | Decommission |
+| `pets-api` | Pets CRUD | historical (CDK removed; 410 tombstone) | `/api/v1/pets` (returns 410) | Superseded by `entity-service` | Source retained for history only |
+| `owners-api` | Owner CRUD | historical (CDK removed; 410 tombstone) | `/api/v1/owners` (returns 410) | Superseded by `entity-service` | Source retained for history only |
+| `staff-api` | Staff CRUD | historical (CDK removed; 410 tombstone) | `/api/v1/staff` (returns 410) | Superseded by `entity-service` | Source retained for history only |
 | `bookings-api` | Booking CRUD | legacy | `/api/v1/bookings` | Superseded by `operations-service` | Decommission |
 | `check-in-api` | Check-in workflow | legacy | `/api/v1/check-ins` | Superseded by `operations-service` | Decommission |
 | `check-out-api` | Check-out workflow | legacy | `/api/v1/check-outs` | Superseded by `operations-service` | Decommission |
