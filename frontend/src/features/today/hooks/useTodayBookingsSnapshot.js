@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
+import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 
 const normalizeBookings = (response) => {
   if (!response) return [];
@@ -15,8 +16,8 @@ const useTodayBookingsSnapshot = (date) => {
     queryKey: getTodayBookingsSnapshotKey(date),
     queryFn: async () => {
       const [dateResponse, checkedInResponse] = await Promise.all([
-        apiClient.get('/api/v1/bookings', { params: { date } }),
-        apiClient.get('/api/v1/bookings', { params: { status: 'CHECKED_IN' } }),
+        apiClient.get(canonicalEndpoints.bookings.list, { params: { date } }),
+        apiClient.get(canonicalEndpoints.bookings.list, { params: { status: 'CHECKED_IN' } }),
       ]);
 
       const dateBookings = normalizeBookings(dateResponse);

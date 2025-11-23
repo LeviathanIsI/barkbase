@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
+import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import { useUserProfileQuery } from '@/features/settings/api-user';
 import TodayHeroCard from '@/features/today/components/TodayHeroCard';
 import TodayArrivalsList from '@/features/today/components/TodayArrivalsList';
@@ -42,7 +43,7 @@ const TodayCommandCenter = () => {
   const dashboardStatsQuery = useQuery({
     queryKey: ['dashboard', 'stats', today],
     queryFn: async () => {
-      const response = await apiClient.get('/api/v1/dashboard/stats');
+      const response = await apiClient.get(canonicalEndpoints.reports.dashboardStats);
       return response?.data || {};
     },
     refetchInterval: 60000 // Refresh every minute
@@ -55,7 +56,7 @@ const TodayCommandCenter = () => {
     queryFn: async () => {
       try {
         // Check for bookings with issues
-        const unpaidResponse = await apiClient.get('/api/v1/bookings', { params: { status: 'UNPAID' } });
+        const unpaidResponse = await apiClient.get(canonicalEndpoints.bookings.list, { params: { status: 'UNPAID' } });
         const unpaidBookings = Array.isArray(unpaidResponse?.data) ? unpaidResponse.data : unpaidResponse?.data?.data || [];
         
         // Check arrivals for vaccination issues

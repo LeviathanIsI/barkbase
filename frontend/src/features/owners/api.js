@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
+import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import { useTenantStore } from '@/stores/tenant';
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
@@ -12,7 +13,7 @@ export const useOwnersQuery = (params = {}) => {
     queryKey: queryKeys.owners(tenantKey, params),
     queryFn: async () => {
       try {
-        const res = await apiClient.get('/api/v1/owners', { params });
+        const res = await apiClient.get(canonicalEndpoints.owners.list, { params });
         return Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data ?? []);
       } catch (e) {
         console.warn('[owners] Falling back to empty list due to API error:', e?.message || e);
@@ -31,7 +32,7 @@ export const useOwnerDetailsQuery = (ownerId, options = {}) => {
     queryKey: [...queryKeys.owners(tenantKey), ownerId],
     queryFn: async () => {
       try {
-        const res = await apiClient.get(`/api/v1/owners/${ownerId}`);
+        const res = await apiClient.get(canonicalEndpoints.owners.detail(ownerId));
         return res?.data ?? null;
       } catch (e) {
         console.warn('[owner] Falling back to null due to API error:', e?.message || e);
@@ -52,7 +53,7 @@ export const useCreateOwnerMutation = () => {
   
   return useMutation({
     mutationFn: async (payload) => {
-      const res = await apiClient.post('/api/v1/owners', payload);
+      const res = await apiClient.post(canonicalEndpoints.owners.list, payload);
       return res.data;
     },
     onSuccess: (created) => {
@@ -73,7 +74,7 @@ export const useUpdateOwnerMutation = (ownerId) => {
   
   return useMutation({
     mutationFn: async (payload) => {
-      const res = await apiClient.put(`/api/v1/owners/${ownerId}`, payload);
+      const res = await apiClient.put(canonicalEndpoints.owners.detail(ownerId), payload);
       return res.data;
     },
     onMutate: async (payload) => {
@@ -108,7 +109,7 @@ export const useDeleteOwnerMutation = () => {
   
   return useMutation({
     mutationFn: async (ownerId) => {
-      await apiClient.delete(`/api/v1/owners/${ownerId}`);
+      await apiClient.delete(canonicalEndpoints.owners.detail(ownerId));
       return ownerId;
     },
     onMutate: async (ownerId) => {
@@ -139,7 +140,7 @@ export const useOwnerSearchQuery = (searchTerm, options = {}) => {
     queryKey: [...queryKeys.owners(tenantKey), 'search', searchTerm],
     queryFn: async () => {
       try {
-        const res = await apiClient.get('/api/v1/owners', { 
+        const res = await apiClient.get(canonicalEndpoints.owners.list, { 
           params: { search: searchTerm, limit: 10 } 
         });
         return Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
@@ -160,7 +161,7 @@ export const useAddPetToOwnerMutation = (ownerId) => {
   
   return useMutation({
     mutationFn: async ({ petId, isPrimary = false }) => {
-      const res = await apiClient.post(`/api/v1/owners/${ownerId}/pets`, { 
+      const res = await apiClient.post(canonicalEndpoints.owners.pets(ownerId), { 
         petId, 
         isPrimary 
       });
@@ -180,7 +181,7 @@ export const useRemovePetFromOwnerMutation = (ownerId) => {
   
   return useMutation({
     mutationFn: async (petId) => {
-      await apiClient.delete(`/api/v1/owners/${ownerId}/pets/${petId}`);
+      await apiClient.delete(`${canonicalEndpoints.owners.pets(ownerId)}/${petId}`);
       return petId;
     },
     onSettled: () => {
