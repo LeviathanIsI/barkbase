@@ -18,7 +18,7 @@ import {
   Gift,
   Settings as SettingsIcon,
 } from "lucide-react";
-import { mainNavItems, navSections } from "@/config/navigation";
+import { navSections } from "@/config/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -48,12 +48,6 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
     const initial = {};
     navSections.forEach((section, index) => {
       initial[section.title] = index === 0;
-    });
-    return initial;
-  });
-    navSections.forEach((section, index) => {
-    navSections.forEach((section, index) => {
-      initial[section.title] = index === 0; // Expand first section by default
     });
     return initial;
   });
@@ -93,12 +87,14 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
     }
   }, [collapsed, isMobile]);
 
-  const isItemActive = (item) => {
-    return location.pathname.startsWith(item.to);
+  const isPathActive = (path) => {
+    if (!path) return false;
+    if (location.pathname === path) return true;
+    return location.pathname.startsWith(`${path}/`);
   };
 
   const isSectionActive = (section) => {
-    return section.items.some((item) => location.pathname.startsWith(item.to));
+    return section.items.some((item) => isPathActive(item.to || item.path));
   };
 
   return (
@@ -227,7 +223,7 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
                     const path = item.path || item.to;
                     const label = item.label;
                     const ItemIcon = iconMap[path] || Grid3x3;
-                    const active = location.pathname.startsWith(path);
+                    const active = isPathActive(path);
 
                     return (
                       <NavLink
