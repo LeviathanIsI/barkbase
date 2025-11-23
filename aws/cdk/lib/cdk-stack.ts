@@ -1485,7 +1485,6 @@ export class CdkStack extends cdk.Stack {
       adminApiFunction,
       usersApiFunction,
       postConfirmationFunction,
-      propertiesApiFunction,
       propertiesApiV2Function,
       propertyArchivalJobFunction,
       propertyPermanentDeletionJobFunction,
@@ -1672,11 +1671,6 @@ export class CdkStack extends cdk.Stack {
     });
 
     analyticsServiceFunction.addPermission('ApiGatewayWildcard', {
-      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
-      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${httpApi.apiId}/*/*/*`,
-    });
-
-    propertiesApiFunction.addPermission('ApiGatewayWildcard', {
       principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${httpApi.apiId}/*/*/*`,
     });
