@@ -4,19 +4,14 @@ import Badge from '@/components/ui/Badge';
 import PetAvatar from '@/components/ui/PetAvatar';
 import TodayCard from './TodayCard';
 import TodaySection from './TodaySection';
+import { TodayListSkeleton } from './TodaySkeleton';
 
 // TODO (Today Cleanup B:3): This component will be visually redesigned in the next phase.
 const TodayArrivalsList = ({ arrivals, onBatchCheckIn, isLoading }) => {
   if (isLoading) {
     return (
       <TodayCard>
-        <div className="animate-pulse space-y-4">
-          <div className="h-6 bg-gray-200 dark:bg-surface-secondary rounded" />
-          <div className="space-y-2">
-            <div className="h-20 bg-gray-200 dark:bg-surface-secondary rounded" />
-            <div className="h-20 bg-gray-200 dark:bg-surface-secondary rounded" />
-          </div>
-        </div>
+        <TodayListSkeleton />
       </TodayCard>
     );
   }

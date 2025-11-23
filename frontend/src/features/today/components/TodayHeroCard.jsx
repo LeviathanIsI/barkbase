@@ -1,9 +1,18 @@
 import { AlertCircle, Home, UserCheck, UserX } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import TodayCard from './TodayCard';
+import { TodayHeroSkeleton } from './TodaySkeleton';
 
 // TODO (Today Cleanup B:3): This component will be visually redesigned in the next phase.
-const TodayHeroCard = ({ kennelName, formattedDate, stats }) => {
+const TodayHeroCard = ({ kennelName, formattedDate, stats, isLoading }) => {
+  if (isLoading) {
+    return (
+      <TodayCard>
+        <TodayHeroSkeleton />
+      </TodayCard>
+    );
+  }
+
   return (
     <TodayCard>
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
