@@ -1150,21 +1150,6 @@ export class CdkStack extends cdk.Stack {
     // httpApi.addRoutes({ path: '/api/v1/services', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: servicesIntegration, authorizer: httpAuthorizer });
     // httpApi.addRoutes({ path: '/api/v1/services/{serviceId}', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PUT, apigw.HttpMethod.DELETE], integration: servicesIntegration });
 
-    // Properties API (for system and custom properties management)
-    const propertiesApiFunction = new lambda.Function(this, 'PropertiesApiFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/properties-api')),
-      layers: [dbLayer],
-      environment: dbEnvironment,
-      // No VPC - connects to public database
-      timeout: cdk.Duration.seconds(30),
-    });
-    dbSecret.grantRead(propertiesApiFunction);
-    const propertiesIntegration = new HttpLambdaIntegration('PropertiesIntegration', propertiesApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/properties', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: propertiesIntegration, authorizer: httpAuthorizer });
-    httpApi.addRoutes({ path: '/api/v1/properties/{propertyId}', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE], integration: propertiesIntegration });
-
     // === ENTERPRISE PROPERTY MANAGEMENT SYSTEM ===
 
     // Properties API v2 (Enhanced with rich metadata, dependencies, and enterprise features)
