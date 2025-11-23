@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/cn';
@@ -10,27 +10,40 @@ const SlideoutPanel = ({
   children,
   widthClass = 'max-w-xl',
 }) => {
-  const TRANSITION_MS = 250;
-  const [shouldRender, setShouldRender] = useState(isOpen);
-  const [isAnimatingOut, setIsAnimatingOut] = useState(false);
+  const TRANSITION_MS = 300;
+  const [isMounted, setIsMounted] = useState(isOpen);
+  const [isVisible, setIsVisible] = useState(isOpen);
+  const closeTimeoutRef = useRef(null);
 
   useEffect(() => {
     if (isOpen) {
-      setShouldRender(true);
-      setIsAnimatingOut(false);
-    } else if (shouldRender) {
-      setIsAnimatingOut(true);
-      const timeout = setTimeout(() => {
-        setShouldRender(false);
-        setIsAnimatingOut(false);
+      setIsMounted(true);
+      requestAnimationFrame(() => setIsVisible(true));
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+        closeTimeoutRef.current = null;
+      }
+    } else if (isMounted) {
+      setIsVisible(false);
+      closeTimeoutRef.current = setTimeout(() => {
+        setIsMounted(false);
+        closeTimeoutRef.current = null;
       }, TRANSITION_MS);
-      return () => clearTimeout(timeout);
     }
-    return undefined;
-  }, [isOpen, shouldRender, TRANSITION_MS]);
+
+    return () => {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+        closeTimeoutRef.current = null;
+      }
+    };
+  }, [isOpen, isMounted]);
 
   useEffect(() => {
-    if (!isOpen) return undefined;
+    if (!isMounted) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
@@ -40,20 +53,21 @@ const SlideoutPanel = ({
     };
 
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isMounted, onClose]);
 
-  if (!shouldRender) {
+  if (!isMounted) {
     return null;
   }
-
-  const isVisible = isOpen && !isAnimatingOut;
 
   return createPortal(
     <div className="fixed inset-0 z-[200] flex">
       <div
         className={cn(
-          'flex-1 bg-black/60 backdrop-blur-sm transition-opacity duration-300',
+          'flex-1 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ease-out',
           isVisible ? 'opacity-100' : 'opacity-0',
         )}
         onClick={onClose}
@@ -64,7 +78,7 @@ const SlideoutPanel = ({
         aria-modal="true"
         aria-label={title}
         className={cn(
-          'relative ml-auto flex h-full w-full max-w-xl transform flex-col bg-white shadow-2xl transition-transform duration-300 dark:bg-dark-bg-secondary',
+          'relative ml-auto flex h-full w-full max-w-xl transform flex-col bg-white shadow-2xl transition-all duration-300 ease-out dark:bg-dark-bg-secondary',
           isVisible ? 'translate-x-0' : 'translate-x-full',
           widthClass,
         )}
