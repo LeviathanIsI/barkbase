@@ -5,12 +5,49 @@
 // Do NOT add new logic or endpoints to legacy Lambdas for this domain.
 
 const { getPool, getTenantIdFromEvent, getJWTValidator } = require('/opt/nodejs');
+const {
+    getSecureHeaders,
+    errorResponse,
+    successResponse,
+} = require('../shared/security-utils');
 
-// Unified CORS headers (superset of all 3 original Lambdas)
-const HEADERS = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization,x-tenant-id,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
-    'Access-Control-Allow-Methods': 'OPTIONS,GET'
+const ok = (event, statusCode, data = '', additionalHeaders = {}) => {
+    if (statusCode === 204) {
+        const origin = event?.headers?.origin || event?.headers?.Origin;
+        const stage = process.env.STAGE || 'development';
+        return {
+            statusCode,
+            headers: {
+                ...getSecureHeaders(origin, stage),
+                ...additionalHeaders,
+            },
+            body: '',
+        };
+    }
+    return successResponse(statusCode, data, event, additionalHeaders);
+};
+
+const fail = (event, statusCode, errorCodeOrBody, message, additionalHeaders = {}) => {
+    if (typeof errorCodeOrBody === 'object' && errorCodeOrBody !== null) {
+        const origin = event?.headers?.origin || event?.headers?.Origin;
+        const stage = process.env.STAGE || 'development';
+        return {
+            statusCode,
+            headers: {
+                ...getSecureHeaders(origin, stage),
+                ...additionalHeaders,
+            },
+            body: JSON.stringify(errorCodeOrBody),
+        };
+    }
+    const response = errorResponse(statusCode, errorCodeOrBody, message, event);
+    return {
+        ...response,
+        headers: {
+            ...response.headers,
+            ...additionalHeaders,
+        },
+    };
 };
 
 // Enhanced authorization with fallback JWT validation
@@ -113,27 +150,25 @@ exports.handler = async (event) => {
 
     // Handle CORS preflight
     if (httpMethod === 'OPTIONS') {
-        return { statusCode: 200, headers: HEADERS, body: '' };
+        const origin = event?.headers?.origin || event?.headers?.Origin;
+        const stage = process.env.STAGE || 'development';
+        return {
+            statusCode: 200,
+            headers: getSecureHeaders(origin, stage),
+            body: JSON.stringify({}),
+        };
     }
 
     // Extract user info from API Gateway authorizer with fallback to manual JWT validation
     const userInfo = await getUserInfoFromEvent(event);
     if (!userInfo) {
-        return {
-            statusCode: 401,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Unauthorized' }),
-        };
+        return fail(event, 401, { message: 'Unauthorized' });
     }
 
     // Get tenant ID from JWT claims or database
     const tenantId = userInfo.tenantId || await getTenantIdFromEvent(event);
     if (!tenantId) {
-        return {
-            statusCode: 401,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Missing tenant context' }),
-        };
+        return fail(event, 401, { message: 'Missing tenant context' });
     }
 
     try {
@@ -192,19 +227,11 @@ exports.handler = async (event) => {
         }
 
         // No matching route
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Not Found' })
-        };
+        return fail(event, 404, { message: 'Not Found' });
 
     } catch (error) {
         console.error('Analytics service error:', error);
-        return {
-            statusCode: 500,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Internal Server Error', error: error.message })
-        };
+        return fail(event, 500, { message: 'Internal Server Error', error: error.message });
     }
 };
 
@@ -298,10 +325,7 @@ async function getDashboardStats(event, tenantId) {
     const currentOccupancy = parseInt(activeBookings.rows[0].count);
     const occupancyRate = totalCapacity > 0 ? Math.round((currentOccupancy / totalCapacity) * 100) : 0;
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify({
+    return ok(event, 200, {
             totalPets: parseInt(petCount.rows[0].count),
             totalOwners: parseInt(ownerCount.rows[0].count),
             activeBookings: parseInt(activeBookings.rows[0].count),
@@ -313,8 +337,7 @@ async function getDashboardStats(event, tenantId) {
                 thisWeek: parseInt(weekRevenue.rows[0].total) / 100,
                 thisMonth: parseInt(monthRevenue.rows[0].total) / 100
             }
-        }),
-    };
+        });
 }
 
 async function getTodaysPets(event, tenantId) {
@@ -404,11 +427,7 @@ async function getTodaysPets(event, tenantId) {
         }
     });
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(pets),
-    };
+    return ok(event, 200, pets);
 }
 
 async function getUpcomingArrivals(event, tenantId) {
@@ -447,11 +466,7 @@ async function getUpcomingArrivals(event, tenantId) {
         }
     }));
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(arrivals),
-    };
+    return ok(event, 200, arrivals);
 }
 
 async function getUpcomingDepartures(event, tenantId) {
@@ -491,11 +506,7 @@ async function getUpcomingDepartures(event, tenantId) {
         }
     }));
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(departures),
-    };
+    return ok(event, 200, departures);
 }
 
 async function getOccupancy(event, tenantId) {
@@ -524,17 +535,13 @@ async function getOccupancy(event, tenantId) {
     const capacity = capacityResult.rows[0];
     const occupancy = occupancyResult.rows[0];
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify({
+    return ok(event, 200, {
             current: parseInt(occupancy.total),
             total: parseInt(capacity.total) || 0,
             percentage: capacity.total > 0
                 ? Math.round((parseInt(occupancy.total) / parseInt(capacity.total)) * 100)
                 : 0
-        }),
-    };
+        });
 }
 
 async function getRevenueMetrics(event, tenantId) {
@@ -592,17 +599,13 @@ async function getRevenueMetrics(event, tenantId) {
         amount: parseInt(row.amount) / 100
     }));
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify({
+    return ok(event, 200, {
             total: parseInt(summary.total) / 100 || 0,
             collected: parseInt(summary.collected) / 100 || 0,
             pending: parseInt(summary.pending) / 100 || 0,
             overdue: parseInt(summary.overdue) / 100 || 0,
             chartData
-        }),
-    };
+        });
 }
 
 async function getActivityFeed(event, tenantId) {
@@ -680,11 +683,7 @@ async function getActivityFeed(event, tenantId) {
         message: formatActivityMessage(row)
     }));
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(activities),
-    };
+    return ok(event, 200, activities);
 }
 
 function formatActivityMessage(activity) {
@@ -716,16 +715,12 @@ async function getDashboardMetrics(event, tenantId) {
         pool.query(`SELECT SUM("amountCents") FROM "Payment" WHERE "tenantId" = $1 AND "status" = 'CAPTURED'`, [tenantId])
     ]);
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify({
+    return ok(event, 200, {
             activeBookings: parseInt(metrics[0].rows[0].count),
             totalPets: parseInt(metrics[1].rows[0].count),
             totalOwners: parseInt(metrics[2].rows[0].count),
             totalRevenueCents: parseInt(metrics[3].rows[0].sum || 0)
-        })
-    };
+        });
 }
 
 async function getRevenueReport(event, tenantId) {
@@ -754,11 +749,7 @@ async function getRevenueReport(event, tenantId) {
 
     const { rows } = await pool.query(query, params);
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(rows)
-    };
+    return ok(event, 200, rows);
 }
 
 async function getOccupancyReport(event, tenantId) {
@@ -777,11 +768,7 @@ async function getOccupancyReport(event, tenantId) {
 
     const { rows } = await pool.query(query, [tenantId, startDate || '2020-01-01', endDate || '2099-12-31']);
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(rows)
-    };
+    return ok(event, 200, rows);
 }
 
 async function getReportArrivals(event, tenantId) {
@@ -805,10 +792,7 @@ async function getReportArrivals(event, tenantId) {
         [tenantId]
     );
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify({
+    return ok(event, 200, {
             arrivals: result.rows.map(row => ({
                 bookingId: row.recordId,
                 checkIn: row.checkIn,
@@ -826,8 +810,7 @@ async function getReportArrivals(event, tenantId) {
                     email: row.email
                 }
             }))
-        })
-    };
+        });
 }
 
 async function getReportDepartures(event, tenantId) {
@@ -851,10 +834,7 @@ async function getReportDepartures(event, tenantId) {
         [tenantId]
     );
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify({
+    return ok(event, 200, {
             departures: result.rows.map(row => ({
                 bookingId: row.recordId,
                 checkOut: row.checkOut,
@@ -873,8 +853,7 @@ async function getReportDepartures(event, tenantId) {
                     email: row.email
                 }
             }))
-        })
-    };
+        });
 }
 
 // ============================================
@@ -919,7 +898,7 @@ async function getScheduleCapacity(event, tenantId) {
     );
 
 
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows) };
+    return ok(event, 200, rows);
 }
 
 async function getSchedule(event, tenantId) {
@@ -959,5 +938,5 @@ async function getSchedule(event, tenantId) {
         [tenantId, dateFrom, dateTo]
     );
 
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows) };
+    return ok(event, 200, rows);
 }

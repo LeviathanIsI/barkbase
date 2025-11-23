@@ -5,11 +5,49 @@
 // Do NOT add new logic or endpoints to legacy Lambdas for this domain.
 
 const { getPool, getTenantIdFromEvent, getJWTValidator } = require('/opt/nodejs');
+const {
+    getSecureHeaders,
+    errorResponse,
+    successResponse,
+} = require('../shared/security-utils');
 
-const HEADERS = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization,x-tenant-id,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
-    'Access-Control-Allow-Methods': 'OPTIONS,GET,POST,PUT,PATCH,DELETE'
+const ok = (event, statusCode, data = '', additionalHeaders = {}) => {
+    if (statusCode === 204) {
+        const origin = event?.headers?.origin || event?.headers?.Origin;
+        const stage = process.env.STAGE || 'development';
+        return {
+            statusCode,
+            headers: {
+                ...getSecureHeaders(origin, stage),
+                ...additionalHeaders,
+            },
+            body: '',
+        };
+    }
+    return successResponse(statusCode, data, event, additionalHeaders);
+};
+
+const fail = (event, statusCode, errorCodeOrBody, message, additionalHeaders = {}) => {
+    if (typeof errorCodeOrBody === 'object' && errorCodeOrBody !== null) {
+        const origin = event?.headers?.origin || event?.headers?.Origin;
+        const stage = process.env.STAGE || 'development';
+        return {
+            statusCode,
+            headers: {
+                ...getSecureHeaders(origin, stage),
+                ...additionalHeaders,
+            },
+            body: JSON.stringify(errorCodeOrBody),
+        };
+    }
+    const response = errorResponse(statusCode, errorCodeOrBody, message, event);
+    return {
+        ...response,
+        headers: {
+            ...response.headers,
+            ...additionalHeaders,
+        },
+    };
 };
 
 // Enhanced authorization with fallback JWT validation
@@ -108,27 +146,25 @@ exports.handler = async (event) => {
     const path = event.requestContext?.http?.path || event.path;
 
     if (httpMethod === 'OPTIONS') {
-        return { statusCode: 200, headers: HEADERS, body: '' };
+        const origin = event?.headers?.origin || event?.headers?.Origin;
+        const stage = process.env.STAGE || 'development';
+        return {
+            statusCode: 200,
+            headers: getSecureHeaders(origin, stage),
+            body: JSON.stringify({}),
+        };
     }
 
     // Extract user info from API Gateway authorizer with fallback to manual JWT validation
     const userInfo = await getUserInfoFromEvent(event);
     if (!userInfo) {
-        return {
-            statusCode: 401,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Unauthorized' }),
-        };
+        return fail(event, 401, { message: 'Unauthorized' });
     }
 
     // Get tenant ID from JWT claims or database
     const tenantId = userInfo.tenantId || await getTenantIdFromEvent(event);
     if (!tenantId) {
-        return {
-            statusCode: 401,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Missing tenant context' }),
-        };
+        return fail(event, 401, { message: 'Missing tenant context' });
     }
 
     try {
@@ -164,7 +200,7 @@ exports.handler = async (event) => {
         if (path.startsWith('/api/v1/runs') || path.includes('/run-templates')) {
             // RUN TEMPLATE ENDPOINTS
             if (httpMethod === 'GET' && path.includes('/run-templates') && !event.pathParameters?.id) {
-                return await listRunTemplates(tenantId);
+                return await listRunTemplates(event, tenantId);
             }
             if (httpMethod === 'POST' && path.includes('/run-templates')) {
                 return await createRunTemplate(event, tenantId);
@@ -223,10 +259,10 @@ exports.handler = async (event) => {
         // ===== KENNELS ROUTES =====
         if (path.startsWith('/api/v1/kennels')) {
             if (httpMethod === 'GET' && path.includes('/occupancy')) {
-                return await getKennelOccupancy(tenantId);
+                return await getKennelOccupancy(event, tenantId);
             }
             if (httpMethod === 'GET' && (path === '/api/v1/kennels' || path.endsWith('/kennels'))) {
-                return await listKennels(tenantId);
+                return await listKennels(event, tenantId);
             }
             if (httpMethod === 'POST' && path === '/api/v1/kennels') {
                 return await createKennel(event, tenantId);
@@ -242,14 +278,10 @@ exports.handler = async (event) => {
             }
         }
 
-        return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Not Found' }) };
+        return fail(event, 404, { message: 'Not Found' });
     } catch (error) {
         console.error('Operations service error:', error);
-        return {
-            statusCode: 500,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Internal Server Error', error: error.message }),
-        };
+        return fail(event, 500, { message: 'Internal Server Error', error: error.message });
     }
 };
 
@@ -311,11 +343,7 @@ async function listBookings(event, tenantId) {
 
     const { rows } = await pool.query(query, params);
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(rows)
-    };
+    return ok(event, 200, rows);
 }
 
 async function createBooking(event, tenantId, userInfo) {
@@ -335,11 +363,7 @@ async function createBooking(event, tenantId, userInfo) {
 
     // Validate required fields
     if (!petId || !ownerId || !checkIn || !checkOut) {
-        return {
-            statusCode: 400,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Missing required fields: petId, ownerId, checkIn, checkOut' }),
-        };
+        return fail(event, 400, { message: 'Missing required fields: petId, ownerId, checkIn, checkOut' });
     }
 
     // Create booking
@@ -371,11 +395,7 @@ async function createBooking(event, tenantId, userInfo) {
     booking.pet = petResult.rows[0];
     booking.owner = ownerResult.rows[0];
 
-    return {
-        statusCode: 201,
-        headers: HEADERS,
-        body: JSON.stringify(booking)
-    };
+    return ok(event, 201, booking);
 }
 
 async function getBooking(event, tenantId) {
@@ -406,16 +426,12 @@ async function getBooking(event, tenantId) {
     );
 
     if (rows.length === 0) {
-        return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Booking not found' }) };
+        return fail(event, 404, { message: 'Booking not found' });
     }
 
     const booking = rows[0];
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(booking)
-    };
+    return ok(event, 200, booking);
 }
 
 async function updateBooking(event, tenantId) {
@@ -458,7 +474,7 @@ async function updateBooking(event, tenantId) {
     }
 
     if (fields.length === 0) {
-        return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ message: 'No fields to update' }) };
+        return fail(event, 400, { message: 'No fields to update' });
     }
 
     fields.push(`"updatedAt" = NOW()`);
@@ -469,14 +485,10 @@ async function updateBooking(event, tenantId) {
     const { rows } = await pool.query(query, queryParams);
 
     if (rows.length === 0) {
-        return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Booking not found' }) };
+        return fail(event, 404, { message: 'Booking not found' });
     }
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(rows[0])
-    };
+    return ok(event, 200, rows[0]);
 }
 
 async function updateBookingStatus(event, tenantId) {
@@ -484,7 +496,7 @@ async function updateBookingStatus(event, tenantId) {
     const { status } = JSON.parse(event.body || '{}');
 
     if (!status) {
-        return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ message: 'Status required' }) };
+        return fail(event, 400, { message: 'Status required' });
     }
 
     const pool = getPool();
@@ -497,14 +509,10 @@ async function updateBookingStatus(event, tenantId) {
     );
 
     if (rows.length === 0) {
-        return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Booking not found' }) };
+        return fail(event, 404, { message: 'Booking not found' });
     }
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(rows[0])
-    };
+    return ok(event, 200, rows[0]);
 }
 
 async function checkIn(event, tenantId, userInfo) {
@@ -547,11 +555,7 @@ async function checkIn(event, tenantId, userInfo) {
         ]
     );
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(rows[0])
-    };
+    return ok(event, 200, rows[0]);
 }
 
 async function checkOut(event, tenantId, userInfo) {
@@ -601,11 +605,7 @@ async function checkOut(event, tenantId, userInfo) {
         ]
     );
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(rows[0])
-    };
+    return ok(event, 200, rows[0]);
 }
 
 async function deleteBooking(event, tenantId) {
@@ -619,16 +619,12 @@ async function deleteBooking(event, tenantId) {
     );
 
     if (checkResult.rows.length === 0) {
-        return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Booking not found' }) };
+        return fail(event, 404, { message: 'Booking not found' });
     }
 
     const status = checkResult.rows[0].status;
     if (status === 'CHECKED_IN' || status === 'COMPLETED') {
-        return {
-            statusCode: 400,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Cannot delete booking that has been checked in' })
-        };
+        return fail(event, 400, { message: 'Cannot delete booking that has been checked in' });
     }
 
     // Delete check-in/check-out records if any
@@ -642,25 +638,21 @@ async function deleteBooking(event, tenantId) {
     );
 
     if (rowCount === 0) {
-        return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Booking not found' }) };
+        return fail(event, 404, { message: 'Booking not found' });
     }
 
-    return {
-        statusCode: 204,
-        headers: HEADERS,
-        body: ''
-    };
+    return ok(event, 204);
 }
 
 // ===== RUNS HANDLERS =====
 
-async function listRunTemplates(tenantId) {
+async function listRunTemplates(event, tenantId) {
     const pool = getPool();
     const { rows } = await pool.query(
         `SELECT * FROM "RunTemplate" WHERE "tenantId" = $1 AND "isActive" = true ORDER BY "name"`,
         [tenantId]
     );
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows) };
+    return ok(event, 200, rows);
 }
 
 async function createRunTemplate(event, tenantId) {
@@ -671,7 +663,7 @@ async function createRunTemplate(event, tenantId) {
          VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW()) RETURNING *`,
         [tenantId, name, timePeriodMinutes || 30, capacityType || 'total', maxCapacity || 10]
     );
-    return { statusCode: 201, headers: HEADERS, body: JSON.stringify(rows[0]) };
+    return ok(event, 201, rows[0]);
 }
 
 async function updateRunTemplate(event, tenantId) {
@@ -689,9 +681,9 @@ async function updateRunTemplate(event, tenantId) {
         [name, timePeriodMinutes, capacityType, maxCapacity, event.pathParameters.id, tenantId]
     );
     if (rows.length === 0) {
-        return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Template not found' }) };
+        return fail(event, 404, { message: 'Template not found' });
     }
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows[0]) };
+    return ok(event, 200, rows[0]);
 }
 
 async function deleteRunTemplate(event, tenantId) {
@@ -702,9 +694,9 @@ async function deleteRunTemplate(event, tenantId) {
         [event.pathParameters.id, tenantId]
     );
     if (rows.length === 0) {
-        return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Template not found' }) };
+        return fail(event, 404, { message: 'Template not found' });
     }
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ message: 'Template deleted' }) };
+    return ok(event, 200, { message: 'Template deleted' });
 }
 
 async function getAvailableSlots(event, tenantId) {
@@ -722,7 +714,7 @@ async function getAvailableSlots(event, tenantId) {
     );
 
     if (runRows.length === 0) {
-        return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Run not found' }) };
+        return fail(event, 404, { message: 'Run not found' });
     }
 
     const run = runRows[0];
@@ -762,7 +754,7 @@ async function getAvailableSlots(event, tenantId) {
         }
     }
 
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(slots) };
+    return ok(event, 200, slots);
 }
 
 async function getRunAssignments(event, tenantId) {
@@ -878,7 +870,7 @@ async function getRunAssignments(event, tenantId) {
         })
     );
 
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(runsWithAssignments) };
+    return ok(event, 200, runsWithAssignments);
 }
 
 async function listRuns(event, tenantId) {
@@ -888,7 +880,7 @@ async function listRuns(event, tenantId) {
         `SELECT * FROM "Run" WHERE "tenantId" = $1 AND DATE("date") = $2 ORDER BY "name"`,
         [tenantId, date || new Date().toISOString().split('T')[0]]
     );
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows) };
+    return ok(event, 200, rows);
 }
 
 async function createRun(event, tenantId) {
@@ -899,7 +891,7 @@ async function createRun(event, tenantId) {
          VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW()) RETURNING *`,
         [tenantId, name, date, capacity || 10, JSON.stringify(assignedPets || [])]
     );
-    return { statusCode: 201, headers: HEADERS, body: JSON.stringify(rows[0]) };
+    return ok(event, 201, rows[0]);
 }
 
 async function updateRun(event, tenantId) {
@@ -916,7 +908,7 @@ async function updateRun(event, tenantId) {
     );
 
     if (runRows.length === 0) {
-        return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Run not found' }) };
+        return fail(event, 404, { message: 'Run not found' });
     }
 
     const run = runRows[0];
@@ -925,11 +917,7 @@ async function updateRun(event, tenantId) {
 
     // Validate capacity based on capacityType
     if (capacityType === 'total' && assignedPets.length > maxCapacity) {
-        return {
-            statusCode: 400,
-            headers: HEADERS,
-            body: JSON.stringify({ message: `Total capacity exceeded. Max: ${maxCapacity}` })
-        };
+        return fail(event, 400, { message: `Total capacity exceeded. Max: ${maxCapacity}` });
     }
 
     if (capacityType === 'concurrent') {
@@ -940,11 +928,7 @@ async function updateRun(event, tenantId) {
                 const key = `${a.startTime}-${a.endTime}`;
                 timeSlots[key] = (timeSlots[key] || 0) + 1;
                 if (timeSlots[key] > maxCapacity) {
-                    return {
-                        statusCode: 400,
-                        headers: HEADERS,
-                        body: JSON.stringify({ message: `Concurrent capacity exceeded for slot ${a.startTime}-${a.endTime}. Max: ${maxCapacity}` })
-                    };
+                    return fail(event, 400, { message: `Concurrent capacity exceeded for slot ${a.startTime}-${a.endTime}. Max: ${maxCapacity}` });
                 }
             }
         });
@@ -955,7 +939,7 @@ async function updateRun(event, tenantId) {
         `UPDATE "Run" SET "assignedPets" = $1, "updatedAt" = NOW() WHERE "recordId" = $2 AND "tenantId" = $3 RETURNING *`,
         [JSON.stringify(assignedPets), event.pathParameters.runId, tenantId]
     );
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows[0]) };
+    return ok(event, 200, rows[0]);
 }
 
 // ===== CHECK-IN HANDLERS =====
@@ -974,11 +958,7 @@ async function createCheckIn(event, tenantId, userInfo) {
     } = body;
 
     if (!bookingId) {
-        return {
-            statusCode: 400,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'bookingId is required' }),
-        };
+        return fail(event, 400, { message: 'bookingId is required' });
     }
 
     // Begin transaction
@@ -1052,30 +1032,18 @@ async function createCheckIn(event, tenantId, userInfo) {
             checkOut: booking.checkOut
         };
 
-        return {
-            statusCode: 201,
-            headers: HEADERS,
-            body: JSON.stringify(checkIn),
-        };
+        return ok(event, 201, checkIn);
 
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Check-in error:', error);
 
         if (error.message === 'Booking not found') {
-            return {
-                statusCode: 404,
-                headers: HEADERS,
-                body: JSON.stringify({ message: error.message }),
-            };
+            return fail(event, 404, { message: error.message });
         }
 
         if (error.message.includes('Cannot check in')) {
-            return {
-                statusCode: 400,
-                headers: HEADERS,
-                body: JSON.stringify({ message: error.message }),
-            };
+            return fail(event, 400, { message: error.message });
         }
 
         throw error;
@@ -1122,11 +1090,7 @@ async function listCheckIns(event, tenantId) {
         photoUrls: typeof row.photoUrls === 'string' ? JSON.parse(row.photoUrls) : row.photoUrls
     }));
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(checkIns),
-    };
+    return ok(event, 200, checkIns);
 }
 
 async function getCheckIn(event, tenantId) {
@@ -1149,11 +1113,7 @@ async function getCheckIn(event, tenantId) {
     );
 
     if (result.rows.length === 0) {
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Check-in not found' }),
-        };
+        return fail(event, 404, { message: 'Check-in not found' });
     }
 
     const checkIn = result.rows[0];
@@ -1161,11 +1121,7 @@ async function getCheckIn(event, tenantId) {
     checkIn.belongings = typeof checkIn.belongings === 'string' ? JSON.parse(checkIn.belongings) : checkIn.belongings;
     checkIn.photoUrls = typeof checkIn.photoUrls === 'string' ? JSON.parse(checkIn.photoUrls) : checkIn.photoUrls;
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(checkIn),
-    };
+    return ok(event, 200, checkIn);
 }
 
 // ===== CHECK-OUT HANDLERS =====
@@ -1185,11 +1141,7 @@ async function createCheckOut(event, tenantId, userInfo) {
     } = body;
 
     if (!bookingId) {
-        return {
-            statusCode: 400,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'bookingId is required' }),
-        };
+        return fail(event, 400, { message: 'bookingId is required' });
     }
 
     // Begin transaction
@@ -1294,30 +1246,18 @@ async function createCheckOut(event, tenantId, userInfo) {
             totalDue: newBalance / 100
         };
 
-        return {
-            statusCode: 201,
-            headers: HEADERS,
-            body: JSON.stringify(checkOut),
-        };
+        return ok(event, 201, checkOut);
 
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Check-out error:', error);
 
         if (error.message === 'Booking not found') {
-            return {
-                statusCode: 404,
-                headers: HEADERS,
-                body: JSON.stringify({ message: error.message }),
-            };
+            return fail(event, 404, { message: error.message });
         }
 
         if (error.message.includes('Cannot check out')) {
-            return {
-                statusCode: 400,
-                headers: HEADERS,
-                body: JSON.stringify({ message: error.message }),
-            };
+            return fail(event, 400, { message: error.message });
         }
 
         throw error;
@@ -1364,11 +1304,7 @@ async function listCheckOuts(event, tenantId) {
         balanceDue: row.balanceDueInCents / 100
     }));
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(checkOuts),
-    };
+    return ok(event, 200, checkOuts);
 }
 
 async function getCheckOutDetail(event, tenantId) {
@@ -1392,11 +1328,7 @@ async function getCheckOutDetail(event, tenantId) {
     );
 
     if (result.rows.length === 0) {
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Check-out not found' }),
-        };
+        return fail(event, 404, { message: 'Check-out not found' });
     }
 
     const checkOut = result.rows[0];
@@ -1424,16 +1356,12 @@ async function getCheckOutDetail(event, tenantId) {
         amount: p.amountCents / 100
     }));
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(checkOut),
-    };
+    return ok(event, 200, checkOut);
 }
 
 // ===== KENNELS HANDLERS =====
 
-async function getKennelOccupancy(tenantId) {
+async function getKennelOccupancy(event, tenantId) {
     const pool = getPool();
     const { rows } = await pool.query(
         `SELECT
@@ -1449,13 +1377,13 @@ async function getKennelOccupancy(tenantId) {
         ORDER BY k."name"`,
         [tenantId]
     );
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows) };
+    return ok(event, 200, rows);
 }
 
-async function listKennels(tenantId) {
+async function listKennels(event, tenantId) {
     const pool = getPool();
     const { rows } = await pool.query(`SELECT * FROM "Kennel" WHERE "tenantId" = $1 ORDER BY "name"`, [tenantId]);
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows) };
+    return ok(event, 200, rows);
 }
 
 async function createKennel(event, tenantId) {
@@ -1466,14 +1394,14 @@ async function createKennel(event, tenantId) {
          VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW()) RETURNING *`,
         [tenantId, name, type || 'KENNEL', capacity || 1, JSON.stringify(amenities || {}), notes]
     );
-    return { statusCode: 201, headers: HEADERS, body: JSON.stringify(rows[0]) };
+    return ok(event, 201, rows[0]);
 }
 
 async function getKennel(event, tenantId) {
     const pool = getPool();
     const { rows } = await pool.query(`SELECT * FROM "Kennel" WHERE "recordId" = $1 AND "tenantId" = $2`, [event.pathParameters.kennelId, tenantId]);
-    if (rows.length === 0) return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Not found' }) };
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows[0]) };
+    if (rows.length === 0) return fail(event, 404, { message: 'Not found' });
+    return ok(event, 200, rows[0]);
 }
 
 async function updateKennel(event, tenantId) {
@@ -1484,13 +1412,13 @@ async function updateKennel(event, tenantId) {
          WHERE "recordId" = $4 AND "tenantId" = $5 RETURNING *`,
         [body.name, body.type, body.capacity, event.pathParameters.kennelId, tenantId]
     );
-    if (rows.length === 0) return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Not found' }) };
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows[0]) };
+    if (rows.length === 0) return fail(event, 404, { message: 'Not found' });
+    return ok(event, 200, rows[0]);
 }
 
 async function deleteKennel(event, tenantId) {
     const pool = getPool();
     const { rowCount } = await pool.query(`DELETE FROM "Kennel" WHERE "recordId" = $1 AND "tenantId" = $2`, [event.pathParameters.kennelId, tenantId]);
-    if (rowCount === 0) return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Not found' }) };
-    return { statusCode: 204, headers: HEADERS, body: '' };
+    if (rowCount === 0) return fail(event, 404, { message: 'Not found' });
+    return ok(event, 204);
 }
