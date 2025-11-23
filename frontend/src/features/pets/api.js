@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
+import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import { useTenantStore } from '@/stores/tenant';
 
 const useTenantId = () => useTenantStore((state) => state.tenant?.recordId ?? 'unknown');
@@ -57,7 +58,7 @@ export const usePetsQuery = (params = {}) => {
     queryKey: queryKeys.pets(tenantId),
     queryFn: async () => {
       try {
-        const res = await apiClient.get('/api/v1/pets', { params });
+        const res = await apiClient.get(canonicalEndpoints.pets.list, { params });
         const normalized = normalizePetsResponse(res?.data);
         return ensurePetsArray(normalized);
       } catch (e) {
@@ -78,7 +79,7 @@ export const usePetDetailsQuery = (petId, options = {}) => {
     queryFn: async () => {
       try {
         // Call REST endpoint which enriches the pet with owners[] and primaryOwnerId
-        const res = await apiClient.get(`/api/v1/pets/${petId}`);
+        const res = await apiClient.get(canonicalEndpoints.pets.detail(petId));
         return res?.data ?? null;
       } catch (e) {
         console.warn('[pet] Falling back to null due to API error:', e?.message || e);
@@ -102,7 +103,7 @@ export const usePetVaccinationsQuery = (petId, options = {}) => {
       try {
 
         // Try direct API call to the Lambda endpoint
-        const res = await apiClient.get(`/api/v1/pets/${petId}/vaccinations`);
+        const res = await apiClient.get(canonicalEndpoints.pets.vaccinations(petId));
         // Normalize to an array whether backend returns [..] or { data: [..] }
         const list = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
         return list;
@@ -140,7 +141,7 @@ export const useUpdatePetMutation = (petId) => {
   const listKey = queryKeys.pets(tenantId);
   return useMutation({
     mutationFn: async (payload) => {
-      const res = await apiClient.put(`/api/v1/pets/${petId}`, payload);
+      const res = await apiClient.put(canonicalEndpoints.pets.detail(petId), payload);
       return res.data;
     },
     onMutate: async (payload) => {
@@ -176,7 +177,7 @@ export const useDeletePetMutation = () => {
   const listKey = queryKeys.pets(tenantId);
   return useMutation({
     mutationFn: async (petId) => {
-      await apiClient.delete(`/api/v1/pets/${petId}`);
+      await apiClient.delete(canonicalEndpoints.pets.detail(petId));
       return petId;
     },
     onMutate: async (petId) => {
@@ -211,7 +212,7 @@ export const useCreatePetMutation = () => {
   const listKey = queryKeys.pets(tenantId);
   return useMutation({
     mutationFn: async (payload) => {
-      const res = await apiClient.post('/api/v1/pets', payload);
+      const res = await apiClient.post(canonicalEndpoints.pets.list, payload);
       return res.data;
     },
     onSuccess: (created) => {
@@ -238,7 +239,7 @@ export const useCreateVaccinationMutation = (petId) => {
   const vaccinationsKey = ['petVaccinations', { tenantId, petId }];
   return useMutation({
     mutationFn: async (payload) => {
-      const res = await apiClient.post(`/api/v1/pets/${petId}/vaccinations`, payload);
+      const res = await apiClient.post(canonicalEndpoints.pets.vaccinations(petId), payload);
       return res.data;
     },
     onSuccess: () => {
@@ -253,7 +254,7 @@ export const useUpdateVaccinationMutation = (petId) => {
   const vaccinationsKey = ['petVaccinations', { tenantId, petId }];
   return useMutation({
     mutationFn: async ({ vaccinationId, payload }) => {
-      const res = await apiClient.put(`/api/v1/pets/${petId}/vaccinations/${vaccinationId}`, payload);
+      const res = await apiClient.put(`${canonicalEndpoints.pets.vaccinations(petId)}/${vaccinationId}`, payload);
       return res.data;
     },
     onSuccess: () => {
@@ -268,7 +269,7 @@ export const useDeleteVaccinationMutation = (petId) => {
   const vaccinationsKey = ['petVaccinations', { tenantId, petId }];
   return useMutation({
     mutationFn: async (vaccinationId) => {
-      const res = await apiClient.delete(`/api/v1/pets/${petId}/vaccinations/${vaccinationId}`);
+      const res = await apiClient.delete(`${canonicalEndpoints.pets.vaccinations(petId)}/${vaccinationId}`);
       return res.data;
     },
     onSuccess: () => {
