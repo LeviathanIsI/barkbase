@@ -908,29 +908,6 @@ export class CdkStack extends cdk.Stack {
       errorAlarm.addAlarmAction(new cloudwatchActions.SnsAction(securityAlertTopic));
     });
 
-    // Tenants API - REPLACED BY ConfigServiceFunction
-    // const tenantsApiFunction = new lambda.Function(this, 'TenantsApiFunction', {
-    //   runtime: lambda.Runtime.NODEJS_20_X,
-    //   handler: 'index.handler',
-    //   code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/tenants-api')),
-    //   layers: [dbLayer],
-    //   environment: dbEnvironment,
-    //   // No VPC - connects to public database
-    //
-    //   timeout: cdk.Duration.seconds(30),
-    // });
-    // dbSecret.grantRead(tenantsApiFunction);
-    // const tenantsIntegration = new HttpLambdaIntegration('TenantsIntegration', tenantsApiFunction);
-    // // Public by slug
-    // httpApi.addRoutes({ path: '/api/v1/tenants', methods: [apigw.HttpMethod.GET], integration: tenantsIntegration, authorizer: httpAuthorizer });
-    // // Authenticated current tenant endpoints (to enable authorizer later)
-    // httpApi.addRoutes({ path: '/api/v1/tenants/current', methods: [apigw.HttpMethod.GET], integration: tenantsIntegration, authorizer: httpAuthorizer });
-    // httpApi.addRoutes({ path: '/api/v1/tenants/current/plan', methods: [apigw.HttpMethod.GET], integration: tenantsIntegration, authorizer: httpAuthorizer });
-    // httpApi.addRoutes({ path: '/api/v1/tenants/current/onboarding', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PATCH], integration: tenantsIntegration, authorizer: httpAuthorizer });
-    // httpApi.addRoutes({ path: '/api/v1/tenants/theme', methods: [apigw.HttpMethod.PUT], integration: tenantsIntegration, authorizer: httpAuthorizer });
-    // httpApi.addRoutes({ path: '/api/v1/tenants/current/theme', methods: [apigw.HttpMethod.PUT], integration: tenantsIntegration, authorizer: httpAuthorizer });
-    // httpApi.addRoutes({ path: '/api/v1/tenants/features', methods: [apigw.HttpMethod.PUT], integration: tenantsIntegration, authorizer: httpAuthorizer });
-
     // Financial Service (consolidates payments-api, invoices-api, billing-api)
     // Saves 10 CloudFormation resources: 3 Lambdas → 1 Lambda
     const financialServiceFunction = new lambda.Function(this, 'FinancialServiceFunction', {
@@ -1010,20 +987,6 @@ export class CdkStack extends cdk.Stack {
     // });
     // const incidentsIntegration = new HttpLambdaIntegration('IncidentsIntegration', incidentsApiFunction);
     // httpApi.addRoutes({ path: '/api/v1/incidents', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: incidentsIntegration, authorizer: httpAuthorizer });
-
-    // Services API - REPLACED BY ConfigServiceFunction
-    // const servicesApiFunction = new lambda.Function(this, 'ServicesApiFunction', {
-    //   runtime: lambda.Runtime.NODEJS_20_X,
-    //   handler: 'index.handler',
-    //   code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/services-api')),
-    //   layers: [dbLayer],
-    //   environment: dbEnvironment,
-    //   // No VPC - connects to public database
-    //   timeout: cdk.Duration.seconds(30),
-    // });
-    // const servicesIntegration = new HttpLambdaIntegration('ServicesIntegration', servicesApiFunction);
-    // httpApi.addRoutes({ path: '/api/v1/services', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: servicesIntegration, authorizer: httpAuthorizer });
-    // httpApi.addRoutes({ path: '/api/v1/services/{serviceId}', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PUT, apigw.HttpMethod.DELETE], integration: servicesIntegration });
 
     // === ENTERPRISE PROPERTY MANAGEMENT SYSTEM ===
 
@@ -1141,21 +1104,6 @@ export class CdkStack extends cdk.Stack {
     // const messagesIntegration = new HttpLambdaIntegration('MessagesIntegration', messagesApiFunction);
     // httpApi.addRoutes({ path: '/api/v1/messages', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: messagesIntegration, authorizer: httpAuthorizer });
 
-    // Memberships API - REPLACED BY ConfigServiceFunction
-    // const membershipsApiFunction = new lambda.Function(this, 'MembershipsApiFunction', {
-    //   runtime: lambda.Runtime.NODEJS_20_X,
-    //   handler: 'index.handler',
-    //   code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/memberships-api')),
-    //   layers: [dbLayer],
-    //   environment: dbEnvironment,
-    //   // No VPC - connects to public database
-    //   timeout: cdk.Duration.seconds(30),
-    //   allowPublicSubnet: true,
-    // });
-    // const membershipsIntegration = new HttpLambdaIntegration('MembershipsIntegration', membershipsApiFunction);
-    // httpApi.addRoutes({ path: '/api/v1/memberships', methods: [apigw.HttpMethod.GET], integration: membershipsIntegration, authorizer: httpAuthorizer });
-    // httpApi.addRoutes({ path: '/api/v1/memberships/{membershipId}', methods: [apigw.HttpMethod.PUT], integration: membershipsIntegration });
-
     // Admin API
     const adminApiFunction = new lambda.Function(this, 'AdminApiFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
@@ -1197,48 +1145,6 @@ export class CdkStack extends cdk.Stack {
     // });
     // const notesIntegration = new HttpLambdaIntegration('NotesIntegration', notesApiFunction);
     // httpApi.addRoutes({ path: '/api/v1/notes', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: notesIntegration, authorizer: httpAuthorizer });
-
-    // Roles API - REPLACED BY ConfigServiceFunction
-    // const rolesApiFunction = new lambda.Function(this, 'RolesApiFunction', {
-    //   runtime: lambda.Runtime.NODEJS_20_X,
-    //   handler: 'index.handler',
-    //   code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/roles-api')),
-    //   layers: [dbLayer],
-    //   environment: dbEnvironment,
-    //   // No VPC - connects to public database
-    //   timeout: cdk.Duration.seconds(30),
-    //   allowPublicSubnet: true,
-    // });
-    // const rolesIntegration = new HttpLambdaIntegration('RolesIntegration', rolesApiFunction);
-    // httpApi.addRoutes({ path: '/api/v1/roles', methods: [apigw.HttpMethod.GET], integration: rolesIntegration, authorizer: httpAuthorizer });
-
-    // Facility API - REPLACED BY ConfigServiceFunction
-    // const facilityApiFunction = new lambda.Function(this, 'FacilityApiFunction', {
-    //   runtime: lambda.Runtime.NODEJS_20_X,
-    //   handler: 'index.handler',
-    //   code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/facility-api')),
-    //   layers: [dbLayer],
-    //   environment: dbEnvironment,
-    //   // No VPC - connects to public database
-    //   timeout: cdk.Duration.seconds(30),
-    //   allowPublicSubnet: true,
-    // });
-    // const facilityIntegration = new HttpLambdaIntegration('FacilityIntegration', facilityApiFunction);
-    // httpApi.addRoutes({ path: '/api/v1/facility', methods: [apigw.HttpMethod.GET], integration: facilityIntegration, authorizer: httpAuthorizer });
-
-    // Account Defaults API - REPLACED BY ConfigServiceFunction
-    // const accountDefaultsApiFunction = new lambda.Function(this, 'AccountDefaultsApiFunction', {
-    //   runtime: lambda.Runtime.NODEJS_20_X,
-    //   handler: 'index.handler',
-    //   code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/account-defaults-api')),
-    //   layers: [dbLayer],
-    //   environment: dbEnvironment,
-    //   // No VPC - connects to public database
-    //   timeout: cdk.Duration.seconds(30),
-    //   allowPublicSubnet: true,
-    // });
-    // const accountDefaultsIntegration = new HttpLambdaIntegration('AccountDefaultsIntegration', accountDefaultsApiFunction);
-    // httpApi.addRoutes({ path: '/api/v1/account-defaults', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PUT], integration: accountDefaultsIntegration, authorizer: httpAuthorizer });
 
     // === NEW CONSOLIDATED SERVICES (Replaces 22 individual Lambda functions) ===
 
@@ -1644,20 +1550,6 @@ export class CdkStack extends cdk.Stack {
       integration: optionsIntegration,
       authorizer: new apigw.HttpNoneAuthorizer()  // CRITICAL: No auth on OPTIONS
     });
-
-    // User Permissions API - REPLACED BY ConfigServiceFunction
-    // const userPermissionsApiFunction = new lambda.Function(this, 'UserPermissionsApiFunction', {
-    //   runtime: lambda.Runtime.NODEJS_20_X,
-    //   handler: 'index.handler',
-    //   code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/user-permissions-api')),
-    //   layers: [dbLayer],
-    //   environment: dbEnvironment,
-    //   // No VPC - connects to public database
-    //   timeout: cdk.Duration.seconds(30),
-    //   allowPublicSubnet: true,
-    // });
-    // const userPermissionsIntegration = new HttpLambdaIntegration('UserPermissionsIntegration', userPermissionsApiFunction);
-    // httpApi.addRoutes({ path: '/api/v1/user-permissions', methods: [apigw.HttpMethod.GET], integration: userPermissionsIntegration, authorizer: httpAuthorizer });
 
     // Migration API (for running database migrations)
     const migrationApiFunction = new lambda.Function(this, 'MigrationApiFunction', {
