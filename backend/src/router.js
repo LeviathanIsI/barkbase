@@ -24,6 +24,10 @@ function createApp() {
   app.use(authMiddleware);
   app.use(tenantMiddleware);
 
+  app.use('/api/v1/pets/vaccinations', vaccinationsRouter);
+  app.use('/api/v1/pets', petsRouter);
+  app.use('/api/v1/owners', ownersRouter);
+  app.use('/api/v1/staff', staffRouter);
   app.use('/api/v1', analyticsRouter);
   app.use('/api/v1', configRouter);
   app.use('/api/v1', operationsRouter);
@@ -35,10 +39,9 @@ function createApp() {
   app.use('/api/v1', communicationsRouter);
   app.use('/api/v1', incidentsRouter);
   app.use('/api/v1', invitesRouter);
-  app.use('/api/v1/pets/vaccinations', vaccinationsRouter);
-  app.use('/api/v1/pets', petsRouter);
-  app.use('/api/v1/owners', ownersRouter);
-  app.use('/api/v1/staff', staffRouter);
+  app.get('/health', (req, res) => {
+    res.json({ status: 'ok' });
+  });
 
   return app;
 }
