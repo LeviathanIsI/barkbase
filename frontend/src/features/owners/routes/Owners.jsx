@@ -142,7 +142,8 @@ const Owners = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <>
+      <div className="space-y-6">
       <DirectoryListHeader
         breadcrumb="Home > Clients > Owners"
         title="Pet Owners"
@@ -272,6 +273,7 @@ const Owners = () => {
           renderRow={(owner) => <OwnerRow key={owner.recordId} owner={owner} />}
         />
       )}
+      </div>
 
       <OwnerFormModal
         open={formModalOpen}
@@ -287,7 +289,7 @@ const Owners = () => {
         }}
         isLoading={createOwnerMutation.isPending}
       />
-    </div>
+    </>
   );
 };
 

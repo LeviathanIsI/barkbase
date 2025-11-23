@@ -607,7 +607,7 @@ const PetDetail = () => {
         }
       />
 
-      {/* Modals (preserved) */}
+      {/* Slideouts stay mounted so transitions can run smoothly */}
       <PetFormModal
         open={editModalOpen}
         onClose={() => setEditModalOpen(false)}

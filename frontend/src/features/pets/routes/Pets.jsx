@@ -392,7 +392,8 @@ const Pets = () => {
   };
 
   return (
-    <div className="flex flex-col h-full space-y-6">
+    <>
+      <div className="flex flex-col h-full space-y-6">
       <DirectoryListHeader
         breadcrumb="Home > Clients > Pets"
         title="Pets"
@@ -468,6 +469,7 @@ const Pets = () => {
           }
         />
       )}
+      </div>
 
       <PetFormModal
         open={petFormModalOpen}
@@ -483,7 +485,7 @@ const Pets = () => {
         }}
         isLoading={createPetMutation.isPending}
       />
-    </div>
+    </>
   );
 };
 
