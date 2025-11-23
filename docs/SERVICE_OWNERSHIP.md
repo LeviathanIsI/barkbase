@@ -30,15 +30,15 @@ Each Lambda under `aws/lambdas/` is listed below with its primary domain, exampl
 | `bookings-api` | Bookings | `/api/v1/bookings` (returns 410) | historical | Removed from CDK/API Gateway in Phase 11; operations-service is canonical. |
 | `check-in-api` | Check-ins | `/api/v1/check-ins` (returns 410) | historical | Removed from CDK/API Gateway in Phase 11; operations-service handles check-ins. |
 | `check-out-api` | Check-outs | `/api/v1/check-outs` (returns 410) | historical | Removed from CDK/API Gateway in Phase 11; operations-service handles check-outs. |
-| `communication-api` | Owner communications | `GET/POST /api/v1/communications` | legacy | Superseded by `features-service`. |
+| `communication-api` | Owner communications | `/api/v1/communications*` (returns 410) | historical | Removed from CDK/API Gateway in Phase 14; features-service handles communications. |
 | `dashboard-api` | Dashboard metrics | `/api/v1/dashboard/*` (returns 410) | historical | Removed from CDK/API Gateway in Phase 12; analytics-service owns dashboard routes. |
 | `facility-api` | Facility overview | `/api/v1/facility` (returns 410) | historical | Removed from CDK/API Gateway in Phase 13; config-service handles facility endpoints. |
-| `incidents-api` | Incident tracking | `GET/POST /api/v1/incidents` | legacy | Replaced by `features-service`. |
-| `invites-api` | Staff/customer invites | `POST /api/v1/invites` | legacy | Replaced by `features-service`. |
+| `incidents-api` | Incident tracking | `/api/v1/incidents*` (returns 410) | historical | Removed from CDK/API Gateway in Phase 14; features-service handles incidents. |
+| `invites-api` | Staff/customer invites | `/api/v1/invites*` (returns 410) | historical | Removed from CDK/API Gateway in Phase 14; features-service handles invites. |
 | `kennels-api` | Kennel inventory | `/api/v1/kennels` (returns 410) | historical | Removed from CDK/API Gateway in Phase 11; operations-service handles kennels. |
 | `memberships-api` | Tenant memberships | `/api/v1/memberships*` (returns 410) | historical | Removed from CDK/API Gateway in Phase 13; config-service handles memberships. |
-| `messages-api` | Internal messaging | `GET /api/v1/messages` | legacy | Replaced by `features-service`. |
-| `notes-api` | Entity notes | `GET/POST /api/v1/notes` | legacy | Replaced by `features-service`. |
+| `messages-api` | Internal messaging | `/api/v1/messages*` (returns 410) | historical | Removed from CDK/API Gateway in Phase 14; features-service handles messaging. |
+| `notes-api` | Entity notes | `/api/v1/notes*` (returns 410) | historical | Removed from CDK/API Gateway in Phase 14; features-service handles notes. |
 | `owners-api` | Owner CRUD | `/api/v1/owners` (returns 410) | historical | Removed from CDK/API Gateway in Phase 10; entity-service handles all owner routes. |
 | `packages-api` | Service packages | (no deployed handler; folder only) | historical | Config-service exposes `/api/v1/packages*`; legacy scaffold retained for history. |
 | `pets-api` | Pet CRUD | `/api/v1/pets` (returns 410) | historical | Removed from CDK/API Gateway in Phase 10; entity-service is canonical. |
@@ -50,7 +50,7 @@ Each Lambda under `aws/lambdas/` is listed below with its primary domain, exampl
 | `segments-api` | Customer segmentation (placeholder) | N/A | legacy | Directory currently empty; kept as a placeholder for future segmentation work. |
 | `services-api` | Service catalog | `/api/v1/services` (returns 410) | historical | Removed from CDK/API Gateway in Phase 13; config-service handles services. |
 | `staff-api` | Staff CRUD | `/api/v1/staff` (returns 410) | historical | Removed from CDK/API Gateway in Phase 10; entity-service handles all staff routes. |
-| `tasks-api` | Task management | `GET /api/v1/tasks` | legacy | Superseded by `features-service`. |
+| `tasks-api` | Task management | `/api/v1/tasks*` (returns 410) | historical | Removed from CDK/API Gateway in Phase 14; features-service handles all task routes. |
 | `tenants-api` | Tenant lookup | `/api/v1/tenants*` (returns 410) | historical | Removed from CDK/API Gateway in Phase 13; config-service owns all tenant routes. |
 | `user-permissions-api` | User permission mapping | `/api/v1/user-permissions*` (returns 410) | historical | Removed from CDK/API Gateway in Phase 13; config-service + user-profile-service handle permissions. |
 

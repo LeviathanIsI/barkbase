@@ -40,7 +40,7 @@ The tables below document the HTTP surfaces that the BarkBase frontend currently
 - **Canonical endpoints:**  
   `/api/v1/tasks`, `/api/v1/tasks/{taskId}`, `/api/v1/tasks/{taskId}/complete`
 - **Owning Lambda:** `aws/lambdas/features-service`
-- **Notes:** Task CRUD and completion routes live in `features-service`, which also owns notes/incidents/messages/invites. Older lambdas (`tasks-api`, `notes-api`, `incidents-api`, `communication-api`, `messages-api`, `invites-api`) are retained only as legacy references.
+- **Notes:** Task CRUD and related notes/incidents/messages/communication/invites flows now run exclusively inside `features-service`. The former feature Lambdas (`tasks/notes/incidents/messages/communication/invites`) are tombstoned (return 410) and no longer deployed.
 
 ## Reports & Dashboard (status: canonical)
 - **Canonical endpoints:**  

@@ -30,12 +30,12 @@ This reference lists every Lambda under `aws/lambdas/`, the domain(s) it serves,
 | `dashboard-api` | Dashboard metrics | historical (CDK removed; 410 tombstone) | `/api/v1/dashboard/*` (returns 410) | Superseded by `analytics-service` | Source retained for history only |
 | `reports-api` | Reporting | historical (CDK removed; 410 tombstone) | `/api/v1/reports/*` (returns 410) | Superseded by `analytics-service` | Source retained for history only |
 | `schedule-api` | Calendar capacity | historical (CDK removed; 410 tombstone) | `/api/v1/schedule*` (returns 410) | Superseded by `analytics-service` | Source retained for history only |
-| `tasks-api` | Task management | legacy | `/api/v1/tasks` | Superseded by `features-service` | Decommission |
-| `notes-api` | Notes | legacy | `/api/v1/notes` | Superseded by `features-service` | Decommission |
-| `incidents-api` | Incidents | legacy | `/api/v1/incidents` | Superseded by `features-service` | Decommission |
-| `messages-api` | Messaging | legacy | `/api/v1/messages` | Superseded by `features-service` | Decommission |
-| `communication-api` | Communications timeline | legacy | `/api/v1/communications` | Superseded by `features-service` | Decommission |
-| `invites-api` | Invite management | legacy | `/api/v1/invites` | Superseded by `features-service` | Decommission |
+| `tasks-api` | Task management | historical (CDK removed; 410 tombstone) | `/api/v1/tasks*` (returns 410) | Superseded by `features-service` | Source retained for history only |
+| `notes-api` | Notes | historical (CDK removed; 410 tombstone) | `/api/v1/notes*` (returns 410) | Superseded by `features-service` | Source retained for history only |
+| `incidents-api` | Incidents | historical (CDK removed; 410 tombstone) | `/api/v1/incidents*` (returns 410) | Superseded by `features-service` | Source retained for history only |
+| `messages-api` | Messaging | historical (CDK removed; 410 tombstone) | `/api/v1/messages*` (returns 410) | Superseded by `features-service` | Source retained for history only |
+| `communication-api` | Communications timeline | historical (CDK removed; 410 tombstone) | `/api/v1/communications*` (returns 410) | Superseded by `features-service` | Source retained for history only |
+| `invites-api` | Invite management | historical (CDK removed; 410 tombstone) | `/api/v1/invites*` (returns 410) | Superseded by `features-service` | Source retained for history only |
 | `account-defaults-api` | Account defaults/settings | historical (CDK removed; 410 tombstone) | `/api/v1/account-defaults` (returns 410) | Superseded by `config-service` | Source retained for history only |
 | `services-api` | Service catalog | historical (CDK removed; 410 tombstone) | `/api/v1/services` (returns 410) | Superseded by `config-service` | Source retained for history only |
 | `facility-api` | Facility info | historical (CDK removed; 410 tombstone) | `/api/v1/facility` (returns 410) | Superseded by `config-service` | Source retained for history only |

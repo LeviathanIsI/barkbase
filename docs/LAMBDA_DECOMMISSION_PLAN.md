@@ -106,3 +106,8 @@ Following this plan will let us retire the duplicate Lambdas safely without intr
 - `config-service` is now the only deployed backend for all `/api/v1/tenants*`, `/api/v1/services*`, `/api/v1/account-defaults*`, `/api/v1/facility*`, `/api/v1/packages*`, `/api/v1/memberships*`, `/api/v1/roles*`, and `/api/v1/user-permissions*` endpoints.
 - Legacy Lambda folders remain as 410 tombstones/backups for historical reference; no runtime usage.
 
+### Phase 14 Milestone
+- `tasks-api`, `notes-api`, `incidents-api`, `messages-api`, `communication-api`, and `invites-api` have been removed from CDK stacks and API Gateway routing.
+- `features-service` is now the only deployed backend for all `/api/v1/tasks*`, `/api/v1/notes*`, `/api/v1/incidents*`, `/api/v1/messages*`, `/api/v1/communications*`, and `/api/v1/invites*` endpoints.
+- Legacy Lambda folders remain in the repo as 410 tombstones for historical reference; no runtime usage.
+
