@@ -1,14 +1,20 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Phone, DollarSign, Calendar, Plus, Search, Filter, Mail, Heart, AlertTriangle } from 'lucide-react';
+import { Users, Phone, DollarSign, Calendar, Plus, Search, Filter, Mail, Heart } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Card, PageHeader } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
 import { useOwnersQuery, useCreateOwnerMutation } from '../api';
 import OwnerFormModal from '../components/OwnerFormModal';
 import { formatCurrency } from '@/lib/utils';
+import DirectoryListHeader from '@/features/directory/components/DirectoryListHeader';
+import DirectoryEmptyState from '@/features/directory/components/DirectoryEmptyState';
+import DirectoryErrorState from '@/features/directory/components/DirectoryErrorState';
+import { DirectoryTableSkeleton } from '@/features/directory/components/DirectorySkeleton';
+import OwnersListTable from '@/features/directory/components/OwnersListTable';
 
+// TODO (C1:4 - Directory Query Consolidation): Convert to unified DirectorySnapshot hook.
 const Owners = () => {
   const navigate = useNavigate();
   const [formModalOpen, setFormModalOpen] = useState(false);
@@ -72,15 +78,9 @@ const Owners = () => {
 
   if (error) {
     return (
-      <div>
-        <PageHeader title="Owners" breadcrumb="Home > Clients > Owners" />
-        <Card>
-          <div className="text-center py-12">
-            <AlertTriangle className="h-12 w-12 text-red-500 dark:text-red-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">Error Loading Owners</h3>
-            <p className="text-gray-600 dark:text-text-secondary">Unable to load owner data. Please try again.</p>
-          </div>
-        </Card>
+      <div className="space-y-6">
+        <DirectoryListHeader title="Pet Owners" breadcrumb="Home > Clients > Owners" />
+        <DirectoryErrorState message="Unable to load owner data. Please try again." />
       </div>
     );
   }
@@ -142,9 +142,8 @@ const Owners = () => {
   };
 
   return (
-    <div>
-      {/* Page Header */}
-      <PageHeader
+    <div className="space-y-6">
+      <DirectoryListHeader
         breadcrumb="Home > Clients > Owners"
         title="Pet Owners"
         actions={
@@ -159,143 +158,120 @@ const Owners = () => {
             </Button>
           </>
         }
-      />
+      >
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {isLoading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-24 rounded-lg" />
+            ))
+          ) : (
+            <>
+              <Card className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">Total Owners</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.total}</p>
+                  </div>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-surface-secondary">
+                    <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
+              </Card>
 
-      {/* Summary Cards */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
-        {isLoading ? (
-          Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 rounded-lg" />
-          ))
-        ) : (
-          <>
-            <Card className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">Total Owners</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.total}</p>
+              <Card className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">Active Clients</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.active}</p>
+                  </div>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-surface-secondary">
+                    <Heart className="h-6 w-6 text-green-600 dark:text-green-400" />
+                  </div>
                 </div>
-                <div className="w-12 h-12 bg-blue-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
-                  <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              </Card>
+
+              <Card className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">High Value</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.highValue}</p>
+                  </div>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100 dark:bg-surface-secondary">
+                    <DollarSign className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                  </div>
                 </div>
+              </Card>
+
+              <Card className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">Total Revenue</p>
+                    <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{formatCurrency(stats.totalRevenue)}</p>
+                  </div>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-100 dark:bg-surface-secondary">
+                    <Calendar className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                  </div>
+                </div>
+              </Card>
+            </>
+          )}
+        </div>
+
+        <Card>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+              <div className="relative flex-1 sm:max-w-md">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-600 dark:text-text-secondary" />
+                <input
+                  type="text"
+                  placeholder="Search owners..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full rounded-md border border-gray-300 py-2 pl-10 pr-4 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-surface-border"
+                />
               </div>
-            </Card>
 
-            <Card className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">Active Clients</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.active}</p>
-                </div>
-                <div className="w-12 h-12 bg-green-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
-                  <Heart className="h-6 w-6 text-green-600 dark:text-green-400" />
-                </div>
-              </div>
-            </Card>
-
-            <Card className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">High Value</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.highValue}</p>
-                </div>
-                <div className="w-12 h-12 bg-purple-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
-                  <DollarSign className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                </div>
-              </div>
-            </Card>
-
-            <Card className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">Total Revenue</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{formatCurrency(stats.totalRevenue)}</p>
-                </div>
-                <div className="w-12 h-12 bg-orange-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center">
-                  <Calendar className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-                </div>
-              </div>
-            </Card>
-          </>
-        )}
-      </div>
-
-      {/* Filters and Search */}
-      <Card className="mb-6">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 flex-1">
-            <div className="relative flex-1 sm:max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-600 dark:text-text-secondary" />
-              <input
-                type="text"
-                placeholder="Search owners..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-surface-border sm:w-auto"
+              >
+                <option value="ALL">All Status</option>
+                <option value="ACTIVE">Active Clients</option>
+                <option value="INACTIVE">Inactive</option>
+              </select>
             </div>
 
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full sm:w-auto px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            >
-              <option value="ALL">All Status</option>
-              <option value="ACTIVE">Active Clients</option>
-              <option value="INACTIVE">Inactive</option>
-            </select>
+            <div className="text-sm text-gray-600 dark:text-text-secondary">
+              Showing {filteredOwners.length} of {owners.length} owners
+            </div>
           </div>
+        </Card>
+      </DirectoryListHeader>
 
-          <div className="text-sm text-gray-600 dark:text-text-secondary">
-            Showing {filteredOwners.length} of {owners.length} owners
-          </div>
-        </div>
-      </Card>
-
-      {/* Owners Table */}
-      <Card>
-        {isLoading ? (
-          <div className="space-y-4">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-16 w-full" />
-            ))}
-          </div>
-        ) : filteredOwners.length === 0 ? (
-          <div className="text-center py-12">
-            <Users className="h-12 w-12 text-gray-600 dark:text-text-secondary mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">No Owners Found</h3>
-            <p className="text-gray-600 dark:text-text-secondary mb-4">
-              {searchTerm || statusFilter !== 'ALL'
-                ? 'Try adjusting your search or filters.'
-                : 'Get started by adding your first pet owner.'}
-            </p>
-            <Button onClick={() => setFormModalOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Owner
-            </Button>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-300 dark:border-surface-border">
-                  <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-text-primary">Owner</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-text-primary">Contact</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-text-primary">Pets</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-text-primary">Status</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-text-primary">Bookings</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-900 dark:text-text-primary">Lifetime Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredOwners.map((owner) => (
-                  <OwnerRow key={owner.recordId} owner={owner} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+      {isLoading ? (
+        <DirectoryTableSkeleton />
+      ) : filteredOwners.length === 0 ? (
+        <DirectoryEmptyState
+          title="No Owners Found"
+          description={
+            searchTerm || statusFilter !== 'ALL'
+              ? 'Try adjusting your search or filters.'
+              : 'Get started by adding your first pet owner.'
+          }
+          icon={Users}
+        >
+          <Button onClick={() => setFormModalOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Owner
+          </Button>
+        </DirectoryEmptyState>
+      ) : (
+        <OwnersListTable
+          owners={filteredOwners}
+          renderRow={(owner) => <OwnerRow key={owner.recordId} owner={owner} />}
+        />
+      )}
 
       <OwnerFormModal
         open={formModalOpen}

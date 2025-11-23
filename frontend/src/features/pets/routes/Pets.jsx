@@ -2,9 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PawPrint, Plus, Search, Syringe, ShieldAlert, User, FileText, Calendar, ChevronDown } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Card, PageHeader } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
-import Skeleton from '@/components/ui/Skeleton';
 import PetAvatar from '@/components/ui/PetAvatar';
 import { usePetsQuery, useCreatePetMutation } from '../api';
 import { useExpiringVaccinationsQuery } from '../api-vaccinations';
@@ -14,6 +12,11 @@ import { ThreePanelLayout } from '@/components/layout/ThreePanelLayout';
 import { PanelSection } from '@/components/layout/PanelSection';
 import { PropertyList } from '@/components/ui/PropertyList';
 import { EmptyState } from '@/components/ui/EmptyState';
+import DirectoryListHeader from '@/features/directory/components/DirectoryListHeader';
+import DirectoryEmptyState from '@/features/directory/components/DirectoryEmptyState';
+import DirectoryErrorState from '@/features/directory/components/DirectoryErrorState';
+import { DirectoryTableSkeleton } from '@/features/directory/components/DirectorySkeleton';
+import PetsListTable from '@/features/directory/components/PetsListTable';
 
 /**
  * ACTUAL DATA STRUCTURE (from API - usePetsQuery):
@@ -38,6 +41,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
  *   createdAt: string,
  * }>
  */
+// TODO (C1:4 - Directory Query Consolidation): Convert to unified DirectorySnapshot hook.
 const Pets = () => {
   const navigate = useNavigate();
   const [petFormModalOpen, setPetFormModalOpen] = useState(false);
@@ -104,15 +108,9 @@ const Pets = () => {
 
   if (error) {
     return (
-      <div>
-        <PageHeader title="Pets" breadcrumb="Home > Clients > Pets" />
-        <Card>
-          <div className="text-center py-12">
-            <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-[#263238] dark:text-text-primary mb-2">Error Loading Pets</h3>
-            <p className="text-[#64748B] dark:text-text-secondary">Unable to load pets data. Please try again.</p>
-          </div>
-        </Card>
+      <div className="space-y-6">
+        <DirectoryListHeader title="Pets" breadcrumb="Home > Clients > Pets" />
+        <DirectoryErrorState message="Unable to load pets data. Please try again." />
       </div>
     );
   }
@@ -394,28 +392,42 @@ const Pets = () => {
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Page Header */}
-      <PageHeader
+    <div className="flex flex-col h-full space-y-6">
+      <DirectoryListHeader
         breadcrumb="Home > Clients > Pets"
         title="Pets"
         actions={
           !showEmptyState && !isLoading && (
-            <>
-              <Button 
-                variant="primary" 
-                size="sm" 
-                onClick={() => setPetFormModalOpen(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Pet
-              </Button>
-            </>
+            <Button 
+              variant="primary" 
+              size="sm" 
+              onClick={() => setPetFormModalOpen(true)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Pet
+            </Button>
           )
         }
-      />
+      >
+        {!showEmptyState && (
+          <>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 transform h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search pets by name, breed, or owner..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 bg-white py-3 pl-10 pr-4 text-sm text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-dark-border dark:bg-dark-bg-tertiary dark:text-dark-text-primary"
+              />
+            </div>
+            <div className="flex items-center justify-between text-sm text-gray-600 dark:text-dark-text-secondary">
+              <p>Showing {filteredPets.length} of {pets.length} pets</p>
+            </div>
+          </>
+        )}
+      </DirectoryListHeader>
 
-      {/* Main Content */}
       {showEmptyState ? (
         <EmptyStatePets
           onAddPet={() => setPetFormModalOpen(true)}
@@ -428,82 +440,29 @@ const Pets = () => {
           showRightPanel={!!selectedPet}
           right={renderRightPanel()}
           center={
-            <div className="p-6">
-              {/* Search Bar */}
-              <div className="mb-6">
-                <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Search pets by name, breed, or owner..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm bg-white dark:bg-dark-bg-tertiary text-gray-900 dark:text-dark-text-primary"
-                  />
-                </div>
-              </div>
-
-              {/* Results Count */}
-              <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm text-gray-600 dark:text-dark-text-secondary">
-                Showing {filteredPets.length} of {pets.length} pets
-                </p>
-              </div>
-
-              {/* Pets Table */}
+            <div className="space-y-6 p-6">
               {isLoading ? (
-                <div className="space-y-2">
-                  {Array.from({ length: 8 }).map((_, i) => (
-                    <Skeleton key={i} className="h-16 rounded-lg" />
-                  ))}
-                </div>
+                <DirectoryTableSkeleton />
               ) : filteredPets.length === 0 ? (
-                <Card className="p-12">
-                  <div className="text-center">
-                    <PawPrint className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-dark-text-primary mb-2">
-                      No Pets Found
-                    </h3>
-                    <p className="text-gray-600 dark:text-dark-text-secondary mb-4">
-                      {searchTerm || statusFilter !== 'ALL' || speciesFilter !== 'ALL'
-                        ? 'Try adjusting your search or filters.'
-                        : 'Get started by adding your first pet.'}
-                    </p>
-                    <Button onClick={() => setPetFormModalOpen(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Pet
-                    </Button>
-                  </div>
-                </Card>
+                <DirectoryEmptyState
+                  title="No Pets Found"
+                  description={
+                    searchTerm || statusFilter !== 'ALL' || speciesFilter !== 'ALL'
+                      ? 'Try adjusting your search or filters.'
+                      : 'Get started by adding your first pet.'
+                  }
+                  icon={PawPrint}
+                >
+                  <Button onClick={() => setPetFormModalOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Pet
+                  </Button>
+                </DirectoryEmptyState>
               ) : (
-                <Card className="overflow-hidden">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-gray-50 dark:bg-dark-bg-secondary border-b border-gray-200 dark:border-dark-border">
-                        <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider">
-                          Pet
-                        </th>
-                        <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider">
-                          Owner
-                        </th>
-                        <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider">
-                          Status
-                        </th>
-                        <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider">
-                          Vaccinations
-                        </th>
-                        <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-dark-bg-primary">
-                      {filteredPets.map((pet) => (
-                        <PetTableRow key={pet.recordId} pet={pet} />
-                      ))}
-                    </tbody>
-                  </table>
-                </Card>
+                <PetsListTable
+                  pets={filteredPets}
+                  renderRow={(pet) => <PetTableRow key={pet.recordId} pet={pet} />}
+                />
               )}
             </div>
           }
