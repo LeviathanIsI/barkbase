@@ -2,6 +2,8 @@ const express = require('express');
 const analyticsRouter = require('./api/analytics');
 const configRouter = require('./api/config');
 const operationsRouter = require('./api/operations');
+const profilesRouter = require('./api/profiles');
+const usersRouter = require('./api/users');
 const petsRouter = require('./api/pets');
 const ownersRouter = require('./api/owners');
 const staffRouter = require('./api/staff');
@@ -19,6 +21,8 @@ function createApp() {
   app.use('/api/v1', analyticsRouter);
   app.use('/api/v1', configRouter);
   app.use('/api/v1', operationsRouter);
+  app.use('/api/v1', usersRouter);
+  app.use('/api/v1', profilesRouter);
   app.use('/api/v1/pets/vaccinations', vaccinationsRouter);
   app.use('/api/v1/pets', petsRouter);
   app.use('/api/v1/owners', ownersRouter);
