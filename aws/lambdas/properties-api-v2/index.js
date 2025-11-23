@@ -108,6 +108,10 @@ exports.handler = async (event) => {
 
   try {
     
+    // NOTE: v2 now handles all properties CRUD.
+    // properties-api (v1) has been retired and returns 410.
+    // Do NOT reintroduce v1 behavior or DTOs here.
+
     // Route: GET /api/v2/properties
     if (method === 'GET' && (path === '/api/v2/properties' || path.endsWith('/properties'))) {
       if (isLegacyMode) {
