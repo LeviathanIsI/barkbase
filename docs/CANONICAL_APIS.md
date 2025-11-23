@@ -14,13 +14,10 @@ The tables below document the HTTP surfaces that the BarkBase frontend currently
 - **Owning Lambda:** `aws/lambdas/entity-service`
 - **Notes:** Owner CRUD and owner–pet association flows are issued against `/api/v1/owners*` inside `entity-service/index.js`. The standalone `owners-api` handler remains in the repo for reference but is not mapped in CDK and should be considered legacy.
 
-## Properties (status: mixed)
-- **Canonical endpoints (v1 CRUD):** `/api/v1/properties`, `/api/v1/properties/{propertyId}`, `/api/v1/properties/{propertyId}/archive`, `/api/v1/properties/{propertyId}/restore`
-- **Canonical endpoints (v2 advanced):** `/api/v2/properties`, `/api/v2/properties/{propertyId}`, `/api/v2/properties/{propertyId}/dependencies`, `/api/v2/properties/{propertyId}/impact-analysis`, `/api/v2/properties/{propertyId}/restore`, `/api/v2/properties/{propertyId}/substitute`
-- **Owning Lambdas:**  
-  - CRUD, tenant-visible metadata: `aws/lambdas/properties-api` (v1)  
-  - Advanced restore/dependency/impact workflows: `aws/lambdas/properties-api-v2` (v2), with deeper graph/automation handled by `aws/lambdas/property-dependency-service` and archival/permanent delete jobs.
-- **Notes:** Frontend code (`frontend/src/features/settings/api.js`) still calls v1 for list/create/update/delete, while restore/dependency/impact actions already use v2. Leave v1 shapes untouched until v2 fully replaces it.
+## Properties (status: canonical – v2 only)
+- **Canonical endpoints:** `/api/v2/properties`, `/api/v2/properties/{propertyId}`, `/api/v2/properties/{propertyId}/dependencies`, `/api/v2/properties/{propertyId}/impact-analysis`, `/api/v2/properties/{propertyId}/restore`, `/api/v2/properties/{propertyId}/substitute`
+- **Owning Lambda:** `aws/lambdas/properties-api-v2` (with dependency/archival jobs as supporting workers).
+- **Notes:** `properties-api` (v1) was retired in Phase 8, removed from CDK/API Gateway, and now remains in the repo only as a historical 410 tombstone. Do not add new `/api/v1/properties` routes.
 
 ## Bookings (status: canonical)
 - **Canonical endpoints:**  

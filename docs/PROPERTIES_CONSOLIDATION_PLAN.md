@@ -1,6 +1,7 @@
 # Properties Consolidation Plan
 
 ## 1. Current State Overview
+- **Phase 8 note:** `properties-api` (v1) is no longer deployed. It remains in the repo as a 410 tombstone for historical reference. The details below describe the pre-decommission state kept here for archival purposes.
 - **v1 (`properties-api`)** – Handles CRUD against the legacy `Property` table. Returns raw records (camelCase columns) and exposes `/api/v1/properties` routes for tenants to manage custom fields.
 - **v2 (`properties-api-v2`)** – Adds enterprise-grade metadata, dependency tracking, and cascade operations over the new `PropertyMetadata` graph. Routes live under `/api/v2/properties`.
 - **Mixed domain is intentional.** CRUD flows (list/create/update/delete) still rely on v1 while v2 powers archive/restore/substitute/impact-analysis. Phase 5 will migrate CRUD into v2; until then the split must remain.

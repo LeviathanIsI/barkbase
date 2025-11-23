@@ -18,7 +18,6 @@ Each Lambda under `aws/lambdas/` is listed below with its primary domain, exampl
 | `financial-service` | Payments, invoices, billing | `GET /api/v1/payments`<br>`POST /api/v1/invoices` | canonical | Merged payments/invoices/billing APIs; includes `/api/v1/billing/metrics`. |
 | `migration-api` | Manual migration runner | `POST /api/v1/migration` | canonical | Secure admin-only entry point to run DB migrations. |
 | `operations-service` | Bookings, runs, check-ins/out, kennels | `GET /api/v1/bookings`<br>`POST /api/v1/bookings/{id}/check-in` | canonical | Consolidates `bookings-api`, `runs-api`, `check-in-api`, `check-out-api`, and `kennels-api`. |
-| `properties-api` | Property CRUD (v1) | `GET /api/v1/properties`<br>`PATCH /api/v1/properties/{propertyId}` | canonical | Handles tenant/system property definitions; remains source for basic CRUD. |
 | `properties-api-v2` | Advanced property ops (v2) | `POST /api/v2/properties/{propertyId}/restore`<br>`GET /api/v2/properties/{propertyId}/dependencies` | canonical | Adds enterprise restore/dependency/impact-analysis flows; collaborates with `property-dependency-service`. |
 | `schema-version-service` | Schema/version management | `GET /api/v1/schema-versions`<br>`POST /api/v1/tenants/{tenantId}/schema-version/upgrade` | canonical | Tracks tenant schema versioning for zero-downtime migrations. |
 | `user-profile-service` | User profiles & permissions | `GET /api/v1/users/profile`<br>`POST /api/v1/users/{userId}/profiles` | canonical | Manages permission profiles, inheritance, and effective permission calculations. |
@@ -43,6 +42,7 @@ Each Lambda under `aws/lambdas/` is listed below with its primary domain, exampl
 | `owners-api` | Owner CRUD | `GET /api/v1/owners` | legacy | Superseded by `entity-service`. |
 | `packages-api` | Service packages | `GET /api/v1/services` | legacy | Functionality absorbed by `config-service` (only `index.js.backup` remains). |
 | `pets-api` | Pet CRUD | `GET /api/v1/pets` | legacy | Handler now returns `410 Gone`; use `entity-service`. |
+| `properties-api` | Property CRUD (v1) | `/api/v1/properties` (now 410) | historical | Removed from CDK/API Gateway in Phase 8; source folder retained only for investigations. |
 | `reports-api` | Reports | `GET /api/v1/reports/revenue` | legacy | Replaced by `analytics-service`. |
 | `roles-api` | Role catalog | `GET /api/v1/roles` | legacy | Provided by `config-service`. |
 | `runs-api` | Run scheduling | `GET /api/v1/runs` | legacy | Folded into `operations-service`. |

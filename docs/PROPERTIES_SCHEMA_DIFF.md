@@ -1,6 +1,7 @@
 # Properties Schema & DTO Differences (v1 vs v2)
 
-This reference captures the structural mismatches between the legacy `/api/v1/properties` surface (backed by the `Property` table) and the new `/api/v2/properties` stack (backed by `PropertyMetadata`, dependency graphs, and cascade handlers). Use this when planning the Phase 5 consolidation.
+This reference captures the structural mismatches between the legacy `/api/v1/properties` surface (backed by the `Property` table) and the new `/api/v2/properties` stack (backed by `PropertyMetadata`, dependency graphs, and cascade handlers). Use this when planning the Phase 5 consolidation.  
+> **Phase 8 note:** `/api/v1/properties` is no longer deployed; the details below remain for historical context and for interpreting old payloads/logs.
 
 ## 1. Create / Update Requests
 
