@@ -908,27 +908,6 @@ export class CdkStack extends cdk.Stack {
       errorAlarm.addAlarmAction(new cloudwatchActions.SnsAction(securityAlertTopic));
     });
 
-    // Bookings API - REPLACED BY OperationsServiceFunction
-    // const bookingsApiFunction = new lambda.Function(this, 'BookingsApiFunction', {
-    //   runtime: lambda.Runtime.NODEJS_20_X,
-    //   handler: 'index.handler',
-    //   code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/bookings-api')),
-    //   layers: [dbLayer, authLayer],
-    //   environment: authEnvironment,
-    //   // No VPC - connects to public database
-    //
-    //   timeout: cdk.Duration.seconds(30),
-    // });
-    // dbSecret.grantRead(bookingsApiFunction);
-    // // Canary deployment removed to optimize resource count
-    // // Can be added back if needed via separate deployment stack
-    // const bookingsIntegration = new HttpLambdaIntegration('BookingsIntegration', bookingsApiFunction);
-    // httpApi.addRoutes({ path: '/api/v1/bookings', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: bookingsIntegration, authorizer: httpAuthorizer });
-    // httpApi.addRoutes({ path: '/api/v1/bookings/{bookingId}', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PUT, apigw.HttpMethod.DELETE], integration: bookingsIntegration });
-    // httpApi.addRoutes({ path: '/api/v1/bookings/{bookingId}/status', methods: [apigw.HttpMethod.PATCH], integration: bookingsIntegration });
-    // httpApi.addRoutes({ path: '/api/v1/bookings/{bookingId}/checkin', methods: [apigw.HttpMethod.POST], integration: bookingsIntegration });
-    // httpApi.addRoutes({ path: '/api/v1/bookings/{bookingId}/checkout', methods: [apigw.HttpMethod.POST], integration: bookingsIntegration });
-
     // Tenants API - REPLACED BY ConfigServiceFunction
     // const tenantsApiFunction = new lambda.Function(this, 'TenantsApiFunction', {
     //   runtime: lambda.Runtime.NODEJS_20_X,
