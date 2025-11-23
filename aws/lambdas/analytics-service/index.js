@@ -1,3 +1,9 @@
+// Canonical Service:
+// Domain: Analytics (Dashboard / Reports / Schedule)
+// This Lambda is the authoritative backend for this domain.
+// All NEW endpoints for this domain must be implemented here.
+// Do NOT add new logic or endpoints to legacy Lambdas for this domain.
+
 const { getPool, getTenantIdFromEvent, getJWTValidator } = require('/opt/nodejs');
 
 // Unified CORS headers (superset of all 3 original Lambdas)

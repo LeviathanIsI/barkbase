@@ -1,3 +1,9 @@
+// Canonical Service:
+// Domain: Properties (advanced metadata / dependencies / cascade operations)
+// This Lambda is the authoritative backend for this domain.
+// All NEW endpoints for this domain must be implemented here.
+// Do NOT add new logic or endpoints to legacy Lambdas for this domain.
+
 /**
  * Properties API v2
  * Enhanced properties API with rich metadata, dependency tracking, and versioned responses

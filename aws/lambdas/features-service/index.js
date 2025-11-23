@@ -1,3 +1,9 @@
+// Canonical Service:
+// Domain: Tasks / Notes / Incidents / Messages / Communications / Invites
+// This Lambda is the authoritative backend for this domain.
+// All NEW endpoints for this domain must be implemented here.
+// Do NOT add new logic or endpoints to legacy Lambdas for this domain.
+
 const { getPool, getTenantIdFromEvent } = require('/opt/nodejs');
 
 const HEADERS = {
