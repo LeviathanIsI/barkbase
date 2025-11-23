@@ -46,6 +46,16 @@ class LambdaIntegrationNoPermission extends HttpLambdaIntegration {
 }
 
 export class CdkStack extends cdk.Stack {
+  public readonly stage: string;
+  public readonly deployLambdasInVpc: boolean;
+  public readonly vpc: ec2.Vpc;
+  public readonly lambdaSecurityGroup: ec2.SecurityGroup;
+  public readonly dbEnvironment: { [key: string]: string };
+  public readonly dbSecret: secretsmanager.ISecret;
+  public readonly dbLayer: lambda.LayerVersion;
+  public readonly authLayer: lambda.LayerVersion;
+  public readonly userPool: cognito.UserPool;
+  public readonly userPoolClient: cognito.UserPoolClient;
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
@@ -54,11 +64,13 @@ export class CdkStack extends cdk.Stack {
     // ===================================================================
     // Deployment stage (dev, staging, prod)
     const stage = process.env.STAGE || process.env.ENVIRONMENT || 'dev';
+    this.stage = stage;
 
     // Feature flags for cost optimization
     const enableVpcEndpoints = process.env.ENABLE_VPC_ENDPOINTS === 'true';
     const enableRdsProxy = process.env.ENABLE_RDS_PROXY === 'true';
     const deployLambdasInVpc = process.env.DEPLOY_LAMBDAS_IN_VPC === 'true';
+    this.deployLambdasInVpc = deployLambdasInVpc;
 
     // Environment-specific configuration
     const config = {
@@ -114,11 +126,13 @@ export class CdkStack extends cdk.Stack {
         { name: "private", subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       ],
     });
+    this.vpc = vpc;
 
     // Security groups
     // NOTE: Lambda functions are NOT deployed in VPC for cost optimization
     // If you deploy Lambdas in VPC, uncomment the security groups below
     const lambdaSG = new ec2.SecurityGroup(this, "LambdaSecurityGroup", { vpc });
+    this.lambdaSecurityGroup = lambdaSG;
     // const dbSG = new ec2.SecurityGroup(this, "DatabaseSecurityGroup", { vpc });
     // dbSG.addIngressRule(lambdaSG, ec2.Port.tcp(5432), "Allow Lambda to Postgres");
 
@@ -152,6 +166,7 @@ export class CdkStack extends cdk.Stack {
       "DbSecret",
       "arn:aws:secretsmanager:us-east-2:211125574375:secret:Barkbase-dev-db-credentials-VybGGM"
     );
+    this.dbSecret = dbSecret;
 
     // Import existing RDS instance so monitoring/alarms still work
     const dbInstance = rds.DatabaseInstance.fromDatabaseInstanceAttributes(this, 'ExistingDB', {
@@ -187,6 +202,7 @@ export class CdkStack extends cdk.Stack {
       ENVIRONMENT: stage,  // For SSL config and other environment-specific logic
       STAGE: stage, // For application logic (e.g., CORS origins)
     };
+    this.dbEnvironment = dbEnvironment;
 
     console.log(`✓ Database connection configured:
       - Endpoint: ${dbEndpoint}
@@ -250,6 +266,7 @@ export class CdkStack extends cdk.Stack {
       compatibleRuntimes: [lambda.Runtime.NODEJS_20_X],
       description: "Provides a shared database connection pool",
     });
+    this.dbLayer = dbLayer;
 
     // Authentication Layer
     const authLayer = new lambda.LayerVersion(this, "AuthLayer", {
@@ -259,6 +276,7 @@ export class CdkStack extends cdk.Stack {
       compatibleRuntimes: [lambda.Runtime.NODEJS_20_X],
       description: "Provides JWT validation and authentication utilities",
     });
+    this.authLayer = authLayer;
 
     // ===================================================================
     // LAMBDA FUNCTIONS
@@ -355,6 +373,8 @@ export class CdkStack extends cdk.Stack {
       },
       generateSecret: false,
     });
+    this.userPool = userPool;
+    this.userPoolClient = userPoolClient;
 
     // Prepare an HTTP API authorizer using the Cognito User Pool (to be applied per-route gradually)
     const httpAuthorizer = new HttpUserPoolAuthorizer(

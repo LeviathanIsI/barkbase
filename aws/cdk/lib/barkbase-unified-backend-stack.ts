@@ -4,31 +4,43 @@ import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as apigwv2 from 'aws-cdk-lib/aws-apigatewayv2';
 import * as integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
+import * as cognito from 'aws-cdk-lib/aws-cognito';
+import * as path from 'path';
 
 export interface BarkbaseUnifiedBackendStackProps extends cdk.StackProps {
-  /**
-   * Optional existing VPC to run the Lambda inside.
-   * If not provided, the Lambda will run without VPC connectivity
-   * and should use public DB endpoints or other networking options.
-   */
-  vpcName?: string;
+  dbEnvironment: { [key: string]: string };
+  dbSecret: secretsmanager.ISecret;
+  dbLayer: lambda.ILayerVersion;
+  authLayer: lambda.ILayerVersion;
+  userPool: cognito.IUserPool;
+  userPoolClient: cognito.IUserPoolClient;
+  vpc?: ec2.IVpc;
+  securityGroups?: ec2.ISecurityGroup[];
+  deployInVpc?: boolean;
 }
 
 export class BarkbaseUnifiedBackendStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: BarkbaseUnifiedBackendStackProps) {
+  constructor(scope: Construct, id: string, props: BarkbaseUnifiedBackendStackProps) {
     super(scope, id, props);
 
-    let vpc: ec2.IVpc | undefined;
-    if (props?.vpcName) {
-      vpc = ec2.Vpc.fromLookup(this, 'UnifiedBackendVpc', {
-        vpcName: props.vpcName,
-      });
+    if (!props.dbEnvironment || !props.dbSecret || !props.dbLayer || !props.authLayer || !props.userPool || !props.userPoolClient) {
+      throw new Error('Missing required infrastructure references for unified backend stack.');
     }
 
-    const unifiedFn = new lambda.Function(this, 'UnifiedBackendFunction', {
+    const layers = [props.dbLayer, props.authLayer];
+
+    const environment = {
+      ...props.dbEnvironment,
+      NODE_ENV: props.dbEnvironment.NODE_ENV || 'production',
+      USER_POOL_ID: props.userPool.userPoolId,
+      CLIENT_ID: props.userPoolClient.userPoolClientId,
+    };
+
+    const unifiedFunctionProps: lambda.FunctionProps = {
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'lambda-handler.handler',
-      code: lambda.Code.fromAsset('../backend', {
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../backend'), {
         exclude: [
           '.gitignore',
           'README.md',
@@ -41,17 +53,18 @@ export class BarkbaseUnifiedBackendStack extends cdk.Stack {
       memorySize: 512,
       timeout: cdk.Duration.seconds(30),
       architecture: lambda.Architecture.ARM_64,
-      vpc,
-      environment: {
-        NODE_ENV: 'production',
-        DB_HOST: process.env.DB_HOST ?? '',
-        DB_PORT: process.env.DB_PORT ?? '5432',
-        DB_USER: process.env.DB_USER ?? '',
-        DB_PASSWORD: process.env.DB_PASSWORD ?? '',
-        DB_NAME: process.env.DB_NAME ?? 'barkbase',
-        DB_SSL: process.env.DB_SSL ?? 'true',
-      },
-    });
+      environment,
+      layers,
+    };
+
+    if (props.deployInVpc && props.vpc) {
+      unifiedFunctionProps.vpc = props.vpc;
+      unifiedFunctionProps.securityGroups = props.securityGroups;
+      unifiedFunctionProps.vpcSubnets = { subnetType: ec2.SubnetType.PRIVATE_ISOLATED };
+    }
+
+    const unifiedFn = new lambda.Function(this, 'UnifiedBackendFunction', unifiedFunctionProps);
+    props.dbSecret.grantRead(unifiedFn);
 
     const httpApi = new apigwv2.HttpApi(this, 'UnifiedBackendHttpApi', {
       apiName: 'barkbase-unified-backend',

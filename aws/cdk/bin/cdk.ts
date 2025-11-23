@@ -19,6 +19,15 @@ const main = new CdkStack(app, `Barkbase-${stage}`, {
 new BarkbaseUnifiedBackendStack(app, `Barkbase-UnifiedBackend-${stage}`, {
   env: { account, region },
   tags: { Stage: stage },
+  dbEnvironment: main.dbEnvironment,
+  dbSecret: main.dbSecret,
+  dbLayer: main.dbLayer,
+  authLayer: main.authLayer,
+  userPool: main.userPool,
+  userPoolClient: main.userPoolClient,
+  vpc: main.deployLambdasInVpc ? main.vpc : undefined,
+  securityGroups: main.deployLambdasInVpc ? [main.lambdaSecurityGroup] : undefined,
+  deployInVpc: main.deployLambdasInVpc,
 });
 
 
