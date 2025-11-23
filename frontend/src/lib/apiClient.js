@@ -167,9 +167,12 @@ export const uploadClient = async (endpoint, formData) => {
 };
 
 // Lightweight REST helpers for feature APIs that call concrete endpoints
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL_UNIFIED
+  || import.meta.env.VITE_API_BASE_URL
+  || 'https://smvidb1rd0.execute-api.us-east-2.amazonaws.com';
+
 const buildUrl = (path, params) => {
-  const base = import.meta.env.VITE_API_URL || '/api';
-  const url = new URL(path, base);
+  const url = new URL(path, API_BASE_URL);
   if (params && typeof params === 'object') {
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
