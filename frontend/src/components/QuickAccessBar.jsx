@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Plus, CheckCircle, Calendar, Bell, Command, X } from 'lucide-react';
+import { Search, Plus, CheckCircle, Bell, Command, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import { useQuery } from '@tanstack/react-query';
@@ -154,6 +154,7 @@ const QuickAccessBar = () => {
       <div className="bg-white dark:bg-surface-primary border-b border-gray-200 dark:border-surface-border px-4 py-2">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           {/* Left side - Quick Actions */}
+          {/* NOTE: QuickAccessBar is reserved for high-frequency actions, not duplicate page links. See NAV_CLEANUP_PLAN.md. */}
           <div className="flex items-center gap-2">
             {/* Global Search */}
             <Button
@@ -196,16 +197,6 @@ const QuickAccessBar = () => {
               <kbd className="hidden lg:inline px-1.5 py-0.5 text-xs bg-gray-100 dark:bg-surface-secondary rounded">B</kbd>
             </Button>
 
-            {/* Today's Schedule */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/schedule')}
-              className="flex items-center gap-2 px-3"
-            >
-              <Calendar className="w-4 h-4 text-purple-600" />
-              <span className="hidden sm:inline">Today</span>
-            </Button>
           </div>
 
           {/* Right side - Notifications */}

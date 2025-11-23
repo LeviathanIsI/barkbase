@@ -35,8 +35,8 @@ export const navSections = [
     ],
   },
   {
-    id: 'admin',
-    title: 'Admin',
+    id: 'settings',
+    title: 'Settings',
     items: [
       { path: '/staff', label: 'Team' },
       { path: '/settings', label: 'Settings' },

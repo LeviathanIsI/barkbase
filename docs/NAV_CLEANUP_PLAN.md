@@ -37,19 +37,19 @@ This plan documents how navigation currently works (based on `JumboSidebar.jsx`,
 
 ### 3.1 Normalize Naming
 
-* Use “Today” (or “Command Center”) consistently across header, sidebar, and QuickAccessBar. Pick one label and update other surfaces in Phase B:2.
-* Introduce canonical group labels that echo backend domains:
-  * **Command Center** – `/today`, `/bookings`, `/tasks`, `/runs`.
-  * **Directory** – `/pets-people`, `/pets`, `/owners`, `/vaccinations`.
-  * **Operations** – `/schedule`, `/calendar`, `/kennels`, `/daycare/*`.
-  * **Analytics** – `/dashboard`, `/reports`, `/payments`.
-  * **Settings** – `/settings` entry point (sub-nav handles the rest).
+* Use “Dashboard” as the canonical label for the `/today` route across all nav surfaces.
+* Introduce canonical group labels that echo backend domains (now enforced via `src/config/navigation.js`):
+  * **Dashboard** – `/today`
+  * **Directory** – `/pets-people`, `/pets`, `/owners`, `/vaccinations`
+  * **Operations** – `/bookings`, `/schedule`, `/runs`, `/tasks`, `/kennels`
+  * **Analytics** – `/dashboard`, `/reports`, `/payments`
+  * **Settings** – `/staff`, `/settings`, `/tenants`
 
 ### 3.2 Reduce Duplicates
 
 * Keep “New Booking” and “Quick Check-in” in **one** global location (QuickAccessBar), and remove duplicates from the header apps dropdown.
 * Repurpose the header apps dropdown for secondary tools (e.g., handler flows, reports) rather than duplicating primary nav.
-* Align QuickAccessBar “Today” button to `/today` rather than `/schedule`, and rename to “Schedule” if it truly points there.
+* QuickAccessBar now omits the old “Today” button that pointed to `/schedule`. It focuses on quick actions only.
 
 ### 3.3 Clarify Alerts vs. Messages
 
@@ -63,8 +63,15 @@ This plan documents how navigation currently works (based on `JumboSidebar.jsx`,
 
 ### 3.5 Future Enhancements
 
-* Convert sidebar groups into a data-driven config so QuickAccessBar + header could read from the same source of truth.
+* Convert sidebar groups into a data-driven config so QuickAccessBar + header could read from the same source of truth. (DONE → see `src/config/navigation.js`.)
 * Consider replacing the placeholder header search with a call to the existing QuickAccessBar search hook to avoid duplicate UI.
 
 > These are planning notes only. Implementation will occur in later phases after agreement on naming and IA changes.
+
+## 4. Phase B:4 Implementation Notes
+
+* `src/config/navigation.js` is now the single source of truth for primary nav definitions. Sidebar sections read directly from this config.
+* QuickAccessBar is explicitly reserved for high-frequency actions (search, quick check-in, new booking). A comment in `QuickAccessBar.jsx` documents this rule.
+* The sidebar uses the canonical “Dashboard” label for `/today`, ensuring there is exactly one main entry point into the Today view.
+* TODO: If the `/today` route is renamed in the future, update `src/config/navigation.js` and any consumers as noted in that file.
 
