@@ -14,10 +14,9 @@ import {
   PawPrint,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import RecordDetailsView from '@/components/RecordDetailsView';
 import AssociationModal from '@/components/ui/AssociationModal';
 import Button from '@/components/ui/Button';
-import { SectionCard, InfoRow, StatusPill } from '@/components/primitives';
+import { SectionCard, InfoRow, StatusPill, TagList } from '@/components/primitives';
 import { useOwnerQuery, useDeleteOwnerMutation, useAddPetToOwnerMutation, useRemovePetFromOwnerMutation } from '../api';
 import { usePetsQuery, useCreatePetMutation } from '@/features/pets/api';
 import { useAssociationsForObjectPairQuery } from '@/features/settings/api/associations';
@@ -25,6 +24,8 @@ import toast from 'react-hot-toast';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useTenantStore } from '@/stores/tenant';
 import { queryKeys } from '@/lib/queryKeys';
+import { PageHeader } from '@/components/ui/Card';
+import OwnerInfoSection from '@/features/directory/components/OwnerInfoSection';
 import RelatedPetsSection from '@/features/directory/components/RelatedPetsSection';
 
 // TODO (C1:3 - Directory UX Cleanup): Align Owner detail layout with shared directory styling.
@@ -181,42 +182,42 @@ const OwnerDetail = () => {
   const payments = owner.payments || [];
   const lifetimeValue = payments.reduce((sum, p) => sum + (p.amountCents || 0), 0) / 100;
 
-  const summaryProps = useMemo(() => ({
-    avatar: (
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-purple-100 dark:bg-surface-secondary text-purple-600 dark:text-purple-400">
-        <UsersIcon className="h-8 w-8" />
-      </div>
-    ),
-    actionButtons: [
-      {
-        label: 'Note',
-        icon: <FileText className="h-4 w-4" />,
-        onClick: () => toast.info('Add note coming soon'),
-      },
-      {
-        label: 'Email',
-        icon: <Mail className="h-4 w-4" />,
-        onClick: () => toast.info('Send email coming soon'),
-      },
-      {
-        label: 'Call',
-        icon: <PhoneCall className="h-4 w-4" />,
-        onClick: () => toast.info('Make call coming soon'),
-      },
-      {
-        label: 'Task',
-        icon: <ClipboardList className="h-4 w-4" />,
-        onClick: () => toast.info('Create task coming soon'),
-      },
-      {
-        label: 'Meeting',
-        icon: <Video className="h-4 w-4" />,
-        onClick: () => toast.info('Schedule meeting coming soon'),
-      },
-    ],
-  }), []);
+  const actionButtons = useMemo(() => [
+    {
+      label: 'Note',
+      icon: <FileText className="h-4 w-4" />,
+      onClick: () => toast.info('Add note coming soon'),
+    },
+    {
+      label: 'Email',
+      icon: <Mail className="h-4 w-4" />,
+      onClick: () => toast.info('Send email coming soon'),
+    },
+    {
+      label: 'Call',
+      icon: <PhoneCall className="h-4 w-4" />,
+      onClick: () => toast.info('Make call coming soon'),
+    },
+    {
+      label: 'Task',
+      icon: <ClipboardList className="h-4 w-4" />,
+      onClick: () => toast.info('Create task coming soon'),
+    },
+    {
+      label: 'Meeting',
+      icon: <Video className="h-4 w-4" />,
+      onClick: () => toast.info('Schedule meeting coming soon'),
+    },
+  ], []);
 
-  const actions = (
+  const ownerPets = pets;
+  const ownerAddress = owner.address
+    ? [owner.address.street, owner.address.city, owner.address.state, owner.address.zip].filter(Boolean).join(', ')
+    : null;
+  const timelineBookings = bookings.slice(0, 10);
+  const recentActivity = bookings.slice(0, 3);
+
+  const headerActions = (
     <div className="flex items-center gap-2">
       <Button size="sm" icon={<Edit className="h-4 w-4" />} onClick={handleEdit}>
         Edit
@@ -232,12 +233,80 @@ const OwnerDetail = () => {
     </div>
   );
 
-  const tabs = useMemo(() => [
-    { recordId: 'overview',
-      label: 'Overview',
-      render: (record) => {
-        const timelineBookings = (record?.bookings || []).slice(0, 10);
-        return (
+  return (
+    <>
+    <div className="space-y-6">
+      <PageHeader
+        title={fullName || 'Owner'}
+        subtitle={owner.email || ''}
+        breadcrumb="Home > Clients > Owners"
+        actions={headerActions}
+      />
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
+          <OwnerInfoSection>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex items-start gap-4">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-purple-100 dark:bg-surface-secondary text-purple-600 dark:text-purple-400">
+                  <UsersIcon className="h-8 w-8" />
+                </div>
+                <div className="space-y-2">
+                  <div>
+                    <h2 className="text-2xl font-semibold text-text">
+                      {fullName || 'Owner'}
+                    </h2>
+                    {owner.email && <p className="text-sm text-muted">{owner.email}</p>}
+                    {owner.phone && <p className="text-sm text-muted">{owner.phone}</p>}
+                  </div>
+                  <StatusPill status={owner.status ?? 'active'} />
+                </div>
+              </div>
+            </div>
+
+            {actionButtons.length > 0 && (
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                {actionButtons.map((action) => (
+                  <Button
+                    key={action.label}
+                    size="sm"
+                    variant={action.variant ?? 'outline'}
+                    icon={action.icon}
+                    onClick={action.onClick}
+                  >
+                    {action.label}
+                  </Button>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-6 grid gap-6 md:grid-cols-2">
+              <div className="space-y-3">
+                <InfoRow label="Email" value={owner.email} copyable />
+                <InfoRow label="Phone" value={owner.phone} />
+                <InfoRow label="Address" value={ownerAddress} />
+              </div>
+              <div className="space-y-3">
+                <InfoRow
+                  label="Created"
+                  value={owner.createdAt ? new Date(owner.createdAt).toLocaleString() : null}
+                />
+                <InfoRow
+                  label="Updated"
+                  value={owner.updatedAt ? new Date(owner.updatedAt).toLocaleString() : null}
+                />
+                <InfoRow label="Total Pets" value={ownerPets.length} />
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
+                Behavior Flags
+              </p>
+              <TagList tags={owner.behaviorFlags || []} emptyLabel="No behavior flags" />
+            </div>
+          </OwnerInfoSection>
+
           <SectionCard title="Activity Timeline">
             <div className="space-y-4">
               {timelineBookings.length === 0 && (
@@ -267,20 +336,13 @@ const OwnerDetail = () => {
               ))}
             </div>
           </SectionCard>
-        );
-      },
-    },
-    { recordId: 'bookings',
-      label: 'Bookings',
-      render: (record) => {
-        const allBookings = record?.bookings || [];
-        return (
+
           <SectionCard title="All Bookings" variant="spacious">
             <div className="space-y-3">
-              {allBookings.length === 0 && (
+              {bookings.length === 0 && (
                 <p className="text-sm text-muted">No bookings yet</p>
               )}
-              {allBookings.map((booking) => (
+              {bookings.map((booking) => (
                 <div
                   key={booking.recordId}
                   className="flex items-center justify-between border-b border-border pb-3 last:border-0"
@@ -297,20 +359,13 @@ const OwnerDetail = () => {
               ))}
             </div>
           </SectionCard>
-        );
-      },
-    },
-    { recordId: 'payments',
-      label: 'Payments',
-      render: (record) => {
-        const allPayments = record?.payments || [];
-        return (
+
           <SectionCard title="Payment History" variant="spacious">
             <div className="space-y-3">
-              {allPayments.length === 0 && (
+              {payments.length === 0 && (
                 <p className="text-sm text-muted">No payments yet</p>
               )}
-              {allPayments.map((payment) => (
+              {payments.map((payment) => (
                 <div
                   key={payment.recordId}
                   className="flex items-center justify-between border-b border-border pb-3 last:border-0"
@@ -328,31 +383,22 @@ const OwnerDetail = () => {
               ))}
             </div>
           </SectionCard>
-        );
-      },
-    },
-  ], [bookings, payments]);
+        </div>
 
-  const asideSections = useMemo(() => [
-    {
-      recordId: 'pets',
-      className: '!border-none !bg-transparent !p-0 shadow-none',
-      render: (record) => {
-        const recordPets = record?.pets || [];
-        return (
+        <div className="space-y-6">
           <RelatedPetsSection
-            title={`Pets (${recordPets.length})`}
+            title={`Pets (${ownerPets.length})`}
             actions={
               <Button size="xs" variant="ghost" onClick={() => setAddPetModalOpen(true)}>
                 + Add
               </Button>
             }
           >
-            {recordPets.length === 0 ? (
+            {ownerPets.length === 0 ? (
               <p className="text-sm text-muted">No pets yet</p>
             ) : (
               <div className="space-y-2">
-                {recordPets.map((pet) => (
+                {ownerPets.map((pet) => (
                   <div
                     key={pet.recordId}
                     className="flex items-center gap-3 rounded-md border border-border px-3 py-2 transition hover:bg-gray-50 dark:hover:bg-surface-secondary"
@@ -376,82 +422,55 @@ const OwnerDetail = () => {
               </div>
             )}
           </RelatedPetsSection>
-        );
-      },
-    },
-    { recordId: 'metrics',
-      title: 'Key Metrics',
-      render: () => (
-        <div className="space-y-3">
-          <InfoRow label="Total Bookings" value={bookings.length} />
-          <InfoRow
-            label="Lifetime Value"
-            value={`$${lifetimeValue.toFixed(2)}`}
-          />
-          <InfoRow
-            label="Last Booking"
-            value={
-              bookings[0]
-                ? new Date(bookings[0].checkIn).toLocaleDateString()
-                : 'Never'
-            }
-          />
-          <InfoRow
-            label="Average Booking Value"
-            value={
-              bookings.length > 0
-                ? `$${(lifetimeValue / bookings.length).toFixed(2)}`
-                : '$0.00'
-            }
-          />
-        </div>
-      ),
-    },
-    { recordId: 'activity',
-      title: 'Recent Activity',
-      render: (record) => {
-        const recent = (record?.bookings || []).slice(0, 3);
-        if (recent.length === 0) {
-          return <p className="text-sm text-muted">No recent activity</p>;
-        }
 
-        return (
-          <div className="space-y-2">
-            {recent.map((booking) => (
-              <div key={booking.recordId} className="rounded-md border border-border p-3">
-                <div className="mb-1 flex items-center gap-2">
-                  <Calendar className="h-3.5 w-3.5 text-muted" />
-                  <span className="text-xs font-medium text-muted">
-                    {new Date(booking.checkIn).toLocaleDateString()}
-                  </span>
-                </div>
-                <p className="text-sm font-medium">Booking #{booking.id.slice(0, 8)}</p>
-                <div className="mt-1">
-                  <StatusPill status={booking.status} />
-                </div>
+          <SectionCard title="Key Metrics">
+            <div className="space-y-3">
+              <InfoRow label="Total Bookings" value={bookings.length} />
+              <InfoRow label="Lifetime Value" value={`$${lifetimeValue.toFixed(2)}`} />
+              <InfoRow
+                label="Last Booking"
+                value={
+                  bookings[0]
+                    ? new Date(bookings[0].checkIn).toLocaleDateString()
+                    : 'Never'
+                }
+              />
+              <InfoRow
+                label="Average Booking Value"
+                value={
+                  bookings.length > 0
+                    ? `$${(lifetimeValue / bookings.length).toFixed(2)}`
+                    : '$0.00'
+                }
+              />
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Recent Activity">
+            {recentActivity.length === 0 ? (
+              <p className="text-sm text-muted">No recent activity</p>
+            ) : (
+              <div className="space-y-2">
+                {recentActivity.map((booking) => (
+                  <div key={booking.recordId} className="rounded-md border border-border p-3">
+                    <div className="mb-1 flex items-center gap-2">
+                      <Calendar className="h-3.5 w-3.5 text-muted" />
+                      <span className="text-xs font-medium text-muted">
+                        {new Date(booking.checkIn).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium">Booking #{booking.id.slice(0, 8)}</p>
+                    <div className="mt-1">
+                      <StatusPill status={booking.status} />
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        );
-      },
-    },
-  ], [bookings, lifetimeValue, pets]);
-
-  return (
-    <>
-    <RecordDetailsView
-      objectType="owner"
-      recordId={ownerId}
-      data={owner}
-      fetchOnMount={false}
-      title={fullName}
-      subtitle={owner.email}
-      actions={actions}
-      summaryTitle="Owner Summary"
-      summaryProps={summaryProps}
-      tabs={tabs}
-      asideSections={asideSections}
-    />
+            )}
+          </SectionCard>
+        </div>
+      </div>
+    </div>
 
     <AssociationModal
       open={addPetModalOpen}
