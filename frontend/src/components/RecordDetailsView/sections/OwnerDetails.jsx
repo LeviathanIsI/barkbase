@@ -1,5 +1,6 @@
 import Button from '@/components/ui/Button';
 import { DetailsGrid, InfoRow, TagList, KeyValue, StatusPill } from '@/components/primitives';
+import OwnerInfoSection from '@/features/directory/components/OwnerInfoSection';
 
 export default function OwnerDetails({ data, avatar, actionButtons = [] }) {
   if (!data) return null;
@@ -14,7 +15,8 @@ export default function OwnerDetails({ data, avatar, actionButtons = [] }) {
     (data.firstName?.[0] ?? '') + (data.lastName?.[0] ?? '');
 
   return (
-    <div className="space-y-6">
+    <OwnerInfoSection>
+      <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div className="flex items-start gap-4">
           {avatar ?? (
@@ -102,6 +104,6 @@ export default function OwnerDetails({ data, avatar, actionButtons = [] }) {
           </div>
         </div>
       </DetailsGrid>
-    </div>
+    </OwnerInfoSection>
   );
 }

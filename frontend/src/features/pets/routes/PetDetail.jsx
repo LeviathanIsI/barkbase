@@ -39,6 +39,7 @@
  * }>
  */
 
+// TODO (C1:3 - Directory UX Cleanup): Align Pet detail visuals with shared directory styling.
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -80,6 +81,8 @@ import { useTenantStore } from '@/stores/tenant';
 import { queryKeys } from '@/lib/queryKeys';
 import { PetFormModal, VaccinationFormModal } from '../components';
 import { cn } from '@/lib/utils';
+import PetInfoSection from '@/features/directory/components/PetInfoSection';
+import RelatedOwnerSection from '@/features/directory/components/RelatedOwnerSection';
 
 const PetDetail = () => {
   const { petId } = useParams();
@@ -403,18 +406,14 @@ const PetDetail = () => {
         // CENTER PANEL: Tab Navigation and Content
         center={
           <div className="h-full flex flex-col">
-            {/* Page Header */}
-            <div className="p-6 border-b border-gray-200 dark:border-[var(--border-light)]">
-              <div className="flex items-start justify-between mb-4">
+            <PetInfoSection className="rounded-none border-0 border-b border-gray-200 dark:border-[var(--border-light)] bg-transparent">
+              <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
-                  {/* Pet Avatar */}
-                  <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0">
-                    <PawPrint className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                  <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/20">
+                    <PawPrint className="h-8 w-8 text-blue-600 dark:text-blue-400" />
                   </div>
-
-                  {/* Pet Name & Details */}
                   <div>
-                    <h1 className="text-2xl font-semibold text-[var(--text-primary)] mb-1">
+                    <h1 className="mb-1 text-2xl font-semibold text-[var(--text-primary)]">
                       {pet.name}
                     </h1>
                     <p className="text-sm text-[var(--text-secondary)]">
@@ -424,21 +423,19 @@ const PetDetail = () => {
                     </p>
                   </div>
                 </div>
-
-                {/* Action Buttons */}
                 <div className="flex gap-2">
                   <Button variant="secondary" size="sm" onClick={handleEdit}>
-                    <Edit className="w-4 h-4 mr-2" />
+                    <Edit className="mr-2 h-4 w-4" />
                     Edit
                   </Button>
                   <Button variant="ghost" size="sm" onClick={handleDelete}>
-                    <Trash2 className="w-4 h-4 mr-2" />
+                    <Trash2 className="mr-2 h-4 w-4" />
                     Delete
                   </Button>
                 </div>
               </div>
-
-              {/* Tab Navigation */}
+            </PetInfoSection>
+            <div className="px-6">
               <nav className="flex space-x-8 border-b border-gray-200 dark:border-[var(--border-light)] -mb-px">
                 {tabs.map(tab => {
                   const Icon = tab.icon;
@@ -487,27 +484,23 @@ const PetDetail = () => {
 
         // RIGHT PANEL: Owner & Quick Actions
         right={
-          <>
-            {/* Owner Info */}
+          <div className="space-y-6">
             {primaryOwner && (
-              <PanelSection title="Owner">
+              <RelatedOwnerSection title="Owner">
                 <div className="space-y-4">
-                  {/* Owner Avatar & Name */}
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center flex-shrink-0">
-                      <User className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                    <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/20">
+                      <User className="h-6 w-6 text-purple-600 dark:text-purple-400" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-[var(--text-primary)] truncate">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-[var(--text-primary)]">
                         {primaryOwner.name || `${primaryOwner.firstName || ''} ${primaryOwner.lastName || ''}`.trim()}
                       </p>
-                      <p className="text-xs text-[var(--text-secondary)] truncate">
+                      <p className="truncate text-xs text-[var(--text-secondary)]">
                         {primaryOwner.email}
                       </p>
                     </div>
                   </div>
-
-                  {/* Owner Contact Details */}
                   {primaryOwner.phone && (
                     <PropertyList
                       properties={[
@@ -516,8 +509,6 @@ const PetDetail = () => {
                       ]}
                     />
                   )}
-
-                  {/* View Full Owner Profile */}
                   <Button
                     variant="secondary"
                     size="sm"
@@ -527,7 +518,7 @@ const PetDetail = () => {
                     View Owner Profile
                   </Button>
                 </div>
-              </PanelSection>
+              </RelatedOwnerSection>
             )}
 
             {/* Quick Actions */}
@@ -612,7 +603,7 @@ const PetDetail = () => {
                 </div>
               </PanelSection>
             )}
-          </>
+          </div>
         }
       />
 

@@ -25,7 +25,9 @@ import toast from 'react-hot-toast';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useTenantStore } from '@/stores/tenant';
 import { queryKeys } from '@/lib/queryKeys';
+import RelatedPetsSection from '@/features/directory/components/RelatedPetsSection';
 
+// TODO (C1:3 - Directory UX Cleanup): Align Owner detail layout with shared directory styling.
 const OwnerDetail = () => {
   const { ownerId } = useParams();
   const navigate = useNavigate();
@@ -332,43 +334,48 @@ const OwnerDetail = () => {
   ], [bookings, payments]);
 
   const asideSections = useMemo(() => [
-    { recordId: 'pets',
-      title: `Pets (${pets.length})`,
-      header: (
-        <Button size="xs" variant="ghost" onClick={() => setAddPetModalOpen(true)}>
-          + Add
-        </Button>
-      ),
+    {
+      recordId: 'pets',
+      className: '!border-none !bg-transparent !p-0 shadow-none',
       render: (record) => {
         const recordPets = record?.pets || [];
-        if (recordPets.length === 0) {
-          return <p className="text-sm text-muted">No pets yet</p>;
-        }
-
         return (
-          <div className="space-y-2">
-            {recordPets.map((pet) => (
-              <div
-                key={pet.recordId}
-                className="flex items-center gap-3 rounded-md border border-border px-3 py-2 transition hover:bg-gray-50 dark:hover:bg-surface-secondary"
-              >
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 text-primary-600">
-                  <PawPrint className="h-5 w-5" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">{pet.name}</p>
-                  <p className="text-xs text-muted">{pet.breed || 'Unknown breed'}</p>
-                </div>
-                <button
-                  onClick={() => handleRemovePet(pet)}
-                  className="rounded-full p-1 text-muted transition hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 dark:hover:text-red-400"
-                  title="Remove pet"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+          <RelatedPetsSection
+            title={`Pets (${recordPets.length})`}
+            actions={
+              <Button size="xs" variant="ghost" onClick={() => setAddPetModalOpen(true)}>
+                + Add
+              </Button>
+            }
+          >
+            {recordPets.length === 0 ? (
+              <p className="text-sm text-muted">No pets yet</p>
+            ) : (
+              <div className="space-y-2">
+                {recordPets.map((pet) => (
+                  <div
+                    key={pet.recordId}
+                    className="flex items-center gap-3 rounded-md border border-border px-3 py-2 transition hover:bg-gray-50 dark:hover:bg-surface-secondary"
+                  >
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 text-primary-600">
+                      <PawPrint className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{pet.name}</p>
+                      <p className="text-xs text-muted">{pet.breed || 'Unknown breed'}</p>
+                    </div>
+                    <button
+                      onClick={() => handleRemovePet(pet)}
+                      className="rounded-full p-1 text-muted transition hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 dark:hover:text-red-400"
+                      title="Remove pet"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+          </RelatedPetsSection>
         );
       },
     },
