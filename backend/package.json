@@ -1,0 +1,16 @@
+{
+  "name": "barkbase-backend",
+  "version": "0.1.0",
+  "description": "Unified BarkBase backend (in-progress)",
+  "main": "server.js",
+  "private": true,
+  "scripts": {
+    "dev": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}

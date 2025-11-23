@@ -1,6 +1,6 @@
-const { getUserInfoFromEvent } = require('./user-context');
+const { authMiddleware } = require('./user-context');
 
 module.exports = {
-  getUserInfoFromEvent,
+  authMiddleware,
 };
 

@@ -1,44 +1,25 @@
-const { getSecureHeaders, errorResponse, successResponse } = require('./security');
-
-const ok = (event, statusCode, data = '', additionalHeaders = {}) => {
-  if (statusCode === 204) {
-    const origin = event?.headers?.origin || event?.headers?.Origin;
-    const stage = process.env.STAGE || 'development';
-    return {
-      statusCode,
-      headers: {
-        ...getSecureHeaders(origin, stage),
-        ...additionalHeaders,
-      },
-      body: '',
-    };
+const ok = (res, data = null, statusCode = 200, headers = {}) => {
+  if (headers && Object.keys(headers).length > 0) {
+    res.set(headers);
   }
 
-  return successResponse(statusCode, data, event, additionalHeaders);
+  if (statusCode === 204) {
+    return res.status(statusCode).end();
+  }
+
+  if (data === null || data === undefined) {
+    return res.status(statusCode).json({});
+  }
+
+  return res.status(statusCode).json(data);
 };
 
-const fail = (event, statusCode, errorCodeOrBody, message, additionalHeaders = {}) => {
-  if (typeof errorCodeOrBody === 'object' && errorCodeOrBody !== null) {
-    const origin = event?.headers?.origin || event?.headers?.Origin;
-    const stage = process.env.STAGE || 'development';
-    return {
-      statusCode,
-      headers: {
-        ...getSecureHeaders(origin, stage),
-        ...additionalHeaders,
-      },
-      body: JSON.stringify(errorCodeOrBody),
-    };
+const fail = (res, statusCode = 500, payload = {}) => {
+  const body = typeof payload === 'string' ? { message: payload } : payload || {};
+  if (!body.message && body.error) {
+    body.message = body.error;
   }
-
-  const response = errorResponse(statusCode, errorCodeOrBody, message, event);
-  return {
-    ...response,
-    headers: {
-      ...response.headers,
-      ...additionalHeaders,
-    },
-  };
+  return res.status(statusCode).json(body);
 };
 
 module.exports = {
