@@ -7,6 +7,7 @@ import TodayArrivalsList from '@/features/today/components/TodayArrivalsList';
 import TodayDeparturesList from '@/features/today/components/TodayDeparturesList';
 import TodayBatchCheckInModal from '@/features/today/components/TodayBatchCheckInModal';
 import TodayBatchCheckOutModal from '@/features/today/components/TodayBatchCheckOutModal';
+import TodayGrid from '@/features/today/components/TodayGrid';
 
 /**
  * TodayCommandCenter Component
@@ -14,6 +15,7 @@ import TodayBatchCheckOutModal from '@/features/today/components/TodayBatchCheck
  * Provides calm, focused interface for daily operations
  */
 const TodayCommandCenter = () => {
+  // TODO (Nav Cleanup B:4): Update nav labels + section grouping once Today page is finalized.
   // TODO (Today Refactor B:3): Visual cleanup + layout polish next.
   const [showBatchCheckIn, setShowBatchCheckIn] = useState(false);
   const [showBatchCheckOut, setShowBatchCheckOut] = useState(false);
@@ -153,14 +155,14 @@ const TodayCommandCenter = () => {
   }
 
   return (
-    <div className="flex h-full flex-col space-y-6 px-4 py-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <div className="flex flex-col gap-8 px-4 py-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       <TodayHeroCard
         kennelName={kennelName}
         formattedDate={formattedDate}
         stats={stats}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <TodayGrid>
         <TodayArrivalsList
           arrivals={arrivals}
           isLoading={loadingArrivals}
@@ -171,7 +173,7 @@ const TodayCommandCenter = () => {
           isLoading={loadingDepartures}
           onBatchCheckOut={() => setShowBatchCheckOut(true)}
         />
-      </div>
+      </TodayGrid>
 
       <TodayBatchCheckInModal
         open={showBatchCheckIn}
