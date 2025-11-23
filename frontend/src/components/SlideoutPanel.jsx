@@ -11,8 +11,8 @@ const SlideoutPanel = ({
   widthClass = 'max-w-xl',
 }) => {
   const TRANSITION_MS = 300;
-  const [isMounted, setIsMounted] = useState(isOpen);
-  const [isVisible, setIsVisible] = useState(isOpen);
+  const [isMounted, setIsMounted] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
   const closeTimeoutRef = useRef(null);
 
   useEffect(() => {
