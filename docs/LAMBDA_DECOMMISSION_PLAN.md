@@ -70,3 +70,8 @@ All canonical services (`entity-service`, `operations-service`, `analytics-servi
 
 Following this plan will let us retire the duplicate Lambdas safely without introducing regressions.
 
+### Phase 7 Milestone
+- `properties-api` (v1) now returns `410 Gone` as a legacy tombstone.
+- All frontend traffic uses `/api/v2/properties` (verified during Phase 5/6).
+- Next phase (Phase 8): remove CDK integration, API Gateway routes, and the Lambda deployment entirely.
+

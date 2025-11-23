@@ -44,7 +44,7 @@ This reference lists every Lambda under `aws/lambdas/`, the domain(s) it serves,
 | `memberships-api` | Membership management | legacy | `/api/v1/memberships` | Superseded by `config-service` | Decommission |
 | `roles-api` | Role definitions | legacy | `/api/v1/roles` | Superseded by `config-service` | Decommission |
 | `user-permissions-api` | Permission assignments | legacy | `/api/v1/user-permissions` | Superseded by `config-service` + user-profile-service | Decommission |
-| `properties-api` | Properties CRUD (v1) | mixed/legacy | `/api/v1/properties` | Will be merged into `properties-api-v2` | Keep until CRUD migrates, then retire |
+| `properties-api` | Properties CRUD (v1) | retired (410 sentinel active) | `/api/v1/properties` | Superseded by `properties-api-v2`; Lambda kept only as tombstone | Scheduled for deletion in Phase 8 |
 | `segments-api` | Segmentation scaffold | unused placeholder | (no handler file) | Future analytics/marketing | Remove once strategy decided |
 
 ## Supporting / Jobs / Utilities
@@ -70,5 +70,5 @@ This reference lists every Lambda under `aws/lambdas/`, the domain(s) it serves,
 4. **Operations-era duplicates:** `check-in-api`, `check-out-api`, `runs-api`, `kennels-api`, `bookings-api`.
 5. **Analytics-era duplicates:** `dashboard-api`, `reports-api`, `schedule-api`.
 6. **Config-era duplicates:** `account-defaults-api`, `services-api`, `facility-api`, `tenants-api`, `memberships-api`, `roles-api`, `user-permissions-api`.
-7. **Properties CRUD:** `properties-api` (after v1→v2 consolidation completes).
+7. **Properties CRUD:** `properties-api` (tombstoned; delete in Phase 8 after monitoring window).
 
