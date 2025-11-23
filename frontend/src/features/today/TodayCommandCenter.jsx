@@ -14,6 +14,7 @@ import TodayBatchCheckOutModal from '@/features/today/components/TodayBatchCheck
  * Provides calm, focused interface for daily operations
  */
 const TodayCommandCenter = () => {
+  // TODO (Today Refactor B:3): Visual cleanup + layout polish next.
   const [showBatchCheckIn, setShowBatchCheckIn] = useState(false);
   const [showBatchCheckOut, setShowBatchCheckOut] = useState(false);
 
@@ -25,8 +26,7 @@ const TodayCommandCenter = () => {
   
   const kennelName = userProfile?.propertyName || userProfile?.businessName || '';
 
-  // Fetch arrivals - bookings starting today (PENDING or CONFIRMED)
-  const { data: arrivals = [], isLoading: loadingArrivals } = useQuery({
+  const arrivalsQuery = useQuery({
     queryKey: ['bookings', 'arrivals', today],
     queryFn: async () => {
       // Fetch all bookings for today and filter by status
@@ -44,8 +44,7 @@ const TodayCommandCenter = () => {
     refetchInterval: 30000
   });
 
-  // Fetch departures - bookings ending today (currently CHECKED_IN)
-  const { data: departures = [], isLoading: loadingDepartures } = useQuery({
+  const departuresQuery = useQuery({
     queryKey: ['bookings', 'departures', today],
     queryFn: async () => {
       // Fetch checked-in bookings ending today
@@ -61,8 +60,7 @@ const TodayCommandCenter = () => {
     refetchInterval: 30000
   });
 
-  // Fetch current occupancy - pets currently checked in
-  const { data: inFacility = [], isLoading: loadingOccupancy } = useQuery({
+  const occupancyQuery = useQuery({
     queryKey: ['bookings', 'checked-in', today],
     queryFn: async () => {
       const response = await apiClient.get('/api/v1/bookings', { params: { status: 'CHECKED_IN' } });
@@ -71,8 +69,14 @@ const TodayCommandCenter = () => {
     refetchInterval: 30000
   });
 
-  // Fetch dashboard stats from backend
-  const { data: dashboardStats } = useQuery({
+  const arrivals = arrivalsQuery.data ?? [];
+  const departures = departuresQuery.data ?? [];
+  const inFacility = occupancyQuery.data ?? [];
+  const loadingArrivals = arrivalsQuery.isLoading;
+  const loadingDepartures = departuresQuery.isLoading;
+  const loadingOccupancy = occupancyQuery.isLoading;
+
+  const dashboardStatsQuery = useQuery({
     queryKey: ['dashboard', 'stats', today],
     queryFn: async () => {
       const response = await apiClient.get('/api/v1/dashboard/stats');
@@ -81,8 +85,9 @@ const TodayCommandCenter = () => {
     refetchInterval: 60000 // Refresh every minute
   });
 
-  // Fetch issues/attention items (vaccinations, unpaid bookings)
-  const { data: attentionItems = 0 } = useQuery({
+  const dashboardStats = dashboardStatsQuery.data || {};
+
+  const attentionItemsQuery = useQuery({
     queryKey: ['attention', 'items', today],
     queryFn: async () => {
       try {
@@ -101,6 +106,8 @@ const TodayCommandCenter = () => {
     enabled: arrivals.length > 0,
     refetchInterval: 60000
   });
+
+  const attentionItems = attentionItemsQuery.data ?? 0;
 
   // Calculate stats
   const stats = useMemo(() => {
