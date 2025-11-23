@@ -80,3 +80,9 @@ Following this plan will let us retire the duplicate Lambdas safely without intr
 - Only `properties-api-v2` remains deployed for the properties domain; `/api/v2/properties*` is the single canonical surface.
 - The legacy source folder stays in the repo for historical reference and contingency testing, but it is no longer part of any stack.
 
+### Phase 9 Milestone
+- 26 legacy Lambdas were documented as consolidation candidates (see `docs/LAMBDA_CONSOLIDATION_CANDIDATES.md`).
+- The densest opportunities are in the Config era (8 services) and Features era (6 services), followed by Operations (5) and Analytics (4).
+- Entity-era clean-up (pets/owners/staff) and Properties (already tombstoned) remain straightforward removals once telemetry confirms zero traffic.
+- Actual consolidation work (route moves, DTO adapters, schema cleanup) will occur in later phases (Phase 10+); this phase is analysis/documentation only.
+
