@@ -975,19 +975,6 @@ export class CdkStack extends cdk.Stack {
     httpApi.addRoutes({ path: '/api/v1/schedule/capacity', methods: [apigw.HttpMethod.GET], integration: analyticsIntegration, authorizer: httpAuthorizer });
 
 
-    // Incidents API - REPLACED BY FeaturesServiceFunction
-    // const incidentsApiFunction = new lambda.Function(this, 'IncidentsApiFunction', {
-    //   runtime: lambda.Runtime.NODEJS_20_X,
-    //   handler: 'index.handler',
-    //   code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/incidents-api')),
-    //   layers: [dbLayer],
-    //   environment: dbEnvironment,
-    //   // No VPC - connects to public database
-    //   timeout: cdk.Duration.seconds(30),
-    // });
-    // const incidentsIntegration = new HttpLambdaIntegration('IncidentsIntegration', incidentsApiFunction);
-    // httpApi.addRoutes({ path: '/api/v1/incidents', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: incidentsIntegration, authorizer: httpAuthorizer });
-
     // === ENTERPRISE PROPERTY MANAGEMENT SYSTEM ===
 
     // Properties API v2 (Enhanced with rich metadata, dependencies, and enterprise features)
@@ -1058,51 +1045,6 @@ export class CdkStack extends cdk.Stack {
     });
     permanentDeletionSchedule.addTarget(new targets.LambdaFunction(propertyPermanentDeletionJobFunction));
 
-    // Invites API - REPLACED BY FeaturesServiceFunction
-    // const invitesApiFunction = new lambda.Function(this, 'InvitesApiFunction', {
-    //   runtime: lambda.Runtime.NODEJS_20_X,
-    //   handler: 'index.handler',
-    //   code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/invites-api')),
-    //   layers: [dbLayer],
-    //   environment: dbEnvironment,
-    //   // No VPC - connects to public database
-    //   timeout: cdk.Duration.seconds(30),
-    //   allowPublicSubnet: true,
-    // });
-    // const invitesIntegration = new HttpLambdaIntegration('InvitesIntegration', invitesApiFunction);
-    // httpApi.addRoutes({ path: '/api/v1/invites', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: invitesIntegration, authorizer: httpAuthorizer });
-
-
-    // Tasks API - REPLACED BY FeaturesServiceFunction
-    // const tasksApiFunction = new lambda.Function(this, 'TasksApiFunction', {
-    //   runtime: lambda.Runtime.NODEJS_20_X,
-    //   handler: 'index.handler',
-    //   code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/tasks-api')),
-    //   layers: [dbLayer],
-    //   environment: dbEnvironment,
-    //   // No VPC - connects to public database
-    //   timeout: cdk.Duration.seconds(30),
-    //   allowPublicSubnet: true,
-    // });
-    // dbSecret.grantRead(tasksApiFunction);
-    // const tasksIntegration = new HttpLambdaIntegration('TasksIntegration', tasksApiFunction);
-    // httpApi.addRoutes({ path: '/api/v1/tasks', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: tasksIntegration, authorizer: httpAuthorizer });
-    // httpApi.addRoutes({ path: '/api/v1/tasks/{taskId}', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PUT, apigw.HttpMethod.DELETE], integration: tasksIntegration });
-    // httpApi.addRoutes({ path: '/api/v1/tasks/{taskId}/complete', methods: [apigw.HttpMethod.POST], integration: tasksIntegration });
-
-    // Messages API - REPLACED BY FeaturesServiceFunction
-    // const messagesApiFunction = new lambda.Function(this, 'MessagesApiFunction', {
-    //   runtime: lambda.Runtime.NODEJS_20_X,
-    //   handler: 'index.handler',
-    //   code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/messages-api')),
-    //   layers: [dbLayer],
-    //   environment: dbEnvironment,
-    //   // No VPC - connects to public database
-    //   timeout: cdk.Duration.seconds(30),
-    //   allowPublicSubnet: true,
-    // });
-    // const messagesIntegration = new HttpLambdaIntegration('MessagesIntegration', messagesApiFunction);
-    // httpApi.addRoutes({ path: '/api/v1/messages', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: messagesIntegration, authorizer: httpAuthorizer });
 
     // Admin API
     const adminApiFunction = new lambda.Function(this, 'AdminApiFunction', {
@@ -1117,34 +1059,6 @@ export class CdkStack extends cdk.Stack {
     });
     const adminIntegration = new HttpLambdaIntegration('AdminIntegration', adminApiFunction);
     httpApi.addRoutes({ path: '/api/v1/admin/stats', methods: [apigw.HttpMethod.GET], integration: adminIntegration, authorizer: httpAuthorizer });
-
-    // Communication API - REPLACED BY FeaturesServiceFunction
-    // const communicationApiFunction = new lambda.Function(this, 'CommunicationApiFunction', {
-    //   runtime: lambda.Runtime.NODEJS_20_X,
-    //   handler: 'index.handler',
-    //   code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/communication-api')),
-    //   layers: [dbLayer],
-    //   environment: dbEnvironment,
-    //   // No VPC - connects to public database
-    //   timeout: cdk.Duration.seconds(30),
-    //   allowPublicSubnet: true,
-    // });
-    // const communicationIntegration = new HttpLambdaIntegration('CommunicationIntegration', communicationApiFunction);
-    // httpApi.addRoutes({ path: '/api/v1/communications', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: communicationIntegration, authorizer: httpAuthorizer });
-
-    // Notes API - REPLACED BY FeaturesServiceFunction
-    // const notesApiFunction = new lambda.Function(this, 'NotesApiFunction', {
-    //   runtime: lambda.Runtime.NODEJS_20_X,
-    //   handler: 'index.handler',
-    //   code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/notes-api')),
-    //   layers: [dbLayer],
-    //   environment: dbEnvironment,
-    //   // No VPC - connects to public database
-    //   timeout: cdk.Duration.seconds(30),
-    //   allowPublicSubnet: true,
-    // });
-    // const notesIntegration = new HttpLambdaIntegration('NotesIntegration', notesApiFunction);
-    // httpApi.addRoutes({ path: '/api/v1/notes', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: notesIntegration, authorizer: httpAuthorizer });
 
     // === NEW CONSOLIDATED SERVICES (Replaces 22 individual Lambda functions) ===
 
