@@ -15,6 +15,7 @@
 
 const { getPool } = require('/opt/nodejs');
 const { getTenantIdFromEvent } = require('/opt/nodejs');
+const { v4: uuidv4 } = require('uuid');
 const propertySerializer = require('./serializers/property-serializer');
 const dependenciesHandler = require('./handlers/dependencies');
 const cascadeOperationsHandler = require('./handlers/cascade-operations');
@@ -55,24 +56,49 @@ exports.handler = async (event) => {
     
     // Route: GET /api/v2/properties
     if (method === 'GET' && (path === '/api/v2/properties' || path.endsWith('/properties'))) {
+      if (isLegacyMode) {
+        return await listLegacyProperties(queryParams, tenantId);
+      }
       return await listProperties(tenantId, queryParams);
     }
 
     // Route: GET /api/v2/properties/{propertyId}
     if (method === 'GET' && path.match(/\/properties\/[^/]+$/) && !path.includes('/dependencies')) {
       const propertyId = pathParams.propertyId;
+      if (isLegacyMode) {
+        return await getLegacyProperty(tenantId, propertyId);
+      }
       return await getProperty(tenantId, propertyId, queryParams);
     }
 
     // Route: POST /api/v2/properties
     if (method === 'POST' && path.endsWith('/properties')) {
+      if (isLegacyCreatePayload(body)) {
+        return await createLegacyProperty(body, tenantId, userId);
+      }
       return await createProperty(tenantId, userId, body);
     }
 
     // Route: PATCH /api/v2/properties/{propertyId}
     if (method === 'PATCH' && path.match(/\/properties\/[^/]+$/)) {
       const propertyId = pathParams.propertyId;
+      if (isLegacyUpdatePayload(body)) {
+        return await updateLegacyProperty(body, tenantId, userId, propertyId);
+      }
       return await updateProperty(tenantId, userId, propertyId, body);
+    }
+
+    // Route: DELETE /api/v2/properties/{propertyId}
+    if (method === 'DELETE' && path.match(/\/properties\/[^/]+$/) && !path.includes('/force')) {
+      const propertyId = pathParams.propertyId;
+      if (isLegacyMode) {
+        return await deleteLegacyProperty(tenantId, propertyId);
+      }
+      return {
+        statusCode: 405,
+        headers: getResponseHeaders(2),
+        body: JSON.stringify({ error: 'Delete not supported. Use archive/substitute/force endpoints.' }),
+      };
     }
 
     // Route: GET /api/v2/properties/{propertyId}/dependencies
@@ -441,6 +467,492 @@ async function updateProperty(tenantId, userId, propertyId, data) {
       statusCode: 200,
       headers: getResponseHeaders(2),
       body: JSON.stringify(serialized),
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Legacy CRUD support (v1 compatibility over v2 routes)
+ */
+function isLegacyCreatePayload(body) {
+  return (
+    body &&
+    body.objectType &&
+    body.name &&
+    body.label &&
+    !body.propertyName &&
+    !body.propertyType
+  );
+}
+
+function isLegacyUpdatePayload(body = {}) {
+  if (!body || typeof body !== 'object') {
+    return false;
+  }
+  if (body.displayLabel !== undefined || body.propertyGroup !== undefined || body.propertyName !== undefined) {
+    return false;
+  }
+  const legacyFields = [
+    'label',
+    'description',
+    'isRequired',
+    'isVisible',
+    'isSearchable',
+    'isEditable',
+    'isUnique',
+    'group',
+    'order',
+    'options',
+    'validation',
+    'defaultValue',
+    'metadata',
+  ];
+  return legacyFields.some((field) => Object.prototype.hasOwnProperty.call(body, field));
+}
+
+function stringifyIfObject(value) {
+  if (value === null || value === undefined) return value;
+  if (typeof value === 'string') return value;
+  return JSON.stringify(value);
+}
+
+function mapLegacyRow(row) {
+  if (!row) return row;
+  return {
+    ...row,
+    options: stringifyIfObject(row.options),
+    validation: stringifyIfObject(row.validation),
+    defaultValue: stringifyIfObject(row.defaultValue),
+    metadata: stringifyIfObject(row.metadata),
+  };
+}
+
+async function listLegacyProperties(queryParams, tenantId) {
+  const objectType = queryParams.objectType;
+  if (!objectType) {
+    return {
+      statusCode: 400,
+      headers: getResponseHeaders(2),
+      body: JSON.stringify({ error: 'Missing required parameter: objectType' }),
+    };
+  }
+
+  const includeArchived = queryParams.includeArchived === 'true';
+  const onlyArchived = queryParams.onlyArchived === 'true';
+
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    let query = `
+      SELECT 
+        "recordId",
+        "tenantId",
+        "objectType",
+        "name",
+        "label",
+        "description",
+        "type",
+        "isSystem",
+        "isRequired",
+        "isVisible",
+        "isSearchable",
+        "isEditable",
+        "isUnique",
+        "group",
+        "order",
+        "options",
+        "validation",
+        "defaultValue",
+        "metadata",
+        "createdAt",
+        "updatedAt",
+        "createdBy",
+        "accessLevel",
+        "isArchived",
+        "archivedAt",
+        "archivedBy"
+      FROM "Property"
+      WHERE "objectType" = $1
+        AND ("tenantId" IS NULL OR "tenantId" = $2)
+    `;
+
+    if (onlyArchived) {
+      query += ` AND "isArchived" = true`;
+    } else if (!includeArchived) {
+      query += ` AND ("isArchived" = false OR "isArchived" IS NULL)`;
+    }
+
+    query += ` ORDER BY "isSystem" DESC, "group" ASC, "order" ASC, "label" ASC`;
+
+    const result = await client.query(query, [objectType, tenantId]);
+    const rows = result.rows.map(mapLegacyRow);
+
+    return {
+      statusCode: 200,
+      headers: getResponseHeaders(2),
+      body: JSON.stringify(rows),
+    };
+  } finally {
+    client.release();
+  }
+}
+
+async function getLegacyProperty(tenantId, propertyId) {
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    const result = await client.query(
+      `SELECT 
+        "recordId",
+        "tenantId",
+        "objectType",
+        "name",
+        "label",
+        "description",
+        "type",
+        "isSystem",
+        "isRequired",
+        "isVisible",
+        "isSearchable",
+        "isEditable",
+        "isUnique",
+        "group",
+        "order",
+        "options",
+        "validation",
+        "defaultValue",
+        "metadata",
+        "createdAt",
+        "updatedAt",
+        "createdBy",
+        "accessLevel",
+        "isArchived",
+        "archivedAt",
+        "archivedBy"
+      FROM "Property"
+      WHERE "recordId" = $1
+        AND ("tenantId" IS NULL OR "tenantId" = $2)`,
+      [propertyId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return {
+        statusCode: 404,
+        headers: getResponseHeaders(2),
+        body: JSON.stringify({ error: 'Property not found' }),
+      };
+    }
+
+    return {
+      statusCode: 200,
+      headers: getResponseHeaders(2),
+      body: JSON.stringify(mapLegacyRow(result.rows[0])),
+    };
+  } finally {
+    client.release();
+  }
+}
+
+async function createLegacyProperty(body, tenantId, userId) {
+  const requiredFields = ['objectType', 'name', 'label', 'type'];
+  for (const field of requiredFields) {
+    if (!body[field]) {
+      return {
+        statusCode: 400,
+        headers: getResponseHeaders(2),
+        body: JSON.stringify({ error: `Missing required field: ${field}` }),
+      };
+    }
+  }
+
+  if (!/^[a-z_][a-z0-9_]*$/i.test(body.name)) {
+    return {
+      statusCode: 400,
+      headers: getResponseHeaders(2),
+      body: JSON.stringify({
+        error: 'Property name must start with a letter and contain only letters, numbers, and underscores',
+      }),
+    };
+  }
+
+  if (body.isSystem === true) {
+    return {
+      statusCode: 403,
+      headers: getResponseHeaders(2),
+      body: JSON.stringify({ error: 'Cannot create system properties via API' }),
+    };
+  }
+
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const existing = await client.query(
+      `SELECT "recordId" FROM "Property"
+       WHERE "tenantId" = $1
+         AND "objectType" = $2
+         AND "name" = $3`,
+      [tenantId, body.objectType, body.name]
+    );
+
+    if (existing.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return {
+        statusCode: 409,
+        headers: getResponseHeaders(2),
+        body: JSON.stringify({ error: 'A property with this name already exists for this object type' }),
+      };
+    }
+
+    const values = [
+      uuidv4(),
+      tenantId,
+      body.objectType,
+      body.name,
+      body.label,
+      body.description || null,
+      body.type,
+      false,
+      body.isRequired || false,
+      body.isVisible !== undefined ? body.isVisible : true,
+      body.isSearchable !== undefined ? body.isSearchable : true,
+      body.isEditable !== undefined ? body.isEditable : true,
+      body.isUnique || false,
+      body.group || 'Custom Fields',
+      body.order || 1000,
+      stringifyIfObject(body.options),
+      stringifyIfObject(body.validation),
+      stringifyIfObject(body.defaultValue),
+      stringifyIfObject(body.metadata) || '{}',
+      userId || 'api',
+    ];
+
+    const insertQuery = `
+      INSERT INTO "Property" (
+        "recordId",
+        "tenantId",
+        "objectType",
+        "name",
+        "label",
+        "description",
+        "type",
+        "isSystem",
+        "isRequired",
+        "isVisible",
+        "isSearchable",
+        "isEditable",
+        "isUnique",
+        "group",
+        "order",
+        "options",
+        "validation",
+        "defaultValue",
+        "metadata",
+        "createdBy"
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20
+      )
+      RETURNING *
+    `;
+
+    const result = await client.query(insertQuery, values);
+    await client.query('COMMIT');
+
+    return {
+      statusCode: 201,
+      headers: getResponseHeaders(2),
+      body: JSON.stringify(mapLegacyRow(result.rows[0])),
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function updateLegacyProperty(body, tenantId, userId, propertyId) {
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const existing = await client.query(
+      `SELECT * FROM "Property"
+       WHERE "recordId" = $1
+         AND ("tenantId" IS NULL OR "tenantId" = $2)`,
+      [propertyId, tenantId]
+    );
+
+    if (existing.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return {
+        statusCode: 404,
+        headers: getResponseHeaders(2),
+        body: JSON.stringify({ error: 'Property not found' }),
+      };
+    }
+
+    const property = existing.rows[0];
+
+    if (property.isSystem) {
+      const allowedFields = ['isVisible', 'isRequired', 'order', 'group'];
+      const setClause = [];
+      const values = [];
+      let paramIndex = 1;
+
+      for (const field of allowedFields) {
+        if (body[field] !== undefined) {
+          setClause.push(`"${field}" = $${paramIndex}`);
+          values.push(body[field]);
+          paramIndex++;
+        }
+      }
+
+      if (setClause.length === 0) {
+        await client.query('ROLLBACK');
+        return {
+          statusCode: 400,
+          headers: getResponseHeaders(2),
+          body: JSON.stringify({ error: 'No valid fields to update for system property' }),
+        };
+      }
+
+      setClause.push(`"updatedAt" = CURRENT_TIMESTAMP`);
+      values.push(propertyId);
+
+      const result = await client.query(
+        `UPDATE "Property"
+         SET ${setClause.join(', ')}
+         WHERE "recordId" = $${paramIndex}
+         RETURNING *`,
+        values
+      );
+
+      await client.query('COMMIT');
+
+      return {
+        statusCode: 200,
+        headers: getResponseHeaders(2),
+        body: JSON.stringify(mapLegacyRow(result.rows[0])),
+      };
+    }
+
+    const allowedFields = [
+      'label',
+      'description',
+      'isRequired',
+      'isVisible',
+      'isSearchable',
+      'isEditable',
+      'isUnique',
+      'group',
+      'order',
+      'options',
+      'validation',
+      'defaultValue',
+      'metadata',
+    ];
+
+    const setClause = [];
+    const values = [];
+    let paramIndex = 1;
+
+    for (const field of allowedFields) {
+      if (body[field] !== undefined) {
+        if (['options', 'validation', 'defaultValue', 'metadata'].includes(field)) {
+          setClause.push(`"${field}" = $${paramIndex}`);
+          values.push(stringifyIfObject(body[field]));
+        } else {
+          setClause.push(`"${field}" = $${paramIndex}`);
+          values.push(body[field]);
+        }
+        paramIndex++;
+      }
+    }
+
+    if (setClause.length === 0) {
+      await client.query('ROLLBACK');
+      return {
+        statusCode: 400,
+        headers: getResponseHeaders(2),
+        body: JSON.stringify({ error: 'No fields to update' }),
+      };
+    }
+
+    setClause.push(`"updatedAt" = CURRENT_TIMESTAMP`);
+    values.push(propertyId, tenantId);
+
+    const result = await client.query(
+      `UPDATE "Property"
+       SET ${setClause.join(', ')}
+       WHERE "recordId" = $${paramIndex} AND "tenantId" = $${paramIndex + 1}
+       RETURNING *`,
+      values
+    );
+
+    await client.query('COMMIT');
+
+    return {
+      statusCode: 200,
+      headers: getResponseHeaders(2),
+      body: JSON.stringify(mapLegacyRow(result.rows[0])),
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+async function deleteLegacyProperty(tenantId, propertyId) {
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const existing = await client.query(
+      `SELECT "isSystem" FROM "Property"
+       WHERE "recordId" = $1 AND "tenantId" = $2`,
+      [propertyId, tenantId]
+    );
+
+    if (existing.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return {
+        statusCode: 404,
+        headers: getResponseHeaders(2),
+        body: JSON.stringify({ error: 'Property not found' }),
+      };
+    }
+
+    if (existing.rows[0].isSystem) {
+      await client.query('ROLLBACK');
+      return {
+        statusCode: 403,
+        headers: getResponseHeaders(2),
+        body: JSON.stringify({ error: 'Cannot delete system properties' }),
+      };
+    }
+
+    await client.query(
+      `DELETE FROM "Property"
+       WHERE "recordId" = $1 AND "tenantId" = $2`,
+      [propertyId, tenantId]
+    );
+
+    await client.query('COMMIT');
+
+    return {
+      statusCode: 204,
+      headers: getResponseHeaders(2),
+      body: '',
     };
   } catch (error) {
     await client.query('ROLLBACK');
