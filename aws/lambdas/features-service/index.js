@@ -5,11 +5,49 @@
 // Do NOT add new logic or endpoints to legacy Lambdas for this domain.
 
 const { getPool, getTenantIdFromEvent } = require('/opt/nodejs');
+const {
+    getSecureHeaders,
+    errorResponse,
+    successResponse,
+} = require('../shared/security-utils');
 
-const HEADERS = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization,x-tenant-id,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
-    'Access-Control-Allow-Methods': 'OPTIONS,GET,POST,PUT,PATCH,DELETE'
+const ok = (event, statusCode, data = '', additionalHeaders = {}) => {
+    if (statusCode === 204) {
+        const origin = event?.headers?.origin || event?.headers?.Origin;
+        const stage = process.env.STAGE || 'development';
+        return {
+            statusCode,
+            headers: {
+                ...getSecureHeaders(origin, stage),
+                ...additionalHeaders,
+            },
+            body: '',
+        };
+    }
+    return successResponse(statusCode, data, event, additionalHeaders);
+};
+
+const fail = (event, statusCode, errorCodeOrBody, message, additionalHeaders = {}) => {
+    if (typeof errorCodeOrBody === 'object' && errorCodeOrBody !== null) {
+        const origin = event?.headers?.origin || event?.headers?.Origin;
+        const stage = process.env.STAGE || 'development';
+        return {
+            statusCode,
+            headers: {
+                ...getSecureHeaders(origin, stage),
+                ...additionalHeaders,
+            },
+            body: JSON.stringify(errorCodeOrBody),
+        };
+    }
+    const response = errorResponse(statusCode, errorCodeOrBody, message, event);
+    return {
+        ...response,
+        headers: {
+            ...response.headers,
+            ...additionalHeaders,
+        },
+    };
 };
 
 function getUserInfoFromEvent(event) {
@@ -31,17 +69,23 @@ exports.handler = async (event) => {
     const path = event.requestContext.http.path;
 
     if (httpMethod === 'OPTIONS') {
-        return { statusCode: 200, headers: HEADERS, body: '' };
+        const origin = event?.headers?.origin || event?.headers?.Origin;
+        const stage = process.env.STAGE || 'development';
+        return {
+            statusCode: 200,
+            headers: getSecureHeaders(origin, stage),
+            body: JSON.stringify({}),
+        };
     }
 
     const userInfo = getUserInfoFromEvent(event);
     if (!userInfo) {
-        return { statusCode: 401, headers: HEADERS, body: JSON.stringify({ message: 'Unauthorized' }) };
+        return fail(event, 401, { message: 'Unauthorized' });
     }
 
     const tenantId = userInfo.tenantId || await getTenantIdFromEvent(event);
     if (!tenantId) {
-        return { statusCode: 401, headers: HEADERS, body: JSON.stringify({ message: 'Missing tenant context' }) };
+        return fail(event, 401, { message: 'Missing tenant context' });
     }
 
     const pool = getPool();
@@ -75,7 +119,7 @@ exports.handler = async (event) => {
                 query += ` ORDER BY "scheduledFor" ASC`;
 
                 const { rows } = await pool.query(query, params);
-                return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows) };
+                return ok(event, 200, rows);
             }
 
             // GET /api/v1/tasks/{taskId} - Get single task
@@ -87,10 +131,10 @@ exports.handler = async (event) => {
                 );
 
                 if (rows.length === 0) {
-                    return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Task not found' }) };
+                    return fail(event, 404, { message: 'Task not found' });
                 }
 
-                return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows[0]) };
+                return ok(event, 200, rows[0]);
             }
 
             // POST /api/v1/tasks - Create new task
@@ -98,11 +142,7 @@ exports.handler = async (event) => {
                 const { type, relatedType, relatedId, assignedTo, scheduledFor, notes, priority } = JSON.parse(event.body);
 
                 if (!type || !relatedType || !relatedId || !scheduledFor) {
-                    return {
-                        statusCode: 400,
-                        headers: HEADERS,
-                        body: JSON.stringify({ message: 'Missing required fields: type, relatedType, relatedId, scheduledFor' })
-                    };
+                    return fail(event, 400, { message: 'Missing required fields: type, relatedType, relatedId, scheduledFor' });
                 }
 
                 const { rows } = await pool.query(
@@ -115,7 +155,7 @@ exports.handler = async (event) => {
                     [tenantId, type, relatedType, relatedId, assignedTo, scheduledFor, notes, priority || 'NORMAL']
                 );
 
-                return { statusCode: 201, headers: HEADERS, body: JSON.stringify(rows[0]) };
+                return ok(event, 201, rows[0]);
             }
 
             // POST /api/v1/tasks/{taskId}/complete - Complete a task
@@ -136,10 +176,10 @@ exports.handler = async (event) => {
                 );
 
                 if (rows.length === 0) {
-                    return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Task not found' }) };
+                    return fail(event, 404, { message: 'Task not found' });
                 }
 
-                return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows[0]) };
+                return ok(event, 200, rows[0]);
             }
 
             // PUT /api/v1/tasks/{taskId} - Update task
@@ -165,10 +205,10 @@ exports.handler = async (event) => {
                 const { rows } = await pool.query(updateQuery, params);
 
                 if (rows.length === 0) {
-                    return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Task not found' }) };
+                    return fail(event, 404, { message: 'Task not found' });
                 }
 
-                return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows[0]) };
+                return ok(event, 200, rows[0]);
             }
 
             // DELETE /api/v1/tasks/{taskId} - Delete task
@@ -181,10 +221,10 @@ exports.handler = async (event) => {
                 );
 
                 if (rowCount === 0) {
-                    return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Task not found' }) };
+                    return fail(event, 404, { message: 'Task not found' });
                 }
 
-                return { statusCode: 204, headers: HEADERS, body: null };
+                return ok(event, 204);
             }
         }
 
@@ -198,7 +238,7 @@ exports.handler = async (event) => {
                 if (entityId) { query += ` AND "entityId" = $2`; params.push(entityId); }
                 query += ` ORDER BY "createdAt" DESC`;
                 const { rows } = await pool.query(query, params);
-                return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows) };
+                return ok(event, 200, rows);
             }
 
             // POST /api/v1/notes - Create note
@@ -209,7 +249,7 @@ exports.handler = async (event) => {
                      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW()) RETURNING *`,
                     [tenantId, entityId, entityType, content, visibility || 'ALL']
                 );
-                return { statusCode: 201, headers: HEADERS, body: JSON.stringify(rows[0]) };
+                return ok(event, 201, rows[0]);
             }
         }
 
@@ -221,7 +261,7 @@ exports.handler = async (event) => {
                     `SELECT * FROM "IncidentReport" WHERE "tenantId" = $1 ORDER BY "timestamp" DESC`,
                     [tenantId]
                 );
-                return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows) };
+                return ok(event, 200, rows);
             }
 
             // POST /api/v1/incidents - Create incident report
@@ -232,7 +272,7 @@ exports.handler = async (event) => {
                      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW(), NOW()) RETURNING *`,
                     [tenantId, petId, description, severity || 'MINOR', reportedBy]
                 );
-                return { statusCode: 201, headers: HEADERS, body: JSON.stringify(rows[0]) };
+                return ok(event, 201, rows[0]);
             }
         }
 
@@ -246,7 +286,7 @@ exports.handler = async (event) => {
                 if (since) { query += ` AND "createdAt" > $2`; params.push(since); }
                 query += ` ORDER BY "createdAt" DESC LIMIT 100`;
                 const { rows } = await pool.query(query, params);
-                return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows) };
+                return ok(event, 200, rows);
             }
 
             // POST /api/v1/messages - Create message
@@ -257,7 +297,7 @@ exports.handler = async (event) => {
                      VALUES (gen_random_uuid(), $1, $2, $3, $4, NOW()) RETURNING *`,
                     [tenantId, content, senderId, recipientId]
                 );
-                return { statusCode: 201, headers: HEADERS, body: JSON.stringify(rows[0]) };
+                return ok(event, 201, rows[0]);
             }
         }
 
@@ -269,7 +309,7 @@ exports.handler = async (event) => {
                     `SELECT * FROM "Communication" WHERE "tenantId" = $1 ORDER BY "timestamp" DESC LIMIT 100`,
                     [tenantId]
                 );
-                return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows) };
+                return ok(event, 200, rows);
             }
 
             // POST /api/v1/communications - Create communication
@@ -280,7 +320,7 @@ exports.handler = async (event) => {
                      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW(), NOW()) RETURNING *`,
                     [tenantId, ownerId, type || 'NOTE', direction || 'OUTBOUND', content, JSON.stringify(metadata || {})]
                 );
-                return { statusCode: 201, headers: HEADERS, body: JSON.stringify(rows[0]) };
+                return ok(event, 201, rows[0]);
             }
         }
 
@@ -292,7 +332,7 @@ exports.handler = async (event) => {
                     `SELECT * FROM "Invite" WHERE "tenantId" = $1 ORDER BY "createdAt" DESC`,
                     [tenantId]
                 );
-                return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows) };
+                return ok(event, 200, rows);
             }
 
             // POST /api/v1/invites - Create invite
@@ -303,14 +343,14 @@ exports.handler = async (event) => {
                      VALUES (gen_random_uuid(), $1, $2, $3, gen_random_uuid(), NOW() + INTERVAL '7 days', NOW()) RETURNING *`,
                     [tenantId, email, role || 'STAFF']
                 );
-                return { statusCode: 201, headers: HEADERS, body: JSON.stringify(rows[0]) };
+                return ok(event, 201, rows[0]);
             }
         }
 
-        return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Not Found' }) };
+        return fail(event, 404, { message: 'Not Found' });
 
     } catch (error) {
         console.error('Features service error:', error);
-        return { statusCode: 500, headers: HEADERS, body: JSON.stringify({ message: 'Internal Server Error', error: error.message }) };
+        return fail(event, 500, { message: 'Internal Server Error', error: error.message });
     }
 };

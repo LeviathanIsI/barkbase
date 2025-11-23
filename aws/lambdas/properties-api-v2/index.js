@@ -19,6 +19,59 @@ const { v4: uuidv4 } = require('uuid');
 const propertySerializer = require('./serializers/property-serializer');
 const dependenciesHandler = require('./handlers/dependencies');
 const cascadeOperationsHandler = require('./handlers/cascade-operations');
+const {
+  getSecureHeaders,
+  errorResponse,
+  successResponse,
+} = require('../shared/security-utils');
+
+const API_HEADERS = {
+  'X-API-Version': 'v2',
+  'X-Property-Schema-Version': '2',
+};
+
+const ok = (event, statusCode, data = '', additionalHeaders = {}) => {
+  const mergedHeaders = { ...API_HEADERS, ...additionalHeaders };
+  if (statusCode === 204) {
+    const origin = event?.headers?.origin || event?.headers?.Origin;
+    const stage = process.env.STAGE || 'development';
+    return {
+      statusCode,
+      headers: {
+        ...getSecureHeaders(origin, stage),
+        ...mergedHeaders,
+      },
+      body: '',
+    };
+  }
+
+  return successResponse(statusCode, data, event, mergedHeaders);
+};
+
+const fail = (event, statusCode, errorCodeOrBody, message, additionalHeaders = {}) => {
+  const mergedHeaders = { ...API_HEADERS, ...additionalHeaders };
+  if (typeof errorCodeOrBody === 'object' && errorCodeOrBody !== null) {
+    const origin = event?.headers?.origin || event?.headers?.Origin;
+    const stage = process.env.STAGE || 'development';
+    return {
+      statusCode,
+      headers: {
+        ...getSecureHeaders(origin, stage),
+        ...mergedHeaders,
+      },
+      body: JSON.stringify(errorCodeOrBody),
+    };
+  }
+
+  const response = errorResponse(statusCode, errorCodeOrBody, message, event);
+  return {
+    ...response,
+    headers: {
+      ...response.headers,
+      ...mergedHeaders,
+    },
+  };
+};
 
 exports.handler = async (event) => {
 
@@ -29,10 +82,15 @@ exports.handler = async (event) => {
   
   // Handle OPTIONS for CORS
   if (method === 'OPTIONS') {
+    const origin = event?.headers?.origin || event?.headers?.Origin;
+    const stage = process.env.STAGE || 'development';
     return {
       statusCode: 200,
-      headers: getResponseHeaders(2),
-      body: '',
+      headers: {
+        ...getSecureHeaders(origin, stage),
+        ...API_HEADERS,
+      },
+      body: JSON.stringify({}),
     };
   }
   
@@ -41,11 +99,7 @@ exports.handler = async (event) => {
   // Extract tenant context
   const tenantId = await getTenantIdFromEvent(event);
   if (!tenantId) {
-    return {
-      statusCode: 401,
-      headers: getResponseHeaders(2),
-      body: JSON.stringify({ error: 'Missing tenant context' }),
-    };
+    return fail(event, 401, { error: 'Missing tenant context' });
   }
 
   // Extract user ID
@@ -57,48 +111,44 @@ exports.handler = async (event) => {
     // Route: GET /api/v2/properties
     if (method === 'GET' && (path === '/api/v2/properties' || path.endsWith('/properties'))) {
       if (isLegacyMode) {
-        return await listLegacyProperties(queryParams, tenantId);
+        return await listLegacyProperties(event, queryParams, tenantId);
       }
-      return await listProperties(tenantId, queryParams);
+      return await listProperties(event, tenantId, queryParams);
     }
 
     // Route: GET /api/v2/properties/{propertyId}
     if (method === 'GET' && path.match(/\/properties\/[^/]+$/) && !path.includes('/dependencies')) {
       const propertyId = pathParams.propertyId;
       if (isLegacyMode) {
-        return await getLegacyProperty(tenantId, propertyId);
+        return await getLegacyProperty(event, tenantId, propertyId);
       }
-      return await getProperty(tenantId, propertyId, queryParams);
+      return await getProperty(event, tenantId, propertyId, queryParams);
     }
 
     // Route: POST /api/v2/properties
     if (method === 'POST' && path.endsWith('/properties')) {
       if (isLegacyCreatePayload(body)) {
-        return await createLegacyProperty(body, tenantId, userId);
+        return await createLegacyProperty(event, body, tenantId, userId);
       }
-      return await createProperty(tenantId, userId, body);
+      return await createProperty(event, tenantId, userId, body);
     }
 
     // Route: PATCH /api/v2/properties/{propertyId}
     if (method === 'PATCH' && path.match(/\/properties\/[^/]+$/)) {
       const propertyId = pathParams.propertyId;
       if (isLegacyUpdatePayload(body)) {
-        return await updateLegacyProperty(body, tenantId, userId, propertyId);
+        return await updateLegacyProperty(event, body, tenantId, userId, propertyId);
       }
-      return await updateProperty(tenantId, userId, propertyId, body);
+      return await updateProperty(event, tenantId, userId, propertyId, body);
     }
 
     // Route: DELETE /api/v2/properties/{propertyId}
     if (method === 'DELETE' && path.match(/\/properties\/[^/]+$/) && !path.includes('/force')) {
       const propertyId = pathParams.propertyId;
       if (isLegacyMode) {
-        return await deleteLegacyProperty(tenantId, propertyId);
+        return await deleteLegacyProperty(event, tenantId, propertyId);
       }
-      return {
-        statusCode: 405,
-        headers: getResponseHeaders(2),
-        body: JSON.stringify({ error: 'Delete not supported. Use archive/substitute/force endpoints.' }),
-      };
+      return fail(event, 405, { error: 'Delete not supported. Use archive/substitute/force endpoints.' });
     }
 
     // Route: GET /api/v2/properties/{propertyId}/dependencies
@@ -149,25 +199,17 @@ exports.handler = async (event) => {
       return await cascadeOperationsHandler.forceDelete(tenantId, userId, propertyId, body.reason);
     }
 
-    return {
-      statusCode: 404,
-      headers: getResponseHeaders(2),
-      body: JSON.stringify({ error: 'Route not found' }),
-    };
+    return fail(event, 404, { error: 'Route not found' });
   } catch (error) {
     console.error('Error in properties-api-v2:', error);
-    return {
-      statusCode: 500,
-      headers: getResponseHeaders(2),
-      body: JSON.stringify({ error: error.message }),
-    };
+    return fail(event, 500, { error: error.message });
   }
 };
 
 /**
  * List properties with rich metadata
  */
-async function listProperties(tenantId, queryParams) {
+async function listProperties(event, tenantId, queryParams) {
   const pool = getPool();
 
   const {
@@ -220,24 +262,20 @@ async function listProperties(tenantId, queryParams) {
     )
   );
 
-  return {
-    statusCode: 200,
-    headers: getResponseHeaders(2),
-    body: JSON.stringify({
+  return ok(event, 200, {
       properties,
       metadata: {
         totalCount: properties.length,
         objectType,
         propertyType,
       },
-    }),
-  };
+    });
 }
 
 /**
  * Get single property with full details
  */
-async function getProperty(tenantId, propertyId, queryParams) {
+async function getProperty(event, tenantId, propertyId, queryParams) {
   const pool = getPool();
 
   const result = await pool.query(
@@ -248,11 +286,7 @@ async function getProperty(tenantId, propertyId, queryParams) {
   );
 
   if (result.rows.length === 0) {
-    return {
-      statusCode: 404,
-      headers: getResponseHeaders(2),
-      body: JSON.stringify({ error: 'Property not found' }),
-    };
+    return fail(event, 404, { error: 'Property not found' });
   }
 
   const property = await propertySerializer.serialize(result.rows[0], {
@@ -261,28 +295,20 @@ async function getProperty(tenantId, propertyId, queryParams) {
     includeAuditTrail: queryParams.includeAuditTrail === 'true',
   });
 
-  return {
-    statusCode: 200,
-    headers: getResponseHeaders(2),
-    body: JSON.stringify(property),
-  };
+  return ok(event, 200, property);
 }
 
 /**
  * Create new property
  */
-async function createProperty(tenantId, userId, data) {
+async function createProperty(event, tenantId, userId, data) {
   const pool = getPool();
 
   // Validate required fields
   const { propertyName, displayLabel, objectType, propertyType, dataType } = data;
 
   if (!propertyName || !displayLabel || !objectType || !propertyType || !dataType) {
-    return {
-      statusCode: 400,
-      headers: getResponseHeaders(2),
-      body: JSON.stringify({ error: 'Missing required fields' }),
-    };
+    return fail(event, 400, { error: 'Missing required fields' });
   }
 
   const client = await pool.connect();
@@ -348,11 +374,7 @@ async function createProperty(tenantId, userId, data) {
       includeDependencies: false,
     });
 
-    return {
-      statusCode: 201,
-      headers: getResponseHeaders(2),
-      body: JSON.stringify(serialized),
-    };
+    return ok(event, 201, serialized);
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
@@ -364,7 +386,7 @@ async function createProperty(tenantId, userId, data) {
 /**
  * Update property
  */
-async function updateProperty(tenantId, userId, propertyId, data) {
+async function updateProperty(event, tenantId, userId, propertyId, data) {
   const pool = getPool();
 
   const client = await pool.connect();
@@ -380,11 +402,7 @@ async function updateProperty(tenantId, userId, propertyId, data) {
 
     if (currentResult.rows.length === 0) {
       await client.query('ROLLBACK');
-      return {
-        statusCode: 404,
-        headers: getResponseHeaders(2),
-        body: JSON.stringify({ error: 'Property not found' }),
-      };
+      return fail(event, 404, { error: 'Property not found' });
     }
 
     const currentProperty = currentResult.rows[0];
@@ -414,11 +432,7 @@ async function updateProperty(tenantId, userId, propertyId, data) {
 
     if (updates.length === 0) {
       await client.query('ROLLBACK');
-      return {
-        statusCode: 400,
-        headers: getResponseHeaders(2),
-        body: JSON.stringify({ error: 'No fields to update' }),
-      };
+      return fail(event, 400, { error: 'No fields to update' });
     }
 
     updates.push(`"modified_by" = $${paramIndex}`);
@@ -463,11 +477,7 @@ async function updateProperty(tenantId, userId, propertyId, data) {
       includeDependencies: false,
     });
 
-    return {
-      statusCode: 200,
-      headers: getResponseHeaders(2),
-      body: JSON.stringify(serialized),
-    };
+    return ok(event, 200, serialized);
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
@@ -532,14 +542,10 @@ function mapLegacyRow(row) {
   };
 }
 
-async function listLegacyProperties(queryParams, tenantId) {
+async function listLegacyProperties(event, queryParams, tenantId) {
   const objectType = queryParams.objectType;
   if (!objectType) {
-    return {
-      statusCode: 400,
-      headers: getResponseHeaders(2),
-      body: JSON.stringify({ error: 'Missing required parameter: objectType' }),
-    };
+    return fail(event, 400, { error: 'Missing required parameter: objectType' });
   }
 
   const includeArchived = queryParams.includeArchived === 'true';
@@ -592,17 +598,13 @@ async function listLegacyProperties(queryParams, tenantId) {
     const result = await client.query(query, [objectType, tenantId]);
     const rows = result.rows.map(mapLegacyRow);
 
-    return {
-      statusCode: 200,
-      headers: getResponseHeaders(2),
-      body: JSON.stringify(rows),
-    };
+    return ok(event, 200, rows);
   } finally {
     client.release();
   }
 }
 
-async function getLegacyProperty(tenantId, propertyId) {
+async function getLegacyProperty(event, tenantId, propertyId) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -641,51 +643,31 @@ async function getLegacyProperty(tenantId, propertyId) {
     );
 
     if (result.rows.length === 0) {
-      return {
-        statusCode: 404,
-        headers: getResponseHeaders(2),
-        body: JSON.stringify({ error: 'Property not found' }),
-      };
+      return fail(event, 404, { error: 'Property not found' });
     }
 
-    return {
-      statusCode: 200,
-      headers: getResponseHeaders(2),
-      body: JSON.stringify(mapLegacyRow(result.rows[0])),
-    };
+    return ok(event, 200, mapLegacyRow(result.rows[0]));
   } finally {
     client.release();
   }
 }
 
-async function createLegacyProperty(body, tenantId, userId) {
+async function createLegacyProperty(event, body, tenantId, userId) {
   const requiredFields = ['objectType', 'name', 'label', 'type'];
   for (const field of requiredFields) {
     if (!body[field]) {
-      return {
-        statusCode: 400,
-        headers: getResponseHeaders(2),
-        body: JSON.stringify({ error: `Missing required field: ${field}` }),
-      };
+      return fail(event, 400, { error: `Missing required field: ${field}` });
     }
   }
 
   if (!/^[a-z_][a-z0-9_]*$/i.test(body.name)) {
-    return {
-      statusCode: 400,
-      headers: getResponseHeaders(2),
-      body: JSON.stringify({
+    return fail(event, 400, {
         error: 'Property name must start with a letter and contain only letters, numbers, and underscores',
-      }),
-    };
+      });
   }
 
   if (body.isSystem === true) {
-    return {
-      statusCode: 403,
-      headers: getResponseHeaders(2),
-      body: JSON.stringify({ error: 'Cannot create system properties via API' }),
-    };
+    return fail(event, 403, { error: 'Cannot create system properties via API' });
   }
 
   const pool = getPool();
@@ -702,11 +684,7 @@ async function createLegacyProperty(body, tenantId, userId) {
 
     if (existing.rows.length > 0) {
       await client.query('ROLLBACK');
-      return {
-        statusCode: 409,
-        headers: getResponseHeaders(2),
-        body: JSON.stringify({ error: 'A property with this name already exists for this object type' }),
-      };
+      return fail(event, 409, { error: 'A property with this name already exists for this object type' });
     }
 
     const values = [
@@ -763,11 +741,7 @@ async function createLegacyProperty(body, tenantId, userId) {
     const result = await client.query(insertQuery, values);
     await client.query('COMMIT');
 
-    return {
-      statusCode: 201,
-      headers: getResponseHeaders(2),
-      body: JSON.stringify(mapLegacyRow(result.rows[0])),
-    };
+    return ok(event, 201, mapLegacyRow(result.rows[0]));
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
@@ -776,7 +750,7 @@ async function createLegacyProperty(body, tenantId, userId) {
   }
 }
 
-async function updateLegacyProperty(body, tenantId, userId, propertyId) {
+async function updateLegacyProperty(event, body, tenantId, userId, propertyId) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -791,11 +765,7 @@ async function updateLegacyProperty(body, tenantId, userId, propertyId) {
 
     if (existing.rows.length === 0) {
       await client.query('ROLLBACK');
-      return {
-        statusCode: 404,
-        headers: getResponseHeaders(2),
-        body: JSON.stringify({ error: 'Property not found' }),
-      };
+      return fail(event, 404, { error: 'Property not found' });
     }
 
     const property = existing.rows[0];
@@ -816,11 +786,7 @@ async function updateLegacyProperty(body, tenantId, userId, propertyId) {
 
       if (setClause.length === 0) {
         await client.query('ROLLBACK');
-        return {
-          statusCode: 400,
-          headers: getResponseHeaders(2),
-          body: JSON.stringify({ error: 'No valid fields to update for system property' }),
-        };
+        return fail(event, 400, { error: 'No valid fields to update for system property' });
       }
 
       setClause.push(`"updatedAt" = CURRENT_TIMESTAMP`);
@@ -836,11 +802,7 @@ async function updateLegacyProperty(body, tenantId, userId, propertyId) {
 
       await client.query('COMMIT');
 
-      return {
-        statusCode: 200,
-        headers: getResponseHeaders(2),
-        body: JSON.stringify(mapLegacyRow(result.rows[0])),
-      };
+      return ok(event, 200, mapLegacyRow(result.rows[0]));
     }
 
     const allowedFields = [
@@ -878,11 +840,7 @@ async function updateLegacyProperty(body, tenantId, userId, propertyId) {
 
     if (setClause.length === 0) {
       await client.query('ROLLBACK');
-      return {
-        statusCode: 400,
-        headers: getResponseHeaders(2),
-        body: JSON.stringify({ error: 'No fields to update' }),
-      };
+      return fail(event, 400, { error: 'No fields to update' });
     }
 
     setClause.push(`"updatedAt" = CURRENT_TIMESTAMP`);
@@ -898,11 +856,7 @@ async function updateLegacyProperty(body, tenantId, userId, propertyId) {
 
     await client.query('COMMIT');
 
-    return {
-      statusCode: 200,
-      headers: getResponseHeaders(2),
-      body: JSON.stringify(mapLegacyRow(result.rows[0])),
-    };
+    return ok(event, 200, mapLegacyRow(result.rows[0]));
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
@@ -911,7 +865,7 @@ async function updateLegacyProperty(body, tenantId, userId, propertyId) {
   }
 }
 
-async function deleteLegacyProperty(tenantId, propertyId) {
+async function deleteLegacyProperty(event, tenantId, propertyId) {
   const pool = getPool();
   const client = await pool.connect();
   try {
@@ -925,20 +879,12 @@ async function deleteLegacyProperty(tenantId, propertyId) {
 
     if (existing.rows.length === 0) {
       await client.query('ROLLBACK');
-      return {
-        statusCode: 404,
-        headers: getResponseHeaders(2),
-        body: JSON.stringify({ error: 'Property not found' }),
-      };
+      return fail(event, 404, { error: 'Property not found' });
     }
 
     if (existing.rows[0].isSystem) {
       await client.query('ROLLBACK');
-      return {
-        statusCode: 403,
-        headers: getResponseHeaders(2),
-        body: JSON.stringify({ error: 'Cannot delete system properties' }),
-      };
+      return fail(event, 403, { error: 'Cannot delete system properties' });
     }
 
     await client.query(
@@ -949,30 +895,12 @@ async function deleteLegacyProperty(tenantId, propertyId) {
 
     await client.query('COMMIT');
 
-    return {
-      statusCode: 204,
-      headers: getResponseHeaders(2),
-      body: '',
-    };
+    return ok(event, 204);
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
   } finally {
     client.release();
   }
-}
-
-/**
- * Get response headers with API version and CORS
- */
-function getResponseHeaders(version) {
-  return {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Tenant-Id',
-    'X-API-Version': `v${version}`,
-    'X-Property-Schema-Version': '2',
-  };
 }
 

@@ -13,6 +13,60 @@
 const { getPool } = require('/opt/nodejs');
 const { getTenantIdFromEvent } = require('/opt/nodejs');
 const permissionCalculator = require('./permission-calculator');
+const {
+  getSecureHeaders,
+  errorResponse,
+  successResponse,
+} = require('../shared/security-utils');
+
+const JSON_HEADERS = { 'Content-Type': 'application/json' };
+
+const ok = (event, statusCode, data = '', additionalHeaders = {}) => {
+  if (statusCode === 204) {
+    const origin = event?.headers?.origin || event?.headers?.Origin;
+    const stage = process.env.STAGE || 'development';
+    return {
+      statusCode,
+      headers: {
+        ...getSecureHeaders(origin, stage),
+        ...JSON_HEADERS,
+        ...additionalHeaders,
+      },
+      body: '',
+    };
+  }
+
+  return successResponse(statusCode, data, event, {
+    ...JSON_HEADERS,
+    ...additionalHeaders,
+  });
+};
+
+const fail = (event, statusCode, errorCodeOrBody, message, additionalHeaders = {}) => {
+  if (typeof errorCodeOrBody === 'object' && errorCodeOrBody !== null) {
+    const origin = event?.headers?.origin || event?.headers?.Origin;
+    const stage = process.env.STAGE || 'development';
+    return {
+      statusCode,
+      headers: {
+        ...getSecureHeaders(origin, stage),
+        ...JSON_HEADERS,
+        ...additionalHeaders,
+      },
+      body: JSON.stringify(errorCodeOrBody),
+    };
+  }
+
+  const response = errorResponse(statusCode, errorCodeOrBody, message, event);
+  return {
+    ...response,
+    headers: {
+      ...response.headers,
+      ...JSON_HEADERS,
+      ...additionalHeaders,
+    },
+  };
+};
 
 exports.handler = async (event) => {
 
@@ -24,11 +78,7 @@ exports.handler = async (event) => {
   // Extract tenant context
   const tenantId = await getTenantIdFromEvent(event);
   if (!tenantId) {
-    return {
-      statusCode: 401,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Missing tenant context' }),
-    };
+    return fail(event, 401, { error: 'Missing tenant context' });
   }
 
   // Extract user ID
@@ -45,7 +95,7 @@ exports.handler = async (event) => {
   try {
     // Route: GET /api/v1/users/profile
     if (method === 'GET' && path === '/api/v1/users/profile') {
-      return await getCurrentUserProfile(currentUserId, tenantId);
+      return await getCurrentUserProfile(event, currentUserId, tenantId);
     }
 
     // Route: PATCH /api/v1/users/profile
@@ -55,70 +105,62 @@ exports.handler = async (event) => {
 
     // Route: GET /api/v1/profiles
     if (method === 'GET' && path.endsWith('/profiles')) {
-      return await listProfiles(tenantId);
+      return await listProfiles(event, tenantId);
     }
 
     // Route: GET /api/v1/profiles/{profileId}
     if (method === 'GET' && path.match(/\/profiles\/\d+$/)) {
       const profileId = parseInt(pathParams.profileId, 10);
-      return await getProfile(profileId, tenantId);
+      return await getProfile(event, profileId, tenantId);
     }
 
     // Route: GET /api/v1/users/{userId}/profiles
     if (method === 'GET' && path.match(/\/users\/[^/]+\/profiles$/)) {
       const userId = pathParams.userId;
-      return await getUserProfiles(userId, tenantId);
+      return await getUserProfiles(event, userId, tenantId);
     }
 
     // Route: POST /api/v1/users/{userId}/profiles
     if (method === 'POST' && path.match(/\/users\/[^/]+\/profiles$/)) {
       const userId = pathParams.userId;
-      return await assignProfile(userId, tenantId, body, currentUserId);
+      return await assignProfile(event, userId, tenantId, body, currentUserId);
     }
 
     // Route: DELETE /api/v1/users/{userId}/profiles/{profileId}
     if (method === 'DELETE' && path.match(/\/users\/[^/]+\/profiles\/\d+$/)) {
       const userId = pathParams.userId;
       const profileId = parseInt(pathParams.profileId, 10);
-      return await unassignProfile(userId, tenantId, profileId, currentUserId);
+      return await unassignProfile(event, userId, tenantId, profileId, currentUserId);
     }
 
     // Route: GET /api/v1/users/{userId}/effective-permissions
     if (method === 'GET' && path.match(/\/users\/[^/]+\/effective-permissions$/)) {
       const userId = pathParams.userId;
       const objectType = queryParams.objectType;
-      return await getEffectivePermissions(userId, tenantId, objectType);
+      return await getEffectivePermissions(event, userId, tenantId, objectType);
     }
 
     // Route: POST /api/v1/permissions/calculate
     if (method === 'POST' && path.endsWith('/permissions/calculate')) {
-      return await calculatePermissions(body.userId, tenantId, body.propertyId);
+      return await calculatePermissions(event, body.userId, tenantId, body.propertyId);
     }
 
     // Route: POST /api/v1/permissions/invalidate-cache
     if (method === 'POST' && path.endsWith('/permissions/invalidate-cache')) {
-      return await invalidateCache(body.userId, tenantId);
+      return await invalidateCache(event, body.userId, tenantId);
     }
 
-    return {
-      statusCode: 404,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Route not found' }),
-    };
+    return fail(event, 404, { error: 'Route not found' });
   } catch (error) {
     console.error('Error in user-profile-service:', error);
-    return {
-      statusCode: 500,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: error.message }),
-    };
+    return fail(event, 500, { error: error.message });
   }
 };
 
 /**
  * List all permission profiles
  */
-async function listProfiles(tenantId) {
+async function listProfiles(event, tenantId) {
   const pool = getPool();
 
   const result = await pool.query(
@@ -137,17 +179,13 @@ async function listProfiles(tenantId) {
     [tenantId]
   );
 
-  return {
-    statusCode: 200,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(result.rows),
-  };
+  return ok(event, 200, result.rows);
 }
 
 /**
  * Get a specific profile
  */
-async function getProfile(profileId, tenantId) {
+async function getProfile(event, profileId, tenantId) {
   const pool = getPool();
 
   const result = await pool.query(
@@ -168,24 +206,16 @@ async function getProfile(profileId, tenantId) {
   );
 
   if (result.rows.length === 0) {
-    return {
-      statusCode: 404,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Profile not found' }),
-    };
+    return fail(event, 404, { error: 'Profile not found' });
   }
 
-  return {
-    statusCode: 200,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(result.rows[0]),
-  };
+  return ok(event, 200, result.rows[0]);
 }
 
 /**
  * Get profiles assigned to a user
  */
-async function getUserProfiles(userId, tenantId) {
+async function getUserProfiles(event, userId, tenantId) {
   const pool = getPool();
 
   const result = await pool.query(
@@ -207,17 +237,13 @@ async function getUserProfiles(userId, tenantId) {
     [userId, tenantId]
   );
 
-  return {
-    statusCode: 200,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(result.rows),
-  };
+  return ok(event, 200, result.rows);
 }
 
 /**
  * Assign a profile to a user
  */
-async function assignProfile(userId, tenantId, data, assignedBy) {
+async function assignProfile(event, userId, tenantId, data, assignedBy) {
   const pool = getPool();
   const { profileId, isPrimary, expiresAt, reason } = data;
 
@@ -263,11 +289,7 @@ async function assignProfile(userId, tenantId, data, assignedBy) {
 
     await client.query('COMMIT');
 
-    return {
-      statusCode: 201,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(result.rows[0]),
-    };
+    return ok(event, 201, result.rows[0]);
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
@@ -279,7 +301,7 @@ async function assignProfile(userId, tenantId, data, assignedBy) {
 /**
  * Unassign a profile from a user
  */
-async function unassignProfile(userId, tenantId, profileId, unassignedBy) {
+async function unassignProfile(event, userId, tenantId, profileId, unassignedBy) {
   const pool = getPool();
 
   const result = await pool.query(
@@ -293,11 +315,7 @@ async function unassignProfile(userId, tenantId, profileId, unassignedBy) {
   );
 
   if (result.rowCount === 0) {
-    return {
-      statusCode: 404,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Profile assignment not found' }),
-    };
+    return fail(event, 404, { error: 'Profile assignment not found' });
   }
 
   // Invalidate permission cache
@@ -308,17 +326,13 @@ async function unassignProfile(userId, tenantId, profileId, unassignedBy) {
     [userId, tenantId]
   );
 
-  return {
-    statusCode: 200,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: 'Profile unassigned successfully' }),
-  };
+  return ok(event, 200, { message: 'Profile unassigned successfully' });
 }
 
 /**
  * Get effective permissions for a user
  */
-async function getEffectivePermissions(userId, tenantId, objectType) {
+async function getEffectivePermissions(event, userId, tenantId, objectType) {
   const pool = getPool();
 
   const result = await pool.query(
@@ -326,35 +340,27 @@ async function getEffectivePermissions(userId, tenantId, objectType) {
     [userId, tenantId, objectType || null, 'read-only']
   );
 
-  return {
-    statusCode: 200,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(result.rows),
-  };
+  return ok(event, 200, result.rows);
 }
 
 /**
  * Calculate permissions for a specific property
  */
-async function calculatePermissions(userId, tenantId, propertyId) {
+async function calculatePermissions(event, userId, tenantId, propertyId) {
   const effectiveAccess = await permissionCalculator.calculate(userId, tenantId, propertyId);
 
-  return {
-    statusCode: 200,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      userId,
-      tenantId,
-      propertyId,
-      effectiveAccess,
-    }),
-  };
+  return ok(event, 200, {
+    userId,
+    tenantId,
+    propertyId,
+    effectiveAccess,
+  });
 }
 
 /**
  * Invalidate permission cache for a user
  */
-async function invalidateCache(userId, tenantId) {
+async function invalidateCache(event, userId, tenantId) {
   const pool = getPool();
 
   const result = await pool.query(
@@ -364,23 +370,15 @@ async function invalidateCache(userId, tenantId) {
     [userId, tenantId]
   );
 
-  return {
-    statusCode: 200,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      message: 'Permission cache invalidated',
-      invalidatedCount: result.rowCount,
-    }),
-  };
+  return ok(event, 200, {
+    message: 'Permission cache invalidated',
+    invalidatedCount: result.rowCount,
+  });
 }
 
-async function getCurrentUserProfile(userId, tenantId) {
+async function getCurrentUserProfile(event, userId, tenantId) {
   if (!userId) {
-    return {
-      statusCode: 401,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Unauthorized' }),
-    };
+    return fail(event, 401, { error: 'Unauthorized' });
   }
 
   const pool = getPool();
@@ -402,39 +400,27 @@ async function getCurrentUserProfile(userId, tenantId) {
   );
 
   if (rows.length === 0) {
-    return {
-      statusCode: 404,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'User not found' }),
-    };
+    return fail(event, 404, { error: 'User not found' });
   }
 
   const profile = rows[0];
 
-  return {
-    statusCode: 200,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      recordId: profile.recordId,
-      email: profile.email,
-      name: profile.name,
-      phone: profile.phone,
-      avatarUrl: profile.avatarUrl,
-      createdAt: profile.createdAt,
-      updatedAt: profile.updatedAt,
-      role: profile.membershipRole,
-      tenantId: profile.membershipTenantId || tenantId,
-    }),
-  };
+  return ok(event, 200, {
+    recordId: profile.recordId,
+    email: profile.email,
+    name: profile.name,
+    phone: profile.phone,
+    avatarUrl: profile.avatarUrl,
+    createdAt: profile.createdAt,
+    updatedAt: profile.updatedAt,
+    role: profile.membershipRole,
+    tenantId: profile.membershipTenantId || tenantId,
+  });
 }
 
-async function updateCurrentUserProfile(userId, tenantId, data = {}) {
+async function updateCurrentUserProfile(event, userId, tenantId, data = {}) {
   if (!userId) {
-    return {
-      statusCode: 401,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Unauthorized' }),
-    };
+    return fail(event, 401, { error: 'Unauthorized' });
   }
 
   const allowedFields = ['name', 'phone', 'avatarUrl'];
@@ -449,11 +435,7 @@ async function updateCurrentUserProfile(userId, tenantId, data = {}) {
   });
 
   if (updates.length === 0) {
-    return {
-      statusCode: 400,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'No valid fields provided' }),
-    };
+    return fail(event, 400, { error: 'No valid fields provided' });
   }
 
   values.push(userId);
@@ -468,13 +450,9 @@ async function updateCurrentUserProfile(userId, tenantId, data = {}) {
   );
 
   if (result.rowCount === 0) {
-    return {
-      statusCode: 404,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'User not found' }),
-    };
+    return fail(event, 404, { error: 'User not found' });
   }
 
-  return await getCurrentUserProfile(userId, tenantId);
+  return await getCurrentUserProfile(event, userId, tenantId);
 }
 
