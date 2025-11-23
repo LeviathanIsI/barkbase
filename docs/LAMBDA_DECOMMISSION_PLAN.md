@@ -75,3 +75,8 @@ Following this plan will let us retire the duplicate Lambdas safely without intr
 - All frontend traffic uses `/api/v2/properties` (verified during Phase 5/6).
 - Next phase (Phase 8): remove CDK integration, API Gateway routes, and the Lambda deployment entirely.
 
+### Phase 8 Milestone
+- `properties-api` (v1) has been removed from CDK stacks and API Gateway routing.
+- Only `properties-api-v2` remains deployed for the properties domain; `/api/v2/properties*` is the single canonical surface.
+- The legacy source folder stays in the repo for historical reference and contingency testing, but it is no longer part of any stack.
+

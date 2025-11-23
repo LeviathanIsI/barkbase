@@ -12,7 +12,7 @@ This reference lists every Lambda under `aws/lambdas/`, the domain(s) it serves,
 | `config-service` | Tenants, Facility, Services, Account Defaults, Roles | canonical | `/api/v1/tenants/current`, `/api/v1/account-defaults`, `/api/v1/services`, `/api/v1/roles` | Supersedes `account-defaults-api`, `services-api`, `facility-api`, `tenants-api`, `memberships-api`, `roles-api`, `user-permissions-api` | Keep canonical |
 | `user-profile-service` | User profiles & permission assignments | canonical | `/api/v1/users/profile`, `/api/v1/profiles`, `/api/v1/users/{id}/profiles` | Backstops field-level security; overlaps with config-service for permissions | Keep canonical |
 | `features-service` | Tasks, Notes, Incidents, Messages, Communications, Invites | canonical | `/api/v1/tasks`, `/api/v1/notes`, `/api/v1/incidents`, `/api/v1/messages`, `/api/v1/communications`, `/api/v1/invites` | Supersedes `tasks-api`, `notes-api`, `incidents-api`, `messages-api`, `communication-api`, `invites-api` | Keep canonical |
-| `properties-api-v2` | Advanced properties (metadata, dependencies, cascade ops) | canonical (until CRUD migrates) | `/api/v2/properties`, `/api/v2/properties/{id}/dependencies`, `/api/v2/properties/{id}/archive` | Complements legacy `properties-api` (CRUD) | Keep canonical; target for full consolidation |
+| `properties-api-v2` | Advanced properties (metadata, dependencies, cascade ops) | canonical | `/api/v2/properties`, `/api/v2/properties/{id}/dependencies`, `/api/v2/properties/{id}/archive` | Sole properties backend; handles CRUD + advanced flows | Keep canonical; decommission legacy aids |
 | `auth-api` | Authentication (login/signup/refresh/logout) | canonical | `/api/v1/auth/login`, `/api/v1/auth/signup`, `/api/v1/auth/refresh` | N/A | Keep canonical |
 | `users-api` | User administration & tenant membership | canonical | `/api/v1/users`, `/api/v1/users/{id}`, `/api/v1/users/password` | Works with user-profile-service | Keep canonical |
 
@@ -44,7 +44,7 @@ This reference lists every Lambda under `aws/lambdas/`, the domain(s) it serves,
 | `memberships-api` | Membership management | legacy | `/api/v1/memberships` | Superseded by `config-service` | Decommission |
 | `roles-api` | Role definitions | legacy | `/api/v1/roles` | Superseded by `config-service` | Decommission |
 | `user-permissions-api` | Permission assignments | legacy | `/api/v1/user-permissions` | Superseded by `config-service` + user-profile-service | Decommission |
-| `properties-api` | Properties CRUD (v1) | retired (410 sentinel active) | `/api/v1/properties` | Superseded by `properties-api-v2`; Lambda kept only as tombstone | Scheduled for deletion in Phase 8 |
+| `properties-api` | Properties CRUD (v1) | historical (removed from CDK; 410 sentinel only) | `/api/v1/properties` (now 410) | Superseded by `properties-api-v2`; repo copy kept for archeology/safeguards | Source kept for history; no deployment |
 | `segments-api` | Segmentation scaffold | unused placeholder | (no handler file) | Future analytics/marketing | Remove once strategy decided |
 
 ## Supporting / Jobs / Utilities
