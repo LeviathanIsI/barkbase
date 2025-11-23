@@ -470,63 +470,6 @@ export class CdkStack extends cdk.Stack {
       // Removed API Gateway authorizer - Lambda validates custom JWT tokens
     });
 
-    // Pets API - REPLACED BY EntityServiceFunction
-    // const petsApiFunction = new lambda.Function(this, "PetsApiFunction", {
-    //   runtime: lambda.Runtime.NODEJS_20_X,
-    //   handler: "index.handler",
-    //   code: lambda.Code.fromAsset(
-    //     path.join(__dirname, "../../lambdas/pets-api")
-    //   ),
-    //   layers: [dbLayer, authLayer],
-    //   environment: {
-    //     ...dbEnvironment,
-    //     USER_POOL_ID: userPool.userPoolId,
-    //     CLIENT_ID: userPoolClient.userPoolClientId,
-    //     FORCE_REFRESH: "v2",
-    //   },
-    //   timeout: cdk.Duration.seconds(30),
-    // });
-    // dbSecret.grantRead(petsApiFunction);
-
-    // const petsIntegration = new HttpLambdaIntegration(
-    //   "PetsIntegration",
-    //   petsApiFunction
-    // );
-    // httpApi.addRoutes({
-    //   path: "/api/v1/pets",
-    //   methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST],
-    //   integration: petsIntegration,
-    //   authorizer: httpAuthorizer,
-    // });
-    // httpApi.addRoutes({
-    //   path: "/api/v1/pets/{id}",
-    //   methods: [
-    //     apigw.HttpMethod.GET,
-    //     apigw.HttpMethod.PUT,
-    //     apigw.HttpMethod.DELETE,
-    //   ],
-    //   integration: petsIntegration,
-    //   authorizer: httpAuthorizer,
-    // });
-    // httpApi.addRoutes({
-    //   path: "/api/v1/pets/{id}/vaccinations",
-    //   methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST],
-    //   integration: petsIntegration,
-    //   authorizer: httpAuthorizer,
-    // });
-    // httpApi.addRoutes({
-    //   path: "/api/v1/pets/{id}/vaccinations/{vaccinationId}",
-    //   methods: [apigw.HttpMethod.PUT, apigw.HttpMethod.DELETE],
-    //   integration: petsIntegration,
-    //   authorizer: httpAuthorizer,
-    // });
-    // httpApi.addRoutes({
-    //   path: "/api/v1/pets/vaccinations/expiring",
-    //   methods: [apigw.HttpMethod.GET],
-    //   integration: petsIntegration,
-    //   authorizer: httpAuthorizer,
-    // });
-
     // S3 Bucket (private with KMS-SSE)
     const kmsKey = new kms.Key(this, 'UploadsKmsKey', {
       enableKeyRotation: true,
@@ -1009,22 +952,6 @@ export class CdkStack extends cdk.Stack {
     // httpApi.addRoutes({ path: '/api/v1/tenants/current/theme', methods: [apigw.HttpMethod.PUT], integration: tenantsIntegration, authorizer: httpAuthorizer });
     // httpApi.addRoutes({ path: '/api/v1/tenants/features', methods: [apigw.HttpMethod.PUT], integration: tenantsIntegration, authorizer: httpAuthorizer });
 
-    // Owners API - REPLACED BY EntityServiceFunction
-    // const ownersApiFunction = new lambda.Function(this, 'OwnersApiFunction', {
-    //   runtime: lambda.Runtime.NODEJS_20_X,
-    //   handler: 'index.handler',
-    //   code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/owners-api')),
-    //   layers: [dbLayer],
-    //   environment: dbEnvironment,
-    //   // No VPC - connects to public database
-    //
-    //   timeout: cdk.Duration.seconds(30),
-    // });
-    // dbSecret.grantRead(ownersApiFunction);
-    // const ownersIntegration = new HttpLambdaIntegration('OwnersIntegration', ownersApiFunction);
-    // httpApi.addRoutes({ path: '/api/v1/owners', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: ownersIntegration, authorizer: httpAuthorizer });
-    // httpApi.addRoutes({ path: '/api/v1/owners/{ownerId}', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PUT, apigw.HttpMethod.DELETE], integration: ownersIntegration });
-
     // Financial Service (consolidates payments-api, invoices-api, billing-api)
     // Saves 10 CloudFormation resources: 3 Lambdas → 1 Lambda
     const financialServiceFunction = new lambda.Function(this, 'FinancialServiceFunction', {
@@ -1106,21 +1033,6 @@ export class CdkStack extends cdk.Stack {
     // httpApi.addRoutes({ path: '/api/v1/kennels', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: kennelsIntegration, authorizer: httpAuthorizer });
     // httpApi.addRoutes({ path: '/api/v1/kennels/occupancy', methods: [apigw.HttpMethod.GET], integration: kennelsIntegration, authorizer: httpAuthorizer });
     // httpApi.addRoutes({ path: '/api/v1/kennels/{kennelId}', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PUT, apigw.HttpMethod.DELETE], integration: kennelsIntegration });
-
-    // Staff API - REPLACED BY EntityServiceFunction
-    // const staffApiFunction = new lambda.Function(this, 'StaffApiFunction', {
-    //   runtime: lambda.Runtime.NODEJS_20_X,
-    //   handler: 'index.handler',
-    //   code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/staff-api')),
-    //   layers: [dbLayer],
-    //   environment: dbEnvironment,
-    //   // No VPC - connects to public database
-    //   timeout: cdk.Duration.seconds(30),
-    // });
-    // dbSecret.grantRead(staffApiFunction);
-    // const staffIntegration = new HttpLambdaIntegration('StaffIntegration', staffApiFunction);
-    // httpApi.addRoutes({ path: '/api/v1/staff', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: staffIntegration, authorizer: httpAuthorizer });
-    // httpApi.addRoutes({ path: '/api/v1/staff/{staffId}', methods: [apigw.HttpMethod.GET], integration: staffIntegration });
 
 
     // Incidents API - REPLACED BY FeaturesServiceFunction
