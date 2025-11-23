@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { X } from 'lucide-react';
-import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
+import SlideoutPanel from '@/components/SlideoutPanel';
 
 const OwnerFormModal = ({
   open,
@@ -72,12 +71,13 @@ const OwnerFormModal = ({
   };
 
   return (
-    <Modal
-      open={open}
+    <SlideoutPanel
+      isOpen={open}
       onClose={onClose}
       title={isEdit ? 'Edit Owner' : 'Create New Owner'}
-      className="max-w-2xl"
+      widthClass="max-w-2xl"
     >
+      {/* TODO (Directory UX Cleanup C1:3): Visual polish for slideout forms. */}
       <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
         {/* Name Fields */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -247,7 +247,7 @@ const OwnerFormModal = ({
           </Button>
         </div>
       </form>
-    </Modal>
+    </SlideoutPanel>
   );
 };
 
