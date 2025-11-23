@@ -1,17 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PawPrint, Plus, Search, Syringe, ShieldAlert, User, FileText, Calendar, ChevronDown } from 'lucide-react';
+import { PawPrint, Plus, Search, Syringe, ShieldAlert, User, Calendar } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import PetAvatar from '@/components/ui/PetAvatar';
+import { Card } from '@/components/ui/Card';
+import Skeleton from '@/components/ui/Skeleton';
 import { usePetsQuery, useCreatePetMutation } from '../api';
 import { useExpiringVaccinationsQuery } from '../api-vaccinations';
 import { PetFormModal } from '../components';
-import EmptyStatePets from '../components/EmptyStatePets';
-import { ThreePanelLayout } from '@/components/layout/ThreePanelLayout';
-import { PanelSection } from '@/components/layout/PanelSection';
-import { PropertyList } from '@/components/ui/PropertyList';
-import { EmptyState } from '@/components/ui/EmptyState';
 import DirectoryListHeader from '@/features/directory/components/DirectoryListHeader';
 import DirectoryEmptyState from '@/features/directory/components/DirectoryEmptyState';
 import DirectoryErrorState from '@/features/directory/components/DirectoryErrorState';
@@ -48,9 +45,6 @@ const Pets = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [speciesFilter, setSpeciesFilter] = useState('ALL');
-  const [selectedPet, setSelectedPet] = useState(null);
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-
   // REAL API DATA - preserved from existing implementation
   const { data: petsResult, isLoading: isLoadingData, error } = usePetsQuery();
   const pets = petsResult?.pets ?? [];
@@ -58,8 +52,8 @@ const Pets = () => {
 
   // Prevent flash of loading state - only show loading if it takes more than 100ms
   const [showLoading, setShowLoading] = useState(false);
-  
-  useState(() => {
+
+  useEffect(() => {
     let timeout;
     if (isLoadingData) {
       timeout = setTimeout(() => setShowLoading(true), 100);
@@ -68,7 +62,7 @@ const Pets = () => {
     }
     return () => clearTimeout(timeout);
   }, [isLoadingData]);
-  
+
   const isLoading = isLoadingData && showLoading;
 
   // Filter pets based on search and filters
@@ -127,7 +121,7 @@ const Pets = () => {
     return (
       <tr
         className="border-b border-gray-200 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-bg-tertiary cursor-pointer transition-colors"
-        onClick={() => setSelectedPet(pet)}
+        onClick={() => navigate(`/pets/${pet.recordId}`)}
       >
         <td className="py-4 px-6">
           <div className="flex items-center gap-3">
@@ -186,289 +180,135 @@ const Pets = () => {
     );
   };
 
-
-  // Show empty state if no pets exist at all (not just filtered)
-  const showEmptyState = !isLoading && pets.length === 0;
-
-  // Left Panel - Filters
-  const renderLeftPanel = () => (
-    <div className="space-y-4">
-      {/* Essential Filters */}
-      <PanelSection
-        title="Filters"
-        collapsible
-        defaultOpen
-        storageKey="pets-filters"
-      >
-        <div className="space-y-4">
-          {/* Species Filter */}
-          <div>
-            <label className="text-xs font-medium text-gray-600 dark:text-dark-text-secondary uppercase tracking-wide mb-2 block">
-              Species
-            </label>
-            <select
-              value={speciesFilter}
-              onChange={(e) => setSpeciesFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-dark-border rounded-md text-sm bg-white dark:bg-dark-bg-tertiary text-gray-900 dark:text-dark-text-primary"
-            >
-              <option value="ALL">All Species</option>
-              <option value="dog">Dogs</option>
-              <option value="cat">Cats</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-
-          {/* Status Filter */}
-          <div>
-            <label className="text-xs font-medium text-gray-600 dark:text-dark-text-secondary uppercase tracking-wide mb-2 block">
-              Status
-            </label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-dark-border rounded-md text-sm bg-white dark:bg-dark-bg-tertiary text-gray-900 dark:text-dark-text-primary"
-            >
-              <option value="ALL">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-        </div>
-      </PanelSection>
-
-      {/* Advanced Filters - Collapsed by default */}
-      <PanelSection
-        title="Advanced Filters"
-        collapsible
-        defaultOpen={false}
-        storageKey="pets-advanced-filters"
-      >
-        <div className="space-y-4">
-          <div className="text-sm text-gray-600 dark:text-dark-text-secondary">
-            Additional filter options available in the full pet details view.
-          </div>
-        </div>
-      </PanelSection>
-    </div>
-  );
-
-  // Right Panel - Pet Details
-  const renderRightPanel = () => {
-    if (!selectedPet) {
-      return (
-        <EmptyState
-          icon={PawPrint}
-          title="No Pet Selected"
-          description="Select a pet from the list to view details"
-        />
-      );
-    }
-
-    const primaryOwner = selectedPet.owners?.[0];
-    const hasExpiringVaccinations = expiringVaccsData?.some(v => v.petId === selectedPet.recordId);
-
-    return (
-      <div className="h-full overflow-y-auto">
-        {/* Pet Header */}
-        <div className="p-6 border-b border-gray-200 dark:border-dark-border">
-          <div className="flex items-center gap-4 mb-4">
-            <PetAvatar pet={selectedPet} size="lg" />
-            <div className="flex-1">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-dark-text-primary">
-                {selectedPet.name}
-              </h2>
-              <p className="text-sm text-gray-600 dark:text-dark-text-secondary">
-                {selectedPet.species || 'Dog'} • {selectedPet.breed || 'Unknown breed'}
-              </p>
-              {hasExpiringVaccinations && (
-                <div className="flex items-center gap-1 mt-1 text-warning-600">
-                  <Syringe className="w-4 h-4" />
-                  <span className="text-sm">Vaccination due</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <Button 
-              size="sm" 
-              variant="primary" 
-              className="flex-1" 
-              onClick={() => navigate(`/pets/${selectedPet.recordId}`)}
-            >
-              <FileText className="h-4 w-4 mr-1" />
-              View Full Details
-            </Button>
-            <Button size="sm" variant="outline" className="flex-1">
-              <Calendar className="h-4 w-4 mr-1" />
-              New Booking
-            </Button>
-          </div>
-        </div>
-
-        {/* Key Information */}
-        <div className="p-6 space-y-6">
-          {/* Basic Info */}
-          <div>
-            <h3 className="text-sm font-medium text-gray-600 dark:text-dark-text-secondary mb-3">
-              Basic Information
-            </h3>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600 dark:text-dark-text-secondary">Status</span>
-                <Badge variant={selectedPet.status === 'active' ? 'success' : 'neutral'}>
-                  {selectedPet.status === 'active' ? 'Active' : 'Inactive'}
-                </Badge>
-              </div>
-              {selectedPet.age && (
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-dark-text-secondary">Age</span>
-                  <span className="text-sm text-gray-900 dark:text-dark-text-primary">
-                    {selectedPet.age} years
-                  </span>
-                </div>
-              )}
-              {selectedPet.weight && (
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-dark-text-secondary">Weight</span>
-                  <span className="text-sm text-gray-900 dark:text-dark-text-primary">
-                    {selectedPet.weight} lbs
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Owner Info */}
-          {primaryOwner && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-600 dark:text-dark-text-secondary mb-3">
-                Owner Information
-              </h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-dark-text-secondary">Name</span>
-                  <span className="text-sm text-gray-900 dark:text-dark-text-primary">
-                    {primaryOwner.name || primaryOwner.email}
-                  </span>
-                </div>
-                {primaryOwner.phone && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-dark-text-secondary">Phone</span>
-                    <span className="text-sm text-gray-900 dark:text-dark-text-primary">
-                      {primaryOwner.phone}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Medical Notes - Only if present */}
-          {(selectedPet.medicalNotes || selectedPet.dietaryNotes) && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-600 dark:text-dark-text-secondary mb-3">
-                Important Notes
-              </h3>
-              {selectedPet.medicalNotes && (
-                <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/30 rounded-lg p-3 mb-2">
-                  <p className="text-sm text-orange-800 dark:text-orange-200">
-                    <strong>Medical:</strong> {selectedPet.medicalNotes}
-                  </p>
-                </div>
-              )}
-              {selectedPet.dietaryNotes && (
-                <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/30 rounded-lg p-3">
-                  <p className="text-sm text-blue-800 dark:text-blue-200">
-                    <strong>Dietary:</strong> {selectedPet.dietaryNotes}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
+  const emptyDescription =
+    searchTerm || statusFilter !== 'ALL' || speciesFilter !== 'ALL'
+      ? 'Try adjusting your search or filters.'
+      : 'Get started by adding your first pet.';
 
   return (
     <>
-      <div className="flex flex-col h-full space-y-6">
-      <DirectoryListHeader
-        breadcrumb="Home > Clients > Pets"
-        title="Pets"
-        actions={
-          !showEmptyState && !isLoading && (
-            <Button 
-              variant="primary" 
-              size="sm" 
-              onClick={() => setPetFormModalOpen(true)}
-            >
+      <div className="space-y-6">
+        <DirectoryListHeader
+          breadcrumb="Home > Clients > Pets"
+          title="Pets Directory"
+          actions={
+            <Button variant="secondary" size="sm" onClick={() => setPetFormModalOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add Pet
             </Button>
-          )
-        }
-      >
-        {!showEmptyState && (
-          <>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 transform h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search pets by name, breed, or owner..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white py-3 pl-10 pr-4 text-sm text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-dark-border dark:bg-dark-bg-tertiary dark:text-dark-text-primary"
-              />
-            </div>
-            <div className="flex items-center justify-between text-sm text-gray-600 dark:text-dark-text-secondary">
-              <p>Showing {filteredPets.length} of {pets.length} pets</p>
-            </div>
-          </>
-        )}
-      </DirectoryListHeader>
-
-      {showEmptyState ? (
-        <EmptyStatePets
-          onAddPet={() => setPetFormModalOpen(true)}
-          onImport={() => {}}
-        />
-      ) : (
-        <ThreePanelLayout
-          left={renderLeftPanel()}
-          showLeftPanel={true}
-          showRightPanel={!!selectedPet}
-          right={renderRightPanel()}
-          center={
-            <div className="space-y-6 p-6">
-              {isLoading ? (
-                <DirectoryTableSkeleton />
-              ) : filteredPets.length === 0 ? (
-                <DirectoryEmptyState
-                  title="No Pets Found"
-                  description={
-                    searchTerm || statusFilter !== 'ALL' || speciesFilter !== 'ALL'
-                      ? 'Try adjusting your search or filters.'
-                      : 'Get started by adding your first pet.'
-                  }
-                  icon={PawPrint}
-                >
-                  <Button onClick={() => setPetFormModalOpen(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Pet
-                  </Button>
-                </DirectoryEmptyState>
-              ) : (
-                <PetsListTable
-                  pets={filteredPets}
-                  renderRow={(pet) => <PetTableRow key={pet.recordId} pet={pet} />}
-                />
-              )}
-            </div>
           }
-        />
-      )}
+        >
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {isLoading ? (
+              Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-lg" />)
+            ) : (
+              <>
+                <Card className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600 dark:text-dark-text-secondary">Total Pets</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-dark-text-primary">{stats.total}</p>
+                    </div>
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-100 dark:bg-surface-secondary">
+                      <PawPrint className="h-6 w-6 text-primary-600 dark:text-primary-400" />
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600 dark:text-dark-text-secondary">Active Pets</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-dark-text-primary">{stats.active}</p>
+                    </div>
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-surface-secondary">
+                      <User className="h-6 w-6 text-green-600 dark:text-green-400" />
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600 dark:text-dark-text-secondary">With Bookings</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-dark-text-primary">{stats.withBookings}</p>
+                    </div>
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-surface-secondary">
+                      <Calendar className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600 dark:text-dark-text-secondary">Expiring Vaccinations</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-dark-text-primary">{stats.expiringVaccinations}</p>
+                    </div>
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-amber-100 dark:bg-surface-secondary">
+                      <ShieldAlert className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                    </div>
+                  </div>
+                </Card>
+              </>
+            )}
+          </div>
+
+          <Card className="p-6">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search pets by name, breed, or owner..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 bg-white py-3 pl-10 pr-4 text-sm text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-dark-border dark:bg-dark-bg-tertiary dark:text-dark-text-primary"
+                  />
+                </div>
+
+                <select
+                  value={speciesFilter}
+                  onChange={(e) => setSpeciesFilter(e.target.value)}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-dark-border dark:bg-dark-bg-tertiary dark:text-dark-text-primary lg:w-48"
+                >
+                  <option value="ALL">All Species</option>
+                  <option value="dog">Dogs</option>
+                  <option value="cat">Cats</option>
+                  <option value="other">Other</option>
+                </select>
+
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-dark-border dark:bg-dark-bg-tertiary dark:text-dark-text-primary lg:w-48"
+                >
+                  <option value="ALL">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+
+              <div className="text-sm text-gray-600 dark:text-dark-text-secondary">
+                Showing {filteredPets.length} of {pets.length} pets
+              </div>
+            </div>
+          </Card>
+        </DirectoryListHeader>
+
+        {isLoading ? (
+          <DirectoryTableSkeleton />
+        ) : filteredPets.length === 0 ? (
+          <DirectoryEmptyState title="No Pets Found" description={emptyDescription} icon={PawPrint}>
+            <Button onClick={() => setPetFormModalOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Pet
+            </Button>
+          </DirectoryEmptyState>
+        ) : (
+          <PetsListTable pets={filteredPets} renderRow={(pet) => <PetTableRow key={pet.recordId} pet={pet} />} />
+        )}
       </div>
 
       <PetFormModal
