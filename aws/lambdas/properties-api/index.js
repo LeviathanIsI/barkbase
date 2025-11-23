@@ -1,3 +1,8 @@
+// TODO (Decommission Phase):
+// This Lambda is legacy. Its functionality has been superseded by properties-api-v2 (advanced properties service).
+// Do NOT add new endpoints or business logic here.
+// This Lambda will be retired in a future decommission phase once CRUD fully migrates to properties-api-v2.
+
 const { getPool, getTenantIdFromEvent } = require('/opt/nodejs');
 const { v4: uuidv4 } = require('uuid');
 
@@ -13,9 +18,6 @@ const corsHeaders = {
  * Properties API Lambda Handler
  * Manages both system properties (created by BarkBase) and custom properties (created by users)
  */
-// TODO (Consolidation Phase): Properties remain intentionally split.
-// v1 stays responsible for CRUD until Phase 5 migrates these routes into properties-api-v2.
-// Do not retire this handler yet; see docs/PROPERTIES_CONSOLIDATION_PLAN.md for the rollout sequence.
 exports.handler = async (event) => {
 
   // Handle OPTIONS request for CORS

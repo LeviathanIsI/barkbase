@@ -1,3 +1,8 @@
+// TODO (Decommission Phase):
+// This Lambda is legacy. Its functionality has been superseded by config-service (tenants/account defaults/services).
+// Do NOT add new endpoints or business logic here.
+// This Lambda will be retired in a future decommission phase once all callers are migrated.
+
 const { getPool, getTenantIdFromEvent } = require('/opt/nodejs');
 const HEADERS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type,Authorization', 'Access-Control-Allow-Methods': 'OPTIONS,GET,POST,PUT' };
 
