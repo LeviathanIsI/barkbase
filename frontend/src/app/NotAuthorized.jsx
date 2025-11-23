@@ -23,7 +23,7 @@ const NotAuthorized = () => {
         </div>
 
         <div className="flex flex-col items-center gap-3">
-          <Link to="/dashboard">
+          <Link to="/today">
             <Button size="lg">
               Return to Dashboard
             </Button>

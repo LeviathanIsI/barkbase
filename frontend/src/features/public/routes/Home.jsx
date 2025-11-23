@@ -7,7 +7,7 @@ const Home = () => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/today" replace />;
   }
 
   return (

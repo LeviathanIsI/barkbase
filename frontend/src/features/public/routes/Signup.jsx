@@ -25,7 +25,7 @@ const Signup = () => {
   const slugHint = tenantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/today" replace />;
   }
 
   const handleSubmit = async (event) => {
@@ -60,7 +60,7 @@ const Signup = () => {
         plan: signUpResponse.tenant.plan || 'FREE',
       });
 
-      navigate('/dashboard');
+      navigate('/today');
     } catch (err) {
       setError(err.message ?? 'Unable to create workspace');
     } finally {

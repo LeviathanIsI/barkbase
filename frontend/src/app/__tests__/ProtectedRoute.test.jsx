@@ -22,10 +22,10 @@ describe('ProtectedRoute', () => {
 
   it('redirects unauthenticated users to login', () => {
     render(
-      <MemoryRouter initialEntries={['/dashboard']}>
+      <MemoryRouter initialEntries={['/today']}>
         <Routes>
           <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<div>Dashboard</div>} />
+            <Route path="/today" element={<div>Dashboard</div>} />
           </Route>
           <Route path="/login" element={<div>Login Page</div>} />
         </Routes>
@@ -38,15 +38,16 @@ describe('ProtectedRoute', () => {
   it('renders child route when authenticated', () => {
     useAuthStore.setState((state) => ({
       ...state,
+      user: { id: 'test-user' },
       accessToken: 'token',
       expiresAt: Date.now() + 60_000,
     }));
 
     render(
-      <MemoryRouter initialEntries={['/dashboard']}>
+      <MemoryRouter initialEntries={['/today']}>
         <Routes>
           <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<div>Dashboard</div>} />
+            <Route path="/today" element={<div>Dashboard</div>} />
           </Route>
           <Route path="/login" element={<div>Login Page</div>} />
         </Routes>
