@@ -1,9 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { X } from 'lucide-react';
-import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
+import SlideoutPanel from '@/components/SlideoutPanel';
 
 const PetFormModal = ({
   open,
@@ -98,12 +97,13 @@ const PetFormModal = ({
   };
 
   return (
-    <Modal
-      open={open}
+    <SlideoutPanel
+      isOpen={open}
       onClose={onClose}
       title={isEdit ? 'Edit Pet' : 'Create New Pet'}
-      className="max-w-2xl"
+      widthClass="max-w-2xl"
     >
+      {/* TODO (Directory UX Cleanup C1:3): Visual polish for slideout forms. */}
       <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
         {/* Basic Info */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -331,7 +331,7 @@ const PetFormModal = ({
           </Button>
         </div>
       </form>
-    </Modal>
+    </SlideoutPanel>
   );
 };
 
