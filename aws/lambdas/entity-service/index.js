@@ -5,11 +5,52 @@
 // Do NOT add new logic or endpoints to legacy Lambdas for this domain.
 
 const { getPool, getTenantIdFromEvent, getJWTValidator } = require('/opt/nodejs');
+const {
+    getSecureHeaders,
+    errorResponse,
+    successResponse,
+} = require('../shared/security-utils');
 
-const HEADERS = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization,x-tenant-id,X-Amz-Date,X-Api-Key,X-Amz-Security-Token',
-    'Access-Control-Allow-Methods': 'OPTIONS,GET,POST,PUT,PATCH,DELETE'
+const ok = (event, statusCode, data = '', additionalHeaders = {}) => {
+    if (statusCode === 204) {
+        const origin = event?.headers?.origin || event?.headers?.Origin;
+        const stage = process.env.STAGE || 'development';
+        return {
+            statusCode,
+            headers: {
+                ...getSecureHeaders(origin, stage),
+                ...additionalHeaders,
+            },
+            body: '',
+        };
+    }
+
+    return successResponse(statusCode, data, event, additionalHeaders);
+};
+
+const fail = (event, statusCode, errorCodeOrBody, message, additionalHeaders = {}) => {
+    if (typeof errorCodeOrBody === 'object' && errorCodeOrBody !== null) {
+        const origin = event?.headers?.origin || event?.headers?.Origin;
+        const stage = process.env.STAGE || 'development';
+        return {
+            statusCode,
+            headers: {
+                ...getSecureHeaders(origin, stage),
+                ...additionalHeaders,
+            },
+            body: JSON.stringify(errorCodeOrBody),
+        };
+    }
+
+    const response = errorResponse(statusCode, errorCodeOrBody, message, event);
+
+    return {
+        ...response,
+        headers: {
+            ...response.headers,
+            ...additionalHeaders,
+        },
+    };
 };
 
 // Enhanced authorization with fallback JWT validation
@@ -108,17 +149,20 @@ exports.handler = async (event) => {
     const path = event.requestContext?.http?.path || event.path;
 
     if (httpMethod === 'OPTIONS') {
-        return { statusCode: 200, headers: HEADERS, body: '' };
+        const origin = event?.headers?.origin || event?.headers?.Origin;
+        const stage = process.env.STAGE || 'development';
+
+        return {
+            statusCode: 200,
+            headers: getSecureHeaders(origin, stage),
+            body: JSON.stringify({}),
+        };
     }
 
     // Extract user info from API Gateway authorizer with fallback to manual JWT validation
     const userInfo = await getUserInfoFromEvent(event);
     if (!userInfo) {
-        return {
-            statusCode: 401,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Unauthorized' }),
-        };
+        return fail(event, 401, { message: 'Unauthorized' });
     }
 
     // Get tenant ID from JWT claims or database
@@ -132,11 +176,7 @@ exports.handler = async (event) => {
     });
     
     if (!tenantId) {
-        return {
-            statusCode: 401,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Missing tenant context' }),
-        };
+        return fail(event, 401, { message: 'Missing tenant context' });
     }
 
     try {
@@ -224,19 +264,11 @@ exports.handler = async (event) => {
             }
         }
 
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Not Found' }),
-        };
+        return fail(event, 404, { message: 'Not Found' });
 
     } catch (error) {
         console.error('Entity service error:', error);
-        return {
-            statusCode: 500,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Internal Server Error', error: error.message }),
-        };
+        return fail(event, 500, { message: 'Internal Server Error', error: error.message });
     }
 };
 
@@ -273,11 +305,7 @@ const listExpiringVaccinations = async (event, tenantId) => {
         [tenantId, daysAhead]
     );
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(rows),
-    };
+    return ok(event, 200, rows);
 };
 
 const listMedicalAlerts = async (event, tenantId) => {
@@ -328,11 +356,7 @@ const listMedicalAlerts = async (event, tenantId) => {
         message: row.message
     }));
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(alerts),
-    };
+    return ok(event, 200, alerts);
 };
 
 const getPetById = async (event, tenantId) => {
@@ -345,11 +369,7 @@ const getPetById = async (event, tenantId) => {
     );
 
     if (rows.length === 0) {
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Pet not found' }),
-        };
+        return fail(event, 404, { message: 'Pet not found' });
     }
 
     const pet = rows[0];
@@ -390,11 +410,7 @@ const getPetById = async (event, tenantId) => {
         owners = [];
     }
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify({ ...pet, owners }),
-    };
+    return ok(event, 200, { ...pet, owners });
 };
 
 const listPets = async (event, tenantId) => {
@@ -426,14 +442,7 @@ const listPets = async (event, tenantId) => {
         firstRow: rows.length > 0 ? { id: rows[0].recordId, name: rows[0].name } : null
     });
 
-    return {
-        statusCode: 200,
-        headers: {
-            ...HEADERS,
-            'X-Total-Count': totalCount,
-        },
-        body: JSON.stringify(rows),
-    };
+    return ok(event, 200, rows, { 'X-Total-Count': totalCount });
 };
 
 const createPet = async (event, tenantId) => {
@@ -446,11 +455,7 @@ const createPet = async (event, tenantId) => {
     } = body;
 
     if (!name) {
-        return {
-            statusCode: 400,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Pet name is required' }),
-        };
+        return fail(event, 400, { message: 'Pet name is required' });
     }
 
     const pool = getPool();
@@ -469,11 +474,7 @@ const createPet = async (event, tenantId) => {
         ]
     );
 
-    return {
-        statusCode: 201,
-        headers: HEADERS,
-        body: JSON.stringify(rows[0]),
-    };
+    return ok(event, 201, rows[0]);
 };
 
 const updatePet = async (event, tenantId) => {
@@ -502,11 +503,7 @@ const updatePet = async (event, tenantId) => {
     }
 
     if (fields.length === 0) {
-        return {
-            statusCode: 400,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'No valid fields provided for update' }),
-        };
+        return fail(event, 400, { message: 'No valid fields provided for update' });
     }
 
     const setClause = fields.join(', ');
@@ -517,18 +514,10 @@ const updatePet = async (event, tenantId) => {
     const { rows } = await pool.query(query, values);
 
     if (rows.length === 0) {
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Pet not found or you do not have permission to update it' }),
-        };
+        return fail(event, 404, { message: 'Pet not found or you do not have permission to update it' });
     }
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(rows[0]),
-    };
+    return ok(event, 200, rows[0]);
 };
 
 const deletePet = async (event, tenantId) => {
@@ -538,18 +527,10 @@ const deletePet = async (event, tenantId) => {
     const { rowCount } = await pool.query('DELETE FROM "Pet" WHERE "recordId" = $1 AND "tenantId" = $2', [petId, tenantId]);
 
     if (rowCount === 0) {
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Pet not found or you do not have permission to delete it' }),
-        };
+        return fail(event, 404, { message: 'Pet not found or you do not have permission to delete it' });
     }
 
-    return {
-        statusCode: 204, // No Content
-        headers: HEADERS,
-        body: '',
-    };
+    return ok(event, 204);
 };
 
 const listPetVaccinations = async (event, tenantId) => {
@@ -563,7 +544,7 @@ const listPetVaccinations = async (event, tenantId) => {
         [tenantId, petId]
     );
 
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows) };
+    return ok(event, 200, rows);
 };
 
 const createPetVaccination = async (event, tenantId) => {
@@ -572,11 +553,7 @@ const createPetVaccination = async (event, tenantId) => {
     const { type, administeredAt, expiresAt, documentUrl, notes } = body;
 
     if (!type || !administeredAt || !expiresAt) {
-        return {
-            statusCode: 400,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Type, administeredAt, and expiresAt are required' }),
-        };
+        return fail(event, 400, { message: 'Type, administeredAt, and expiresAt are required' });
     }
 
     const pool = getPool();
@@ -589,11 +566,7 @@ const createPetVaccination = async (event, tenantId) => {
         [tenantId, petId, type, administeredAt, expiresAt, documentUrl, notes]
     );
 
-    return {
-        statusCode: 201,
-        headers: HEADERS,
-        body: JSON.stringify(rows[0]),
-    };
+    return ok(event, 201, rows[0]);
 };
 
 const updatePetVaccination = async (event, tenantId) => {
@@ -616,11 +589,7 @@ const updatePetVaccination = async (event, tenantId) => {
     }
 
     if (fields.length === 0) {
-        return {
-            statusCode: 400,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'No valid fields provided for update' }),
-        };
+        return fail(event, 400, { message: 'No valid fields provided for update' });
     }
 
     const setClause = fields.join(', ');
@@ -631,18 +600,10 @@ const updatePetVaccination = async (event, tenantId) => {
     const { rows } = await pool.query(query, values);
 
     if (rows.length === 0) {
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Vaccination not found or you do not have permission to update it' }),
-        };
+        return fail(event, 404, { message: 'Vaccination not found or you do not have permission to update it' });
     }
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(rows[0]),
-    };
+    return ok(event, 200, rows[0]);
 };
 
 const deletePetVaccination = async (event, tenantId) => {
@@ -655,18 +616,10 @@ const deletePetVaccination = async (event, tenantId) => {
     );
 
     if (rowCount === 0) {
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Vaccination not found or you do not have permission to delete it' }),
-        };
+        return fail(event, 404, { message: 'Vaccination not found or you do not have permission to delete it' });
     }
 
-    return {
-        statusCode: 204,
-        headers: HEADERS,
-        body: '',
-    };
+    return ok(event, 204);
 };
 
 // Upsert PetOwner row and maintain single primary owner invariant
@@ -674,7 +627,7 @@ const upsertPetOwner = async (event, tenantId) => {
     const body = JSON.parse(event.body || '{}');
     const { petId, ownerId, isPrimary = false } = body;
     if (!petId || !ownerId) {
-        return { statusCode: 400, headers: HEADERS, body: JSON.stringify({ message: 'petId and ownerId are required' }) };
+        return fail(event, 400, { message: 'petId and ownerId are required' });
     }
 
     const pool = getPool();
@@ -720,11 +673,11 @@ const upsertPetOwner = async (event, tenantId) => {
         }
 
         await client.query('COMMIT');
-        return { statusCode: 200, headers: HEADERS, body: JSON.stringify({ ok: true }) };
+        return ok(event, 200, { ok: true });
     } catch (e) {
         await client.query('ROLLBACK');
         console.error('[pets-api] upsertPetOwner failed', e?.message || e);
-        return { statusCode: 500, headers: HEADERS, body: JSON.stringify({ message: 'Failed to upsert pet owner' }) };
+        return fail(event, 500, { message: 'Failed to upsert pet owner' });
     } finally {
         client.release();
     }
@@ -777,11 +730,7 @@ async function listOwners(event, tenantId) {
         pets: row.pets || []
     }));
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(owners),
-    };
+    return ok(event, 200, owners);
 }
 
 async function createOwner(event, tenantId) {
@@ -798,11 +747,7 @@ async function createOwner(event, tenantId) {
     } = JSON.parse(event.body || '{}');
 
     if (!firstName || !lastName) {
-        return {
-            statusCode: 400,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'First name and last name are required' }),
-        };
+        return fail(event, 400, { message: 'First name and last name are required' });
     }
 
     const result = await pool.query(
@@ -824,11 +769,7 @@ async function createOwner(event, tenantId) {
     owner.pets = [];
     owner.petCount = 0;
 
-    return {
-        statusCode: 201,
-        headers: HEADERS,
-        body: JSON.stringify(owner),
-    };
+    return ok(event, 201, owner);
 }
 
 async function getOwnerById(event, tenantId) {
@@ -857,11 +798,7 @@ async function getOwnerById(event, tenantId) {
     );
 
     if (ownerResult.rows.length === 0) {
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Owner not found' }),
-        };
+        return fail(event, 404, { message: 'Owner not found' });
     }
 
     const owner = ownerResult.rows[0];
@@ -884,11 +821,7 @@ async function getOwnerById(event, tenantId) {
 
     owner.recentBookings = bookingsResult.rows;
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(owner),
-    };
+    return ok(event, 200, owner);
 }
 
 async function updateOwner(event, tenantId) {
@@ -903,11 +836,7 @@ async function updateOwner(event, tenantId) {
     );
 
     if (checkResult.rows.length === 0) {
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Owner not found' }),
-        };
+        return fail(event, 404, { message: 'Owner not found' });
     }
 
     // Build dynamic update query
@@ -928,11 +857,7 @@ async function updateOwner(event, tenantId) {
     });
 
     if (updateFields.length === 0) {
-        return {
-            statusCode: 400,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'No valid fields to update' }),
-        };
+        return fail(event, 400, { message: 'No valid fields to update' });
     }
 
     const updateQuery = `
@@ -946,11 +871,7 @@ async function updateOwner(event, tenantId) {
     const owner = result.rows[0];
     owner.name = `${owner.firstName} ${owner.lastName}`.trim();
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(owner),
-    };
+    return ok(event, 200, owner);
 }
 
 async function deleteOwner(event, tenantId) {
@@ -966,13 +887,9 @@ async function deleteOwner(event, tenantId) {
     );
 
     if (parseInt(bookingCheck.rows[0].count) > 0) {
-        return {
-            statusCode: 400,
-            headers: HEADERS,
-            body: JSON.stringify({
-                message: 'Cannot delete owner with active bookings'
-            }),
-        };
+        return fail(event, 400, {
+            message: 'Cannot delete owner with active bookings'
+        });
     }
 
     const result = await pool.query(
@@ -981,18 +898,10 @@ async function deleteOwner(event, tenantId) {
     );
 
     if (result.rows.length === 0) {
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Owner not found' }),
-        };
+        return fail(event, 404, { message: 'Owner not found' });
     }
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify({ message: 'Owner deleted successfully' }),
-    };
+    return ok(event, 200, { message: 'Owner deleted successfully' });
 }
 
 // ==================== STAFF HANDLERS ====================
@@ -1007,7 +916,7 @@ async function listStaff(event, tenantId) {
          WHERE s."tenantId" = $1`,
         [tenantId]
     );
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows) };
+    return ok(event, 200, rows);
 }
 
 async function createStaff(event, tenantId) {
@@ -1018,7 +927,7 @@ async function createStaff(event, tenantId) {
          VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW()) RETURNING *`,
         [tenantId, membershipId, position, phone, emergencyContact]
     );
-    return { statusCode: 201, headers: HEADERS, body: JSON.stringify(rows[0]) };
+    return ok(event, 201, rows[0]);
 }
 
 async function getStaffById(event, tenantId) {
@@ -1032,9 +941,9 @@ async function getStaffById(event, tenantId) {
         [event.pathParameters.staffId, tenantId]
     );
     if (rows.length === 0) {
-        return { statusCode: 404, headers: HEADERS, body: JSON.stringify({ message: 'Staff member not found' }) };
+        return fail(event, 404, { message: 'Staff member not found' });
     }
-    return { statusCode: 200, headers: HEADERS, body: JSON.stringify(rows[0]) };
+    return ok(event, 200, rows[0]);
 }
 
 async function updateStaff(event, tenantId) {
@@ -1057,11 +966,7 @@ async function updateStaff(event, tenantId) {
     }
 
     if (fields.length === 0) {
-        return {
-            statusCode: 400,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'No valid fields provided for update' }),
-        };
+        return fail(event, 400, { message: 'No valid fields provided for update' });
     }
 
     const setClause = fields.join(', ');
@@ -1071,18 +976,10 @@ async function updateStaff(event, tenantId) {
     const { rows } = await pool.query(query, values);
 
     if (rows.length === 0) {
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Staff member not found or you do not have permission to update it' }),
-        };
+        return fail(event, 404, { message: 'Staff member not found or you do not have permission to update it' });
     }
 
-    return {
-        statusCode: 200,
-        headers: HEADERS,
-        body: JSON.stringify(rows[0]),
-    };
+    return ok(event, 200, rows[0]);
 }
 
 async function deleteStaff(event, tenantId) {
@@ -1098,13 +995,9 @@ async function deleteStaff(event, tenantId) {
     );
 
     if (parseInt(checkResult.rows[0].count) > 0) {
-        return {
-            statusCode: 400,
-            headers: HEADERS,
-            body: JSON.stringify({
-                message: 'Cannot delete staff member with active schedules. Please reassign or remove schedules first.'
-            }),
-        };
+        return fail(event, 400, {
+            message: 'Cannot delete staff member with active schedules. Please reassign or remove schedules first.'
+        });
     }
 
     const { rowCount } = await pool.query(
@@ -1113,16 +1006,8 @@ async function deleteStaff(event, tenantId) {
     );
 
     if (rowCount === 0) {
-        return {
-            statusCode: 404,
-            headers: HEADERS,
-            body: JSON.stringify({ message: 'Staff member not found or you do not have permission to delete it' }),
-        };
+        return fail(event, 404, { message: 'Staff member not found or you do not have permission to delete it' });
     }
 
-    return {
-        statusCode: 204, // No Content
-        headers: HEADERS,
-        body: '',
-    };
+    return ok(event, 204);
 }
