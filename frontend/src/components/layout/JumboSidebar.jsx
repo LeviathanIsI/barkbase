@@ -3,58 +3,40 @@ import { useAuthStore } from "@/stores/auth";
 import { useTenantStore } from "@/stores/tenant";
 import { useUIStore } from "@/stores/ui";
 import {
-  BarChart3,
-  BookOpen,
-  Calendar,
-  CheckCircle,
   ChevronRight,
-  Clock,
-  DollarSign,
-  Gift,
-  Grid3x3,
   PanelLeft,
   PanelLeftClose,
-  PawPrint,
-  Settings,
-  Shield,
+  Grid3x3,
+  BookOpen,
+  CheckCircle,
+  Clock,
   Users,
+  PawPrint,
+  Shield,
+  BarChart3,
+  DollarSign,
+  Gift,
+  Settings as SettingsIcon,
 } from "lucide-react";
+import { mainNavItems, navSections } from "@/config/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 
-// Simplified Navigation Structure for BarkBase
-// Addresses research finding: "5 sections require mental mapping, reduce to 3"
-const navigationSections = [
-  {
-    title: "TODAY",
-    items: [
-      { to: "/today", label: "Command Center", icon: Grid3x3 },
-      { to: "/bookings", label: "Bookings", icon: BookOpen },
-      { to: "/tasks", label: "Tasks", icon: CheckCircle },
-      { to: "/runs", label: "Run Assignment", icon: Clock },
-    ],
-  },
-  {
-    title: "PETS & PEOPLE",
-    items: [
-      { to: "/pets-people", label: "All Clients", icon: Users },
-      { to: "/pets", label: "Pets Directory", icon: PawPrint },
-      { to: "/vaccinations", label: "Vaccinations", icon: Shield },
-      { to: "/owners", label: "Owners", icon: Users },
-    ],
-  },
-  {
-    title: "BUSINESS",
-    items: [
-      { to: "/reports", label: "Reports", icon: BarChart3 },
-      { to: "/payments", label: "Payments", icon: DollarSign },
-      { to: "/packages", label: "Packages", icon: Gift },
-      { to: "/staff", label: "Team", icon: Users },
-      { to: "/settings", label: "Settings", icon: Settings },
-    ],
-  },
-];
-
+const iconMap = {
+  "/today": Grid3x3,
+  "/bookings": BookOpen,
+  "/tasks": CheckCircle,
+  "/runs": Clock,
+  "/pets-people": Users,
+  "/pets": PawPrint,
+  "/owners": Users,
+  "/vaccinations": Shield,
+  "/reports": BarChart3,
+  "/payments": DollarSign,
+  "/packages": Gift,
+  "/staff": Users,
+  "/settings": SettingsIcon,
+};
 const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
   const tenant = useTenantStore((state) => state.tenant);
   const user = useAuthStore((state) => state.user);
@@ -63,9 +45,14 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
   const location = useLocation();
 
   const [expandedSections, setExpandedSections] = useState(() => {
-    // Initialize with first section expanded
     const initial = {};
-    navigationSections.forEach((section, index) => {
+    navSections.forEach((section, index) => {
+      initial[section.title] = index === 0;
+    });
+    return initial;
+  });
+    navSections.forEach((section, index) => {
+    navSections.forEach((section, index) => {
       initial[section.title] = index === 0; // Expand first section by default
     });
     return initial;
@@ -202,7 +189,7 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-4">
-        {navigationSections.map((section) => {
+        {navSections.map((section) => {
           const isExpanded = expandedSections[section.title];
           const sectionActive = isSectionActive(section);
 
@@ -237,13 +224,15 @@ const JumboSidebar = ({ collapsed, isMobile = false, onNavigate }) => {
               {isExpanded && (!collapsed || isMobile) && (
                 <div className="mt-2 space-y-1">
                   {section.items.map((item) => {
-                    const ItemIcon = item.icon;
-                    const active = isItemActive(item);
+                    const path = item.path || item.to;
+                    const label = item.label;
+                    const ItemIcon = iconMap[path] || Grid3x3;
+                    const active = location.pathname.startsWith(path);
 
                     return (
                       <NavLink
-                        key={item.to}
-                        to={item.to}
+                        key={path}
+                        to={path}
                         onClick={onNavigate}
                         className={() =>
                           cn(
