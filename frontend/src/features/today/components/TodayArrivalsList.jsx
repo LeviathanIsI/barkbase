@@ -1,0 +1,118 @@
+import { AlertCircle, UserCheck } from 'lucide-react';
+import Button from '@/components/ui/Button';
+import Badge from '@/components/ui/Badge';
+import { Card } from '@/components/ui/Card';
+import PetAvatar from '@/components/ui/PetAvatar';
+import { cn } from '@/lib/cn';
+
+// TODO (Today Cleanup B:3): This component will be visually redesigned in the next phase.
+const TodayArrivalsList = ({ arrivals, onBatchCheckIn, isLoading }) => {
+  if (isLoading) {
+    return (
+      <Card className="p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-6 bg-gray-200 dark:bg-surface-secondary rounded" />
+          <div className="space-y-2">
+            <div className="h-20 bg-gray-200 dark:bg-surface-secondary rounded" />
+            <div className="h-20 bg-gray-200 dark:bg-surface-secondary rounded" />
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-semibold flex items-center gap-2">
+          <UserCheck className="w-6 h-6 text-success-600" />
+          Today&apos;s Arrivals
+          <Badge variant="success" className="ml-2">{arrivals.length}</Badge>
+        </h2>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onBatchCheckIn}
+          disabled={arrivals.length === 0}
+        >
+          Batch Check-in
+        </Button>
+      </div>
+
+      <div className="space-y-3">
+        {arrivals.length === 0 ? (
+          <EmptyState type="arrival" />
+        ) : (
+          arrivals.map((booking, idx) => (
+            <ArrivalRow key={booking.id || idx} booking={booking} type="arrival" />
+          ))
+        )}
+      </div>
+    </Card>
+  );
+};
+
+const EmptyState = ({ type }) => {
+  const isArrival = type === 'arrival';
+  const Icon = UserCheck;
+  const colorClass = isArrival ? 'text-success-600' : 'text-warning-600';
+
+  return (
+    <div className="text-center py-12 text-gray-500">
+      <Icon className={cn('w-16 h-16 mx-auto mb-3 opacity-20', colorClass)} />
+      <p className="text-lg">No arrivals scheduled today</p>
+    </div>
+  );
+};
+
+const ArrivalRow = ({ booking, type }) => {
+  const colorClass = type === 'arrival' ? 'text-success-600' : 'text-warning-600';
+  const badgeVariant = type === 'arrival' ? 'success' : 'warning';
+  const time = booking.arrivalTime || booking.departureTime || booking.startDate;
+
+  return (
+    <div
+      className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg hover:bg-gray-100 dark:hover:bg-surface-tertiary transition-colors"
+    >
+      <PetAvatar
+        pet={booking.pet || { name: booking.petName }}
+        size="md"
+        showStatus={false}
+      />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-3">
+          <p className="font-semibold text-base truncate">
+            {booking.petName || booking.pet?.name}
+          </p>
+          <Badge variant={badgeVariant} className="text-sm">
+            {formatTime(time)}
+          </Badge>
+        </div>
+        <p className="text-sm text-gray-600 dark:text-text-secondary truncate">
+          {booking.ownerName || booking.owner?.name || 'Owner'}
+        </p>
+        {booking.service && (
+          <p className="text-xs text-gray-500 mt-1">
+            {booking.service}
+          </p>
+        )}
+      </div>
+      {booking.hasExpiringVaccinations && (
+        <AlertCircle className="w-5 h-5 text-warning-500 flex-shrink-0" />
+      )}
+    </div>
+  );
+};
+
+const formatTime = (dateString) => {
+  if (!dateString) return 'TBD';
+  const date = new Date(dateString);
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+};
+
+export default TodayArrivalsList;
+
