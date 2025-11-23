@@ -7,7 +7,7 @@ import TodaySection from './TodaySection';
 import { TodayListSkeleton } from './TodaySkeleton';
 
 // TODO (Today Cleanup B:3): This component will be visually redesigned in the next phase.
-const TodayDeparturesList = ({ departures, onBatchCheckOut, isLoading }) => {
+const TodayDeparturesList = ({ departures, onBatchCheckOut, isLoading, hasError }) => {
   if (isLoading) {
     return (
       <TodayCard>
@@ -33,26 +33,42 @@ const TodayDeparturesList = ({ departures, onBatchCheckOut, isLoading }) => {
           </Button>
         }
       >
-        <div className="space-y-3">
-          {departures.length === 0 ? (
-            <EmptyState />
-          ) : (
-            departures.map((booking, idx) => (
-              <DepartureRow key={booking.id || idx} booking={booking} />
-            ))
-          )}
-        </div>
+        <ListBody
+          items={departures}
+          emptyMessage="No departures scheduled today."
+          hasError={hasError}
+        />
       </TodaySection>
     </TodayCard>
   );
 };
 
-const EmptyState = () => (
-  <div className="text-center py-12 text-gray-500">
-    <UserX className="w-16 h-16 mx-auto mb-3 opacity-20 text-warning-600" />
-    <p className="text-lg">No departures scheduled today</p>
-  </div>
-);
+const ListBody = ({ items, emptyMessage, hasError }) => {
+  if (hasError) {
+    return (
+      <div className="rounded-lg border border-error-200 bg-error-50 p-4 text-error-700 dark:border-error-500/40 dark:bg-error-500/10 dark:text-error-100">
+        Unable to load departures.
+      </div>
+    );
+  }
+
+  if (!items.length) {
+    return (
+      <div className="text-center py-12 text-gray-500">
+        <UserX className="w-16 h-16 mx-auto mb-3 opacity-20 text-warning-600" />
+        <p className="text-lg">{emptyMessage}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {items.map((booking, idx) => (
+        <DepartureRow key={booking.id || idx} booking={booking} />
+      ))}
+    </div>
+  );
+};
 
 const DepartureRow = ({ booking }) => {
   const time = booking.arrivalTime || booking.departureTime || booking.startDate;

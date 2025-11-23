@@ -17,6 +17,9 @@ import TodayGrid from '@/features/today/components/TodayGrid';
 const TodayCommandCenter = () => {
   // TODO (Nav Cleanup B:4): Update nav labels + section grouping once Today page is finalized.
   // TODO (Today Refactor B:3): Visual cleanup + layout polish next.
+  // TODO (B:6 Query Consolidation):
+  // Many Today queries fetch overlapping booking data.
+  // In the next phase we will consolidate these queries into a unified "TodaySnapshot" hook.
   const [showBatchCheckIn, setShowBatchCheckIn] = useState(false);
   const [showBatchCheckOut, setShowBatchCheckOut] = useState(false);
 
