@@ -1,15 +1,15 @@
 import { AlertCircle, UserCheck } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import { Card } from '@/components/ui/Card';
 import PetAvatar from '@/components/ui/PetAvatar';
-import { cn } from '@/lib/cn';
+import TodayCard from './TodayCard';
+import TodaySection from './TodaySection';
 
 // TODO (Today Cleanup B:3): This component will be visually redesigned in the next phase.
 const TodayArrivalsList = ({ arrivals, onBatchCheckIn, isLoading }) => {
   if (isLoading) {
     return (
-      <Card className="p-6">
+      <TodayCard>
         <div className="animate-pulse space-y-4">
           <div className="h-6 bg-gray-200 dark:bg-surface-secondary rounded" />
           <div className="space-y-2">
@@ -17,57 +17,49 @@ const TodayArrivalsList = ({ arrivals, onBatchCheckIn, isLoading }) => {
             <div className="h-20 bg-gray-200 dark:bg-surface-secondary rounded" />
           </div>
         </div>
-      </Card>
+      </TodayCard>
     );
   }
 
   return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold flex items-center gap-2">
-          <UserCheck className="w-6 h-6 text-success-600" />
-          Today&apos;s Arrivals
-          <Badge variant="success" className="ml-2">{arrivals.length}</Badge>
-        </h2>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={onBatchCheckIn}
-          disabled={arrivals.length === 0}
-        >
-          Batch Check-in
-        </Button>
-      </div>
-
-      <div className="space-y-3">
-        {arrivals.length === 0 ? (
-          <EmptyState type="arrival" />
-        ) : (
-          arrivals.map((booking, idx) => (
-            <ArrivalRow key={booking.id || idx} booking={booking} type="arrival" />
-          ))
-        )}
-      </div>
-    </Card>
+    <TodayCard>
+      <TodaySection
+        title="Today's Arrivals"
+        icon={UserCheck}
+        badge={<Badge variant="success">{arrivals.length}</Badge>}
+        actions={
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onBatchCheckIn}
+            disabled={arrivals.length === 0}
+          >
+            Batch Check-in
+          </Button>
+        }
+      >
+        <div className="space-y-3">
+          {arrivals.length === 0 ? (
+            <EmptyState />
+          ) : (
+            arrivals.map((booking, idx) => (
+              <ArrivalRow key={booking.id || idx} booking={booking} />
+            ))
+          )}
+        </div>
+      </TodaySection>
+    </TodayCard>
   );
 };
 
-const EmptyState = ({ type }) => {
-  const isArrival = type === 'arrival';
-  const Icon = UserCheck;
-  const colorClass = isArrival ? 'text-success-600' : 'text-warning-600';
+const EmptyState = () => (
+  <div className="text-center py-12 text-gray-500">
+    <UserCheck className="w-16 h-16 mx-auto mb-3 opacity-20 text-success-600" />
+    <p className="text-lg">No arrivals scheduled today</p>
+  </div>
+);
 
-  return (
-    <div className="text-center py-12 text-gray-500">
-      <Icon className={cn('w-16 h-16 mx-auto mb-3 opacity-20', colorClass)} />
-      <p className="text-lg">No arrivals scheduled today</p>
-    </div>
-  );
-};
-
-const ArrivalRow = ({ booking, type }) => {
-  const colorClass = type === 'arrival' ? 'text-success-600' : 'text-warning-600';
-  const badgeVariant = type === 'arrival' ? 'success' : 'warning';
+const ArrivalRow = ({ booking }) => {
   const time = booking.arrivalTime || booking.departureTime || booking.startDate;
 
   return (
@@ -84,7 +76,7 @@ const ArrivalRow = ({ booking, type }) => {
           <p className="font-semibold text-base truncate">
             {booking.petName || booking.pet?.name}
           </p>
-          <Badge variant={badgeVariant} className="text-sm">
+          <Badge variant="success" className="text-sm">
             {formatTime(time)}
           </Badge>
         </div>

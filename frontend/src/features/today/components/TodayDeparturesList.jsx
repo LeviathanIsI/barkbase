@@ -1,15 +1,15 @@
 import { AlertCircle, UserX } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import { Card } from '@/components/ui/Card';
 import PetAvatar from '@/components/ui/PetAvatar';
-import { cn } from '@/lib/cn';
+import TodayCard from './TodayCard';
+import TodaySection from './TodaySection';
 
 // TODO (Today Cleanup B:3): This component will be visually redesigned in the next phase.
 const TodayDeparturesList = ({ departures, onBatchCheckOut, isLoading }) => {
   if (isLoading) {
     return (
-      <Card className="p-6">
+      <TodayCard>
         <div className="animate-pulse space-y-4">
           <div className="h-6 bg-gray-200 dark:bg-surface-secondary rounded" />
           <div className="space-y-2">
@@ -17,49 +17,47 @@ const TodayDeparturesList = ({ departures, onBatchCheckOut, isLoading }) => {
             <div className="h-20 bg-gray-200 dark:bg-surface-secondary rounded" />
           </div>
         </div>
-      </Card>
+      </TodayCard>
     );
   }
 
   return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold flex items-center gap-2">
-          <UserX className="w-6 h-6 text-warning-600" />
-          Today&apos;s Departures
-          <Badge variant="warning" className="ml-2">{departures.length}</Badge>
-        </h2>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={onBatchCheckOut}
-          disabled={departures.length === 0}
-        >
-          Batch Check-out
-        </Button>
-      </div>
-
-      <div className="space-y-3">
-        {departures.length === 0 ? (
-          <EmptyState />
-        ) : (
-          departures.map((booking, idx) => (
-            <DepartureRow key={booking.id || idx} booking={booking} />
-          ))
-        )}
-      </div>
-    </Card>
+    <TodayCard>
+      <TodaySection
+        title="Today's Departures"
+        icon={UserX}
+        badge={<Badge variant="warning">{departures.length}</Badge>}
+        actions={
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onBatchCheckOut}
+            disabled={departures.length === 0}
+          >
+            Batch Check-out
+          </Button>
+        }
+      >
+        <div className="space-y-3">
+          {departures.length === 0 ? (
+            <EmptyState />
+          ) : (
+            departures.map((booking, idx) => (
+              <DepartureRow key={booking.id || idx} booking={booking} />
+            ))
+          )}
+        </div>
+      </TodaySection>
+    </TodayCard>
   );
 };
 
-const EmptyState = () => {
-  return (
-    <div className="text-center py-12 text-gray-500">
-      <UserX className={cn('w-16 h-16 mx-auto mb-3 opacity-20 text-warning-600')} />
-      <p className="text-lg">No departures scheduled today</p>
-    </div>
-  );
-};
+const EmptyState = () => (
+  <div className="text-center py-12 text-gray-500">
+    <UserX className="w-16 h-16 mx-auto mb-3 opacity-20 text-warning-600" />
+    <p className="text-lg">No departures scheduled today</p>
+  </div>
+);
 
 const DepartureRow = ({ booking }) => {
   const time = booking.arrivalTime || booking.departureTime || booking.startDate;

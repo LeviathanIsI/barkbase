@@ -5,6 +5,7 @@ import PetAvatar from '@/components/ui/PetAvatar';
 import Modal from '@/components/ui/Modal';
 import apiClient from '@/lib/apiClient';
 import { cn } from '@/lib/cn';
+import TodaySection from './TodaySection';
 
 // TODO (Today Cleanup B:3): This component will be visually redesigned in the next phase.
 const TodayBatchCheckOutModal = ({ open, onClose, departures }) => {
@@ -46,10 +47,10 @@ const TodayBatchCheckOutModal = ({ open, onClose, departures }) => {
       title="Batch Check-out"
       className="max-w-2xl"
     >
-      <div className="space-y-4">
-        <div className="text-sm text-gray-600 dark:text-text-secondary mb-4">
-          Select pets to check out:
-        </div>
+      <TodaySection
+        subtitle="Select pets to check out:"
+        className="space-y-4"
+      >
         <div className="space-y-2 max-h-96 overflow-y-auto">
           {departures.map((booking) => {
             const isSelected = selectedDepartures.includes(booking.id);
@@ -73,17 +74,22 @@ const TodayBatchCheckOutModal = ({ open, onClose, departures }) => {
                 <PetAvatar pet={booking.pet || { name: booking.petName }} size="sm" showStatus={false} />
                 <div className="flex-1">
                   <p className="font-medium">{booking.petName || booking.pet?.name}</p>
-                  <p className="text-sm text-gray-600">{booking.ownerName || booking.owner?.name}</p>
+                  <p className="text-sm text-gray-600 dark:text-text-secondary">
+                    {booking.ownerName || booking.owner?.name}
+                  </p>
                 </div>
               </div>
             );
           })}
         </div>
-        <div className="flex justify-end gap-3 pt-4">
-          <Button variant="outline" onClick={() => {
-            setSelectedDepartures([]);
-            onClose?.();
-          }}>
+        <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:justify-end">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setSelectedDepartures([]);
+              onClose?.();
+            }}
+          >
             Cancel
           </Button>
           <Button
@@ -93,7 +99,7 @@ const TodayBatchCheckOutModal = ({ open, onClose, departures }) => {
             {processing ? 'Processing...' : `Check Out ${selectedDepartures.length} Pets`}
           </Button>
         </div>
-      </div>
+      </TodaySection>
     </Modal>
   );
 };

@@ -1,12 +1,12 @@
 import { AlertCircle, Home, UserCheck, UserX } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import TodayCard from './TodayCard';
 
 // TODO (Today Cleanup B:3): This component will be visually redesigned in the next phase.
 const TodayHeroCard = ({ kennelName, formattedDate, stats }) => {
   return (
-    <Card className="p-6">
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
+    <TodayCard>
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-dark-text-primary">
             Today{kennelName ? ` at ${kennelName}` : ''}
@@ -16,57 +16,52 @@ const TodayHeroCard = ({ kennelName, formattedDate, stats }) => {
           </p>
         </div>
 
-        <Button variant="primary" size="md" className="font-medium">
+        <Button variant="primary" size="md" className="font-medium self-start md:self-auto">
           New Booking
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-        <div className="bg-gray-50 dark:bg-dark-bg-tertiary border border-gray-200 dark:border-dark-border rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <UserCheck className="w-4 h-4 text-success-600 dark:text-success-500" />
-            <span className="text-xs text-gray-600 dark:text-dark-text-secondary">Arriving</span>
-          </div>
-          <p className="text-xl font-semibold text-gray-900 dark:text-dark-text-primary">
-            {stats.arrivals}
-          </p>
-        </div>
-
-        <div className="bg-gray-50 dark:bg-dark-bg-tertiary border border-gray-200 dark:border-dark-border rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <UserX className="w-4 h-4 text-warning-600 dark:text-warning-500" />
-            <span className="text-xs text-gray-600 dark:text-dark-text-secondary">Departing</span>
-          </div>
-          <p className="text-xl font-semibold text-gray-900 dark:text-dark-text-primary">
-            {stats.departures}
-          </p>
-        </div>
-
-        <div className="bg-gray-50 dark:bg-dark-bg-tertiary border border-gray-200 dark:border-dark-border rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Home className="w-4 h-4 text-primary-600 dark:text-primary-500" />
-            <span className="text-xs text-gray-600 dark:text-dark-text-secondary">In Facility</span>
-          </div>
-          <p className="text-xl font-semibold text-gray-900 dark:text-dark-text-primary">
-            {stats.inFacility}
-          </p>
-        </div>
-
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+        <StatCard
+          icon={UserCheck}
+          label="Arriving"
+          value={stats.arrivals}
+          iconClassName="text-success-600 dark:text-success-500"
+        />
+        <StatCard
+          icon={UserX}
+          label="Departing"
+          value={stats.departures}
+          iconClassName="text-warning-600 dark:text-warning-500"
+        />
+        <StatCard
+          icon={Home}
+          label="In Facility"
+          value={stats.inFacility}
+          iconClassName="text-primary-600 dark:text-primary-500"
+        />
         {stats.attentionItems > 0 && (
-          <div className="bg-gray-50 dark:bg-dark-bg-tertiary border border-gray-200 dark:border-dark-border rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <AlertCircle className="w-4 h-4 text-error-600 dark:text-error-500" />
-              <span className="text-xs text-gray-600 dark:text-dark-text-secondary">Attention</span>
-            </div>
-            <p className="text-xl font-semibold text-error-600 dark:text-error-500">
-              {stats.attentionItems}
-            </p>
-          </div>
+          <StatCard
+            icon={AlertCircle}
+            label="Attention"
+            value={stats.attentionItems}
+            iconClassName="text-error-600 dark:text-error-500"
+          />
         )}
       </div>
-    </Card>
+    </TodayCard>
   );
 };
+
+const StatCard = ({ icon: Icon, label, value, iconClassName }) => (
+  <div className="bg-gray-50 dark:bg-dark-bg-tertiary border border-gray-200 dark:border-dark-border rounded-lg p-4">
+    <div className="flex items-center gap-2 mb-1">
+      <Icon className={iconClassName} />
+      <span className="text-xs text-gray-600 dark:text-dark-text-secondary">{label}</span>
+    </div>
+    <p className="text-xl font-semibold text-gray-900 dark:text-dark-text-primary">{value}</p>
+  </div>
+);
 
 export default TodayHeroCard;
 
