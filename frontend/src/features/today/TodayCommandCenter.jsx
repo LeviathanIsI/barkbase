@@ -1,18 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  UserCheck, UserX, Home, AlertCircle
-} from 'lucide-react';
-import { Card, PageHeader } from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import Badge from '@/components/ui/Badge';
-import PetAvatar from '@/components/ui/PetAvatar';
-import BatchCheckIn from '@/features/bookings/components/BatchCheckIn';
-import Modal from '@/components/ui/Modal';
 import apiClient from '@/lib/apiClient';
 import { useUserProfileQuery } from '@/features/settings/api-user';
-import { cn } from '@/lib/cn';
-import toast from 'react-hot-toast';
+import TodayHeroCard from '@/features/today/components/TodayHeroCard';
+import TodayArrivalsList from '@/features/today/components/TodayArrivalsList';
+import TodayDeparturesList from '@/features/today/components/TodayDeparturesList';
+import TodayBatchCheckInModal from '@/features/today/components/TodayBatchCheckInModal';
+import TodayBatchCheckOutModal from '@/features/today/components/TodayBatchCheckOutModal';
 
 /**
  * TodayCommandCenter Component
@@ -125,140 +119,6 @@ const TodayCommandCenter = () => {
     return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   };
 
-  // Arrival/Departure List Component
-  const ArrivalDepartureList = ({ items, type }) => {
-    const isArrival = type === 'arrival';
-    const Icon = isArrival ? UserCheck : UserX;
-    const colorClass = isArrival ? 'text-success-600' : 'text-warning-600';
-
-    if (items.length === 0) {
-      return (
-        <div className="text-center py-12 text-gray-500">
-          <Icon className={cn("w-16 h-16 mx-auto mb-3 opacity-20", colorClass)} />
-          <p className="text-lg">No {isArrival ? 'arrivals' : 'departures'} scheduled today</p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-3">
-        {items.map((booking, idx) => (
-          <div
-            key={booking.id || idx}
-            className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg hover:bg-gray-100 dark:hover:bg-surface-tertiary transition-colors"
-          >
-            <PetAvatar
-              pet={booking.pet || { name: booking.petName }}
-              size="md"
-              showStatus={false}
-            />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-3">
-                <p className="font-semibold text-base truncate">
-                  {booking.petName || booking.pet?.name}
-                </p>
-                <Badge variant={isArrival ? "success" : "warning"} className="text-sm">
-                  {formatTime(booking.arrivalTime || booking.departureTime || booking.startDate)}
-                </Badge>
-              </div>
-              <p className="text-sm text-gray-600 dark:text-text-secondary truncate">
-                {booking.ownerName || booking.owner?.name || 'Owner'}
-              </p>
-              {booking.service && (
-                <p className="text-xs text-gray-500 mt-1">
-                  {booking.service}
-                </p>
-              )}
-            </div>
-            {booking.hasExpiringVaccinations && (
-              <AlertCircle className="w-5 h-5 text-warning-500 flex-shrink-0" />
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  // Batch Check-out Component (simplified inline)
-  const BatchCheckOut = () => {
-    const [selectedDepartures, setSelectedDepartures] = useState([]);
-    const [processing, setProcessing] = useState(false);
-    
-    const handleBatchCheckOut = async () => {
-      setProcessing(true);
-      try {
-        // Process check-outs
-        for (const bookingId of selectedDepartures) {
-          await apiClient.post(`/api/v1/bookings/${bookingId}/check-out`, {
-            timestamp: new Date().toISOString()
-          });
-        }
-        toast.success(`Successfully checked out ${selectedDepartures.length} pets!`);
-        setShowBatchCheckOut(false);
-        // Refresh data
-        window.location.reload();
-      } catch (error) {
-        toast.error('Failed to process check-outs');
-      } finally {
-        setProcessing(false);
-      }
-    };
-    
-    return (
-      <div className="space-y-4">
-        <div className="text-sm text-gray-600 dark:text-text-secondary mb-4">
-          Select pets to check out:
-        </div>
-        <div className="space-y-2 max-h-96 overflow-y-auto">
-          {departures.map((booking) => {
-            const isSelected = selectedDepartures.includes(booking.id);
-            return (
-              <div
-                key={booking.id}
-                className={cn(
-                  "flex items-center gap-3 p-3 rounded-lg border cursor-pointer",
-                  isSelected
-                    ? "border-blue-500 bg-blue-50 dark:bg-blue-950/20"
-                    : "border-gray-200 dark:border-surface-border bg-white dark:bg-surface-secondary"
-                )}
-                onClick={() => {
-                  setSelectedDepartures(prev => 
-                    isSelected 
-                      ? prev.filter(id => id !== booking.id)
-                      : [...prev, booking.id]
-                  );
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => {}}
-                  className="w-5 h-5 text-blue-600 rounded"
-                />
-                <PetAvatar pet={booking.pet || { name: booking.petName }} size="sm" showStatus={false} />
-                <div className="flex-1">
-                  <p className="font-medium">{booking.petName || booking.pet?.name}</p>
-                  <p className="text-sm text-gray-600">{booking.ownerName || booking.owner?.name}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <div className="flex justify-end gap-3 pt-4">
-          <Button variant="outline" onClick={() => setShowBatchCheckOut(false)}>
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleBatchCheckOut} 
-            disabled={selectedDepartures.length === 0 || processing}
-          >
-            {processing ? 'Processing...' : `Check Out ${selectedDepartures.length} Pets`}
-          </Button>
-        </div>
-      </div>
-    );
-  };
-
   const formattedDate = useMemo(
     () =>
       new Date().toLocaleDateString('en-US', {
@@ -287,126 +147,34 @@ const TodayCommandCenter = () => {
 
   return (
     <div className="flex h-full flex-col space-y-6 px-4 py-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-      {/* Hero Section */}
-      {/* TODO (Today Refactor - Phase B:2): Extract hero + stat grid into reusable dashboard cards so we can rearrange them without touching this monolith. */}
-      <Card className="p-6">
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
-          {/* Title and Date */}
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-dark-text-primary">
-              Today{kennelName ? ` at ${kennelName}` : ''}
-            </h1>
-            <p className="text-sm text-gray-600 dark:text-dark-text-secondary mt-1">
-              {formattedDate}
-            </p>
-          </div>
-          
-          {/* Primary CTA */}
-          <Button variant="primary" size="md" className="font-medium">
-            New Booking
-          </Button>
-        </div>
-        
-        {/* Key Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-          <div className="bg-gray-50 dark:bg-dark-bg-tertiary border border-gray-200 dark:border-dark-border rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <UserCheck className="w-4 h-4 text-success-600 dark:text-success-500" />
-              <span className="text-xs text-gray-600 dark:text-dark-text-secondary">Arriving</span>
-            </div>
-            <p className="text-xl font-semibold text-gray-900 dark:text-dark-text-primary">{stats.arrivals}</p>
-          </div>
-          
-          <div className="bg-gray-50 dark:bg-dark-bg-tertiary border border-gray-200 dark:border-dark-border rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <UserX className="w-4 h-4 text-warning-600 dark:text-warning-500" />
-              <span className="text-xs text-gray-600 dark:text-dark-text-secondary">Departing</span>
-            </div>
-            <p className="text-xl font-semibold text-gray-900 dark:text-dark-text-primary">{stats.departures}</p>
-          </div>
-          
-          <div className="bg-gray-50 dark:bg-dark-bg-tertiary border border-gray-200 dark:border-dark-border rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Home className="w-4 h-4 text-primary-600 dark:text-primary-500" />
-              <span className="text-xs text-gray-600 dark:text-dark-text-secondary">In Facility</span>
-            </div>
-            <p className="text-xl font-semibold text-gray-900 dark:text-dark-text-primary">{stats.inFacility}</p>
-          </div>
-          
-          {stats.attentionItems > 0 && (
-            <div className="bg-gray-50 dark:bg-dark-bg-tertiary border border-gray-200 dark:border-dark-border rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <AlertCircle className="w-4 h-4 text-error-600 dark:text-error-500" />
-                <span className="text-xs text-gray-600 dark:text-dark-text-secondary">Attention</span>
-              </div>
-              <p className="text-xl font-semibold text-error-600 dark:text-error-500">{stats.attentionItems}</p>
-            </div>
-          )}
-        </div>
-      </Card>
+      <TodayHeroCard
+        kennelName={kennelName}
+        formattedDate={formattedDate}
+        stats={stats}
+      />
 
-      {/* Main Content - Arrivals and Departures */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Arrivals */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-              <UserCheck className="w-6 h-6 text-success-600" />
-              Today's Arrivals
-              <Badge variant="success" className="ml-2">{stats.arrivals}</Badge>
-            </h2>
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={() => setShowBatchCheckIn(true)}
-              disabled={arrivals.length === 0}
-            >
-              Batch Check-in
-            </Button>
-          </div>
-          <ArrivalDepartureList items={arrivals} type="arrival" />
-        </Card>
-        
-        {/* Departures */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-              <UserX className="w-6 h-6 text-warning-600" />
-              Today's Departures
-              <Badge variant="warning" className="ml-2">{stats.departures}</Badge>
-            </h2>
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={() => setShowBatchCheckOut(true)}
-              disabled={departures.length === 0}
-            >
-              Batch Check-out
-            </Button>
-          </div>
-          <ArrivalDepartureList items={departures} type="departure" />
-        </Card>
+        <TodayArrivalsList
+          arrivals={arrivals}
+          isLoading={loadingArrivals}
+          onBatchCheckIn={() => setShowBatchCheckIn(true)}
+        />
+        <TodayDeparturesList
+          departures={departures}
+          isLoading={loadingDepartures}
+          onBatchCheckOut={() => setShowBatchCheckOut(true)}
+        />
       </div>
 
-      {/* Batch Check-in Modal */}
-      <Modal
+      <TodayBatchCheckInModal
         open={showBatchCheckIn}
         onClose={() => setShowBatchCheckIn(false)}
-        title="Batch Check-in"
-        className="max-w-4xl"
-      >
-        <BatchCheckIn />
-      </Modal>
-
-      {/* Batch Check-out Modal */}
-      <Modal
+      />
+      <TodayBatchCheckOutModal
         open={showBatchCheckOut}
         onClose={() => setShowBatchCheckOut(false)}
-        title="Batch Check-out"
-        className="max-w-2xl"
-      >
-        <BatchCheckOut />
-      </Modal>
+        departures={departures}
+      />
     </div>
   );
 };
