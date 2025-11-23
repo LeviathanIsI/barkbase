@@ -91,3 +91,8 @@ Following this plan will let us retire the duplicate Lambdas safely without intr
 - `entity-service` is now the sole deployed backend for all `/api/v1/pets`, `/api/v1/owners`, and `/api/v1/staff` traffic (with OPTIONS handled by the shared handler).
 - The legacy Lambda source folders remain for historical reference and continue to return `410 Gone`, but they are no longer part of any infrastructure deployment.
 
+### Phase 11 Milestone
+- `bookings-api`, `runs-api`, `check-in-api`, `check-out-api`, and `kennels-api` have been removed from the CDK stack and API Gateway routing.
+- `operations-service` is now the only deployed backend for `/api/v1/bookings*`, `/api/v1/runs*`, `/api/v1/check-ins*`, `/api/v1/check-outs*`, and `/api/v1/kennels*`.
+- Legacy source folders are retained in the repo as 410 tombstones for historical reference and emergency rollback, but they are no longer synthesized or deployed.
+

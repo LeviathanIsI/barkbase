@@ -22,11 +22,11 @@ This reference lists every Lambda under `aws/lambdas/`, the domain(s) it serves,
 | `pets-api` | Pets CRUD | historical (CDK removed; 410 tombstone) | `/api/v1/pets` (returns 410) | Superseded by `entity-service` | Source retained for history only |
 | `owners-api` | Owner CRUD | historical (CDK removed; 410 tombstone) | `/api/v1/owners` (returns 410) | Superseded by `entity-service` | Source retained for history only |
 | `staff-api` | Staff CRUD | historical (CDK removed; 410 tombstone) | `/api/v1/staff` (returns 410) | Superseded by `entity-service` | Source retained for history only |
-| `bookings-api` | Booking CRUD | legacy | `/api/v1/bookings` | Superseded by `operations-service` | Decommission |
-| `check-in-api` | Check-in workflow | legacy | `/api/v1/check-ins` | Superseded by `operations-service` | Decommission |
-| `check-out-api` | Check-out workflow | legacy | `/api/v1/check-outs` | Superseded by `operations-service` | Decommission |
-| `runs-api` | Run templates & assignments | legacy | `/api/v1/runs`, `/api/v1/run-templates` | Superseded by `operations-service` | Decommission |
-| `kennels-api` | Kennel inventory | legacy | `/api/v1/kennels` | Superseded by `operations-service` | Decommission |
+| `bookings-api` | Booking CRUD | historical (CDK removed; 410 tombstone) | `/api/v1/bookings` (returns 410) | Superseded by `operations-service` | Source retained for history only |
+| `check-in-api` | Check-in workflow | historical (CDK removed; 410 tombstone) | `/api/v1/check-ins` (returns 410) | Superseded by `operations-service` | Source retained for history only |
+| `check-out-api` | Check-out workflow | historical (CDK removed; 410 tombstone) | `/api/v1/check-outs` (returns 410) | Superseded by `operations-service` | Source retained for history only |
+| `runs-api` | Run templates & assignments | historical (CDK removed; 410 tombstone) | `/api/v1/runs`, `/api/v1/run-templates` (returns 410) | Superseded by `operations-service` | Source retained for history only |
+| `kennels-api` | Kennel inventory | historical (CDK removed; 410 tombstone) | `/api/v1/kennels` (returns 410) | Superseded by `operations-service` | Source retained for history only |
 | `dashboard-api` | Dashboard metrics | legacy | `/api/v1/dashboard/stats` | Superseded by `analytics-service` | Decommission |
 | `reports-api` | Reporting | legacy | `/api/v1/reports/*` | Superseded by `analytics-service` | Decommission |
 | `schedule-api` | Calendar capacity | legacy | `/api/v1/schedule`, `/api/v1/schedule/capacity` | Superseded by `analytics-service` | Decommission |

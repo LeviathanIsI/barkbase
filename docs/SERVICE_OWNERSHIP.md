@@ -27,15 +27,15 @@ Each Lambda under `aws/lambdas/` is listed below with its primary domain, exampl
 | Service | Domain(s) | Example routes | Status | Notes |
 | --- | --- | --- | --- | --- |
 | `account-defaults-api` | Tenant defaults | `GET /api/v1/account-defaults` | legacy | Functionality moved into `config-service`. |
-| `bookings-api` | Bookings | `GET /api/v1/bookings` | legacy | Fully replaced by `operations-service`. |
-| `check-in-api` | Check-ins | `POST /api/v1/check-ins` | legacy | Logic merged into `operations-service`. |
-| `check-out-api` | Check-outs | `POST /api/v1/check-outs` | legacy | Replaced by `operations-service`. |
+| `bookings-api` | Bookings | `/api/v1/bookings` (returns 410) | historical | Removed from CDK/API Gateway in Phase 11; operations-service is canonical. |
+| `check-in-api` | Check-ins | `/api/v1/check-ins` (returns 410) | historical | Removed from CDK/API Gateway in Phase 11; operations-service handles check-ins. |
+| `check-out-api` | Check-outs | `/api/v1/check-outs` (returns 410) | historical | Removed from CDK/API Gateway in Phase 11; operations-service handles check-outs. |
 | `communication-api` | Owner communications | `GET/POST /api/v1/communications` | legacy | Superseded by `features-service`. |
 | `dashboard-api` | Dashboard metrics | `GET /api/v1/dashboard/stats` | legacy | Routes now terminate on `analytics-service`. |
 | `facility-api` | Facility overview | `GET /api/v1/facility` | legacy | Config routines live in `config-service`. |
 | `incidents-api` | Incident tracking | `GET/POST /api/v1/incidents` | legacy | Replaced by `features-service`. |
 | `invites-api` | Staff/customer invites | `POST /api/v1/invites` | legacy | Replaced by `features-service`. |
-| `kennels-api` | Kennel inventory | `GET /api/v1/kennels` | legacy | Now part of `operations-service`. |
+| `kennels-api` | Kennel inventory | `/api/v1/kennels` (returns 410) | historical | Removed from CDK/API Gateway in Phase 11; operations-service handles kennels. |
 | `memberships-api` | Tenant memberships | `GET /api/v1/memberships` | legacy | Config service owns memberships. |
 | `messages-api` | Internal messaging | `GET /api/v1/messages` | legacy | Replaced by `features-service`. |
 | `notes-api` | Entity notes | `GET/POST /api/v1/notes` | legacy | Replaced by `features-service`. |
@@ -45,7 +45,7 @@ Each Lambda under `aws/lambdas/` is listed below with its primary domain, exampl
 | `properties-api` | Property CRUD (v1) | `/api/v1/properties` (now 410) | historical | Removed from CDK/API Gateway in Phase 8; source folder retained only for investigations. |
 | `reports-api` | Reports | `GET /api/v1/reports/revenue` | legacy | Replaced by `analytics-service`. |
 | `roles-api` | Role catalog | `GET /api/v1/roles` | legacy | Provided by `config-service`. |
-| `runs-api` | Run scheduling | `GET /api/v1/runs` | legacy | Folded into `operations-service`. |
+| `runs-api` | Run scheduling | `/api/v1/runs` (returns 410) | historical | Removed from CDK/API Gateway in Phase 11; operations-service handles all runs/routes. |
 | `schedule-api` | Schedule view | `GET /api/v1/schedule` | legacy | Served via `analytics-service`. |
 | `segments-api` | Customer segmentation (placeholder) | N/A | legacy | Directory currently empty; kept as a placeholder for future segmentation work. |
 | `services-api` | Service catalog | `GET /api/v1/services` | legacy | Consolidated into `config-service`. |
