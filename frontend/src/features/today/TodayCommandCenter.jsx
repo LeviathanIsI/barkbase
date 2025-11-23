@@ -8,6 +8,7 @@ import TodayDeparturesList from '@/features/today/components/TodayDeparturesList
 import TodayBatchCheckInModal from '@/features/today/components/TodayBatchCheckInModal';
 import TodayBatchCheckOutModal from '@/features/today/components/TodayBatchCheckOutModal';
 import TodayGrid from '@/features/today/components/TodayGrid';
+import useTodayBookingsSnapshot, { getTodayBookingsSnapshotKey } from '@/features/today/hooks/useTodayBookingsSnapshot';
 
 /**
  * TodayCommandCenter Component
@@ -31,55 +32,12 @@ const TodayCommandCenter = () => {
   
   const kennelName = userProfile?.propertyName || userProfile?.businessName || '';
 
-  const arrivalsQuery = useQuery({
-    queryKey: ['bookings', 'arrivals', today],
-    queryFn: async () => {
-      // Fetch all bookings for today and filter by status
-      const response = await apiClient.get('/api/v1/bookings', { params: { date: today } });
-      const bookings = Array.isArray(response?.data) ? response.data : response?.data?.data || [];
-
-      // Filter to PENDING or CONFIRMED bookings starting today
-      return bookings.filter(b => {
-        const status = b.status || b.bookingStatus;
-        const isPendingOrConfirmed = status === 'PENDING' || status === 'CONFIRMED';
-        const startDate = new Date(b.startDate || b.checkInDate).toISOString().split('T')[0];
-        return isPendingOrConfirmed && startDate === today;
-      });
-    },
-    refetchInterval: 30000
-  });
-
-  const departuresQuery = useQuery({
-    queryKey: ['bookings', 'departures', today],
-    queryFn: async () => {
-      // Fetch checked-in bookings ending today
-      const response = await apiClient.get('/api/v1/bookings', { params: { status: 'CHECKED_IN' } });
-      const bookings = Array.isArray(response?.data) ? response.data : response?.data?.data || [];
-
-      // Filter to only those ending today
-      return bookings.filter(b => {
-        const endDate = new Date(b.endDate || b.checkOutDate).toISOString().split('T')[0];
-        return endDate === today;
-      });
-    },
-    refetchInterval: 30000
-  });
-
-  const occupancyQuery = useQuery({
-    queryKey: ['bookings', 'checked-in', today],
-    queryFn: async () => {
-      const response = await apiClient.get('/api/v1/bookings', { params: { status: 'CHECKED_IN' } });
-      return Array.isArray(response?.data) ? response.data : response?.data?.data || [];
-    },
-    refetchInterval: 30000
-  });
-
-  const arrivals = arrivalsQuery.data ?? [];
-  const departures = departuresQuery.data ?? [];
-  const inFacility = occupancyQuery.data ?? [];
-  const loadingArrivals = arrivalsQuery.isLoading;
-  const loadingDepartures = departuresQuery.isLoading;
-  const loadingOccupancy = occupancyQuery.isLoading;
+  const todaySnapshot = useTodayBookingsSnapshot(today);
+  const snapshotQueryKey = getTodayBookingsSnapshotKey(today);
+  const arrivals = todaySnapshot.data?.arrivalsToday ?? [];
+  const departures = todaySnapshot.data?.departuresToday ?? [];
+  const inFacility = todaySnapshot.data?.inFacility ?? [];
+  const loadingSnapshot = todaySnapshot.isLoading;
 
   const dashboardStatsQuery = useQuery({
     queryKey: ['dashboard', 'stats', today],
@@ -143,37 +101,26 @@ const TodayCommandCenter = () => {
   );
 
   // Loading state
-  if (loadingArrivals || loadingDepartures || loadingOccupancy) {
-    return (
-      <div className="space-y-6 px-4 py-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <div className="animate-pulse">
-          <div className="h-24 bg-gray-200 dark:bg-gray-800 rounded-lg mb-6"></div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="h-96 bg-gray-200 dark:bg-gray-800 rounded-lg"></div>
-            <div className="h-96 bg-gray-200 dark:bg-gray-800 rounded-lg"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col gap-8 px-4 py-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       <TodayHeroCard
         kennelName={kennelName}
         formattedDate={formattedDate}
         stats={stats}
+        isLoading={loadingSnapshot}
       />
 
       <TodayGrid>
         <TodayArrivalsList
           arrivals={arrivals}
-          isLoading={loadingArrivals}
+          isLoading={loadingSnapshot}
+          hasError={todaySnapshot.isError}
           onBatchCheckIn={() => setShowBatchCheckIn(true)}
         />
         <TodayDeparturesList
           departures={departures}
-          isLoading={loadingDepartures}
+          isLoading={loadingSnapshot}
+          hasError={todaySnapshot.isError}
           onBatchCheckOut={() => setShowBatchCheckOut(true)}
         />
       </TodayGrid>
@@ -186,6 +133,7 @@ const TodayCommandCenter = () => {
         open={showBatchCheckOut}
         onClose={() => setShowBatchCheckOut(false)}
         departures={departures}
+        snapshotQueryKey={snapshotQueryKey}
       />
     </div>
   );

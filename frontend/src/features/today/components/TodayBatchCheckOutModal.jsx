@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import { useQueryClient } from '@tanstack/react-query';
 import Button from '@/components/ui/Button';
 import PetAvatar from '@/components/ui/PetAvatar';
 import Modal from '@/components/ui/Modal';
@@ -8,9 +9,10 @@ import { cn } from '@/lib/cn';
 import TodaySection from './TodaySection';
 
 // TODO (Today Cleanup B:3): This component will be visually redesigned in the next phase.
-const TodayBatchCheckOutModal = ({ open, onClose, departures }) => {
+const TodayBatchCheckOutModal = ({ open, onClose, departures, snapshotQueryKey }) => {
   const [selectedDepartures, setSelectedDepartures] = useState([]);
   const [processing, setProcessing] = useState(false);
+  const queryClient = useQueryClient();
 
   const handleBatchCheckOut = async () => {
     setProcessing(true);
@@ -23,7 +25,9 @@ const TodayBatchCheckOutModal = ({ open, onClose, departures }) => {
       toast.success(`Successfully checked out ${selectedDepartures.length} pets!`);
       setSelectedDepartures([]);
       onClose?.();
-      window.location.reload();
+      if (snapshotQueryKey) {
+        await queryClient.invalidateQueries({ queryKey: snapshotQueryKey });
+      }
     } catch (error) {
       toast.error('Failed to process check-outs');
     } finally {
