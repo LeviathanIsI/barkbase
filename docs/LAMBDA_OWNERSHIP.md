@@ -36,14 +36,14 @@ This reference lists every Lambda under `aws/lambdas/`, the domain(s) it serves,
 | `messages-api` | Messaging | legacy | `/api/v1/messages` | Superseded by `features-service` | Decommission |
 | `communication-api` | Communications timeline | legacy | `/api/v1/communications` | Superseded by `features-service` | Decommission |
 | `invites-api` | Invite management | legacy | `/api/v1/invites` | Superseded by `features-service` | Decommission |
-| `account-defaults-api` | Account defaults/settings | legacy | `/api/v1/account-defaults` | Superseded by `config-service` | Merge/decommission |
-| `services-api` | Service catalog | legacy | `/api/v1/services` | Superseded by `config-service` | Merge/decommission |
-| `facility-api` | Facility info | legacy | `/api/v1/facility` | Superseded by `config-service` | Merge/decommission |
-| `packages-api` | Packages (scaffold) | legacy/placeholder | (no active routes; only backup file remains) | `features-service` handles packages logic | Remove once confirmed unused |
-| `tenants-api` | Tenant lookup | legacy | `/api/v1/tenants` | Superseded by `config-service` | Decommission |
-| `memberships-api` | Membership management | legacy | `/api/v1/memberships` | Superseded by `config-service` | Decommission |
-| `roles-api` | Role definitions | legacy | `/api/v1/roles` | Superseded by `config-service` | Decommission |
-| `user-permissions-api` | Permission assignments | legacy | `/api/v1/user-permissions` | Superseded by `config-service` + user-profile-service | Decommission |
+| `account-defaults-api` | Account defaults/settings | historical (CDK removed; 410 tombstone) | `/api/v1/account-defaults` (returns 410) | Superseded by `config-service` | Source retained for history only |
+| `services-api` | Service catalog | historical (CDK removed; 410 tombstone) | `/api/v1/services` (returns 410) | Superseded by `config-service` | Source retained for history only |
+| `facility-api` | Facility info | historical (CDK removed; 410 tombstone) | `/api/v1/facility` (returns 410) | Superseded by `config-service` | Source retained for history only |
+| `packages-api` | Packages (scaffold) | historical (no deployed handler; backup only) | (folder retained; returns 410 if revived) | `config-service` handles packages logic | Source retained for history only |
+| `tenants-api` | Tenant lookup | historical (CDK removed; 410 tombstone) | `/api/v1/tenants*` (returns 410) | Superseded by `config-service` | Source retained for history only |
+| `memberships-api` | Membership management | historical (CDK removed; 410 tombstone) | `/api/v1/memberships*` (returns 410) | Superseded by `config-service` | Source retained for history only |
+| `roles-api` | Role definitions | historical (CDK removed; 410 tombstone) | `/api/v1/roles*` (returns 410) | Superseded by `config-service` | Source retained for history only |
+| `user-permissions-api` | Permission assignments | historical (CDK removed; 410 tombstone) | `/api/v1/user-permissions*` (returns 410) | Superseded by `config-service` + user-profile-service | Source retained for history only |
 | `properties-api` | Properties CRUD (v1) | historical (removed from CDK; 410 sentinel only) | `/api/v1/properties` (now 410) | Superseded by `properties-api-v2`; repo copy kept for archeology/safeguards | Source kept for history; no deployment |
 | `segments-api` | Segmentation scaffold | unused placeholder | (no handler file) | Future analytics/marketing | Remove once strategy decided |
 

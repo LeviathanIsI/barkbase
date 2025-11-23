@@ -101,3 +101,8 @@ Following this plan will let us retire the duplicate Lambdas safely without intr
 - `analytics-service` is now the sole deployed backend for all `/api/v1/dashboard*`, `/api/v1/reports*`, and `/api/v1/schedule*` routes.
 - Legacy Lambda folders remain in the repo as 410 tombstones for historical reference; no runtime usage.
 
+### Phase 13 Milestone
+- `account-defaults-api`, `services-api`, `facility-api`, `packages-api`, `tenants-api`, `memberships-api`, `roles-api`, and `user-permissions-api` have been removed from CDK stacks and API Gateway routing.
+- `config-service` is now the only deployed backend for all `/api/v1/tenants*`, `/api/v1/services*`, `/api/v1/account-defaults*`, `/api/v1/facility*`, `/api/v1/packages*`, `/api/v1/memberships*`, `/api/v1/roles*`, and `/api/v1/user-permissions*` endpoints.
+- Legacy Lambda folders remain as 410 tombstones/backups for historical reference; no runtime usage.
+
