@@ -3,6 +3,7 @@ import 'dotenv/config';
 import * as cdk from 'aws-cdk-lib';
 import { CdkStack } from '../lib/cdk-stack';
 import { EdgeWafStack } from '../lib/edge-waf-stack';
+import { BarkbaseUnifiedBackendStack } from '../lib/barkbase-unified-backend-stack';
 
 const app = new cdk.App();
 
@@ -14,6 +15,12 @@ const main = new CdkStack(app, `Barkbase-${stage}`, {
   env: { account, region },
   tags: { Stage: stage },
 });
+
+new BarkbaseUnifiedBackendStack(app, `Barkbase-UnifiedBackend-${stage}`, {
+  env: { account, region },
+  tags: { Stage: stage },
+});
+
 
 // Optional: deploy WAF stack in us-east-1 and pass its ARN via context later
 const deployEdgeWaf = app.node.tryGetContext('deployEdgeWaf');
