@@ -997,22 +997,6 @@ export class CdkStack extends cdk.Stack {
     httpApi.addRoutes({ path: '/api/v1/schedule', methods: [apigw.HttpMethod.GET], integration: analyticsIntegration, authorizer: httpAuthorizer });
     httpApi.addRoutes({ path: '/api/v1/schedule/capacity', methods: [apigw.HttpMethod.GET], integration: analyticsIntegration, authorizer: httpAuthorizer });
 
-    // Kennels API - REPLACED BY OperationsServiceFunction
-    // const kennelsApiFunction = new lambda.Function(this, 'KennelsApiFunction', {
-    //   runtime: lambda.Runtime.NODEJS_20_X,
-    //   handler: 'index.handler',
-    //   code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/kennels-api')),
-    //   layers: [dbLayer],
-    //   environment: dbEnvironment,
-    //   // No VPC - connects to public database
-    //   timeout: cdk.Duration.seconds(30),
-    // });
-    // dbSecret.grantRead(kennelsApiFunction);
-    // const kennelsIntegration = new HttpLambdaIntegration('KennelsIntegration', kennelsApiFunction);
-    // httpApi.addRoutes({ path: '/api/v1/kennels', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: kennelsIntegration, authorizer: httpAuthorizer });
-    // httpApi.addRoutes({ path: '/api/v1/kennels/occupancy', methods: [apigw.HttpMethod.GET], integration: kennelsIntegration, authorizer: httpAuthorizer });
-    // httpApi.addRoutes({ path: '/api/v1/kennels/{kennelId}', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PUT, apigw.HttpMethod.DELETE], integration: kennelsIntegration });
-
 
     // Incidents API - REPLACED BY FeaturesServiceFunction
     // const incidentsApiFunction = new lambda.Function(this, 'IncidentsApiFunction', {
@@ -1156,28 +1140,6 @@ export class CdkStack extends cdk.Stack {
     // });
     // const messagesIntegration = new HttpLambdaIntegration('MessagesIntegration', messagesApiFunction);
     // httpApi.addRoutes({ path: '/api/v1/messages', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: messagesIntegration, authorizer: httpAuthorizer });
-
-    // Runs API - REPLACED BY OperationsServiceFunction
-    // const runsApiFunction = new lambda.Function(this, 'RunsApiFunction', {
-    //   runtime: lambda.Runtime.NODEJS_20_X,
-    //   handler: 'index.handler',
-    //   code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/runs-api')),
-    //   layers: [dbLayer],
-    //   environment: dbEnvironment,
-    //   // No VPC - connects to public database
-    //   timeout: cdk.Duration.seconds(30),
-    //   allowPublicSubnet: true,
-    // });
-    // dbSecret.grantRead(runsApiFunction);
-    // const runsIntegration = new HttpLambdaIntegration('RunsIntegration', runsApiFunction);
-    // // Run template endpoints
-    // httpApi.addRoutes({ path: '/api/v1/run-templates', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: runsIntegration, authorizer: httpAuthorizer });
-    // httpApi.addRoutes({ path: '/api/v1/run-templates/{id}', methods: [apigw.HttpMethod.PUT, apigw.HttpMethod.DELETE], integration: runsIntegration });
-    // // Run endpoints
-    // httpApi.addRoutes({ path: '/api/v1/runs/{runId}/available-slots', methods: [apigw.HttpMethod.GET], integration: runsIntegration });
-    // httpApi.addRoutes({ path: '/api/v1/runs/assignments', methods: [apigw.HttpMethod.GET], integration: runsIntegration, authorizer: httpAuthorizer });
-    // httpApi.addRoutes({ path: '/api/v1/runs', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: runsIntegration, authorizer: httpAuthorizer });
-    // httpApi.addRoutes({ path: '/api/v1/runs/{runId}', methods: [apigw.HttpMethod.PUT], integration: runsIntegration });
 
     // Memberships API - REPLACED BY ConfigServiceFunction
     // const membershipsApiFunction = new lambda.Function(this, 'MembershipsApiFunction', {
