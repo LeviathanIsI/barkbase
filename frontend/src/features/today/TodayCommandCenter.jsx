@@ -288,6 +288,7 @@ const TodayCommandCenter = () => {
   return (
     <div className="flex h-full flex-col space-y-6 px-4 py-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       {/* Hero Section */}
+      {/* TODO (Today Refactor - Phase B:2): Extract hero + stat grid into reusable dashboard cards so we can rearrange them without touching this monolith. */}
       <Card className="p-6">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
           {/* Title and Date */}

@@ -150,6 +150,7 @@ const QuickAccessBar = () => {
   return (
     <>
       {/* Quick Access Bar */}
+      {/* TODO (Nav Cleanup - Phase B:2): Consolidate these quick actions with sidebar/header links so Today/Bookings aren’t exposed in three different nav zones. */}
       <div className="bg-white dark:bg-surface-primary border-b border-gray-200 dark:border-surface-border px-4 py-2">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           {/* Left side - Quick Actions */}
