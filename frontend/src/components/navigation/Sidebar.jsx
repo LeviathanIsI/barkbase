@@ -112,7 +112,6 @@ const SidebarSection = ({ onNavigate }) => {
                     to={item.path}
                     className={({ isActive }) =>
                       cn(
-
                         'group flex items-center gap-3 rounded-lg px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,1rem)] font-[var(--bb-font-weight-medium,500)] text-[color:var(--bb-color-sidebar-text-primary,#111827)] transition-colors',
                         'hover:bg-[color:var(--bb-color-sidebar-item-hover-bg,rgba(79,70,229,0.08))]',
                         isActive &&
@@ -122,14 +121,7 @@ const SidebarSection = ({ onNavigate }) => {
                     onClick={onNavigate}
                     end={item.path === '/today'}
                   >
-                    <Icon
-                      className={cn(
-                        'h-4 w-4 shrink-0 text-[color:var(--bb-color-sidebar-text-muted,#6b7280)] transition-colors',
-                        isActive
-                          ? 'text-[color:var(--bb-color-sidebar-item-active-text,#4f46e5)]'
-                          : 'group-hover:text-[color:var(--bb-color-sidebar-text-primary,#111827)]',
-                      )}
-                    />
+                    <Icon className="h-4 w-4 shrink-0 text-[color:var(--bb-color-sidebar-text-muted,#6b7280)] transition-colors group-hover:text-[color:var(--bb-color-sidebar-text-primary,#111827)]" />
                     <span className="truncate">{item.label}</span>
                   </NavLink>
                 );
