@@ -1,9 +1,12 @@
 import { PageHeader } from '@/components/ui/Card';
 
-// TODO (C1:3 - Directory UX Cleanup): Visual cleanup + consistent directory styling.
-const DirectoryListHeader = ({ title, breadcrumb, actions, children }) => (
-  <div className="space-y-4">
-    <PageHeader title={title} breadcrumb={breadcrumb} actions={actions} />
+/**
+ * DirectoryListHeader
+ * Standardized header for directory/list pages with token-based spacing
+ */
+const DirectoryListHeader = ({ title, description, actions, children }) => (
+  <div className="space-y-[var(--bb-space-6,1.5rem)]">
+    <PageHeader title={title} description={description} actions={actions} />
     {children}
   </div>
 );

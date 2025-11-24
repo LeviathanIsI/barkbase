@@ -22,28 +22,27 @@ const Bookings = () => {
   };
 
   return (
-    <div className="flex h-full flex-col px-4 py-4 sm:px-6 lg:px-8">
+    <div className="flex h-full flex-col space-y-[var(--bb-space-6,1.5rem)]">
       <PageHeader
-        breadcrumb="Home > Intake > Bookings"
         title="Bookings & Availability"
         description="Manage reservations and facility capacity"
         actions={
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-[var(--bb-space-3,0.75rem)]">
             {!showNewBooking && (
               <Tabs value={viewMode} onValueChange={setViewMode} className="w-full sm:w-auto">
-                <TabsList className="gap-4">
-                  <TabsTrigger value="calendar" className="flex items-center gap-1.5 text-sm font-medium">
+                <TabsList className="gap-[var(--bb-space-2,0.5rem)]">
+                  <TabsTrigger value="calendar" className="flex items-center gap-1.5 text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]">
                     <Calendar className="h-4 w-4" />
                     Run Board
                   </TabsTrigger>
-                  <TabsTrigger value="list" className="flex items-center gap-1.5 text-sm font-medium">
+                  <TabsTrigger value="list" className="flex items-center gap-1.5 text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]">
                     <List className="h-4 w-4" />
                     List View
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
             )}
-            <Button onClick={() => setShowNewBooking(true)}>
+            <Button variant="primary" onClick={() => setShowNewBooking(true)}>
               <Plus className="h-4 w-4 mr-2" />
               New Booking
             </Button>

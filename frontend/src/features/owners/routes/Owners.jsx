@@ -78,8 +78,8 @@ const Owners = () => {
 
   if (error) {
     return (
-      <div className="space-y-6">
-        <DirectoryListHeader title="Pet Owners" breadcrumb="Home > Clients > Owners" />
+      <div className="space-y-[var(--bb-space-6,1.5rem)]">
+        <DirectoryListHeader title="Pet Owners" description="Manage customer relationships" />
         <DirectoryErrorState message="Unable to load owner data. Please try again." />
       </div>
     );
@@ -87,27 +87,46 @@ const Owners = () => {
 
   const OwnerRow = ({ owner }) => {
     return (
-      <tr className="border-b border-[#F5F6FA] hover:bg-gray-100 dark:bg-gray-700/50 cursor-pointer" onClick={() => navigate(`/customers/${owner.recordId}`)}>
-        <td className="py-4 px-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary-600 dark:bg-primary-700 rounded-full flex items-center justify-center text-white font-semibold">
+      <tr
+        className="cursor-pointer transition-colors"
+        style={{
+          borderBottomWidth: '1px',
+          borderColor: 'var(--bb-color-border-subtle)',
+        }}
+        onClick={() => navigate(`/customers/${owner.recordId}`)}
+        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bb-color-bg-elevated)'}
+        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+      >
+        <td className="py-[var(--bb-space-4,1rem)] px-[var(--bb-space-4,1rem)]">
+          <div className="flex items-center gap-[var(--bb-space-3,0.75rem)]">
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center font-[var(--bb-font-weight-semibold,600)]"
+              style={{
+                backgroundColor: 'var(--bb-color-accent)',
+                color: 'var(--bb-color-text-on-accent)',
+              }}
+            >
               {owner.fullName?.[0]?.toUpperCase() || 'O'}
             </div>
             <div>
-              <p className="font-semibold text-gray-900 dark:text-text-primary">{owner.fullName || 'Unnamed Owner'}</p>
-              <p className="text-sm text-gray-600 dark:text-text-secondary">{owner.email || 'No email'}</p>
+              <p className="font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-text-primary)]">
+                {owner.fullName || 'Unnamed Owner'}
+              </p>
+              <p className="text-[var(--bb-font-size-sm,0.875rem)] text-[color:var(--bb-color-text-muted)]">
+                {owner.email || 'No email'}
+              </p>
             </div>
           </div>
         </td>
-        <td className="py-4 px-4">
+        <td className="py-[var(--bb-space-4,1rem)] px-[var(--bb-space-4,1rem)]">
           {owner.phone && (
-            <div className="flex items-center gap-2 text-gray-600 dark:text-text-secondary">
+            <div className="flex items-center gap-[var(--bb-space-2,0.5rem)] text-[color:var(--bb-color-text-muted)]">
               <Phone className="h-4 w-4" />
-              <span>{owner.phone}</span>
+              <span className="text-[var(--bb-font-size-sm,0.875rem)]">{owner.phone}</span>
             </div>
           )}
         </td>
-        <td className="py-4 px-4">
+        <td className="py-[var(--bb-space-4,1rem)] px-[var(--bb-space-4,1rem)]">
           <div className="flex flex-wrap gap-1">
             {owner.pets?.slice(0, 3).map((pet, i) => (
               <Badge key={i} variant="secondary" className="text-xs">
@@ -121,21 +140,25 @@ const Owners = () => {
             )}
           </div>
         </td>
-        <td className="py-4 px-4">
+        <td className="py-[var(--bb-space-4,1rem)] px-[var(--bb-space-4,1rem)]">
           <Badge variant={owner.totalBookings > 0 ? 'success' : 'neutral'}>
             {owner.totalBookings > 0 ? 'Active' : 'Inactive'}
           </Badge>
         </td>
-        <td className="py-4 px-4">
-          <p className="font-semibold text-gray-900 dark:text-text-primary">{owner.totalBookings}</p>
+        <td className="py-[var(--bb-space-4,1rem)] px-[var(--bb-space-4,1rem)]">
+          <p className="font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-text-primary)]">
+            {owner.totalBookings}
+          </p>
           {owner.lastBooking && (
-            <p className="text-xs text-gray-600 dark:text-text-secondary">
+            <p className="text-[var(--bb-font-size-xs,0.75rem)] text-[color:var(--bb-color-text-muted)]">
               Last: {new Date(owner.lastBooking).toLocaleDateString()}
             </p>
           )}
         </td>
-        <td className="py-4 px-4">
-          <p className="font-semibold text-gray-900 dark:text-text-primary">{formatCurrency(owner.lifetimeValue)}</p>
+        <td className="py-[var(--bb-space-4,1rem)] px-[var(--bb-space-4,1rem)]">
+          <p className="font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-text-primary)]">
+            {formatCurrency(owner.lifetimeValue)}
+          </p>
         </td>
       </tr>
     );
@@ -143,74 +166,103 @@ const Owners = () => {
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-[var(--bb-space-6,1.5rem)]">
       <DirectoryListHeader
-        breadcrumb="Home > Clients > Owners"
         title="Pet Owners"
+        description="Manage customer relationships"
         actions={
           <>
             <Button variant="outline" size="sm">
               <Filter className="h-4 w-4 mr-2" />
-              Advanced Filters
+              Filters
             </Button>
-            <Button variant="secondary" size="sm" onClick={() => setFormModalOpen(true)}>
+            <Button variant="primary" size="sm" onClick={() => setFormModalOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add Owner
             </Button>
           </>
         }
       >
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {/* Stats Grid */}
+        <div className="grid gap-[var(--bb-space-4,1rem)] sm:grid-cols-2 lg:grid-cols-4">
           {isLoading ? (
             Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-24 rounded-lg" />
             ))
           ) : (
             <>
-              <Card className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">Total Owners</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.total}</p>
+              <Card>
+                <div className="flex items-center gap-[var(--bb-space-3,0.75rem)]">
+                  <div
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                    style={{ backgroundColor: 'var(--bb-color-accent-soft)' }}
+                  >
+                    <Users className="h-5 w-5" style={{ color: 'var(--bb-color-accent)' }} />
                   </div>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-surface-secondary">
-                    <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                  <div>
+                    <p className="text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide text-[color:var(--bb-color-text-muted)]">
+                      Total Owners
+                    </p>
+                    <p className="text-[var(--bb-font-size-xl,1.5rem)] font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-text-primary)] leading-tight">
+                      {stats.total}
+                    </p>
                   </div>
                 </div>
               </Card>
 
-              <Card className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">Active Clients</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.active}</p>
+              <Card>
+                <div className="flex items-center gap-[var(--bb-space-3,0.75rem)]">
+                  <div
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                    style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)' }}
+                  >
+                    <Heart className="h-5 w-5" style={{ color: 'var(--bb-color-status-positive)' }} />
                   </div>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-surface-secondary">
-                    <Heart className="h-6 w-6 text-green-600 dark:text-green-400" />
+                  <div>
+                    <p className="text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide text-[color:var(--bb-color-text-muted)]">
+                      Active Clients
+                    </p>
+                    <p className="text-[var(--bb-font-size-xl,1.5rem)] font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-text-primary)] leading-tight">
+                      {stats.active}
+                    </p>
                   </div>
                 </div>
               </Card>
 
-              <Card className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">High Value</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{stats.highValue}</p>
+              <Card>
+                <div className="flex items-center gap-[var(--bb-space-3,0.75rem)]">
+                  <div
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                    style={{ backgroundColor: 'rgba(168, 85, 247, 0.1)' }}
+                  >
+                    <DollarSign className="h-5 w-5 text-purple-500" />
                   </div>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100 dark:bg-surface-secondary">
-                    <DollarSign className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                  <div>
+                    <p className="text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide text-[color:var(--bb-color-text-muted)]">
+                      High Value
+                    </p>
+                    <p className="text-[var(--bb-font-size-xl,1.5rem)] font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-text-primary)] leading-tight">
+                      {stats.highValue}
+                    </p>
                   </div>
                 </div>
               </Card>
 
-              <Card className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600 dark:text-text-secondary">Total Revenue</p>
-                    <p className="text-2xl font-bold text-gray-900 dark:text-text-primary">{formatCurrency(stats.totalRevenue)}</p>
+              <Card>
+                <div className="flex items-center gap-[var(--bb-space-3,0.75rem)]">
+                  <div
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                    style={{ backgroundColor: 'rgba(249, 115, 22, 0.1)' }}
+                  >
+                    <Calendar className="h-5 w-5 text-orange-500" />
                   </div>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-orange-100 dark:bg-surface-secondary">
-                    <Calendar className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                  <div>
+                    <p className="text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide text-[color:var(--bb-color-text-muted)]">
+                      Total Revenue
+                    </p>
+                    <p className="text-[var(--bb-font-size-xl,1.5rem)] font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-text-primary)] leading-tight">
+                      {formatCurrency(stats.totalRevenue)}
+                    </p>
                   </div>
                 </div>
               </Card>
@@ -218,24 +270,38 @@ const Owners = () => {
           )}
         </div>
 
+        {/* Filters Card */}
         <Card>
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+          <div className="flex flex-col gap-[var(--bb-space-4,1rem)]">
+            <div className="flex flex-col gap-[var(--bb-space-3,0.75rem)] sm:flex-row">
               <div className="relative flex-1 sm:max-w-md">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-600 dark:text-text-secondary" />
+                <Search
+                  className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform"
+                  style={{ color: 'var(--bb-color-text-muted)' }}
+                />
                 <input
                   type="text"
                   placeholder="Search owners..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full rounded-md border border-gray-300 py-2 pl-10 pr-4 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-surface-border"
+                  className="w-full rounded-lg border py-[var(--bb-space-2,0.5rem)] pl-10 pr-4 text-[var(--bb-font-size-sm,0.875rem)] focus:outline-none focus:ring-2"
+                  style={{
+                    backgroundColor: 'var(--bb-color-bg-elevated)',
+                    borderColor: 'var(--bb-color-border-subtle)',
+                    color: 'var(--bb-color-text-primary)',
+                  }}
                 />
               </div>
 
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-surface-border sm:w-auto"
+                className="w-full rounded-lg border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)] focus:outline-none focus:ring-2 sm:w-auto"
+                style={{
+                  backgroundColor: 'var(--bb-color-bg-elevated)',
+                  borderColor: 'var(--bb-color-border-subtle)',
+                  color: 'var(--bb-color-text-primary)',
+                }}
               >
                 <option value="ALL">All Status</option>
                 <option value="ACTIVE">Active Clients</option>
@@ -243,7 +309,7 @@ const Owners = () => {
               </select>
             </div>
 
-            <div className="text-sm text-gray-600 dark:text-text-secondary">
+            <div className="text-[var(--bb-font-size-sm,0.875rem)] text-[color:var(--bb-color-text-muted)]">
               Showing {filteredOwners.length} of {owners.length} owners
             </div>
           </div>

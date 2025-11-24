@@ -102,8 +102,8 @@ const Pets = () => {
 
   if (error) {
     return (
-      <div className="space-y-6">
-        <DirectoryListHeader title="Pets" breadcrumb="Home > Clients > Pets" />
+      <div className="space-y-[var(--bb-space-6,1.5rem)]">
+        <DirectoryListHeader title="Pets Directory" description="Manage all registered pets" />
         <DirectoryErrorState message="Unable to load pets data. Please try again." />
       </div>
     );
@@ -120,29 +120,35 @@ const Pets = () => {
 
     return (
       <tr
-        className="border-b border-gray-200 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-bg-tertiary cursor-pointer transition-colors"
+        className="cursor-pointer transition-colors"
+        style={{
+          borderBottomWidth: '1px',
+          borderColor: 'var(--bb-color-border-subtle)',
+        }}
         onClick={() => navigate(`/pets/${pet.recordId}`)}
+        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bb-color-bg-elevated)'}
+        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
       >
-        <td className="py-4 px-6">
-          <div className="flex items-center gap-3">
+        <td className="py-[var(--bb-space-4,1rem)] px-[var(--bb-space-6,1.5rem)]">
+          <div className="flex items-center gap-[var(--bb-space-3,0.75rem)]">
             <PetAvatar pet={pet} size="sm" showStatus={false} />
             <div className="min-w-0">
-              <p className="font-medium text-gray-900 dark:text-dark-text-primary truncate">
+              <p className="font-[var(--bb-font-weight-medium,500)] text-[color:var(--bb-color-text-primary)] truncate">
                 {pet.name}
               </p>
-              <p className="text-sm text-gray-600 dark:text-dark-text-secondary truncate">
+              <p className="text-[var(--bb-font-size-sm,0.875rem)] text-[color:var(--bb-color-text-muted)] truncate">
                 {pet.species || 'Dog'} • {pet.breed || 'Unknown breed'}
               </p>
             </div>
           </div>
         </td>
-        <td className="py-4 px-6">
-          <p className="text-gray-900 dark:text-dark-text-primary">
+        <td className="py-[var(--bb-space-4,1rem)] px-[var(--bb-space-6,1.5rem)]">
+          <p className="text-[color:var(--bb-color-text-primary)]">
             {primaryOwner?.name || primaryOwner?.email || '—'}
           </p>
         </td>
-        <td className="py-4 px-6">
-          <div className="flex items-center gap-2">
+        <td className="py-[var(--bb-space-4,1rem)] px-[var(--bb-space-6,1.5rem)]">
+          <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
             <Badge variant={status === 'active' ? 'success' : 'neutral'}>
               {status === 'active' ? 'Active' : 'Inactive'}
             </Badge>
@@ -151,20 +157,20 @@ const Pets = () => {
             )}
           </div>
         </td>
-        <td className="py-4 px-6">
-          <div className="flex items-center gap-2">
+        <td className="py-[var(--bb-space-4,1rem)] px-[var(--bb-space-6,1.5rem)]">
+          <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
             {hasExpiringVaccinations && (
-              <div className="flex items-center gap-1 text-warning-600" title="Vaccination expiring soon">
+              <div className="flex items-center gap-1 text-amber-500" title="Vaccination expiring soon">
                 <Syringe className="w-4 h-4" />
-                <span className="text-sm">Due</span>
+                <span className="text-[var(--bb-font-size-sm,0.875rem)]">Due</span>
               </div>
             )}
             {!hasExpiringVaccinations && (
-              <span className="text-sm text-gray-500 dark:text-dark-text-secondary">Current</span>
+              <span className="text-[var(--bb-font-size-sm,0.875rem)] text-[color:var(--bb-color-text-muted)]">Current</span>
             )}
           </div>
         </td>
-        <td className="py-4 px-6">
+        <td className="py-[var(--bb-space-4,1rem)] px-[var(--bb-space-6,1.5rem)]">
           <Button
             size="sm"
             variant="ghost"
@@ -187,66 +193,95 @@ const Pets = () => {
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-[var(--bb-space-6,1.5rem)]">
         <DirectoryListHeader
-          breadcrumb="Home > Clients > Pets"
           title="Pets Directory"
+          description="Manage all registered pets"
           actions={
-            <Button variant="secondary" size="sm" onClick={() => setPetFormModalOpen(true)}>
+            <Button variant="primary" size="sm" onClick={() => setPetFormModalOpen(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add Pet
             </Button>
           }
         >
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {/* Stats Grid */}
+          <div className="grid gap-[var(--bb-space-4,1rem)] sm:grid-cols-2 lg:grid-cols-4">
             {isLoading ? (
               Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-lg" />)
             ) : (
               <>
-                <Card className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 dark:text-dark-text-secondary">Total Pets</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-dark-text-primary">{stats.total}</p>
+                <Card>
+                  <div className="flex items-center gap-[var(--bb-space-3,0.75rem)]">
+                    <div
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                      style={{ backgroundColor: 'var(--bb-color-accent-soft)' }}
+                    >
+                      <PawPrint className="h-5 w-5" style={{ color: 'var(--bb-color-accent)' }} />
                     </div>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-100 dark:bg-surface-secondary">
-                      <PawPrint className="h-6 w-6 text-primary-600 dark:text-primary-400" />
+                    <div>
+                      <p className="text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide text-[color:var(--bb-color-text-muted)]">
+                        Total Pets
+                      </p>
+                      <p className="text-[var(--bb-font-size-xl,1.5rem)] font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-text-primary)] leading-tight">
+                        {stats.total}
+                      </p>
                     </div>
                   </div>
                 </Card>
 
-                <Card className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 dark:text-dark-text-secondary">Active Pets</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-dark-text-primary">{stats.active}</p>
+                <Card>
+                  <div className="flex items-center gap-[var(--bb-space-3,0.75rem)]">
+                    <div
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                      style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)' }}
+                    >
+                      <User className="h-5 w-5" style={{ color: 'var(--bb-color-status-positive)' }} />
                     </div>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 dark:bg-surface-secondary">
-                      <User className="h-6 w-6 text-green-600 dark:text-green-400" />
+                    <div>
+                      <p className="text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide text-[color:var(--bb-color-text-muted)]">
+                        Active Pets
+                      </p>
+                      <p className="text-[var(--bb-font-size-xl,1.5rem)] font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-text-primary)] leading-tight">
+                        {stats.active}
+                      </p>
                     </div>
                   </div>
                 </Card>
 
-                <Card className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 dark:text-dark-text-secondary">With Bookings</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-dark-text-primary">{stats.withBookings}</p>
+                <Card>
+                  <div className="flex items-center gap-[var(--bb-space-3,0.75rem)]">
+                    <div
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                      style={{ backgroundColor: 'var(--bb-color-accent-soft)' }}
+                    >
+                      <Calendar className="h-5 w-5" style={{ color: 'var(--bb-color-accent)' }} />
                     </div>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-surface-secondary">
-                      <Calendar className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                    <div>
+                      <p className="text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide text-[color:var(--bb-color-text-muted)]">
+                        With Bookings
+                      </p>
+                      <p className="text-[var(--bb-font-size-xl,1.5rem)] font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-text-primary)] leading-tight">
+                        {stats.withBookings}
+                      </p>
                     </div>
                   </div>
                 </Card>
 
-                <Card className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 dark:text-dark-text-secondary">Expiring Vaccinations</p>
-                      <p className="text-2xl font-bold text-gray-900 dark:text-dark-text-primary">{stats.expiringVaccinations}</p>
+                <Card>
+                  <div className="flex items-center gap-[var(--bb-space-3,0.75rem)]">
+                    <div
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                      style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)' }}
+                    >
+                      <ShieldAlert className="h-5 w-5 text-amber-500" />
                     </div>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-amber-100 dark:bg-surface-secondary">
-                      <ShieldAlert className="h-6 w-6 text-amber-600 dark:text-amber-400" />
+                    <div>
+                      <p className="text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide text-[color:var(--bb-color-text-muted)]">
+                        Expiring Vaccines
+                      </p>
+                      <p className="text-[var(--bb-font-size-xl,1.5rem)] font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-text-primary)] leading-tight">
+                        {stats.expiringVaccinations}
+                      </p>
                     </div>
                   </div>
                 </Card>
@@ -254,24 +289,38 @@ const Pets = () => {
             )}
           </div>
 
-          <Card className="p-6">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          {/* Filters Card */}
+          <Card>
+            <div className="flex flex-col gap-[var(--bb-space-4,1rem)]">
+              <div className="flex flex-col gap-[var(--bb-space-3,0.75rem)] lg:flex-row lg:items-center">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
+                  <Search
+                    className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform"
+                    style={{ color: 'var(--bb-color-text-muted)' }}
+                  />
                   <input
                     type="text"
                     placeholder="Search pets by name, breed, or owner..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white py-3 pl-10 pr-4 text-sm text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-dark-border dark:bg-dark-bg-tertiary dark:text-dark-text-primary"
+                    className="w-full rounded-lg border py-[var(--bb-space-3,0.75rem)] pl-10 pr-4 text-[var(--bb-font-size-sm,0.875rem)] focus:outline-none focus:ring-2"
+                    style={{
+                      backgroundColor: 'var(--bb-color-bg-elevated)',
+                      borderColor: 'var(--bb-color-border-subtle)',
+                      color: 'var(--bb-color-text-primary)',
+                    }}
                   />
                 </div>
 
                 <select
                   value={speciesFilter}
                   onChange={(e) => setSpeciesFilter(e.target.value)}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-dark-border dark:bg-dark-bg-tertiary dark:text-dark-text-primary lg:w-48"
+                  className="w-full rounded-lg border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)] focus:outline-none focus:ring-2 lg:w-40"
+                  style={{
+                    backgroundColor: 'var(--bb-color-bg-elevated)',
+                    borderColor: 'var(--bb-color-border-subtle)',
+                    color: 'var(--bb-color-text-primary)',
+                  }}
                 >
                   <option value="ALL">All Species</option>
                   <option value="dog">Dogs</option>
@@ -282,7 +331,12 @@ const Pets = () => {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-dark-border dark:bg-dark-bg-tertiary dark:text-dark-text-primary lg:w-48"
+                  className="w-full rounded-lg border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)] focus:outline-none focus:ring-2 lg:w-40"
+                  style={{
+                    backgroundColor: 'var(--bb-color-bg-elevated)',
+                    borderColor: 'var(--bb-color-border-subtle)',
+                    color: 'var(--bb-color-text-primary)',
+                  }}
                 >
                   <option value="ALL">All Status</option>
                   <option value="active">Active</option>
@@ -290,7 +344,7 @@ const Pets = () => {
                 </select>
               </div>
 
-              <div className="text-sm text-gray-600 dark:text-dark-text-secondary">
+              <div className="text-[var(--bb-font-size-sm,0.875rem)] text-[color:var(--bb-color-text-muted)]">
                 Showing {filteredPets.length} of {pets.length} pets
               </div>
             </div>
