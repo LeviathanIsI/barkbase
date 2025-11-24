@@ -77,7 +77,7 @@ const SidebarSection = ({ onNavigate }) => {
   const tenantPlan = tenant?.plan;
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col bg-[color:var(--bb-color-sidebar-bg,#f1f2f4)] border-r border-[color:var(--bb-color-sidebar-border,#e5e7eb)]">
       <div className="flex items-center gap-3 rounded-lg border border-transparent px-[var(--bb-space-4,1rem)] py-[var(--bb-space-6,1.5rem)]">
         <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600 font-semibold text-white shadow-sm">
           {tenantName
@@ -88,15 +88,15 @@ const SidebarSection = ({ onNavigate }) => {
             .toUpperCase()}
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-[color:var(--bb-color-text-primary,#0f172a)]">{tenantName}</p>
-          {tenantPlan ? <p className="text-xs uppercase text-[color:var(--bb-color-text-muted,#52525b)]">{tenantPlan}</p> : null}
+          <p className="truncate text-sm font-semibold text-[color:var(--bb-color-sidebar-text-primary,#111827)]">{tenantName}</p>
+          {tenantPlan ? <p className="text-xs uppercase text-[color:var(--bb-color-sidebar-text-muted,#6b7280)]">{tenantPlan}</p> : null}
         </div>
       </div>
 
       <nav className="mt-[var(--bb-space-4,1rem)] flex-1 space-y-[var(--bb-space-6,1.5rem)] overflow-y-auto px-[var(--bb-space-3,0.75rem)] pb-[var(--bb-space-6,1.5rem)]">
         {sidebarSections.map((section) => (
           <div key={section.id}>
-            <p className="px-1 text-[color:var(--bb-color-text-muted,#52525b)] text-[var(--bb-font-size-xs,0.875rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide">
+            <p className="px-1 text-[var(--bb-font-size-xs,0.875rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide text-[color:var(--bb-color-sidebar-text-muted,#6b7280)]">
               {section.label}
             </p>
             <div className="mt-2 space-y-1">
@@ -108,14 +108,21 @@ const SidebarSection = ({ onNavigate }) => {
                     to={item.path}
                     className={({ isActive }) =>
                       cn(
-                        'group flex items-center gap-3 rounded-lg px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-[color:var(--bb-color-text-muted,#52525b)] text-[var(--bb-font-size-sm,1rem)] font-[var(--bb-font-weight-medium,500)] transition-colors hover:bg-white hover:text-[color:var(--bb-color-text-primary,#0f172a)]',
-                        isActive && 'bg-white text-[color:var(--bb-color-text-primary,#0f172a)] shadow-sm ring-1 ring-gray-200',
+                        'group flex items-center gap-3 rounded-lg px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,1rem)] font-[var(--bb-font-weight-medium,500)] text-[color:var(--bb-color-sidebar-text-primary,#111827)] transition-colors hover:bg-[color:var(--bb-color-sidebar-item-hover-bg,rgba(15,23,42,0.04))]',
+                        isActive &&
+                          'bg-[color:var(--bb-color-sidebar-item-active-bg,rgba(79,70,229,0.08))] text-[color:var(--bb-color-sidebar-item-active-text,#4f46e5)] font-[var(--bb-font-weight-semibold,600)] shadow-sm',
                       )
                     }
                     onClick={onNavigate}
                     end={item.path === '/today'}
                   >
-                    <Icon className="h-4 w-4 shrink-0 text-[color:var(--bb-color-text-subtle,#a1a1aa)] group-hover:text-indigo-500" />
+                    <Icon
+                      className={cn(
+                        'h-4 w-4 shrink-0 text-[color:var(--bb-color-sidebar-text-muted,#6b7280)] transition-colors',
+                        'group-hover:text-[color:var(--bb-color-sidebar-text-primary,#111827)]',
+                        'group-[.active]:text-[color:var(--bb-color-sidebar-item-active-text,#4f46e5)]',
+                      )}
+                    />
                     <span className="truncate">{item.label}</span>
                   </NavLink>
                 );

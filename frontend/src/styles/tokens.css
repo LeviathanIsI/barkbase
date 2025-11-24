@@ -68,6 +68,15 @@
   --bb-leading-tight: 1.15;
   --bb-leading-normal: 1.35;
   --bb-leading-relaxed: 1.5;
+
+  /* Sidebar */
+  --bb-color-sidebar-bg: #f1f2f4;
+  --bb-color-sidebar-border: var(--bb-color-neutral-200);
+  --bb-color-sidebar-text-primary: #111827;
+  --bb-color-sidebar-text-muted: #6b7280;
+  --bb-color-sidebar-item-hover-bg: rgba(15, 23, 42, 0.04);
+  --bb-color-sidebar-item-active-bg: var(--bb-color-accent-soft);
+  --bb-color-sidebar-item-active-text: var(--bb-color-accent);
 }
 
 .dark {
