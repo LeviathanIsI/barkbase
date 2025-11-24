@@ -12,25 +12,32 @@ const TodaySection = ({
   titleClassName,
 }) => {
   return (
-    <div className={cn('flex flex-col gap-4', className)}>
+    <div className={cn('flex flex-col gap-[var(--bb-space-4,1rem)]', className)}>
       {(title || actions) && (
         <div
           className={cn(
-            'flex flex-col gap-3 md:flex-row md:items-center md:justify-between',
+            'flex flex-col gap-[var(--bb-space-3,0.75rem)] md:flex-row md:items-center md:justify-between',
             headerClassName,
           )}
         >
-          <div className="flex items-center gap-2">
-            {Icon && <Icon className="w-5 h-5 text-success-600 dark:text-success-500" />}
-            <span className={cn('text-xl font-semibold', titleClassName)}>{title}</span>
+          <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
+            {Icon && <Icon className="h-5 w-5 text-success-600 dark:text-success-500" />}
+            <span
+              className={cn(
+                'text-[var(--bb-font-size-md,1.125rem)] font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-text-primary,#0f172a)]',
+                titleClassName,
+              )}
+            >
+              {title}
+            </span>
             {badge}
           </div>
-          {actions && <div className="flex items-center gap-2">{actions}</div>}
+          {actions && <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">{actions}</div>}
         </div>
       )}
 
       {subtitle && (
-        <p className="text-sm text-gray-600 dark:text-text-secondary">
+        <p className="text-[color:var(--bb-color-text-muted,#52525b)] text-[var(--bb-font-size-sm,1rem)] dark:text-text-secondary">
           {subtitle}
         </p>
       )}

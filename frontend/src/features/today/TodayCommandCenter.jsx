@@ -103,7 +103,7 @@ const TodayCommandCenter = () => {
 
   // Loading state
   return (
-    <div className="flex flex-col gap-8 px-4 py-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <div className="mx-auto flex max-w-7xl flex-col gap-[var(--bb-space-6,1.5rem)] px-[var(--bb-space-4,1rem)] py-[var(--bb-space-4,1rem)] sm:px-[var(--bb-space-6,1.5rem)] lg:px-[var(--bb-space-8,2rem)]">
       <TodayHeroCard
         kennelName={kennelName}
         formattedDate={formattedDate}

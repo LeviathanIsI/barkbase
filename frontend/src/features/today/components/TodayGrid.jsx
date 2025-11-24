@@ -8,7 +8,13 @@ const columnClasses = {
 
 const TodayGrid = ({ children, columns = 2, className }) => {
   return (
-    <div className={cn('grid gap-6', columnClasses[columns] || columnClasses[2], className)}>
+    <div
+      className={cn(
+        'grid gap-[var(--bb-space-6,1.5rem)]',
+        columnClasses[columns] || columnClasses[2],
+        className,
+      )}
+    >
       {children}
     </div>
   );

@@ -54,9 +54,11 @@ const ListBody = ({ items, emptyMessage, hasError }) => {
 
   if (!items.length) {
     return (
-      <div className="text-center py-12 text-gray-500">
-        <UserX className="w-16 h-16 mx-auto mb-3 opacity-20 text-warning-600" />
-        <p className="text-lg">{emptyMessage}</p>
+      <div className="py-[var(--bb-space-12,3rem)] text-center text-[color:var(--bb-color-text-muted,#52525b)]">
+        <UserX className="mx-auto mb-3 h-16 w-16 text-warning-600 opacity-20" />
+        <p className="text-[var(--bb-font-size-md,1.125rem)] font-[var(--bb-font-weight-medium,500)]">
+          {emptyMessage}
+        </p>
       </div>
     );
   }
@@ -75,7 +77,7 @@ const DepartureRow = ({ booking }) => {
 
   return (
     <div
-      className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg hover:bg-gray-100 dark:hover:bg-surface-tertiary transition-colors"
+      className="flex items-center gap-[var(--bb-space-4,1rem)] rounded-lg bg-[color:var(--bb-color-bg-elevated,#f5f5f4)] p-[var(--bb-space-4,1rem)] transition-colors hover:bg-[color:var(--bb-color-bg-surface,#ffffff)] dark:bg-surface-secondary dark:hover:bg-surface-tertiary"
     >
       <PetAvatar
         pet={booking.pet || { name: booking.petName }}
@@ -83,19 +85,19 @@ const DepartureRow = ({ booking }) => {
         showStatus={false}
       />
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-3">
-          <p className="font-semibold text-base truncate">
+        <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
+          <p className="truncate text-[var(--bb-font-size-sm,1rem)] font-[var(--bb-font-weight-semibold,600)]">
             {booking.petName || booking.pet?.name}
           </p>
           <Badge variant="warning" className="text-sm">
             {formatTime(time)}
           </Badge>
         </div>
-        <p className="text-sm text-gray-600 dark:text-text-secondary truncate">
+        <p className="truncate text-[color:var(--bb-color-text-muted,#52525b)] text-[var(--bb-font-size-sm,1rem)] dark:text-text-secondary">
           {booking.ownerName || booking.owner?.name || 'Owner'}
         </p>
         {booking.service && (
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="mt-1 text-[color:var(--bb-color-text-subtle,#a1a1aa)] text-[var(--bb-font-size-xs,0.875rem)]">
             {booking.service}
           </p>
         )}
