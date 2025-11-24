@@ -8,6 +8,13 @@ const { ApiGatewayManagementApiClient, PostToConnectionCommand } = require('@aws
 exports.handler = async (event) => {
     const { tenantId, eventType, payload, websocketEndpoint } = event;
 
+    console.log('[WebSocket][broadcast] invoked', {
+        tenantId,
+        eventType,
+        hasPayload: Boolean(payload),
+        websocketEndpoint,
+    });
+
     if (!tenantId || !eventType || !websocketEndpoint) {
         console.error('Missing required parameters:', { tenantId, eventType, websocketEndpoint });
         return { statusCode: 400, body: 'Missing parameters' };
@@ -64,12 +71,13 @@ exports.handler = async (event) => {
         const failed = results.filter(r => r.status === 'rejected').length;
 
 
+        console.log('[WebSocket][broadcast] results', { successful, failed, total: rows.length });
         return {
             statusCode: 200,
             body: JSON.stringify({ successful, failed, total: rows.length })
         };
     } catch (error) {
-        console.error('Broadcast error:', error);
+        console.error('[WebSocket][broadcast] error', { tenantId, error });
         return { statusCode: 500, body: 'Failed to broadcast' };
     }
 };

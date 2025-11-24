@@ -9,11 +9,18 @@ const createApiGwClient = (endpoint) => {
 };
 
 exports.handler = async (event) => {
-    const connectionId = event.requestContext.connectionId;
-    const domainName = event.requestContext.domainName;
-    const stage = event.requestContext.stage;
+    const connectionId = event.requestContext?.connectionId;
+    const domainName = event.requestContext?.domainName;
+    const stage = event.requestContext?.stage;
+    const routeKey = event.requestContext?.routeKey;
     const endpoint = `https://${domainName}/${stage}`;
 
+    console.log('[WebSocket][default] incoming', {
+        routeKey,
+        connectionId,
+        domainName,
+        stage,
+    });
 
     try {
         const body = JSON.parse(event.body || '{}');
@@ -80,9 +87,10 @@ exports.handler = async (event) => {
             );
         }
 
+        console.log('[WebSocket][default] processed message', { connectionId, action });
         return { statusCode: 200, body: 'Message sent' };
     } catch (error) {
-        console.error('Message error:', error);
+        console.error('[WebSocket][default] error', { connectionId, error });
         return { statusCode: 500, body: 'Failed to process message' };
     }
 };

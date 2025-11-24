@@ -1,15 +1,30 @@
 const { getPool } = require('/opt/nodejs');
 
+// NOTE: $connect expects query parameters tenantId=<UUID> and userId=<UUID>, matching the
+// frontend RealtimeClient and RealtimeStack wiring. Always respond with { statusCode, body }.
 exports.handler = async (event) => {
-    const connectionId = event.requestContext.connectionId;
-    const queryParams = event.queryStringParameters || {};
+    const requestContext = event?.requestContext || {};
+    const connectionId = requestContext.connectionId;
+    const routeKey = requestContext.routeKey;
+    const queryParams = event?.queryStringParameters || {};
     const tenantId = queryParams.tenantId;
     const userId = queryParams.userId;
+    const safeParams = {
+        ...queryParams,
+        userId: userId ? `${String(userId).slice(0, 12)}...` : undefined,
+    };
 
+    console.log('[WebSocket][connect] requestContext', JSON.stringify(requestContext));
+    console.log('[WebSocket][connect] query', JSON.stringify(safeParams));
+
+    if (!tenantId || !userId) {
+        console.error('[WebSocket][connect] Missing tenantId or userId', { tenantId, userId });
+        return { statusCode: 400, body: 'Missing tenantId or userId' };
+    }
 
     try {
         const pool = getPool();
-        
+
         // Store connection in database
         await pool.query(
             `CREATE TABLE IF NOT EXISTS "WebSocketConnection" (
@@ -29,9 +44,10 @@ exports.handler = async (event) => {
             [tenantId, userId, connectionId]
         );
 
+        console.log('[WebSocket][connect] stored connection', { connectionId, tenantId, userId: safeParams.userId });
         return { statusCode: 200, body: 'Connected' };
     } catch (error) {
-        console.error('Connect error:', error);
+        console.error('[WebSocket][connect] error', { connectionId, routeKey, error });
         return { statusCode: 500, body: 'Failed to connect' };
     }
 };

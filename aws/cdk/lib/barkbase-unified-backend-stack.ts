@@ -55,13 +55,12 @@ export class BarkbaseUnifiedBackendStack extends cdk.Stack {
       architecture: lambda.Architecture.ARM_64,
       environment,
       layers,
+      ...(props.deployInVpc && props.vpc && {
+        vpc: props.vpc,
+        securityGroups: props.securityGroups,
+        vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+      }),
     };
-
-    if (props.deployInVpc && props.vpc) {
-      unifiedFunctionProps.vpc = props.vpc;
-      unifiedFunctionProps.securityGroups = props.securityGroups;
-      unifiedFunctionProps.vpcSubnets = { subnetType: ec2.SubnetType.PRIVATE_ISOLATED };
-    }
 
     const unifiedFn = new lambda.Function(this, 'UnifiedBackendFunction', unifiedFunctionProps);
     props.dbSecret.grantRead(unifiedFn);

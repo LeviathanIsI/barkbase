@@ -11,22 +11,32 @@ import TokenRefresher from "./TokenRefresher";
 
 const RealtimeProvider = ({ children }) => {
   const accessToken = useAuthStore((s) => s.accessToken);
-  const tenant = useTenantStore((s) => s.tenant?.slug);
+  const userIdentifier = useAuthStore(
+    (s) =>
+      s.user?.recordId ??
+      s.user?.id ??
+      s.user?.sub ??
+      s.user?.userId ??
+      s.tenantId ??
+      null
+  );
+  const tenantRecordId = useTenantStore((s) => s.tenant?.recordId);
+  const tenantSlug = useTenantStore((s) => s.tenant?.slug);
+  const tenantIdentifier = tenantRecordId ?? tenantSlug ?? "default";
   const [client, setClient] = useState(null);
   useEffect(() => {
-    if (!accessToken || !tenant) return;
+    if (!accessToken || !tenantIdentifier) return;
     // Use AWS WebSocket URL or disable if not configured
     const url = import.meta.env.VITE_REALTIME_URL || "disabled";
+    const identity = userIdentifier ?? accessToken ?? "anonymous";
     const c =
-      url === "disabled"
-        ? null
-        : new RealtimeClient(url, accessToken, tenant?.recordId || "default");
+      url === "disabled" ? null : new RealtimeClient(url, identity, tenantIdentifier);
     if (c) {
       c.connect();
       setClient(c);
       return () => c.disconnect();
     }
-  }, [accessToken, tenant]);
+  }, [accessToken, tenantIdentifier, userIdentifier]);
   return children;
 };
 

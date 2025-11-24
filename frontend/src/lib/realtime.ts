@@ -35,11 +35,15 @@ export class RealtimeClient {
   connect() {
     // If no URL provided or disabled, quietly no-op
     if (!this.url || this.url === 'disabled') return;
-    
-    // AWS WebSocket URLs need tenantId and userId as query params
-    const wsUrl = `${this.url}?tenantId=${encodeURIComponent(this.tenant)}&userId=${encodeURIComponent(this.token || 'anonymous')}`;
-    
+
+    const baseUrl = this.url.replace(/\/+$/, '');
+    const stageUrl = `${baseUrl}/dev`;
+    const wsUrl = `${stageUrl}?tenantId=${encodeURIComponent(this.tenant)}&userId=${encodeURIComponent(
+      this.token || 'anonymous',
+    )}`;
+
     try {
+      console.log('[Realtime] Connecting WS to', wsUrl);
       this.ws = new WebSocket(wsUrl);
       this.ws.onopen = () => {
         this.backoff = 1000;

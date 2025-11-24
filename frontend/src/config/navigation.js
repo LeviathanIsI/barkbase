@@ -1,53 +1,63 @@
-export const navSections = [
+export const sidebarSections = [
   {
-    id: 'core',
-    title: 'Dashboard',
-    items: [{ path: '/today', label: 'Dashboard' }],
+    id: 'today',
+    label: 'Today',
+    items: [
+      {
+        path: '/today',
+        label: 'Command Center',
+        icon: 'layout-dashboard',
+        priority: 1,
+      },
+      {
+        path: '/dashboard',
+        label: 'Legacy Dashboard',
+        icon: 'home',
+      },
+    ],
   },
   {
-    id: 'directory',
-    title: 'Directory',
+    id: 'clients',
+    label: 'Clients & Records',
     items: [
-      { path: '/pets-people', label: 'Clients' },
-      { path: '/pets', label: 'Pets' },
-      { path: '/owners', label: 'Owners' },
-      { path: '/vaccinations', label: 'Vaccinations' },
+      { path: '/pets-people', label: 'Clients', icon: 'users' },
+      { path: '/pets', label: 'Pets', icon: 'paw-print' },
+      { path: '/owners', label: 'Owners', icon: 'user-round' },
+      { path: '/vaccinations', label: 'Vaccinations', icon: 'syringe' },
+      { path: '/segments', label: 'Segments', icon: 'layers' },
     ],
   },
   {
     id: 'operations',
-    title: 'Operations',
+    label: 'Operations',
     items: [
-      { path: '/bookings', label: 'Bookings' },
-      { path: '/schedule', label: 'Schedule' },
-      { path: '/runs', label: 'Runs' },
-      { path: '/tasks', label: 'Tasks' },
-      { path: '/kennels', label: 'Kennels' },
+      { path: '/bookings', label: 'Bookings', icon: 'calendar-plus' },
+      { path: '/schedule', label: 'Schedule', icon: 'calendar-days' },
+      { path: '/calendar', label: 'Calendar', icon: 'calendar' },
+      { path: '/runs', label: 'Runs', icon: 'activity' },
+      { path: '/tasks', label: 'Tasks', icon: 'check-square' },
+      { path: '/kennels', label: 'Kennels', icon: 'home' },
+      { path: '/operations', label: 'Ops Overview', icon: 'panels-top-left' },
+      { path: '/messages', label: 'Messages', icon: 'message-square' },
     ],
   },
   {
-    id: 'analytics',
-    title: 'Analytics',
+    id: 'finance',
+    label: 'Finance & Reporting',
     items: [
-      { path: '/dashboard', label: 'Legacy Dashboard' },
-      { path: '/reports', label: 'Reports' },
-      { path: '/payments', label: 'Payments' },
+      { path: '/payments', label: 'Payments', icon: 'credit-card' },
+      { path: '/invoices', label: 'Invoices', icon: 'file-text' },
+      { path: '/reports', label: 'Reports', icon: 'bar-chart-3' },
     ],
   },
   {
-    id: 'settings',
-    title: 'Settings',
+    id: 'admin',
+    label: 'Administration',
     items: [
-      { path: '/staff', label: 'Team' },
-      { path: '/settings', label: 'Settings' },
-      { path: '/tenants', label: 'Tenant Settings' },
+      { path: '/staff', label: 'Team', icon: 'user-cog' },
+      { path: '/tenants', label: 'Tenants', icon: 'building-2' },
+      { path: '/settings', label: 'Settings', icon: 'settings' },
     ],
   },
 ];
-
-export const mainNavItems = navSections.flatMap((section) =>
-  section.items.map((item) => ({ ...item, section: section.id })),
-);
-
-// TODO: If the /today route is ever renamed, update the Dashboard entry here and adjust any consumers.
 
