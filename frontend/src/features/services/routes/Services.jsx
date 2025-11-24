@@ -95,37 +95,41 @@ const Services = () => {
 
   if (isLoading) {
     return (
-      <div>
-        <PageHeader title="Services & Add-ons" breadcrumb="Home > Settings > Services" />
+      <div className="space-y-[var(--bb-space-6,1.5rem)]">
+        <PageHeader title="Services & Add-ons" description="Manage services and add-ons for bookings" />
         <Skeleton className="h-96" />
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="space-y-[var(--bb-space-6,1.5rem)]">
       <PageHeader
         title="Services & Add-ons"
-        breadcrumb="Home > Settings > Services"
+        description="Manage services and add-ons for bookings"
         actions={
-          <Button onClick={() => handleOpenForm()}>
+          <Button variant="primary" onClick={() => handleOpenForm()}>
             <Plus className="h-4 w-4 mr-2" />
             New Service
           </Button>
         }
       />
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-[var(--bb-space-4,1rem)] sm:grid-cols-2 lg:grid-cols-3">
         {services?.map((service) => (
           <Card key={service.recordId}>
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex-1">
-                <h3 className="font-semibold text-lg mb-1">{service.name}</h3>
+            <div className="flex items-start justify-between mb-[var(--bb-space-4,1rem)]">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-[var(--bb-font-weight-semibold,600)] text-[var(--bb-font-size-md,1rem)] text-[color:var(--bb-color-text-primary)] mb-1 truncate">
+                  {service.name}
+                </h3>
                 {service.description && (
-                  <p className="text-sm text-muted mb-2">{service.description}</p>
+                  <p className="text-[var(--bb-font-size-sm,0.875rem)] text-[color:var(--bb-color-text-muted)] mb-[var(--bb-space-2,0.5rem)] line-clamp-2">
+                    {service.description}
+                  </p>
                 )}
               </div>
-              <div className="flex gap-1">
+              <div className="flex gap-1 shrink-0">
                 <Button size="sm" variant="ghost" onClick={() => handleOpenForm(service)}>
                   <Edit className="h-4 w-4" />
                 </Button>
@@ -135,22 +139,24 @@ const Services = () => {
               </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-[var(--bb-space-3,0.75rem)]">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted">Category</span>
+                <span className="text-[var(--bb-font-size-sm,0.875rem)] text-[color:var(--bb-color-text-muted)]">Category</span>
                 {getCategoryBadge(service.category)}
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted">
+                <span className="text-[var(--bb-font-size-sm,0.875rem)] text-[color:var(--bb-color-text-muted)]">
                   <DollarSign className="h-4 w-4 inline mr-1" />
                   Price
                 </span>
-                <span className="font-semibold">{formatCurrency(service.priceCents)}</span>
+                <span className="font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-text-primary)]">
+                  {formatCurrency(service.priceCents)}
+                </span>
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted">Status</span>
+                <span className="text-[var(--bb-font-size-sm,0.875rem)] text-[color:var(--bb-color-text-muted)]">Status</span>
                 <Badge variant={service.isActive ? 'success' : 'neutral'}>
                   {service.isActive ? 'Active' : 'Inactive'}
                 </Badge>
@@ -162,13 +168,15 @@ const Services = () => {
         {services?.length === 0 && (
           <div className="col-span-full">
             <Card>
-              <div className="text-center py-12">
-                <DollarSign className="h-12 w-12 text-muted mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No Services Yet</h3>
-                <p className="text-sm text-muted mb-4">
+              <div className="text-center py-[var(--bb-space-12,3rem)]">
+                <DollarSign className="h-12 w-12 mx-auto mb-[var(--bb-space-4,1rem)]" style={{ color: 'var(--bb-color-text-muted)' }} />
+                <h3 className="text-[var(--bb-font-size-lg,1.25rem)] font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-text-primary)] mb-[var(--bb-space-2,0.5rem)]">
+                  No Services Yet
+                </h3>
+                <p className="text-[var(--bb-font-size-sm,0.875rem)] text-[color:var(--bb-color-text-muted)] mb-[var(--bb-space-4,1rem)]">
                   Create services that can be added to bookings
                 </p>
-                <Button onClick={() => handleOpenForm()}>
+                <Button variant="primary" onClick={() => handleOpenForm()}>
                   <Plus className="h-4 w-4 mr-2" />
                   Create First Service
                 </Button>
