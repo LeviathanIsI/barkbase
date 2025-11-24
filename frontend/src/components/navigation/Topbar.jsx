@@ -67,11 +67,11 @@ const Topbar = ({ onToggleSidebar }) => {
             <Menu className="h-5 w-5" />
           </button>
           <div className="hidden flex-col lg:flex">
-            <p className="text-sm font-semibold text-[color:var(--bb-color-text-primary,#0f172a)]">
+            <p className="text-[color:var(--bb-color-text-primary,#0f172a)] text-[var(--bb-font-size-sm,1rem)] font-[var(--bb-font-weight-semibold,600)] leading-[var(--bb-leading-tight,1.15)]">
               {tenantName}
             </p>
             {tenant?.plan ? (
-              <p className="text-xs uppercase tracking-wide text-[color:var(--bb-color-text-muted,#52525b)]">
+              <p className="text-[color:var(--bb-color-text-muted,#52525b)] text-[var(--bb-font-size-xs,0.875rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide">
                 {tenant.plan}
               </p>
             ) : null}
@@ -83,18 +83,20 @@ const Topbar = ({ onToggleSidebar }) => {
                 isRealtimeConnected ? 'bg-emerald-500' : 'bg-rose-500',
               )}
             />
-            <span className="text-xs font-medium text-[color:var(--bb-color-text-muted,#52525b)]">
+            <span className="text-[color:var(--bb-color-text-muted,#52525b)] text-[var(--bb-font-size-xs,0.875rem)] font-[var(--bb-font-weight-medium,500)]">
               {isRealtimeConnected ? 'Realtime' : 'Offline'}
             </span>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <div className="hidden text-right md:block">
-            <p className="text-sm font-medium text-[color:var(--bb-color-text-primary,#0f172a)]">
+            <p className="text-[color:var(--bb-color-text-primary,#0f172a)] text-[var(--bb-font-size-sm,1rem)] font-[var(--bb-font-weight-medium,500)] leading-[var(--bb-leading-tight,1.15)]">
               {user?.fullName || user?.name}
             </p>
             {userEmail ? (
-              <p className="text-xs text-[color:var(--bb-color-text-muted,#52525b)]">{userEmail}</p>
+              <p className="text-[color:var(--bb-color-text-muted,#52525b)] text-[var(--bb-font-size-xs,0.875rem)] leading-[var(--bb-leading-normal,1.35)]">
+                {userEmail}
+              </p>
             ) : null}
           </div>
           <Avatar size="sm" src={user?.avatarUrl} fallback={initials} />

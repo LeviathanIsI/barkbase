@@ -78,7 +78,7 @@ const SidebarSection = ({ onNavigate }) => {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-3 rounded-lg border border-transparent px-4 py-5">
+      <div className="flex items-center gap-3 rounded-lg border border-transparent px-[var(--bb-space-4,1rem)] py-[var(--bb-space-6,1.5rem)]">
         <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600 font-semibold text-white shadow-sm">
           {tenantName
             .split(' ')
@@ -93,10 +93,10 @@ const SidebarSection = ({ onNavigate }) => {
         </div>
       </div>
 
-      <nav className="mt-4 flex-1 space-y-6 overflow-y-auto px-3 pb-6">
+      <nav className="mt-[var(--bb-space-4,1rem)] flex-1 space-y-[var(--bb-space-6,1.5rem)] overflow-y-auto px-[var(--bb-space-3,0.75rem)] pb-[var(--bb-space-6,1.5rem)]">
         {sidebarSections.map((section) => (
           <div key={section.id}>
-            <p className="px-1 text-xs font-semibold uppercase tracking-wide text-[color:var(--bb-color-text-muted,#52525b)]">
+            <p className="px-1 text-[color:var(--bb-color-text-muted,#52525b)] text-[var(--bb-font-size-xs,0.875rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide">
               {section.label}
             </p>
             <div className="mt-2 space-y-1">
@@ -108,7 +108,7 @@ const SidebarSection = ({ onNavigate }) => {
                     to={item.path}
                     className={({ isActive }) =>
                       cn(
-                        'group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-[color:var(--bb-color-text-muted,#52525b)] transition-colors hover:bg-white hover:text-[color:var(--bb-color-text-primary,#0f172a)]',
+                        'group flex items-center gap-3 rounded-lg px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-[color:var(--bb-color-text-muted,#52525b)] text-[var(--bb-font-size-sm,1rem)] font-[var(--bb-font-weight-medium,500)] transition-colors hover:bg-white hover:text-[color:var(--bb-color-text-primary,#0f172a)]',
                         isActive && 'bg-white text-[color:var(--bb-color-text-primary,#0f172a)] shadow-sm ring-1 ring-gray-200',
                       )
                     }

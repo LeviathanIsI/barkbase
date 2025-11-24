@@ -36,7 +36,10 @@ Card.displayName = 'Card';
 const CardHeader = React.forwardRef(({ className, children, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn('flex flex-col space-y-1.5 p-6 pb-4', className)}
+    className={cn(
+      'flex flex-col space-y-1.5 p-[var(--bb-space-6,1.5rem)] pb-[var(--bb-space-4,1rem)]',
+      className,
+    )}
     {...props}
   >
     {children}
@@ -47,7 +50,10 @@ CardHeader.displayName = 'CardHeader';
 const CardTitle = React.forwardRef(({ className, children, ...props }, ref) => (
   <h3
     ref={ref}
-    className={cn('text-xl font-semibold leading-tight tracking-tight', className)}
+    className={cn(
+      'text-[var(--bb-font-size-lg,1.25rem)] font-[var(--bb-font-weight-semibold,600)] leading-[var(--bb-leading-tight,1.15)] tracking-tight',
+      className,
+    )}
     {...props}
   >
     {children}
@@ -58,7 +64,10 @@ CardTitle.displayName = 'CardTitle';
 const CardDescription = React.forwardRef(({ className, children, ...props }, ref) => (
   <p
     ref={ref}
-      className={cn('text-sm font-normal text-[color:var(--bb-color-text-muted,#52525b)] dark:text-dark-text-secondary', className)}
+    className={cn(
+      'text-[color:var(--bb-color-text-muted,#52525b)] text-[var(--bb-font-size-sm,1rem)] font-[var(--bb-font-weight-regular,400)] leading-[var(--bb-leading-normal,1.35)] dark:text-dark-text-secondary',
+      className,
+    )}
     {...props}
   >
     {children}
@@ -76,7 +85,10 @@ CardContent.displayName = 'CardContent';
 const CardFooter = React.forwardRef(({ className, children, ...props }, ref) => (
   <div
     ref={ref}
-      className={cn('flex items-center pt-4 border-t border-[color:var(--bb-color-border-subtle,#e4e4e7)] dark:border-dark-border', className)}
+    className={cn(
+      'flex items-center border-t border-[color:var(--bb-color-border-subtle,#e4e4e7)] pt-[var(--bb-space-4,1rem)] dark:border-dark-border',
+      className,
+    )}
     {...props}
   >
     {children}
@@ -99,23 +111,29 @@ const MetricCard = React.forwardRef(({
   className,
   ...props 
 }, ref) => (
-  <Card ref={ref} className={cn('p-6', className)} {...props}>
+  <Card ref={ref} className={cn('p-[var(--bb-space-6,1.5rem)]', className)} {...props}>
     <div className="flex items-center justify-between">
-      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-[var(--bb-space-3,0.75rem)]">
         {Icon && (
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-50 dark:bg-[var(--color-primary-light)]">
             <Icon className="h-5 w-5 text-primary-600 dark:text-primary-400 stroke-1.5" />
           </div>
         )}
-        <div>
-          <p className="text-sm font-medium text-[color:var(--bb-color-text-muted,#52525b)] dark:text-dark-text-secondary">{title}</p>
-          <p className="text-2xl font-semibold text-[color:var(--bb-color-text-primary,#0f172a)] dark:text-dark-text-primary mt-0.5">{value}</p>
+          <div>
+            <p className="text-[color:var(--bb-color-text-muted,#52525b)] text-[var(--bb-font-size-sm,1rem)] font-[var(--bb-font-weight-medium,500)] dark:text-dark-text-secondary">
+              {title}
+            </p>
+            <p className="mt-0.5 text-[var(--bb-font-size-xl,1.5rem)] font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-text-primary,#0f172a)] dark:text-dark-text-primary leading-[var(--bb-leading-tight,1.15)]">
+              {value}
+            </p>
           {subtitle && (
-            <p className="text-xs text-[color:var(--bb-color-text-muted,#52525b)] dark:text-dark-text-secondary mt-0.5">{subtitle}</p>
+              <p className="mt-0.5 text-[color:var(--bb-color-text-muted,#52525b)] text-[var(--bb-font-size-xs,0.875rem)] leading-[var(--bb-leading-normal,1.35)] dark:text-dark-text-secondary">
+                {subtitle}
+              </p>
           )}
           {change && (
             <p className={cn(
-              'text-xs mt-1 font-medium',
+              'mt-1 text-[var(--bb-font-size-xs,0.875rem)] font-[var(--bb-font-weight-medium,500)]',
               trend === 'up' && 'text-success-600',
               trend === 'down' && 'text-error-600',
               trend === 'neutral' && 'text-[color:var(--bb-color-text-muted,#52525b)] dark:text-dark-text-secondary'
@@ -143,12 +161,23 @@ const PageHeader = React.forwardRef(({
 }, ref) => (
   <div
     ref={ref}
-    className={cn('flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8', className)}
+    className={cn(
+      'mb-[var(--bb-space-6,1.5rem)] flex flex-col gap-[var(--bb-space-4,1rem)] sm:flex-row sm:items-center sm:justify-between',
+      className,
+    )}
     {...props}
   >
     <div className="min-w-0 flex-1">
-      {title && <h1 className="text-2xl font-semibold text-gray-900 dark:text-dark-text-primary">{title}</h1>}
-      {description && <p className="mt-1.5 text-sm text-gray-600 dark:text-dark-text-secondary">{description}</p>}
+      {title && (
+        <h1 className="text-[var(--bb-font-size-xl,1.5rem)] font-[var(--bb-font-weight-semibold,600)] leading-[var(--bb-leading-tight,1.15)] text-[color:var(--bb-color-text-primary,#0f172a)] dark:text-dark-text-primary">
+          {title}
+        </h1>
+      )}
+      {description && (
+        <p className="mt-1.5 text-[color:var(--bb-color-text-muted,#52525b)] text-[var(--bb-font-size-sm,1rem)] leading-[var(--bb-leading-normal,1.35)] dark:text-dark-text-secondary">
+          {description}
+        </p>
+      )}
     </div>
     {actions && <div className="flex items-center gap-3 flex-wrap">{actions}</div>}
   </div>

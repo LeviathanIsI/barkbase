@@ -53,6 +53,21 @@
   /* Accent */
   --bb-color-accent: #4f46e5;
   --bb-color-accent-soft: rgba(79, 70, 229, 0.08);
+
+  /* Typography */
+  --bb-font-size-xs: var(--bb-text-sm);
+  --bb-font-size-sm: var(--bb-text-base);
+  --bb-font-size-md: var(--bb-text-lg);
+  --bb-font-size-lg: var(--bb-text-xl);
+  --bb-font-size-xl: var(--bb-text-2xl);
+
+  --bb-font-weight-regular: 400;
+  --bb-font-weight-medium: 500;
+  --bb-font-weight-semibold: 600;
+
+  --bb-leading-tight: 1.15;
+  --bb-leading-normal: 1.35;
+  --bb-leading-relaxed: 1.5;
 }
 
 .dark {
