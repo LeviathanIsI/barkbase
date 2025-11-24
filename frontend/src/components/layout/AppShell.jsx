@@ -18,7 +18,7 @@ const AppShell = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[color:var(--bb-color-bg-body,#f9fafb)] text-[color:var(--bb-color-text-primary,#0f172a)]">
+    <div className="min-h-screen bg-[color:var(--bb-color-bg-body)] text-[color:var(--bb-color-text-primary)]">
       <Sidebar />
 
       {mobileSidebarOpen ? (
@@ -31,7 +31,7 @@ const AppShell = () => {
       <div className="flex min-h-screen flex-col lg:pl-[var(--bb-sidebar-width,240px)]">
         <Topbar onToggleSidebar={() => setMobileSidebarOpen(true)} />
         <GlobalKeyboardShortcuts />
-        <main className="flex-1 bg-[color:var(--bb-color-bg-body,#f5f5f4)] px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-6,1.5rem)] sm:px-[var(--bb-space-8,2rem)] lg:px-[var(--bb-space-12,3rem)]">
+        <main className="flex-1 bg-[color:var(--bb-color-bg-body)] px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-6,1.5rem)] sm:px-[var(--bb-space-8,2rem)] lg:px-[var(--bb-space-12,3rem)]">
           <div className="mx-auto w-full max-w-6xl">
             <Outlet />
           </div>
