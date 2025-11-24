@@ -98,50 +98,56 @@
 }
 
 .dark {
-  /* Soft dark shell & text */
-  --bb-color-bg-body: #1e2026;
-  --bb-color-bg-surface: #252730;
-  --bb-color-bg-elevated: #2c2f39;
+  /* === CHARCOAL MODE – Soft, lighter dark === */
 
-  --bb-color-border-subtle: #343845;
-  --bb-color-border-strong: #3f4452;
+  /* Shell background & surfaces */
+  --bb-color-bg-body: #262830;
+  --bb-color-bg-surface: #2c2f36;
+  --bb-color-bg-elevated: #32353d;
 
-  --bb-color-text-primary: #f3f4f6;
-  --bb-color-text-muted: #a1a5b3;
-  --bb-color-text-subtle: #7a7f8f;
+  /* Borders */
+  --bb-color-border-subtle: #3a3f4a;
+  --bb-color-border-strong: #444955;
 
-  /* Sidebar (dark, soft) */
-  --bb-color-sidebar-bg: #1b1d23;
-  --bb-color-sidebar-border: #2b2f3a;
+  /* Text */
+  --bb-color-text-primary: #f0f2f4;
+  --bb-color-text-muted: #a8adbb;
+  --bb-color-text-subtle: #8b909e;
+
+  /* Sidebar */
+  --bb-color-sidebar-bg: #24262d;
+  --bb-color-sidebar-border: #2f323a;
   --bb-color-sidebar-text-primary: #e5e7eb;
-  --bb-color-sidebar-text-muted: #9ca3b5;
-  --bb-color-sidebar-item-hover-bg: rgba(255, 255, 255, 0.04);
+  --bb-color-sidebar-text-muted: #9ca2b3;
+
+  /* Sidebar hover/active */
+  --bb-color-sidebar-item-hover-bg: rgba(255, 255, 255, 0.05);
   --bb-color-sidebar-item-active-bg: rgba(96, 165, 250, 0.20);
   --bb-color-sidebar-item-active-border: #60a5fa;
   --bb-color-sidebar-item-active-text: #e5edff;
 
-  /* Topbar (dark, soft) */
-  --bb-color-topbar-bg: #1c1e25;
-  --bb-color-topbar-border: #2b303a;
-  --bb-color-topbar-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+  /* Topbar */
+  --bb-color-topbar-bg: #292c33;
+  --bb-color-topbar-border: #3a3e49;
+  --bb-color-topbar-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
 
-  /* Accent (dark) */
+  /* Accent */
   --bb-color-accent: #60a5fa;
   --bb-color-accent-soft: rgba(96, 165, 250, 0.22);
-  --bb-color-text-on-accent: #0b1020;
+  --bb-color-text-on-accent: #0c1018;
 
-  /* Status */
+  /* Status colors */
   --bb-color-status-positive: #22c55e;
-  --bb-color-status-negative: #f97373;
+  --bb-color-status-negative: #ef7070;
 
-  /* Utility surfaces */
-  --bb-color-overlay-scrim: rgba(30, 32, 38, 0.85);
+  /* Overlay */
+  --bb-color-overlay-scrim: rgba(15, 23, 42, 0.5);
 
   /* Theme toggle (dark) */
-  --bb-color-toggle-track-bg: #252730;
-  --bb-color-toggle-track-border: #343845;
+  --bb-color-toggle-track-bg: #2c2f36;
+  --bb-color-toggle-track-border: #3a3f4a;
   --bb-color-toggle-knob-bg: #e5e7eb;
   --bb-color-toggle-icon-sun: #fbbf24;
-  --bb-color-toggle-icon-moon: #1e2026;
+  --bb-color-toggle-icon-moon: #262830;
 }
 
