@@ -76,19 +76,21 @@ const Payments = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-[var(--bb-space-6,1.5rem)]">
       <PageHeader
-        breadcrumb="Home > Business > Payments"
         title="Payments"
-        subtitle="Flexible payment processing with your choice of processor"
+        description="Flexible payment processing with your choice of processor"
         actions={
-          <div className="flex items-center gap-2">
-            <div className="flex items-center bg-gray-100 dark:bg-surface-secondary rounded-lg p-1">
+          <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
+            <div
+              className="flex items-center rounded-lg p-1"
+              style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+            >
               <Button
                 variant={currentView === 'overview' ? 'primary' : 'ghost'}
                 size="sm"
                 onClick={() => setCurrentView('overview')}
-                className="px-3"
+                className="px-[var(--bb-space-3,0.75rem)]"
               >
                 <CreditCard className="h-4 w-4 mr-2" />
                 Overview
@@ -97,7 +99,7 @@ const Payments = () => {
                 variant={currentView === 'analytics' ? 'primary' : 'ghost'}
                 size="sm"
                 onClick={() => setCurrentView('analytics')}
-                className="px-3"
+                className="px-[var(--bb-space-3,0.75rem)]"
               >
                 <BarChart3 className="h-4 w-4 mr-2" />
                 Analytics

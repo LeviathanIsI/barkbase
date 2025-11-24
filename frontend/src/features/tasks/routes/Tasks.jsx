@@ -89,27 +89,32 @@ const Tasks = () => {
 
   if (isLoading) {
     return (
-      <div>
-        <PageHeader title="Tasks & Reminders" breadcrumb="Home > Intake > Tasks" />
+      <div className="space-y-[var(--bb-space-6,1.5rem)]">
+        <PageHeader title="Tasks & Reminders" description="Manage daily tasks and care schedules" />
         <Skeleton className="h-96" />
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="space-y-[var(--bb-space-6,1.5rem)]">
       <PageHeader
         title="Tasks & Reminders"
-        breadcrumb="Home > Intake > Tasks"
+        description="Manage daily tasks and care schedules"
         actions={
-          <div className="flex gap-2">
+          <div className="flex gap-[var(--bb-space-2,0.5rem)]">
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+              className="rounded-lg border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)]"
+              style={{
+                backgroundColor: 'var(--bb-color-bg-elevated)',
+                borderColor: 'var(--bb-color-border-subtle)',
+                color: 'var(--bb-color-text-primary)',
+              }}
             />
-            <Button onClick={() => setShowCreateModal(true)}>
+            <Button variant="primary" onClick={() => setShowCreateModal(true)}>
               <Plus className="h-4 w-4 mr-2" />
               New Task
             </Button>
@@ -118,16 +123,17 @@ const Tasks = () => {
       />
 
       {/* Filter Tabs */}
-      <div className="mb-6 flex gap-2 overflow-x-auto">
+      <div className="flex gap-[var(--bb-space-2,0.5rem)] overflow-x-auto">
         {['all', 'FEEDING', 'MEDICATION', 'GROOMING', 'EXERCISE', 'CHECKUP'].map(type => (
           <button
             key={type}
             onClick={() => setFilterType(type)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-              filterType === type
-                ? 'bg-primary text-white'
-                : 'bg-surface text-muted hover:bg-surface/80'
-            }`}
+            className="px-[var(--bb-space-4,1rem)] py-[var(--bb-space-2,0.5rem)] rounded-lg text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] whitespace-nowrap transition-colors"
+            style={{
+              backgroundColor: filterType === type ? 'var(--bb-color-accent)' : 'var(--bb-color-bg-surface)',
+              color: filterType === type ? 'var(--bb-color-text-on-accent)' : 'var(--bb-color-text-muted)',
+              borderColor: 'var(--bb-color-border-subtle)',
+            }}
           >
             {type === 'all' ? 'All Tasks' : type.charAt(0) + type.slice(1).toLowerCase()}
           </button>
