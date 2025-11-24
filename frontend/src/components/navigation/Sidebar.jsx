@@ -105,7 +105,7 @@ const SidebarSection = ({ onNavigate }) => {
       <nav className="mt-[var(--bb-space-4,1rem)] flex-1 space-y-[var(--bb-space-6,1.5rem)] overflow-y-auto px-[var(--bb-space-3,0.75rem)] pb-[var(--bb-space-6,1.5rem)]">
         {sidebarSections.map((section) => (
           <div key={section.id}>
-            <p className="px-1 text-[var(--bb-font-size-xs,0.875rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide text-[color:var(--bb-color-sidebar-text-muted)]">
+            <p className="px-[var(--bb-space-3,0.75rem)] text-[0.75rem] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide text-[color:var(--bb-color-sidebar-text-muted)]">
               {section.label}
             </p>
             <div className="mt-2 space-y-1">
@@ -118,17 +118,19 @@ const SidebarSection = ({ onNavigate }) => {
                     className={({ isActive }) =>
                       cn(
                         'group flex items-center gap-3 rounded-lg px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)]',
-                        'text-[var(--bb-font-size-sm,1rem)] font-[var(--bb-font-weight-medium,500)] transition-colors',
-                        'truncate text-[color:var(--bb-color-sidebar-text-primary)]',
+                        'text-[0.875rem] font-[var(--bb-font-weight-medium,500)] transition-colors',
+                        'truncate border-l-2',
+                        'text-[color:var(--bb-color-sidebar-text-primary)]',
                         'hover:bg-[color:var(--bb-color-sidebar-item-hover-bg)]',
-                        isActive &&
-                          'bg-[color:var(--bb-color-sidebar-item-active-bg)] text-[color:var(--bb-color-sidebar-item-active-text)] font-[var(--bb-font-weight-semibold,600)]',
+                        isActive
+                          ? 'border-[color:var(--bb-color-sidebar-item-active-border)] bg-[color:var(--bb-color-sidebar-item-active-bg)] text-[color:var(--bb-color-sidebar-item-active-text)] font-[var(--bb-font-weight-semibold,600)]'
+                          : 'border-transparent',
                       )
                     }
                     onClick={onNavigate}
                     end={item.path === '/today'}
                   >
-                    <Icon className="h-4 w-4 shrink-0 text-current transition-colors" />
+                    <Icon className="h-4 w-4 shrink-0" />
                     <span className="truncate">{item.label}</span>
                   </NavLink>
                 );

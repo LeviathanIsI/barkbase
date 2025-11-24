@@ -49,17 +49,19 @@
   --bb-color-text-subtle: var(--color-gray-400, #9ca3af);
 
   /* Sidebar (light) */
-  --bb-color-sidebar-bg: var(--color-gray-100, #f3f4f6);
+  --bb-color-sidebar-bg: var(--color-gray-50, #f9fafb);
   --bb-color-sidebar-border: var(--color-gray-200, #e5e7eb);
   --bb-color-sidebar-text-primary: var(--color-gray-900, #111827);
   --bb-color-sidebar-text-muted: var(--color-gray-500, #6b7280);
-  --bb-color-sidebar-item-hover-bg: rgba(79, 70, 229, 0.08);
-  --bb-color-sidebar-item-active-bg: rgba(79, 70, 229, 0.18);
-  --bb-color-sidebar-item-active-text: var(--color-primary-600, #4f46e5);
+  --bb-color-sidebar-item-hover-bg: rgba(37, 99, 235, 0.06);
+  --bb-color-sidebar-item-active-bg: rgba(37, 99, 235, 0.12);
+  --bb-color-sidebar-item-active-border: var(--color-primary-600, #2563eb);
+  --bb-color-sidebar-item-active-text: var(--color-primary-700, #1d4ed8);
 
   /* Topbar (light) */
   --bb-color-topbar-bg: #ffffff;
   --bb-color-topbar-border: var(--color-gray-200, #e5e7eb);
+  --bb-color-topbar-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
 
   /* Accent */
   --bb-color-accent: var(--color-primary-600, #2563eb);
@@ -106,18 +108,20 @@
   --bb-color-sidebar-border: #111827;
   --bb-color-sidebar-text-primary: #e5e7eb;
   --bb-color-sidebar-text-muted: #94a3b8;
-  --bb-color-sidebar-item-hover-bg: rgba(148, 163, 184, 0.18);
-  --bb-color-sidebar-item-active-bg: rgba(79, 70, 229, 0.35);
-  --bb-color-sidebar-item-active-text: #c7d2fe;
+  --bb-color-sidebar-item-hover-bg: rgba(148, 163, 184, 0.12);
+  --bb-color-sidebar-item-active-bg: rgba(37, 99, 235, 0.25);
+  --bb-color-sidebar-item-active-border: #60a5fa;
+  --bb-color-sidebar-item-active-text: #e5edff;
 
   /* Topbar (dark) */
   --bb-color-topbar-bg: #020617;
   --bb-color-topbar-border: #111827;
+  --bb-color-topbar-shadow: 0 1px 0 rgba(15, 23, 42, 0.9);
 
   /* Accent */
-  --bb-color-accent: #a5b4fc;
-  --bb-color-accent-soft: rgba(165, 180, 252, 0.18);
-  --bb-color-text-on-accent: #ffffff;
+  --bb-color-accent: #60a5fa;
+  --bb-color-accent-soft: rgba(96, 165, 250, 0.22);
+  --bb-color-text-on-accent: #0b1020;
 
   /* Status */
   --bb-color-status-positive: var(--color-success-500, #10b981);

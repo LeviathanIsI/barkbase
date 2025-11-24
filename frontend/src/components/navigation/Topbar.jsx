@@ -56,7 +56,7 @@ const Topbar = ({ onToggleSidebar }) => {
       style={{
         backgroundColor: 'var(--bb-color-topbar-bg)',
         borderColor: 'var(--bb-color-topbar-border)',
-        boxShadow: 'var(--bb-elevation-subtle)',
+        boxShadow: 'var(--bb-color-topbar-shadow)',
       }}
     >
       <div className="mx-auto flex h-[var(--bb-topbar-height,56px)] w-full items-center justify-between px-[var(--bb-space-4,1rem)] sm:px-[var(--bb-space-6,1.5rem)] lg:px-[var(--bb-space-8,2rem)]">
@@ -84,10 +84,11 @@ const Topbar = ({ onToggleSidebar }) => {
             ) : null}
           </div>
           <div
-            className="flex items-center gap-2 rounded-full border px-3 py-1 shadow-sm"
+            className="flex items-center gap-2 rounded-full border px-3 py-1 text-[0.75rem] font-[var(--bb-font-weight-medium,500)] shadow-sm"
             style={{
               backgroundColor: 'var(--bb-color-bg-elevated)',
               borderColor: 'var(--bb-color-border-subtle)',
+              color: 'var(--bb-color-text-muted)',
             }}
           >
             <span
@@ -98,9 +99,7 @@ const Topbar = ({ onToggleSidebar }) => {
                   : 'var(--bb-color-status-negative)',
               }}
             />
-            <span className="text-[color:var(--bb-color-text-muted)] text-[var(--bb-font-size-xs,0.875rem)] font-[var(--bb-font-weight-medium,500)]">
-              {isRealtimeConnected ? 'Realtime' : 'Offline'}
-            </span>
+            <span>{isRealtimeConnected ? 'Realtime' : 'Offline'}</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
