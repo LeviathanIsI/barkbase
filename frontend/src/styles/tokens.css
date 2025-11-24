@@ -77,6 +77,10 @@
   --bb-color-sidebar-item-hover-bg: rgba(15, 23, 42, 0.04);
   --bb-color-sidebar-item-active-bg: var(--bb-color-accent-soft);
   --bb-color-sidebar-item-active-text: var(--bb-color-accent);
+
+  /* Topbar */
+  --bb-color-topbar-bg: #f3f4f6;
+  --bb-color-topbar-border: var(--bb-color-neutral-200);
 }
 
 .dark {

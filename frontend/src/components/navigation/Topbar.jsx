@@ -53,10 +53,10 @@ const Topbar = ({ onToggleSidebar }) => {
 
   return (
     <header
-      className="sticky top-0 z-30 border-b border-neutral-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80"
+      className="sticky top-0 z-30 border-b border-[color:var(--bb-color-topbar-border,#e5e7eb)] bg-[color:var(--bb-color-topbar-bg,#f3f4f6)]"
       style={{ height: 'var(--bb-topbar-height,56px)', boxShadow: 'var(--bb-elevation-subtle)' }}
     >
-      <div className="mx-auto flex h-full w-full items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-full w-full items-center justify-between px-[var(--bb-space-4,1rem)] sm:px-[var(--bb-space-6,1.5rem)] lg:px-[var(--bb-space-8,2rem)]">
         <div className="flex items-center gap-3">
           <button
             type="button"

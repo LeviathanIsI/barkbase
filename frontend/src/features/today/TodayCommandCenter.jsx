@@ -103,7 +103,7 @@ const TodayCommandCenter = () => {
 
   // Loading state
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-[var(--bb-space-6,1.5rem)] px-[var(--bb-space-4,1rem)] py-[var(--bb-space-4,1rem)] sm:px-[var(--bb-space-6,1.5rem)] lg:px-[var(--bb-space-8,2rem)]">
+    <div className="mx-auto flex max-w-7xl flex-col gap-[var(--bb-space-6,1.5rem)] px-[var(--bb-space-4,1rem)] py-[var(--bb-space-4,1rem)] sm:px-[var(--bb-space-6,1.5rem)] lg:px-[var(--bb-space-8,2rem)] bg-[color:var(--bb-color-bg-body,#f5f5f4)]">
       <TodayHeroCard
         kennelName={kennelName}
         formattedDate={formattedDate}
