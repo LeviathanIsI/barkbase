@@ -8,7 +8,7 @@ import TodayArrivalsList from '@/features/today/components/TodayArrivalsList';
 import TodayDeparturesList from '@/features/today/components/TodayDeparturesList';
 import TodayBatchCheckInModal from '@/features/today/components/TodayBatchCheckInModal';
 import TodayBatchCheckOutModal from '@/features/today/components/TodayBatchCheckOutModal';
-import TodayGrid from '@/features/today/components/TodayGrid';
+// TodayGrid removed - now using direct 12-column grid in layout
 import useTodayBookingsSnapshot, { getTodayBookingsSnapshotKey } from '@/features/today/hooks/useTodayBookingsSnapshot';
 
 /**
@@ -103,28 +103,37 @@ const TodayCommandCenter = () => {
 
   // Loading state
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-[var(--bb-space-6,1.5rem)] px-[var(--bb-space-4,1rem)] py-[var(--bb-space-4,1rem)] sm:px-[var(--bb-space-6,1.5rem)] lg:px-[var(--bb-space-8,2rem)] bg-[color:var(--bb-color-bg-body,#f5f5f4)]">
-      <TodayHeroCard
-        kennelName={kennelName}
-        formattedDate={formattedDate}
-        stats={stats}
-        isLoading={loadingSnapshot}
-      />
+    <div className="space-y-[var(--bb-space-6,1.5rem)]">
+      {/* 12-column grid layout */}
+      <div className="grid gap-[var(--bb-space-6,1.5rem)] lg:grid-cols-12">
+        {/* Hero card spans full width */}
+        <div className="lg:col-span-12">
+          <TodayHeroCard
+            kennelName={kennelName}
+            formattedDate={formattedDate}
+            stats={stats}
+            isLoading={loadingSnapshot}
+          />
+        </div>
 
-      <TodayGrid>
-        <TodayArrivalsList
-          arrivals={arrivals}
-          isLoading={loadingSnapshot}
-          hasError={todaySnapshot.isError}
-          onBatchCheckIn={() => setShowBatchCheckIn(true)}
-        />
-        <TodayDeparturesList
-          departures={departures}
-          isLoading={loadingSnapshot}
-          hasError={todaySnapshot.isError}
-          onBatchCheckOut={() => setShowBatchCheckOut(true)}
-        />
-      </TodayGrid>
+        {/* Arrivals & Departures side-by-side on large screens */}
+        <div className="lg:col-span-6">
+          <TodayArrivalsList
+            arrivals={arrivals}
+            isLoading={loadingSnapshot}
+            hasError={todaySnapshot.isError}
+            onBatchCheckIn={() => setShowBatchCheckIn(true)}
+          />
+        </div>
+        <div className="lg:col-span-6">
+          <TodayDeparturesList
+            departures={departures}
+            isLoading={loadingSnapshot}
+            hasError={todaySnapshot.isError}
+            onBatchCheckOut={() => setShowBatchCheckOut(true)}
+          />
+        </div>
+      </div>
 
       <TodayBatchCheckInModal
         open={showBatchCheckIn}

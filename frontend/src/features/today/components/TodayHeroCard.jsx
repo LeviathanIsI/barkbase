@@ -3,7 +3,6 @@ import Button from '@/components/ui/Button';
 import TodayCard from './TodayCard';
 import { TodayHeroSkeleton } from './TodaySkeleton';
 
-// TODO (Today Cleanup B:3): This component will be visually redesigned in the next phase.
 const TodayHeroCard = ({ kennelName, formattedDate, stats, isLoading }) => {
   if (isLoading) {
     return (
@@ -14,71 +13,113 @@ const TodayHeroCard = ({ kennelName, formattedDate, stats, isLoading }) => {
   }
 
   return (
-    <TodayCard>
-      <div className="flex flex-col gap-[var(--bb-space-4,1rem)] md:flex-row md:items-start md:justify-between">
-        <div>
-          <h1 className="text-[var(--bb-font-size-xl,1.5rem)] font-[var(--bb-font-weight-semibold,600)] leading-[var(--bb-leading-tight,1.15)] text-[color:var(--bb-color-text-primary,#0f172a)] dark:text-dark-text-primary">
-            Today{kennelName ? ` at ${kennelName}` : ''}
-          </h1>
-          <p className="mt-1 text-[color:var(--bb-color-text-muted,#52525b)] text-[var(--bb-font-size-sm,1rem)] dark:text-dark-text-secondary">
-            {formattedDate}
-          </p>
+    <TodayCard className="p-[var(--bb-space-6,1.5rem)]">
+      <div className="flex flex-col gap-[var(--bb-space-4,1rem)]">
+        {/* Header row: title + date + primary CTA */}
+        <div className="flex flex-col gap-[var(--bb-space-3,0.75rem)] sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-[var(--bb-font-size-lg,1.25rem)] font-[var(--bb-font-weight-semibold,600)] leading-[var(--bb-leading-tight,1.15)] text-[color:var(--bb-color-text-primary)]">
+              Today{kennelName ? ` at ${kennelName}` : ''}
+            </h1>
+            <p className="mt-0.5 text-[color:var(--bb-color-text-muted)] text-[var(--bb-font-size-sm,0.875rem)]">
+              {formattedDate}
+            </p>
+          </div>
+
+          <Button
+            variant="primary"
+            size="md"
+            className="self-start sm:self-auto"
+          >
+            New Booking
+          </Button>
         </div>
 
-        <Button
-          variant="primary"
-          size="md"
-          className="self-start px-[var(--bb-space-4,1rem)] py-[var(--bb-space-2,0.5rem)] font-[var(--bb-font-weight-medium,500)] md:self-auto"
-        >
-          New Booking
-        </Button>
-      </div>
-
-      <div className="mt-[var(--bb-space-4,1rem)] grid grid-cols-2 gap-[var(--bb-space-4,1rem)] md:grid-cols-4">
-        <StatCard
-          icon={UserCheck}
-          label="Arriving"
-          value={stats.arrivals}
-          iconClassName="text-success-600 dark:text-success-500"
-        />
-        <StatCard
-          icon={UserX}
-          label="Departing"
-          value={stats.departures}
-          iconClassName="text-warning-600 dark:text-warning-500"
-        />
-        <StatCard
-          icon={Home}
-          label="In Facility"
-          value={stats.inFacility}
-          iconClassName="text-primary-600 dark:text-primary-500"
-        />
-        {stats.attentionItems > 0 && (
+        {/* Metrics row */}
+        <div className="grid gap-[var(--bb-space-4,1rem)] sm:grid-cols-3 lg:grid-cols-4">
           <StatCard
-            icon={AlertCircle}
-            label="Attention"
-            value={stats.attentionItems}
-            iconClassName="text-error-600 dark:text-error-500"
+            icon={UserCheck}
+            label="Arriving"
+            value={stats.arrivals}
+            variant="success"
           />
-        )}
+          <StatCard
+            icon={UserX}
+            label="Departing"
+            value={stats.departures}
+            variant="warning"
+          />
+          <StatCard
+            icon={Home}
+            label="In Facility"
+            value={stats.inFacility}
+            variant="primary"
+          />
+          {stats.attentionItems > 0 && (
+            <StatCard
+              icon={AlertCircle}
+              label="Attention"
+              value={stats.attentionItems}
+              variant="error"
+            />
+          )}
+        </div>
       </div>
     </TodayCard>
   );
 };
 
-const StatCard = ({ icon: Icon, label, value, iconClassName }) => (
-  <div className="rounded-lg border border-[color:var(--bb-color-border-subtle,#e4e4e7)] bg-[color:var(--bb-color-bg-elevated,#f5f5f4)] p-[var(--bb-space-4,1rem)] dark:border-dark-border dark:bg-dark-bg-tertiary">
-    <div className="mb-1 flex items-center gap-[var(--bb-space-2,0.5rem)]">
-      <Icon className={iconClassName} />
-      <span className="text-[color:var(--bb-color-text-muted,#52525b)] text-[var(--bb-font-size-xs,0.875rem)] dark:text-dark-text-secondary">
-        {label}
-      </span>
+const variantStyles = {
+  success: {
+    icon: 'text-[color:var(--bb-color-status-positive)]',
+    bg: 'rgba(34, 197, 94, 0.08)',
+    border: 'rgba(34, 197, 94, 0.15)',
+  },
+  warning: {
+    icon: 'text-amber-500',
+    bg: 'rgba(245, 158, 11, 0.08)',
+    border: 'rgba(245, 158, 11, 0.15)',
+  },
+  primary: {
+    icon: 'text-[color:var(--bb-color-accent)]',
+    bg: 'var(--bb-color-accent-soft)',
+    border: 'rgba(96, 165, 250, 0.15)',
+  },
+  error: {
+    icon: 'text-[color:var(--bb-color-status-negative)]',
+    bg: 'rgba(239, 68, 68, 0.08)',
+    border: 'rgba(239, 68, 68, 0.15)',
+  },
+};
+
+const StatCard = ({ icon: Icon, label, value, variant = 'primary' }) => {
+  const styles = variantStyles[variant] || variantStyles.primary;
+
+  return (
+    <div
+      className="flex items-center gap-[var(--bb-space-3,0.75rem)] rounded-lg border p-[var(--bb-space-4,1rem)] transition-colors"
+      style={{
+        backgroundColor: styles.bg,
+        borderColor: styles.border,
+      }}
+    >
+      <div
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+        style={{ backgroundColor: 'var(--bb-color-bg-surface)' }}
+      >
+        <Icon className={`h-5 w-5 ${styles.icon}`} />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide text-[color:var(--bb-color-text-muted)]">
+          {label}
+        </p>
+        <p className="text-[var(--bb-font-size-xl,1.5rem)] font-[var(--bb-font-weight-semibold,600)] leading-tight text-[color:var(--bb-color-text-primary)]">
+          {value}
+        </p>
+      </div>
     </div>
-    <p className="text-[var(--bb-font-size-lg,1.25rem)] font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-text-primary,#0f172a)] dark:text-dark-text-primary">
-      {value}
-    </p>
-  </div>
-);
+  );
+};
 
 export default TodayHeroCard;
 

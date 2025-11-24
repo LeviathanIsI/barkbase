@@ -3,6 +3,7 @@ import { cn } from '@/lib/cn';
 const TodaySection = ({
   title,
   icon: Icon,
+  iconClassName,
   badge,
   actions,
   subtitle,
@@ -16,28 +17,34 @@ const TodaySection = ({
       {(title || actions) && (
         <div
           className={cn(
-            'flex flex-col gap-[var(--bb-space-3,0.75rem)] md:flex-row md:items-center md:justify-between',
+            'flex items-center justify-between gap-[var(--bb-space-3,0.75rem)]',
             headerClassName,
           )}
         >
           <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
-            {Icon && <Icon className="h-5 w-5 text-success-600 dark:text-success-500" />}
-            <span
+            {Icon && (
+              <Icon
+                className={cn('h-5 w-5 text-[color:var(--bb-color-text-muted)]', iconClassName)}
+              />
+            )}
+            <h2
               className={cn(
-                'text-[var(--bb-font-size-md,1.125rem)] font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-text-primary,#0f172a)]',
+                'text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-text-primary)]',
                 titleClassName,
               )}
             >
               {title}
-            </span>
+            </h2>
             {badge}
           </div>
-          {actions && <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">{actions}</div>}
+          {actions && (
+            <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">{actions}</div>
+          )}
         </div>
       )}
 
       {subtitle && (
-        <p className="text-[color:var(--bb-color-text-muted,#52525b)] text-[var(--bb-font-size-sm,1rem)] dark:text-text-secondary">
+        <p className="text-[color:var(--bb-color-text-muted)] text-[var(--bb-font-size-sm,0.875rem)]">
           {subtitle}
         </p>
       )}

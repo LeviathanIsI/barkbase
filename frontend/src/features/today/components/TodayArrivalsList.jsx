@@ -6,21 +6,21 @@ import TodayCard from './TodayCard';
 import TodaySection from './TodaySection';
 import { TodayListSkeleton } from './TodaySkeleton';
 
-// TODO (Today Cleanup B:3): This component will be visually redesigned in the next phase.
 const TodayArrivalsList = ({ arrivals, onBatchCheckIn, isLoading, hasError }) => {
   if (isLoading) {
     return (
-      <TodayCard>
+      <TodayCard className="h-full">
         <TodayListSkeleton />
       </TodayCard>
     );
   }
 
   return (
-    <TodayCard>
+    <TodayCard className="h-full">
       <TodaySection
         title="Today's Arrivals"
         icon={UserCheck}
+        iconClassName="text-[color:var(--bb-color-status-positive)]"
         badge={<Badge variant="success">{arrivals.length}</Badge>}
         actions={
           <Button
@@ -46,7 +46,14 @@ const TodayArrivalsList = ({ arrivals, onBatchCheckIn, isLoading, hasError }) =>
 const ListBody = ({ items, emptyMessage, hasError }) => {
   if (hasError) {
     return (
-      <div className="rounded-lg border border-error-200 bg-error-50 p-4 text-error-700 dark:border-error-500/40 dark:bg-error-500/10 dark:text-error-100">
+      <div
+        className="rounded-lg border p-[var(--bb-space-4,1rem)]"
+        style={{
+          backgroundColor: 'rgba(239, 68, 68, 0.08)',
+          borderColor: 'rgba(239, 68, 68, 0.2)',
+          color: 'var(--bb-color-status-negative)',
+        }}
+      >
         Unable to load arrivals.
       </div>
     );
@@ -54,9 +61,12 @@ const ListBody = ({ items, emptyMessage, hasError }) => {
 
   if (!items.length) {
     return (
-      <div className="py-[var(--bb-space-12,3rem)] text-center text-[color:var(--bb-color-text-muted,#52525b)]">
-        <UserCheck className="mx-auto mb-3 h-16 w-16 text-success-600 opacity-20" />
-        <p className="text-[var(--bb-font-size-md,1.125rem)] font-[var(--bb-font-weight-medium,500)]">
+      <div className="py-[var(--bb-space-12,3rem)] text-center">
+        <UserCheck
+          className="mx-auto mb-3 h-12 w-12 opacity-20"
+          style={{ color: 'var(--bb-color-status-positive)' }}
+        />
+        <p className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] text-[color:var(--bb-color-text-muted)]">
           {emptyMessage}
         </p>
       </div>
@@ -64,7 +74,7 @@ const ListBody = ({ items, emptyMessage, hasError }) => {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-[var(--bb-space-2,0.5rem)]">
       {items.map((booking, idx) => (
         <ArrivalRow key={booking.id || idx} booking={booking} />
       ))}
@@ -77,33 +87,36 @@ const ArrivalRow = ({ booking }) => {
 
   return (
     <div
-      className="flex items-center gap-[var(--bb-space-4,1rem)] rounded-lg bg-[color:var(--bb-color-bg-elevated,#f5f5f4)] p-[var(--bb-space-4,1rem)] transition-colors hover:bg-[color:var(--bb-color-bg-surface,#ffffff)] dark:bg-surface-secondary dark:hover:bg-surface-tertiary"
+      className="flex items-center gap-[var(--bb-space-3,0.75rem)] rounded-lg p-[var(--bb-space-3,0.75rem)] transition-colors"
+      style={{
+        backgroundColor: 'var(--bb-color-bg-elevated)',
+      }}
     >
       <PetAvatar
         pet={booking.pet || { name: booking.petName }}
         size="md"
         showStatus={false}
       />
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0 flex-1">
         <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
-          <p className="truncate text-[var(--bb-font-size-sm,1rem)] font-[var(--bb-font-weight-semibold,600)]">
+          <p className="truncate text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-text-primary)]">
             {booking.petName || booking.pet?.name}
           </p>
-          <Badge variant="success" className="text-sm">
+          <Badge variant="success" className="shrink-0 text-xs">
             {formatTime(time)}
           </Badge>
         </div>
-        <p className="truncate text-[color:var(--bb-color-text-muted,#52525b)] text-[var(--bb-font-size-sm,1rem)] dark:text-text-secondary">
+        <p className="truncate text-[var(--bb-font-size-xs,0.75rem)] text-[color:var(--bb-color-text-muted)]">
           {booking.ownerName || booking.owner?.name || 'Owner'}
         </p>
         {booking.service && (
-          <p className="mt-1 text-[color:var(--bb-color-text-subtle,#a1a1aa)] text-[var(--bb-font-size-xs,0.875rem)]">
+          <p className="mt-0.5 truncate text-[var(--bb-font-size-xs,0.75rem)] text-[color:var(--bb-color-text-subtle)]">
             {booking.service}
           </p>
         )}
       </div>
       {booking.hasExpiringVaccinations && (
-        <AlertCircle className="w-5 h-5 text-warning-500 flex-shrink-0" />
+        <AlertCircle className="h-4 w-4 shrink-0 text-amber-500" />
       )}
     </div>
   );
