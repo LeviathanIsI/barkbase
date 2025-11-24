@@ -75,6 +75,13 @@
   /* Utility surfaces */
   --bb-color-overlay-scrim: rgba(15, 23, 42, 0.45);
 
+  /* Theme toggle */
+  --bb-color-toggle-track-bg: var(--color-gray-200, #e5e7eb);
+  --bb-color-toggle-track-border: var(--color-gray-300, #d1d5db);
+  --bb-color-toggle-knob-bg: #ffffff;
+  --bb-color-toggle-icon-sun: #f59e0b;
+  --bb-color-toggle-icon-moon: #0f172a;
+
   --bb-font-size-xs: var(--bb-text-sm);
   --bb-font-size-sm: var(--bb-text-base);
   --bb-font-size-md: var(--bb-text-lg);
@@ -129,5 +136,12 @@
 
   /* Utility surfaces */
   --bb-color-overlay-scrim: rgba(2, 6, 23, 0.75);
+
+  /* Theme toggle (dark) */
+  --bb-color-toggle-track-bg: #020617;
+  --bb-color-toggle-track-border: #1f2937;
+  --bb-color-toggle-knob-bg: #e5e7eb;
+  --bb-color-toggle-icon-sun: #fbbf24;
+  --bb-color-toggle-icon-moon: #020617;
 }
 

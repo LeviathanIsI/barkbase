@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Menu } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useAuthStore } from '@/stores/auth';
 import { useTenantStore } from '@/stores/tenant';
 
@@ -103,6 +104,7 @@ const Topbar = ({ onToggleSidebar }) => {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <div className="hidden text-right md:block">
             <p className="text-[color:var(--bb-color-text-primary)] text-[var(--bb-font-size-sm,1rem)] font-[var(--bb-font-weight-medium,500)] leading-[var(--bb-leading-tight,1.15)]">
               {user?.fullName || user?.name}
