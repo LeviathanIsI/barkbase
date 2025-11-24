@@ -98,50 +98,50 @@
 }
 
 .dark {
-  /* DARK THEME – app shell & text */
-  --bb-color-bg-body: #020617;
-  --bb-color-bg-surface: #020617;
-  --bb-color-bg-elevated: #020617;
+  /* Soft dark shell & text */
+  --bb-color-bg-body: #1e2026;
+  --bb-color-bg-surface: #252730;
+  --bb-color-bg-elevated: #2c2f39;
 
-  --bb-color-border-subtle: rgba(255, 255, 255, 0.08);
-  --bb-color-border-strong: rgba(255, 255, 255, 0.16);
+  --bb-color-border-subtle: #343845;
+  --bb-color-border-strong: #3f4452;
 
-  --bb-color-text-primary: #f9fafb;
-  --bb-color-text-muted: #9ca3af;
-  --bb-color-text-subtle: #6b7280;
+  --bb-color-text-primary: #f3f4f6;
+  --bb-color-text-muted: #a1a5b3;
+  --bb-color-text-subtle: #7a7f8f;
 
-  /* Sidebar (dark) */
-  --bb-color-sidebar-bg: #020617;
-  --bb-color-sidebar-border: #111827;
+  /* Sidebar (dark, soft) */
+  --bb-color-sidebar-bg: #1b1d23;
+  --bb-color-sidebar-border: #2b2f3a;
   --bb-color-sidebar-text-primary: #e5e7eb;
-  --bb-color-sidebar-text-muted: #94a3b8;
-  --bb-color-sidebar-item-hover-bg: rgba(148, 163, 184, 0.12);
-  --bb-color-sidebar-item-active-bg: rgba(37, 99, 235, 0.25);
+  --bb-color-sidebar-text-muted: #9ca3b5;
+  --bb-color-sidebar-item-hover-bg: rgba(255, 255, 255, 0.04);
+  --bb-color-sidebar-item-active-bg: rgba(96, 165, 250, 0.20);
   --bb-color-sidebar-item-active-border: #60a5fa;
   --bb-color-sidebar-item-active-text: #e5edff;
 
-  /* Topbar (dark) */
-  --bb-color-topbar-bg: #020617;
-  --bb-color-topbar-border: #111827;
-  --bb-color-topbar-shadow: 0 1px 0 rgba(15, 23, 42, 0.9);
+  /* Topbar (dark, soft) */
+  --bb-color-topbar-bg: #1c1e25;
+  --bb-color-topbar-border: #2b303a;
+  --bb-color-topbar-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
 
-  /* Accent */
+  /* Accent (dark) */
   --bb-color-accent: #60a5fa;
   --bb-color-accent-soft: rgba(96, 165, 250, 0.22);
   --bb-color-text-on-accent: #0b1020;
 
   /* Status */
-  --bb-color-status-positive: var(--color-success-500, #10b981);
-  --bb-color-status-negative: var(--color-error-500, #ef4444);
+  --bb-color-status-positive: #22c55e;
+  --bb-color-status-negative: #f97373;
 
   /* Utility surfaces */
-  --bb-color-overlay-scrim: rgba(2, 6, 23, 0.75);
+  --bb-color-overlay-scrim: rgba(30, 32, 38, 0.85);
 
   /* Theme toggle (dark) */
-  --bb-color-toggle-track-bg: #020617;
-  --bb-color-toggle-track-border: #1f2937;
+  --bb-color-toggle-track-bg: #252730;
+  --bb-color-toggle-track-border: #343845;
   --bb-color-toggle-knob-bg: #e5e7eb;
   --bb-color-toggle-icon-sun: #fbbf24;
-  --bb-color-toggle-icon-moon: #020617;
+  --bb-color-toggle-icon-moon: #1e2026;
 }
 
