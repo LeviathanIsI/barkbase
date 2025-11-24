@@ -1,0 +1,81 @@
+:root {
+  /* Layout primitives */
+  --bb-sidebar-width: 240px;
+  --bb-topbar-height: 56px;
+
+  /* Spacing scale (4px rhythm) */
+  --bb-space-1: 0.25rem; /* 4px */
+  --bb-space-2: 0.5rem;  /* 8px */
+  --bb-space-3: 0.75rem; /* 12px */
+  --bb-space-4: 1rem;    /* 16px */
+  --bb-space-5: 1.25rem; /* 20px */
+  --bb-space-6: 1.5rem;  /* 24px */
+  --bb-space-8: 2rem;    /* 32px */
+  --bb-space-10: 2.5rem; /* 40px */
+  --bb-space-12: 3rem;   /* 48px */
+
+  /* Typography scale */
+  --bb-text-sm: 0.875rem;
+  --bb-text-base: 1rem;
+  --bb-text-lg: 1.125rem;
+  --bb-text-xl: 1.25rem;
+  --bb-text-2xl: 1.5rem;
+
+  /* Neutral palette (Tailwind neutral) */
+  --bb-color-neutral-50: #fafafa;
+  --bb-color-neutral-100: #f4f4f5;
+  --bb-color-neutral-200: #e4e4e7;
+  --bb-color-neutral-300: #d4d4d8;
+  --bb-color-neutral-400: #a1a1aa;
+  --bb-color-neutral-500: #71717a;
+  --bb-color-neutral-600: #52525b;
+  --bb-color-neutral-700: #3f3f46;
+  --bb-color-neutral-800: #27272a;
+  --bb-color-neutral-900: #18181b;
+
+  --bb-elevation-subtle: 0 1px 2px rgb(15 23 42 / 0.06);
+  --bb-elevation-card: 0 8px 30px rgb(15 23 42 / 0.08);
+
+  /* Semantic surfaces */
+  --bb-color-bg-body: var(--bb-color-neutral-100);
+  --bb-color-bg-surface: #ffffff;
+  --bb-color-bg-elevated: var(--bb-color-neutral-50);
+
+  /* Borders */
+  --bb-color-border-subtle: var(--bb-color-neutral-200);
+  --bb-color-border-strong: var(--bb-color-neutral-300);
+
+  /* Text */
+  --bb-color-text-primary: #0f172a;
+  --bb-color-text-muted: var(--bb-color-neutral-500);
+  --bb-color-text-subtle: var(--bb-color-neutral-400);
+
+  /* Accent */
+  --bb-color-accent: #4f46e5;
+  --bb-color-accent-soft: rgba(79, 70, 229, 0.08);
+}
+
+.dark {
+  --bb-color-neutral-50: #18181b;
+  --bb-color-neutral-100: #1f1f23;
+  --bb-color-neutral-200: #27272a;
+  --bb-color-neutral-300: #3f3f46;
+  --bb-color-neutral-400: #52525b;
+  --bb-color-neutral-500: #71717a;
+  --bb-color-neutral-600: #a1a1aa;
+  --bb-color-neutral-700: #d4d4d8;
+  --bb-color-neutral-800: #e4e4e7;
+  --bb-color-neutral-900: #fafafa;
+
+  --bb-color-bg-body: #111827;
+  --bb-color-bg-surface: #1c1f27;
+  --bb-color-bg-elevated: #1a1f2b;
+  --bb-color-border-subtle: rgba(255, 255, 255, 0.08);
+  --bb-color-border-strong: rgba(255, 255, 255, 0.16);
+  --bb-color-text-primary: #f8fafc;
+  --bb-color-text-muted: #cbd5f5;
+  --bb-color-text-subtle: #94a3b8;
+  --bb-color-accent: #818cf8;
+  --bb-color-accent-soft: rgba(129, 140, 248, 0.12);
+}
+

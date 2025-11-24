@@ -12,8 +12,8 @@ const Card = React.forwardRef(({ className, children, title, description, ...pro
     <div
       ref={ref}
       className={cn(
-        'rounded-lg border p-6 border-gray-200 dark:border-dark-border bg-white dark:bg-dark-bg-secondary text-gray-900 dark:text-dark-text-primary',
-        className
+        'rounded-lg border p-6 border-[color:var(--bb-color-border-subtle,#e4e4e7)] bg-[color:var(--bb-color-bg-surface,#ffffff)] text-[color:var(--bb-color-text-primary,#0f172a)] dark:border-dark-border dark:bg-dark-bg-secondary dark:text-dark-text-primary',
+        className,
       )}
       {...props}
     >
@@ -58,7 +58,7 @@ CardTitle.displayName = 'CardTitle';
 const CardDescription = React.forwardRef(({ className, children, ...props }, ref) => (
   <p
     ref={ref}
-    className={cn('text-sm font-normal text-gray-600 dark:text-dark-text-secondary', className)}
+      className={cn('text-sm font-normal text-[color:var(--bb-color-text-muted,#52525b)] dark:text-dark-text-secondary', className)}
     {...props}
   >
     {children}
@@ -76,7 +76,7 @@ CardContent.displayName = 'CardContent';
 const CardFooter = React.forwardRef(({ className, children, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn('flex items-center pt-4 border-t border-gray-200 dark:border-dark-border', className)}
+      className={cn('flex items-center pt-4 border-t border-[color:var(--bb-color-border-subtle,#e4e4e7)] dark:border-dark-border', className)}
     {...props}
   >
     {children}
@@ -108,17 +108,17 @@ const MetricCard = React.forwardRef(({
           </div>
         )}
         <div>
-          <p className="text-sm font-medium text-gray-500 dark:text-dark-text-secondary">{title}</p>
-          <p className="text-2xl font-semibold text-gray-900 dark:text-dark-text-primary mt-0.5">{value}</p>
+          <p className="text-sm font-medium text-[color:var(--bb-color-text-muted,#52525b)] dark:text-dark-text-secondary">{title}</p>
+          <p className="text-2xl font-semibold text-[color:var(--bb-color-text-primary,#0f172a)] dark:text-dark-text-primary mt-0.5">{value}</p>
           {subtitle && (
-            <p className="text-xs text-gray-500 dark:text-dark-text-secondary mt-0.5">{subtitle}</p>
+            <p className="text-xs text-[color:var(--bb-color-text-muted,#52525b)] dark:text-dark-text-secondary mt-0.5">{subtitle}</p>
           )}
           {change && (
             <p className={cn(
               'text-xs mt-1 font-medium',
               trend === 'up' && 'text-success-600',
               trend === 'down' && 'text-error-600',
-              trend === 'neutral' && 'text-gray-500 dark:text-dark-text-secondary'
+              trend === 'neutral' && 'text-[color:var(--bb-color-text-muted,#52525b)] dark:text-dark-text-secondary'
             )}>
               {change}
             </p>

@@ -1,0 +1,159 @@
+import { NavLink } from 'react-router-dom';
+import {
+  Activity,
+  BarChart3,
+  Building2,
+  Calendar,
+  CalendarDays,
+  CalendarPlus,
+  CheckSquare,
+  Circle,
+  CreditCard,
+  FileText,
+  Home,
+  Layers,
+  LayoutDashboard,
+  MessageSquare,
+  PanelsTopLeft,
+  PawPrint,
+  Settings,
+  Syringe,
+  UserCog,
+  UserRound,
+  Users,
+  X,
+} from 'lucide-react';
+import { sidebarSections } from '@/config/navigation';
+import { useTenantStore } from '@/stores/tenant';
+import { cn } from '@/lib/utils';
+
+const iconMap = {
+  '/today': LayoutDashboard,
+  'layout-dashboard': LayoutDashboard,
+  '/dashboard': Home,
+  home: Home,
+  '/pets-people': Users,
+  users: Users,
+  '/pets': PawPrint,
+  'paw-print': PawPrint,
+  '/owners': UserRound,
+  'user-round': UserRound,
+  '/vaccinations': Syringe,
+  syringe: Syringe,
+  '/segments': Layers,
+  layers: Layers,
+  '/bookings': CalendarPlus,
+  'calendar-plus': CalendarPlus,
+  '/schedule': CalendarDays,
+  'calendar-days': CalendarDays,
+  '/calendar': Calendar,
+  calendar: Calendar,
+  '/runs': Activity,
+  activity: Activity,
+  '/tasks': CheckSquare,
+  'check-square': CheckSquare,
+  '/kennels': Home,
+  '/operations': PanelsTopLeft,
+  'panels-top-left': PanelsTopLeft,
+  '/messages': MessageSquare,
+  'message-square': MessageSquare,
+  '/payments': CreditCard,
+  'credit-card': CreditCard,
+  '/invoices': FileText,
+  'file-text': FileText,
+  '/reports': BarChart3,
+  'bar-chart-3': BarChart3,
+  '/staff': UserCog,
+  'user-cog': UserCog,
+  '/tenants': Building2,
+  'building-2': Building2,
+  '/settings': Settings,
+  settings: Settings,
+};
+
+const SidebarSection = ({ onNavigate }) => {
+  const tenant = useTenantStore((state) => state.tenant);
+  const tenantName = tenant?.name ?? tenant?.slug ?? 'BarkBase';
+  const tenantPlan = tenant?.plan;
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex items-center gap-3 rounded-lg border border-transparent px-4 py-5">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600 font-semibold text-white shadow-sm">
+          {tenantName
+            .split(' ')
+            .slice(0, 2)
+            .map((chunk) => chunk.charAt(0))
+            .join('')
+            .toUpperCase()}
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-[color:var(--bb-color-text-primary,#0f172a)]">{tenantName}</p>
+          {tenantPlan ? <p className="text-xs uppercase text-[color:var(--bb-color-text-muted,#52525b)]">{tenantPlan}</p> : null}
+        </div>
+      </div>
+
+      <nav className="mt-4 flex-1 space-y-6 overflow-y-auto px-3 pb-6">
+        {sidebarSections.map((section) => (
+          <div key={section.id}>
+            <p className="px-1 text-xs font-semibold uppercase tracking-wide text-[color:var(--bb-color-text-muted,#52525b)]">
+              {section.label}
+            </p>
+            <div className="mt-2 space-y-1">
+              {section.items.map((item) => {
+                const Icon = iconMap[item.icon ?? item.path] ?? Circle;
+                return (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    className={({ isActive }) =>
+                      cn(
+                        'group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-[color:var(--bb-color-text-muted,#52525b)] transition-colors hover:bg-white hover:text-[color:var(--bb-color-text-primary,#0f172a)]',
+                        isActive && 'bg-white text-[color:var(--bb-color-text-primary,#0f172a)] shadow-sm ring-1 ring-gray-200',
+                      )
+                    }
+                    onClick={onNavigate}
+                    end={item.path === '/today'}
+                  >
+                    <Icon className="h-4 w-4 shrink-0 text-[color:var(--bb-color-text-subtle,#a1a1aa)] group-hover:text-indigo-500" />
+                    <span className="truncate">{item.label}</span>
+                  </NavLink>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </nav>
+    </div>
+  );
+};
+
+const Sidebar = ({ variant = 'desktop', onNavigate }) => {
+  if (variant === 'mobile') {
+    return (
+      <div className="relative h-full w-[280px] bg-white shadow-2xl ring-1 ring-black/5">
+        <button
+          type="button"
+          onClick={onNavigate}
+          className="absolute right-3 top-3 rounded-full p-1 text-gray-400 hover:text-gray-600"
+          aria-label="Close navigation"
+        >
+          <X className="h-5 w-5" />
+        </button>
+        <SidebarSection onNavigate={onNavigate} />
+      </div>
+    );
+  }
+
+  return (
+    <aside
+      className="fixed left-0 top-0 hidden h-screen w-[var(--bb-sidebar-width,240px)] flex-col border-r border-neutral-200 bg-white/95 px-0 shadow-sm lg:flex"
+      style={{ boxShadow: 'var(--bb-elevation-subtle)' }}
+    >
+      <SidebarSection />
+    </aside>
+  );
+};
+
+export default Sidebar;
+
