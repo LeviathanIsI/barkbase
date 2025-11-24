@@ -18,7 +18,7 @@ const AppShell = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[color:var(--bb-color-bg-body,#f5f5f4)] text-[color:var(--bb-color-text-primary,#0f172a)]">
+    <div className="min-h-screen bg-[color:var(--bb-color-bg-body,#f9fafb)] text-[color:var(--bb-color-text-primary,#0f172a)]">
       <Sidebar />
 
       {mobileSidebarOpen ? (
