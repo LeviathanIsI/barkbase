@@ -18,12 +18,23 @@ const AppShell = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[color:var(--bb-color-bg-body)] text-[color:var(--bb-color-text-primary)]">
+    <div
+      className="min-h-screen"
+      style={{
+        backgroundColor: 'var(--bb-color-bg-body)',
+        color: 'var(--bb-color-text-primary)',
+      }}
+    >
       <Sidebar />
 
       {mobileSidebarOpen ? (
         <div className="fixed inset-0 z-40 flex lg:hidden">
-          <div className="flex-1 bg-black/40" onClick={() => setMobileSidebarOpen(false)} aria-hidden="true" />
+          <div
+            className="flex-1"
+            style={{ backgroundColor: 'var(--bb-color-overlay-scrim)' }}
+            onClick={() => setMobileSidebarOpen(false)}
+            aria-hidden="true"
+          />
           <Sidebar variant="mobile" onNavigate={() => setMobileSidebarOpen(false)} />
         </div>
       ) : null}
@@ -31,7 +42,10 @@ const AppShell = () => {
       <div className="flex min-h-screen flex-col lg:pl-[var(--bb-sidebar-width,240px)]">
         <Topbar onToggleSidebar={() => setMobileSidebarOpen(true)} />
         <GlobalKeyboardShortcuts />
-        <main className="flex-1 bg-[color:var(--bb-color-bg-body)] px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-6,1.5rem)] sm:px-[var(--bb-space-8,2rem)] lg:px-[var(--bb-space-12,3rem)]">
+        <main
+          className="flex-1 px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-6,1.5rem)] sm:px-[var(--bb-space-8,2rem)] lg:px-[var(--bb-space-12,3rem)]"
+          style={{ backgroundColor: 'var(--bb-color-bg-body)' }}
+        >
           <div className="mx-auto w-full max-w-6xl">
             <Outlet />
           </div>
@@ -39,12 +53,25 @@ const AppShell = () => {
       </div>
 
       {tenant?.recoveryMode ? (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 px-4 text-center backdrop-blur">
-          <div className="max-w-lg space-y-6 rounded-lg border border-warning-600/30 bg-white p-8 shadow-2xl">
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center px-4 text-center backdrop-blur"
+          style={{ backgroundColor: 'var(--bb-color-overlay-scrim)' }}
+        >
+          <div
+            className="max-w-lg space-y-6 rounded-lg border p-8 shadow-2xl"
+            style={{
+              backgroundColor: 'var(--bb-color-bg-surface)',
+              borderColor: 'var(--bb-color-accent-soft)',
+            }}
+          >
             <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-warning-600">Recovery mode</p>
-              <h2 className="text-2xl font-semibold text-gray-900">We detected database issues</h2>
-              <p className="text-sm text-gray-600">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--bb-color-accent)]">
+                Recovery mode
+              </p>
+              <h2 className="text-2xl font-semibold text-[color:var(--bb-color-text-primary)]">
+                We detected database issues
+              </h2>
+              <p className="text-sm text-[color:var(--bb-color-text-muted)]">
                 BarkBase opened in read-only recovery mode. Download your most recent export or backup before making
                 changes. Support cannot restore local data—use your latest export/backup to recover.
               </p>
@@ -56,7 +83,7 @@ const AppShell = () => {
               <Button variant="secondary" onClick={() => window.location.reload()}>
                 Reload after restore
               </Button>
-              <p className="text-xs text-gray-600">
+              <p className="text-xs text-[color:var(--bb-color-text-muted)]">
                 Tip: You can generate fresh exports from another device if this copy is unusable.
               </p>
             </div>

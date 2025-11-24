@@ -5,14 +5,14 @@
 
   /* Spacing scale (4px rhythm) */
   --bb-space-1: 0.25rem; /* 4px */
-  --bb-space-2: 0.5rem;  /* 8px */
+  --bb-space-2: 0.5rem; /* 8px */
   --bb-space-3: 0.75rem; /* 12px */
-  --bb-space-4: 1rem;    /* 16px */
+  --bb-space-4: 1rem; /* 16px */
   --bb-space-5: 1.25rem; /* 20px */
-  --bb-space-6: 1.5rem;  /* 24px */
-  --bb-space-8: 2rem;    /* 32px */
+  --bb-space-6: 1.5rem; /* 24px */
+  --bb-space-8: 2rem; /* 32px */
   --bb-space-10: 2.5rem; /* 40px */
-  --bb-space-12: 3rem;   /* 48px */
+  --bb-space-12: 3rem; /* 48px */
 
   /* Typography scale */
   --bb-text-sm: 0.875rem;
@@ -36,20 +36,42 @@
   --bb-elevation-subtle: 0 1px 2px rgb(15 23 42 / 0.06);
   --bb-elevation-card: 0 8px 30px rgb(15 23 42 / 0.08);
 
-  /* Semantic surfaces */
-  --bb-color-bg-body: #f9fafb;
+  /* LIGHT THEME – app shell & text */
+  --bb-color-bg-body: var(--color-gray-50, #f9fafb);
   --bb-color-bg-surface: #ffffff;
-  --bb-color-bg-elevated: #f3f4f6;
+  --bb-color-bg-elevated: var(--color-gray-100, #f3f4f6);
 
-  --bb-color-border-subtle: var(--bb-color-neutral-200);
-  --bb-color-border-strong: var(--bb-color-neutral-300);
+  --bb-color-border-subtle: var(--color-gray-200, #e5e7eb);
+  --bb-color-border-strong: var(--color-gray-300, #d1d5db);
 
-  --bb-color-text-primary: #0f172a;
-  --bb-color-text-muted: #6b7280;
-  --bb-color-text-subtle: #9ca3af;
+  --bb-color-text-primary: var(--color-gray-900, #111827);
+  --bb-color-text-muted: var(--color-gray-500, #6b7280);
+  --bb-color-text-subtle: var(--color-gray-400, #9ca3af);
 
-  --bb-color-accent: #4f46e5;
-  --bb-color-accent-soft: rgba(79, 70, 229, 0.08);
+  /* Sidebar (light) */
+  --bb-color-sidebar-bg: var(--color-gray-100, #f3f4f6);
+  --bb-color-sidebar-border: var(--color-gray-200, #e5e7eb);
+  --bb-color-sidebar-text-primary: var(--color-gray-900, #111827);
+  --bb-color-sidebar-text-muted: var(--color-gray-500, #6b7280);
+  --bb-color-sidebar-item-hover-bg: rgba(79, 70, 229, 0.08);
+  --bb-color-sidebar-item-active-bg: rgba(79, 70, 229, 0.18);
+  --bb-color-sidebar-item-active-text: var(--color-primary-600, #4f46e5);
+
+  /* Topbar (light) */
+  --bb-color-topbar-bg: #ffffff;
+  --bb-color-topbar-border: var(--color-gray-200, #e5e7eb);
+
+  /* Accent */
+  --bb-color-accent: var(--color-primary-600, #2563eb);
+  --bb-color-accent-soft: rgba(37, 99, 235, 0.12);
+  --bb-color-text-on-accent: #ffffff;
+
+  /* Status */
+  --bb-color-status-positive: var(--color-success-500, #10b981);
+  --bb-color-status-negative: var(--color-error-500, #ef4444);
+
+  /* Utility surfaces */
+  --bb-color-overlay-scrim: rgba(15, 23, 42, 0.45);
 
   --bb-font-size-xs: var(--bb-text-sm);
   --bb-font-size-sm: var(--bb-text-base);
@@ -64,23 +86,13 @@
   --bb-leading-tight: 1.15;
   --bb-leading-normal: 1.35;
   --bb-leading-relaxed: 1.5;
-
-  --bb-color-sidebar-bg: #e5e7eb;
-  --bb-color-sidebar-border: #d1d5db;
-  --bb-color-sidebar-text-primary: #111827;
-  --bb-color-sidebar-text-muted: #6b7280;
-  --bb-color-sidebar-item-hover-bg: rgba(79, 70, 229, 0.08);
-  --bb-color-sidebar-item-active-bg: rgba(79, 70, 229, 0.16);
-  --bb-color-sidebar-item-active-text: #4f46e5;
-
-  --bb-color-topbar-bg: #ffffff;
-  --bb-color-topbar-border: #e5e7eb;
 }
 
 .dark {
+  /* DARK THEME – app shell & text */
   --bb-color-bg-body: #020617;
-  --bb-color-bg-surface: #0f172a;
-  --bb-color-bg-elevated: #111827;
+  --bb-color-bg-surface: #020617;
+  --bb-color-bg-elevated: #020617;
 
   --bb-color-border-subtle: rgba(255, 255, 255, 0.08);
   --bb-color-border-strong: rgba(255, 255, 255, 0.16);
@@ -89,9 +101,7 @@
   --bb-color-text-muted: #9ca3af;
   --bb-color-text-subtle: #6b7280;
 
-  --bb-color-accent: #a5b4fc;
-  --bb-color-accent-soft: rgba(165, 180, 252, 0.18);
-
+  /* Sidebar (dark) */
   --bb-color-sidebar-bg: #020617;
   --bb-color-sidebar-border: #111827;
   --bb-color-sidebar-text-primary: #e5e7eb;
@@ -100,7 +110,20 @@
   --bb-color-sidebar-item-active-bg: rgba(79, 70, 229, 0.35);
   --bb-color-sidebar-item-active-text: #c7d2fe;
 
+  /* Topbar (dark) */
   --bb-color-topbar-bg: #020617;
   --bb-color-topbar-border: #111827;
+
+  /* Accent */
+  --bb-color-accent: #a5b4fc;
+  --bb-color-accent-soft: rgba(165, 180, 252, 0.18);
+  --bb-color-text-on-accent: #ffffff;
+
+  /* Status */
+  --bb-color-status-positive: var(--color-success-500, #10b981);
+  --bb-color-status-negative: var(--color-error-500, #ef4444);
+
+  /* Utility surfaces */
+  --bb-color-overlay-scrim: rgba(2, 6, 23, 0.75);
 }
 

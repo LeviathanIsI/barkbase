@@ -77,9 +77,12 @@ const SidebarSection = ({ onNavigate }) => {
   const tenantPlan = tenant?.plan;
 
   return (
-    <div className="flex h-full flex-col border-r border-[color:var(--bb-color-sidebar-border)] bg-[color:var(--bb-color-sidebar-bg)]">
+    <div className="flex h-full flex-col">
       <div className="flex items-center gap-3 rounded-lg border border-transparent px-[var(--bb-space-4,1rem)] py-[var(--bb-space-6,1.5rem)]">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600 font-semibold text-white shadow-sm">
+        <div
+          className="flex h-11 w-11 items-center justify-center rounded-xl font-semibold shadow-sm"
+          style={{ backgroundColor: 'var(--bb-color-accent)', color: 'var(--bb-color-text-on-accent)' }}
+        >
           {tenantName
             .split(' ')
             .slice(0, 2)
@@ -88,11 +91,13 @@ const SidebarSection = ({ onNavigate }) => {
             .toUpperCase()}
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-[color:var(--bb-color-sidebar-text-primary)]">
+          <p className="truncate text-[var(--bb-font-size-sm,1rem)] font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-sidebar-text-primary)]">
             {tenantName}
           </p>
           {tenantPlan ? (
-            <p className="text-xs uppercase text-[color:var(--bb-color-sidebar-text-muted)]">{tenantPlan}</p>
+            <p className="text-[var(--bb-font-size-xs,0.875rem)] uppercase tracking-wide text-[color:var(--bb-color-sidebar-text-muted)]">
+              {tenantPlan}
+            </p>
           ) : null}
         </div>
       </div>
@@ -112,10 +117,12 @@ const SidebarSection = ({ onNavigate }) => {
                     to={item.path}
                     className={({ isActive }) =>
                       cn(
-                        'group flex items-center gap-3 rounded-lg px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,1rem)] font-[var(--bb-font-weight-medium,500)] text-[color:var(--bb-color-sidebar-text-primary)] transition-colors',
+                        'group flex items-center gap-3 rounded-lg px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)]',
+                        'text-[var(--bb-font-size-sm,1rem)] font-[var(--bb-font-weight-medium,500)] transition-colors',
+                        'truncate text-[color:var(--bb-color-sidebar-text-primary)]',
                         'hover:bg-[color:var(--bb-color-sidebar-item-hover-bg)]',
                         isActive &&
-                          'bg-[color:var(--bb-color-sidebar-item-active-bg)] text-[color:var(--bb-color-sidebar-item-active-text)] font-[var(--bb-font-weight-semibold,600)] shadow-sm',
+                          'bg-[color:var(--bb-color-sidebar-item-active-bg)] text-[color:var(--bb-color-sidebar-item-active-text)] font-[var(--bb-font-weight-semibold,600)]',
                       )
                     }
                     onClick={onNavigate}
@@ -137,11 +144,19 @@ const SidebarSection = ({ onNavigate }) => {
 const Sidebar = ({ variant = 'desktop', onNavigate }) => {
   if (variant === 'mobile') {
     return (
-      <div className="relative h-full w-[280px] bg-white shadow-2xl ring-1 ring-black/5">
+      <div
+        className="relative h-full w-[280px] border shadow-2xl"
+        style={{
+          backgroundColor: 'var(--bb-color-sidebar-bg)',
+          borderColor: 'var(--bb-color-sidebar-border)',
+          color: 'var(--bb-color-sidebar-text-primary)',
+          boxShadow: 'var(--bb-elevation-card)',
+        }}
+      >
         <button
           type="button"
           onClick={onNavigate}
-          className="absolute right-3 top-3 rounded-full p-1 text-gray-400 hover:text-gray-600"
+          className="absolute right-3 top-3 rounded-full p-1 text-[color:var(--bb-color-sidebar-text-muted)] transition-colors hover:text-[color:var(--bb-color-sidebar-text-primary)]"
           aria-label="Close navigation"
         >
           <X className="h-5 w-5" />
@@ -153,8 +168,13 @@ const Sidebar = ({ variant = 'desktop', onNavigate }) => {
 
   return (
     <aside
-      className="fixed left-0 top-0 hidden h-screen w-[var(--bb-sidebar-width,240px)] flex-col border-r border-neutral-200 bg-white/95 px-0 shadow-sm lg:flex"
-      style={{ boxShadow: 'var(--bb-elevation-subtle)' }}
+      className="fixed left-0 top-0 hidden h-screen w-[var(--bb-sidebar-width,240px)] flex-col border-r px-0 shadow-sm lg:flex"
+      style={{
+        backgroundColor: 'var(--bb-color-sidebar-bg)',
+        borderColor: 'var(--bb-color-sidebar-border)',
+        color: 'var(--bb-color-sidebar-text-primary)',
+        boxShadow: 'var(--bb-elevation-subtle)',
+      }}
     >
       <SidebarSection />
     </aside>

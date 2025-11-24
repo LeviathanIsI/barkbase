@@ -3,7 +3,6 @@ import { Menu } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import { useAuthStore } from '@/stores/auth';
 import { useTenantStore } from '@/stores/tenant';
-import { cn } from '@/lib/utils';
 
 const getInitials = (value) => {
   if (!value) return '';
@@ -53,14 +52,22 @@ const Topbar = ({ onToggleSidebar }) => {
 
   return (
     <header
-      className="sticky top-0 z-30 border-b border-[color:var(--bb-color-topbar-border)] bg-[color:var(--bb-color-topbar-bg)]"
-      style={{ height: 'var(--bb-topbar-height,56px)', boxShadow: 'var(--bb-elevation-subtle)' }}
+      className="sticky top-0 z-30 flex w-full border-b"
+      style={{
+        backgroundColor: 'var(--bb-color-topbar-bg)',
+        borderColor: 'var(--bb-color-topbar-border)',
+        boxShadow: 'var(--bb-elevation-subtle)',
+      }}
     >
-      <div className="mx-auto flex h-full w-full items-center justify-between px-[var(--bb-space-4,1rem)] sm:px-[var(--bb-space-6,1.5rem)] lg:px-[var(--bb-space-8,2rem)]">
+      <div className="mx-auto flex h-[var(--bb-topbar-height,56px)] w-full items-center justify-between px-[var(--bb-space-4,1rem)] sm:px-[var(--bb-space-6,1.5rem)] lg:px-[var(--bb-space-8,2rem)]">
         <div className="flex items-center gap-3">
           <button
             type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-neutral-200 text-gray-600 shadow-sm hover:bg-neutral-50 lg:hidden"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border text-[color:var(--bb-color-text-muted)] shadow-sm transition-colors hover:bg-[color:var(--bb-color-bg-elevated)] hover:text-[color:var(--bb-color-text-primary)] lg:hidden"
+            style={{
+              backgroundColor: 'var(--bb-color-bg-surface)',
+              borderColor: 'var(--bb-color-border-subtle)',
+            }}
             onClick={onToggleSidebar}
             aria-label="Open navigation"
           >
@@ -76,12 +83,20 @@ const Topbar = ({ onToggleSidebar }) => {
               </p>
             ) : null}
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-transparent bg-white/90 px-3 py-1 shadow-sm">
+          <div
+            className="flex items-center gap-2 rounded-full border px-3 py-1 shadow-sm"
+            style={{
+              backgroundColor: 'var(--bb-color-bg-elevated)',
+              borderColor: 'var(--bb-color-border-subtle)',
+            }}
+          >
             <span
-              className={cn(
-                'h-2.5 w-2.5 rounded-full',
-                isRealtimeConnected ? 'bg-emerald-500' : 'bg-rose-500',
-              )}
+              className="h-2.5 w-2.5 rounded-full"
+              style={{
+                backgroundColor: isRealtimeConnected
+                  ? 'var(--bb-color-status-positive)'
+                  : 'var(--bb-color-status-negative)',
+              }}
             />
             <span className="text-[color:var(--bb-color-text-muted)] text-[var(--bb-font-size-xs,0.875rem)] font-[var(--bb-font-weight-medium,500)]">
               {isRealtimeConnected ? 'Realtime' : 'Offline'}
