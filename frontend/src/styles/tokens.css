@@ -125,10 +125,51 @@
   --bb-font-weight-regular: 400;
   --bb-font-weight-medium: 500;
   --bb-font-weight-semibold: 600;
+  --bb-font-weight-bold: 700;
 
   --bb-leading-tight: 1.15;
   --bb-leading-normal: 1.35;
   --bb-leading-relaxed: 1.5;
+
+  /* Additional font sizes */
+  --bb-font-size-2xl: 1.5rem;
+  --bb-font-size-3xl: 1.875rem;
+
+  /* Border radius */
+  --bb-radius-sm: 0.25rem;
+  --bb-radius-md: 0.375rem;
+  --bb-radius-lg: 0.5rem;
+  --bb-radius-xl: 0.75rem;
+
+  /* Chart colors - Primary palette */
+  --bb-color-chart-blue: #2563eb;
+  --bb-color-chart-green: #16a34a;
+  --bb-color-chart-yellow: #d97706;
+  --bb-color-chart-red: #dc2626;
+  --bb-color-chart-purple: #7c3aed;
+  --bb-color-chart-teal: #0d9488;
+  --bb-color-chart-pink: #db2777;
+  --bb-color-chart-orange: #ea580c;
+
+  /* Chart colors - Soft fills for area charts */
+  --bb-color-chart-blue-soft: rgba(37, 99, 235, 0.15);
+  --bb-color-chart-green-soft: rgba(22, 163, 74, 0.15);
+  --bb-color-chart-yellow-soft: rgba(217, 119, 6, 0.15);
+  --bb-color-chart-red-soft: rgba(220, 38, 38, 0.15);
+  --bb-color-chart-purple-soft: rgba(124, 58, 237, 0.15);
+  --bb-color-chart-teal-soft: rgba(13, 148, 136, 0.15);
+  --bb-color-chart-pink-soft: rgba(219, 39, 119, 0.15);
+  --bb-color-chart-orange-soft: rgba(234, 88, 12, 0.15);
+
+  /* Chart grid and axis */
+  --bb-color-chart-grid: var(--bb-color-border-subtle);
+  --bb-color-chart-axis: var(--bb-color-text-muted);
+  --bb-color-chart-tooltip-bg: var(--bb-color-bg-surface);
+  --bb-color-chart-tooltip-border: var(--bb-color-border-subtle);
+
+  /* Purple accent (for variety) */
+  --bb-color-purple: #7c3aed;
+  --bb-color-purple-soft: rgba(124, 58, 237, 0.12);
 }
 
 .dark {
@@ -203,5 +244,35 @@
   --bb-color-toggle-knob-bg: #e5e7eb;
   --bb-color-toggle-icon-sun: #fbbf24;
   --bb-color-toggle-icon-moon: #262830;
+
+  /* Chart colors - Dark mode (slightly brighter for visibility) */
+  --bb-color-chart-blue: #60a5fa;
+  --bb-color-chart-green: #4ade80;
+  --bb-color-chart-yellow: #fbbf24;
+  --bb-color-chart-red: #f87171;
+  --bb-color-chart-purple: #a78bfa;
+  --bb-color-chart-teal: #2dd4bf;
+  --bb-color-chart-pink: #f472b6;
+  --bb-color-chart-orange: #fb923c;
+
+  /* Chart colors - Soft fills (boosted alpha for dark mode) */
+  --bb-color-chart-blue-soft: rgba(96, 165, 250, 0.20);
+  --bb-color-chart-green-soft: rgba(74, 222, 128, 0.20);
+  --bb-color-chart-yellow-soft: rgba(251, 191, 36, 0.20);
+  --bb-color-chart-red-soft: rgba(248, 113, 113, 0.20);
+  --bb-color-chart-purple-soft: rgba(167, 139, 250, 0.20);
+  --bb-color-chart-teal-soft: rgba(45, 212, 191, 0.20);
+  --bb-color-chart-pink-soft: rgba(244, 114, 182, 0.20);
+  --bb-color-chart-orange-soft: rgba(251, 146, 60, 0.20);
+
+  /* Chart grid and axis - Dark mode */
+  --bb-color-chart-grid: var(--bb-color-border-subtle);
+  --bb-color-chart-axis: var(--bb-color-text-muted);
+  --bb-color-chart-tooltip-bg: var(--bb-color-bg-elevated);
+  --bb-color-chart-tooltip-border: var(--bb-color-border-subtle);
+
+  /* Purple accent - Dark mode */
+  --bb-color-purple: #a78bfa;
+  --bb-color-purple-soft: rgba(167, 139, 250, 0.18);
 }
 

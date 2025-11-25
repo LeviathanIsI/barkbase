@@ -1,4 +1,11 @@
+/**
+ * ServiceAnalyticsDashboard - Service performance analytics with token-based styling
+ * Uses the unified chart system with design tokens
+ */
+
 import { BarChart3, TrendingUp, DollarSign, Calendar, Star } from 'lucide-react';
+import { MetricCard } from '@/components/ui/charts';
+import { chartPalette } from '@/components/ui/charts/palette';
 
 const ServiceAnalyticsDashboard = ({ data }) => {
   if (!data) return null;
@@ -15,104 +22,126 @@ const ServiceAnalyticsDashboard = ({ data }) => {
   ];
 
   const chartData = [
-    { service: 'Daycare', revenue: 5460, percentage: 35, color: 'bg-blue-50 dark:bg-blue-950/20' },
-    { service: 'Boarding', revenue: 7560, percentage: 49, color: 'bg-green-50 dark:bg-green-950/20' },
-    { service: 'Grooming', revenue: 3375, percentage: 22, color: 'bg-purple-500' },
-    { service: 'Add-ons', revenue: 372, percentage: 2, color: 'bg-orange-500' }
+    { service: 'Daycare', revenue: 5460, percentage: 35, color: chartPalette.primary },
+    { service: 'Boarding', revenue: 7560, percentage: 49, color: chartPalette.success },
+    { service: 'Grooming', revenue: 3375, percentage: 22, color: chartPalette.purple },
+    { service: 'Add-ons', revenue: 372, percentage: 2, color: chartPalette.warning }
   ];
 
+  const getRankColor = (index) => {
+    const colors = [
+      { bg: 'var(--bb-color-chart-yellow-soft)', text: 'var(--bb-color-chart-yellow)' },
+      { bg: 'var(--bb-color-bg-elevated)', text: 'var(--bb-color-text-muted)' },
+      { bg: 'var(--bb-color-chart-orange-soft)', text: 'var(--bb-color-chart-orange)' }
+    ];
+    return colors[index] || colors[2];
+  };
+
   return (
-    <div className="bg-primary-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-6">
-      <div className="flex items-center gap-3 mb-6">
-        <BarChart3 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+    <div className="bg-[var(--bb-color-chart-blue-soft)] border border-[var(--bb-color-chart-blue)] border-opacity-30 rounded-[var(--bb-radius-xl)] p-[var(--bb-space-6)]">
+      <div className="flex items-center gap-[var(--bb-space-3)] mb-[var(--bb-space-6)]">
+        <BarChart3 className="w-6 h-6" style={{ color: chartPalette.primary }} />
         <div>
-          <h2 className="text-xl font-semibold text-blue-900 dark:text-blue-100">Service Performance</h2>
-          <p className="text-sm text-blue-700 dark:text-blue-300">Last 30 days</p>
+          <h2 className="text-[var(--bb-font-size-xl)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)]">
+            Service Performance
+          </h2>
+          <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">Last 30 days</p>
         </div>
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white dark:bg-surface-primary rounded-lg p-4 border border-blue-100 dark:border-blue-900/30">
-          <div className="flex items-center gap-2 mb-2">
-            <DollarSign className="w-4 h-4 text-green-600" />
-            <span className="text-sm font-medium text-gray-600 dark:text-text-secondary">Total Revenue</span>
-          </div>
-          <div className="text-2xl font-semibold text-gray-900 dark:text-text-primary">${totalRevenue.toLocaleString()}</div>
-          <div className="text-xs text-green-600">+12% vs previous period</div>
-        </div>
-
-        <div className="bg-white dark:bg-surface-primary rounded-lg p-4 border border-blue-100 dark:border-blue-900/30">
-          <div className="flex items-center gap-2 mb-2">
-            <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-            <span className="text-sm font-medium text-gray-600 dark:text-text-secondary">Total Bookings</span>
-          </div>
-          <div className="text-2xl font-semibold text-gray-900 dark:text-text-primary">{totalBookings}</div>
-          <div className="text-xs text-green-600">+8% vs previous period</div>
-        </div>
-
-        <div className="bg-white dark:bg-surface-primary rounded-lg p-4 border border-blue-100 dark:border-blue-900/30">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-            <span className="text-sm font-medium text-gray-600 dark:text-text-secondary">Avg per Booking</span>
-          </div>
-          <div className="text-2xl font-semibold text-gray-900 dark:text-text-primary">${avgRevenuePerBooking}</div>
-          <div className="text-xs text-green-600">+15% vs previous period</div>
-        </div>
-
-        <div className="bg-white dark:bg-surface-primary rounded-lg p-4 border border-blue-100 dark:border-blue-900/30">
-          <div className="flex items-center gap-2 mb-2">
-            <Star className="w-4 h-4 text-yellow-600" />
-            <span className="text-sm font-medium text-gray-600 dark:text-text-secondary">Avg Rating</span>
-          </div>
-          <div className="text-2xl font-semibold text-gray-900 dark:text-text-primary">4.7</div>
-          <div className="text-xs text-green-600">+0.2 vs previous period</div>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-[var(--bb-space-4)] mb-[var(--bb-space-6)]">
+        <MetricCard
+          title="Total Revenue"
+          value={`$${totalRevenue.toLocaleString()}`}
+          description="+12% vs previous period"
+          icon={DollarSign}
+          variant="success"
+          trend="up"
+        />
+        <MetricCard
+          title="Total Bookings"
+          value={totalBookings.toString()}
+          description="+8% vs previous period"
+          icon={Calendar}
+          variant="info"
+          trend="up"
+        />
+        <MetricCard
+          title="Avg per Booking"
+          value={`$${avgRevenuePerBooking}`}
+          description="+15% vs previous period"
+          icon={TrendingUp}
+          variant="default"
+          trend="up"
+        />
+        <MetricCard
+          title="Avg Rating"
+          value="4.7"
+          description="+0.2 vs previous period"
+          icon={Star}
+          variant="warning"
+          trend="up"
+        />
       </div>
 
       {/* Revenue by Service Chart */}
-      <div className="bg-white dark:bg-surface-primary rounded-lg p-6 border border-blue-100 dark:border-blue-900/30 mb-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">Revenue by Service</h3>
-        <div className="space-y-3">
+      <div className="bg-[var(--bb-color-bg-surface)] rounded-[var(--bb-radius-xl)] p-[var(--bb-space-6)] border border-[var(--bb-color-border-subtle)] mb-[var(--bb-space-6)]">
+        <h3 className="text-[var(--bb-font-size-lg)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)] mb-[var(--bb-space-4)]">
+          Revenue by Service
+        </h3>
+        <div className="space-y-[var(--bb-space-3)]">
           {chartData.map((item) => (
-            <div key={item.service} className="flex items-center gap-4">
-              <div className="w-24 text-sm font-medium text-gray-700 dark:text-text-primary">{item.service}</div>
+            <div key={item.service} className="flex items-center gap-[var(--bb-space-4)]">
+              <div className="w-24 text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+                {item.service}
+              </div>
               <div className="flex-1">
-                <div className="w-full bg-gray-200 dark:bg-surface-border rounded-full h-4">
+                <div className="w-full bg-[var(--bb-color-bg-elevated)] rounded-full h-4">
                   <div
-                    className={`h-4 rounded-full ${item.color}`}
-                    style={{ width: `${item.percentage}%` }}
+                    className="h-4 rounded-full transition-all duration-300"
+                    style={{ width: `${item.percentage}%`, backgroundColor: item.color }}
                   />
                 </div>
               </div>
-              <div className="w-20 text-sm font-medium text-gray-900 dark:text-text-primary">${item.revenue.toLocaleString()}</div>
-              <div className="w-12 text-sm text-gray-600 dark:text-text-secondary">({item.percentage}%)</div>
+              <div className="w-20 text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+                ${item.revenue.toLocaleString()}
+              </div>
+              <div className="w-12 text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
+                ({item.percentage}%)
+              </div>
             </div>
           ))}
         </div>
       </div>
 
       {/* Top Performers */}
-      <div className="bg-white dark:bg-surface-primary rounded-lg p-6 border border-blue-100 dark:border-blue-900/30">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">Top Performers</h3>
-        <div className="space-y-3">
-          {topPerformers.map((performer, index) => (
-            <div key={performer.name} className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ${
-                  index === 0 ? 'bg-yellow-100 dark:bg-surface-secondary text-yellow-800' :
-                  index === 1 ? 'bg-gray-100 dark:bg-surface-secondary text-gray-800 dark:text-text-primary' :
-                  'bg-orange-100 dark:bg-surface-secondary text-orange-800'
-                }`}>
-                  {index + 1}
+      <div className="bg-[var(--bb-color-bg-surface)] rounded-[var(--bb-radius-xl)] p-[var(--bb-space-6)] border border-[var(--bb-color-border-subtle)]">
+        <h3 className="text-[var(--bb-font-size-lg)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)] mb-[var(--bb-space-4)]">
+          Top Performers
+        </h3>
+        <div className="space-y-[var(--bb-space-3)]">
+          {topPerformers.map((performer, index) => {
+            const rankColor = getRankColor(index);
+            return (
+              <div key={performer.name} className="flex items-center justify-between">
+                <div className="flex items-center gap-[var(--bb-space-3)]">
+                  <div 
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-[var(--bb-font-size-xs)] font-[var(--bb-font-weight-semibold)]"
+                    style={{ backgroundColor: rankColor.bg, color: rankColor.text }}
+                  >
+                    {index + 1}
+                  </div>
+                  <span className="font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+                    {performer.name}
+                  </span>
                 </div>
-                <span className="font-medium text-gray-900 dark:text-text-primary">{performer.name}</span>
+                <div className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
+                  {performer.bookings} bookings • ${performer.revenue.toLocaleString()}
+                </div>
               </div>
-              <div className="text-sm text-gray-600 dark:text-text-secondary">
-                {performer.bookings} bookings • ${performer.revenue.toLocaleString()}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

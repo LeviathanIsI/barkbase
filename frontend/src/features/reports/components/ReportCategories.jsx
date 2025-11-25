@@ -1,13 +1,20 @@
+/**
+ * ReportCategories - Report category cards with token-based styling
+ * Uses the unified chart system with design tokens
+ */
+
 import { DollarSign, BarChart3, Users, TrendingUp, Star, Lock, Eye } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { chartPalette } from '@/components/ui/charts/palette';
 
 const ReportCategories = ({ onGenerateReport, onExportReport }) => {
   const reportCategories = [
     {
       title: 'Financial Reports',
       icon: DollarSign,
-      iconColor: 'text-green-600 bg-green-100 dark:bg-surface-secondary',
+      iconBg: 'var(--bb-color-chart-green-soft)',
+      iconColor: chartPalette.success,
       reports: [
         {
           name: 'Revenue Summary',
@@ -38,7 +45,8 @@ const ReportCategories = ({ onGenerateReport, onExportReport }) => {
     {
       title: 'Operational Reports',
       icon: BarChart3,
-      iconColor: 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-surface-secondary',
+      iconBg: 'var(--bb-color-chart-blue-soft)',
+      iconColor: chartPalette.primary,
       reports: [
         {
           name: 'Booking Summary',
@@ -69,7 +77,8 @@ const ReportCategories = ({ onGenerateReport, onExportReport }) => {
     {
       title: 'Customer Reports',
       icon: Users,
-      iconColor: 'text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-surface-secondary',
+      iconBg: 'var(--bb-color-chart-purple-soft)',
+      iconColor: chartPalette.purple,
       reports: [
         {
           name: 'Customer List',
@@ -100,7 +109,8 @@ const ReportCategories = ({ onGenerateReport, onExportReport }) => {
     {
       title: 'Marketing Reports',
       icon: TrendingUp,
-      iconColor: 'text-orange-600 bg-orange-100 dark:bg-surface-secondary',
+      iconBg: 'var(--bb-color-chart-orange-soft)',
+      iconColor: chartPalette.orange,
       reports: [
         {
           name: 'Marketing ROI',
@@ -136,24 +146,24 @@ const ReportCategories = ({ onGenerateReport, onExportReport }) => {
   };
 
   const ReportCard = ({ report, categoryTitle }) => (
-    <Card className="p-4 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between mb-3">
+    <Card className="p-[var(--bb-space-4)] hover:shadow-md transition-shadow">
+      <div className="flex items-start justify-between mb-[var(--bb-space-3)]">
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <h4 className="font-semibold text-gray-900 dark:text-text-primary">{report.name}</h4>
+          <div className="flex items-center gap-[var(--bb-space-2)] mb-[var(--bb-space-1)]">
+            <h4 className="font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)]">{report.name}</h4>
             {report.tier === 'pro' && (
-              <span className="px-2 py-1 bg-primary-600 dark:bg-primary-700 text-white text-xs font-medium rounded-full flex items-center gap-1">
+              <span className="px-[var(--bb-space-2)] py-[var(--bb-space-1)] bg-[var(--bb-color-accent)] text-white text-[var(--bb-font-size-xs)] font-[var(--bb-font-weight-medium)] rounded-full flex items-center gap-[var(--bb-space-1)]">
                 <Star className="w-3 h-3" />
                 PRO
               </span>
             )}
             {report.tier === 'free' && (
-              <span className="px-2 py-1 bg-green-100 dark:bg-surface-secondary text-green-800 dark:text-green-200 text-xs font-medium rounded-full">
+              <span className="px-[var(--bb-space-2)] py-[var(--bb-space-1)] bg-[var(--bb-color-status-positive-soft)] text-[var(--bb-color-status-positive)] text-[var(--bb-font-size-xs)] font-[var(--bb-font-weight-medium)] rounded-full">
                 FREE
               </span>
             )}
           </div>
-          <p className="text-sm text-gray-600 dark:text-text-secondary">{report.description}</p>
+          <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">{report.description}</p>
         </div>
       </div>
 
@@ -245,18 +255,23 @@ const ReportCategories = ({ onGenerateReport, onExportReport }) => {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-[var(--bb-space-6)]">
       {/* Report Categories */}
       {reportCategories.map((category, index) => (
         <div key={index}>
-          <div className="flex items-center gap-3 mb-4">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${category.iconColor}`}>
-              <category.icon className="w-4 h-4" />
+          <div className="flex items-center gap-[var(--bb-space-3)] mb-[var(--bb-space-4)]">
+            <div 
+              className="w-8 h-8 rounded-[var(--bb-radius-lg)] flex items-center justify-center"
+              style={{ backgroundColor: category.iconBg }}
+            >
+              <category.icon className="w-4 h-4" style={{ color: category.iconColor }} />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">{category.title}</h3>
+            <h3 className="text-[var(--bb-font-size-lg)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)]">
+              {category.title}
+            </h3>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mb-6">
+          <div className="grid gap-[var(--bb-space-4)] md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 mb-[var(--bb-space-6)]">
             {category.reports.map((report, reportIndex) => (
               <ReportCard
                 key={reportIndex}
@@ -267,7 +282,7 @@ const ReportCategories = ({ onGenerateReport, onExportReport }) => {
           </div>
 
           <div className="text-center">
-            <button className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:text-blue-300 text-sm font-medium">
+            <button className="text-[var(--bb-color-accent)] hover:opacity-80 text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)]">
               View All {category.title} ({category.reports.length})
             </button>
           </div>
@@ -276,20 +291,24 @@ const ReportCategories = ({ onGenerateReport, onExportReport }) => {
 
       {/* Custom Reports */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">Custom Reports</h3>
+        <h3 className="text-[var(--bb-font-size-lg)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)] mb-[var(--bb-space-4)]">
+          Custom Reports
+        </h3>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-[var(--bb-space-4)] md:grid-cols-2 lg:grid-cols-3">
           {customReports.map((report, index) => (
             <ReportCard key={index} report={report} />
           ))}
 
-          <Card className="p-4 border-dashed border-2 border-gray-300 dark:border-surface-border">
-            <div className="text-center py-4">
-              <div className="w-12 h-12 bg-gray-100 dark:bg-surface-secondary rounded-lg flex items-center justify-center mx-auto mb-3">
-                <Star className="w-6 h-6 text-gray-400 dark:text-text-tertiary" />
+          <Card className="p-[var(--bb-space-4)] border-dashed border-2 border-[var(--bb-color-border-subtle)]">
+            <div className="text-center py-[var(--bb-space-4)]">
+              <div className="w-12 h-12 bg-[var(--bb-color-bg-elevated)] rounded-[var(--bb-radius-lg)] flex items-center justify-center mx-auto mb-[var(--bb-space-3)]">
+                <Star className="w-6 h-6 text-[var(--bb-color-text-muted)]" />
               </div>
-              <p className="text-sm text-gray-600 dark:text-text-secondary mb-3">Your saved custom reports</p>
-              <p className="text-xs text-gray-500 dark:text-text-secondary">None yet</p>
+              <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)] mb-[var(--bb-space-3)]">
+                Your saved custom reports
+              </p>
+              <p className="text-[var(--bb-font-size-xs)] text-[var(--bb-color-text-muted)]">None yet</p>
             </div>
           </Card>
         </div>

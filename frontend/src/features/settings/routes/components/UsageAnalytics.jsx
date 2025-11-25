@@ -1,4 +1,10 @@
-import { BarChart3, TrendingUp, AlertTriangle, Users, CheckCircle } from 'lucide-react';
+/**
+ * UsageAnalytics - Property usage insights with token-based styling
+ * Uses the unified chart system with design tokens
+ */
+
+import { BarChart3, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react';
+import { chartPalette } from '@/components/ui/charts/palette';
 
 const UsageAnalytics = ({ data }) => {
   if (!data) return null;
@@ -11,50 +17,55 @@ const UsageAnalytics = ({ data }) => {
     {
       icon: BarChart3,
       label: `${totalProperties} active properties across ${totalPets} pets`,
-      color: 'text-blue-600 dark:text-blue-400'
+      color: chartPalette.primary
     },
     {
       icon: AlertTriangle,
       label: '83 pets missing daycare group assignment',
       action: 'Bulk assign groups',
-      color: 'text-orange-600'
+      color: chartPalette.warning
     },
     {
       icon: TrendingUp,
       label: '"Behavioral Flags" has grown 15% this month',
-      color: 'text-green-600'
+      color: chartPalette.success
     },
     {
       icon: CheckCircle,
       label: 'Most used: Daycare Group (72% of pets)',
-      color: 'text-green-600'
+      color: chartPalette.success
     },
     {
       icon: AlertTriangle,
       label: 'Rarely used: Grooming Preferences (8% of pets)',
       action: 'Archive unused property',
-      color: 'text-gray-600 dark:text-text-secondary'
+      color: 'var(--bb-color-text-muted)'
     }
   ];
 
   return (
-    <div className="bg-primary-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-lg p-6">
-      <div className="flex items-center gap-3 mb-4">
-        <BarChart3 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-        <h2 className="text-xl font-semibold text-blue-900 dark:text-blue-100">Property Usage Insights</h2>
+    <div className="bg-[var(--bb-color-chart-blue-soft)] border border-[var(--bb-color-chart-blue)] border-opacity-30 rounded-[var(--bb-radius-xl)] p-[var(--bb-space-6)]">
+      <div className="flex items-center gap-[var(--bb-space-3)] mb-[var(--bb-space-4)]">
+        <BarChart3 className="w-6 h-6" style={{ color: chartPalette.primary }} />
+        <h2 className="text-[var(--bb-font-size-xl)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)]">
+          Property Usage Insights
+        </h2>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[var(--bb-space-4)]">
         {insights.map((insight, index) => {
           const Icon = insight.icon;
           return (
-            <div key={index} className="bg-white dark:bg-surface-primary rounded-lg p-4 border border-blue-100 dark:border-blue-900/30">
-              <div className="flex items-start gap-3">
-                <Icon className={`w-5 h-5 ${insight.color} flex-shrink-0 mt-0.5`} />
+            <div 
+              key={index} 
+              className="bg-[var(--bb-color-bg-surface)] rounded-[var(--bb-radius-lg)] p-[var(--bb-space-4)] border border-[var(--bb-color-border-subtle)]"
+            >
+              <div className="flex items-start gap-[var(--bb-space-3)]">
+                <Icon className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: insight.color }} />
                 <div className="flex-1">
-                  <p className="text-sm text-gray-900 dark:text-text-primary">{insight.label}</p>
+                  <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)]">{insight.label}</p>
                   {insight.action && (
-                    <button className="text-xs text-blue-600 dark:text-blue-400 hover:underline mt-1">
+                    <button className="text-[var(--bb-font-size-xs)] text-[var(--bb-color-accent)] hover:underline mt-[var(--bb-space-1)]">
                       {insight.action}
                     </button>
                   )}
@@ -66,15 +77,17 @@ const UsageAnalytics = ({ data }) => {
       </div>
 
       {/* Usage Summary */}
-      <div className="mt-6 pt-4 border-t border-blue-200 dark:border-blue-900/30">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-blue-700 dark:text-blue-300">Overall Usage Rate:</span>
-          <span className="font-semibold text-blue-900 dark:text-blue-100">{usageRate}% of pets have custom properties</span>
+      <div className="mt-[var(--bb-space-6)] pt-[var(--bb-space-4)] border-t border-[var(--bb-color-border-subtle)]">
+        <div className="flex items-center justify-between text-[var(--bb-font-size-sm)]">
+          <span className="text-[var(--bb-color-text-muted)]">Overall Usage Rate:</span>
+          <span className="font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)]">
+            {usageRate}% of pets have custom properties
+          </span>
         </div>
-        <div className="w-full bg-blue-200 rounded-full h-2 mt-2">
+        <div className="w-full bg-[var(--bb-color-bg-elevated)] rounded-full h-2 mt-[var(--bb-space-2)]">
           <div
-            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${Math.min(usageRate, 100)}%` }}
+            className="h-2 rounded-full transition-all duration-300"
+            style={{ width: `${Math.min(usageRate, 100)}%`, backgroundColor: chartPalette.primary }}
           />
         </div>
       </div>
