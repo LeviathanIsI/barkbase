@@ -1,6 +1,6 @@
 /**
- * Professional Label Component
- * Form labels with consistent styling
+ * Label Component - Phase 9 Enterprise Form System
+ * Token-based styling for consistent theming.
  */
 
 import React from 'react';
@@ -10,14 +10,17 @@ const Label = React.forwardRef(({ className, required, children, ...props }, ref
   <label
     ref={ref}
     className={cn(
-      'text-sm font-medium text-gray-700 dark:text-text-primary leading-none',
+      'text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] leading-none',
       'peer-disabled:cursor-not-allowed peer-disabled:opacity-70',
       className
     )}
+    style={{ color: 'var(--bb-color-text-primary)' }}
     {...props}
   >
     {children}
-    {required && <span className="text-error-600 ml-1">*</span>}
+    {required && (
+      <span style={{ color: 'var(--bb-color-status-negative)' }} className="ml-1">*</span>
+    )}
   </label>
 ));
 

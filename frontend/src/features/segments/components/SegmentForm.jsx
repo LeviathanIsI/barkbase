@@ -1,3 +1,8 @@
+/**
+ * Segment Form - Phase 9 Enterprise Form System
+ * Token-based styling for consistent theming.
+ */
+
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Info } from 'lucide-react';
@@ -6,6 +11,7 @@ import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import Select from '@/components/ui/Select';
 import Checkbox from '@/components/ui/Checkbox';
+import { FormActions, FormSection } from '@/components/ui/FormField';
 import { useCreateSegment, useUpdateSegment } from '@/features/communications/api';
 
 const automaticSegmentTypes = [
@@ -54,9 +60,12 @@ export default function SegmentForm({ segment, onClose }) {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-text">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-[var(--bb-space-4,1rem)]">
+      <div className="flex items-center justify-between mb-[var(--bb-space-4,1rem)]">
+        <h3
+          className="text-[var(--bb-font-size-lg,1.125rem)] font-[var(--bb-font-weight-semibold,600)]"
+          style={{ color: 'var(--bb-color-text-primary)' }}
+        >
           {segment ? 'Edit Segment' : 'Create Segment'}
         </h3>
       </div>
@@ -64,7 +73,7 @@ export default function SegmentForm({ segment, onClose }) {
       <Input
         label="Segment Name"
         {...register('name', { required: 'Name is required' })}
-        error={errors.name}
+        error={errors.name?.message}
         placeholder="e.g., VIP Customers, New Members"
       />
       
@@ -76,16 +85,19 @@ export default function SegmentForm({ segment, onClose }) {
       />
       
       {!segment && (
-        <div>
+        <div className="space-y-[var(--bb-space-4,1rem)]">
           <Checkbox
             label="Automatic Segment"
             checked={isAutomatic}
             onChange={(e) => setIsAutomatic(e.target.checked)}
-            helpText="Automatically add/remove members based on conditions"
+            description="Automatically add/remove members based on conditions"
           />
           
           {isAutomatic && (
-            <div className="mt-4 p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg space-y-4">
+            <div
+              className="p-[var(--bb-space-4,1rem)] rounded-lg space-y-[var(--bb-space-4,1rem)]"
+              style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+            >
               <Select
                 label="Segment Type"
                 value={segmentType}
@@ -103,7 +115,7 @@ export default function SegmentForm({ segment, onClose }) {
                   label="Minimum Lifetime Value ($)"
                   type="number"
                   {...register('minValue', { required: 'Minimum value is required' })}
-                  error={errors.minValue}
+                  error={errors.minValue?.message}
                   defaultValue="1000"
                 />
               )}
@@ -113,14 +125,23 @@ export default function SegmentForm({ segment, onClose }) {
                   label="Minimum Bookings (last 90 days)"
                   type="number"
                   {...register('minBookings', { required: 'Minimum bookings is required' })}
-                  error={errors.minBookings}
+                  error={errors.minBookings?.message}
                   defaultValue="3"
                 />
               )}
               
-              <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-surface-primary rounded-md">
-                <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-blue-800 dark:text-blue-200">
+              <div
+                className="flex items-start gap-[var(--bb-space-2,0.5rem)] p-[var(--bb-space-3,0.75rem)] rounded-md"
+                style={{ backgroundColor: 'var(--bb-color-accent-soft)' }}
+              >
+                <Info
+                  className="w-5 h-5 flex-shrink-0 mt-0.5"
+                  style={{ color: 'var(--bb-color-accent)' }}
+                />
+                <p
+                  className="text-[var(--bb-font-size-sm,0.875rem)]"
+                  style={{ color: 'var(--bb-color-accent)' }}
+                >
                   Automatic segments update daily. Members are added or removed based on the conditions you set.
                 </p>
               </div>
@@ -131,18 +152,27 @@ export default function SegmentForm({ segment, onClose }) {
       
       {segment && (
         <div>
-          <label className="flex items-center gap-2">
+          <label className="flex items-center gap-[var(--bb-space-2,0.5rem)] cursor-pointer">
             <input
               type="checkbox"
               {...register('isActive')}
-              className="h-4 w-4 text-primary rounded"
+              className="h-4 w-4 rounded"
+              style={{
+                borderColor: 'var(--bb-color-border-subtle)',
+                accentColor: 'var(--bb-color-accent)',
+              }}
             />
-            <span className="text-sm font-medium text-text">Active</span>
+            <span
+              className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+              style={{ color: 'var(--bb-color-text-primary)' }}
+            >
+              Active
+            </span>
           </label>
         </div>
       )}
       
-      <div className="flex justify-end gap-2 pt-4">
+      <FormActions>
         <Button type="button" variant="ghost" onClick={onClose}>
           Cancel
         </Button>
@@ -152,8 +182,7 @@ export default function SegmentForm({ segment, onClose }) {
         >
           {segment ? 'Update Segment' : 'Create Segment'}
         </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }
-

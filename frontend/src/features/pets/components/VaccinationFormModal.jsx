@@ -1,9 +1,15 @@
+/**
+ * Vaccination Form Modal - Phase 9 Enterprise Form System
+ * Token-based styling for consistent theming.
+ */
+
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { X } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
+import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
 
 // Standardized vaccine types
 const VACCINE_TYPES = {
@@ -89,6 +95,20 @@ const VaccinationFormModal = ({
     return [...new Set(options)]; // Remove duplicates
   };
 
+  // Common input styles
+  const inputStyles = {
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    borderColor: 'var(--bb-color-border-subtle)',
+    color: 'var(--bb-color-text-primary)',
+  };
+
+  const inputClass = cn(
+    'w-full rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)]',
+    'text-[var(--bb-font-size-sm,0.875rem)]',
+    'focus:outline-none focus:ring-1',
+    'transition-colors'
+  );
+
   return (
     <Modal
       open={open}
@@ -96,18 +116,22 @@ const VaccinationFormModal = ({
       title={isEdit ? 'Edit Vaccination' : 'Add Vaccination'}
       className="max-w-md"
     >
-      <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-[var(--bb-space-6,1.5rem)]">
         {/* Vaccine Type */}
-        <div>
-          <label className="block text-sm font-medium text-text mb-1">
-            Vaccine Type <span className="text-red-500">*</span>
+        <div className="space-y-[var(--bb-space-2,0.5rem)]">
+          <label
+            className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+            style={{ color: 'var(--bb-color-text-primary)' }}
+          >
+            Vaccine Type <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
           </label>
           <select
             {...register('type', { required: 'Vaccine type is required' })}
-            className={cn(
-              'w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary',
-              errors.type && 'border-red-500'
-            )}
+            className={inputClass}
+            style={{
+              ...inputStyles,
+              borderColor: errors.type ? 'var(--bb-color-status-negative)' : 'var(--bb-color-border-subtle)',
+            }}
           >
             <option value="">Select vaccine type</option>
             {getVaccineOptions().map((type) => (
@@ -117,78 +141,112 @@ const VaccinationFormModal = ({
             ))}
           </select>
           {errors.type && (
-            <p className="mt-1 text-xs text-red-500">{errors.type.message}</p>
+            <p
+              className="text-[var(--bb-font-size-xs,0.75rem)]"
+              style={{ color: 'var(--bb-color-status-negative)' }}
+            >
+              {errors.type.message}
+            </p>
           )}
         </div>
 
         {/* Dates */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-text mb-1">
-              Administered Date <span className="text-red-500">*</span>
+        <FormGrid cols={2}>
+          <div className="space-y-[var(--bb-space-2,0.5rem)]">
+            <label
+              className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+              style={{ color: 'var(--bb-color-text-primary)' }}
+            >
+              Administered Date <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
             </label>
             <input
               type="date"
               {...register('administeredAt', { required: 'Administered date is required' })}
-              className={cn(
-                'w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary',
-                errors.administeredAt && 'border-red-500'
-              )}
+              className={inputClass}
+              style={{
+                ...inputStyles,
+                borderColor: errors.administeredAt ? 'var(--bb-color-status-negative)' : 'var(--bb-color-border-subtle)',
+              }}
             />
             {errors.administeredAt && (
-              <p className="mt-1 text-xs text-red-500">{errors.administeredAt.message}</p>
+              <p
+                className="text-[var(--bb-font-size-xs,0.75rem)]"
+                style={{ color: 'var(--bb-color-status-negative)' }}
+              >
+                {errors.administeredAt.message}
+              </p>
             )}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-text mb-1">
-              Expiration Date <span className="text-red-500">*</span>
+          <div className="space-y-[var(--bb-space-2,0.5rem)]">
+            <label
+              className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+              style={{ color: 'var(--bb-color-text-primary)' }}
+            >
+              Expiration Date <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
             </label>
             <input
               type="date"
               {...register('expiresAt', { required: 'Expiration date is required' })}
-              className={cn(
-                'w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary',
-                errors.expiresAt && 'border-red-500'
-              )}
+              className={inputClass}
+              style={{
+                ...inputStyles,
+                borderColor: errors.expiresAt ? 'var(--bb-color-status-negative)' : 'var(--bb-color-border-subtle)',
+              }}
             />
             {errors.expiresAt && (
-              <p className="mt-1 text-xs text-red-500">{errors.expiresAt.message}</p>
+              <p
+                className="text-[var(--bb-font-size-xs,0.75rem)]"
+                style={{ color: 'var(--bb-color-status-negative)' }}
+              >
+                {errors.expiresAt.message}
+              </p>
             )}
           </div>
-        </div>
+        </FormGrid>
 
         {/* Document URL */}
-        <div>
-          <label className="block text-sm font-medium text-text mb-1">
+        <div className="space-y-[var(--bb-space-2,0.5rem)]">
+          <label
+            className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+            style={{ color: 'var(--bb-color-text-primary)' }}
+          >
             Document URL
           </label>
           <input
             type="url"
             {...register('documentUrl')}
-            className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className={inputClass}
+            style={inputStyles}
             placeholder="https://example.com/vaccine-record.pdf"
           />
-          <p className="mt-1 text-xs text-muted">
+          <p
+            className="text-[var(--bb-font-size-xs,0.75rem)]"
+            style={{ color: 'var(--bb-color-text-muted)' }}
+          >
             Optional: Link to vaccine certificate or record
           </p>
         </div>
 
         {/* Notes */}
-        <div>
-          <label className="block text-sm font-medium text-text mb-1">
+        <div className="space-y-[var(--bb-space-2,0.5rem)]">
+          <label
+            className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+            style={{ color: 'var(--bb-color-text-primary)' }}
+          >
             Notes
           </label>
           <textarea
             {...register('notes')}
             rows={3}
-            className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className={cn(inputClass, 'min-h-[6rem] resize-y')}
+            style={inputStyles}
             placeholder="Additional details about the vaccination..."
           />
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
+        <FormActions>
           <Button
             type="button"
             variant="ghost"
@@ -203,7 +261,7 @@ const VaccinationFormModal = ({
           >
             {isLoading ? (isEdit ? 'Updating...' : 'Adding...') : (isEdit ? 'Update Vaccination' : 'Add Vaccination')}
           </Button>
-        </div>
+        </FormActions>
       </form>
     </Modal>
   );

@@ -1,6 +1,6 @@
 /**
- * Professional Textarea Component
- * Multi-line text input with consistent styling
+ * Textarea Component - Phase 9 Enterprise Form System
+ * Token-based styling for consistent theming.
  */
 
 import React from 'react';
@@ -9,32 +9,52 @@ import { cn } from '@/lib/utils';
 const Textarea = React.forwardRef(
   ({ className, label, error, helpText, rows = 3, ...props }, ref) => {
     return (
-      <div className="w-full">
+      <div className="w-full space-y-[var(--bb-space-2,0.5rem)]">
         {label && (
-          <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1.5">
+          <label
+            className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+            style={{ color: 'var(--bb-color-text-primary)' }}
+          >
             {label}
-            {props.required && <span className="text-error-600 ml-1">*</span>}
+            {props.required && (
+              <span style={{ color: 'var(--bb-color-status-negative)' }} className="ml-1">*</span>
+            )}
           </label>
         )}
         <textarea
           rows={rows}
           className={cn(
-            'flex w-full rounded-md border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary px-3 py-2',
-            'text-sm text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-tertiary placeholder:opacity-75',
-            'focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-600 focus:border-transparent',
-            'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-50 dark:disabled:bg-surface-secondary',
-            'transition-colors resize-y',
-            error && 'border-error-500 focus:ring-error-500',
+            'flex w-full rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)]',
+            'text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-regular,400)]',
+            'min-h-[6rem] resize-y',
+            'transition-colors',
+            'disabled:cursor-not-allowed disabled:opacity-50',
+            'focus:outline-none',
             className
           )}
+          style={{
+            backgroundColor: 'var(--bb-color-bg-surface)',
+            borderColor: error ? 'var(--bb-color-status-negative)' : 'var(--bb-color-border-subtle)',
+            color: 'var(--bb-color-text-primary)',
+          }}
           ref={ref}
           {...props}
         />
         {error && (
-          <p className="mt-1.5 text-sm text-error-600">{error}</p>
+          <p
+            className="text-[var(--bb-font-size-sm,0.875rem)]"
+            style={{ color: 'var(--bb-color-status-negative)' }}
+          >
+            {error}
+          </p>
         )}
         {helpText && !error && (
-          <p className="mt-1.5 text-sm text-gray-500 dark:text-text-secondary">{helpText}</p>
+          <p
+            className="text-[var(--bb-font-size-sm,0.875rem)]"
+            style={{ color: 'var(--bb-color-text-muted)' }}
+          >
+            {helpText}
+          </p>
         )}
       </div>
     );

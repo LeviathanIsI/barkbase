@@ -1,8 +1,14 @@
+/**
+ * Pet Form Modal - Phase 9 Enterprise Form System
+ * Token-based styling for consistent theming.
+ */
+
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import Button from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
 import SlideoutPanel from '@/components/SlideoutPanel';
+import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
 
 const PetFormModal = ({
   open,
@@ -96,6 +102,20 @@ const PetFormModal = ({
     return [];
   };
 
+  // Common input styles
+  const inputStyles = {
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    borderColor: 'var(--bb-color-border-subtle)',
+    color: 'var(--bb-color-text-primary)',
+  };
+
+  const inputClass = cn(
+    'w-full rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)]',
+    'text-[var(--bb-font-size-sm,0.875rem)]',
+    'focus:outline-none focus:ring-1',
+    'transition-colors'
+  );
+
   return (
     <SlideoutPanel
       isOpen={open}
@@ -103,218 +123,290 @@ const PetFormModal = ({
       title={isEdit ? 'Edit Pet' : 'Create New Pet'}
       widthClass="max-w-2xl"
     >
-      {/* TODO (Directory UX Cleanup C1:3): Visual polish for slideout forms. */}
-      <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-[var(--bb-space-6,1.5rem)]">
         {/* Basic Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-text mb-1">
-              Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              {...register('name', { required: 'Pet name is required' })}
-              className={cn(
-                'w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary',
-                errors.name && 'border-red-500'
+        <FormSection title="Basic Information">
+          <FormGrid cols={2}>
+            <div className="space-y-[var(--bb-space-2,0.5rem)]">
+              <label
+                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                Name <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+              </label>
+              <input
+                type="text"
+                {...register('name', { required: 'Pet name is required' })}
+                className={inputClass}
+                style={{
+                  ...inputStyles,
+                  borderColor: errors.name ? 'var(--bb-color-status-negative)' : 'var(--bb-color-border-subtle)',
+                }}
+                placeholder="Buddy"
+              />
+              {errors.name && (
+                <p
+                  className="text-[var(--bb-font-size-xs,0.75rem)]"
+                  style={{ color: 'var(--bb-color-status-negative)' }}
+                >
+                  {errors.name.message}
+                </p>
               )}
-              placeholder="Buddy"
-            />
-            {errors.name && (
-              <p className="mt-1 text-xs text-red-500">{errors.name.message}</p>
-            )}
-          </div>
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-text mb-1">
-              Breed
+            <div className="space-y-[var(--bb-space-2,0.5rem)]">
+              <label
+                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                Breed
+              </label>
+              <input
+                type="text"
+                {...register('breed')}
+                className={inputClass}
+                style={inputStyles}
+                placeholder="Golden Retriever"
+              />
+            </div>
+          </FormGrid>
+
+          <FormGrid cols={2}>
+            <div className="space-y-[var(--bb-space-2,0.5rem)]">
+              <label
+                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                Species
+              </label>
+              <select
+                {...register('species')}
+                className={inputClass}
+                style={inputStyles}
+              >
+                <option value="">Select species</option>
+                <option value="Dog">Dog</option>
+                <option value="Cat">Cat</option>
+                <option value="Bird">Bird</option>
+                <option value="Rabbit">Rabbit</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div className="space-y-[var(--bb-space-2,0.5rem)]">
+              <label
+                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                Weight (lbs)
+              </label>
+              <input
+                type="number"
+                step="0.1"
+                {...register('weight')}
+                className={inputClass}
+                style={inputStyles}
+                placeholder="25.5"
+              />
+            </div>
+          </FormGrid>
+
+          <FormGrid cols={2}>
+            <div className="space-y-[var(--bb-space-2,0.5rem)]">
+              <label
+                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                Birthdate
+              </label>
+              <input
+                type="date"
+                {...register('birthdate')}
+                className={inputClass}
+                style={inputStyles}
+              />
+            </div>
+
+            <div className="space-y-[var(--bb-space-2,0.5rem)]">
+              <label
+                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                Status
+              </label>
+              <select
+                {...register('status')}
+                className={inputClass}
+                style={inputStyles}
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+          </FormGrid>
+        </FormSection>
+
+        {/* Health Information */}
+        <FormSection title="Health Information">
+          <div className="space-y-[var(--bb-space-2,0.5rem)]">
+            <label
+              className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+              style={{ color: 'var(--bb-color-text-primary)' }}
+            >
+              Allergies
             </label>
             <input
               type="text"
-              {...register('breed')}
-              className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              placeholder="Golden Retriever"
+              {...register('allergies')}
+              className={inputClass}
+              style={inputStyles}
+              placeholder="Pollen, chicken, medication names..."
             />
           </div>
-        </div>
 
-        {/* Species and Weight */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-text mb-1">
-              Species
-            </label>
-            <select
-              {...register('species')}
-              className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          <FormGrid cols={2}>
+            <div className="space-y-[var(--bb-space-2,0.5rem)]">
+              <label
+                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                Last Vet Visit
+              </label>
+              <input
+                type="date"
+                {...register('lastVetVisit')}
+                className={inputClass}
+                style={inputStyles}
+              />
+            </div>
+
+            <div className="space-y-[var(--bb-space-2,0.5rem)]">
+              <label
+                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                Next Appointment
+              </label>
+              <input
+                type="date"
+                {...register('nextAppointment')}
+                className={inputClass}
+                style={inputStyles}
+              />
+            </div>
+          </FormGrid>
+
+          <div className="space-y-[var(--bb-space-2,0.5rem)]">
+            <label
+              className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+              style={{ color: 'var(--bb-color-text-primary)' }}
             >
-              <option value="">Select species</option>
-              <option value="Dog">Dog</option>
-              <option value="Cat">Cat</option>
-              <option value="Bird">Bird</option>
-              <option value="Rabbit">Rabbit</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-text mb-1">
-              Weight (lbs)
+              Medical Notes
             </label>
-            <input
-              type="number"
-              step="0.1"
-              {...register('weight')}
-              className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              placeholder="25.5"
+            <textarea
+              {...register('medicalNotes')}
+              rows={3}
+              className={cn(inputClass, 'min-h-[6rem] resize-y')}
+              style={inputStyles}
+              placeholder="Additional health conditions, medications, or special care instructions..."
             />
           </div>
-        </div>
+
+          <div className="space-y-[var(--bb-space-2,0.5rem)]">
+            <label
+              className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+              style={{ color: 'var(--bb-color-text-primary)' }}
+            >
+              Dietary Notes
+            </label>
+            <textarea
+              {...register('dietaryNotes')}
+              rows={3}
+              className={cn(inputClass, 'min-h-[6rem] resize-y')}
+              style={inputStyles}
+              placeholder="Food preferences, restrictions, or feeding schedule..."
+            />
+          </div>
+        </FormSection>
 
         {/* Additional Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-text mb-1">
-              Birthdate
-            </label>
-            <input
-              type="date"
-              {...register('birthdate')}
-              className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-text mb-1">
-              Status
-            </label>
-            <select
-              {...register('status')}
-              className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+        <FormSection title="Additional Information">
+          <div className="space-y-[var(--bb-space-2,0.5rem)]">
+            <label
+              className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+              style={{ color: 'var(--bb-color-text-primary)' }}
             >
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Allergies */}
-        <div>
-          <label className="block text-sm font-medium text-text mb-1">
-            Allergies
-          </label>
-          <input
-            type="text"
-            {...register('allergies')}
-            className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            placeholder="Pollen, chicken, medication names..."
-          />
-        </div>
-
-        {/* Vet Visit Dates */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-text mb-1">
-              Last Vet Visit
+              Photo URL
             </label>
             <input
-              type="date"
-              {...register('lastVetVisit')}
-              className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              type="url"
+              {...register('photoUrl')}
+              className={inputClass}
+              style={inputStyles}
+              placeholder="https://example.com/pet-photo.jpg"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-text mb-1">
-              Next Appointment
+          <div className="space-y-[var(--bb-space-2,0.5rem)]">
+            <label
+              className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+              style={{ color: 'var(--bb-color-text-primary)' }}
+            >
+              Behavior Flags
             </label>
-            <input
-              type="date"
-              {...register('nextAppointment')}
-              className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            />
+            <p
+              className="text-[var(--bb-font-size-xs,0.75rem)] mb-[var(--bb-space-3,0.75rem)]"
+              style={{ color: 'var(--bb-color-text-muted)' }}
+            >
+              Select all behaviors that apply to this pet
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-[var(--bb-space-3,0.75rem)]">
+              {[
+                'Friendly',
+                'Shy',
+                'Aggressive',
+                'Reactive',
+                'Anxious',
+                'Playful',
+                'Calm',
+                'Energetic',
+                'Food motivated',
+                'Treat motivated'
+              ].map((flag) => (
+                <label
+                  key={flag}
+                  className="flex items-center gap-[var(--bb-space-2,0.5rem)] cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={normalizeBehaviorFlags(watch('behaviorFlags')).includes(flag)}
+                    onChange={(e) => {
+                      const currentFlags = normalizeBehaviorFlags(watch('behaviorFlags'));
+                      const newFlags = e.target.checked
+                        ? [...currentFlags, flag]
+                        : currentFlags.filter(f => f !== flag);
+                      setValue('behaviorFlags', newFlags);
+                    }}
+                    className="h-4 w-4 rounded"
+                    style={{
+                      borderColor: 'var(--bb-color-border-subtle)',
+                      accentColor: 'var(--bb-color-accent)',
+                    }}
+                  />
+                  <span
+                    className="text-[var(--bb-font-size-sm,0.875rem)]"
+                    style={{ color: 'var(--bb-color-text-primary)' }}
+                  >
+                    {flag}
+                  </span>
+                </label>
+              ))}
+            </div>
           </div>
-        </div>
-
-        {/* Medical Notes */}
-        <div>
-          <label className="block text-sm font-medium text-text mb-1">
-            Medical Notes
-          </label>
-          <textarea
-            {...register('medicalNotes')}
-            rows={3}
-            className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            placeholder="Additional health conditions, medications, or special care instructions..."
-          />
-        </div>
-
-        {/* Dietary Notes */}
-        <div>
-          <label className="block text-sm font-medium text-text mb-1">
-            Dietary Notes
-          </label>
-          <textarea
-            {...register('dietaryNotes')}
-            rows={3}
-            className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            placeholder="Food preferences, restrictions, or feeding schedule..."
-          />
-        </div>
-
-        {/* Photo URL */}
-        <div>
-          <label className="block text-sm font-medium text-text mb-1">
-            Photo URL
-          </label>
-          <input
-            type="url"
-            {...register('photoUrl')}
-            className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            placeholder="https://example.com/pet-photo.jpg"
-          />
-        </div>
-
-        {/* Behavior Flags */}
-        <div>
-          <label className="block text-sm font-medium text-text mb-1">
-            Behavior Flags
-          </label>
-          <p className="text-xs text-muted mb-3">Select all behaviors that apply to this pet</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {[
-              'Friendly',
-              'Shy',
-              'Aggressive',
-              'Reactive',
-              'Anxious',
-              'Playful',
-              'Calm',
-              'Energetic',
-              'Food motivated',
-              'Treat motivated'
-            ].map((flag) => (
-              <label key={flag} className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={normalizeBehaviorFlags(watch('behaviorFlags')).includes(flag)}
-                  onChange={(e) => {
-                    const currentFlags = normalizeBehaviorFlags(watch('behaviorFlags'));
-                    const newFlags = e.target.checked
-                      ? [...currentFlags, flag]
-                      : currentFlags.filter(f => f !== flag);
-                    setValue('behaviorFlags', newFlags);
-                  }}
-                  className="rounded border-border"
-                />
-                <span className="text-sm">{flag}</span>
-              </label>
-            ))}
-          </div>
-        </div>
+        </FormSection>
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-3 border-t border-border pt-4">
+        <FormActions>
           <Button
             type="button"
             variant="ghost"
@@ -329,7 +421,7 @@ const PetFormModal = ({
           >
             {isLoading ? (isEdit ? 'Updating...' : 'Creating...') : (isEdit ? 'Update Pet' : 'Create Pet')}
           </Button>
-        </div>
+        </FormActions>
       </form>
     </SlideoutPanel>
   );

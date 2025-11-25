@@ -1,3 +1,8 @@
+/**
+ * Kennel Form - Phase 9 Enterprise Form System
+ * Token-based styling for consistent theming.
+ */
+
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
@@ -6,6 +11,7 @@ import Select from '@/components/ui/Select';
 import Textarea from '@/components/ui/Textarea';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import { FormActions, FormSection, FormGrid } from '@/components/ui/FormField';
 import { useCreateKennel, useUpdateKennel } from '../api';
 import toast from 'react-hot-toast';
 
@@ -118,8 +124,11 @@ const KennelForm = ({ kennel, onClose, onSuccess, terminology }) => {
 
   return (
     <Modal open onClose={onClose} className="max-w-2xl">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold">
+      <div className="flex justify-between items-center mb-[var(--bb-space-6,1.5rem)]">
+        <h2
+          className="text-[var(--bb-font-size-xl,1.5rem)] font-[var(--bb-font-weight-semibold,600)]"
+          style={{ color: 'var(--bb-color-text-primary)' }}
+        >
           {kennel ? `Edit ${terminology.kennel}` : `Add New ${terminology.kennel}`}
         </h2>
         <Button
@@ -132,80 +141,83 @@ const KennelForm = ({ kennel, onClose, onSuccess, terminology }) => {
         </Button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-[var(--bb-space-6,1.5rem)]">
         {/* Basic Information */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <Input
-            label="Name"
-            value={formData.name}
-            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-            placeholder={`${terminology.kennel} 1`}
-            required
-          />
-          <Select
-            label="Type"
-            value={formData.type}
-            onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value }))}
-            required
-          >
-            <option value="KENNEL">{terminology.kennel || 'Kennel'}</option>
-            <option value="SUITE">{terminology.suite || 'Suite'}</option>
-            <option value="CABIN">{terminology.cabin || 'Cabin'}</option>
-            <option value="DAYCARE">{terminology.daycare || 'Daycare'}</option>
-            <option value="MEDICAL">{terminology.medical || 'Medical'}</option>
-          </Select>
-        </div>
+        <FormSection title="Basic Information">
+          <FormGrid cols={2}>
+            <Input
+              label="Name"
+              value={formData.name}
+              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              placeholder={`${terminology.kennel} 1`}
+              required
+            />
+            <Select
+              label="Type"
+              value={formData.type}
+              onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value }))}
+              required
+            >
+              <option value="KENNEL">{terminology.kennel || 'Kennel'}</option>
+              <option value="SUITE">{terminology.suite || 'Suite'}</option>
+              <option value="CABIN">{terminology.cabin || 'Cabin'}</option>
+              <option value="DAYCARE">{terminology.daycare || 'Daycare'}</option>
+              <option value="MEDICAL">{terminology.medical || 'Medical'}</option>
+            </Select>
+          </FormGrid>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <Select
-            label="Size Restriction"
-            value={formData.size}
-            onChange={(e) => setFormData(prev => ({ ...prev, size: e.target.value }))}
-            helpText="Optional - limit to specific pet sizes"
-          >
-            <option value="">Any Size</option>
-            <option value="SMALL">Small (up to 25 lbs)</option>
-            <option value="MEDIUM">Medium (26-60 lbs)</option>
-            <option value="LARGE">Large (61-100 lbs)</option>
-            <option value="XLARGE">Extra Large (100+ lbs)</option>
-          </Select>
-          <Input
-            label="Capacity"
-            type="number"
-            min="1"
-            value={formData.capacity}
-            onChange={(e) => setFormData(prev => ({ ...prev, capacity: e.target.value }))}
-            helpText="Number of pets that can stay"
-            required
-          />
-        </div>
+          <FormGrid cols={2}>
+            <Select
+              label="Size Restriction"
+              value={formData.size}
+              onChange={(e) => setFormData(prev => ({ ...prev, size: e.target.value }))}
+              helpText="Optional - limit to specific pet sizes"
+            >
+              <option value="">Any Size</option>
+              <option value="SMALL">Small (up to 25 lbs)</option>
+              <option value="MEDIUM">Medium (26-60 lbs)</option>
+              <option value="LARGE">Large (61-100 lbs)</option>
+              <option value="XLARGE">Extra Large (100+ lbs)</option>
+            </Select>
+            <Input
+              label="Capacity"
+              type="number"
+              min="1"
+              value={formData.capacity}
+              onChange={(e) => setFormData(prev => ({ ...prev, capacity: e.target.value }))}
+              helpText="Number of pets that can stay"
+              required
+            />
+          </FormGrid>
+        </FormSection>
 
         {/* Location */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Input
-            label="Building"
-            value={formData.building}
-            onChange={(e) => setFormData(prev => ({ ...prev, building: e.target.value }))}
-            placeholder="Main Building"
-          />
-          <Input
-            label="Zone/Area"
-            value={formData.zone}
-            onChange={(e) => setFormData(prev => ({ ...prev, zone: e.target.value }))}
-            placeholder="North Wing"
-          />
-          <Input
-            label="Location Details"
-            value={formData.location}
-            onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-            placeholder="Near entrance"
-          />
-        </div>
+        <FormSection title="Location">
+          <FormGrid cols={3}>
+            <Input
+              label="Building"
+              value={formData.building}
+              onChange={(e) => setFormData(prev => ({ ...prev, building: e.target.value }))}
+              placeholder="Main Building"
+            />
+            <Input
+              label="Zone/Area"
+              value={formData.zone}
+              onChange={(e) => setFormData(prev => ({ ...prev, zone: e.target.value }))}
+              placeholder="North Wing"
+            />
+            <Input
+              label="Location Details"
+              value={formData.location}
+              onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+              placeholder="Near entrance"
+            />
+          </FormGrid>
+        </FormSection>
 
         {/* Pricing */}
-        <div>
-          <h3 className="font-medium mb-3">Pricing</h3>
-          <div className="grid gap-4 md:grid-cols-3">
+        <FormSection title="Pricing">
+          <FormGrid cols={3}>
             <Input
               label="Hourly Rate"
               type="number"
@@ -236,13 +248,12 @@ const KennelForm = ({ kennel, onClose, onSuccess, terminology }) => {
               leftText="$"
               rightText=".00"
             />
-          </div>
-        </div>
+          </FormGrid>
+        </FormSection>
 
         {/* Amenities */}
-        <div>
-          <h3 className="font-medium mb-3">Amenities</h3>
-          <div className="flex flex-wrap gap-2 mb-3">
+        <FormSection title="Amenities">
+          <div className="flex flex-wrap gap-[var(--bb-space-2,0.5rem)] mb-[var(--bb-space-3,0.75rem)]">
             {AMENITY_OPTIONS.map((amenity) => (
               <Badge
                 key={amenity}
@@ -254,7 +265,7 @@ const KennelForm = ({ kennel, onClose, onSuccess, terminology }) => {
               </Badge>
             ))}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-[var(--bb-space-2,0.5rem)]">
             <Input
               placeholder="Add custom amenity"
               value={customAmenity}
@@ -266,7 +277,7 @@ const KennelForm = ({ kennel, onClose, onSuccess, terminology }) => {
             </Button>
           </div>
           {formData.amenities.length > 0 && !AMENITY_OPTIONS.some(a => formData.amenities.includes(a)) && (
-            <div className="flex flex-wrap gap-2 mt-2">
+            <div className="flex flex-wrap gap-[var(--bb-space-2,0.5rem)] mt-[var(--bb-space-2,0.5rem)]">
               {formData.amenities.filter(a => !AMENITY_OPTIONS.includes(a)).map((amenity) => (
                 <Badge
                   key={amenity}
@@ -279,7 +290,7 @@ const KennelForm = ({ kennel, onClose, onSuccess, terminology }) => {
               ))}
             </div>
           )}
-        </div>
+        </FormSection>
 
         {/* Notes */}
         <Textarea
@@ -291,25 +302,34 @@ const KennelForm = ({ kennel, onClose, onSuccess, terminology }) => {
         />
 
         {/* Status */}
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-[var(--bb-space-2,0.5rem)] cursor-pointer">
           <input
             type="checkbox"
             checked={formData.isActive}
             onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-            className="rounded border-border"
+            className="h-4 w-4 rounded"
+            style={{
+              borderColor: 'var(--bb-color-border-subtle)',
+              accentColor: 'var(--bb-color-accent)',
+            }}
           />
-          <span>Active (available for bookings)</span>
+          <span
+            className="text-[var(--bb-font-size-sm,0.875rem)]"
+            style={{ color: 'var(--bb-color-text-primary)' }}
+          >
+            Active (available for bookings)
+          </span>
         </label>
 
         {/* Actions */}
-        <div className="flex justify-end gap-2 pt-4 border-t">
+        <FormActions>
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
           </Button>
           <Button type="submit" loading={isLoading}>
             {kennel ? 'Update' : 'Create'} {terminology.kennel}
           </Button>
-        </div>
+        </FormActions>
       </form>
     </Modal>
   );
