@@ -1,6 +1,7 @@
 /**
- * Professional Badge Component
- * Status indicators and labels with semantic variants
+ * Enterprise Badge Component
+ * Token-based status indicators and labels with semantic variants
+ * Supports light/dark modes through CSS custom properties
  */
 
 import React from 'react';
@@ -8,34 +9,139 @@ import { cva } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const badgeVariants = cva(
-  'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium transition-colors',
+  // Base styles - consistent across all variants
+  [
+    'inline-flex items-center',
+    'gap-[var(--bb-space-1)]',
+    'px-[var(--bb-space-2)] py-[2px]',
+    'rounded-full',
+    'text-[0.75rem] font-[var(--bb-font-weight-medium)]',
+    'leading-tight',
+    'border',
+    'transition-colors',
+  ],
   {
     variants: {
       variant: {
-        default: 'bg-gray-100 dark:bg-surface-secondary text-gray-700 dark:text-text-primary border border-gray-200 dark:border-surface-border',
-        primary: 'bg-primary-100 dark:bg-primary-950/30 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-900/50',
-        secondary: 'bg-secondary-100 dark:bg-secondary-950/30 text-secondary-700 dark:text-secondary-300 border border-secondary-200 dark:border-secondary-900/50',
-        success: 'bg-success-100 dark:bg-success-100 text-success-700 dark:text-success-600 border border-success-100 dark:border-success-700',
-        warning: 'bg-warning-100 dark:bg-warning-100 text-warning-700 dark:text-warning-600 border border-warning-100 dark:border-warning-700',
-        error: 'bg-error-100 dark:bg-error-100 text-error-700 dark:text-error-600 border border-error-100 dark:border-error-700',
-        danger: 'bg-error-100 dark:bg-error-100 text-error-700 dark:text-error-600 border border-error-100 dark:border-error-700', // Alias for error
-        info: 'bg-primary-100 dark:bg-primary-950/30 text-primary-700 dark:text-primary-400 border border-primary-200 dark:border-primary-900/50', // Use primary tokens for info
-        neutral: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700',
-        outline: 'bg-transparent text-gray-700 dark:text-text-primary border border-gray-300 dark:border-surface-border',
+        // Neutral - Default, low emphasis
+        neutral: [
+          'bg-[var(--bb-color-bg-elevated)]',
+          'border-[var(--bb-color-border-subtle)]',
+          'text-[var(--bb-color-text-muted)]',
+        ],
+
+        // Default - Alias for neutral
+        default: [
+          'bg-[var(--bb-color-bg-elevated)]',
+          'border-[var(--bb-color-border-subtle)]',
+          'text-[var(--bb-color-text-muted)]',
+        ],
+
+        // Info - Blue, informational
+        info: [
+          'bg-[var(--bb-color-status-info-soft)]',
+          'border-[var(--bb-color-status-info-soft)]',
+          'text-[var(--bb-color-status-info-text)]',
+        ],
+
+        // Success - Green, positive status
+        success: [
+          'bg-[var(--bb-color-status-positive-soft)]',
+          'border-[var(--bb-color-status-positive-soft)]',
+          'text-[var(--bb-color-status-positive-text)]',
+        ],
+
+        // Warning - Amber, caution
+        warning: [
+          'bg-[var(--bb-color-status-warning-soft)]',
+          'border-[var(--bb-color-status-warning-soft)]',
+          'text-[var(--bb-color-status-warning-text)]',
+        ],
+
+        // Danger - Red, negative/error status
+        danger: [
+          'bg-[var(--bb-color-status-negative-soft)]',
+          'border-[var(--bb-color-status-negative-soft)]',
+          'text-[var(--bb-color-status-negative-text)]',
+        ],
+
+        // Error - Alias for danger
+        error: [
+          'bg-[var(--bb-color-status-negative-soft)]',
+          'border-[var(--bb-color-status-negative-soft)]',
+          'text-[var(--bb-color-status-negative-text)]',
+        ],
+
+        // Outline - Transparent background with border
+        outline: [
+          'bg-transparent',
+          'border-[var(--bb-color-border-subtle)]',
+          'text-[var(--bb-color-text-primary)]',
+        ],
+
+        // Ghost - Minimal, very low emphasis
+        ghost: [
+          'bg-transparent',
+          'border-transparent',
+          'text-[var(--bb-color-text-muted)]',
+        ],
+
+        // Accent - Primary brand color for premium labels
+        accent: [
+          'bg-[var(--bb-color-accent-soft)]',
+          'border-[var(--bb-color-accent-soft)]',
+          'text-[var(--bb-color-accent)]',
+        ],
+
+        // Primary - Alias for accent (backward compatibility)
+        primary: [
+          'bg-[var(--bb-color-accent-soft)]',
+          'border-[var(--bb-color-accent-soft)]',
+          'text-[var(--bb-color-accent)]',
+        ],
+
+        // Secondary - Alias for neutral (backward compatibility)
+        secondary: [
+          'bg-[var(--bb-color-bg-elevated)]',
+          'border-[var(--bb-color-border-subtle)]',
+          'text-[var(--bb-color-text-primary)]',
+        ],
+      },
+      size: {
+        sm: 'text-[0.6875rem] px-[var(--bb-space-1)] py-0',
+        default: 'text-[0.75rem] px-[var(--bb-space-2)] py-[2px]',
+        lg: 'text-[0.8125rem] px-[var(--bb-space-3)] py-[var(--bb-space-1)]',
       },
     },
     defaultVariants: {
-      variant: 'default',
+      variant: 'neutral',
+      size: 'default',
     },
   }
 );
 
-const Badge = ({ className, variant, children, ...props }) => {
+const Badge = React.forwardRef(({ 
+  className, 
+  variant, 
+  size,
+  icon: Icon,
+  children, 
+  ...props 
+}, ref) => {
   return (
-    <span className={cn(badgeVariants({ variant }), className)} {...props}>
+    <span 
+      ref={ref}
+      className={cn(badgeVariants({ variant, size }), className)} 
+      {...props}
+    >
+      {Icon && <Icon className="h-3 w-3 flex-shrink-0" />}
       {children}
     </span>
   );
-};
+});
 
+Badge.displayName = 'Badge';
+
+// Export variants for external use
+export { badgeVariants };
 export default Badge;

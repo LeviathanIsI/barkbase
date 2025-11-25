@@ -368,7 +368,7 @@ const EventCard = ({ event, isListView = false }) => {
         <div className="flex items-center gap-2">
           <div className={cn(
             "w-6 h-6 rounded-full flex items-center justify-center",
-            isArrival ? "bg-success-100" : "bg-blue-100 dark:bg-surface-secondary"
+            isArrival ? "bg-[var(--bb-color-status-positive-soft)]" : "bg-[var(--bb-color-status-info-soft)]"
           )}>
             {isArrival ? (
               <UserCheck className="h-3 w-3 text-success-600" />

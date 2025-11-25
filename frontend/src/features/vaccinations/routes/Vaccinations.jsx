@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Shield, RefreshCw, Search, AlertTriangle, Calendar, Trash2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import Badge from '@/components/ui/Badge';
 import { Card, PageHeader } from '@/components/ui/Card';
 import Skeleton from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -152,11 +153,11 @@ const Vaccinations = () => {
                   <div>
                     <div className="flex items-center gap-3">
                       <a href={`/pets/${v.petId}`} className="font-semibold text-gray-900 dark:text-text-primary hover:underline">{v.petName || 'Unknown Pet'}</a>
-                      <span className="text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-surface-secondary text-gray-700 dark:text-text-primary">{v.type || 'Vaccine'}</span>
+                      <Badge variant="neutral">{v.type || 'Vaccine'}</Badge>
                       {!isVaccineAppropriate(v.type, v.petSpecies) && (
-                        <span className="text-xs px-2 py-1 rounded-full bg-red-100 dark:bg-surface-secondary text-red-700 dark:text-red-200 font-medium" title="This vaccine is not typically given to this species">
+                        <Badge variant="danger" title="This vaccine is not typically given to this species">
                           ⚠️ Invalid
-                        </span>
+                        </Badge>
                       )}
                     </div>
                     <div className="text-sm text-gray-600 dark:text-text-secondary mt-0.5">
@@ -181,9 +182,7 @@ const Vaccinations = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   {v.daysRemaining <= 30 && (
-                    <div className="text-xs font-medium text-red-700 bg-red-50 dark:bg-surface-primary px-2 py-1 rounded">
-                      Expires soon
-                    </div>
+                    <Badge variant="warning">Expires soon</Badge>
                   )}
                   <button
                     onClick={() => handleDeleteClick(v)}

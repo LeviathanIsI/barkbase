@@ -1,30 +1,8 @@
 import { Clock, CheckCircle, Phone, Mail, User, AlertTriangle, Pill, Calendar, FileText, MessageCircle, Home } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import Badge from '@/components/ui/Badge';
+import { StatusPill } from '@/components/primitives';
 import { Card } from '@/components/ui/Card';
-
-const PetCard = ({ pet, onCheckIn, onCheckOut, onCommunication }) => {
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'checked_in': return 'bg-green-100 dark:bg-surface-secondary border-green-300 text-green-800';
-      case 'checked_out': return 'bg-gray-100 dark:bg-surface-secondary border-gray-300 dark:border-surface-border text-gray-800 dark:text-text-primary';
-      case 'scheduled': return 'bg-blue-100 dark:bg-surface-secondary border-blue-300 text-blue-800 dark:text-blue-200';
-      default: return 'bg-gray-100 dark:bg-surface-secondary border-gray-300 dark:border-surface-border text-gray-800 dark:text-text-primary';
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'checked_in': return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'checked_out': return <Home className="w-4 h-4 text-gray-600 dark:text-text-secondary" />;
-      case 'scheduled': return <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />;
-      default: return <Clock className="w-4 h-4 text-gray-600 dark:text-text-secondary" />;
-    }
-  };
-
-  const getStatusBadgeColor = () => {
-    if (pet.late) return 'bg-red-100 dark:bg-surface-secondary text-red-800 dark:text-red-200 border-red-300';
-    return getStatusColor(pet.status);
-  };
 
   return (
     <Card className="p-6 hover:shadow-lg transition-all duration-200">
@@ -38,20 +16,16 @@ const PetCard = ({ pet, onCheckIn, onCheckOut, onCommunication }) => {
             <div className="flex items-center gap-2">
               <h3 className="text-xl font-semibold text-gray-900 dark:text-text-primary">{pet.name}</h3>
               {pet.late && (
-                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-surface-secondary text-red-800 dark:text-red-200">
-                  <AlertTriangle className="w-3 h-3" />
+                <Badge variant="danger" icon={AlertTriangle}>
                   LATE ({pet.lateBy})
-                </span>
+                </Badge>
               )}
             </div>
             <p className="text-gray-600 dark:text-text-secondary">{pet.breed} • {pet.age} yrs • {pet.weight} lbs</p>
           </div>
         </div>
 
-        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm border ${getStatusBadgeColor()}`}>
-          {getStatusIcon(pet.status)}
-          <span className="capitalize">{pet.status.replace('_', ' ')}</span>
-        </div>
+        <StatusPill status={pet.status} />
       </div>
 
       {/* Owner Info */}

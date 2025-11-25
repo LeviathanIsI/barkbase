@@ -68,9 +68,22 @@
   --bb-color-accent-soft: rgba(37, 99, 235, 0.12);
   --bb-color-text-on-accent: #ffffff;
 
-  /* Status */
-  --bb-color-status-positive: var(--color-success-500, #10b981);
-  --bb-color-status-negative: var(--color-error-500, #ef4444);
+  /* Status - Semantic colors for badges, pills, and alerts */
+  --bb-color-status-positive: #16a34a;
+  --bb-color-status-positive-soft: rgba(22, 163, 74, 0.12);
+  --bb-color-status-positive-text: #15803d;
+
+  --bb-color-status-warning: #d97706;
+  --bb-color-status-warning-soft: rgba(217, 119, 6, 0.12);
+  --bb-color-status-warning-text: #b45309;
+
+  --bb-color-status-negative: #dc2626;
+  --bb-color-status-negative-soft: rgba(220, 38, 38, 0.12);
+  --bb-color-status-negative-text: #b91c1c;
+
+  --bb-color-status-info: #2563eb;
+  --bb-color-status-info-soft: rgba(37, 99, 235, 0.12);
+  --bb-color-status-info-text: #1d4ed8;
 
   /* Utility surfaces */
   --bb-color-overlay-scrim: rgba(15, 23, 42, 0.45);
@@ -136,9 +149,22 @@
   --bb-color-accent-soft: rgba(96, 165, 250, 0.22);
   --bb-color-text-on-accent: #0c1018;
 
-  /* Status colors */
+  /* Status colors - Dark mode with better contrast */
   --bb-color-status-positive: #22c55e;
+  --bb-color-status-positive-soft: rgba(34, 197, 94, 0.18);
+  --bb-color-status-positive-text: #4ade80;
+
+  --bb-color-status-warning: #f59e0b;
+  --bb-color-status-warning-soft: rgba(245, 158, 11, 0.18);
+  --bb-color-status-warning-text: #fbbf24;
+
   --bb-color-status-negative: #ef7070;
+  --bb-color-status-negative-soft: rgba(248, 113, 113, 0.2);
+  --bb-color-status-negative-text: #fca5a5;
+
+  --bb-color-status-info: #60a5fa;
+  --bb-color-status-info-soft: rgba(96, 165, 250, 0.22);
+  --bb-color-status-info-text: #93c5fd;
 
   /* Overlay */
   --bb-color-overlay-scrim: rgba(15, 23, 42, 0.5);

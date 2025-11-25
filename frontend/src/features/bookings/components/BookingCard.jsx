@@ -2,31 +2,9 @@ import { Clock, CheckCircle, Home, AlertTriangle, Pill, Calendar, FileText, Mess
 import { format } from 'date-fns';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { StatusPill } from '@/components/primitives';
 
 const BookingCard = ({ booking, onCheckIn, onCheckOut, onEdit, onCancel, onContact, onViewDetails, isSelected, onSelect }) => {
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'confirmed': return 'bg-blue-100 dark:bg-surface-secondary border-blue-300 text-blue-800 dark:text-blue-200';
-      case 'pending': return 'bg-yellow-100 dark:bg-surface-secondary border-yellow-300 text-yellow-800 dark:text-yellow-200';
-      case 'checked_in': return 'bg-green-100 dark:bg-surface-secondary border-green-300 text-green-800 dark:text-green-200';
-      case 'checked_out': return 'bg-gray-100 dark:bg-surface-secondary border-gray-300 dark:border-surface-border text-gray-800 dark:text-text-primary';
-      default: return 'bg-gray-100 dark:bg-surface-secondary border-gray-300 dark:border-surface-border text-gray-800 dark:text-text-primary';
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'confirmed': return <CheckCircle className="w-4 h-4 text-blue-600 dark:text-blue-400" />;
-      case 'pending': return <Clock className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />;
-      case 'checked_in': return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'checked_out': return <Home className="w-4 h-4 text-gray-600 dark:text-text-secondary" />;
-      default: return <Clock className="w-4 h-4 text-gray-600 dark:text-text-secondary" />;
-    }
-  };
-
-  const getStatusBadgeText = (status) => {
-    return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
-  };
 
   return (
     <Card className={`p-6 hover:shadow-lg transition-all duration-200 ${isSelected ? 'ring-2 ring-blue-500' : ''}`}>
@@ -42,10 +20,7 @@ const BookingCard = ({ booking, onCheckIn, onCheckOut, onEdit, onCancel, onConta
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">#{(booking.recordId || booking.id || '').slice(0, 8)}</h3>
-              <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm border ${getStatusColor((booking.status || '').toLowerCase())}`}>
-                {getStatusIcon((booking.status || '').toLowerCase())}
-                <span>{getStatusBadgeText(booking.status || 'pending')}</span>
-              </div>
+              <StatusPill status={booking.status || 'pending'} />
             </div>
           </div>
         </div>
