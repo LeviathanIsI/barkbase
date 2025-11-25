@@ -1,3 +1,8 @@
+/**
+ * Invoices - Phase 8 Enterprise Table System
+ * Token-based styling for consistent theming.
+ */
+
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Mail, Download, DollarSign, Clock, CheckCircle } from 'lucide-react';
@@ -6,6 +11,15 @@ import { Card, PageHeader } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
 import Modal from '@/components/ui/Modal';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  TableEmpty,
+} from '@/components/ui/Table';
 import { useInvoicesQuery, useSendInvoiceEmailMutation } from '../api';
 import { formatCurrency } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -44,7 +58,7 @@ const Invoices = () => {
 
   if (isLoading) {
     return (
-      <div>
+      <div className="space-y-[var(--bb-space-6,1.5rem)]">
         <PageHeader title="Invoices" breadcrumb="Home > Finance > Invoices" />
         <Card>
           <Skeleton className="h-96" />
@@ -55,13 +69,23 @@ const Invoices = () => {
 
   if (error) {
     return (
-      <div>
+      <div className="space-y-[var(--bb-space-6,1.5rem)]">
         <PageHeader title="Invoices" breadcrumb="Home > Finance > Invoices" />
         <Card>
-          <div className="text-center py-12">
-            <FileText className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Error Loading Invoices</h3>
-            <p className="text-muted">Unable to load invoices. Please try again.</p>
+          <div className="text-center py-[var(--bb-space-12,3rem)]">
+            <FileText
+              className="h-12 w-12 mx-auto mb-[var(--bb-space-4,1rem)]"
+              style={{ color: 'var(--bb-color-status-negative)' }}
+            />
+            <h3
+              className="text-[var(--bb-font-size-lg,1.125rem)] font-[var(--bb-font-weight-semibold,600)] mb-[var(--bb-space-2,0.5rem)]"
+              style={{ color: 'var(--bb-color-text-primary)' }}
+            >
+              Error Loading Invoices
+            </h3>
+            <p style={{ color: 'var(--bb-color-text-muted)' }}>
+              Unable to load invoices. Please try again.
+            </p>
           </div>
         </Card>
       </div>
@@ -69,7 +93,7 @@ const Invoices = () => {
   }
 
   return (
-    <div>
+    <div className="space-y-[var(--bb-space-6,1.5rem)]">
       <PageHeader
         title="Invoices"
         breadcrumb="Home > Finance > Invoices"
@@ -81,95 +105,114 @@ const Invoices = () => {
       />
 
       {/* Filter Tabs */}
-      <div className="mb-6 flex gap-2">
+      <div className="flex gap-[var(--bb-space-2,0.5rem)]">
         {['all', 'draft', 'finalized', 'paid', 'void'].map(status => (
           <button
             key={status}
             onClick={() => setFilterStatus(status)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              filterStatus === status
-                ? 'bg-primary text-white'
-                : 'bg-surface text-muted hover:bg-surface/80'
-            }`}
+            className="px-[var(--bb-space-4,1rem)] py-[var(--bb-space-2,0.5rem)] rounded-lg text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] transition-colors"
+            style={{
+              backgroundColor: filterStatus === status
+                ? 'var(--bb-color-accent)'
+                : 'var(--bb-color-bg-elevated)',
+              color: filterStatus === status
+                ? 'var(--bb-color-text-on-accent)'
+                : 'var(--bb-color-text-muted)',
+            }}
           >
             {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)}
           </button>
         ))}
       </div>
 
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px]">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted">Invoice #</th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted">Owner</th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted">Amount</th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted">Paid</th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted">Status</th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted">Due Date</th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase text-muted">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredInvoices.map((invoice) => (
-              <tr
-                key={invoice.recordId}
-                className="border-b border-border hover:bg-surface/50 cursor-pointer transition-colors"
-                onClick={() => setSelectedInvoice(invoice)}
-              >
-                <td className="px-4 py-3">
-                  <span className="font-mono text-sm font-medium">{invoice.invoiceNumber}</span>
-                </td>
-                <td className="px-4 py-3">
-                  <div>
-                    <p className="font-medium">{invoice.owner.firstName} {invoice.owner.lastName}</p>
-                    <p className="text-xs text-muted">{invoice.owner.email}</p>
-                  </div>
-                </td>
-                <td className="px-4 py-3 font-semibold">
-                  {formatCurrency(invoice.totalCents)}
-                </td>
-                <td className="px-4 py-3">
-                  {invoice.paidCents > 0 ? (
-                    <span className="text-success">{formatCurrency(invoice.paidCents)}</span>
-                  ) : (
-                    <span className="text-muted">$0.00</span>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  {getStatusBadge(invoice.status)}
-                </td>
-                <td className="px-4 py-3">
-                  {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : '—'}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleSendEmail(invoice)}
-                      disabled={sendEmailMutation.isLoading}
+      <Card className="overflow-hidden p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Invoice #</TableHead>
+              <TableHead>Owner</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Paid</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Due Date</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredInvoices.length === 0 ? (
+              <TableEmpty
+                icon={FileText}
+                message={`No ${filterStatus !== 'all' ? filterStatus : ''} invoices found`}
+                colSpan={7}
+              />
+            ) : (
+              filteredInvoices.map((invoice) => (
+                <TableRow
+                  key={invoice.recordId}
+                  clickable
+                  onClick={() => setSelectedInvoice(invoice)}
+                >
+                  <TableCell>
+                    <span
+                      className="font-mono text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                      style={{ color: 'var(--bb-color-text-primary)' }}
                     >
-                      <Mail className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
-
-        {filteredInvoices.length === 0 && (
-          <div className="text-center py-12">
-            <FileText className="h-12 w-12 text-muted mx-auto mb-4" />
-            <p className="text-muted mb-2">No {filterStatus !== 'all' ? filterStatus : ''} invoices found</p>
-            <p className="text-sm text-muted">
-              Invoices are automatically generated from completed bookings
-            </p>
-          </div>
-        )}
+                      {invoice.invoiceNumber}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <p
+                        className="font-[var(--bb-font-weight-medium,500)]"
+                        style={{ color: 'var(--bb-color-text-primary)' }}
+                      >
+                        {invoice.owner.firstName} {invoice.owner.lastName}
+                      </p>
+                      <p
+                        className="text-[var(--bb-font-size-xs,0.75rem)]"
+                        style={{ color: 'var(--bb-color-text-muted)' }}
+                      >
+                        {invoice.owner.email}
+                      </p>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-[var(--bb-font-weight-semibold,600)]">
+                      {formatCurrency(invoice.totalCents)}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {invoice.paidCents > 0 ? (
+                      <span style={{ color: 'var(--bb-color-status-positive)' }}>
+                        {formatCurrency(invoice.paidCents)}
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--bb-color-text-muted)' }}>$0.00</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {getStatusBadge(invoice.status)}
+                  </TableCell>
+                  <TableCell>
+                    {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : '—'}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-[var(--bb-space-2,0.5rem)]" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleSendEmail(invoice)}
+                        disabled={sendEmailMutation.isLoading}
+                      >
+                        <Mail className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </Card>
 
       {/* Invoice Detail Modal */}
@@ -180,18 +223,29 @@ const Invoices = () => {
           title={`Invoice ${selectedInvoice.invoiceNumber}`}
           className="max-w-2xl"
         >
-          <div className="space-y-6">
+          <div className="space-y-[var(--bb-space-6,1.5rem)]">
             {/* Invoice Header */}
             <div className="flex justify-between items-start">
               <div>
-                <h3 className="text-lg font-semibold">
+                <h3
+                  className="text-[var(--bb-font-size-lg,1.125rem)] font-[var(--bb-font-weight-semibold,600)]"
+                  style={{ color: 'var(--bb-color-text-primary)' }}
+                >
                   {selectedInvoice.owner.firstName} {selectedInvoice.owner.lastName}
                 </h3>
-                <p className="text-sm text-muted">{selectedInvoice.owner.email}</p>
+                <p
+                  className="text-[var(--bb-font-size-sm,0.875rem)]"
+                  style={{ color: 'var(--bb-color-text-muted)' }}
+                >
+                  {selectedInvoice.owner.email}
+                </p>
               </div>
               <div className="text-right">
                 {getStatusBadge(selectedInvoice.status)}
-                <p className="text-xs text-muted mt-1">
+                <p
+                  className="text-[var(--bb-font-size-xs,0.75rem)] mt-[var(--bb-space-1,0.25rem)]"
+                  style={{ color: 'var(--bb-color-text-muted)' }}
+                >
                   Due: {new Date(selectedInvoice.dueDate).toLocaleDateString()}
                 </p>
               </div>
@@ -199,53 +253,76 @@ const Invoices = () => {
 
             {/* Line Items */}
             <div>
-              <h4 className="text-sm font-semibold mb-3 text-muted uppercase">Line Items</h4>
+              <h4
+                className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)] mb-[var(--bb-space-3,0.75rem)] uppercase"
+                style={{ color: 'var(--bb-color-text-muted)' }}
+              >
+                Line Items
+              </h4>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[500px]">
-                <thead>
-                  <tr className="border-b border-border text-left">
-                    <th className="pb-2 text-xs font-medium text-muted">Description</th>
-                    <th className="pb-2 text-xs font-medium text-muted text-right">Qty</th>
-                    <th className="pb-2 text-xs font-medium text-muted text-right">Price</th>
-                    <th className="pb-2 text-xs font-medium text-muted text-right">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {JSON.parse(selectedInvoice.lineItems).map((item, idx) => (
-                    <tr key={idx} className="border-b border-border/50">
-                      <td className="py-2">{item.description}</td>
-                      <td className="py-2 text-right">{item.quantity || 1}</td>
-                      <td className="py-2 text-right">{formatCurrency(item.unitPriceCents || item.priceCents)}</td>
-                      <td className="py-2 text-right font-medium">{formatCurrency(item.totalCents)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Description</TableHead>
+                      <TableHead className="text-right">Qty</TableHead>
+                      <TableHead className="text-right">Price</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {JSON.parse(selectedInvoice.lineItems).map((item, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell>{item.description}</TableCell>
+                        <TableCell className="text-right">{item.quantity || 1}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.unitPriceCents || item.priceCents)}</TableCell>
+                        <TableCell className="text-right font-[var(--bb-font-weight-medium,500)]">
+                          {formatCurrency(item.totalCents)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             </div>
 
             {/* Totals */}
-            <div className="border-t border-border pt-4 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted">Subtotal</span>
-                <span className="font-medium">{formatCurrency(selectedInvoice.subtotalCents)}</span>
+            <div
+              className="border-t pt-[var(--bb-space-4,1rem)] space-y-[var(--bb-space-2,0.5rem)]"
+              style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+            >
+              <div className="flex justify-between text-[var(--bb-font-size-sm,0.875rem)]">
+                <span style={{ color: 'var(--bb-color-text-muted)' }}>Subtotal</span>
+                <span className="font-[var(--bb-font-weight-medium,500)]">
+                  {formatCurrency(selectedInvoice.subtotalCents)}
+                </span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted">Tax (7%)</span>
-                <span className="font-medium">{formatCurrency(selectedInvoice.taxCents)}</span>
+              <div className="flex justify-between text-[var(--bb-font-size-sm,0.875rem)]">
+                <span style={{ color: 'var(--bb-color-text-muted)' }}>Tax (7%)</span>
+                <span className="font-[var(--bb-font-weight-medium,500)]">
+                  {formatCurrency(selectedInvoice.taxCents)}
+                </span>
               </div>
-              <div className="flex justify-between text-lg font-semibold border-t border-border pt-2">
+              <div
+                className="flex justify-between text-[var(--bb-font-size-lg,1.125rem)] font-[var(--bb-font-weight-semibold,600)] border-t pt-[var(--bb-space-2,0.5rem)]"
+                style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+              >
                 <span>Total</span>
                 <span>{formatCurrency(selectedInvoice.totalCents)}</span>
               </div>
               {selectedInvoice.paidCents > 0 && (
-                <div className="flex justify-between text-sm text-success">
+                <div
+                  className="flex justify-between text-[var(--bb-font-size-sm,0.875rem)]"
+                  style={{ color: 'var(--bb-color-status-positive)' }}
+                >
                   <span>Paid</span>
                   <span>-{formatCurrency(selectedInvoice.paidCents)}</span>
                 </div>
               )}
               {selectedInvoice.totalCents - selectedInvoice.paidCents > 0 && (
-                <div className="flex justify-between text-lg font-bold text-danger">
+                <div
+                  className="flex justify-between text-[var(--bb-font-size-lg,1.125rem)] font-[var(--bb-font-weight-bold,700)]"
+                  style={{ color: 'var(--bb-color-status-negative)' }}
+                >
                   <span>Amount Due</span>
                   <span>{formatCurrency(selectedInvoice.totalCents - selectedInvoice.paidCents)}</span>
                 </div>
@@ -253,13 +330,16 @@ const Invoices = () => {
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3 pt-4 border-t border-border">
+            <div
+              className="flex gap-[var(--bb-space-3,0.75rem)] pt-[var(--bb-space-4,1rem)] border-t"
+              style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+            >
               <Button
                 variant="primary"
                 onClick={() => handleSendEmail(selectedInvoice)}
                 disabled={sendEmailMutation.isLoading}
               >
-                <Mail className="h-4 w-4 mr-2" />
+                <Mail className="h-4 w-4 mr-[var(--bb-space-2,0.5rem)]" />
                 Email Invoice
               </Button>
               <Button variant="outline" onClick={() => setSelectedInvoice(null)}>
@@ -274,4 +354,3 @@ const Invoices = () => {
 };
 
 export default Invoices;
-

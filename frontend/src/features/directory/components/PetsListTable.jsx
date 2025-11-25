@@ -1,34 +1,45 @@
-import { Card } from '@/components/ui/Card';
+/**
+ * Pets List Table - Phase 8 Enterprise Table System
+ * Token-based styling for consistent theming.
+ */
 
-// TODO (C1:3 - Directory UX Cleanup): Visual cleanup + consistent directory styling.
+import { Card } from '@/components/ui/Card';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  TableEmpty,
+} from '@/components/ui/Table';
+import { PawPrint } from 'lucide-react';
+
 const PetsListTable = ({ pets, renderRow }) => (
-  <Card className="overflow-hidden">
-    <table className="w-full">
-      <thead>
-        <tr className="bg-gray-50 dark:bg-dark-bg-secondary border-b border-gray-200 dark:border-dark-border">
-          <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider">
-            Pet
-          </th>
-          <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider">
-            Owner
-          </th>
-          <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider">
-            Status
-          </th>
-          <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider">
-            Vaccinations
-          </th>
-          <th className="py-3 px-6 text-left text-xs font-medium text-gray-500 dark:text-dark-text-secondary uppercase tracking-wider">
-            Actions
-          </th>
-        </tr>
-      </thead>
-      <tbody className="bg-white dark:bg-dark-bg-primary">
-        {pets.map((pet) => renderRow(pet))}
-      </tbody>
-    </table>
+  <Card className="overflow-hidden p-0">
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Pet</TableHead>
+          <TableHead>Owner</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Vaccinations</TableHead>
+          <TableHead className="text-right">Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {pets.length === 0 ? (
+          <TableEmpty
+            icon={PawPrint}
+            message="No pets found"
+            colSpan={5}
+          />
+        ) : (
+          pets.map((pet) => renderRow(pet))
+        )}
+      </TableBody>
+    </Table>
   </Card>
 );
 
 export default PetsListTable;
-

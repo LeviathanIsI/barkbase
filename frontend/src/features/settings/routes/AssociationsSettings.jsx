@@ -1,8 +1,22 @@
+/**
+ * Associations Settings - Phase 8 Enterprise Table System
+ * Token-based styling for consistent theming.
+ */
+
 import { useState, useEffect, useMemo } from 'react';
 import { Search, Plus, Edit2, Trash2, ExternalLink } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import AssociationLabelModal from '../components/AssociationLabelModal';
 import { usePageView } from '@/hooks/useTelemetry';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  TableEmpty,
+} from '@/components/ui/Table';
 import {
   useAssociationsQuery,
   useDeleteAssociationMutation,
@@ -138,27 +152,35 @@ const AssociationsSettings = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-[var(--bb-space-6,1.5rem)]">
       {/* Page Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-text">Associations</h1>
-          <p className="mt-1 text-sm text-muted">
+          <h1
+            className="text-[var(--bb-font-size-xl,1.5rem)] font-[var(--bb-font-weight-bold,700)]"
+            style={{ color: 'var(--bb-color-text-primary)' }}
+          >
+            Associations
+          </h1>
+          <p
+            className="mt-[var(--bb-space-1,0.25rem)] text-[var(--bb-font-size-sm,0.875rem)]"
+            style={{ color: 'var(--bb-color-text-muted)' }}
+          >
             Define how your records relate to each other across different object types
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
           {process.env.NODE_ENV === 'development' && (
             <Button
               variant="outline"
               onClick={handleSeedSystemAssociations}
               disabled={seedMutation.isPending}
-              className="text-sm"
+              className="text-[var(--bb-font-size-sm,0.875rem)]"
             >
               Seed System Associations
             </Button>
           )}
-          <Button onClick={handleCreateAssociation} className="flex items-center gap-2">
+          <Button onClick={handleCreateAssociation} className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
             <Plus className="h-4 w-4" />
             Create Association
           </Button>
@@ -166,12 +188,17 @@ const AssociationsSettings = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-4 flex-wrap">
+      <div className="flex items-center gap-[var(--bb-space-4,1rem)] flex-wrap">
         {/* Object type filter */}
         <select
           value={selectedObjectType}
           onChange={(e) => setSelectedObjectType(e.target.value)}
-          className="rounded-lg border border-border bg-surface pl-3 pr-8 py-2 text-sm text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          className="rounded-lg border pl-[var(--bb-space-3,0.75rem)] pr-[var(--bb-space-8,2rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)] focus:outline-none focus:ring-2"
+          style={{
+            borderColor: 'var(--bb-color-border-subtle)',
+            backgroundColor: 'var(--bb-color-bg-elevated)',
+            color: 'var(--bb-color-text-primary)',
+          }}
         >
           {OBJECT_TYPES.map((type) => (
             <option key={type.value} value={type.value}>
@@ -181,30 +208,48 @@ const AssociationsSettings = () => {
         </select>
 
         {/* Include archived checkbox */}
-        <label className="flex items-center gap-2 text-sm text-text cursor-pointer">
+        <label
+          className="flex items-center gap-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)] cursor-pointer"
+          style={{ color: 'var(--bb-color-text-primary)' }}
+        >
           <input
             type="checkbox"
             checked={includeArchived}
             onChange={(e) => setIncludeArchived(e.target.checked)}
-            className="rounded border-border text-primary focus:ring-primary"
+            className="rounded"
+            style={{
+              borderColor: 'var(--bb-color-border-subtle)',
+              accentColor: 'var(--bb-color-accent)',
+            }}
           />
           Include archived
         </label>
 
         {/* Search */}
         <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+          <Search
+            className="absolute left-[var(--bb-space-3,0.75rem)] top-1/2 h-4 w-4 -translate-y-1/2"
+            style={{ color: 'var(--bb-color-text-muted)' }}
+          />
           <input
             type="text"
             placeholder="Search associations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg border border-border bg-surface py-2 pl-9 pr-4 text-sm text-text placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full rounded-lg border py-[var(--bb-space-2,0.5rem)] pl-9 pr-[var(--bb-space-4,1rem)] text-[var(--bb-font-size-sm,0.875rem)] focus:outline-none focus:ring-2"
+            style={{
+              borderColor: 'var(--bb-color-border-subtle)',
+              backgroundColor: 'var(--bb-color-bg-elevated)',
+              color: 'var(--bb-color-text-primary)',
+            }}
           />
         </div>
 
         {/* Association count */}
-        <div className="ml-auto text-sm text-muted">
+        <div
+          className="ml-auto text-[var(--bb-font-size-sm,0.875rem)]"
+          style={{ color: 'var(--bb-color-text-muted)' }}
+        >
           {filteredAssociations.length}{' '}
           {filteredAssociations.length === 1 ? 'association' : 'associations'}
         </div>
@@ -212,125 +257,178 @@ const AssociationsSettings = () => {
 
       {/* Associations List */}
       {associationsQuery.isLoading ? (
-        <div className="flex items-center justify-center py-12">
+        <div className="flex items-center justify-center py-[var(--bb-space-12,3rem)]">
           <div className="text-center">
-            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"></div>
-            <p className="mt-2 text-sm text-muted">Loading associations...</p>
+            <div
+              className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-r-transparent"
+              style={{ borderColor: 'var(--bb-color-accent)', borderRightColor: 'transparent' }}
+            />
+            <p
+              className="mt-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)]"
+              style={{ color: 'var(--bb-color-text-muted)' }}
+            >
+              Loading associations...
+            </p>
           </div>
         </div>
       ) : groupedAssociations.length === 0 ? (
-        <div className="rounded-lg border border-border bg-surface p-12 text-center">
-          <p className="text-sm text-muted">
+        <div
+          className="rounded-lg border p-[var(--bb-space-12,3rem)] text-center"
+          style={{
+            borderColor: 'var(--bb-color-border-subtle)',
+            backgroundColor: 'var(--bb-color-bg-surface)',
+          }}
+        >
+          <p
+            className="text-[var(--bb-font-size-sm,0.875rem)]"
+            style={{ color: 'var(--bb-color-text-muted)' }}
+          >
             {searchQuery || selectedObjectType !== 'all'
               ? 'No associations found matching your filters'
               : 'No associations defined yet'}
           </p>
           {!searchQuery && selectedObjectType === 'all' && (
-            <Button onClick={handleCreateAssociation} className="mt-4">
+            <Button onClick={handleCreateAssociation} className="mt-[var(--bb-space-4,1rem)]">
               Create your first association
             </Button>
           )}
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-[var(--bb-space-6,1.5rem)]">
           {groupedAssociations.map((group) => (
-            <div key={`${group.fromObjectType}-${group.toObjectType}`} className="rounded-lg border border-border bg-white dark:bg-surface-primary overflow-hidden">
+            <div
+              key={`${group.fromObjectType}-${group.toObjectType}`}
+              className="rounded-lg border overflow-hidden"
+              style={{
+                borderColor: 'var(--bb-color-border-subtle)',
+                backgroundColor: 'var(--bb-color-bg-surface)',
+              }}
+            >
               {/* Group Header */}
-              <div className="bg-gray-50 dark:bg-surface-secondary border-b border-border px-6 py-3">
-                <h3 className="text-sm font-semibold text-text flex items-center gap-2">
+              <div
+                className="border-b px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-3,0.75rem)]"
+                style={{
+                  borderColor: 'var(--bb-color-border-subtle)',
+                  backgroundColor: 'var(--bb-color-bg-elevated)',
+                }}
+              >
+                <h3
+                  className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)] flex items-center gap-[var(--bb-space-2,0.5rem)]"
+                  style={{ color: 'var(--bb-color-text-primary)' }}
+                >
                   {formatObjectType(group.fromObjectType)}
-                  <ExternalLink className="h-3.5 w-3.5 text-muted" />
+                  <ExternalLink className="h-3.5 w-3.5" style={{ color: 'var(--bb-color-text-muted)' }} />
                   {formatObjectType(group.toObjectType)}
                 </h3>
               </div>
 
               {/* Associations Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border bg-gray-50 dark:bg-surface-secondary/50">
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">
-                        Label
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">
-                        Type
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">
-                        Usage
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider">
-                        Source
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-muted uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {group.associations.map((association) => (
-                      <tr
-                        key={association.recordId}
-                        className={`hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary/50 transition-colors ${
-                          association.archived ? 'opacity-50' : ''
-                        }`}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-text">
-                              {association.label}
-                            </span>
-                            {association.archived && (
-                              <span className="px-2 py-0.5 text-xs font-medium text-gray-600 dark:text-text-secondary bg-gray-100 dark:bg-surface-secondary rounded">
-                                Archived
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-700 dark:text-text-primary bg-gray-100 dark:bg-surface-secondary rounded">
-                            {formatLimitType(association.limitType)}
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Label</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Usage</TableHead>
+                    <TableHead>Source</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {group.associations.map((association) => (
+                    <TableRow
+                      key={association.recordId}
+                      className={association.archived ? 'opacity-50' : ''}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
+                          <span
+                            className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                            style={{ color: 'var(--bb-color-text-primary)' }}
+                          >
+                            {association.label}
                           </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted">
-                          {association.usageCount} {association.usageCount === 1 ? 'use' : 'uses'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {association.isSystemDefined ? (
-                            <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-surface-primary rounded">
-                              System
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2 py-1 text-xs font-medium text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-surface-primary rounded">
-                              Custom
+                          {association.archived && (
+                            <span
+                              className="px-[var(--bb-space-2,0.5rem)] py-0.5 text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] rounded"
+                              style={{
+                                backgroundColor: 'var(--bb-color-bg-elevated)',
+                                color: 'var(--bb-color-text-muted)',
+                              }}
+                            >
+                              Archived
                             </span>
                           )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                          <div className="flex items-center justify-end gap-2">
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className="inline-flex items-center px-[var(--bb-space-2,0.5rem)] py-[var(--bb-space-1,0.25rem)] text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] rounded"
+                          style={{
+                            backgroundColor: 'var(--bb-color-bg-elevated)',
+                            color: 'var(--bb-color-text-primary)',
+                          }}
+                        >
+                          {formatLimitType(association.limitType)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className="text-[var(--bb-font-size-sm,0.875rem)]"
+                          style={{ color: 'var(--bb-color-text-muted)' }}
+                        >
+                          {association.usageCount} {association.usageCount === 1 ? 'use' : 'uses'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {association.isSystemDefined ? (
+                          <span
+                            className="inline-flex items-center px-[var(--bb-space-2,0.5rem)] py-[var(--bb-space-1,0.25rem)] text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] rounded"
+                            style={{
+                              backgroundColor: 'var(--bb-color-accent-soft)',
+                              color: 'var(--bb-color-accent)',
+                            }}
+                          >
+                            System
+                          </span>
+                        ) : (
+                          <span
+                            className="inline-flex items-center px-[var(--bb-space-2,0.5rem)] py-[var(--bb-space-1,0.25rem)] text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] rounded"
+                            style={{
+                              backgroundColor: 'rgba(147, 51, 234, 0.15)',
+                              color: '#9333EA',
+                            }}
+                          >
+                            Custom
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-[var(--bb-space-2,0.5rem)]">
+                          <button
+                            onClick={() => handleEditAssociation(association)}
+                            className="p-[var(--bb-space-1,0.25rem)] transition-colors"
+                            style={{ color: 'var(--bb-color-text-muted)' }}
+                            title="Edit association"
+                          >
+                            <Edit2 className="h-4 w-4" />
+                          </button>
+                          {!association.isSystemDefined && (
                             <button
-                              onClick={() => handleEditAssociation(association)}
-                              className="p-1 text-muted hover:text-primary transition-colors"
-                              title="Edit association"
+                              onClick={() => handleDeleteAssociation(association.recordId)}
+                              className="p-[var(--bb-space-1,0.25rem)] transition-colors"
+                              style={{ color: 'var(--bb-color-text-muted)' }}
+                              title="Delete association"
+                              disabled={deleteMutation.isPending}
                             >
-                              <Edit2 className="h-4 w-4" />
+                              <Trash2 className="h-4 w-4" />
                             </button>
-                            {!association.isSystemDefined && (
-                              <button
-                                onClick={() => handleDeleteAssociation(association.recordId)}
-                                className="p-1 text-muted hover:text-red-600 transition-colors"
-                                title="Delete association"
-                                disabled={deleteMutation.isPending}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           ))}
         </div>

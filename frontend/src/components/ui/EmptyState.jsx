@@ -2,13 +2,15 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 
 /**
- * Empty state component for right panel when nothing is selected
+ * Empty state component for tables and panels
+ * Uses enterprise design tokens for consistent theming.
  *
  * @example
  * <EmptyState
  *   icon={Dog}
- *   title="No Pet Selected"
- *   description="Select a pet from the list to view details"
+ *   title="No Pets Found"
+ *   description="Get started by adding your first pet."
+ *   action={<Button>Add Pet</Button>}
  * />
  */
 export function EmptyState({
@@ -20,23 +22,32 @@ export function EmptyState({
 }) {
   return (
     <div className={cn(
-      "flex flex-col items-center justify-center h-full px-6 py-12 text-center",
+      "flex flex-col items-center justify-center px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-12,3rem)] text-center",
       className
     )}>
       {Icon && (
-        <div className="mb-4 text-[var(--text-tertiary)]">
-          <Icon className="w-12 h-12" />
+        <div className="mb-[var(--bb-space-4,1rem)]">
+          <Icon
+            className="w-12 h-12 mx-auto"
+            style={{ color: 'var(--bb-color-text-muted)' }}
+          />
         </div>
       )}
 
       {title && (
-        <h3 className="text-base font-semibold text-[var(--text-primary)] mb-2">
+        <h3
+          className="text-[var(--bb-font-size-base,1rem)] font-[var(--bb-font-weight-semibold,600)] mb-[var(--bb-space-2,0.5rem)]"
+          style={{ color: 'var(--bb-color-text-primary)' }}
+        >
           {title}
         </h3>
       )}
 
       {description && (
-        <p className="text-sm text-[var(--text-secondary)] max-w-sm mb-6">
+        <p
+          className="text-[var(--bb-font-size-sm,0.875rem)] max-w-sm mb-[var(--bb-space-6,1.5rem)]"
+          style={{ color: 'var(--bb-color-text-muted)' }}
+        >
           {description}
         </p>
       )}
@@ -51,3 +62,5 @@ export function EmptyState({
 }
 
 EmptyState.displayName = 'EmptyState';
+
+export default EmptyState;

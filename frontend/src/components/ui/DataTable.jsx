@@ -1,3 +1,8 @@
+/**
+ * DataTable - Phase 8 Enterprise Table System
+ * Full-featured data table with token-based styling for consistent theming.
+ */
+
 import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   ChevronDown,
@@ -374,34 +379,59 @@ const DataTable = ({
   return (
     <div className={cn('flex flex-col gap-0', className)}>
       {/* Page Header */}
-      <div className="flex items-center justify-between border-b border-border bg-background px-6 py-4">
+      <div
+        className="flex items-center justify-between border-b px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-4,1rem)]"
+        style={{
+          borderColor: 'var(--bb-color-border-subtle)',
+          backgroundColor: 'var(--bb-color-bg-surface)',
+        }}
+      >
         <div>
-          <h1 className="text-2xl font-semibold text-text">{title}</h1>
+          <h1
+            className="text-[var(--bb-font-size-xl,1.5rem)] font-[var(--bb-font-weight-semibold,600)]"
+            style={{ color: 'var(--bb-color-text-primary)' }}
+          >
+            {title}
+          </h1>
           {recordCount > 0 && (
-            <p className="text-sm text-muted">
+            <p
+              className="text-[var(--bb-font-size-sm,0.875rem)]"
+              style={{ color: 'var(--bb-color-text-muted)' }}
+            >
               {recordCount.toLocaleString()} record{recordCount !== 1 ? 's' : ''}
             </p>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
           {headerActions}
         </div>
       </div>
 
       {/* Views/Tabs Bar */}
       {views.length > 0 && (
-        <div className="flex items-center justify-between border-b border-border bg-background px-6 py-2">
-          <div className="flex items-center gap-2 overflow-x-auto">
+        <div
+          className="flex items-center justify-between border-b px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-2,0.5rem)]"
+          style={{
+            borderColor: 'var(--bb-color-border-subtle)',
+            backgroundColor: 'var(--bb-color-bg-surface)',
+          }}
+        >
+          <div className="flex items-center gap-[var(--bb-space-2,0.5rem)] overflow-x-auto">
             {views.map((view) => (
               <button
                 key={view.recordId}
                 onClick={() => onViewChange?.(view.recordId)}
                 className={cn(
-                  'flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
-                  activeView === view.recordId
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted hover:bg-surface hover:text-text'
+                  'flex items-center gap-[var(--bb-space-2,0.5rem)] whitespace-nowrap rounded-md px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-1\\.5,0.375rem)] text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] transition-colors'
                 )}
+                style={{
+                  backgroundColor: activeView === view.recordId
+                    ? 'var(--bb-color-accent-soft)'
+                    : 'transparent',
+                  color: activeView === view.recordId
+                    ? 'var(--bb-color-accent)'
+                    : 'var(--bb-color-text-muted)',
+                }}
               >
                 {view.label}
                 {view.canClose && activeView === view.recordId && (
@@ -409,34 +439,51 @@ const DataTable = ({
                 )}
               </button>
             ))}
-            <button className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium text-muted hover:bg-surface hover:text-text">
+            <button
+              className="flex items-center gap-[var(--bb-space-1,0.25rem)] rounded-md px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-1\\.5,0.375rem)] text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+              style={{ color: 'var(--bb-color-text-muted)' }}
+            >
               <Plus className="h-3 w-3" />
               Add view
             </button>
           </div>
-          <button className="text-sm font-medium text-primary hover:underline">
+          <button
+            className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] hover:underline"
+            style={{ color: 'var(--bb-color-accent)' }}
+          >
             All Views
           </button>
         </div>
       )}
 
       {/* Filters & Actions Bar */}
-      <div className="flex items-center gap-2 border-b border-border bg-background px-6 py-3">
+      <div
+        className="flex items-center gap-[var(--bb-space-2,0.5rem)] border-b px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-3,0.75rem)]"
+        style={{
+          borderColor: 'var(--bb-color-border-subtle)',
+          backgroundColor: 'var(--bb-color-bg-surface)',
+        }}
+      >
         {/* View Mode Toggle */}
-        <div className="flex items-center gap-0.5 rounded-md border border-border bg-surface p-0.5">
+        <div
+          className="flex items-center gap-0.5 rounded-md border p-0.5"
+          style={{
+            borderColor: 'var(--bb-color-border-subtle)',
+            backgroundColor: 'var(--bb-color-bg-elevated)',
+          }}
+        >
           <button
-            className={cn(
-              'rounded p-1.5 transition-colors',
-              'bg-white dark:bg-surface-primary text-primary shadow-sm'
-            )}
+            className="rounded p-1.5 transition-colors shadow-sm"
+            style={{
+              backgroundColor: 'var(--bb-color-bg-surface)',
+              color: 'var(--bb-color-accent)',
+            }}
           >
             <List className="h-4 w-4" />
           </button>
           <button
-            className={cn(
-              'rounded p-1.5 transition-colors',
-              'text-muted hover:text-text'
-            )}
+            className="rounded p-1.5 transition-colors"
+            style={{ color: 'var(--bb-color-text-muted)' }}
           >
             <Grid3x3 className="h-4 w-4" />
           </button>
@@ -458,47 +505,44 @@ const DataTable = ({
         <div ref={moreFiltersRef} className="relative">
           <button
             onClick={() => setShowMoreFilters(!showMoreFilters)}
-            className="flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium transition-colors hover:bg-surface/80"
+            className="flex items-center gap-[var(--bb-space-2,0.5rem)] rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-1\\.5,0.375rem)] text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] transition-colors"
+            style={{
+              borderColor: 'var(--bb-color-border-subtle)',
+              backgroundColor: 'var(--bb-color-bg-elevated)',
+              color: 'var(--bb-color-text-primary)',
+            }}
           >
             <Plus className="h-3 w-3" />
             More
           </button>
 
           {showMoreFilters && (
-            <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-md border border-border bg-white dark:bg-surface-primary shadow-lg">
-              <div className="p-4">
-                <h3 className="mb-3 text-sm font-semibold text-text">Additional Filters</h3>
-                <div className="space-y-2">
-                  <button
-                    onClick={() => {
-                      setShowMoreFilters(false);
-                      // Add functionality here
-                    }}
-                    className="flex w-full items-center justify-between rounded px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
-                  >
-                    <span>Owner Type</span>
-                    <Plus className="h-4 w-4 text-gray-400 dark:text-text-tertiary" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowMoreFilters(false);
-                      // Add functionality here
-                    }}
-                    className="flex w-full items-center justify-between rounded px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
-                  >
-                    <span>Pet Count</span>
-                    <Plus className="h-4 w-4 text-gray-400 dark:text-text-tertiary" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowMoreFilters(false);
-                      // Add functionality here
-                    }}
-                    className="flex w-full items-center justify-between rounded px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
-                  >
-                    <span>Location</span>
-                    <Plus className="h-4 w-4 text-gray-400 dark:text-text-tertiary" />
-                  </button>
+            <div
+              className="absolute left-0 top-full z-50 mt-1 w-64 rounded-md border shadow-lg"
+              style={{
+                borderColor: 'var(--bb-color-border-subtle)',
+                backgroundColor: 'var(--bb-color-bg-surface)',
+              }}
+            >
+              <div className="p-[var(--bb-space-4,1rem)]">
+                <h3
+                  className="mb-[var(--bb-space-3,0.75rem)] text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)]"
+                  style={{ color: 'var(--bb-color-text-primary)' }}
+                >
+                  Additional Filters
+                </h3>
+                <div className="space-y-[var(--bb-space-2,0.5rem)]">
+                  {['Owner Type', 'Pet Count', 'Location'].map((filterName) => (
+                    <button
+                      key={filterName}
+                      onClick={() => setShowMoreFilters(false)}
+                      className="flex w-full items-center justify-between rounded px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)] transition-colors"
+                      style={{ color: 'var(--bb-color-text-primary)' }}
+                    >
+                      <span>{filterName}</span>
+                      <Plus className="h-4 w-4" style={{ color: 'var(--bb-color-text-muted)' }} />
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -509,11 +553,19 @@ const DataTable = ({
         <button
           onClick={() => setShowAdvancedFilters(true)}
           className={cn(
-            'flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors',
-            advancedFilters.length > 0
-              ? 'border-primary bg-primary/5 text-primary hover:bg-primary/10'
-              : 'border-border bg-surface hover:bg-surface/80'
+            'flex items-center gap-[var(--bb-space-2,0.5rem)] rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-1\\.5,0.375rem)] text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] transition-colors'
           )}
+          style={{
+            borderColor: advancedFilters.length > 0
+              ? 'var(--bb-color-accent)'
+              : 'var(--bb-color-border-subtle)',
+            backgroundColor: advancedFilters.length > 0
+              ? 'var(--bb-color-accent-soft)'
+              : 'var(--bb-color-bg-elevated)',
+            color: advancedFilters.length > 0
+              ? 'var(--bb-color-accent)'
+              : 'var(--bb-color-text-primary)',
+          }}
         >
           <Filter className="h-3 w-3" />
           Advanced filters
@@ -523,20 +575,33 @@ const DataTable = ({
 
         {/* Search */}
         <div className="relative w-64">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+          <Search
+            className="absolute left-[var(--bb-space-3,0.75rem)] top-1/2 h-4 w-4 -translate-y-1/2"
+            style={{ color: 'var(--bb-color-text-muted)' }}
+          />
           <input
             type="text"
             placeholder={searchPlaceholder}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-md border border-border bg-surface py-1.5 pl-9 pr-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full rounded-md border py-[var(--bb-space-1\\.5,0.375rem)] pl-9 pr-[var(--bb-space-3,0.75rem)] text-[var(--bb-font-size-sm,0.875rem)] focus:outline-none focus:ring-2"
+            style={{
+              borderColor: 'var(--bb-color-border-subtle)',
+              backgroundColor: 'var(--bb-color-bg-elevated)',
+              color: 'var(--bb-color-text-primary)',
+            }}
           />
         </div>
 
         {/* Export */}
         <button
           onClick={handleExportCSV}
-          className="flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium transition-colors hover:bg-surface/80"
+          className="flex items-center gap-[var(--bb-space-2,0.5rem)] rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-1\\.5,0.375rem)] text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] transition-colors"
+          style={{
+            borderColor: 'var(--bb-color-border-subtle)',
+            backgroundColor: 'var(--bb-color-bg-elevated)',
+            color: 'var(--bb-color-text-primary)',
+          }}
         >
           Export
         </button>
@@ -547,7 +612,12 @@ const DataTable = ({
             setTempVisibleColumns(visibleColumns);
             setShowColumnEditor(true);
           }}
-          className="flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium transition-colors hover:bg-surface/80"
+          className="flex items-center gap-[var(--bb-space-2,0.5rem)] rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-1\\.5,0.375rem)] text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] transition-colors"
+          style={{
+            borderColor: 'var(--bb-color-border-subtle)',
+            backgroundColor: 'var(--bb-color-bg-elevated)',
+            color: 'var(--bb-color-text-primary)',
+          }}
         >
           <Settings2 className="h-4 w-4" />
           Edit columns
@@ -556,26 +626,50 @@ const DataTable = ({
 
       {/* Bulk Actions Bar */}
       {selectedRows.size > 0 && (
-        <div className="flex items-center justify-between border-b border-border bg-blue-50 dark:bg-surface-primary px-6 py-3">
-          <span className="text-sm font-medium text-text">
+        <div
+          className="flex items-center justify-between border-b px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-3,0.75rem)]"
+          style={{
+            borderColor: 'var(--bb-color-border-subtle)',
+            backgroundColor: 'var(--bb-color-accent-soft)',
+          }}
+        >
+          <span
+            className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+            style={{ color: 'var(--bb-color-text-primary)' }}
+          >
             {selectedRows.size} {selectedRows.size === 1 ? 'item' : 'items'} selected
           </span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
             <button
               onClick={handleBulkExport}
-              className="rounded-md border border-border bg-white dark:bg-surface-primary px-3 py-1.5 text-sm font-medium transition-colors hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
+              className="rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-1\\.5,0.375rem)] text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] transition-colors"
+              style={{
+                borderColor: 'var(--bb-color-border-subtle)',
+                backgroundColor: 'var(--bb-color-bg-surface)',
+                color: 'var(--bb-color-text-primary)',
+              }}
             >
               Export Selected
             </button>
             <button
               onClick={handleBulkDelete}
-              className="rounded-md border border-red-200 dark:border-red-900/30 bg-white dark:bg-surface-primary px-3 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:bg-red-950/20"
+              className="rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-1\\.5,0.375rem)] text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] transition-colors"
+              style={{
+                borderColor: 'var(--bb-color-status-negative)',
+                backgroundColor: 'var(--bb-color-bg-surface)',
+                color: 'var(--bb-color-status-negative)',
+              }}
             >
               Delete Selected
             </button>
             <button
               onClick={() => setSelectedRows(new Set())}
-              className="rounded-md border border-border bg-white dark:bg-surface-primary px-3 py-1.5 text-sm font-medium transition-colors hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
+              className="rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-1\\.5,0.375rem)] text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] transition-colors"
+              style={{
+                borderColor: 'var(--bb-color-border-subtle)',
+                backgroundColor: 'var(--bb-color-bg-surface)',
+                color: 'var(--bb-color-text-primary)',
+              }}
             >
               Clear Selection
             </button>
@@ -584,17 +678,27 @@ const DataTable = ({
       )}
 
       {/* Table */}
-      <div className="bg-white dark:bg-surface-primary">
+      <div style={{ backgroundColor: 'var(--bb-color-bg-surface)' }}>
         <table className="w-full">
-          <thead className="border-b border-border">
+          <thead
+            className="border-b"
+            style={{
+              borderColor: 'var(--bb-color-border-subtle)',
+              backgroundColor: 'var(--bb-color-bg-elevated)',
+            }}
+          >
             <tr>
               {enableSelection && (
-                <th className="w-12 px-6 py-3">
+                <th className="w-12 px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-3,0.75rem)]">
                   <input
                     type="checkbox"
                     checked={selectedRows.size === paginatedData.length && paginatedData.length > 0}
                     onChange={handleSelectAll}
-                    className="h-4 w-4 rounded border-gray-300 dark:border-surface-border text-primary focus:ring-2 focus:ring-primary/20"
+                    className="h-4 w-4 rounded"
+                    style={{
+                      borderColor: 'var(--bb-color-border-subtle)',
+                      accentColor: 'var(--bb-color-accent)',
+                    }}
                   />
                 </th>
               )}
@@ -604,12 +708,13 @@ const DataTable = ({
                   <th
                     key={idx}
                     className={cn(
-                      'px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-600 dark:text-text-secondary',
-                      column.sortable && 'cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary'
+                      'px-[var(--bb-space-4,1rem)] py-[var(--bb-space-3,0.75rem)] text-left text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wider',
+                      column.sortable && 'cursor-pointer select-none'
                     )}
+                    style={{ color: 'var(--bb-color-text-muted)' }}
                     onClick={() => handleSort(column)}
                   >
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-[var(--bb-space-1,0.25rem)]">
                       <span>{column.header}</span>
                       {column.sortable && sortColumn?.accessor === column.accessor && (
                         sortDirection === 'asc' ? (
@@ -624,12 +729,19 @@ const DataTable = ({
               })}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-surface-border bg-white dark:bg-surface-primary">
+          <tbody
+            className="divide-y"
+            style={{
+              divideColor: 'var(--bb-color-border-subtle)',
+              backgroundColor: 'var(--bb-color-bg-surface)',
+            }}
+          >
             {paginatedData.length === 0 ? (
               <tr>
                 <td
                   colSpan={Object.values(visibleColumns).filter(Boolean).length + (enableSelection ? 1 : 0)}
-                  className="px-6 py-12 text-center text-sm text-muted"
+                  className="px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-12,3rem)] text-center text-[var(--bb-font-size-sm,0.875rem)]"
+                  style={{ color: 'var(--bb-color-text-muted)' }}
                 >
                   No records found
                 </td>
@@ -640,12 +752,21 @@ const DataTable = ({
                   key={row.recordId}
                   onClick={() => onRowClick?.(row)}
                   className={cn(
-                    'transition-colors hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary',
+                    'transition-colors',
                     onRowClick && 'cursor-pointer'
                   )}
+                  style={{
+                    backgroundColor: 'var(--bb-color-bg-surface)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--bb-color-sidebar-item-hover-bg)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--bb-color-bg-surface)';
+                  }}
                 >
                   {enableSelection && (
-                    <td className="px-6 py-4">
+                    <td className="px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-4,1rem)]">
                       <input
                         type="checkbox"
                         checked={selectedRows.has(row.recordId)}
@@ -653,14 +774,22 @@ const DataTable = ({
                           e.stopPropagation();
                           handleSelectRow(row.recordId);
                         }}
-                        className="h-4 w-4 rounded border-gray-300 dark:border-surface-border text-primary focus:ring-2 focus:ring-primary/20"
+                        className="h-4 w-4 rounded"
+                        style={{
+                          borderColor: 'var(--bb-color-border-subtle)',
+                          accentColor: 'var(--bb-color-accent)',
+                        }}
                       />
                     </td>
                   )}
                   {columns.map((column, idx) => {
                     if (!visibleColumns[idx]) return null;
                     return (
-                      <td key={idx} className="px-4 py-4 text-sm">
+                      <td
+                        key={idx}
+                        className="px-[var(--bb-space-4,1rem)] py-[var(--bb-space-4,1rem)] text-[var(--bb-font-size-sm,0.875rem)]"
+                        style={{ color: 'var(--bb-color-text-primary)' }}
+                      >
                         {column.cell ? column.cell(row) : row[column.accessor]}
                       </td>
                     );
@@ -673,30 +802,46 @@ const DataTable = ({
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-center gap-1 border-t border-border bg-white dark:bg-surface-primary px-6 py-4">
+      <div
+        className="flex items-center justify-center gap-[var(--bb-space-1,0.25rem)] border-t px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-4,1rem)]"
+        style={{
+          borderColor: 'var(--bb-color-border-subtle)',
+          backgroundColor: 'var(--bb-color-bg-surface)',
+        }}
+      >
         <button
           onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
           disabled={currentPage === 1}
-          className={cn(
-            'px-3 py-1 text-sm font-medium text-primary hover:underline disabled:text-gray-400 dark:text-text-tertiary disabled:no-underline disabled:cursor-not-allowed'
-          )}
+          className="px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-1,0.25rem)] text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] hover:underline disabled:no-underline disabled:cursor-not-allowed"
+          style={{
+            color: currentPage === 1 ? 'var(--bb-color-text-muted)' : 'var(--bb-color-accent)',
+          }}
         >
           Prev
         </button>
 
         {getPaginationRange().map((page, idx) => (
           page === '...' ? (
-            <span key={`ellipsis-${idx}`} className="px-2 text-gray-400 dark:text-text-tertiary">...</span>
+            <span
+              key={`ellipsis-${idx}`}
+              className="px-[var(--bb-space-2,0.5rem)]"
+              style={{ color: 'var(--bb-color-text-muted)' }}
+            >
+              ...
+            </span>
           ) : (
             <button
               key={page}
               onClick={() => setCurrentPage(page)}
-              className={cn(
-                'min-w-[2rem] rounded px-2 py-1 text-sm font-medium transition-colors',
-                currentPage === page
-                  ? 'bg-primary text-white'
-                  : 'text-gray-700 dark:text-text-primary hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary'
-              )}
+              className="min-w-[2rem] rounded px-[var(--bb-space-2,0.5rem)] py-[var(--bb-space-1,0.25rem)] text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] transition-colors"
+              style={{
+                backgroundColor: currentPage === page
+                  ? 'var(--bb-color-accent)'
+                  : 'transparent',
+                color: currentPage === page
+                  ? 'var(--bb-color-text-on-accent)'
+                  : 'var(--bb-color-text-primary)',
+              }}
             >
               {page}
             </button>
@@ -706,25 +851,40 @@ const DataTable = ({
         <button
           onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
           disabled={currentPage === totalPages}
-          className={cn(
-            'px-3 py-1 text-sm font-medium text-primary hover:underline disabled:text-gray-400 dark:text-text-tertiary disabled:no-underline disabled:cursor-not-allowed'
-          )}
+          className="px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-1,0.25rem)] text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] hover:underline disabled:no-underline disabled:cursor-not-allowed"
+          style={{
+            color: currentPage === totalPages ? 'var(--bb-color-text-muted)' : 'var(--bb-color-accent)',
+          }}
         >
           Next
         </button>
 
-        <div ref={pageSizeDropdownRef} className="relative ml-4">
+        <div ref={pageSizeDropdownRef} className="relative ml-[var(--bb-space-4,1rem)]">
           <button
             onClick={() => setShowPageSizeDropdown(!showPageSizeDropdown)}
-            className="flex items-center gap-2 rounded-md border border-border bg-white dark:bg-surface-primary px-3 py-1.5 text-sm transition-colors hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
+            className="flex items-center gap-[var(--bb-space-2,0.5rem)] rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-1\\.5,0.375rem)] text-[var(--bb-font-size-sm,0.875rem)] transition-colors"
+            style={{
+              borderColor: 'var(--bb-color-border-subtle)',
+              backgroundColor: 'var(--bb-color-bg-surface)',
+              color: 'var(--bb-color-text-primary)',
+            }}
           >
             <span>{itemsPerPage} per page</span>
-            <ChevronDown className={cn('h-3 w-3 text-gray-500 dark:text-text-secondary transition-transform', showPageSizeDropdown && 'rotate-180')} />
+            <ChevronDown
+              className={cn('h-3 w-3 transition-transform', showPageSizeDropdown && 'rotate-180')}
+              style={{ color: 'var(--bb-color-text-muted)' }}
+            />
           </button>
 
           {showPageSizeDropdown && (
-            <div className="absolute bottom-full left-0 mb-1 w-full rounded-md border border-border bg-white dark:bg-surface-primary shadow-lg">
-              <div className="py-1">
+            <div
+              className="absolute bottom-full left-0 mb-1 w-full rounded-md border shadow-lg"
+              style={{
+                borderColor: 'var(--bb-color-border-subtle)',
+                backgroundColor: 'var(--bb-color-bg-surface)',
+              }}
+            >
+              <div className="py-[var(--bb-space-1,0.25rem)]">
                 {[25, 50, 100].map((size) => (
                   <button
                     key={size}
@@ -733,10 +893,16 @@ const DataTable = ({
                       setCurrentPage(1);
                       setShowPageSizeDropdown(false);
                     }}
-                    className={cn(
-                      'flex w-full items-center px-3 py-2 text-left text-sm transition-colors hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary',
-                      itemsPerPage === size && 'bg-primary/5 text-primary font-medium'
-                    )}
+                    className="flex w-full items-center px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-left text-[var(--bb-font-size-sm,0.875rem)] transition-colors"
+                    style={{
+                      backgroundColor: itemsPerPage === size
+                        ? 'var(--bb-color-accent-soft)'
+                        : 'transparent',
+                      color: itemsPerPage === size
+                        ? 'var(--bb-color-accent)'
+                        : 'var(--bb-color-text-primary)',
+                      fontWeight: itemsPerPage === size ? '500' : '400',
+                    }}
                   >
                     {size} per page
                     {itemsPerPage === size && <Check className="ml-auto h-4 w-4" />}
@@ -750,15 +916,32 @@ const DataTable = ({
 
       {/* Column Editor Modal */}
       {showColumnEditor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="flex h-[600px] w-full max-w-5xl rounded-lg bg-white dark:bg-surface-primary shadow-2xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'var(--bb-color-overlay-scrim)' }}
+        >
+          <div
+            className="flex h-[600px] w-full max-w-5xl rounded-lg shadow-2xl"
+            style={{ backgroundColor: 'var(--bb-color-bg-surface)' }}
+          >
             {/* Header */}
             <div className="flex w-full flex-col">
-              <div className="flex items-center justify-between border-b border-gray-200 dark:border-surface-border bg-primary px-6 py-4">
-                <h2 className="text-lg font-semibold text-white">Choose which columns you see</h2>
+              <div
+                className="flex items-center justify-between border-b px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-4,1rem)]"
+                style={{
+                  borderColor: 'var(--bb-color-border-subtle)',
+                  backgroundColor: 'var(--bb-color-accent)',
+                }}
+              >
+                <h2
+                  className="text-[var(--bb-font-size-lg,1.125rem)] font-[var(--bb-font-weight-semibold,600)]"
+                  style={{ color: 'var(--bb-color-text-on-accent)' }}
+                >
+                  Choose which columns you see
+                </h2>
                 <button
                   onClick={cancelColumnChanges}
-                  className="text-white hover:text-gray-200 dark:hover:text-text-tertiary"
+                  style={{ color: 'var(--bb-color-text-on-accent)' }}
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -767,41 +950,67 @@ const DataTable = ({
               {/* Content */}
               <div className="flex flex-1 overflow-hidden">
                 {/* Left Side - All Columns */}
-                <div className="flex w-2/3 flex-col border-r border-gray-200 dark:border-surface-border">
+                <div
+                  className="flex w-2/3 flex-col border-r"
+                  style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+                >
                   {/* Search */}
-                  <div className="border-b border-gray-200 dark:border-surface-border p-4">
+                  <div
+                    className="border-b p-[var(--bb-space-4,1rem)]"
+                    style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+                  >
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-text-tertiary" />
+                      <Search
+                        className="absolute left-[var(--bb-space-3,0.75rem)] top-1/2 h-4 w-4 -translate-y-1/2"
+                        style={{ color: 'var(--bb-color-text-muted)' }}
+                      />
                       <input
                         type="text"
                         placeholder="Search columns..."
                         value={columnSearch}
                         onChange={(e) => setColumnSearch(e.target.value)}
-                        className="w-full rounded-md border border-gray-300 dark:border-surface-border py-2 pl-10 pr-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        className="w-full rounded-md border py-[var(--bb-space-2,0.5rem)] pl-10 pr-[var(--bb-space-3,0.75rem)] text-[var(--bb-font-size-sm,0.875rem)] focus:outline-none focus:ring-2"
+                        style={{
+                          borderColor: 'var(--bb-color-border-subtle)',
+                          backgroundColor: 'var(--bb-color-bg-elevated)',
+                          color: 'var(--bb-color-text-primary)',
+                        }}
                       />
                     </div>
                   </div>
 
                   {/* Column List */}
-                  <div className="flex-1 overflow-y-auto p-4">
-                    <div className="mb-2 text-xs font-semibold uppercase text-gray-500 dark:text-text-secondary">
+                  <div className="flex-1 overflow-y-auto p-[var(--bb-space-4,1rem)]">
+                    <div
+                      className="mb-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-semibold,600)] uppercase"
+                      style={{ color: 'var(--bb-color-text-muted)' }}
+                    >
                       COLUMNS
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-[var(--bb-space-1,0.25rem)]">
                       {filteredColumns.map((col, idx) => {
                         const originalIdx = columns.findIndex(c => c.header === col.header);
                         return (
                           <label
                             key={originalIdx}
-                            className="flex items-center gap-3 rounded px-2 py-2 hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary cursor-pointer"
+                            className="flex items-center gap-[var(--bb-space-3,0.75rem)] rounded px-[var(--bb-space-2,0.5rem)] py-[var(--bb-space-2,0.5rem)] cursor-pointer transition-colors"
                           >
                             <input
                               type="checkbox"
                               checked={tempVisibleColumns[originalIdx]}
                               onChange={() => toggleColumnVisibility(originalIdx)}
-                              className="h-4 w-4 rounded border-gray-300 dark:border-surface-border text-primary focus:ring-primary"
+                              className="h-4 w-4 rounded"
+                              style={{
+                                borderColor: 'var(--bb-color-border-subtle)',
+                                accentColor: 'var(--bb-color-accent)',
+                              }}
                             />
-                            <span className="text-sm text-gray-700 dark:text-text-primary">{col.header}</span>
+                            <span
+                              className="text-[var(--bb-font-size-sm,0.875rem)]"
+                              style={{ color: 'var(--bb-color-text-primary)' }}
+                            >
+                              {col.header}
+                            </span>
                           </label>
                         );
                       })}
@@ -810,32 +1019,50 @@ const DataTable = ({
                 </div>
 
                 {/* Right Side - Selected Columns */}
-                <div className="flex w-1/3 flex-col bg-gray-50 dark:bg-surface-secondary">
-                  <div className="border-b border-gray-200 dark:border-surface-border p-4">
+                <div
+                  className="flex w-1/3 flex-col"
+                  style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+                >
+                  <div
+                    className="border-b p-[var(--bb-space-4,1rem)]"
+                    style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+                  >
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-gray-700 dark:text-text-primary">
+                      <h3
+                        className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)]"
+                        style={{ color: 'var(--bb-color-text-primary)' }}
+                      >
                         SELECTED COLUMNS ({selectedColumnsCount})
                       </h3>
-                      <span className="text-xs text-gray-500 dark:text-text-secondary">Frozen columns: 0</span>
+                      <span
+                        className="text-[var(--bb-font-size-xs,0.75rem)]"
+                        style={{ color: 'var(--bb-color-text-muted)' }}
+                      >
+                        Frozen columns: 0
+                      </span>
                     </div>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto p-4">
-                    <div className="space-y-1">
+                  <div className="flex-1 overflow-y-auto p-[var(--bb-space-4,1rem)]">
+                    <div className="space-y-[var(--bb-space-1,0.25rem)]">
                       {columns.map((col, idx) => {
                         if (!tempVisibleColumns[idx]) return null;
                         return (
                           <div
                             key={idx}
-                            className="flex items-center justify-between rounded bg-white dark:bg-surface-primary border border-gray-200 dark:border-surface-border px-3 py-2 text-sm"
+                            className="flex items-center justify-between rounded border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)]"
+                            style={{
+                              borderColor: 'var(--bb-color-border-subtle)',
+                              backgroundColor: 'var(--bb-color-bg-surface)',
+                            }}
                           >
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-400 dark:text-text-tertiary">&#8942;&#8942;</span>
-                              <span className="text-gray-700 dark:text-text-primary">{col.header}</span>
+                            <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
+                              <span style={{ color: 'var(--bb-color-text-muted)' }}>&#8942;&#8942;</span>
+                              <span style={{ color: 'var(--bb-color-text-primary)' }}>{col.header}</span>
                             </div>
                             <button
                               onClick={() => toggleColumnVisibility(idx)}
-                              className="text-gray-400 dark:text-text-tertiary hover:text-gray-600 dark:hover:text-text-secondary"
+                              style={{ color: 'var(--bb-color-text-muted)' }}
                             >
                               <X className="h-4 w-4" />
                             </button>
@@ -848,23 +1075,35 @@ const DataTable = ({
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between border-t border-gray-200 dark:border-surface-border px-6 py-4">
+              <div
+                className="flex items-center justify-between border-t px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-4,1rem)]"
+                style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+              >
                 <button
                   onClick={removeAllColumns}
-                  className="text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                  className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                  style={{ color: 'var(--bb-color-status-negative)' }}
                 >
                   Remove All Columns
                 </button>
-                <div className="flex gap-2">
+                <div className="flex gap-[var(--bb-space-2,0.5rem)]">
                   <button
                     onClick={cancelColumnChanges}
-                    className="rounded-md border border-gray-300 dark:border-surface-border px-4 py-2 text-sm font-medium text-gray-700 dark:text-text-primary hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
+                    className="rounded-md border px-[var(--bb-space-4,1rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                    style={{
+                      borderColor: 'var(--bb-color-border-subtle)',
+                      color: 'var(--bb-color-text-primary)',
+                    }}
                   >
                     Cancel
                   </button>
                   <button
                     onClick={applyColumnChanges}
-                    className="rounded-md bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600"
+                    className="rounded-md px-[var(--bb-space-4,1rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                    style={{
+                      backgroundColor: 'var(--bb-color-accent)',
+                      color: 'var(--bb-color-text-on-accent)',
+                    }}
                   >
                     Apply
                   </button>
@@ -875,17 +1114,34 @@ const DataTable = ({
         </div>
       )}
 
-      {/* Advanced Filters Modal - Full Version */}
+      {/* Advanced Filters Modal */}
       {showAdvancedFilters && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="flex h-[600px] w-full max-w-4xl rounded-lg bg-white dark:bg-surface-primary shadow-2xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'var(--bb-color-overlay-scrim)' }}
+        >
+          <div
+            className="flex h-[600px] w-full max-w-4xl rounded-lg shadow-2xl"
+            style={{ backgroundColor: 'var(--bb-color-bg-surface)' }}
+          >
             <div className="flex w-full flex-col">
               {/* Header */}
-              <div className="flex items-center justify-between border-b border-gray-200 dark:border-surface-border bg-primary px-6 py-4">
-                <h2 className="text-lg font-semibold text-white">All Filters</h2>
+              <div
+                className="flex items-center justify-between border-b px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-4,1rem)]"
+                style={{
+                  borderColor: 'var(--bb-color-border-subtle)',
+                  backgroundColor: 'var(--bb-color-accent)',
+                }}
+              >
+                <h2
+                  className="text-[var(--bb-font-size-lg,1.125rem)] font-[var(--bb-font-weight-semibold,600)]"
+                  style={{ color: 'var(--bb-color-text-on-accent)' }}
+                >
+                  All Filters
+                </h2>
                 <button
                   onClick={() => setShowAdvancedFilters(false)}
-                  className="text-white hover:text-gray-200 dark:hover:text-text-tertiary"
+                  style={{ color: 'var(--bb-color-text-on-accent)' }}
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -894,32 +1150,62 @@ const DataTable = ({
               {/* Content */}
               <div className="flex flex-1 overflow-hidden">
                 {/* Left Side - Current Filters */}
-                <div className="flex w-1/2 flex-col border-r border-gray-200 dark:border-surface-border p-6">
+                <div
+                  className="flex w-1/2 flex-col border-r p-[var(--bb-space-6,1.5rem)]"
+                  style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+                >
                   {/* Quick Filters */}
-                  <div className="mb-6">
-                    <div className="mb-3 flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-gray-900 dark:text-text-primary">Quick filters</h3>
-                      <button className="text-xs text-primary hover:underline">Hide</button>
+                  <div className="mb-[var(--bb-space-6,1.5rem)]">
+                    <div className="mb-[var(--bb-space-3,0.75rem)] flex items-center justify-between">
+                      <h3
+                        className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)]"
+                        style={{ color: 'var(--bb-color-text-primary)' }}
+                      >
+                        Quick filters
+                      </h3>
+                      <button
+                        className="text-[var(--bb-font-size-xs,0.75rem)]"
+                        style={{ color: 'var(--bb-color-accent)' }}
+                      >
+                        Hide
+                      </button>
                     </div>
-                    <p className="text-xs text-gray-500 dark:text-text-secondary mb-3">
+                    <p
+                      className="text-[var(--bb-font-size-xs,0.75rem)] mb-[var(--bb-space-3,0.75rem)]"
+                      style={{ color: 'var(--bb-color-text-muted)' }}
+                    >
                       These filters were set within the current table.
                     </p>
 
                     {/* Show active filters */}
                     {Object.keys(activeFilters).length > 0 ? (
-                      <div className="space-y-2">
+                      <div className="space-y-[var(--bb-space-2,0.5rem)]">
                         {Object.entries(activeFilters).map(([key, value]) => {
                           const group = filterGroups.find(g => g.recordId === key);
                           const option = group?.options?.find(o => o.value === value);
                           return (
-                            <div key={key} className="flex items-center justify-between rounded bg-blue-50 dark:bg-surface-primary px-3 py-2">
+                            <div
+                              key={key}
+                              className="flex items-center justify-between rounded px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)]"
+                              style={{ backgroundColor: 'var(--bb-color-accent-soft)' }}
+                            >
                               <div>
-                                <span className="text-sm font-medium text-gray-900 dark:text-text-primary">{group?.label}: </span>
-                                <span className="text-sm text-gray-700 dark:text-text-primary">{option?.label || value}</span>
+                                <span
+                                  className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                                  style={{ color: 'var(--bb-color-text-primary)' }}
+                                >
+                                  {group?.label}:{' '}
+                                </span>
+                                <span
+                                  className="text-[var(--bb-font-size-sm,0.875rem)]"
+                                  style={{ color: 'var(--bb-color-text-primary)' }}
+                                >
+                                  {option?.label || value}
+                                </span>
                               </div>
                               <button
                                 onClick={() => onFilterClear?.(key)}
-                                className="text-gray-400 dark:text-text-tertiary hover:text-gray-600 dark:hover:text-text-secondary"
+                                style={{ color: 'var(--bb-color-text-muted)' }}
                               >
                                 <X className="h-4 w-4" />
                               </button>
@@ -928,32 +1214,68 @@ const DataTable = ({
                         })}
                       </div>
                     ) : (
-                      <p className="text-sm text-gray-500 dark:text-text-secondary italic">No quick filters applied</p>
+                      <p
+                        className="text-[var(--bb-font-size-sm,0.875rem)] italic"
+                        style={{ color: 'var(--bb-color-text-muted)' }}
+                      >
+                        No quick filters applied
+                      </p>
                     )}
                   </div>
 
                   {/* Advanced Filters */}
-                  <div className="flex-1 border-t border-gray-200 dark:border-surface-border pt-6">
-                    <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-text-primary">Advanced Filters</h3>
+                  <div
+                    className="flex-1 border-t pt-[var(--bb-space-6,1.5rem)]"
+                    style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+                  >
+                    <h3
+                      className="mb-[var(--bb-space-3,0.75rem)] text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)]"
+                      style={{ color: 'var(--bb-color-text-primary)' }}
+                    >
+                      Advanced Filters
+                    </h3>
                     {advancedFilters.length > 0 ? (
-                      <div className="space-y-2">
+                      <div className="space-y-[var(--bb-space-2,0.5rem)]">
                         {advancedFilters.map((filter) => {
                           const operators = getOperatorsForType(filter.propertyType);
                           const operatorLabel = operators.find(o => o.value === filter.operator)?.label || filter.operator;
                           return (
-                            <div key={filter.recordId} className="rounded bg-gray-100 dark:bg-surface-secondary px-3 py-2">
+                            <div
+                              key={filter.recordId}
+                              className="rounded px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)]"
+                              style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+                            >
                               <div className="flex items-center justify-between">
-                                <div className="flex-1 text-sm">
-                                  <span className="font-medium text-gray-900 dark:text-text-primary">{filter.propertyLabel}</span>
-                                  <span className="text-gray-600 dark:text-text-secondary"> {operatorLabel} </span>
-                                  <span className="font-medium text-gray-900 dark:text-text-primary">{filter.value}</span>
+                                <div className="flex-1 text-[var(--bb-font-size-sm,0.875rem)]">
+                                  <span
+                                    className="font-[var(--bb-font-weight-medium,500)]"
+                                    style={{ color: 'var(--bb-color-text-primary)' }}
+                                  >
+                                    {filter.propertyLabel}
+                                  </span>
+                                  <span style={{ color: 'var(--bb-color-text-muted)' }}> {operatorLabel} </span>
+                                  <span
+                                    className="font-[var(--bb-font-weight-medium,500)]"
+                                    style={{ color: 'var(--bb-color-text-primary)' }}
+                                  >
+                                    {filter.value}
+                                  </span>
                                   {filter.operator === 'between' && filter.value2 && (
-                                    <span className="text-gray-600 dark:text-text-secondary"> and <span className="font-medium text-gray-900 dark:text-text-primary">{filter.value2}</span></span>
+                                    <span style={{ color: 'var(--bb-color-text-muted)' }}>
+                                      {' '}and{' '}
+                                      <span
+                                        className="font-[var(--bb-font-weight-medium,500)]"
+                                        style={{ color: 'var(--bb-color-text-primary)' }}
+                                      >
+                                        {filter.value2}
+                                      </span>
+                                    </span>
                                   )}
                                 </div>
                                 <button
                                   onClick={() => handleRemoveAdvancedFilter(filter.recordId)}
-                                  className="ml-2 text-gray-400 dark:text-text-tertiary hover:text-gray-600 dark:hover:text-text-secondary"
+                                  className="ml-[var(--bb-space-2,0.5rem)]"
+                                  style={{ color: 'var(--bb-color-text-muted)' }}
                                 >
                                   <X className="h-4 w-4" />
                                 </button>
@@ -963,7 +1285,10 @@ const DataTable = ({
                         })}
                       </div>
                     ) : (
-                      <p className="text-xs text-gray-500 dark:text-text-secondary mb-4">
+                      <p
+                        className="text-[var(--bb-font-size-xs,0.75rem)] mb-[var(--bb-space-4,1rem)]"
+                        style={{ color: 'var(--bb-color-text-muted)' }}
+                      >
                         This view doesn't have any advanced filters. Select a filter to begin.
                       </p>
                     )}
@@ -975,38 +1300,62 @@ const DataTable = ({
                   {editingFilter ? (
                     <>
                       {/* Filter Builder */}
-                      <div className="border-b border-gray-200 dark:border-surface-border p-6">
-                        <div className="mb-4 flex items-center justify-between">
-                          <h3 className="text-sm font-semibold text-gray-900 dark:text-text-primary">Configure filter</h3>
+                      <div
+                        className="border-b p-[var(--bb-space-6,1.5rem)]"
+                        style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+                      >
+                        <div className="mb-[var(--bb-space-4,1rem)] flex items-center justify-between">
+                          <h3
+                            className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)]"
+                            style={{ color: 'var(--bb-color-text-primary)' }}
+                          >
+                            Configure filter
+                          </h3>
                           <button
                             onClick={() => setEditingFilter(null)}
-                            className="text-gray-400 dark:text-text-tertiary hover:text-gray-600 dark:hover:text-text-secondary"
+                            style={{ color: 'var(--bb-color-text-muted)' }}
                           >
                             <X className="h-4 w-4" />
                           </button>
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="space-y-[var(--bb-space-4,1rem)]">
                           <div>
-                            <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-text-primary">
+                            <label
+                              className="mb-[var(--bb-space-1,0.25rem)] block text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)]"
+                              style={{ color: 'var(--bb-color-text-primary)' }}
+                            >
                               Property
                             </label>
                             <input
                               type="text"
                               value={editingFilter.propertyLabel}
                               disabled
-                              className="w-full rounded-md border border-gray-300 dark:border-surface-border bg-gray-50 dark:bg-surface-secondary px-3 py-2 text-sm"
+                              className="w-full rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)]"
+                              style={{
+                                borderColor: 'var(--bb-color-border-subtle)',
+                                backgroundColor: 'var(--bb-color-bg-elevated)',
+                                color: 'var(--bb-color-text-primary)',
+                              }}
                             />
                           </div>
 
                           <div>
-                            <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-text-primary">
+                            <label
+                              className="mb-[var(--bb-space-1,0.25rem)] block text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)]"
+                              style={{ color: 'var(--bb-color-text-primary)' }}
+                            >
                               Operator
                             </label>
                             <select
                               value={editingFilter.operator}
                               onChange={(e) => setEditingFilter({...editingFilter, operator: e.target.value})}
-                              className="w-full rounded-md border border-gray-300 dark:border-surface-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                              className="w-full rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)] focus:outline-none focus:ring-2"
+                              style={{
+                                borderColor: 'var(--bb-color-border-subtle)',
+                                backgroundColor: 'var(--bb-color-bg-surface)',
+                                color: 'var(--bb-color-text-primary)',
+                              }}
                             >
                               {getOperatorsForType(editingFilter.propertyType).map(op => (
                                 <option key={op.value} value={op.value}>{op.label}</option>
@@ -1015,7 +1364,10 @@ const DataTable = ({
                           </div>
 
                           <div>
-                            <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-text-primary">
+                            <label
+                              className="mb-[var(--bb-space-1,0.25rem)] block text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)]"
+                              style={{ color: 'var(--bb-color-text-primary)' }}
+                            >
                               Value
                             </label>
                             {editingFilter.propertyType === 'date' ? (
@@ -1023,7 +1375,12 @@ const DataTable = ({
                                 type="date"
                                 value={editingFilter.value}
                                 onChange={(e) => setEditingFilter({...editingFilter, value: e.target.value})}
-                                className="w-full rounded-md border border-gray-300 dark:border-surface-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="w-full rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)] focus:outline-none focus:ring-2"
+                                style={{
+                                  borderColor: 'var(--bb-color-border-subtle)',
+                                  backgroundColor: 'var(--bb-color-bg-surface)',
+                                  color: 'var(--bb-color-text-primary)',
+                                }}
                               />
                             ) : editingFilter.propertyType === 'number' ? (
                               <input
@@ -1031,7 +1388,12 @@ const DataTable = ({
                                 value={editingFilter.value}
                                 onChange={(e) => setEditingFilter({...editingFilter, value: e.target.value})}
                                 placeholder="Enter number..."
-                                className="w-full rounded-md border border-gray-300 dark:border-surface-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="w-full rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)] focus:outline-none focus:ring-2"
+                                style={{
+                                  borderColor: 'var(--bb-color-border-subtle)',
+                                  backgroundColor: 'var(--bb-color-bg-surface)',
+                                  color: 'var(--bb-color-text-primary)',
+                                }}
                               />
                             ) : (
                               <input
@@ -1039,38 +1401,59 @@ const DataTable = ({
                                 value={editingFilter.value}
                                 onChange={(e) => setEditingFilter({...editingFilter, value: e.target.value})}
                                 placeholder="Enter value..."
-                                className="w-full rounded-md border border-gray-300 dark:border-surface-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="w-full rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)] focus:outline-none focus:ring-2"
+                                style={{
+                                  borderColor: 'var(--bb-color-border-subtle)',
+                                  backgroundColor: 'var(--bb-color-bg-surface)',
+                                  color: 'var(--bb-color-text-primary)',
+                                }}
                               />
                             )}
                           </div>
 
                           {editingFilter.operator === 'between' && (
                             <div>
-                              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-text-primary">
+                              <label
+                                className="mb-[var(--bb-space-1,0.25rem)] block text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)]"
+                                style={{ color: 'var(--bb-color-text-primary)' }}
+                              >
                                 End Value
                               </label>
                               <input
                                 type="date"
                                 value={editingFilter.value2}
                                 onChange={(e) => setEditingFilter({...editingFilter, value2: e.target.value})}
-                                className="w-full rounded-md border border-gray-300 dark:border-surface-border px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                className="w-full rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)] focus:outline-none focus:ring-2"
+                                style={{
+                                  borderColor: 'var(--bb-color-border-subtle)',
+                                  backgroundColor: 'var(--bb-color-bg-surface)',
+                                  color: 'var(--bb-color-text-primary)',
+                                }}
                               />
                             </div>
                           )}
                         </div>
                       </div>
 
-                      <div className="flex justify-end gap-2 p-6">
+                      <div className="flex justify-end gap-[var(--bb-space-2,0.5rem)] p-[var(--bb-space-6,1.5rem)]">
                         <button
                           onClick={() => setEditingFilter(null)}
-                          className="rounded-md border border-gray-300 dark:border-surface-border px-4 py-2 text-sm font-medium text-gray-700 dark:text-text-primary hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
+                          className="rounded-md border px-[var(--bb-space-4,1rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                          style={{
+                            borderColor: 'var(--bb-color-border-subtle)',
+                            color: 'var(--bb-color-text-primary)',
+                          }}
                         >
                           Cancel
                         </button>
                         <button
                           onClick={handleSaveFilter}
                           disabled={!editingFilter.value}
-                          className="rounded-md bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="rounded-md px-[var(--bb-space-4,1rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] disabled:opacity-50 disabled:cursor-not-allowed"
+                          style={{
+                            backgroundColor: 'var(--bb-color-accent)',
+                            color: 'var(--bb-color-text-on-accent)',
+                          }}
                         >
                           Add filter
                         </button>
@@ -1079,35 +1462,61 @@ const DataTable = ({
                   ) : (
                     <>
                       {/* Filter Property List */}
-                      <div className="border-b border-gray-200 dark:border-surface-border p-6">
-                        <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-text-primary">Add filter</h3>
+                      <div
+                        className="border-b p-[var(--bb-space-6,1.5rem)]"
+                        style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+                      >
+                        <h3
+                          className="mb-[var(--bb-space-3,0.75rem)] text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)]"
+                          style={{ color: 'var(--bb-color-text-primary)' }}
+                        >
+                          Add filter
+                        </h3>
                         <div className="relative">
-                          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-text-tertiary" />
+                          <Search
+                            className="absolute left-[var(--bb-space-3,0.75rem)] top-1/2 h-4 w-4 -translate-y-1/2"
+                            style={{ color: 'var(--bb-color-text-muted)' }}
+                          />
                           <input
                             type="text"
                             placeholder="Search in contact properties"
                             value={filterSearch}
                             onChange={(e) => setFilterSearch(e.target.value)}
-                            className="w-full rounded-md border border-gray-300 dark:border-surface-border py-2 pl-10 pr-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                            className="w-full rounded-md border py-[var(--bb-space-2,0.5rem)] pl-10 pr-[var(--bb-space-3,0.75rem)] text-[var(--bb-font-size-sm,0.875rem)] focus:outline-none focus:ring-2"
+                            style={{
+                              borderColor: 'var(--bb-color-border-subtle)',
+                              backgroundColor: 'var(--bb-color-bg-elevated)',
+                              color: 'var(--bb-color-text-primary)',
+                            }}
                           />
                         </div>
                       </div>
 
                       {/* Filter Options */}
-                      <div className="flex-1 overflow-y-auto p-6">
-                        <div className="mb-4">
-                          <h4 className="mb-2 text-xs font-semibold text-gray-500 dark:text-text-secondary uppercase">Contact activity</h4>
-                          <div className="space-y-1">
+                      <div className="flex-1 overflow-y-auto p-[var(--bb-space-6,1.5rem)]">
+                        <div className="mb-[var(--bb-space-4,1rem)]">
+                          <h4
+                            className="mb-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-semibold,600)] uppercase"
+                            style={{ color: 'var(--bb-color-text-muted)' }}
+                          >
+                            Contact activity
+                          </h4>
+                          <div className="space-y-[var(--bb-space-1,0.25rem)]">
                             {advancedFilterProperties
                               .filter(prop => !filterSearch || prop.label.toLowerCase().includes(filterSearch.toLowerCase()))
                               .map((property) => (
                                 <button
                                   key={property.recordId}
-                                  className="flex w-full items-center justify-between rounded px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
+                                  className="flex w-full items-center justify-between rounded px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-left transition-colors"
                                   onClick={() => handleAddFilter(property)}
                                 >
-                                  <span className="text-sm text-gray-700 dark:text-text-primary">{property.label}</span>
-                                  <Plus className="h-4 w-4 text-gray-400 dark:text-text-tertiary" />
+                                  <span
+                                    className="text-[var(--bb-font-size-sm,0.875rem)]"
+                                    style={{ color: 'var(--bb-color-text-primary)' }}
+                                  >
+                                    {property.label}
+                                  </span>
+                                  <Plus className="h-4 w-4" style={{ color: 'var(--bb-color-text-muted)' }} />
                                 </button>
                               ))}
                           </div>
@@ -1119,22 +1528,30 @@ const DataTable = ({
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between border-t border-gray-200 dark:border-surface-border px-6 py-4">
+              <div
+                className="flex items-center justify-between border-t px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-4,1rem)]"
+                style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+              >
                 <button
                   onClick={handleClearAllFilters}
-                  className="text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
+                  className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                  style={{ color: 'var(--bb-color-status-negative)' }}
                   disabled={advancedFilters.length === 0 && Object.keys(activeFilters).length === 0}
                 >
                   Clear all filters
                 </button>
-                <div className="flex gap-2">
+                <div className="flex gap-[var(--bb-space-2,0.5rem)]">
                   <button
                     onClick={() => {
                       setShowAdvancedFilters(false);
                       setEditingFilter(null);
                       setFilterSearch('');
                     }}
-                    className="rounded-md border border-gray-300 dark:border-surface-border px-4 py-2 text-sm font-medium text-gray-700 dark:text-text-primary hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
+                    className="rounded-md border px-[var(--bb-space-4,1rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                    style={{
+                      borderColor: 'var(--bb-color-border-subtle)',
+                      color: 'var(--bb-color-text-primary)',
+                    }}
                   >
                     Cancel
                   </button>
@@ -1144,7 +1561,11 @@ const DataTable = ({
                       setEditingFilter(null);
                       setFilterSearch('');
                     }}
-                    className="rounded-md bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600"
+                    className="rounded-md px-[var(--bb-space-4,1rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                    style={{
+                      backgroundColor: 'var(--bb-color-accent)',
+                      color: 'var(--bb-color-text-on-accent)',
+                    }}
                   >
                     Apply filters
                   </button>

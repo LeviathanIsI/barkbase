@@ -1,25 +1,46 @@
-import { Card } from '@/components/ui/Card';
+/**
+ * Owners List Table - Phase 8 Enterprise Table System
+ * Token-based styling for consistent theming.
+ */
 
-// TODO (C1:3 - Directory UX Cleanup): Visual cleanup + consistent directory styling.
+import { Card } from '@/components/ui/Card';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  TableEmpty,
+} from '@/components/ui/Table';
+import { Users } from 'lucide-react';
+
 const OwnersListTable = ({ owners, renderRow }) => (
-  <Card className="overflow-x-auto">
-    <table className="w-full">
-      <thead>
-        <tr className="border-b border-gray-300 dark:border-surface-border">
-          <th className="py-3 px-4 text-left font-semibold text-gray-900 dark:text-text-primary">Owner</th>
-          <th className="py-3 px-4 text-left font-semibold text-gray-900 dark:text-text-primary">Contact</th>
-          <th className="py-3 px-4 text-left font-semibold text-gray-900 dark:text-text-primary">Pets</th>
-          <th className="py-3 px-4 text-left font-semibold text-gray-900 dark:text-text-primary">Status</th>
-          <th className="py-3 px-4 text-left font-semibold text-gray-900 dark:text-text-primary">Bookings</th>
-          <th className="py-3 px-4 text-left font-semibold text-gray-900 dark:text-text-primary">Lifetime Value</th>
-        </tr>
-      </thead>
-      <tbody>
-        {owners.map((owner) => renderRow(owner))}
-      </tbody>
-    </table>
+  <Card className="overflow-hidden p-0">
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Owner</TableHead>
+          <TableHead>Contact</TableHead>
+          <TableHead>Pets</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Bookings</TableHead>
+          <TableHead>Lifetime Value</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {owners.length === 0 ? (
+          <TableEmpty
+            icon={Users}
+            message="No owners found"
+            colSpan={6}
+          />
+        ) : (
+          owners.map((owner) => renderRow(owner))
+        )}
+      </TableBody>
+    </Table>
   </Card>
 );
 
 export default OwnersListTable;
-
