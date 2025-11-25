@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
 import BookingCard from './BookingCard';
+import Button from '@/components/ui/Button';
 
 const ListView = ({
   bookings,
@@ -26,19 +27,19 @@ const ListView = ({
                 Deselect all
               </button>
             </div>
-            <div className="flex gap-2">
-              <button className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
+            <div className="flex gap-[var(--bb-space-2)]">
+              <Button variant="primary" size="sm">
                 Check In All
-              </button>
-              <button className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
+              </Button>
+              <Button variant="secondary" size="sm">
                 Send Reminder
-              </button>
-              <button className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
+              </Button>
+              <Button variant="secondary" size="sm">
                 Reschedule
-              </button>
-              <button className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700">
+              </Button>
+              <Button variant="destructive" size="sm">
                 Delete
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -52,9 +53,9 @@ const ListView = ({
           <p className="text-gray-600 dark:text-text-secondary mb-4">
             Try adjusting your filters or create a new booking.
           </p>
-          <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+          <Button variant="primary">
             Create New Booking
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -82,22 +83,16 @@ const ListView = ({
             Showing <span className="font-medium">1</span> to <span className="font-medium">{bookings.length}</span> of{' '}
             <span className="font-medium">{bookings.length}</span> bookings
           </div>
-          <div className="flex gap-2">
-            <button
-              className="px-3 py-1 border border-gray-300 dark:border-surface-border rounded text-sm hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary disabled:opacity-50"
-              disabled
-            >
+          <div className="flex gap-[var(--bb-space-2)]">
+            <Button variant="outline" size="sm" disabled>
               Previous
-            </button>
-            <button className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
+            </Button>
+            <Button variant="primary" size="sm">
               1
-            </button>
-            <button
-              className="px-3 py-1 border border-gray-300 dark:border-surface-border rounded text-sm hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
-              disabled
-            >
+            </Button>
+            <Button variant="outline" size="sm" disabled>
               Next
-            </button>
+            </Button>
           </div>
         </div>
       )}

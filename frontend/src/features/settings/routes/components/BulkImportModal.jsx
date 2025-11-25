@@ -34,9 +34,9 @@ const BulkImportModal = ({ isOpen, onClose, onImport }) => {
         <div className="p-6 border-b border-gray-200 dark:border-surface-border">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">Import Services from Spreadsheet</h2>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary rounded-full">
+            <Button variant="ghost" size="icon-sm" onClick={onClose}>
               <X className="w-5 h-5" />
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -104,11 +104,12 @@ const BulkImportModal = ({ isOpen, onClose, onImport }) => {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-surface-border">
-          <Button variant="outline" onClick={onClose}>
+        <div className="flex items-center justify-between p-[var(--bb-space-6)] border-t border-[var(--bb-color-border-subtle)]">
+          <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
           <Button
+            variant="primary"
             onClick={handleImport}
             disabled={!uploadedFile || isUploading}
           >

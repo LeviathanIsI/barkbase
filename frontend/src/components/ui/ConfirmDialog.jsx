@@ -40,16 +40,16 @@ export default function ConfirmDialog({
     await onConfirm();
   };
 
-  const getVariantStyles = () => {
+  const getButtonVariant = () => {
     switch (variant) {
       case 'danger':
-        return 'bg-[var(--bb-color-status-negative)] hover:bg-[var(--bb-color-status-negative)]/90 focus:ring-[var(--bb-color-status-negative)]';
+        return 'destructive';
       case 'warning':
-        return 'bg-[var(--bb-color-status-warning)] hover:bg-[var(--bb-color-status-warning)]/90 focus:ring-[var(--bb-color-status-warning)]';
+        return 'destructive';
       case 'primary':
-        return 'bg-[var(--bb-color-accent)] hover:bg-[var(--bb-color-accent)]/90 focus:ring-[var(--bb-color-accent)]';
+        return 'primary';
       default:
-        return 'bg-[var(--bb-color-status-negative)] hover:bg-[var(--bb-color-status-negative)]/90 focus:ring-[var(--bb-color-status-negative)]';
+        return 'destructive';
     }
   };
 
@@ -156,24 +156,25 @@ export default function ConfirmDialog({
         </div>
       </div>
 
-      <div className="mt-[var(--bb-space-5)] sm:mt-[var(--bb-space-4)] sm:flex sm:flex-row-reverse gap-[var(--bb-space-3)]">
-        <Button
-          ref={confirmButtonRef}
-          onClick={handleConfirm}
-          className={`w-full sm:w-auto text-white ${getVariantStyles()}`}
-          disabled={isLoading}
-          aria-label={confirmText}
-        >
-          {isLoading ? 'Processing...' : confirmText}
-        </Button>
+      <div className="mt-[var(--bb-space-5)] sm:mt-[var(--bb-space-4)] flex flex-col-reverse sm:flex-row sm:justify-end gap-[var(--bb-space-3)]">
         <Button
           onClick={onClose}
-          variant="outline"
-          className="mt-[var(--bb-space-3)] sm:mt-0 w-full sm:w-auto"
+          variant="ghost"
+          className="w-full sm:w-auto"
           disabled={isLoading}
           aria-label={cancelText}
         >
           {cancelText}
+        </Button>
+        <Button
+          ref={confirmButtonRef}
+          onClick={handleConfirm}
+          variant={getButtonVariant()}
+          className="w-full sm:w-auto"
+          disabled={isLoading}
+          aria-label={confirmText}
+        >
+          {isLoading ? 'Processing...' : confirmText}
         </Button>
       </div>
     </Modal>

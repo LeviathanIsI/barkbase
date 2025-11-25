@@ -33,9 +33,9 @@ const RequestIntegrationModal = ({ isOpen, onClose }) => {
                 <p className="text-sm text-gray-600 dark:text-text-secondary">Suggest an integration you'd like to see</p>
               </div>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary rounded-full">
+            <Button variant="ghost" size="icon-sm" onClick={onClose}>
               <X className="w-5 h-5" />
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -110,15 +110,15 @@ const RequestIntegrationModal = ({ isOpen, onClose }) => {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-surface-border">
-          <p className="text-sm text-gray-600 dark:text-text-secondary">
+        <div className="flex items-center justify-between p-[var(--bb-space-6)] border-t border-[var(--bb-color-border-subtle)]">
+          <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
             We'll review your request and may reach out for more details
           </p>
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={onClose}>
+          <div className="flex gap-[var(--bb-space-3)]">
+            <Button variant="ghost" onClick={onClose}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={!integrationName.trim()}>
+            <Button variant="primary" onClick={handleSubmit} disabled={!integrationName.trim()}>
               Submit Request
             </Button>
           </div>

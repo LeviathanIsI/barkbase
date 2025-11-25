@@ -28,9 +28,9 @@ const ServiceCreationModal = ({ isOpen, onClose, category, existingService, onSu
             <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">
               {existingService ? 'Edit Service' : 'Create Service'}
             </h2>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary rounded-full">
+            <Button variant="ghost" size="icon-sm" onClick={onClose}>
               <X className="w-5 h-5" />
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -79,11 +79,11 @@ const ServiceCreationModal = ({ isOpen, onClose, category, existingService, onSu
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-surface-border">
-          <Button variant="outline" onClick={onClose}>
+        <div className="flex items-center justify-end gap-[var(--bb-space-3)] p-[var(--bb-space-6)] border-t border-[var(--bb-color-border-subtle)]">
+          <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit}>
+          <Button variant="primary" onClick={handleSubmit}>
             {existingService ? 'Update Service' : 'Create Service'}
           </Button>
         </div>

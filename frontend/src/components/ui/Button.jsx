@@ -1,6 +1,7 @@
 /**
- * Professional Button Component
- * Based on Linear/Calendly patterns with systematic variants
+ * Enterprise Button Component
+ * Token-based design system with consistent variants and sizes
+ * Uses bb-color-*, bb-font-*, bb-space-* tokens for light/dark support
  */
 
 import React from 'react';
@@ -8,37 +9,99 @@ import { cva } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  // Base styles - Professional foundation
-  'inline-flex items-center justify-center gap-2 rounded-md font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+  // Base styles - Enterprise foundation with token-based design
+  [
+    'inline-flex items-center justify-center gap-[var(--bb-space-2)]',
+    'rounded-md',
+    'text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)]',
+    'transition-colors duration-150',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)] focus-visible:ring-offset-0',
+    'disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed',
+  ],
   {
     variants: {
       variant: {
-        // Primary - Brand color, high emphasis
-        primary: 'bg-primary-600 dark:bg-primary-700 text-white hover:bg-primary-700 dark:hover:bg-primary-600 active:bg-primary-800 dark:active:bg-primary-500',
+        // Primary - Accent color, high emphasis
+        primary: [
+          'bg-[var(--bb-color-accent)] text-[var(--bb-color-text-on-accent)]',
+          'hover:bg-[var(--bb-color-accent)]/90',
+          'active:bg-[var(--bb-color-accent)]/80',
+        ],
 
-        // Secondary - Outlined, medium emphasis
-        secondary: 'border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary text-gray-700 dark:text-text-primary hover:bg-gray-50 dark:hover:bg-surface-secondary active:bg-gray-100 dark:active:bg-surface-elevated',
+        // Secondary - Surface background, medium emphasis
+        secondary: [
+          'bg-[var(--bb-color-bg-surface)] text-[var(--bb-color-text-primary)]',
+          'border border-[var(--bb-color-border-subtle)]',
+          'hover:bg-[var(--bb-color-bg-elevated)]',
+          'active:bg-[var(--bb-color-bg-elevated)]',
+        ],
 
-        // Tertiary - Text only, low emphasis
-        tertiary: 'text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950/30 active:bg-primary-100 dark:active:bg-primary-950/50',
+        // Outline - Border only, medium emphasis
+        outline: [
+          'bg-transparent text-[var(--bb-color-text-primary)]',
+          'border border-[var(--bb-color-border-subtle)]',
+          'hover:border-[var(--bb-color-accent)] hover:text-[var(--bb-color-accent)]',
+          'active:bg-[var(--bb-color-accent-soft)]',
+        ],
+
+        // Subtle - Muted background, low emphasis
+        subtle: [
+          'bg-[var(--bb-color-bg-elevated)] text-[var(--bb-color-text-primary)]',
+          'hover:bg-[var(--bb-color-border-subtle)]',
+          'active:bg-[var(--bb-color-border-strong)]',
+        ],
 
         // Destructive - For delete/remove actions
-        destructive: 'bg-error-600 dark:bg-error-700 text-white hover:bg-error-700 dark:hover:bg-error-600 active:bg-error-800 dark:active:bg-error-500',
+        destructive: [
+          'bg-[var(--bb-color-status-negative)] text-white',
+          'hover:bg-[var(--bb-color-status-negative)]/90',
+          'active:bg-[var(--bb-color-status-negative)]/80',
+        ],
 
-        // Ghost - Minimal, subtle
-        ghost: 'hover:bg-gray-100 dark:hover:bg-surface-secondary active:bg-gray-200 dark:active:bg-surface-elevated text-gray-700 dark:text-text-primary',
+        // Ghost - Minimal, no background
+        ghost: [
+          'bg-transparent text-[var(--bb-color-text-primary)]',
+          'hover:bg-[var(--bb-color-bg-elevated)]',
+          'active:bg-[var(--bb-color-border-subtle)]',
+        ],
 
-        // Ghost Dark - For use on dark backgrounds
-        'ghost-dark': 'hover:bg-white/10 dark:hover:bg-surface-primary/20 active:bg-white/20 dark:active:bg-surface-primary/30 text-white',
+        // Link - Text button style
+        link: [
+          'bg-transparent text-[var(--bb-color-accent)]',
+          'hover:underline',
+          'active:text-[var(--bb-color-accent)]/80',
+          'p-0 h-auto',
+        ],
 
         // Success - For positive actions
-        success: 'bg-secondary-600 dark:bg-secondary-700 text-white hover:bg-secondary-700 dark:hover:bg-secondary-600 active:bg-secondary-800 dark:active:bg-secondary-500',
+        success: [
+          'bg-[var(--bb-color-status-positive)] text-white',
+          'hover:bg-[var(--bb-color-status-positive)]/90',
+          'active:bg-[var(--bb-color-status-positive)]/80',
+        ],
+
+        // Tertiary - Text only with hover background (backward compat)
+        tertiary: [
+          'bg-transparent text-[var(--bb-color-accent)]',
+          'hover:bg-[var(--bb-color-accent-soft)]',
+          'active:bg-[var(--bb-color-accent-soft)]',
+        ],
+
+        // Ghost Dark - For use on dark backgrounds (backward compat)
+        'ghost-dark': [
+          'bg-transparent text-white',
+          'hover:bg-white/10',
+          'active:bg-white/20',
+        ],
       },
       size: {
-        sm: 'h-8 px-3 text-sm',
-        md: 'h-10 px-4 text-sm',
-        lg: 'h-12 px-6 text-base',
-        icon: 'h-10 w-10',
+        xs: 'h-7 px-[var(--bb-space-2)] py-[var(--bb-space-1)] text-[0.75rem]',
+        sm: 'h-8 px-[var(--bb-space-3)] py-[var(--bb-space-1)]',
+        md: 'h-10 px-[var(--bb-space-4)] py-[var(--bb-space-2)]',
+        lg: 'h-12 px-[var(--bb-space-5)] py-[var(--bb-space-3)]',
+        icon: 'h-10 w-10 p-0',
+        'icon-sm': 'h-8 w-8 p-0',
+        'icon-xs': 'h-6 w-6 p-0',
       },
     },
     defaultVariants: {
@@ -53,8 +116,11 @@ const Button = React.forwardRef(({
   variant, 
   size, 
   children, 
+  asChild = false,
   ...props 
 }, ref) => {
+  // If asChild is true, we'd typically use Radix Slot
+  // For now, we just render a button
   return (
     <button
       className={cn(buttonVariants({ variant, size, className }))}
@@ -68,4 +134,6 @@ const Button = React.forwardRef(({
 
 Button.displayName = 'Button';
 
+// Export variants for external use
+export { buttonVariants };
 export default Button;

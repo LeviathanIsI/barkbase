@@ -13,9 +13,9 @@ const ExportModal = ({ report, data, isOpen, onClose }) => {
             <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">Export Report</h3>
             <p className="text-sm text-gray-600 dark:text-text-secondary">{data.title} - {data.period}</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary rounded-full">
+          <Button variant="ghost" size="icon-sm" onClick={onClose}>
             <X className="w-5 h-5" />
-          </button>
+          </Button>
         </div>
 
         {/* Content */}
@@ -89,9 +89,9 @@ const ExportModal = ({ report, data, isOpen, onClose }) => {
                   placeholder="owner@happypaws.com"
                   className="ml-6 w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm"
                 />
-                <button className="ml-6 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:text-blue-300">
+                <Button variant="link" size="sm" className="ml-6">
                   + Add recipient
-                </button>
+                </Button>
               </div>
 
               <label className="flex items-center gap-3">
@@ -100,9 +100,9 @@ const ExportModal = ({ report, data, isOpen, onClose }) => {
               </label>
               <div className="ml-6">
                 <span className="text-sm text-gray-600 dark:text-text-secondary">Folder: /Reports/Revenue/</span>
-                <button className="ml-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:text-blue-300">
+                <Button variant="link" size="sm" className="ml-2">
                   Select Folder
-                </button>
+                </Button>
               </div>
             </div>
           </div>
