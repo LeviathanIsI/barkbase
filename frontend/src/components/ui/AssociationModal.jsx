@@ -104,28 +104,28 @@ const AssociationModal = ({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-2xl rounded-lg bg-white dark:bg-surface-primary shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bb-color-overlay-scrim)] backdrop-blur-sm">
+      <div className="w-full max-w-2xl rounded-[var(--bb-radius-lg)] bg-[var(--bb-color-bg-surface)] shadow-[var(--bb-elevation-card)] border border-[var(--bb-color-border-subtle)]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border bg-primary px-6 py-4">
-          <h2 className="text-xl font-semibold text-white">{title}</h2>
+        <div className="flex items-center justify-between border-b border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-accent)] px-[var(--bb-space-6)] py-[var(--bb-space-4)] rounded-t-[var(--bb-radius-lg)]">
+          <h2 className="text-[var(--bb-font-size-lg)] font-[var(--bb-font-weight-semibold)] text-white">{title}</h2>
           <button
             onClick={handleClose}
-            className="rounded-md p-1 text-white hover:bg-primary/80"
+            className="rounded-[var(--bb-radius-md)] p-[var(--bb-space-1)] text-white/80 hover:text-white hover:bg-white/10 transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-border">
+        <div className="flex border-b border-[var(--bb-color-border-subtle)]">
           <button
             onClick={() => setActiveTab('create')}
             className={cn(
-              'flex-1 px-6 py-3 text-sm font-medium transition-colors',
+              'flex-1 px-[var(--bb-space-6)] py-[var(--bb-space-3)] text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] transition-colors',
               activeTab === 'create'
-                ? 'border-b-2 border-primary bg-gray-50 dark:bg-surface-secondary text-primary'
-                : 'text-muted hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary'
+                ? 'border-b-2 border-[var(--bb-color-accent)] bg-[var(--bb-color-bg-elevated)] text-[var(--bb-color-accent)]'
+                : 'text-[var(--bb-color-text-muted)] hover:bg-[var(--bb-color-bg-elevated)] hover:text-[var(--bb-color-text-primary)]'
             )}
           >
             Create new
@@ -133,10 +133,10 @@ const AssociationModal = ({
           <button
             onClick={() => setActiveTab('existing')}
             className={cn(
-              'flex-1 px-6 py-3 text-sm font-medium transition-colors',
+              'flex-1 px-[var(--bb-space-6)] py-[var(--bb-space-3)] text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] transition-colors',
               activeTab === 'existing'
-                ? 'border-b-2 border-primary bg-gray-50 dark:bg-surface-secondary text-primary'
-                : 'text-muted hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary'
+                ? 'border-b-2 border-[var(--bb-color-accent)] bg-[var(--bb-color-bg-elevated)] text-[var(--bb-color-accent)]'
+                : 'text-[var(--bb-color-text-muted)] hover:bg-[var(--bb-color-bg-elevated)] hover:text-[var(--bb-color-text-primary)]'
             )}
           >
             Add existing
@@ -144,56 +144,56 @@ const AssociationModal = ({
         </div>
 
         {/* Content */}
-        <div className="max-h-[60vh] overflow-y-auto p-6">
+        <div className="max-h-[60vh] overflow-y-auto p-[var(--bb-space-6)]">
           {activeTab === 'create' ? (
             // Create new form
             <div>
               {createForm || (
-                <p className="text-sm text-muted">
+                <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
                   No create form provided for this object type.
                 </p>
               )}
             </div>
           ) : (
             // Add existing - Searchable checkbox list
-            <div className="space-y-4">
+            <div className="space-y-[var(--bb-space-4)]">
               {availableRecords.length === 0 && !isLoading ? (
-                <p className="text-sm text-muted">
+                <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
                   No {objectType}s available. Create a new {objectType} first.
                 </p>
               ) : isLoading && availableRecords.length === 0 ? (
-                <p className="text-sm text-muted">Loading {objectType}s...</p>
+                <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">Loading {objectType}s...</p>
               ) : (
                 <>
                   {/* Search bar */}
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+                    <Search className="absolute left-[var(--bb-space-3)] top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--bb-color-text-muted)]" />
                     <input
                       type="text"
                       placeholder={`Search ${objectType}s...`}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full rounded-md border border-border bg-white dark:bg-surface-primary py-2 pl-9 pr-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="w-full rounded-[var(--bb-radius-md)] border border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] py-[var(--bb-space-2)] pl-9 pr-[var(--bb-space-3)] text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)] placeholder:text-[var(--bb-color-text-muted)] focus:border-[var(--bb-color-accent)] focus:outline-none focus:ring-1 focus:ring-[var(--bb-color-accent)]"
                     />
                   </div>
 
                   {/* Results count */}
-                  <div className="flex items-center justify-between text-xs text-muted">
+                  <div className="flex items-center justify-between text-[var(--bb-font-size-xs)] text-[var(--bb-color-text-muted)]">
                     <span>
                       {filteredRecords.length} {objectType}
                       {filteredRecords.length !== 1 ? 's' : ''} found
                     </span>
                     {selectedCount > 0 && (
-                      <span className="font-medium text-primary">
+                      <span className="font-[var(--bb-font-weight-medium)] text-[var(--bb-color-accent)]">
                         {selectedCount} selected
                       </span>
                     )}
                   </div>
 
                   {/* Checkbox list */}
-                  <div className="space-y-2 rounded-lg border border-border bg-gray-50 dark:bg-surface-secondary p-3">
+                  <div className="space-y-[var(--bb-space-2)] rounded-[var(--bb-radius-lg)] border border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-elevated)] p-[var(--bb-space-3)]">
                     {filteredRecords.length === 0 ? (
-                      <p className="py-4 text-center text-sm text-muted">
+                      <p className="py-[var(--bb-space-4)] text-center text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
                         No {objectType}s match your search
                       </p>
                     ) : (
@@ -203,13 +203,13 @@ const AssociationModal = ({
                         const isChecked = isAlreadyAssociated || isSelected;
 
                         return (
-                          <div key={record.recordId} className="space-y-2">
+                          <div key={record.recordId} className="space-y-[var(--bb-space-2)]">
                             <div
                               className={cn(
-                                'flex items-center gap-3 rounded-md border border-border bg-white dark:bg-surface-primary p-3 transition-colors',
+                                'flex items-center gap-[var(--bb-space-3)] rounded-[var(--bb-radius-md)] border border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] p-[var(--bb-space-3)] transition-colors',
                                 isAlreadyAssociated
-                                  ? 'bg-gray-100 dark:bg-surface-secondary cursor-not-allowed'
-                                  : 'cursor-pointer hover:border-primary hover:bg-blue-50 dark:bg-surface-primary'
+                                  ? 'bg-[var(--bb-color-bg-elevated)] cursor-not-allowed opacity-60'
+                                  : 'cursor-pointer hover:border-[var(--bb-color-accent)] hover:bg-[var(--bb-color-accent-soft)]'
                               )}
                               onClick={() => handleToggleRecord(record.recordId)}
                             >
@@ -218,15 +218,15 @@ const AssociationModal = ({
                                 checked={isChecked}
                                 onChange={() => handleToggleRecord(record.recordId)}
                                 disabled={isAlreadyAssociated}
-                                className="h-4 w-4 rounded border-border text-primary focus:ring-primary disabled:cursor-not-allowed disabled:opacity-50"
+                                className="h-4 w-4 rounded border-[var(--bb-color-border-subtle)] text-[var(--bb-color-accent)] focus:ring-[var(--bb-color-accent)] disabled:cursor-not-allowed disabled:opacity-50"
                                 onClick={(e) => e.stopPropagation()}
                               />
                               <div className="flex-1">
-                                <p className="text-sm font-medium text-text">
+                                <p className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
                                   {formatRecordDisplay(record)}
                                 </p>
                                 {isAlreadyAssociated && (
-                                  <p className="text-xs text-muted">
+                                  <p className="text-[var(--bb-font-size-xs)] text-[var(--bb-color-text-muted)]">
                                     Already associated
                                   </p>
                                 )}
@@ -235,14 +235,14 @@ const AssociationModal = ({
 
                             {/* Association label dropdown for selected records */}
                             {isSelected && associationLabels.length > 0 && (
-                              <div className="ml-7 rounded-md border border-border bg-white dark:bg-surface-primary p-3">
-                                <label className="mb-1 block text-xs font-medium text-muted">
+                              <div className="ml-7 rounded-[var(--bb-radius-md)] border border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] p-[var(--bb-space-3)]">
+                                <label className="mb-[var(--bb-space-1)] block text-[var(--bb-font-size-xs)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-muted)]">
                                   Association label
                                 </label>
                                 <select
                                   value={recordLabels[record.id] || associationLabels[0]?.value || ''}
                                   onChange={(e) => handleLabelChange(record.recordId, e.target.value)}
-                                  className="w-full rounded-md border border-border bg-white dark:bg-surface-primary px-3 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                                  className="w-full rounded-[var(--bb-radius-md)] border border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] px-[var(--bb-space-3)] py-[var(--bb-space-2)] text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)] focus:border-[var(--bb-color-accent)] focus:outline-none focus:ring-1 focus:ring-[var(--bb-color-accent)]"
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   {associationLabels.map((label) => (
@@ -265,7 +265,7 @@ const AssociationModal = ({
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 border-t border-border bg-gray-50 dark:bg-surface-secondary px-6 py-4">
+        <div className="flex justify-end gap-[var(--bb-space-2)] border-t border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-elevated)] px-[var(--bb-space-6)] py-[var(--bb-space-4)] rounded-b-[var(--bb-radius-lg)]">
           <Button variant="outline" onClick={handleClose} disabled={isLoading}>
             Cancel
           </Button>

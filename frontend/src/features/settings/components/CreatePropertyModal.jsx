@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
+import { Select } from '@/components/ui/Select';
+import { FormField } from '@/components/ui/FormField';
+import { cn } from '@/lib/cn';
 
 // Field type categories and definitions
 const FIELD_TYPE_CATEGORIES = {
@@ -57,7 +62,7 @@ const PROPERTY_GROUPS = [
 ];
 
 const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingProperty }) => {
-  const [step, setStep] = useState(1); // 1: Basic Info, 2: Field Type, 3: Configure
+  const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     label: '',
     name: '',
@@ -71,13 +76,12 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Field type specific options
   const [enumOptions, setEnumOptions] = useState(['']);
   const [numberFormat, setNumberFormat] = useState('formatted');
   const [rollupConfig, setRollupConfig] = useState({
     associatedObject: '',
     propertyToRollup: '',
-    rollupType: 'count', // count, sum, average, min, max
+    rollupType: 'count',
     format: 'formatted',
   });
   const [syncConfig, setSyncConfig] = useState({
@@ -89,13 +93,12 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
     blockedDomains: [],
   });
   const [fileConfig, setFileConfig] = useState({
-    viewPermission: 'all', // all, owners, admins
+    viewPermission: 'all',
     maxFiles: 10,
   });
 
   const isEditing = !!existingProperty;
 
-  // Initialize form with existing property data
   useEffect(() => {
     if (existingProperty) {
       setFormData({
@@ -108,14 +111,12 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
         options: existingProperty.options || {},
       });
       setNameManuallyEdited(true);
-      setStep(1); // Editing skips field type selection
+      setStep(1);
 
-      // Parse enum options if available
       if (existingProperty.options?.choices) {
         setEnumOptions(existingProperty.options.choices);
       }
     } else {
-      // Reset form for new property
       setFormData({
         label: '',
         name: '',
@@ -132,7 +133,6 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
     setError(null);
   }, [existingProperty, isOpen]);
 
-  // Auto-generate internal name from label
   const handleLabelChange = useCallback((value) => {
     setFormData((prev) => {
       const updates = { ...prev, label: value };
@@ -193,7 +193,6 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
     setLoading(true);
 
     try {
-      // Prepare options based on field type
       let options = {};
 
       if (['enum', 'multi_enum', 'radio'].includes(formData.type)) {
@@ -261,22 +260,19 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
 
   const canProceedToStep2 = formData.label && formData.name;
   const canProceedToStep3 = formData.type;
-
-  // Check if field type needs configuration
   const needsConfiguration = !isEditing && ['enum', 'multi_enum', 'radio', 'number', 'rollup', 'sync', 'url', 'file'].includes(formData.type);
-
   const totalSteps = isEditing ? 1 : (needsConfiguration ? 3 : 2);
 
   return (
     <Modal open={isOpen} onClose={handleClose} size="lg">
       <div className="max-w-3xl">
         {/* Header */}
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-text mb-2">
+        <div className="mb-[var(--bb-space-6)]">
+          <h2 className="text-[var(--bb-font-size-xl)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)] mb-[var(--bb-space-2)]">
             {isEditing ? 'Edit Property' : 'Create Property'}
           </h2>
           {!isEditing && (
-            <p className="text-sm text-muted">
+            <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
               Step {step} of {totalSteps}
             </p>
           )}
@@ -284,92 +280,78 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
 
         {/* Step Indicators */}
         {!isEditing && (
-          <div className="flex items-center gap-2 mb-8">
-            <div className={`flex-1 h-1 rounded-full ${step >= 1 ? 'bg-primary' : 'bg-border'}`} />
-            <div className={`flex-1 h-1 rounded-full ${step >= 2 ? 'bg-primary' : 'bg-border'}`} />
+          <div className="flex items-center gap-[var(--bb-space-2)] mb-[var(--bb-space-8)]">
+            <div className={cn('flex-1 h-1 rounded-full', step >= 1 ? 'bg-[var(--bb-color-accent)]' : 'bg-[var(--bb-color-border-subtle)]')} />
+            <div className={cn('flex-1 h-1 rounded-full', step >= 2 ? 'bg-[var(--bb-color-accent)]' : 'bg-[var(--bb-color-border-subtle)]')} />
             {needsConfiguration && (
-              <div className={`flex-1 h-1 rounded-full ${step >= 3 ? 'bg-primary' : 'bg-border'}`} />
+              <div className={cn('flex-1 h-1 rounded-full', step >= 3 ? 'bg-[var(--bb-color-accent)]' : 'bg-[var(--bb-color-border-subtle)]')} />
             )}
           </div>
         )}
 
         {error && (
-          <div className="mb-4 rounded-lg bg-red-50 dark:bg-surface-primary border border-red-200 dark:border-red-900/30 p-3 text-sm text-red-600">
+          <div className="mb-[var(--bb-space-4)] rounded-[var(--bb-radius-lg)] bg-[var(--bb-color-status-negative-soft)] border border-[var(--bb-color-status-negative)] p-[var(--bb-space-3)] text-[var(--bb-font-size-sm)] text-[var(--bb-color-status-negative)]">
             {error}
           </div>
         )}
 
         {/* Step 1: Basic Info */}
         {step === 1 && (
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-text mb-2">
-                Property label <span className="text-red-600">*</span>
-              </label>
-              <input
+          <div className="space-y-[var(--bb-space-6)]">
+            <FormField label="Property label" required>
+              <Input
                 type="text"
                 value={formData.label}
                 onChange={(e) => handleLabelChange(e.target.value)}
                 placeholder="e.g., Customer Tier, Last Visit Date"
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
-            </div>
+            </FormField>
 
-            <div>
-              <label className="block text-sm font-medium text-text mb-2">
-                Internal name <span className="text-red-600">*</span>
-              </label>
-              <input
+            <FormField 
+              label="Internal name" 
+              required
+              description={isEditing ? 'Cannot be changed after creation' : 'Auto-generated from label. Use lowercase and underscores.'}
+            >
+              <Input
                 type="text"
                 value={formData.name}
                 onChange={(e) => handleNameChange(e.target.value)}
                 placeholder="customer_tier"
                 disabled={isEditing}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono disabled:opacity-50 disabled:cursor-not-allowed"
+                className="font-mono"
               />
-              <p className="mt-1 text-xs text-muted">
-                {isEditing ? 'Cannot be changed after creation' : 'Auto-generated from label. Use lowercase and underscores.'}
-              </p>
-            </div>
+            </FormField>
 
-            <div>
-              <label className="block text-sm font-medium text-text mb-2">
-                Group <span className="text-red-600">*</span>
-              </label>
-              <select
+            <FormField label="Group" required>
+              <Select
                 value={formData.group}
                 onChange={(e) => handleGroupChange(e.target.value)}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 {PROPERTY_GROUPS.map((group) => (
                   <option key={group.value} value={group.value}>
                     {group.label}
                   </option>
                 ))}
-              </select>
-            </div>
+              </Select>
+            </FormField>
 
-            <div>
-              <label className="block text-sm font-medium text-text mb-2">
-                Description
-              </label>
-              <textarea
+            <FormField label="Description">
+              <Textarea
                 value={formData.description}
                 onChange={(e) => handleDescriptionChange(e.target.value)}
                 rows={3}
                 placeholder="Help users understand what this property is for"
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
               />
-            </div>
+            </FormField>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-[var(--bb-space-3)]">
               <input
                 type="checkbox"
                 checked={formData.required}
                 onChange={(e) => handleRequiredChange(e.target.checked)}
-                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                className="h-4 w-4 rounded border-[var(--bb-color-border-subtle)] text-[var(--bb-color-accent)] focus:ring-[var(--bb-color-accent)]"
               />
-              <label className="text-sm text-text">
+              <label className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)]">
                 Make this property required
               </label>
             </div>
@@ -378,34 +360,41 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
 
         {/* Step 2: Field Type Selection */}
         {step === 2 && !isEditing && (
-          <div className="space-y-6">
+          <div className="space-y-[var(--bb-space-6)]">
             <div>
-              <h3 className="text-sm font-semibold text-text mb-4">Select field type</h3>
-              <p className="text-sm text-muted mb-6">
+              <h3 className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)] mb-[var(--bb-space-4)]">
+                Select field type
+              </h3>
+              <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)] mb-[var(--bb-space-6)]">
                 The field type determines how data is stored and displayed in BarkBase.
               </p>
             </div>
 
-            <div className="space-y-6 max-h-96 overflow-y-auto pr-2">
+            <div className="space-y-[var(--bb-space-6)] max-h-96 overflow-y-auto pr-[var(--bb-space-2)]">
               {Object.entries(FIELD_TYPE_CATEGORIES).map(([category, types]) => (
                 <div key={category}>
-                  <h4 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3">
+                  <h4 className="text-[var(--bb-font-size-xs)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-muted)] uppercase tracking-wider mb-[var(--bb-space-3)]">
                     {category}
                   </h4>
-                  <div className="space-y-2">
+                  <div className="space-y-[var(--bb-space-2)]">
                     {types.map((type) => (
                       <button
                         key={type.value}
                         type="button"
                         onClick={() => handleTypeChange(type.value)}
-                        className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                        className={cn(
+                          'w-full text-left p-[var(--bb-space-3)] rounded-[var(--bb-radius-lg)] border transition-colors',
                           formData.type === type.value
-                            ? 'border-primary bg-primary/5'
-                            : 'border-border bg-surface hover:border-primary/50'
-                        }`}
+                            ? 'border-[var(--bb-color-accent)] bg-[var(--bb-color-accent-soft)]'
+                            : 'border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] hover:border-[var(--bb-color-accent)]/50'
+                        )}
                       >
-                        <div className="font-medium text-sm text-text">{type.label}</div>
-                        <div className="text-xs text-muted mt-1">{type.description}</div>
+                        <div className="font-[var(--bb-font-weight-medium)] text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)]">
+                          {type.label}
+                        </div>
+                        <div className="text-[var(--bb-font-size-xs)] text-[var(--bb-color-text-muted)] mt-[var(--bb-space-1)]">
+                          {type.description}
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -417,14 +406,14 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
 
         {/* Step 3: Field Type Configuration */}
         {step === 3 && (
-          <div className="space-y-6">
+          <div className="space-y-[var(--bb-space-6)]">
             <div>
-              <h3 className="text-sm font-semibold text-text mb-2">
+              <h3 className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)] mb-[var(--bb-space-2)]">
                 Configure {FIELD_TYPE_CATEGORIES[Object.keys(FIELD_TYPE_CATEGORIES).find(cat =>
                   FIELD_TYPE_CATEGORIES[cat].some(t => t.value === formData.type)
                 )]?.find(t => t.value === formData.type)?.label}
               </h3>
-              <p className="text-sm text-muted mb-6">
+              <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)] mb-[var(--bb-space-6)]">
                 Set up the specific options for this field type.
               </p>
             </div>
@@ -432,24 +421,24 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
             {/* Enum/Multi-Enum/Radio Configuration */}
             {(['enum', 'multi_enum', 'radio'].includes(formData.type)) && (
               <div>
-                <label className="block text-sm font-medium text-text mb-3">
-                  Options <span className="text-red-600">*</span>
+                <label className="block text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)] mb-[var(--bb-space-3)]">
+                  Options <span className="text-[var(--bb-color-status-negative)]">*</span>
                 </label>
-                <div className="space-y-2 mb-3">
+                <div className="space-y-[var(--bb-space-2)] mb-[var(--bb-space-3)]">
                   {enumOptions.map((option, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <input
+                    <div key={index} className="flex items-center gap-[var(--bb-space-2)]">
+                      <Input
                         type="text"
                         value={option}
                         onChange={(e) => handleEnumOptionChange(index, e.target.value)}
                         placeholder={`Option ${index + 1}`}
-                        className="flex-1 rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                        className="flex-1"
                       />
                       {enumOptions.length > 1 && (
                         <button
                           type="button"
                           onClick={() => handleRemoveEnumOption(index)}
-                          className="p-2 text-muted hover:text-red-600 transition-colors"
+                          className="p-[var(--bb-space-2)] text-[var(--bb-color-text-muted)] hover:text-[var(--bb-color-status-negative)] transition-colors"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -464,10 +453,10 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
                   onClick={handleAddEnumOption}
                   className="w-full"
                 >
-                  <Plus className="h-4 w-4 mr-2" />
+                  <Plus className="h-4 w-4 mr-[var(--bb-space-2)]" />
                   Add option
                 </Button>
-                <p className="mt-2 text-xs text-muted">
+                <p className="mt-[var(--bb-space-2)] text-[var(--bb-font-size-xs)] text-[var(--bb-color-text-muted)]">
                   Maximum 5,000 options. Each option can be up to 3,000 characters.
                 </p>
               </div>
@@ -476,23 +465,28 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
             {/* Number Configuration */}
             {formData.type === 'number' && (
               <div>
-                <label className="block text-sm font-medium text-text mb-3">
+                <label className="block text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)] mb-[var(--bb-space-3)]">
                   Number format
                 </label>
-                <div className="space-y-2">
+                <div className="space-y-[var(--bb-space-2)]">
                   {NUMBER_FORMATS.map((format) => (
                     <button
                       key={format.value}
                       type="button"
                       onClick={() => setNumberFormat(format.value)}
-                      className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                      className={cn(
+                        'w-full text-left p-[var(--bb-space-3)] rounded-[var(--bb-radius-lg)] border transition-colors',
                         numberFormat === format.value
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border bg-surface hover:border-primary/50'
-                      }`}
+                          ? 'border-[var(--bb-color-accent)] bg-[var(--bb-color-accent-soft)]'
+                          : 'border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] hover:border-[var(--bb-color-accent)]/50'
+                      )}
                     >
-                      <div className="font-medium text-sm text-text">{format.label}</div>
-                      <div className="text-xs text-muted mt-1">{format.description}</div>
+                      <div className="font-[var(--bb-font-weight-medium)] text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)]">
+                        {format.label}
+                      </div>
+                      <div className="text-[var(--bb-font-size-xs)] text-[var(--bb-color-text-muted)] mt-[var(--bb-space-1)]">
+                        {format.description}
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -501,63 +495,51 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
 
             {/* Rollup Configuration */}
             {formData.type === 'rollup' && (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-text mb-2">
-                    Associated object
-                  </label>
-                  <select
+              <div className="space-y-[var(--bb-space-4)]">
+                <FormField label="Associated object">
+                  <Select
                     value={rollupConfig.associatedObject}
                     onChange={(e) => setRollupConfig({ ...rollupConfig, associatedObject: e.target.value })}
-                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   >
                     <option value="">Select object...</option>
                     <option value="pets">Pets</option>
                     <option value="owners">Owners</option>
                     <option value="bookings">Bookings</option>
                     <option value="invoices">Invoices</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-text mb-2">
-                    Rollup type
-                  </label>
-                  <select
+                  </Select>
+                </FormField>
+                <FormField label="Rollup type">
+                  <Select
                     value={rollupConfig.rollupType}
                     onChange={(e) => setRollupConfig({ ...rollupConfig, rollupType: e.target.value })}
-                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   >
                     <option value="count">Count</option>
                     <option value="sum">Sum</option>
                     <option value="average">Average</option>
                     <option value="min">Minimum</option>
                     <option value="max">Maximum</option>
-                  </select>
-                </div>
+                  </Select>
+                </FormField>
               </div>
             )}
 
             {/* Sync Configuration */}
             {formData.type === 'sync' && (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-text mb-2">
-                    Associated object
-                  </label>
-                  <select
+              <div className="space-y-[var(--bb-space-4)]">
+                <FormField label="Associated object">
+                  <Select
                     value={syncConfig.associatedObject}
                     onChange={(e) => setSyncConfig({ ...syncConfig, associatedObject: e.target.value })}
-                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   >
                     <option value="">Select object...</option>
                     <option value="pets">Pets</option>
                     <option value="owners">Owners</option>
                     <option value="bookings">Bookings</option>
                     <option value="invoices">Invoices</option>
-                  </select>
-                </div>
-                <div className="p-3 rounded-lg bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30">
-                  <p className="text-sm text-blue-900 dark:text-blue-100">
+                  </Select>
+                </FormField>
+                <div className="p-[var(--bb-space-3)] rounded-[var(--bb-radius-lg)] bg-[var(--bb-color-accent-soft)] border border-[var(--bb-color-accent)]/30">
+                  <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)]">
                     Values will automatically update when the selected property on the associated record changes.
                   </p>
                 </div>
@@ -566,23 +548,19 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
 
             {/* File Configuration */}
             {formData.type === 'file' && (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-text mb-2">
-                    View permission
-                  </label>
-                  <select
+              <div className="space-y-[var(--bb-space-4)]">
+                <FormField label="View permission">
+                  <Select
                     value={fileConfig.viewPermission}
                     onChange={(e) => setFileConfig({ ...fileConfig, viewPermission: e.target.value })}
-                    className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   >
                     <option value="all">All users</option>
                     <option value="owners">Record owners only</option>
                     <option value="admins">Admins only</option>
-                  </select>
-                </div>
-                <div className="p-3 rounded-lg bg-surface border border-border">
-                  <p className="text-sm text-text">
+                  </Select>
+                </FormField>
+                <div className="p-[var(--bb-space-3)] rounded-[var(--bb-radius-lg)] bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)]">
+                  <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)]">
                     <strong>File limits:</strong> Up to 10 files per property. Max 20 MB per file (50 MB for paid accounts).
                   </p>
                 </div>
@@ -592,11 +570,11 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
         )}
 
         {/* Footer */}
-        <div className="mt-8 flex items-center justify-between pt-6 border-t border-border">
+        <div className="mt-[var(--bb-space-8)] flex items-center justify-between pt-[var(--bb-space-6)] border-t border-[var(--bb-color-border-subtle)]">
           <Button variant="outline" onClick={handleClose} disabled={loading}>
             Cancel
           </Button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-[var(--bb-space-2)]">
             {step > 1 && !isEditing && (
               <Button variant="outline" onClick={() => setStep(step - 1)} disabled={loading}>
                 Back

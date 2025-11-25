@@ -1,30 +1,41 @@
 /**
  * Professional Dialog/Modal Component
- * Clean overlay with proper accessibility
+ * Clean overlay with proper accessibility and token-based styling
  */
 
 import React from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const Dialog = ({ open, onClose, children, className }) => {
+const Dialog = ({ open, onClose, children, className, size = 'default' }) => {
   if (!open) return null;
+
+  const sizeClasses = {
+    sm: 'max-w-sm',
+    default: 'max-w-lg',
+    lg: 'max-w-2xl',
+    xl: 'max-w-4xl',
+    full: 'max-w-[95vw]',
+  };
 
   return (
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-gray-900/70 backdrop-blur-sm z-[1040] animate-fade-in"
+        className="fixed inset-0 bg-[var(--bb-color-overlay-scrim)] backdrop-blur-sm z-[1040] animate-fade-in"
         onClick={onClose}
       />
       
       {/* Dialog Container */}
       <div className="fixed inset-0 z-[1050] overflow-y-auto">
-        <div className="flex min-h-full items-center justify-center p-4">
+        <div className="flex min-h-full items-center justify-center p-[var(--bb-space-4)]">
           <div
             className={cn(
-              'relative bg-white dark:bg-dark-bg-secondary rounded-lg border border-gray-200 dark:border-dark-border shadow-lg w-full max-w-lg',
+              'relative w-full rounded-[var(--bb-radius-lg)]',
+              'bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)]',
+              'shadow-[var(--bb-elevation-card)]',
               'animate-slide-in',
+              sizeClasses[size] || sizeClasses.default,
               className
             )}
             onClick={(e) => e.stopPropagation()}
@@ -45,7 +56,25 @@ const DialogContent = ({ className, children, ...props }) => (
 
 const DialogHeader = ({ className, children, ...props }) => (
   <div
-    className={cn('flex flex-col space-y-1.5 px-6 py-6 border-b border-gray-200 dark:border-dark-border', className)}
+    className={cn(
+      'flex flex-col space-y-[var(--bb-space-1)]',
+      'px-[var(--bb-space-6)] py-[var(--bb-space-5)]',
+      'border-b border-[var(--bb-color-border-subtle)]',
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </div>
+);
+
+const DialogBody = ({ className, children, ...props }) => (
+  <div
+    className={cn(
+      'px-[var(--bb-space-6)] py-[var(--bb-space-5)]',
+      'text-[var(--bb-color-text-primary)]',
+      className
+    )}
     {...props}
   >
     {children}
@@ -54,7 +83,12 @@ const DialogHeader = ({ className, children, ...props }) => (
 
 const DialogFooter = ({ className, children, ...props }) => (
   <div
-    className={cn('flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-dark-border', className)}
+    className={cn(
+      'flex items-center justify-end gap-[var(--bb-space-3)]',
+      'px-[var(--bb-space-6)] py-[var(--bb-space-4)]',
+      'border-t border-[var(--bb-color-border-subtle)]',
+      className
+    )}
     {...props}
   >
     {children}
@@ -63,7 +97,11 @@ const DialogFooter = ({ className, children, ...props }) => (
 
 const DialogTitle = ({ className, children, ...props }) => (
   <h2
-    className={cn('text-xl font-semibold text-gray-900 dark:text-dark-text-primary', className)}
+    className={cn(
+      'text-[var(--bb-font-size-lg)] font-[var(--bb-font-weight-semibold)]',
+      'text-[var(--bb-color-text-primary)]',
+      className
+    )}
     {...props}
   >
     {children}
@@ -72,7 +110,10 @@ const DialogTitle = ({ className, children, ...props }) => (
 
 const DialogDescription = ({ className, children, ...props }) => (
   <p
-    className={cn('text-sm text-gray-600 dark:text-dark-text-secondary', className)}
+    className={cn(
+      'text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]',
+      className
+    )}
     {...props}
   >
     {children}
@@ -83,8 +124,11 @@ const DialogClose = ({ onClose, className }) => (
   <button
     onClick={onClose}
     className={cn(
-      'absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100',
-      'focus:outline-none focus:ring-2 focus:ring-primary-500',
+      'absolute right-[var(--bb-space-4)] top-[var(--bb-space-4)]',
+      'rounded-[var(--bb-radius-sm)] p-[var(--bb-space-1)]',
+      'text-[var(--bb-color-text-muted)] hover:text-[var(--bb-color-text-primary)]',
+      'focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]',
+      'transition-colors',
       className
     )}
   >
@@ -97,6 +141,7 @@ export {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogBody,
   DialogFooter,
   DialogTitle,
   DialogDescription,

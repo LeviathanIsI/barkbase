@@ -43,13 +43,39 @@ export default function ConfirmDialog({
   const getVariantStyles = () => {
     switch (variant) {
       case 'danger':
-        return 'bg-red-600 hover:bg-red-700 focus:ring-red-500';
+        return 'bg-[var(--bb-color-status-negative)] hover:bg-[var(--bb-color-status-negative)]/90 focus:ring-[var(--bb-color-status-negative)]';
       case 'warning':
-        return 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500';
+        return 'bg-[var(--bb-color-status-warning)] hover:bg-[var(--bb-color-status-warning)]/90 focus:ring-[var(--bb-color-status-warning)]';
       case 'primary':
-        return 'bg-primary hover:bg-primary-dark focus:ring-primary';
+        return 'bg-[var(--bb-color-accent)] hover:bg-[var(--bb-color-accent)]/90 focus:ring-[var(--bb-color-accent)]';
       default:
-        return 'bg-red-600 hover:bg-red-700 focus:ring-red-500';
+        return 'bg-[var(--bb-color-status-negative)] hover:bg-[var(--bb-color-status-negative)]/90 focus:ring-[var(--bb-color-status-negative)]';
+    }
+  };
+
+  const getIconColor = () => {
+    switch (variant) {
+      case 'danger':
+        return 'text-[var(--bb-color-status-negative)]';
+      case 'warning':
+        return 'text-[var(--bb-color-status-warning)]';
+      case 'primary':
+        return 'text-[var(--bb-color-accent)]';
+      default:
+        return 'text-[var(--bb-color-status-negative)]';
+    }
+  };
+
+  const getIconBg = () => {
+    switch (variant) {
+      case 'danger':
+        return 'bg-[var(--bb-color-status-negative-soft)]';
+      case 'warning':
+        return 'bg-[var(--bb-color-status-warning-soft)]';
+      case 'primary':
+        return 'bg-[var(--bb-color-accent-soft)]';
+      default:
+        return 'bg-[var(--bb-color-status-negative-soft)]';
     }
   };
 
@@ -58,7 +84,7 @@ export default function ConfirmDialog({
       case 'danger':
         return (
           <svg
-            className="h-6 w-6 text-red-600 dark:text-red-400"
+            className={`h-6 w-6 ${getIconColor()}`}
             fill="none"
             viewBox="0 0 24 24"
             strokeWidth="1.5"
@@ -75,7 +101,7 @@ export default function ConfirmDialog({
       case 'warning':
         return (
           <svg
-            className="h-6 w-6 text-yellow-600"
+            className={`h-6 w-6 ${getIconColor()}`}
             fill="none"
             viewBox="0 0 24 24"
             strokeWidth="1.5"
@@ -92,7 +118,7 @@ export default function ConfirmDialog({
       case 'primary':
         return (
           <svg
-            className="h-6 w-6 text-primary"
+            className={`h-6 w-6 ${getIconColor()}`}
             fill="none"
             viewBox="0 0 24 24"
             strokeWidth="1.5"
@@ -112,29 +138,29 @@ export default function ConfirmDialog({
   };
 
   return (
-    <Modal open={isOpen} onClose={onClose}>
+    <Modal open={isOpen} onClose={onClose} size="sm">
       <div className="sm:flex sm:items-start">
-        <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-surface-secondary sm:mx-0 sm:h-10 sm:w-10">
+        <div className={`mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full ${getIconBg()} sm:mx-0 sm:h-10 sm:w-10`}>
           {getIcon()}
         </div>
-        <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left flex-1">
+        <div className="mt-[var(--bb-space-3)] text-center sm:ml-[var(--bb-space-4)] sm:mt-0 sm:text-left flex-1">
           <h3
-            className="text-lg font-semibold leading-6 text-gray-900 dark:text-text-primary"
+            className="text-[var(--bb-font-size-lg)] font-[var(--bb-font-weight-semibold)] leading-6 text-[var(--bb-color-text-primary)]"
             id="modal-title"
           >
             {title}
           </h3>
-          <div className="mt-2">
-            <p className="text-sm text-gray-500 dark:text-text-secondary">{message}</p>
+          <div className="mt-[var(--bb-space-2)]">
+            <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">{message}</p>
           </div>
         </div>
       </div>
 
-      <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse gap-3">
+      <div className="mt-[var(--bb-space-5)] sm:mt-[var(--bb-space-4)] sm:flex sm:flex-row-reverse gap-[var(--bb-space-3)]">
         <Button
           ref={confirmButtonRef}
           onClick={handleConfirm}
-          className={`w-full sm:w-auto ${getVariantStyles()}`}
+          className={`w-full sm:w-auto text-white ${getVariantStyles()}`}
           disabled={isLoading}
           aria-label={confirmText}
         >
@@ -143,7 +169,7 @@ export default function ConfirmDialog({
         <Button
           onClick={onClose}
           variant="outline"
-          className="mt-3 sm:mt-0 w-full sm:w-auto"
+          className="mt-[var(--bb-space-3)] sm:mt-0 w-full sm:w-auto"
           disabled={isLoading}
           aria-label={cancelText}
         >

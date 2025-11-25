@@ -6,6 +6,9 @@ import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
+import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
+import { FormField } from '@/components/ui/FormField';
 import { useBookingCheckInMutation } from '../api';
 
 const defaultValues = {
@@ -155,6 +158,7 @@ const CheckInModal = ({ booking, open, onClose }) => {
       open={open}
       onClose={onClose}
       title={`Check In ${booking.pet?.name ?? booking.petName ?? ''}`.trim()}
+      size="lg"
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={isSubmitting}>
@@ -166,69 +170,101 @@ const CheckInModal = ({ booking, open, onClose }) => {
         </>
       }
     >
-      <div className="rounded-lg border border-border/60 bg-surface/60 p-4 text-sm">
-        <div className="flex flex-wrap items-center gap-3">
+      {/* Booking Info Banner */}
+      <div className="rounded-[var(--bb-radius-lg)] border border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-elevated)] p-[var(--bb-space-4)] text-[var(--bb-font-size-sm)]">
+        <div className="flex flex-wrap items-center gap-[var(--bb-space-3)]">
           <Badge variant="info">Scheduled {scheduledCheckIn ? format(new Date(scheduledCheckIn), 'PPpp') : 'n/a'}</Badge>
           {kennelName ? <Badge variant="neutral">Assigned to {kennelName}</Badge> : null}
           <Badge variant="neutral">Booking #{booking.id?.slice(0, 8)}</Badge>
         </div>
       </div>
-      <form className="mt-4 grid gap-4" onSubmit={handleSubmit(onSubmit)}>
-        <div className="grid gap-2">
-          <label className="text-sm font-medium">Weight (lbs)</label>
-          <input
+
+      {/* Form */}
+      <form className="mt-[var(--bb-space-4)] space-y-[var(--bb-space-4)]" onSubmit={handleSubmit(onSubmit)}>
+        <FormField label="Weight (lbs)">
+          <Input
             type="number"
             step="0.1"
             min="0"
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
             placeholder="Enter current weight"
             {...register('weight')}
           />
-        </div>
-        <div className="grid gap-2">
-          <label className="text-sm font-medium">Overall Condition</label>
-          <input type="range" min="1" max="5" {...register('conditionRating')} />
-          <p className="text-xs text-muted">1 = fragile, 5 = excellent.</p>
-        </div>
-        <div className="grid gap-2">
-          <span className="text-sm font-medium">Pre-Check Checklist</span>
-          <label className="flex items-center gap-2 text-sm text-muted">
-            <input type="checkbox" className="h-4 w-4" {...register('vaccinationsVerified')} /> Vaccinations current
+        </FormField>
+
+        <FormField label="Overall Condition" description="1 = fragile, 5 = excellent.">
+          <input 
+            type="range" 
+            min="1" 
+            max="5" 
+            {...register('conditionRating')} 
+            className="w-full accent-[var(--bb-color-accent)]"
+          />
+        </FormField>
+
+        <div className="space-y-[var(--bb-space-2)]">
+          <span className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+            Pre-Check Checklist
+          </span>
+          <label className="flex items-center gap-[var(--bb-space-2)] text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
+            <input 
+              type="checkbox" 
+              className="h-4 w-4 rounded border-[var(--bb-color-border-subtle)] text-[var(--bb-color-accent)] focus:ring-[var(--bb-color-accent)]" 
+              {...register('vaccinationsVerified')} 
+            /> 
+            Vaccinations current
           </label>
-          <label className="flex items-center gap-2 text-sm text-muted">
-            <input type="checkbox" className="h-4 w-4" {...register('medsPacked')} /> Medication bag packed
+          <label className="flex items-center gap-[var(--bb-space-2)] text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
+            <input 
+              type="checkbox" 
+              className="h-4 w-4 rounded border-[var(--bb-color-border-subtle)] text-[var(--bb-color-accent)] focus:ring-[var(--bb-color-accent)]" 
+              {...register('medsPacked')} 
+            /> 
+            Medication bag packed
           </label>
-          <label className="flex items-center gap-2 text-sm text-muted">
-            <input type="checkbox" className="h-4 w-4" {...register('behaviorFlagged')} /> Reviewed behavior flags
+          <label className="flex items-center gap-[var(--bb-space-2)] text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
+            <input 
+              type="checkbox" 
+              className="h-4 w-4 rounded border-[var(--bb-color-border-subtle)] text-[var(--bb-color-accent)] focus:ring-[var(--bb-color-accent)]" 
+              {...register('behaviorFlagged')} 
+            /> 
+            Reviewed behavior flags
           </label>
-          <p className="text-xs text-muted">Summary: {checklistSummary}</p>
+          <p className="text-[var(--bb-font-size-xs)] text-[var(--bb-color-text-muted)]">Summary: {checklistSummary}</p>
         </div>
-        <div className="grid gap-2">
-          <label className="text-sm font-medium">Notes</label>
-          <textarea
+
+        <FormField label="Notes">
+          <Textarea
             rows={3}
             placeholder="Feeding adjustments, comfort items, recent behaviors"
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
             {...register('notes')}
           />
-        </div>
-        <div className="grid gap-2">
-          <label className="text-sm font-medium">Arrival Photos</label>
-          <input type="file" accept="image/*" multiple onChange={onSelectPhotos} />
+        </FormField>
+
+        <div className="space-y-[var(--bb-space-2)]">
+          <label className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+            Arrival Photos
+          </label>
+          <input 
+            type="file" 
+            accept="image/*" 
+            multiple 
+            onChange={onSelectPhotos}
+            className="block w-full text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)] file:mr-[var(--bb-space-4)] file:py-[var(--bb-space-2)] file:px-[var(--bb-space-4)] file:rounded-[var(--bb-radius-md)] file:border-0 file:text-[var(--bb-font-size-sm)] file:font-[var(--bb-font-weight-medium)] file:bg-[var(--bb-color-accent-soft)] file:text-[var(--bb-color-accent)] hover:file:bg-[var(--bb-color-accent)]/20"
+          />
           {isUploading ? <Skeleton className="h-20 w-full" /> : null}
           {photos.length ? (
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-[var(--bb-space-3)]">
               {photos.map((photo, index) => (
                 <div key={index} className="relative">
                   <img
                     src={photo.url}
                     alt={`Check-in ${index + 1}`}
-                    className="h-20 w-20 rounded-lg object-cover"
+                    className="h-20 w-20 rounded-[var(--bb-radius-lg)] object-cover"
                   />
                   <button
                     type="button"
                     onClick={() => removePhoto(index)}
-                  className="absolute right-1 top-1 rounded-md bg-black/60 px-2 py-1 text-xs text-white"
+                    className="absolute right-[var(--bb-space-1)] top-[var(--bb-space-1)] rounded-[var(--bb-radius-md)] bg-black/60 px-[var(--bb-space-2)] py-[var(--bb-space-1)] text-[var(--bb-font-size-xs)] text-white"
                     aria-label={`Remove photo ${index + 1}`}
                   >
                     Remove
@@ -237,7 +273,9 @@ const CheckInModal = ({ booking, open, onClose }) => {
               ))}
             </div>
           ) : (
-            <p className="text-xs text-muted">Optional but helps document drop-off condition.</p>
+            <p className="text-[var(--bb-font-size-xs)] text-[var(--bb-color-text-muted)]">
+              Optional but helps document drop-off condition.
+            </p>
           )}
         </div>
       </form>

@@ -1,9 +1,10 @@
 /**
- * Booking Detail Modal - Phase 7 Enterprise Layout
- * Simplified modal-based detail view with token-based styling.
+ * Booking Detail Modal - Enterprise Layout with Token-Based Styling
+ * Simplified modal-based detail view.
  */
 
 import { X, Calendar, PawPrint, User } from 'lucide-react';
+import Modal, { ModalHeader, ModalBody, ModalFooter, ModalTitle, ModalDescription } from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { formatCurrency } from '@/lib/utils';
@@ -36,174 +37,113 @@ const BookingDetailModal = ({ booking, isOpen, onClose }) => {
   };
 
   return (
-    <div
-      className="fixed inset-0 flex items-center justify-center z-50 p-[var(--bb-space-4,1rem)]"
-      style={{ backgroundColor: 'var(--bb-color-overlay-scrim)' }}
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      size="default"
     >
-      <div
-        className="rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto"
-        style={{
-          backgroundColor: 'var(--bb-color-bg-surface)',
-        }}
-      >
-        {/* Header */}
-        <div
-          className="flex items-center justify-between p-[var(--bb-space-6,1.5rem)] border-b"
-          style={{ borderColor: 'var(--bb-color-border-subtle)' }}
-        >
-          <div>
-            <div className="flex items-center gap-[var(--bb-space-3,0.75rem)]">
-              <h2
-                className="text-[var(--bb-font-size-lg,1.125rem)] font-[var(--bb-font-weight-semibold,600)]"
-                style={{ color: 'var(--bb-color-text-primary)' }}
-              >
-                Booking Details
-              </h2>
-              {booking.status && (
-                <Badge variant={getStatusVariant(booking.status)}>
-                  {booking.status.replace('_', ' ')}
-                </Badge>
-              )}
-            </div>
-            <p
-              className="text-[var(--bb-font-size-sm,0.875rem)] mt-[var(--bb-space-1,0.25rem)]"
-              style={{ color: 'var(--bb-color-text-muted)' }}
-            >
-              {formatDate(booking.checkIn)} → {formatDate(booking.checkOut)}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-[var(--bb-space-2,0.5rem)] rounded-full transition-colors"
-            style={{ color: 'var(--bb-color-text-muted)' }}
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="p-[var(--bb-space-6,1.5rem)] space-y-[var(--bb-space-4,1rem)]">
-          {/* Pet Info */}
-          {booking.pet && (
-            <div
-              className="flex items-center gap-[var(--bb-space-3,0.75rem)] p-[var(--bb-space-4,1rem)] rounded-lg"
-              style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
-            >
-              <div
-                className="flex h-10 w-10 items-center justify-center rounded-full"
-                style={{
-                  backgroundColor: 'var(--bb-color-accent-soft)',
-                  color: 'var(--bb-color-accent)',
-                }}
-              >
-                <PawPrint className="h-5 w-5" />
-              </div>
-              <div>
-                <p
-                  className="font-[var(--bb-font-weight-medium,500)]"
-                  style={{ color: 'var(--bb-color-text-primary)' }}
-                >
-                  {booking.pet.name || 'Unknown Pet'}
-                </p>
-                <p
-                  className="text-[var(--bb-font-size-sm,0.875rem)]"
-                  style={{ color: 'var(--bb-color-text-muted)' }}
-                >
-                  {booking.pet.breed || 'Unknown breed'}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Owner Info */}
-          {booking.owner && (
-            <div
-              className="flex items-center gap-[var(--bb-space-3,0.75rem)] p-[var(--bb-space-4,1rem)] rounded-lg"
-              style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
-            >
-              <div
-                className="flex h-10 w-10 items-center justify-center rounded-full"
-                style={{
-                  backgroundColor: 'var(--bb-color-purple-soft)',
-                  color: 'var(--bb-color-purple)',
-                }}
-              >
-                <User className="h-5 w-5" />
-              </div>
-              <div>
-                <p
-                  className="font-[var(--bb-font-weight-medium,500)]"
-                  style={{ color: 'var(--bb-color-text-primary)' }}
-                >
-                  {booking.owner.firstName || booking.owner.name || 'Unknown'}
-                  {booking.owner.lastName && ` ${booking.owner.lastName}`}
-                </p>
-                {booking.owner.email && (
-                  <p
-                    className="text-[var(--bb-font-size-sm,0.875rem)]"
-                    style={{ color: 'var(--bb-color-text-muted)' }}
-                  >
-                    {booking.owner.email}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Booking Summary */}
-          <div className="space-y-[var(--bb-space-2,0.5rem)]">
-            <div className="flex items-center justify-between">
-              <span style={{ color: 'var(--bb-color-text-muted)' }}>Duration</span>
-              <span style={{ color: 'var(--bb-color-text-primary)' }}>
-                {duration} {duration === 1 ? 'night' : 'nights'}
-              </span>
-            </div>
-            {booking.totalCents > 0 && (
-              <div className="flex items-center justify-between">
-                <span style={{ color: 'var(--bb-color-text-muted)' }}>Total</span>
-                <span
-                  className="font-[var(--bb-font-weight-semibold,600)]"
-                  style={{ color: 'var(--bb-color-text-primary)' }}
-                >
-                  {formatCurrency(booking.totalCents)}
-                </span>
-              </div>
+      {/* Custom Header with Status Badge */}
+      <div className="flex items-start justify-between gap-[var(--bb-space-4)] px-[var(--bb-space-6)] py-[var(--bb-space-5)] border-b border-[var(--bb-color-border-subtle)]">
+        <div>
+          <div className="flex items-center gap-[var(--bb-space-3)]">
+            <h2 className="text-[var(--bb-font-size-lg)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)]">
+              Booking Details
+            </h2>
+            {booking.status && (
+              <Badge variant={getStatusVariant(booking.status)}>
+                {booking.status.replace('_', ' ')}
+              </Badge>
             )}
           </div>
+          <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)] mt-[var(--bb-space-1)]">
+            {formatDate(booking.checkIn)} → {formatDate(booking.checkOut)}
+          </p>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-[var(--bb-space-2)] rounded-full text-[var(--bb-color-text-muted)] hover:text-[var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-elevated)] transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
 
-          {/* Notes */}
-          {booking.notes && (
-            <div
-              className="p-[var(--bb-space-3,0.75rem)] rounded-lg"
-              style={{ backgroundColor: 'var(--bb-color-status-negative-soft)' }}
-            >
-              <p
-                className="text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-semibold,600)] uppercase tracking-wide mb-[var(--bb-space-1,0.25rem)]"
-                style={{ color: 'var(--bb-color-text-muted)' }}
-              >
-                Notes
+      {/* Content */}
+      <ModalBody className="space-y-[var(--bb-space-4)]">
+        {/* Pet Info */}
+        {booking.pet && (
+          <div className="flex items-center gap-[var(--bb-space-3)] p-[var(--bb-space-4)] rounded-[var(--bb-radius-lg)] bg-[var(--bb-color-bg-elevated)]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--bb-color-accent-soft)] text-[var(--bb-color-accent)]">
+              <PawPrint className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+                {booking.pet.name || 'Unknown Pet'}
               </p>
-              <p
-                className="text-[var(--bb-font-size-sm,0.875rem)]"
-                style={{ color: 'var(--bb-color-text-primary)' }}
-              >
-                {booking.notes}
+              <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
+                {booking.pet.breed || 'Unknown breed'}
               </p>
+            </div>
+          </div>
+        )}
+
+        {/* Owner Info */}
+        {booking.owner && (
+          <div className="flex items-center gap-[var(--bb-space-3)] p-[var(--bb-space-4)] rounded-[var(--bb-radius-lg)] bg-[var(--bb-color-bg-elevated)]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--bb-color-purple-soft)] text-[var(--bb-color-purple)]">
+              <User className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+                {booking.owner.firstName || booking.owner.name || 'Unknown'}
+                {booking.owner.lastName && ` ${booking.owner.lastName}`}
+              </p>
+              {booking.owner.email && (
+                <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
+                  {booking.owner.email}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Booking Summary */}
+        <div className="space-y-[var(--bb-space-2)]">
+          <div className="flex items-center justify-between">
+            <span className="text-[var(--bb-color-text-muted)]">Duration</span>
+            <span className="text-[var(--bb-color-text-primary)]">
+              {duration} {duration === 1 ? 'night' : 'nights'}
+            </span>
+          </div>
+          {booking.totalCents > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="text-[var(--bb-color-text-muted)]">Total</span>
+              <span className="font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)]">
+                {formatCurrency(booking.totalCents)}
+              </span>
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div
-          className="flex items-center justify-end gap-[var(--bb-space-3,0.75rem)] p-[var(--bb-space-6,1.5rem)] border-t"
-          style={{ borderColor: 'var(--bb-color-border-subtle)' }}
-        >
-          <Button variant="outline" onClick={onClose}>
-            Close
-          </Button>
-        </div>
-      </div>
-    </div>
+        {/* Notes */}
+        {booking.notes && (
+          <div className="p-[var(--bb-space-3)] rounded-[var(--bb-radius-lg)] bg-[var(--bb-color-status-warning-soft)]">
+            <p className="text-[var(--bb-font-size-xs)] font-[var(--bb-font-weight-semibold)] uppercase tracking-wide text-[var(--bb-color-text-muted)] mb-[var(--bb-space-1)]">
+              Notes
+            </p>
+            <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)]">
+              {booking.notes}
+            </p>
+          </div>
+        )}
+      </ModalBody>
+
+      {/* Footer */}
+      <ModalFooter>
+        <Button variant="outline" onClick={onClose}>
+          Close
+        </Button>
+      </ModalFooter>
+    </Modal>
   );
 };
 

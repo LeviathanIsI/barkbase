@@ -1,10 +1,14 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
-import Modal from '@/components/ui/Modal';
+import Modal, { ModalBody, ModalFooter } from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
+import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
+import { Select } from '@/components/ui/Select';
+import { FormField } from '@/components/ui/FormField';
 import { useBookingCheckOutMutation, useIncidentsQuery } from '../api';
 import { useGenerateInvoiceMutation } from '@/features/invoices/api';
 import { formatCurrency } from '@/lib/utils';
@@ -91,7 +95,7 @@ const SignatureCanvas = forwardRef(({ onChange }, ref) => {
       ref={canvasRef}
       width={480}
       height={200}
-      className="h-40 w-full rounded-lg border border-dashed border-border/70 bg-white dark:bg-surface-primary"
+      className="h-40 w-full rounded-[var(--bb-radius-lg)] border border-dashed border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)]"
     />
   );
 });
@@ -225,10 +229,8 @@ const CheckOutModal = ({ booking, open, onClose }) => {
     if (!lateFeeTouched && booking?.checkOut) {
       const scheduledCheckout = new Date(booking.checkOut);
       const actualCheckout = new Date(checkoutTime);
-      // Calculate days difference (late checkout = checkout date is after scheduled date)
       const daysLate = Math.floor((actualCheckout - scheduledCheckout) / (1000 * 60 * 60 * 24));
       if (daysLate > 0) {
-        // Late fee: $15 per day late
         setLateFeeCents(daysLate * 1500);
       } else {
         setLateFeeCents(0);
@@ -276,7 +278,6 @@ const CheckOutModal = ({ booking, open, onClose }) => {
       const result = await mutation.mutateAsync({ bookingId: booking.recordId, payload });
       toast.success(`Checked out ${booking?.pet?.name ?? 'pet'} successfully.`);
 
-      // Auto-generate invoice after successful checkout
       try {
         await generateInvoiceMutation.mutateAsync(booking.recordId);
         toast.success('Invoice generated successfully');
@@ -335,6 +336,7 @@ const CheckOutModal = ({ booking, open, onClose }) => {
       open={open}
       onClose={onClose}
       title={`Check Out ${booking.pet?.name ?? booking.petName ?? ''}`.trim()}
+      size="lg"
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={isSubmitting}>
@@ -349,8 +351,9 @@ const CheckOutModal = ({ booking, open, onClose }) => {
         </>
       }
     >
-      <div className="rounded-lg border border-border/60 bg-surface/60 p-4 text-sm">
-        <div className="flex flex-wrap items-center gap-3">
+      {/* Booking Info Banner */}
+      <div className="rounded-[var(--bb-radius-lg)] border border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-elevated)] p-[var(--bb-space-4)] text-[var(--bb-font-size-sm)]">
+        <div className="flex flex-wrap items-center gap-[var(--bb-space-3)]">
           <Badge variant="info">
             Scheduled {scheduledCheckOut ? format(new Date(scheduledCheckOut), 'PPpp') : 'n/a'}
           </Badge>
@@ -359,20 +362,18 @@ const CheckOutModal = ({ booking, open, onClose }) => {
         </div>
       </div>
 
-      <div className="mt-4 grid gap-4">
-        <div className="grid gap-2">
-          <label className="text-sm font-medium">Actual Checkout Date</label>
-          <input
+      {/* Form */}
+      <div className="mt-[var(--bb-space-4)] space-y-[var(--bb-space-4)]">
+        <FormField label="Actual Checkout Date">
+          <Input
             type="date"
             value={checkoutTime}
             onChange={(e) => setCheckoutTime(e.target.value)}
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary dark:text-text-secondary placeholder:opacity-75 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
-        </div>
+        </FormField>
 
-        <div className="grid gap-2">
-          <label className="text-sm font-medium">Late Fee</label>
-          <input
+        <FormField label="Late Fee" description="Auto-calculated for late pickups (hourly rate: $15)">
+          <Input
             type="number"
             step="0.01"
             min="0"
@@ -381,103 +382,105 @@ const CheckOutModal = ({ booking, open, onClose }) => {
               setLateFeeTouched(true);
               setLateFeeCents(Math.round(parseFloat(e.target.value || 0) * 100));
             }}
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary dark:text-text-secondary placeholder:opacity-75 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
             placeholder="0.00"
           />
-          <p className="text-xs text-muted">Auto-calculated for late pickups (hourly rate: $15)</p>
-        </div>
+        </FormField>
 
-        <div className="grid gap-2">
-          <label className="text-sm font-medium">Add-On Charges</label>
-          <input
+        <div className="space-y-[var(--bb-space-2)]">
+          <label className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+            Add-On Charges
+          </label>
+          <Input
             type="text"
             value={addOnsDescription}
             onChange={(e) => setAddOnsDescription(e.target.value)}
             placeholder="Description (e.g., extra bath, nail trim)"
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary dark:text-text-secondary placeholder:opacity-75 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
-          <input
+          <Input
             type="number"
             step="0.01"
             min="0"
             value={(addOnsCents / 100).toFixed(2)}
             onChange={(e) => setAddOnsCents(Math.round(parseFloat(e.target.value || 0) * 100))}
             placeholder="0.00"
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary dark:text-text-secondary placeholder:opacity-75 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
         </div>
 
-        <div className="rounded-lg border border-border bg-surface/60 p-3">
-          <div className="flex justify-between text-sm">
+        {/* Balance Summary */}
+        <div className="rounded-[var(--bb-radius-lg)] border border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-elevated)] p-[var(--bb-space-3)]">
+          <div className="flex justify-between text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)]">
             <span>Original Balance:</span>
             <span>{formatCurrency(booking.balanceDueCents ?? 0)}</span>
           </div>
-          <div className="flex justify-between text-sm text-muted">
+          <div className="flex justify-between text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
             <span>+ Late Fee:</span>
             <span>{formatCurrency(lateFeeCents)}</span>
           </div>
-          <div className="flex justify-between text-sm text-muted">
+          <div className="flex justify-between text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
             <span>+ Add-Ons:</span>
             <span>{formatCurrency(addOnsCents)}</span>
           </div>
-          <div className="mt-2 flex justify-between border-t border-border pt-2 font-semibold">
+          <div className="mt-[var(--bb-space-2)] flex justify-between border-t border-[var(--bb-color-border-subtle)] pt-[var(--bb-space-2)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)]">
             <span>Total Due:</span>
             <span>{formatCurrency(remainingBalanceCents)}</span>
           </div>
         </div>
 
-        <div className="grid gap-2">
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={capturePayment} onChange={(e) => setCapturePayment(e.target.checked)} />
+        {/* Payment Options */}
+        <div className="space-y-[var(--bb-space-2)]">
+          <label className="flex items-center gap-[var(--bb-space-2)] text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)]">
+            <input 
+              type="checkbox" 
+              checked={capturePayment} 
+              onChange={(e) => setCapturePayment(e.target.checked)}
+              className="h-4 w-4 rounded border-[var(--bb-color-border-subtle)] text-[var(--bb-color-accent)] focus:ring-[var(--bb-color-accent)]"
+            />
             Capture payment now
           </label>
           {capturePayment && (
-            <input
+            <Input
               type="text"
               value={paymentIntentId}
               onChange={(e) => setPaymentIntentId(e.target.value)}
               placeholder="Payment Intent ID (optional)"
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
           )}
         </div>
 
-        <div className="grid gap-2">
-          <label className="text-sm font-medium">Incident Report</label>
-          <select
+        {/* Incident Report */}
+        <FormField label="Incident Report">
+          <Select
             value={incidentMode}
             onChange={(e) => setIncidentMode(e.target.value)}
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
           >
             <option value="none">No incident to report</option>
             <option value="create">Create new incident report</option>
             {incidentQuery.data?.length > 0 && <option value="existing">Link existing incident</option>}
-          </select>
+          </Select>
 
           {incidentMode === 'create' && (
-            <div className="grid gap-3 rounded-lg border border-border bg-surface/60 p-3">
-              <select
+            <div className="mt-[var(--bb-space-3)] space-y-[var(--bb-space-3)] rounded-[var(--bb-radius-lg)] border border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-elevated)] p-[var(--bb-space-3)]">
+              <Select
                 value={incidentSeverity}
                 onChange={(e) => setIncidentSeverity(e.target.value)}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
               >
                 <option value="MINOR">Minor</option>
                 <option value="MODERATE">Moderate</option>
                 <option value="SEVERE">Severe</option>
                 <option value="CRITICAL">Critical</option>
-              </select>
-              <textarea
+              </Select>
+              <Textarea
                 rows={3}
                 value={incidentNarrative}
                 onChange={(e) => setIncidentNarrative(e.target.value)}
                 placeholder="Describe what happened..."
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
               />
-              <label className="flex items-center gap-2 text-sm">
+              <label className="flex items-center gap-[var(--bb-space-2)] text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)]">
                 <input
                   type="checkbox"
                   checked={incidentVetContacted}
                   onChange={(e) => setIncidentVetContacted(e.target.checked)}
+                  className="h-4 w-4 rounded border-[var(--bb-color-border-subtle)] text-[var(--bb-color-accent)] focus:ring-[var(--bb-color-accent)]"
                 />
                 Vet was contacted
               </label>
@@ -485,10 +488,10 @@ const CheckOutModal = ({ booking, open, onClose }) => {
           )}
 
           {incidentMode === 'existing' && (
-            <select
+            <Select
               value={selectedIncidentId}
               onChange={(e) => setSelectedIncidentId(e.target.value)}
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+              className="mt-[var(--bb-space-2)]"
             >
               <option value="">Select an incident...</option>
               {incidentQuery.data?.map((incident) => (
@@ -496,35 +499,43 @@ const CheckOutModal = ({ booking, open, onClose }) => {
                   {format(new Date(incident.occurredAt), 'PPpp')} - {incident.severity}
                 </option>
               ))}
-            </select>
+            </Select>
           )}
-        </div>
+        </FormField>
 
-        <div className="grid gap-2">
-          <label className="text-sm font-medium">Go-Home Notes</label>
-          <textarea
+        {/* Go-Home Notes */}
+        <FormField label="Go-Home Notes">
+          <Textarea
             rows={3}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Summary of the stay, behavior highlights, feeding notes"
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
-        </div>
+        </FormField>
 
-        <div className="grid gap-2">
-          <label className="text-sm font-medium">Guardian Signature</label>
+        {/* Signature */}
+        <div className="space-y-[var(--bb-space-2)]">
+          <label className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+            Guardian Signature
+          </label>
           <SignatureCanvas ref={signatureRef} onChange={setSignatureUrl} />
           <button
             type="button"
             onClick={() => signatureRef.current?.clear()}
-            className="text-sm text-primary hover:underline"
+            className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-accent)] hover:underline"
           >
             Clear signature
           </button>
         </div>
 
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={sendReceipt} onChange={(e) => setSendReceipt(e.target.checked)} />
+        {/* Receipt Option */}
+        <label className="flex items-center gap-[var(--bb-space-2)] text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)]">
+          <input 
+            type="checkbox" 
+            checked={sendReceipt} 
+            onChange={(e) => setSendReceipt(e.target.checked)}
+            className="h-4 w-4 rounded border-[var(--bb-color-border-subtle)] text-[var(--bb-color-accent)] focus:ring-[var(--bb-color-accent)]"
+          />
           Print thermal receipt on checkout
         </label>
       </div>

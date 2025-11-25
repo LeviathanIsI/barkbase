@@ -1,37 +1,37 @@
 import { X } from 'lucide-react';
+import Modal, { ModalHeader, ModalBody, ModalFooter, ModalTitle } from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 
 const NewBookingModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-surface-primary rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-surface-border">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">New Booking</h3>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary rounded-full">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="p-6">
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">➕</div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">4-Step Booking Process</h3>
-            <p className="text-gray-600 dark:text-text-secondary">Complete booking workflow with smart defaults coming soon...</p>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-surface-border">
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      title="New Booking"
+      size="xl"
+      footer={
+        <>
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
           <Button>
             Create Booking
           </Button>
-        </div>
+        </>
+      }
+    >
+      <div className="text-center py-[var(--bb-space-12)]">
+        <div className="text-6xl mb-[var(--bb-space-4)]">➕</div>
+        <h3 className="text-[var(--bb-font-size-lg)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)] mb-[var(--bb-space-2)]">
+          4-Step Booking Process
+        </h3>
+        <p className="text-[var(--bb-color-text-muted)]">
+          Complete booking workflow with smart defaults coming soon...
+        </p>
       </div>
-    </div>
+    </Modal>
   );
 };
 
