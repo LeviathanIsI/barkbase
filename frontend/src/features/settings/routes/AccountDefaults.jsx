@@ -686,7 +686,7 @@ const SchedulingSection = ({
         </div>
       )}
       {isFreePlan && !canAddHoliday ? (
-        <div className="mt-3 rounded-lg border border-warning/50 bg-warning/10 px-4 py-3 text-xs text-warning">
+        <div className="mt-[var(--bb-space-3)] rounded-lg border border-[var(--bb-color-alert-warning-border)] bg-[var(--bb-color-alert-warning-bg)] px-[var(--bb-space-4)] py-[var(--bb-space-3)] text-[var(--bb-font-size-xs)] text-[var(--bb-color-alert-warning-text)]">
           Free plans can store up to 12 closures. Upgrade for unlimited holiday scheduling.
         </div>
       ) : null}

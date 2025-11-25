@@ -12,8 +12,8 @@ const Branding = () => {
         title="Custom Domain"
         description="Configure a custom domain for your workspace (Enterprise plan required)."
       >
-        <div className="rounded-lg border border-warning/50 bg-warning/10 p-4">
-          <p className="text-sm text-warning">
+        <div className="rounded-lg border border-[var(--bb-color-alert-warning-border)] bg-[var(--bb-color-alert-warning-bg)] p-[var(--bb-space-4)]">
+          <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-alert-warning-text)]">
             Custom domain configuration is available on the Enterprise plan.
             Contact sales to learn more.
           </p>

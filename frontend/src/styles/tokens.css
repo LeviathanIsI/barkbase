@@ -85,6 +85,27 @@
   --bb-color-status-info-soft: rgba(37, 99, 235, 0.12);
   --bb-color-status-info-text: #1d4ed8;
 
+  /* Alert tokens - derived from status tokens */
+  --bb-color-alert-info-bg: var(--bb-color-status-info-soft);
+  --bb-color-alert-info-border: var(--bb-color-status-info);
+  --bb-color-alert-info-text: var(--bb-color-status-info-text);
+
+  --bb-color-alert-success-bg: var(--bb-color-status-positive-soft);
+  --bb-color-alert-success-border: var(--bb-color-status-positive);
+  --bb-color-alert-success-text: var(--bb-color-status-positive-text);
+
+  --bb-color-alert-warning-bg: var(--bb-color-status-warning-soft);
+  --bb-color-alert-warning-border: var(--bb-color-status-warning);
+  --bb-color-alert-warning-text: var(--bb-color-status-warning-text);
+
+  --bb-color-alert-danger-bg: var(--bb-color-status-negative-soft);
+  --bb-color-alert-danger-border: var(--bb-color-status-negative);
+  --bb-color-alert-danger-text: var(--bb-color-status-negative-text);
+
+  --bb-color-alert-neutral-bg: var(--bb-color-bg-elevated);
+  --bb-color-alert-neutral-border: var(--bb-color-border-subtle);
+  --bb-color-alert-neutral-text: var(--bb-color-text-primary);
+
   /* Utility surfaces */
   --bb-color-overlay-scrim: rgba(15, 23, 42, 0.45);
 
@@ -165,6 +186,13 @@
   --bb-color-status-info: #60a5fa;
   --bb-color-status-info-soft: rgba(96, 165, 250, 0.22);
   --bb-color-status-info-text: #93c5fd;
+
+  /* Alert tokens - dark mode (slightly boosted alpha for visibility) */
+  --bb-color-alert-info-bg: rgba(96, 165, 250, 0.15);
+  --bb-color-alert-success-bg: rgba(34, 197, 94, 0.15);
+  --bb-color-alert-warning-bg: rgba(245, 158, 11, 0.15);
+  --bb-color-alert-danger-bg: rgba(248, 113, 113, 0.18);
+  --bb-color-alert-neutral-bg: var(--bb-color-bg-elevated);
 
   /* Overlay */
   --bb-color-overlay-scrim: rgba(15, 23, 42, 0.5);

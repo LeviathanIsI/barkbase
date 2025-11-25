@@ -144,17 +144,18 @@ const AlertBanner = () => {
   };
 
   const getAlertStyles = (type) => {
+    // Using token-based colors for consistent theming
     switch (type) {
       case 'critical':
-        return 'bg-red-600 text-white border-red-700';
+        return 'bg-[var(--bb-color-status-negative)] text-white border-[var(--bb-color-status-negative)]';
       case 'warning':
-        return 'bg-orange-500 text-white border-orange-600';
+        return 'bg-[var(--bb-color-status-warning)] text-white border-[var(--bb-color-status-warning)]';
       case 'info':
-        return 'bg-blue-500 text-white border-blue-600';
+        return 'bg-[var(--bb-color-status-info)] text-white border-[var(--bb-color-status-info)]';
       case 'success':
-        return 'bg-green-500 text-white border-green-600';
+        return 'bg-[var(--bb-color-status-positive)] text-white border-[var(--bb-color-status-positive)]';
       default:
-        return 'bg-gray-600 text-white border-gray-700';
+        return 'bg-[var(--bb-color-text-muted)] text-white border-[var(--bb-color-text-muted)]';
     }
   };
 
@@ -226,7 +227,7 @@ const AlertBanner = () => {
 
       {/* Mobile indicator for more alerts */}
       {isMobile && visibleAlerts.length > 1 && (
-        <div className="bg-gray-800 text-white text-center py-1 text-xs">
+        <div className="bg-[var(--bb-color-bg-elevated)] text-[var(--bb-color-text-primary)] text-center py-[var(--bb-space-1)] text-[var(--bb-font-size-xs)]">
           +{visibleAlerts.length - 1} more alerts
         </div>
       )}

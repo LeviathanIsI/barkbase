@@ -63,10 +63,10 @@ const OfflineIndicator = () => {
         <button
           onClick={() => setShowDetails(!showDetails)}
           className={cn(
-            'w-full px-4 py-2 flex items-center justify-between text-sm font-medium transition-colors',
+            'w-full px-[var(--bb-space-4)] py-[var(--bb-space-2)] flex items-center justify-between text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] transition-colors',
             isOnline
-              ? 'bg-blue-500 text-white'
-              : 'bg-red-500 text-white'
+              ? 'bg-[var(--bb-color-status-info)] text-white'
+              : 'bg-[var(--bb-color-status-negative)] text-white'
           )}
         >
           <div className="flex items-center gap-2">
@@ -93,7 +93,7 @@ const OfflineIndicator = () => {
         {showDetails && queueCount > 0 && (
           <div className="bg-white dark:bg-surface-primary border-t border-gray-200 dark:border-surface-border p-4 shadow-lg">
             <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-[var(--bb-color-status-warning)] flex-shrink-0 mt-0.5" />
               <div className="flex-1 text-sm">
                 <p className="font-medium text-gray-900 dark:text-text-primary mb-1">
                   {queueCount} {queueCount === 1 ? 'operation' : 'operations'} queued
@@ -114,10 +114,10 @@ const OfflineIndicator = () => {
         <button
           onClick={() => setShowDetails(!showDetails)}
           className={cn(
-            'flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg text-sm font-medium transition-all',
+            'flex items-center gap-[var(--bb-space-2)] px-[var(--bb-space-3)] py-[var(--bb-space-2)] rounded-lg shadow-[var(--bb-elevation-card)] text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] transition-all',
             isOnline
-              ? 'bg-blue-500 hover:bg-blue-600 text-white'
-              : 'bg-red-500 hover:bg-red-600 text-white'
+              ? 'bg-[var(--bb-color-status-info)] hover:opacity-90 text-white'
+              : 'bg-[var(--bb-color-status-negative)] hover:opacity-90 text-white'
           )}
         >
           {isOnline ? (
@@ -138,7 +138,7 @@ const OfflineIndicator = () => {
         {showDetails && queueCount > 0 && (
           <div className="absolute top-full right-0 mt-2 w-80 bg-white dark:bg-surface-primary rounded-lg shadow-xl border border-gray-200 dark:border-surface-border p-4">
             <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-[var(--bb-color-status-warning)] flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="font-medium text-gray-900 dark:text-text-primary mb-1">
                   {queueCount} Queued {queueCount === 1 ? 'Operation' : 'Operations'}

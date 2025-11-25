@@ -290,7 +290,7 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
         )}
 
         {error && (
-          <div className="mb-[var(--bb-space-4)] rounded-[var(--bb-radius-lg)] bg-[var(--bb-color-status-negative-soft)] border border-[var(--bb-color-status-negative)] p-[var(--bb-space-3)] text-[var(--bb-font-size-sm)] text-[var(--bb-color-status-negative)]">
+          <div className="mb-[var(--bb-space-4)] rounded-lg bg-[var(--bb-color-alert-danger-bg)] border border-[var(--bb-color-alert-danger-border)] p-[var(--bb-space-3)] text-[var(--bb-font-size-sm)] text-[var(--bb-color-alert-danger-text)]">
             {error}
           </div>
         )}

@@ -157,11 +157,11 @@ const PaymentsDashboard = ({ onViewPayment, onProcessRefund }) => {
       {/* Transaction Cards */}
       <div className="space-y-4">
         {error && (
-          <Card className="p-12 text-center bg-red-50 dark:bg-surface-primary">
-            <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">Error Loading Payments</h3>
-            <p className="text-gray-600 dark:text-text-secondary">{error.message}</p>
-            <pre className="mt-4 text-xs text-left overflow-auto">{JSON.stringify({ paymentsData, error }, null, 2)}</pre>
+          <Card className="p-12 text-center bg-[var(--bb-color-alert-danger-bg)]">
+            <AlertTriangle className="h-16 w-16 text-[var(--bb-color-status-negative)] mx-auto mb-[var(--bb-space-4)]" />
+            <h3 className="text-[var(--bb-font-size-lg)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)] mb-[var(--bb-space-2)]">Error Loading Payments</h3>
+            <p className="text-[var(--bb-color-text-muted)]">{error.message}</p>
+            <pre className="mt-[var(--bb-space-4)] text-[var(--bb-font-size-xs)] text-left overflow-auto">{JSON.stringify({ paymentsData, error }, null, 2)}</pre>
           </Card>
         )}
         {!error && isLoading ? (

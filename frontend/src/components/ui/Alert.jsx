@@ -1,81 +1,98 @@
 /**
  * Professional Alert Component
- * Informational callouts with semantic variants
+ * Informational callouts with semantic variants using token-based styling
  */
 
 import React from 'react';
 import { AlertCircle, CheckCircle, AlertTriangle, Info, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const variantStyles = {
+const variantConfig = {
+  neutral: {
+    container: 'bg-[var(--bb-color-alert-neutral-bg)] border-[var(--bb-color-alert-neutral-border)] text-[var(--bb-color-alert-neutral-text)]',
+    icon: 'text-[var(--bb-color-text-muted)]',
+    Icon: Info,
+  },
   default: {
-    container: 'bg-gray-50 dark:bg-surface-secondary border-gray-200 dark:border-surface-border text-gray-800 dark:text-text-primary',
-    icon: 'text-gray-600 dark:text-text-secondary',
+    container: 'bg-[var(--bb-color-alert-neutral-bg)] border-[var(--bb-color-alert-neutral-border)] text-[var(--bb-color-alert-neutral-text)]',
+    icon: 'text-[var(--bb-color-text-muted)]',
     Icon: Info,
   },
   info: {
-    container: 'bg-primary-50 dark:bg-primary-950/30 border-primary-200 dark:border-primary-900/50 text-primary-800 dark:text-primary-200',
-    icon: 'text-primary-600 dark:text-primary-400',
+    container: 'bg-[var(--bb-color-alert-info-bg)] border-[var(--bb-color-alert-info-border)] text-[var(--bb-color-alert-info-text)]',
+    icon: 'text-[var(--bb-color-status-info)]',
     Icon: Info,
   },
   success: {
-    container: 'bg-secondary-50 dark:bg-secondary-950/30 border-secondary-200 dark:border-secondary-900/50 text-secondary-800 dark:text-secondary-200',
-    icon: 'text-secondary-600 dark:text-secondary-400',
+    container: 'bg-[var(--bb-color-alert-success-bg)] border-[var(--bb-color-alert-success-border)] text-[var(--bb-color-alert-success-text)]',
+    icon: 'text-[var(--bb-color-status-positive)]',
     Icon: CheckCircle,
   },
   warning: {
-    container: 'bg-warning-50 dark:bg-warning-950/30 border-warning-200 dark:border-warning-900/50 text-warning-800 dark:text-warning-200',
-    icon: 'text-warning-600 dark:text-warning-400',
+    container: 'bg-[var(--bb-color-alert-warning-bg)] border-[var(--bb-color-alert-warning-border)] text-[var(--bb-color-alert-warning-text)]',
+    icon: 'text-[var(--bb-color-status-warning)]',
     Icon: AlertTriangle,
   },
+  danger: {
+    container: 'bg-[var(--bb-color-alert-danger-bg)] border-[var(--bb-color-alert-danger-border)] text-[var(--bb-color-alert-danger-text)]',
+    icon: 'text-[var(--bb-color-status-negative)]',
+    Icon: AlertCircle,
+  },
   error: {
-    container: 'bg-error-50 dark:bg-error-950/30 border-error-200 dark:border-error-900/50 text-error-800 dark:text-error-200',
-    icon: 'text-error-600 dark:text-error-400',
+    container: 'bg-[var(--bb-color-alert-danger-bg)] border-[var(--bb-color-alert-danger-border)] text-[var(--bb-color-alert-danger-text)]',
+    icon: 'text-[var(--bb-color-status-negative)]',
     Icon: AlertCircle,
   },
   destructive: {
-    container: 'bg-error-50 dark:bg-error-950/30 border-error-200 dark:border-error-900/50 text-error-800 dark:text-error-200',
-    icon: 'text-error-600 dark:text-error-400',
+    container: 'bg-[var(--bb-color-alert-danger-bg)] border-[var(--bb-color-alert-danger-border)] text-[var(--bb-color-alert-danger-text)]',
+    icon: 'text-[var(--bb-color-status-negative)]',
     Icon: AlertCircle,
   },
 };
 
 const Alert = React.forwardRef(
-  ({ className, variant = 'default', title, children, onClose, ...props }, ref) => {
-    const styles = variantStyles[variant];
-    const IconComponent = styles.Icon;
+  ({ className, variant = 'neutral', title, icon, children, onClose, ...props }, ref) => {
+    const config = variantConfig[variant] || variantConfig.neutral;
+    const IconComponent = icon || config.Icon;
 
     return (
       <div
         ref={ref}
         role="alert"
         className={cn(
-          'relative w-full rounded-lg border p-4',
-          styles.container,
+          'relative w-full rounded-lg border',
+          'px-[var(--bb-space-4)] py-[var(--bb-space-3)]',
+          'flex gap-[var(--bb-space-3)] items-start',
+          config.container,
           className
         )}
         {...props}
       >
-        <div className="flex gap-3">
-          <IconComponent className={cn('h-5 w-5 flex-shrink-0', styles.icon)} />
-          <div className="flex-1">
-            {title && (
-              <h5 className="mb-1 font-medium text-sm leading-none tracking-tight">
-                {title}
-              </h5>
-            )}
-            <div className="text-sm [&_p]:leading-relaxed">{children}</div>
-          </div>
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100 transition-opacity"
-            >
-              <X className="h-4 w-4" />
-              <span className="sr-only">Close</span>
-            </button>
+        <IconComponent className={cn('h-5 w-5 flex-shrink-0 mt-[2px]', config.icon)} />
+        <div className="flex-1 min-w-0">
+          {title && (
+            <h5 className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-semibold)] leading-tight mb-[var(--bb-space-1)]">
+              {title}
+            </h5>
           )}
+          <div className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)] [&_p]:leading-relaxed">
+            {children}
+          </div>
         </div>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className={cn(
+              'flex-shrink-0 rounded-md p-1',
+              'opacity-70 hover:opacity-100 transition-opacity',
+              'hover:bg-[var(--bb-color-bg-elevated)]'
+            )}
+            aria-label="Dismiss alert"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
     );
   }
@@ -83,4 +100,29 @@ const Alert = React.forwardRef(
 
 Alert.displayName = 'Alert';
 
-const AlertTitle = React.forwardRef(({ className, ...props }, ref) => (  <h5    ref={ref}    className={cn("mb-1 font-medium text-sm leading-none tracking-tight", className)}    {...props}  />));AlertTitle.displayName = "AlertTitle";const AlertDescription = React.forwardRef(({ className, ...props }, ref) => (  <div    ref={ref}    className={cn("text-sm [&_p]:leading-relaxed", className)}    {...props}  />));AlertDescription.displayName = "AlertDescription";export { Alert, AlertTitle, AlertDescription };export default Alert;
+const AlertTitle = React.forwardRef(({ className, ...props }, ref) => (
+  <h5
+    ref={ref}
+    className={cn(
+      'text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-semibold)] leading-tight',
+      className
+    )}
+    {...props}
+  />
+));
+AlertTitle.displayName = 'AlertTitle';
+
+const AlertDescription = React.forwardRef(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      'text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)] [&_p]:leading-relaxed',
+      className
+    )}
+    {...props}
+  />
+));
+AlertDescription.displayName = 'AlertDescription';
+
+export { Alert, AlertTitle, AlertDescription };
+export default Alert;

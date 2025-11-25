@@ -37,12 +37,12 @@ const CriticalAlerts = ({ alerts, onUpdate }) => {
   return (
     <Card title="Critical Alerts" icon={AlertTriangle}>
       <div className="space-y-6">
-        <div className="bg-red-50 dark:bg-surface-primary border border-red-200 dark:border-red-900/30 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+        <div className="bg-[var(--bb-color-alert-danger-bg)] border border-[var(--bb-color-alert-danger-border)] rounded-lg p-[var(--bb-space-4)]">
+          <div className="flex items-start gap-[var(--bb-space-3)]">
+            <AlertTriangle className="w-5 h-5 text-[var(--bb-color-status-negative)] flex-shrink-0 mt-0.5" />
             <div>
-              <h4 className="font-medium text-red-900 dark:text-red-100 mb-1">Always receive these notifications</h4>
-              <p className="text-sm text-red-800 dark:text-red-200">
+              <h4 className="font-[var(--bb-font-weight-medium)] text-[var(--bb-color-alert-danger-text)] mb-[var(--bb-space-1)]">Always receive these notifications</h4>
+              <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
                 These critical alerts will be sent even if other notification channels are disabled or during quiet hours.
               </p>
             </div>
@@ -106,9 +106,9 @@ const CriticalAlerts = ({ alerts, onUpdate }) => {
         </div>
 
         {/* Additional Settings */}
-        <div className="bg-gray-50 dark:bg-surface-secondary border border-gray-200 dark:border-surface-border rounded-lg p-4">
-          <h4 className="font-medium text-gray-900 dark:text-text-primary mb-2">Additional Settings</h4>
-          <div className="space-y-2 text-sm text-gray-600 dark:text-text-secondary">
+        <div className="bg-[var(--bb-color-alert-neutral-bg)] border border-[var(--bb-color-alert-neutral-border)] rounded-lg p-[var(--bb-space-4)]">
+          <h4 className="font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)] mb-[var(--bb-space-2)]">Additional Settings</h4>
+          <div className="space-y-[var(--bb-space-2)] text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
             <p>• Critical alerts bypass quiet hours restrictions</p>
             <p>• SMS alerts will be sent even if SMS is disabled for other notifications</p>
             <p>• Critical alerts are logged and cannot be disabled</p>
