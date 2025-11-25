@@ -59,7 +59,13 @@ const Invoices = () => {
   if (isLoading) {
     return (
       <div className="space-y-[var(--bb-space-6,1.5rem)]">
-        <PageHeader title="Invoices" breadcrumb="Home > Finance > Invoices" />
+        <PageHeader 
+          breadcrumbs={[
+            { label: 'Finance', href: '/invoices' },
+            { label: 'Invoices' }
+          ]}
+          title="Invoices" 
+        />
         <Card>
           <Skeleton className="h-96" />
         </Card>
@@ -70,7 +76,13 @@ const Invoices = () => {
   if (error) {
     return (
       <div className="space-y-[var(--bb-space-6,1.5rem)]">
-        <PageHeader title="Invoices" breadcrumb="Home > Finance > Invoices" />
+        <PageHeader 
+          breadcrumbs={[
+            { label: 'Finance', href: '/invoices' },
+            { label: 'Invoices' }
+          ]}
+          title="Invoices" 
+        />
         <Card>
           <div className="text-center py-[var(--bb-space-12,3rem)]">
             <FileText
@@ -95,8 +107,11 @@ const Invoices = () => {
   return (
     <div className="space-y-[var(--bb-space-6,1.5rem)]">
       <PageHeader
+        breadcrumbs={[
+          { label: 'Finance', href: '/invoices' },
+          { label: 'Invoices' }
+        ]}
         title="Invoices"
-        breadcrumb="Home > Finance > Invoices"
         actions={
           <Button onClick={() => navigate('/bookings')}>
             View Bookings

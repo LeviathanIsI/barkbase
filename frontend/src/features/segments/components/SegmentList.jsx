@@ -173,7 +173,7 @@ export default function SegmentList() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {segments.map((segment) => (
+          {segments?.map((segment) => (
             <SegmentCard
               key={segment.recordId}
               segment={segment}

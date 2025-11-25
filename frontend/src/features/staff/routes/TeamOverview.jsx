@@ -116,9 +116,12 @@ const TeamOverview = () => {
       <div className="space-y-6">
         {/* Page Header */}
         <PageHeader
-          breadcrumb="Home > Staff > Team Management"
+          breadcrumbs={[
+            { label: 'Administration', href: '/team' },
+            { label: 'Team' }
+          ]}
           title="Team Management"
-          subtitle="Build and manage your dream team"
+          description="Build and manage your dream team"
           actions={
             <Button onClick={handleAddStaff}>
               <UserPlus className="w-4 h-4 mr-2" />

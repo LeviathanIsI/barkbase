@@ -79,8 +79,11 @@ const Vaccinations = () => {
   return (
     <div className="space-y-6">
       <PageHeader
+        breadcrumbs={[
+          { label: 'Directory', href: '/pets' },
+          { label: 'Vaccinations' }
+        ]}
         title="Vaccinations"
-        breadcrumb={<span>Clients / Vaccinations</span>}
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>

@@ -51,9 +51,12 @@ const Schedule = () => {
   return (
     <div className="space-y-6">
       <PageHeader
-        breadcrumb="Home > Intake > Today's Schedule"
+        breadcrumbs={[
+          { label: 'Operations', href: '/schedule' },
+          { label: 'Schedule' }
+        ]}
         title="Today's Schedule"
-        subtitle="Complete operations dashboard for kennel management"
+        description="Complete operations dashboard for kennel management"
         actions={
           <div className="flex items-center gap-2">
             <Button

@@ -171,37 +171,105 @@ MetricCard.displayName = 'MetricCard';
 
 /**
  * PageHeader Component
- * Consistent page header with title, description, and actions
+ * Consistent page header with breadcrumbs, title, description, and actions
  * Fully token-driven for light/dark theme consistency
  */
 const PageHeader = React.forwardRef(({ 
   title, 
   description, 
   actions,
+  breadcrumbs,
   className,
   ...props 
 }, ref) => (
   <div
     ref={ref}
     className={cn(
-      'mb-[var(--bb-space-6,1.5rem)] flex flex-col gap-[var(--bb-space-4,1rem)] sm:flex-row sm:items-center sm:justify-between',
+      'mb-[var(--bb-space-6)] space-y-[var(--bb-space-2)]',
       className,
     )}
     {...props}
   >
-    <div className="min-w-0 flex-1">
-      {title && (
-        <h1 className="text-[var(--bb-font-size-xl,1.5rem)] font-[var(--bb-font-weight-semibold,600)] leading-[var(--bb-leading-tight,1.15)] text-[color:var(--bb-color-text-primary)]">
-          {title}
-        </h1>
-      )}
-      {description && (
-        <p className="mt-1 text-[color:var(--bb-color-text-muted)] text-[var(--bb-font-size-sm,0.875rem)] leading-[var(--bb-leading-normal,1.35)]">
-          {description}
-        </p>
+    {/* Breadcrumbs */}
+    {breadcrumbs && breadcrumbs.length > 0 && (
+      <nav aria-label="Breadcrumb" className="flex items-center">
+        <ol className="flex items-center gap-[var(--bb-space-1)] flex-wrap">
+          {breadcrumbs.map((item, index) => {
+            const isLast = index === breadcrumbs.length - 1;
+            const isFirst = index === 0;
+            
+            return (
+              <React.Fragment key={item.href || item.label}>
+                <li 
+                  className={cn(
+                    'flex items-center',
+                    !isFirst && !isLast && 'hidden sm:flex'
+                  )}
+                >
+                  {isLast ? (
+                    <span
+                      className="text-[var(--bb-font-size-xs)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)] max-w-[200px] truncate"
+                      aria-current="page"
+                    >
+                      {item.label}
+                    </span>
+                  ) : (
+                    <a
+                      href={item.href}
+                      className="text-[var(--bb-font-size-xs)] text-[var(--bb-color-text-muted)] hover:text-[var(--bb-color-text-primary)] transition-colors max-w-[150px] truncate"
+                    >
+                      {item.label}
+                    </a>
+                  )}
+                </li>
+                {!isLast && (
+                  <li 
+                    className={cn(
+                      'flex items-center text-[var(--bb-color-text-muted)]',
+                      index > 0 && index < breadcrumbs.length - 2 && 'hidden sm:flex'
+                    )}
+                    aria-hidden="true"
+                  >
+                    <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </li>
+                )}
+                {isFirst && breadcrumbs.length > 2 && (
+                  <li className="flex items-center sm:hidden text-[var(--bb-color-text-muted)]">
+                    <span className="text-[var(--bb-font-size-xs)] px-[var(--bb-space-1)]">...</span>
+                    <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </li>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </ol>
+      </nav>
+    )}
+
+    {/* Title and Actions Row */}
+    <div className="flex flex-col gap-[var(--bb-space-4)] sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0 flex-1">
+        {title && (
+          <h1 className="text-[var(--bb-font-size-xl)] font-[var(--bb-font-weight-semibold)] leading-[var(--bb-leading-tight,1.15)] text-[var(--bb-color-text-primary)]">
+            {title}
+          </h1>
+        )}
+        {description && (
+          <p className="mt-[var(--bb-space-1)] text-[var(--bb-color-text-muted)] text-[var(--bb-font-size-sm)] leading-[var(--bb-leading-normal,1.35)]">
+            {description}
+          </p>
+        )}
+      </div>
+      {actions && (
+        <div className="flex items-center gap-[var(--bb-space-3)] flex-wrap">
+          {actions}
+        </div>
       )}
     </div>
-    {actions && <div className="flex items-center gap-[var(--bb-space-3,0.75rem)] flex-wrap">{actions}</div>}
   </div>
 ));
 PageHeader.displayName = 'PageHeader';

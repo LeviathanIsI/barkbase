@@ -27,7 +27,13 @@ const Packages = () => {
   if (isLoading) {
     return (
       <div>
-        <PageHeader title="Packages" breadcrumb="Home > Billing > Packages" />
+        <PageHeader 
+          breadcrumbs={[
+            { label: 'Finance', href: '/packages' },
+            { label: 'Packages' }
+          ]}
+          title="Packages" 
+        />
         <Skeleton className="h-96" />
       </div>
     );
@@ -36,8 +42,11 @@ const Packages = () => {
   return (
     <div>
       <PageHeader
+        breadcrumbs={[
+          { label: 'Finance', href: '/packages' },
+          { label: 'Packages' }
+        ]}
         title="Prepaid Packages"
-        breadcrumb="Home > Billing > Packages"
         actions={
           <Button onClick={() => setPurchaseModalOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />

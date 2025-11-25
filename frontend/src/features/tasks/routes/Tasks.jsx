@@ -90,7 +90,14 @@ const Tasks = () => {
   if (isLoading) {
     return (
       <div className="space-y-[var(--bb-space-6,1.5rem)]">
-        <PageHeader title="Tasks & Reminders" description="Manage daily tasks and care schedules" />
+        <PageHeader 
+          breadcrumbs={[
+            { label: 'Operations', href: '/tasks' },
+            { label: 'Tasks' }
+          ]}
+          title="Tasks & Reminders" 
+          description="Manage daily tasks and care schedules" 
+        />
         <Skeleton className="h-96" />
       </div>
     );
@@ -99,6 +106,10 @@ const Tasks = () => {
   return (
     <div className="space-y-[var(--bb-space-6,1.5rem)]">
       <PageHeader
+        breadcrumbs={[
+          { label: 'Operations', href: '/tasks' },
+          { label: 'Tasks' }
+        ]}
         title="Tasks & Reminders"
         description="Manage daily tasks and care schedules"
         actions={

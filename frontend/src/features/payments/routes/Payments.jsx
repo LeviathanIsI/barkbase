@@ -78,6 +78,10 @@ const Payments = () => {
   return (
     <div className="space-y-[var(--bb-space-6,1.5rem)]">
       <PageHeader
+        breadcrumbs={[
+          { label: 'Finance', href: '/payments' },
+          { label: 'Payments' }
+        ]}
         title="Payments"
         description="Flexible payment processing with your choice of processor"
         actions={

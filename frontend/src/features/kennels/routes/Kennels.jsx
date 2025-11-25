@@ -84,7 +84,13 @@ const Kennels = () => {
   if (error) {
     return (
       <div>
-        <PageHeader title="Kennels" breadcrumb="Home > Settings > Kennels" />
+        <PageHeader 
+          breadcrumbs={[
+            { label: 'Administration', href: '/settings' },
+            { label: 'Kennels' }
+          ]}
+          title="Kennels" 
+        />
         <Card>
           <div className="text-center py-12">
             <AlertTriangle className="h-12 w-12 text-red-500 dark:text-red-400 mx-auto mb-4" />
@@ -163,7 +169,10 @@ const Kennels = () => {
     <div>
       {/* Page Header */}
       <PageHeader
-        breadcrumb="Home > Settings > Kennels"
+        breadcrumbs={[
+          { label: 'Administration', href: '/settings' },
+          { label: 'Kennels' }
+        ]}
         title="Kennel Management"
         actions={
           <>

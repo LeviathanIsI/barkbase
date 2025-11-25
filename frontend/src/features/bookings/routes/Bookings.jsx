@@ -24,6 +24,10 @@ const Bookings = () => {
   return (
     <div className="flex h-full flex-col space-y-[var(--bb-space-6,1.5rem)]">
       <PageHeader
+        breadcrumbs={[
+          { label: 'Operations', href: '/bookings' },
+          { label: 'Bookings' }
+        ]}
         title="Bookings & Availability"
         description="Manage reservations and facility capacity"
         actions={
