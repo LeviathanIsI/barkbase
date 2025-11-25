@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/utils';
 import apiClient from '@/lib/apiClient';
 

@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { useCalendarViewQuery, useOccupancyQuery, useReassignKennelMutation } from '../api';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const BookingCard = ({ booking, isDragging = false }) => {
   const petName = booking.pet?.name ?? booking.petName ?? 'Pet';

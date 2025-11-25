@@ -5,7 +5,7 @@ import { Home, Users, MapPin, Clock, AlertTriangle, Plus, Search, Filter, Shuffl
 import Button from '@/components/ui/Button';
 import { Card, PageHeader } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Mock data for demonstration
 const mockPets = [

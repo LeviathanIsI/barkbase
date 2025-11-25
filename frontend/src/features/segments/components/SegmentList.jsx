@@ -3,7 +3,7 @@ import { Users, Plus, Edit2, Trash2, RefreshCw, Zap } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useSegments, useDeleteSegment, useRefreshSegments } from '@/features/communications/api';
 import SegmentForm from './SegmentForm';
 import SegmentMembers from './SegmentMembers';

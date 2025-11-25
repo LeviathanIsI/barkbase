@@ -170,6 +170,11 @@
   /* Purple accent (for variety) */
   --bb-color-purple: #7c3aed;
   --bb-color-purple-soft: rgba(124, 58, 237, 0.12);
+
+  /* Skeleton animation */
+  --bb-color-skeleton-base: var(--bb-color-bg-elevated);
+  --bb-color-skeleton-highlight: rgba(255, 255, 255, 0.5);
+  --bb-skeleton-duration: 1.5s;
 }
 
 .dark {
@@ -274,5 +279,23 @@
   /* Purple accent - Dark mode */
   --bb-color-purple: #a78bfa;
   --bb-color-purple-soft: rgba(167, 139, 250, 0.18);
+
+  /* Skeleton animation - Dark mode */
+  --bb-color-skeleton-base: var(--bb-color-bg-elevated);
+  --bb-color-skeleton-highlight: rgba(255, 255, 255, 0.08);
+}
+
+/* Skeleton pulse animation */
+@keyframes bb-skeleton-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.bb-skeleton-pulse {
+  animation: bb-skeleton-pulse var(--bb-skeleton-duration) ease-in-out infinite;
 }
 

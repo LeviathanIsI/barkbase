@@ -3,7 +3,7 @@ import { CheckCircle, Circle, Plus, AlertTriangle, Calendar, X } from 'lucide-re
 import Button from '@/components/ui/Button';
 import { Card, PageHeader } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useTodaysTasksQuery, useOverdueTasksQuery, useCompleteTaskMutation, useCreateTaskMutation } from '../api';
 import toast from 'react-hot-toast';
 

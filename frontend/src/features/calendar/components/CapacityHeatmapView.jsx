@@ -2,7 +2,7 @@ import { format, subWeeks, eachWeekOfInterval, startOfWeek, endOfWeek, eachDayOf
 import { BarChart3, TrendingUp, DollarSign, Users } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useCapacityQuery } from '../api-capacity';
 
 const CapacityHeatmapView = ({ currentDate, filters }) => {

@@ -8,7 +8,7 @@ import Button from '@/components/ui/Button';
 import { Card, MetricCard, PageHeader } from '@/components/ui/Card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import Badge from '@/components/ui/Badge';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import {
   useDashboardStats,

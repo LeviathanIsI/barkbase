@@ -3,7 +3,7 @@ import { Download, Filter, Search, Receipt, FileText, Building } from 'lucide-re
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency } from '@/lib/utils';
 import { useInvoicesQuery } from '@/features/invoices/api';
 

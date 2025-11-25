@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useCustomerTimeline } from '../api';
 
 const timelineIcons = {

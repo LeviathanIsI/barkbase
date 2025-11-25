@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useQuickCheckInMutation } from '../api';
 import { useBookingStore } from '@/stores/booking';
 import { useKennelAvailability } from '@/features/kennels/api';

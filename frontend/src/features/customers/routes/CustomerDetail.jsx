@@ -9,7 +9,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Tabs from '@/components/ui/Tabs';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useOwner } from '@/features/owners/api';
 import { useCommunicationStats } from '@/features/communications/api';
 import CommunicationTimeline from '@/features/communications/components/CommunicationTimeline';

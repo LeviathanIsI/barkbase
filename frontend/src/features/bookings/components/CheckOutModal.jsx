@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 import SlideoutPanel from '@/components/SlideoutPanel';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Select } from '@/components/ui/Select';

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Building, MapPin } from 'lucide-react';
 import { Card, PageHeader } from '@/components/ui/Card';
 import BookingHUD from '@/features/bookings/components/BookingHUD';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useKennelsWithOccupancy } from '@/features/kennels/api';
 import FacilityMapView from '../components/FacilityMapView';
 

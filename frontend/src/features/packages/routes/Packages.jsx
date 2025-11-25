@@ -4,7 +4,7 @@ import { Package, Plus, Calendar, DollarSign } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card, PageHeader } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { usePackagesQuery } from '../api';
 import PackagePurchaseModal from '../components/PackagePurchaseModal';
 import { formatCurrency } from '@/lib/utils';

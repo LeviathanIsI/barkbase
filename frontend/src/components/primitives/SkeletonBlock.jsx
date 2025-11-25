@@ -1,5 +1,5 @@
 import { cn } from '@/lib/cn';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const VARIANT_STYLES = {
   row: 'h-5 w-full',

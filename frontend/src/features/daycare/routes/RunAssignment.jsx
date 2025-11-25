@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import { Card, PageHeader } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useTodaysAssignmentsQuery, useAssignPetsToRunMutation } from '../api';
 import { useRunTemplatesQuery } from '../api-templates';
 import { useBookingsQuery } from '@/features/bookings/api';

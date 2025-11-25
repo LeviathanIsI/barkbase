@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Send } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const MessageThread = ({ 
   conversation, 

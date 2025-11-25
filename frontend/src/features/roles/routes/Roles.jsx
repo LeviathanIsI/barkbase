@@ -42,7 +42,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/AlertDialog';
 import Badge from '@/components/ui/Badge';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { MoreVertical } from 'lucide-react';
 
 export default function Roles() {

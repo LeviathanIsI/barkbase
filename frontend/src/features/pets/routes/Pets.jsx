@@ -5,7 +5,7 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import PetAvatar from '@/components/ui/PetAvatar';
 import { Card } from '@/components/ui/Card';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { usePetsQuery, useCreatePetMutation } from '../api';
 import { useExpiringVaccinationsQuery } from '../api-vaccinations';
 import { PetFormModal } from '../components';

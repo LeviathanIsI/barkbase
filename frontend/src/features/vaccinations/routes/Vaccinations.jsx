@@ -3,7 +3,7 @@ import { Shield, RefreshCw, Search, AlertTriangle, Calendar, Trash2 } from 'luci
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { Card, PageHeader } from '@/components/ui/Card';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useExpiringVaccinationsQuery } from '@/features/pets/api-vaccinations';
 import apiClient from '@/lib/apiClient';

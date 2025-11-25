@@ -3,7 +3,7 @@ import { Plus, Search, Building, MapPin, Settings, Home, AlertTriangle } from 'l
 import Button from '@/components/ui/Button';
 import { Card, PageHeader } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import KennelForm from '../components/KennelForm';
 import { useKennels, useDeleteKennel } from '../api';
 import { useTerminology } from '@/lib/terminology';

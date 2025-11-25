@@ -20,9 +20,23 @@ export { default as Label } from './Label';
 export { default as Modal } from './Modal';
 export { default as PasswordStrength } from './PasswordStrength';
 export { default as Select } from './Select';
-export { default as Skeleton } from './Skeleton';
+// Base Skeleton component for backwards compatibility
+export { default as Skeleton } from './skeleton/Skeleton';
 export { default as Switch } from './Switch';
 export { default as Tabs } from './Tabs';
 export { default as Textarea } from './Textarea';
 export { default as UpgradeBanner } from './UpgradeBanner';
+
+// Empty state components
+export { EmptyState, InlineEmpty, TableEmptyState } from './emptystates';
+
+// Skeleton components - direct exports from skeleton folder to avoid circular deps
+export { default as SkeletonBase } from './skeleton/Skeleton';
+export { default as SkeletonText } from './skeleton/SkeletonText';
+export { default as SkeletonAvatar } from './skeleton/SkeletonAvatar';
+export { default as SkeletonCard } from './skeleton/SkeletonCard';
+export { default as SkeletonTableRow } from './skeleton/SkeletonTableRow';
+export { default as SkeletonChart } from './skeleton/SkeletonChart';
+export { default as SkeletonForm } from './skeleton/SkeletonForm';
+export { default as SkeletonInspector } from './skeleton/SkeletonInspector';
 

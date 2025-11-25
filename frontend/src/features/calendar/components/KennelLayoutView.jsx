@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/Card';
 import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useKennels, useUpdateKennel } from '@/features/kennels/api';
 import { useBookingsQuery } from '@/features/bookings/api';
 import KennelForm from '@/features/kennels/components/KennelForm';

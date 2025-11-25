@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 import { Card } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import Avatar from '@/components/ui/Avatar';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/Alert';
 import PasswordStrength from '@/components/ui/PasswordStrength';

@@ -4,7 +4,7 @@ import { Users, Phone, DollarSign, Calendar, Plus, Search, Filter, Mail, Heart }
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useOwnersQuery, useCreateOwnerMutation } from '../api';
 import OwnerFormModal from '../components/OwnerFormModal';
 import { formatCurrency } from '@/lib/utils';

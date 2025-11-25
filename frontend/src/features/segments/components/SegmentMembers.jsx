@@ -3,7 +3,7 @@ import { ArrowLeft, UserPlus, UserMinus, Dog } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import Skeleton from '@/components/ui/Skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { 
   useSegmentMembers, 
   useAddSegmentMembers, 
