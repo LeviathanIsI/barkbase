@@ -1,8 +1,13 @@
+/**
+ * Check-In Modal - Phase 15 Slideout Pattern
+ * Uses SlideoutPanel for action flows.
+ */
+
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
-import Modal from '@/components/ui/Modal';
+import SlideoutPanel from '@/components/SlideoutPanel';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
@@ -144,9 +149,9 @@ const CheckInModal = ({ booking, open, onClose }) => {
 
   if (!booking) {
     return (
-      <Modal open={open} onClose={onClose} title="Check In">
+      <SlideoutPanel isOpen={open} onClose={onClose} title="Check In" widthClass="max-w-lg">
         <Skeleton className="h-48 w-full" />
-      </Modal>
+      </SlideoutPanel>
     );
   }
 
@@ -154,11 +159,12 @@ const CheckInModal = ({ booking, open, onClose }) => {
   const kennelName = booking.kennelName ?? booking.segments?.[0]?.kennel?.name;
 
   return (
-    <Modal
-      open={open}
+    <SlideoutPanel
+      isOpen={open}
       onClose={onClose}
       title={`Check In ${booking.pet?.name ?? booking.petName ?? ''}`.trim()}
-      size="lg"
+      description="Complete the check-in process for this booking."
+      widthClass="max-w-lg"
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={isSubmitting}>
@@ -279,7 +285,7 @@ const CheckInModal = ({ booking, open, onClose }) => {
           )}
         </div>
       </form>
-    </Modal>
+    </SlideoutPanel>
   );
 };
 

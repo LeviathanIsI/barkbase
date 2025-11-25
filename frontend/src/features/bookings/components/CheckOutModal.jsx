@@ -1,7 +1,12 @@
+/**
+ * Check-Out Modal - Phase 15 Slideout Pattern
+ * Uses SlideoutPanel for action flows.
+ */
+
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
-import Modal, { ModalBody, ModalFooter } from '@/components/ui/Modal';
+import SlideoutPanel from '@/components/SlideoutPanel';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
@@ -322,9 +327,9 @@ const CheckOutModal = ({ booking, open, onClose }) => {
 
   if (!booking) {
     return (
-      <Modal open={open} onClose={onClose} title="Check Out">
+      <SlideoutPanel isOpen={open} onClose={onClose} title="Check Out" widthClass="max-w-xl">
         <Skeleton className="h-96 w-full" />
-      </Modal>
+      </SlideoutPanel>
     );
   }
 
@@ -332,11 +337,12 @@ const CheckOutModal = ({ booking, open, onClose }) => {
   const kennelName = booking.kennelName ?? booking.segments?.[0]?.kennel?.name;
 
   return (
-    <Modal
-      open={open}
+    <SlideoutPanel
+      isOpen={open}
       onClose={onClose}
       title={`Check Out ${booking.pet?.name ?? booking.petName ?? ''}`.trim()}
-      size="lg"
+      description="Complete the check-out process, finalize billing, and generate reports."
+      widthClass="max-w-xl"
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={isSubmitting}>
@@ -539,7 +545,7 @@ const CheckOutModal = ({ booking, open, onClose }) => {
           Print thermal receipt on checkout
         </label>
       </div>
-    </Modal>
+    </SlideoutPanel>
   );
 };
 

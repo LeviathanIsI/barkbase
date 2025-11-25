@@ -1,6 +1,11 @@
+/**
+ * Create/Edit Property Modal - Phase 15 Slideout Pattern
+ * Uses SlideoutPanel for edit/create flows.
+ */
+
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import Modal from '@/components/ui/Modal';
+import SlideoutPanel from '@/components/SlideoutPanel';
 import Button from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
@@ -264,19 +269,14 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
   const totalSteps = isEditing ? 1 : (needsConfiguration ? 3 : 2);
 
   return (
-    <Modal open={isOpen} onClose={handleClose} size="lg">
-      <div className="max-w-3xl">
-        {/* Header */}
-        <div className="mb-[var(--bb-space-6)]">
-          <h2 className="text-[var(--bb-font-size-xl)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)] mb-[var(--bb-space-2)]">
-            {isEditing ? 'Edit Property' : 'Create Property'}
-          </h2>
-          {!isEditing && (
-            <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
-              Step {step} of {totalSteps}
-            </p>
-          )}
-        </div>
+    <SlideoutPanel
+      isOpen={isOpen}
+      onClose={handleClose}
+      title={isEditing ? 'Edit Property' : 'Create Property'}
+      description={!isEditing ? `Step ${step} of ${totalSteps}` : 'Update property settings and configuration.'}
+      widthClass="max-w-2xl"
+    >
+      <div>
 
         {/* Step Indicators */}
         {!isEditing && (
@@ -612,7 +612,7 @@ const CreatePropertyModal = ({ isOpen, onClose, onSubmit, objectType, existingPr
           </div>
         </div>
       </div>
-    </Modal>
+    </SlideoutPanel>
   );
 };
 

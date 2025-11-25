@@ -1,11 +1,11 @@
 /**
  * Kennel Form - Phase 9 Enterprise Form System
+ * Uses SlideoutPanel for edit/create flows per Phase 15 standards.
  * Token-based styling for consistent theming.
  */
 
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
-import Modal from '@/components/ui/Modal';
+import SlideoutPanel from '@/components/SlideoutPanel';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Textarea from '@/components/ui/Textarea';
@@ -123,24 +123,13 @@ const KennelForm = ({ kennel, onClose, onSuccess, terminology }) => {
   const isLoading = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <Modal open onClose={onClose} className="max-w-2xl">
-      <div className="flex justify-between items-center mb-[var(--bb-space-6,1.5rem)]">
-        <h2
-          className="text-[var(--bb-font-size-xl,1.5rem)] font-[var(--bb-font-weight-semibold,600)]"
-          style={{ color: 'var(--bb-color-text-primary)' }}
-        >
-          {kennel ? `Edit ${terminology.kennel}` : `Add New ${terminology.kennel}`}
-        </h2>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onClose}
-          className="h-8 w-8 p-0"
-        >
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-
+    <SlideoutPanel
+      isOpen
+      onClose={onClose}
+      title={kennel ? `Edit ${terminology.kennel}` : `Add New ${terminology.kennel}`}
+      description={kennel ? `Update ${terminology.kennel.toLowerCase()} details and settings.` : `Create a new ${terminology.kennel.toLowerCase()} for your facility.`}
+      widthClass="max-w-2xl"
+    >
       <form onSubmit={handleSubmit} className="space-y-[var(--bb-space-6,1.5rem)]">
         {/* Basic Information */}
         <FormSection title="Basic Information">
@@ -331,7 +320,7 @@ const KennelForm = ({ kennel, onClose, onSuccess, terminology }) => {
           </Button>
         </FormActions>
       </form>
-    </Modal>
+    </SlideoutPanel>
   );
 };
 

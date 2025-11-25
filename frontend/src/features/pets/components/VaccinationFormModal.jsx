@@ -1,12 +1,12 @@
 /**
  * Vaccination Form Modal - Phase 9 Enterprise Form System
+ * Uses SlideoutPanel for edit/create flows per Phase 15 standards.
  * Token-based styling for consistent theming.
  */
 
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { X } from 'lucide-react';
-import Modal from '@/components/ui/Modal';
+import SlideoutPanel from '@/components/SlideoutPanel';
 import Button from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
 import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
@@ -110,11 +110,12 @@ const VaccinationFormModal = ({
   );
 
   return (
-    <Modal
-      open={open}
+    <SlideoutPanel
+      isOpen={open}
       onClose={onClose}
       title={isEdit ? 'Edit Vaccination' : 'Add Vaccination'}
-      className="max-w-md"
+      description={isEdit ? 'Update vaccination record details.' : 'Add a new vaccination record for this pet.'}
+      widthClass="max-w-md"
     >
       <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-[var(--bb-space-6,1.5rem)]">
         {/* Vaccine Type */}
@@ -263,7 +264,7 @@ const VaccinationFormModal = ({
           </Button>
         </FormActions>
       </form>
-    </Modal>
+    </SlideoutPanel>
   );
 };
 

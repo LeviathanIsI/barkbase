@@ -24,18 +24,18 @@ const DeletePropertyDialog = ({ isOpen, property, onClose, onConfirm }) => {
 
   return (
     <Modal open={isOpen} onClose={onClose} size="sm">
-      <div className="p-6">
-        <div className="flex items-start gap-4">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-surface-secondary">
+      <div className="p-[var(--bb-space-6)]">
+        <div className="flex items-start gap-[var(--bb-space-4)]">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[var(--bb-color-status-negative-soft)]">
             <AlertTriangle className="h-5 w-5 text-[var(--bb-color-status-negative)]" />
           </div>
           <div className="flex-1">
-            <h2 className="text-lg font-semibold text-text">Delete Property</h2>
-            <p className="mt-2 text-sm text-muted">
+            <h2 className="text-[var(--bb-font-size-lg)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)]">Delete Property</h2>
+            <p className="mt-[var(--bb-space-2)] text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
               Are you sure you want to delete the property{' '}
-              <span className="font-medium text-text">"{property.label}"</span>?
+              <span className="font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">"{property.label}"</span>?
             </p>
-            <p className="mt-2 text-sm text-muted">
+            <p className="mt-[var(--bb-space-2)] text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
               This will remove the property definition and all its data from existing records. This action cannot be undone.
             </p>
             {error && (
@@ -46,11 +46,11 @@ const DeletePropertyDialog = ({ isOpen, property, onClose, onConfirm }) => {
           </div>
         </div>
 
-        <div className="mt-6 flex items-center justify-end gap-3">
-          <Button variant="outline" onClick={onClose} disabled={loading}>
+        <div className="mt-[var(--bb-space-6)] flex items-center justify-end gap-[var(--bb-space-3)]">
+          <Button variant="ghost" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button variant="danger" onClick={handleConfirm} disabled={loading}>
+          <Button variant="destructive" onClick={handleConfirm} disabled={loading}>
             {loading ? 'Deleting...' : 'Delete Property'}
           </Button>
         </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, ChevronLeft, ChevronRight, Maximize2, Minimize2 } from 'lucide-react';
+import { X, ChevronRight, Maximize2, Minimize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Button from './Button';
 
@@ -7,6 +7,7 @@ import Button from './Button';
  * SlideOutDrawer Component
  * Implements drawer-first navigation pattern to avoid page changes
  * Slides in from the right, can be resized, and keeps context visible
+ * Uses token-based styling for consistent theming
  */
 
 const SlideOutDrawer = ({ 
@@ -115,8 +116,8 @@ const SlideOutDrawer = ({
       {showBackdrop && (
         <div 
           className={cn(
-            "absolute inset-0 bg-black transition-opacity duration-300",
-            isClosing ? "opacity-0" : "opacity-40"
+            "absolute inset-0 bg-[var(--bb-color-overlay-scrim)] backdrop-blur-sm transition-opacity duration-300",
+            isClosing ? "opacity-0" : "opacity-100"
           )}
           onClick={closeOnBackdropClick ? handleClose : undefined}
           aria-hidden="true"
@@ -126,7 +127,9 @@ const SlideOutDrawer = ({
       {/* Drawer */}
       <div
         className={cn(
-          "absolute inset-y-0 right-0 bg-white dark:bg-surface-primary shadow-xl flex flex-col transition-transform duration-300",
+          "absolute inset-y-0 right-0 flex flex-col transition-transform duration-300",
+          "bg-[var(--bb-color-bg-surface)] border-l border-[var(--bb-color-border-subtle)]",
+          "shadow-[var(--bb-elevation-card)]",
           !width && sizeClasses[currentSize],
           isClosing ? "translate-x-full" : "translate-x-0",
           className
@@ -137,31 +140,32 @@ const SlideOutDrawer = ({
         {resizable && currentSize !== 'full' && (
           <div
             className={cn(
-              "absolute left-0 inset-y-0 w-1 cursor-col-resize hover:bg-primary-400 transition-colors",
-              isResizing && "bg-primary-500"
+              "absolute left-0 inset-y-0 w-1 cursor-col-resize hover:bg-[var(--bb-color-accent)] transition-colors",
+              isResizing && "bg-[var(--bb-color-accent)]"
             )}
             onMouseDown={handleResizeStart}
           >
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-12 flex items-center justify-center">
-              <div className="w-1 h-8 bg-gray-300 dark:bg-surface-border rounded-full" />
+              <div className="w-1 h-8 bg-[var(--bb-color-border-subtle)] rounded-full" />
             </div>
           </div>
         )}
 
         {/* Header */}
         <div className={cn(
-          "px-6 py-4 border-b bg-white dark:bg-surface-primary",
+          "px-[var(--bb-space-6)] py-[var(--bb-space-4)] border-b border-[var(--bb-color-border-subtle)]",
+          "bg-[var(--bb-color-bg-surface)]",
           headerClassName
         )}>
-          <div className="flex items-start justify-between">
-            <div className="flex-1 pr-4">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">{title}</h2>
+          <div className="flex items-start justify-between gap-[var(--bb-space-4)]">
+            <div className="flex-1 pr-[var(--bb-space-4)] min-w-0">
+              <h2 className="text-[var(--bb-font-size-xl)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)]">{title}</h2>
               {subtitle && (
-                <p className="text-sm text-gray-600 dark:text-text-secondary mt-1">{subtitle}</p>
+                <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)] mt-[var(--bb-space-1)]">{subtitle}</p>
               )}
             </div>
             
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-[var(--bb-space-1)]">
               {/* Size Toggle */}
               {resizable && (
                 <Button
@@ -192,7 +196,7 @@ const SlideOutDrawer = ({
 
           {/* Header Actions */}
           {actions && (
-            <div className="flex items-center gap-2 mt-3">
+            <div className="flex items-center gap-[var(--bb-space-2)] mt-[var(--bb-space-3)]">
               {actions}
             </div>
           )}
@@ -208,7 +212,7 @@ const SlideOutDrawer = ({
 
         {/* Footer */}
         {footerContent && (
-          <div className="px-6 py-4 border-t bg-gray-50 dark:bg-surface-secondary">
+          <div className="px-[var(--bb-space-6)] py-[var(--bb-space-4)] border-t border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-elevated)]">
             {footerContent}
           </div>
         )}
@@ -225,7 +229,7 @@ export const DetailDrawer = ({ record, ...props }) => {
       size="lg"
       title={props.title || `${record?.type || 'Record'} Details`}
       subtitle={props.subtitle || `ID: ${record?.id || 'Unknown'}`}
-      headerClassName="bg-gray-50 dark:bg-surface-secondary"
+      headerClassName="bg-[var(--bb-color-bg-elevated)]"
       {...props}
     />
   );
@@ -250,10 +254,10 @@ export const EditDrawer = ({ onSave, onCancel, isDirty = false, ...props }) => {
       onClose={handleClose}
       footerContent={
         <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-500 dark:text-text-secondary">
+          <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
             {isDirty && 'You have unsaved changes'}
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-[var(--bb-space-2)]">
             <Button variant="secondary" onClick={handleClose}>
               Cancel
             </Button>
@@ -274,7 +278,7 @@ export const QuickActionDrawer = ({ actions = [], ...props }) => {
       {...props}
       contentClassName="p-0"
     >
-      <div className="divide-y">
+      <div className="divide-y divide-[var(--bb-color-border-subtle)]">
         {actions.map((action, index) => {
           const Icon = action.icon;
           return (
@@ -285,20 +289,22 @@ export const QuickActionDrawer = ({ actions = [], ...props }) => {
                 props.onClose();
               }}
               className={cn(
-                "w-full px-6 py-4 text-left hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary transition-colors flex items-center gap-3",
-                action.variant === 'danger' && "text-error-600 hover:bg-error-50",
+                "w-full px-[var(--bb-space-6)] py-[var(--bb-space-4)] text-left",
+                "hover:bg-[var(--bb-color-bg-elevated)] transition-colors",
+                "flex items-center gap-[var(--bb-space-3)]",
+                action.variant === 'danger' && "text-[var(--bb-color-status-negative)] hover:bg-[var(--bb-color-status-negative-soft)]",
                 action.disabled && "opacity-50 cursor-not-allowed"
               )}
               disabled={action.disabled}
             >
               {Icon && <Icon className="h-5 w-5" />}
               <div className="flex-1">
-                <p className="font-medium">{action.label}</p>
+                <p className="font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">{action.label}</p>
                 {action.description && (
-                  <p className="text-sm text-gray-600 dark:text-text-secondary">{action.description}</p>
+                  <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">{action.description}</p>
                 )}
               </div>
-              <ChevronRight className="h-4 w-4 text-gray-400 dark:text-text-tertiary" />
+              <ChevronRight className="h-4 w-4 text-[var(--bb-color-text-subtle)]" />
             </button>
           );
         })}
@@ -311,29 +317,29 @@ export const QuickActionDrawer = ({ actions = [], ...props }) => {
 export const DrawerTabPanel = ({ tabs, activeTab, onTabChange, children }) => {
   return (
     <>
-      <div className="border-b bg-gray-50 dark:bg-surface-secondary">
+      <div className="border-b border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-elevated)]">
         <div className="flex overflow-x-auto scrollbar-hide">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
               className={cn(
-                "px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
+                "px-[var(--bb-space-4)] py-[var(--bb-space-3)] text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] border-b-2 transition-colors whitespace-nowrap",
                 activeTab === tab.id
-                  ? "border-primary-600 text-primary-600"
-                  : "border-transparent text-gray-600 dark:text-text-secondary hover:text-gray-900 dark:hover:text-text-primary dark:text-text-primary"
+                  ? "border-[var(--bb-color-accent)] text-[var(--bb-color-accent)]"
+                  : "border-transparent text-[var(--bb-color-text-muted)] hover:text-[var(--bb-color-text-primary)]"
               )}
             >
-              {tab.icon && <tab.icon className="h-4 w-4 inline mr-1.5" />}
+              {tab.icon && <tab.icon className="h-4 w-4 inline mr-[var(--bb-space-1)]" />}
               {tab.label}
               {tab.count !== undefined && (
-                <span className="ml-2 text-xs">({tab.count})</span>
+                <span className="ml-[var(--bb-space-2)] text-[var(--bb-font-size-xs)]">({tab.count})</span>
               )}
             </button>
           ))}
         </div>
       </div>
-      <div className="p-6">
+      <div className="p-[var(--bb-space-6)]">
         {children}
       </div>
     </>
@@ -341,5 +347,3 @@ export const DrawerTabPanel = ({ tabs, activeTab, onTabChange, children }) => {
 };
 
 export default SlideOutDrawer;
-
-

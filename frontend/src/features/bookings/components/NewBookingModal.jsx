@@ -1,16 +1,21 @@
-import { X } from 'lucide-react';
-import Modal, { ModalHeader, ModalBody, ModalFooter, ModalTitle } from '@/components/ui/Modal';
+/**
+ * New Booking Modal - Phase 15 Slideout Pattern
+ * Uses SlideoutPanel for create flows.
+ */
+
+import SlideoutPanel from '@/components/SlideoutPanel';
 import Button from '@/components/ui/Button';
 
 const NewBookingModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <Modal
-      open={isOpen}
+    <SlideoutPanel
+      isOpen={isOpen}
       onClose={onClose}
       title="New Booking"
-      size="xl"
+      description="Create a new booking with the 4-step process."
+      widthClass="max-w-xl"
       footer={
         <>
           <Button variant="outline" onClick={onClose}>
@@ -31,7 +36,7 @@ const NewBookingModal = ({ isOpen, onClose }) => {
           Complete booking workflow with smart defaults coming soon...
         </p>
       </div>
-    </Modal>
+    </SlideoutPanel>
   );
 };
 

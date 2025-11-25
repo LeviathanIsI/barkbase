@@ -2,12 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import Button from '@/components/ui/Button';
 
+/**
+ * SlideoutPanel - Token-based slideout panel for edit/create flows
+ * Slides in from the right with smooth animations
+ */
 const SlideoutPanel = ({
   isOpen,
   onClose,
   title,
+  description,
   children,
+  footer,
   widthClass = 'max-w-xl',
 }) => {
   const TRANSITION_MS = 300;
@@ -65,44 +72,67 @@ const SlideoutPanel = ({
 
   return createPortal(
     <div className="fixed inset-0 z-[200] flex">
+      {/* Backdrop */}
       <div
         className={cn(
-          'flex-1 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ease-out',
+          'flex-1 bg-[var(--bb-color-overlay-scrim)] backdrop-blur-sm transition-opacity duration-300 ease-out',
           isVisible ? 'opacity-100' : 'opacity-0',
         )}
         onClick={onClose}
         aria-hidden="true"
       />
+      
+      {/* Panel */}
       <section
         role="dialog"
         aria-modal="true"
         aria-label={title}
         className={cn(
-          'relative ml-auto flex h-full w-full max-w-xl transform flex-col bg-white shadow-2xl transition-all duration-300 ease-out dark:bg-dark-bg-secondary',
+          'relative ml-auto flex h-full w-full transform flex-col',
+          'bg-[var(--bb-color-bg-surface)] border-l border-[var(--bb-color-border-subtle)]',
+          'shadow-[var(--bb-elevation-card)]',
+          'transition-transform duration-300 ease-out',
           isVisible ? 'translate-x-0' : 'translate-x-full',
           widthClass,
         )}
       >
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-dark-border">
-          <div>
+        {/* Header */}
+        <div className="flex items-start justify-between gap-[var(--bb-space-4)] border-b border-[var(--bb-color-border-subtle)] px-[var(--bb-space-6)] py-[var(--bb-space-4)]">
+          <div className="flex-1 min-w-0">
             {title && (
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-dark-text-primary">
+              <h2 className="text-[var(--bb-font-size-lg)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)] leading-tight">
                 {title}
               </h2>
             )}
+            {description && (
+              <p className="mt-[var(--bb-space-1)] text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
+                {description}
+              </p>
+            )}
           </div>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon"
             aria-label="Close panel"
-            className="rounded-md p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-dark-bg-tertiary dark:text-dark-text-secondary"
             onClick={onClose}
+            className="flex-shrink-0 text-[var(--bb-color-text-muted)] hover:text-[var(--bb-color-text-primary)]"
           >
             <X className="h-5 w-5" />
-          </button>
+          </Button>
         </div>
-        <div className="flex-1 overflow-y-auto px-6 py-6">
+        
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-[var(--bb-space-6)] py-[var(--bb-space-6)]">
           {children}
         </div>
+        
+        {/* Footer (optional) */}
+        {footer && (
+          <div className="flex items-center justify-end gap-[var(--bb-space-3)] border-t border-[var(--bb-color-border-subtle)] px-[var(--bb-space-6)] py-[var(--bb-space-4)] bg-[var(--bb-color-bg-surface)]">
+            {footer}
+          </div>
+        )}
       </section>
     </div>,
     document.body,
@@ -110,4 +140,3 @@ const SlideoutPanel = ({
 };
 
 export default SlideoutPanel;
-
