@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 
 /**
  * Collapsible section component for panel sidebars
+ * Uses BarkBase design tokens for consistent theming.
  *
  * Features:
  * - Collapsible with animated chevron
@@ -50,24 +51,38 @@ export function PanelSection({
   };
 
   return (
-    <div className={cn(
-      "border-b border-gray-200 dark:border-[var(--border-light)] last:border-0",
-      className
-    )}>
+    <div
+      className={cn(
+        "border-b last:border-0",
+        className
+      )}
+      style={{
+        borderColor: 'var(--bb-color-border-subtle)',
+      }}
+    >
       {/* Section Header */}
       {title && (
-        <div className={cn(
-          "flex items-center justify-between px-6 py-4",
-          collapsible && "cursor-pointer hover:bg-gray-50 dark:hover:bg-[var(--bg-secondary)]",
-          headerClassName
-        )}>
+        <div
+          className={cn(
+            "flex items-center justify-between px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-4,1rem)]",
+            collapsible && "cursor-pointer",
+            headerClassName
+          )}
+          style={{
+            ...(collapsible && {
+              ':hover': {
+                backgroundColor: 'var(--bb-color-bg-elevated)',
+              }
+            })
+          }}
+        >
           <button
             onClick={collapsible ? toggleOpen : undefined}
             disabled={!collapsible}
-            className="flex items-center gap-2 flex-1 text-left group"
+            className="flex items-center gap-[var(--bb-space-2,0.5rem)] flex-1 text-left group"
           >
             {collapsible && (
-              <span className="text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)] transition-colors">
+              <span style={{ color: 'var(--bb-color-text-muted)' }}>
                 {isOpen ? (
                   <ChevronDown className="w-4 h-4" />
                 ) : (
@@ -75,14 +90,17 @@ export function PanelSection({
                 )}
               </span>
             )}
-            <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+            <h3
+              className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)]"
+              style={{ color: 'var(--bb-color-text-primary)' }}
+            >
               {title}
             </h3>
           </button>
 
           {/* Optional action buttons */}
           {actions && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
               {actions}
             </div>
           )}
@@ -91,10 +109,12 @@ export function PanelSection({
 
       {/* Section Content */}
       {(!collapsible || isOpen) && (
-        <div className={cn(
-          "px-6 py-4",
-          contentClassName
-        )}>
+        <div
+          className={cn(
+            "px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-4,1rem)]",
+            contentClassName
+          )}
+        >
           {children}
         </div>
       )}

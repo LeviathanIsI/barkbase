@@ -2,26 +2,27 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 
 /**
- * HubSpot-inspired three-panel layout for operational interfaces
+ * Enterprise three-panel layout for detail pages
+ * Uses BarkBase design tokens for consistent theming.
  *
  * Layout structure:
- * - Left Panel: Filters, navigation, saved views (optional, collapsible)
- * - Center Panel: Main content (list, table, board view)
- * - Right Panel: Context sidebar, details, quick actions (optional, appears on selection)
+ * - Left Panel: Properties, filters, navigation (optional, collapsible)
+ * - Center Panel: Main content (tabs, details)
+ * - Right Panel: Context sidebar, quick actions (optional)
  *
  * @example
  * <ThreePanelLayout
- *   left={<FilterPanel />}
- *   center={<PetTable />}
- *   right={<PetDetailsPreview />}
+ *   left={<PropertyPanel />}
+ *   center={<TabContent />}
+ *   right={<QuickActions />}
  * />
  */
 export function ThreePanelLayout({
   left,
   center,
   right,
-  leftWidth = 'w-64',      // 256px default
-  rightWidth = 'w-96',     // 384px default
+  leftWidth = 'w-80',      // 320px default
+  rightWidth = 'w-80',     // 320px default
   showLeftPanel = true,
   showRightPanel = true,
   className,
@@ -29,34 +30,43 @@ export function ThreePanelLayout({
 }) {
   return (
     <div className={cn("flex h-full min-h-0", className)}>
-      {/* Left Panel - Filters/Navigation */}
+      {/* Left Panel - Properties/Navigation */}
       {showLeftPanel && left && (
         <aside
           className={cn(
             leftWidth,
-            "flex-shrink-0 border-r overflow-y-auto",
-            "border-gray-200 dark:border-[var(--border-light)]",
-            "bg-white dark:bg-[var(--surface-primary)]"
+            "flex-shrink-0 border-r overflow-y-auto"
           )}
+          style={{
+            borderColor: 'var(--bb-color-border-subtle)',
+            backgroundColor: 'var(--bb-color-bg-surface)',
+          }}
         >
           {left}
         </aside>
       )}
 
       {/* Center Panel - Main Content (always visible) */}
-      <main className="flex-1 min-w-0 overflow-y-auto bg-gray-50 dark:bg-[var(--bg-primary)]">
+      <main
+        className="flex-1 min-w-0 overflow-y-auto"
+        style={{
+          backgroundColor: 'var(--bb-color-bg-body)',
+        }}
+      >
         {center || children}
       </main>
 
-      {/* Right Panel - Context/Details */}
+      {/* Right Panel - Context/Quick Actions */}
       {showRightPanel && right && (
         <aside
           className={cn(
             rightWidth,
-            "flex-shrink-0 border-l overflow-y-auto",
-            "border-gray-200 dark:border-[var(--border-light)]",
-            "bg-white dark:bg-[var(--surface-primary)]"
+            "flex-shrink-0 border-l overflow-y-auto"
           )}
+          style={{
+            borderColor: 'var(--bb-color-border-subtle)',
+            backgroundColor: 'var(--bb-color-bg-surface)',
+          }}
         >
           {right}
         </aside>

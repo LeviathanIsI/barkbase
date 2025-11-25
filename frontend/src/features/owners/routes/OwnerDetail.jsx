@@ -1,3 +1,9 @@
+/**
+ * Owner Detail Page - Phase 7 Enterprise Layout
+ * Two-column layout with strong detail header, clear content zones,
+ * and token-based styling consistent with the enterprise design system.
+ */
+
 import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -7,16 +13,18 @@ import {
   Trash2,
   Calendar,
   FileText,
-  PhoneCall,
-  ClipboardList,
-  Video,
-  X,
+  Phone,
   PawPrint,
+  DollarSign,
+  Plus,
+  X,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import AssociationModal from '@/components/ui/AssociationModal';
 import Button from '@/components/ui/Button';
-import { SectionCard, InfoRow, StatusPill, TagList } from '@/components/primitives';
+import Badge from '@/components/ui/Badge';
+import { Card, PageHeader } from '@/components/ui/Card';
+import { StatusPill } from '@/components/primitives';
 import { useOwnerQuery, useDeleteOwnerMutation, useAddPetToOwnerMutation, useRemovePetFromOwnerMutation } from '../api';
 import { usePetsQuery, useCreatePetMutation } from '@/features/pets/api';
 import { useAssociationsForObjectPairQuery } from '@/features/settings/api/associations';
@@ -24,11 +32,8 @@ import toast from 'react-hot-toast';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useTenantStore } from '@/stores/tenant';
 import { queryKeys } from '@/lib/queryKeys';
-import { PageHeader } from '@/components/ui/Card';
-import OwnerInfoSection from '@/features/directory/components/OwnerInfoSection';
-import RelatedPetsSection from '@/features/directory/components/RelatedPetsSection';
+import { cn, formatCurrency } from '@/lib/utils';
 
-// TODO (C1:3 - Directory UX Cleanup): Align Owner detail layout with shared directory styling.
 const OwnerDetail = () => {
   const { ownerId } = useParams();
   const navigate = useNavigate();
@@ -41,6 +46,7 @@ const OwnerDetail = () => {
   const [removePetDialogOpen, setRemovePetDialogOpen] = useState(false);
   const [petToRemove, setPetToRemove] = useState(null);
   const [isRemovingPet, setIsRemovingPet] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
 
   const ownerQuery = useOwnerQuery(ownerId);
   const petsQuery = usePetsQuery();
@@ -65,7 +71,6 @@ const OwnerDetail = () => {
   ];
 
   const handleEdit = () => {
-    // TODO: Open edit modal or navigate to edit page
     toast.info('Edit functionality coming soon');
   };
 
@@ -90,13 +95,9 @@ const OwnerDetail = () => {
 
   const handleAssociatePet = async (associations) => {
     try {
-      // Handle array of associations
       for (const { recordId, label } of associations) {
-        // label is now the association definition ID
-        // Find the association definition to check if it's a primary association
         const associationDef = associationsQuery.data?.find(a => a.recordId === label);
         const isPrimary = associationDef?.label === 'Primary';
-
         await addPetMutation.mutateAsync({ petId: recordId, isPrimary });
       }
       queryClient.invalidateQueries({ queryKey: [...queryKeys.owners(tenantId), ownerId] });
@@ -111,7 +112,6 @@ const OwnerDetail = () => {
 
   const handleCreatePet = async () => {
     try {
-      // Get form values
       const petName = document.getElementById('petName')?.value;
       const petBreed = document.getElementById('petBreed')?.value;
 
@@ -129,7 +129,6 @@ const OwnerDetail = () => {
       if (petBreed) petData.breed = petBreed;
 
       const newPet = await createPetMutation.mutateAsync(petData);
-      // Automatically associate the new pet with this owner
       await addPetMutation.mutateAsync({ petId: newPet.recordId, isPrimary: false });
       queryClient.invalidateQueries({ queryKey: [...queryKeys.owners(tenantId), ownerId] });
       queryClient.invalidateQueries({ queryKey: queryKeys.pets(tenantId) });
@@ -163,386 +162,755 @@ const OwnerDetail = () => {
     }
   };
 
+  // Tabs configuration
+  const tabs = [
+    { id: 'overview', label: 'Overview', icon: UsersIcon },
+    { id: 'pets', label: 'Pets', icon: PawPrint },
+    { id: 'bookings', label: 'Bookings', icon: Calendar },
+    { id: 'payments', label: 'Payments', icon: DollarSign },
+  ];
+
   if (ownerQuery.isLoading) {
     return (
-      <div className="p-8 text-sm text-muted">
-        Loading owner details...
+      <div
+        className="flex items-center justify-center h-full"
+        style={{ color: 'var(--bb-color-text-muted)' }}
+      >
+        <div className="animate-pulse">Loading owner details...</div>
       </div>
     );
   }
 
   if (!owner) {
-    return <div className="p-8">Owner not found</div>;
+    return (
+      <div
+        className="flex items-center justify-center h-full"
+        style={{ color: 'var(--bb-color-text-muted)' }}
+      >
+        <p>Owner not found</p>
+      </div>
+    );
   }
 
-  const fullName = `${owner.firstName} ${owner.lastName}`;
-  // Backend already transforms pets array, so owner.pets is already an array of pet objects
+  const fullName = `${owner.firstName || ''} ${owner.lastName || ''}`.trim() || 'Owner';
   const pets = owner.pets?.filter(pet => pet && pet.recordId) || [];
   const bookings = owner.bookings || [];
   const payments = owner.payments || [];
-  const lifetimeValue = payments.reduce((sum, p) => sum + (p.amountCents || 0), 0) / 100;
-
-  const actionButtons = useMemo(() => [
-    {
-      label: 'Note',
-      icon: <FileText className="h-4 w-4" />,
-      onClick: () => toast.info('Add note coming soon'),
-    },
-    {
-      label: 'Email',
-      icon: <Mail className="h-4 w-4" />,
-      onClick: () => toast.info('Send email coming soon'),
-    },
-    {
-      label: 'Call',
-      icon: <PhoneCall className="h-4 w-4" />,
-      onClick: () => toast.info('Make call coming soon'),
-    },
-    {
-      label: 'Task',
-      icon: <ClipboardList className="h-4 w-4" />,
-      onClick: () => toast.info('Create task coming soon'),
-    },
-    {
-      label: 'Meeting',
-      icon: <Video className="h-4 w-4" />,
-      onClick: () => toast.info('Schedule meeting coming soon'),
-    },
-  ], []);
-
-  const ownerPets = pets;
+  const lifetimeValue = payments.reduce((sum, p) => sum + (p.amountCents || 0), 0);
   const ownerAddress = owner.address
     ? [owner.address.street, owner.address.city, owner.address.state, owner.address.zip].filter(Boolean).join(', ')
     : null;
-  const timelineBookings = bookings.slice(0, 10);
-  const recentActivity = bookings.slice(0, 3);
-
-  const headerActions = (
-    <div className="flex items-center gap-2">
-      <Button size="sm" icon={<Edit className="h-4 w-4" />} onClick={handleEdit}>
-        Edit
-      </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        icon={<Trash2 className="h-4 w-4" />}
-        onClick={handleDelete}
-      >
-        Delete
-      </Button>
-    </div>
-  );
 
   return (
     <>
-    <div className="space-y-6">
-      <PageHeader
-        title={fullName || 'Owner'}
-        subtitle={owner.email || ''}
-        breadcrumb="Home > Clients > Owners"
-        actions={headerActions}
-      />
+      <div className="space-y-[var(--bb-space-6,1.5rem)]">
+        {/* Page Header with strong identity */}
+        <PageHeader
+          breadcrumb="Home > Clients > Owners"
+          title={fullName}
+          description={owner.email || 'No email on file'}
+          actions={
+            <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
+              <Button variant="outline" size="md" onClick={() => navigate('/bookings?action=new')}>
+                <Plus className="h-4 w-4 mr-[var(--bb-space-2,0.5rem)]" />
+                New Booking
+              </Button>
+              <Button variant="secondary" size="md" onClick={handleEdit}>
+                <Edit className="h-4 w-4 mr-[var(--bb-space-2,0.5rem)]" />
+                Edit
+              </Button>
+              <Button variant="ghost" size="md" onClick={handleDelete}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          }
+        />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          <OwnerInfoSection>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex items-start gap-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-purple-100 dark:bg-surface-secondary text-purple-600 dark:text-purple-400">
+        {/* Two-column layout */}
+        <div className="grid gap-[var(--bb-space-6,1.5rem)] lg:grid-cols-12">
+          {/* Left column: Main profile & core info */}
+          <div className="lg:col-span-8 space-y-[var(--bb-space-6,1.5rem)]">
+            {/* Owner Profile Card */}
+            <Card className="p-[var(--bb-space-6,1.5rem)]">
+              <div className="flex items-start gap-[var(--bb-space-4,1rem)]">
+                <div
+                  className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full"
+                  style={{
+                    backgroundColor: 'var(--bb-color-purple-soft)',
+                    color: 'var(--bb-color-purple)',
+                  }}
+                >
                   <UsersIcon className="h-8 w-8" />
                 </div>
-                <div className="space-y-2">
-                  <div>
-                    <h2 className="text-2xl font-semibold text-text">
-                      {fullName || 'Owner'}
-                    </h2>
-                    {owner.email && <p className="text-sm text-muted">{owner.email}</p>}
-                    {owner.phone && <p className="text-sm text-muted">{owner.phone}</p>}
-                  </div>
-                  <StatusPill status={owner.status ?? 'active'} />
-                </div>
-              </div>
-            </div>
-
-            {actionButtons.length > 0 && (
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                {actionButtons.map((action) => (
-                  <Button
-                    key={action.label}
-                    size="sm"
-                    variant={action.variant ?? 'outline'}
-                    icon={action.icon}
-                    onClick={action.onClick}
+                <div className="flex-1 min-w-0">
+                  <h2
+                    className="text-[var(--bb-font-size-xl,1.5rem)] font-[var(--bb-font-weight-semibold,600)]"
+                    style={{ color: 'var(--bb-color-text-primary)' }}
                   >
-                    {action.label}
-                  </Button>
-                ))}
-              </div>
-            )}
-
-            <div className="mt-6 grid gap-6 md:grid-cols-2">
-              <div className="space-y-3">
-                <InfoRow label="Email" value={owner.email} copyable />
-                <InfoRow label="Phone" value={owner.phone} />
-                <InfoRow label="Address" value={ownerAddress} />
-              </div>
-              <div className="space-y-3">
-                <InfoRow
-                  label="Created"
-                  value={owner.createdAt ? new Date(owner.createdAt).toLocaleString() : null}
-                />
-                <InfoRow
-                  label="Updated"
-                  value={owner.updatedAt ? new Date(owner.updatedAt).toLocaleString() : null}
-                />
-                <InfoRow label="Total Pets" value={ownerPets.length} />
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
-                Behavior Flags
-              </p>
-              <TagList tags={owner.behaviorFlags || []} emptyLabel="No behavior flags" />
-            </div>
-          </OwnerInfoSection>
-
-          <SectionCard title="Activity Timeline">
-            <div className="space-y-4">
-              {timelineBookings.length === 0 && (
-                <p className="text-sm text-muted">No activity yet</p>
-              )}
-              {timelineBookings.map((booking) => (
-                <div
-                  key={booking.recordId}
-                  className="flex gap-4 border-b border-border pb-4 last:border-0"
-                >
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 dark:bg-surface-secondary text-blue-600 dark:text-blue-400">
-                    <Calendar className="h-4 w-4" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">
-                      Booking #{booking.id.slice(0, 8)}
-                    </p>
-                    <p className="text-xs text-muted">
-                      {new Date(booking.checkIn).toLocaleDateString()} –{' '}
-                      {new Date(booking.checkOut).toLocaleDateString()}
-                    </p>
-                    <div className="mt-1">
-                      <StatusPill status={booking.status} />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </SectionCard>
-
-          <SectionCard title="All Bookings" variant="spacious">
-            <div className="space-y-3">
-              {bookings.length === 0 && (
-                <p className="text-sm text-muted">No bookings yet</p>
-              )}
-              {bookings.map((booking) => (
-                <div
-                  key={booking.recordId}
-                  className="flex items-center justify-between border-b border-border pb-3 last:border-0"
-                >
-                  <div>
-                    <p className="font-medium">Booking #{booking.id.slice(0, 8)}</p>
-                    <p className="text-sm text-muted">
-                      {new Date(booking.checkIn).toLocaleDateString()} –{' '}
-                      {new Date(booking.checkOut).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <StatusPill status={booking.status} />
-                </div>
-              ))}
-            </div>
-          </SectionCard>
-
-          <SectionCard title="Payment History" variant="spacious">
-            <div className="space-y-3">
-              {payments.length === 0 && (
-                <p className="text-sm text-muted">No payments yet</p>
-              )}
-              {payments.map((payment) => (
-                <div
-                  key={payment.recordId}
-                  className="flex items-center justify-between border-b border-border pb-3 last:border-0"
-                >
-                  <div>
-                    <p className="font-medium">
-                      ${(payment.amountCents / 100).toFixed(2)}
-                    </p>
-                    <p className="text-sm text-muted">
-                      {new Date(payment.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <StatusPill status={payment.status} />
-                </div>
-              ))}
-            </div>
-          </SectionCard>
-        </div>
-
-        <div className="space-y-6">
-          <RelatedPetsSection
-            title={`Pets (${ownerPets.length})`}
-            actions={
-              <Button size="xs" variant="ghost" onClick={() => setAddPetModalOpen(true)}>
-                + Add
-              </Button>
-            }
-          >
-            {ownerPets.length === 0 ? (
-              <p className="text-sm text-muted">No pets yet</p>
-            ) : (
-              <div className="space-y-2">
-                {ownerPets.map((pet) => (
-                  <div
-                    key={pet.recordId}
-                    className="flex items-center gap-3 rounded-md border border-border px-3 py-2 transition hover:bg-gray-50 dark:hover:bg-surface-secondary"
-                  >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-100 text-primary-600">
-                      <PawPrint className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{pet.name}</p>
-                      <p className="text-xs text-muted">{pet.breed || 'Unknown breed'}</p>
-                    </div>
-                    <button
-                      onClick={() => handleRemovePet(pet)}
-                      className="rounded-full p-1 text-muted transition hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 dark:hover:text-red-400"
-                      title="Remove pet"
+                    {fullName}
+                  </h2>
+                  {owner.email && (
+                    <p
+                      className="text-[var(--bb-font-size-sm,0.875rem)] mt-[var(--bb-space-1,0.25rem)]"
+                      style={{ color: 'var(--bb-color-text-muted)' }}
                     >
-                      <X className="h-4 w-4" />
-                    </button>
+                      {owner.email}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-[var(--bb-space-2,0.5rem)] mt-[var(--bb-space-2,0.5rem)]">
+                    <Badge variant={bookings.length > 0 ? 'success' : 'neutral'}>
+                      {bookings.length > 0 ? 'Active Client' : 'New Client'}
+                    </Badge>
+                    <span
+                      className="text-[var(--bb-font-size-sm,0.875rem)]"
+                      style={{ color: 'var(--bb-color-text-muted)' }}
+                    >
+                      {pets.length} {pets.length === 1 ? 'pet' : 'pets'}
+                    </span>
                   </div>
-                ))}
+                </div>
               </div>
-            )}
-          </RelatedPetsSection>
 
-          <SectionCard title="Key Metrics">
-            <div className="space-y-3">
-              <InfoRow label="Total Bookings" value={bookings.length} />
-              <InfoRow label="Lifetime Value" value={`$${lifetimeValue.toFixed(2)}`} />
-              <InfoRow
-                label="Last Booking"
-                value={
-                  bookings[0]
-                    ? new Date(bookings[0].checkIn).toLocaleDateString()
-                    : 'Never'
-                }
-              />
-              <InfoRow
-                label="Average Booking Value"
-                value={
-                  bookings.length > 0
-                    ? `$${(lifetimeValue / bookings.length).toFixed(2)}`
-                    : '$0.00'
-                }
+              {/* Contact Info Grid */}
+              <div className="mt-[var(--bb-space-6,1.5rem)] grid gap-[var(--bb-space-4,1rem)] sm:grid-cols-2">
+                <InfoItem label="Email" value={owner.email || '—'} icon={Mail} />
+                <InfoItem label="Phone" value={owner.phone || '—'} icon={Phone} />
+                {ownerAddress && (
+                  <div className="sm:col-span-2">
+                    <InfoItem label="Address" value={ownerAddress} />
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            {/* Tab Navigation */}
+            <Card className="p-0">
+              <nav
+                className="flex border-b px-[var(--bb-space-4,1rem)]"
+                style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+              >
+                {tabs.map(tab => {
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={cn(
+                        "flex items-center gap-[var(--bb-space-2,0.5rem)] px-[var(--bb-space-4,1rem)] py-[var(--bb-space-3,0.75rem)] border-b-2 text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] transition-colors -mb-px",
+                        activeTab === tab.id
+                          ? "border-[color:var(--bb-color-accent)] text-[color:var(--bb-color-accent)]"
+                          : "border-transparent text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] hover:border-[color:var(--bb-color-border-strong)]"
+                      )}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </nav>
+
+              {/* Tab Content */}
+              <div className="p-[var(--bb-space-6,1.5rem)]">
+                {activeTab === 'overview' && (
+                  <OverviewTab owner={owner} bookings={bookings} lifetimeValue={lifetimeValue} />
+                )}
+                {activeTab === 'pets' && (
+                  <PetsTab
+                    pets={pets}
+                    onAddPet={() => setAddPetModalOpen(true)}
+                    onRemovePet={handleRemovePet}
+                    navigate={navigate}
+                  />
+                )}
+                {activeTab === 'bookings' && <BookingsTab bookings={bookings} />}
+                {activeTab === 'payments' && <PaymentsTab payments={payments} />}
+              </div>
+            </Card>
+          </div>
+
+          {/* Right column: Status + quick actions + secondary info */}
+          <div className="lg:col-span-4 space-y-[var(--bb-space-6,1.5rem)]">
+            {/* Key Metrics Card */}
+            <Card className="p-[var(--bb-space-6,1.5rem)]">
+              <h3
+                className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)] uppercase tracking-wide mb-[var(--bb-space-4,1rem)]"
+                style={{ color: 'var(--bb-color-text-muted)' }}
+              >
+                Account Summary
+              </h3>
+              <div className="space-y-[var(--bb-space-3,0.75rem)]">
+                <MetricItem label="Total Bookings" value={bookings.length} />
+                <MetricItem label="Lifetime Value" value={formatCurrency(lifetimeValue)} />
+                <MetricItem
+                  label="Last Booking"
+                  value={
+                    bookings[0]
+                      ? new Date(bookings[0].checkIn).toLocaleDateString()
+                      : 'Never'
+                  }
+                />
+                <MetricItem
+                  label="Avg. Booking Value"
+                  value={
+                    bookings.length > 0
+                      ? formatCurrency(lifetimeValue / bookings.length)
+                      : '$0.00'
+                  }
+                />
+              </div>
+            </Card>
+
+            {/* Pets Card */}
+            <Card className="p-[var(--bb-space-6,1.5rem)]">
+              <div className="flex items-center justify-between mb-[var(--bb-space-4,1rem)]">
+                <h3
+                  className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)] uppercase tracking-wide"
+                  style={{ color: 'var(--bb-color-text-muted)' }}
+                >
+                  Pets ({pets.length})
+                </h3>
+                <Button size="xs" variant="ghost" onClick={() => setAddPetModalOpen(true)}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              {pets.length === 0 ? (
+                <p
+                  className="text-[var(--bb-font-size-sm,0.875rem)]"
+                  style={{ color: 'var(--bb-color-text-muted)' }}
+                >
+                  No pets yet
+                </p>
+              ) : (
+                <div className="space-y-[var(--bb-space-2,0.5rem)]">
+                  {pets.slice(0, 3).map((pet) => (
+                    <button
+                      key={pet.recordId}
+                      onClick={() => navigate(`/pets/${pet.recordId}`)}
+                      className="w-full flex items-center gap-[var(--bb-space-3,0.75rem)] p-[var(--bb-space-2,0.5rem)] rounded-lg transition-colors text-left"
+                      style={{
+                        backgroundColor: 'transparent',
+                      }}
+                    >
+                      <div
+                        className="flex h-8 w-8 items-center justify-center rounded-full"
+                        style={{
+                          backgroundColor: 'var(--bb-color-accent-soft)',
+                          color: 'var(--bb-color-accent)',
+                        }}
+                      >
+                        <PawPrint className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] truncate"
+                          style={{ color: 'var(--bb-color-text-primary)' }}
+                        >
+                          {pet.name}
+                        </p>
+                        <p
+                          className="text-[var(--bb-font-size-xs,0.75rem)] truncate"
+                          style={{ color: 'var(--bb-color-text-muted)' }}
+                        >
+                          {pet.breed || 'Unknown breed'}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                  {pets.length > 3 && (
+                    <button
+                      onClick={() => setActiveTab('pets')}
+                      className="w-full text-[var(--bb-font-size-sm,0.875rem)] py-[var(--bb-space-2,0.5rem)]"
+                      style={{ color: 'var(--bb-color-accent)' }}
+                    >
+                      View all {pets.length} pets →
+                    </button>
+                  )}
+                </div>
+              )}
+            </Card>
+
+            {/* Quick Actions Card */}
+            <Card className="p-[var(--bb-space-6,1.5rem)]">
+              <h3
+                className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)] uppercase tracking-wide mb-[var(--bb-space-4,1rem)]"
+                style={{ color: 'var(--bb-color-text-muted)' }}
+              >
+                Quick Actions
+              </h3>
+              <div className="space-y-[var(--bb-space-2,0.5rem)]">
+                {owner.phone && (
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => window.open(`tel:${owner.phone}`)}
+                  >
+                    <Phone className="w-4 h-4 mr-[var(--bb-space-2,0.5rem)]" />
+                    Call
+                  </Button>
+                )}
+
+                {owner.email && (
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => window.open(`mailto:${owner.email}`)}
+                  >
+                    <Mail className="w-4 h-4 mr-[var(--bb-space-2,0.5rem)]" />
+                    Email
+                  </Button>
+                )}
+
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => navigate('/bookings?action=new')}
+                >
+                  <Calendar className="w-4 h-4 mr-[var(--bb-space-2,0.5rem)]" />
+                  New Booking
+                </Button>
+
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => setAddPetModalOpen(true)}
+                >
+                  <PawPrint className="w-4 h-4 mr-[var(--bb-space-2,0.5rem)]" />
+                  Add Pet
+                </Button>
+              </div>
+            </Card>
+
+            {/* Notes Card */}
+            {owner.notes && (
+              <Card className="p-[var(--bb-space-6,1.5rem)]">
+                <h3
+                  className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)] uppercase tracking-wide mb-[var(--bb-space-4,1rem)]"
+                  style={{ color: 'var(--bb-color-text-muted)' }}
+                >
+                  Notes
+                </h3>
+                <p
+                  className="text-[var(--bb-font-size-sm,0.875rem)]"
+                  style={{ color: 'var(--bb-color-text-primary)' }}
+                >
+                  {owner.notes}
+                </p>
+              </Card>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Modals */}
+      <AssociationModal
+        open={addPetModalOpen}
+        onClose={() => setAddPetModalOpen(false)}
+        title="Associate Pet"
+        objectType="pet"
+        availableRecords={allPets}
+        currentAssociations={pets.map(p => p.recordId)}
+        onAssociate={handleAssociatePet}
+        onCreateNew={handleCreatePet}
+        associationLabels={associationLabels}
+        formatRecordDisplay={(pet) => `${pet.name}${pet.breed ? ` (${pet.breed})` : ''}`}
+        isLoading={addPetMutation.isPending || createPetMutation.isPending || petsQuery.isLoading}
+        createForm={
+          <div className="space-y-[var(--bb-space-4,1rem)]">
+            <p
+              className="text-[var(--bb-font-size-sm,0.875rem)]"
+              style={{ color: 'var(--bb-color-text-muted)' }}
+            >
+              Create a new pet and automatically associate it with {fullName}.
+            </p>
+            <div>
+              <label
+                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] mb-[var(--bb-space-1,0.25rem)]"
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                Pet Name <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+              </label>
+              <input
+                type="text"
+                id="petName"
+                className="w-full rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)] focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
+                style={{
+                  borderColor: 'var(--bb-color-border-subtle)',
+                  backgroundColor: 'var(--bb-color-bg-surface)',
+                  color: 'var(--bb-color-text-primary)',
+                }}
+                placeholder="Enter pet name"
               />
             </div>
-          </SectionCard>
+            <div>
+              <label
+                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] mb-[var(--bb-space-1,0.25rem)]"
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                Breed
+              </label>
+              <input
+                type="text"
+                id="petBreed"
+                className="w-full rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)] focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
+                style={{
+                  borderColor: 'var(--bb-color-border-subtle)',
+                  backgroundColor: 'var(--bb-color-bg-surface)',
+                  color: 'var(--bb-color-text-primary)',
+                }}
+                placeholder="Enter breed (optional)"
+              />
+            </div>
+          </div>
+        }
+      />
 
-          <SectionCard title="Recent Activity">
-            {recentActivity.length === 0 ? (
-              <p className="text-sm text-muted">No recent activity</p>
-            ) : (
-              <div className="space-y-2">
-                {recentActivity.map((booking) => (
-                  <div key={booking.recordId} className="rounded-md border border-border p-3">
-                    <div className="mb-1 flex items-center gap-2">
-                      <Calendar className="h-3.5 w-3.5 text-muted" />
-                      <span className="text-xs font-medium text-muted">
-                        {new Date(booking.checkIn).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <p className="text-sm font-medium">Booking #{booking.id.slice(0, 8)}</p>
-                    <div className="mt-1">
-                      <StatusPill status={booking.status} />
-                    </div>
-                  </div>
-                ))}
+      <ConfirmDialog
+        isOpen={deleteOwnerDialogOpen}
+        onClose={() => setDeleteOwnerDialogOpen(false)}
+        onConfirm={handleConfirmOwnerDelete}
+        title="Delete Owner"
+        message={`Are you sure you want to delete ${fullName}? This will permanently remove all associated records including pets, bookings, and payment history. This action cannot be undone.`}
+        confirmText="Delete Owner"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isDeletingOwner}
+      />
+
+      <ConfirmDialog
+        isOpen={removePetDialogOpen}
+        onClose={() => {
+          setRemovePetDialogOpen(false);
+          setPetToRemove(null);
+        }}
+        onConfirm={handleConfirmRemovePet}
+        title="Remove Pet"
+        message={`Are you sure you want to remove ${petToRemove?.name} from ${fullName}? This will unlink the pet from this owner.`}
+        confirmText="Remove Pet"
+        cancelText="Cancel"
+        variant="warning"
+        isLoading={isRemovingPet}
+      />
+    </>
+  );
+};
+
+// Helper Components
+
+function InfoItem({ label, value, icon: Icon }) {
+  return (
+    <div className="flex items-start gap-[var(--bb-space-3,0.75rem)]">
+      {Icon && (
+        <Icon className="h-5 w-5 mt-0.5" style={{ color: 'var(--bb-color-text-muted)' }} />
+      )}
+      <div>
+        <p
+          className="text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide mb-[var(--bb-space-1,0.25rem)]"
+          style={{ color: 'var(--bb-color-text-muted)' }}
+        >
+          {label}
+        </p>
+        <p
+          className="text-[var(--bb-font-size-sm,0.875rem)]"
+          style={{ color: 'var(--bb-color-text-primary)' }}
+        >
+          {value}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function MetricItem({ label, value }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span
+        className="text-[var(--bb-font-size-sm,0.875rem)]"
+        style={{ color: 'var(--bb-color-text-muted)' }}
+      >
+        {label}
+      </span>
+      <span
+        className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)]"
+        style={{ color: 'var(--bb-color-text-primary)' }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+// TAB COMPONENTS
+
+function OverviewTab({ owner, bookings, lifetimeValue }) {
+  const recentActivity = bookings.slice(0, 5);
+
+  return (
+    <div className="space-y-[var(--bb-space-6,1.5rem)]">
+      <div>
+        <h3
+          className="text-[var(--bb-font-size-md,1.125rem)] font-[var(--bb-font-weight-semibold,600)] mb-[var(--bb-space-4,1rem)]"
+          style={{ color: 'var(--bb-color-text-primary)' }}
+        >
+          Recent Activity
+        </h3>
+        {recentActivity.length === 0 ? (
+          <p
+            className="text-[var(--bb-font-size-sm,0.875rem)]"
+            style={{ color: 'var(--bb-color-text-muted)' }}
+          >
+            No activity yet
+          </p>
+        ) : (
+          <div className="space-y-[var(--bb-space-3,0.75rem)]">
+            {recentActivity.map((booking) => (
+              <div
+                key={booking.recordId}
+                className="flex items-center gap-[var(--bb-space-4,1rem)] p-[var(--bb-space-3,0.75rem)] rounded-lg border"
+                style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+              >
+                <div
+                  className="flex h-9 w-9 items-center justify-center rounded-full"
+                  style={{
+                    backgroundColor: 'var(--bb-color-info-soft)',
+                    color: 'var(--bb-color-info)',
+                  }}
+                >
+                  <Calendar className="h-4 w-4" />
+                </div>
+                <div className="flex-1">
+                  <p
+                    className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                    style={{ color: 'var(--bb-color-text-primary)' }}
+                  >
+                    Booking #{booking.id?.slice(0, 8) || booking.recordId?.slice(0, 8)}
+                  </p>
+                  <p
+                    className="text-[var(--bb-font-size-xs,0.75rem)]"
+                    style={{ color: 'var(--bb-color-text-muted)' }}
+                  >
+                    {new Date(booking.checkIn).toLocaleDateString()} – {new Date(booking.checkOut).toLocaleDateString()}
+                  </p>
+                </div>
+                <StatusPill status={booking.status} />
               </div>
-            )}
-          </SectionCard>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Account Created Info */}
+      <div className="grid gap-[var(--bb-space-4,1rem)] sm:grid-cols-2">
+        <div
+          className="p-[var(--bb-space-4,1rem)] rounded-lg"
+          style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+        >
+          <p
+            className="text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide mb-[var(--bb-space-1,0.25rem)]"
+            style={{ color: 'var(--bb-color-text-muted)' }}
+          >
+            Created
+          </p>
+          <p
+            className="text-[var(--bb-font-size-sm,0.875rem)]"
+            style={{ color: 'var(--bb-color-text-primary)' }}
+          >
+            {owner.createdAt ? new Date(owner.createdAt).toLocaleDateString() : '—'}
+          </p>
+        </div>
+        <div
+          className="p-[var(--bb-space-4,1rem)] rounded-lg"
+          style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+        >
+          <p
+            className="text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide mb-[var(--bb-space-1,0.25rem)]"
+            style={{ color: 'var(--bb-color-text-muted)' }}
+          >
+            Last Updated
+          </p>
+          <p
+            className="text-[var(--bb-font-size-sm,0.875rem)]"
+            style={{ color: 'var(--bb-color-text-primary)' }}
+          >
+            {owner.updatedAt ? new Date(owner.updatedAt).toLocaleDateString() : '—'}
+          </p>
         </div>
       </div>
     </div>
-
-    <AssociationModal
-      open={addPetModalOpen}
-      onClose={() => setAddPetModalOpen(false)}
-      title="Associate Pet"
-      objectType="pet"
-      availableRecords={allPets}
-      currentAssociations={pets.map(p => p.recordId)}
-      onAssociate={handleAssociatePet}
-      onCreateNew={handleCreatePet}
-      associationLabels={associationLabels}
-      formatRecordDisplay={(pet) => `${pet.name}${pet.breed ? ` (${pet.breed})` : ''}`}
-      isLoading={addPetMutation.isPending || createPetMutation.isPending || petsQuery.isLoading}
-      createForm={
-        <div className="space-y-4">
-          <p className="text-sm text-muted">
-            Create a new pet and automatically associate it with {fullName}.
-          </p>
-          <div>
-            <label className="block text-sm font-medium text-text mb-1">
-              Pet Name <span className="text-red-500 dark:text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              id="petName"
-              className="w-full rounded-md border border-border bg-white dark:bg-surface-primary px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              placeholder="Enter pet name"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-text mb-1">
-              Breed
-            </label>
-            <input
-              type="text"
-              id="petBreed"
-              className="w-full rounded-md border border-border bg-white dark:bg-surface-primary px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              placeholder="Enter breed (optional)"
-            />
-          </div>
-        </div>
-      }
-    />
-
-    <ConfirmDialog
-      isOpen={deleteOwnerDialogOpen}
-      onClose={() => setDeleteOwnerDialogOpen(false)}
-      onConfirm={handleConfirmOwnerDelete}
-      title="Delete Owner"
-      message={`Are you sure you want to delete ${fullName}? This will permanently remove all associated records including pets, bookings, and payment history. This action cannot be undone.`}
-      confirmText="Delete Owner"
-      cancelText="Cancel"
-      variant="danger"
-      isLoading={isDeletingOwner}
-    />
-
-    <ConfirmDialog
-      isOpen={removePetDialogOpen}
-      onClose={() => {
-        setRemovePetDialogOpen(false);
-        setPetToRemove(null);
-      }}
-      onConfirm={handleConfirmRemovePet}
-      title="Remove Pet"
-      message={`Are you sure you want to remove ${petToRemove?.name} from ${fullName}? This will unlink the pet from this owner.`}
-      confirmText="Remove Pet"
-      cancelText="Cancel"
-      variant="warning"
-      isLoading={isRemovingPet}
-    />
-  </>
   );
-};
+}
+
+function PetsTab({ pets, onAddPet, onRemovePet, navigate }) {
+  return (
+    <div className="space-y-[var(--bb-space-6,1.5rem)]">
+      <div className="flex items-center justify-between">
+        <h3
+          className="text-[var(--bb-font-size-md,1.125rem)] font-[var(--bb-font-weight-semibold,600)]"
+          style={{ color: 'var(--bb-color-text-primary)' }}
+        >
+          Pets ({pets.length})
+        </h3>
+        <Button size="sm" onClick={onAddPet}>
+          <Plus className="h-4 w-4 mr-[var(--bb-space-2,0.5rem)]" />
+          Add Pet
+        </Button>
+      </div>
+
+      {pets.length === 0 ? (
+        <p
+          className="text-[var(--bb-font-size-sm,0.875rem)] text-center py-[var(--bb-space-8,2rem)]"
+          style={{ color: 'var(--bb-color-text-muted)' }}
+        >
+          No pets yet
+        </p>
+      ) : (
+        <div className="space-y-[var(--bb-space-2,0.5rem)]">
+          {pets.map((pet) => (
+            <div
+              key={pet.recordId}
+              className="flex items-center gap-[var(--bb-space-3,0.75rem)] p-[var(--bb-space-3,0.75rem)] rounded-lg border transition-colors"
+              style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+            >
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-full cursor-pointer"
+                style={{
+                  backgroundColor: 'var(--bb-color-accent-soft)',
+                  color: 'var(--bb-color-accent)',
+                }}
+                onClick={() => navigate(`/pets/${pet.recordId}`)}
+              >
+                <PawPrint className="h-5 w-5" />
+              </div>
+              <div
+                className="flex-1 min-w-0 cursor-pointer"
+                onClick={() => navigate(`/pets/${pet.recordId}`)}
+              >
+                <p
+                  className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                  style={{ color: 'var(--bb-color-text-primary)' }}
+                >
+                  {pet.name}
+                </p>
+                <p
+                  className="text-[var(--bb-font-size-xs,0.75rem)]"
+                  style={{ color: 'var(--bb-color-text-muted)' }}
+                >
+                  {pet.breed || 'Unknown breed'}
+                </p>
+              </div>
+              <button
+                onClick={() => onRemovePet(pet)}
+                className="rounded-full p-[var(--bb-space-2,0.5rem)] transition-colors"
+                style={{ color: 'var(--bb-color-text-muted)' }}
+                title="Remove pet"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BookingsTab({ bookings }) {
+  return (
+    <div className="space-y-[var(--bb-space-6,1.5rem)]">
+      <div className="flex items-center justify-between">
+        <h3
+          className="text-[var(--bb-font-size-md,1.125rem)] font-[var(--bb-font-weight-semibold,600)]"
+          style={{ color: 'var(--bb-color-text-primary)' }}
+        >
+          All Bookings ({bookings.length})
+        </h3>
+      </div>
+
+      {bookings.length === 0 ? (
+        <p
+          className="text-[var(--bb-font-size-sm,0.875rem)] text-center py-[var(--bb-space-8,2rem)]"
+          style={{ color: 'var(--bb-color-text-muted)' }}
+        >
+          No bookings yet
+        </p>
+      ) : (
+        <div className="space-y-[var(--bb-space-3,0.75rem)]">
+          {bookings.map((booking) => (
+            <div
+              key={booking.recordId}
+              className="flex items-center justify-between p-[var(--bb-space-4,1rem)] rounded-lg border"
+              style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+            >
+              <div>
+                <p
+                  className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                  style={{ color: 'var(--bb-color-text-primary)' }}
+                >
+                  Booking #{booking.id?.slice(0, 8) || booking.recordId?.slice(0, 8)}
+                </p>
+                <p
+                  className="text-[var(--bb-font-size-sm,0.875rem)]"
+                  style={{ color: 'var(--bb-color-text-muted)' }}
+                >
+                  {new Date(booking.checkIn).toLocaleDateString()} – {new Date(booking.checkOut).toLocaleDateString()}
+                </p>
+              </div>
+              <StatusPill status={booking.status} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PaymentsTab({ payments }) {
+  return (
+    <div className="space-y-[var(--bb-space-6,1.5rem)]">
+      <div className="flex items-center justify-between">
+        <h3
+          className="text-[var(--bb-font-size-md,1.125rem)] font-[var(--bb-font-weight-semibold,600)]"
+          style={{ color: 'var(--bb-color-text-primary)' }}
+        >
+          Payment History ({payments.length})
+        </h3>
+      </div>
+
+      {payments.length === 0 ? (
+        <p
+          className="text-[var(--bb-font-size-sm,0.875rem)] text-center py-[var(--bb-space-8,2rem)]"
+          style={{ color: 'var(--bb-color-text-muted)' }}
+        >
+          No payments yet
+        </p>
+      ) : (
+        <div className="space-y-[var(--bb-space-3,0.75rem)]">
+          {payments.map((payment) => (
+            <div
+              key={payment.recordId}
+              className="flex items-center justify-between p-[var(--bb-space-4,1rem)] rounded-lg border"
+              style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+            >
+              <div>
+                <p
+                  className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)]"
+                  style={{ color: 'var(--bb-color-text-primary)' }}
+                >
+                  {formatCurrency(payment.amountCents || 0)}
+                </p>
+                <p
+                  className="text-[var(--bb-font-size-sm,0.875rem)]"
+                  style={{ color: 'var(--bb-color-text-muted)' }}
+                >
+                  {new Date(payment.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+              <StatusPill status={payment.status} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default OwnerDetail;

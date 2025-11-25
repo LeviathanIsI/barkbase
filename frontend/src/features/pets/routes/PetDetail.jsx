@@ -1,45 +1,9 @@
 /**
- * Pet Detail Page - Phase 6 Implementation
- * HubSpot-style record detail with tab organization and progressive disclosure
- *
- * THREE-COLUMN LAYOUT:
- * - Left: Collapsible property sections (Basic Info, Medical, Dietary)
- * - Center: Tab navigation and content (max 5 tabs)
- * - Right: Owner info and quick actions
- *
- * ACTUAL API DATA STRUCTURES:
- *
- * pet: {
- *   recordId: string,
- *   name: string,
- *   breed: string,
- *   species: string ('Dog' | 'Cat'),
- *   gender: string,
- *   weight: number,
- *   age: string,
- *   color: string,
- *   microchipNumber: string,
- *   dietaryNotes: string,
- *   behaviorNotes: string,
- *   medicalNotes: string,
- *   specialNeeds: string,
- *   lastVetVisit: string (ISO date),
- *   nextAppointment: string (ISO date),
- *   owners: Array<{recordId, name, firstName, lastName, email, phone}>,
- *   bookings: Array<{recordId, checkIn, checkOut, status, roomNumber}>,
- *   ...
- * }
- *
- * vaccinations: Array<{
- *   recordId: string,
- *   type: string,
- *   administeredAt: string (ISO date),
- *   expiresAt: string (ISO date),
- *   ...
- * }>
+ * Pet Detail Page - Phase 7 Enterprise Layout
+ * Two-column layout with strong detail header, clear content zones,
+ * and token-based styling consistent with the enterprise design system.
  */
 
-// TODO (C1:3 - Directory UX Cleanup): Align Pet detail visuals with shared directory styling.
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -57,15 +21,14 @@ import {
   Mail,
   MapPin,
   CheckCircle,
+  Plus,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import { Card, PageHeader } from '@/components/ui/Card';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { ThreePanelLayout } from '@/components/layout/ThreePanelLayout';
-import { PanelSection } from '@/components/layout/PanelSection';
 import { PropertyList } from '@/components/ui/PropertyList';
-import { Timeline, TimelineItem } from '@/components/ui/Timeline';
 import { StatusPill } from '@/components/primitives';
 import {
   usePetQuery,
@@ -81,8 +44,6 @@ import { useTenantStore } from '@/stores/tenant';
 import { queryKeys } from '@/lib/queryKeys';
 import { PetFormModal, VaccinationFormModal } from '../components';
 import { cn } from '@/lib/utils';
-import PetInfoSection from '@/features/directory/components/PetInfoSection';
-import RelatedOwnerSection from '@/features/directory/components/RelatedOwnerSection';
 
 const PetDetail = () => {
   const { petId } = useParams();
@@ -114,10 +75,9 @@ const PetDetail = () => {
   const updateVaccinationMutation = useUpdateVaccinationMutation(petId);
   const deleteVaccinationMutation = useDeleteVaccinationMutation(petId);
 
-  // Tabs configuration - MAX 5 TABS (HubSpot pattern)
+  // Tabs configuration
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Activity },
-    { id: 'history', label: 'History', icon: ClipboardList },
     { id: 'health', label: 'Health', icon: Heart },
     { id: 'bookings', label: 'Bookings', icon: Calendar },
     { id: 'documents', label: 'Documents', icon: FileText },
@@ -263,23 +223,14 @@ const PetDetail = () => {
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
   };
 
-  const getActivityIcon = (type) => {
-    const icons = {
-      'booking': Calendar,
-      'vaccination': Syringe,
-      'note': FileText,
-      'visit': MapPin,
-    };
-    return icons[type] || Activity;
-  };
-
   // Loading state
   if (petQuery.isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-pulse text-[var(--text-secondary)]">
-          Loading pet details...
-        </div>
+      <div
+        className="flex items-center justify-center h-full"
+        style={{ color: 'var(--bb-color-text-muted)' }}
+      >
+        <div className="animate-pulse">Loading pet details...</div>
       </div>
     );
   }
@@ -287,8 +238,11 @@ const PetDetail = () => {
   // Not found state
   if (!pet) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-[var(--text-secondary)]">Pet not found</p>
+      <div
+        className="flex items-center justify-center h-full"
+        style={{ color: 'var(--bb-color-text-muted)' }}
+      >
+        <p>Pet not found</p>
       </div>
     );
   }
@@ -296,147 +250,97 @@ const PetDetail = () => {
   // Get primary owner
   const primaryOwner = pet.owners?.[0];
   const currentBooking = pet.currentBooking || pet.bookings?.find(b => b.status === 'CHECKED_IN');
+  const petDescription = [pet.breed, pet.species, pet.gender].filter(Boolean).join(' • ');
 
   return (
     <>
-      <ThreePanelLayout
-        leftWidth="w-80"
-        rightWidth="w-80"
-        showLeftPanel={true}
-        showRightPanel={!!primaryOwner}
+      <div className="space-y-[var(--bb-space-6,1.5rem)]">
+        {/* Page Header with strong identity */}
+        <PageHeader
+          breadcrumb="Home > Clients > Pets"
+          title={pet.name}
+          description={petDescription || 'Pet details'}
+          actions={
+            <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
+              <Button variant="outline" size="md" onClick={() => navigate('/bookings?action=new')}>
+                <Plus className="h-4 w-4 mr-[var(--bb-space-2,0.5rem)]" />
+                New Booking
+              </Button>
+              <Button variant="secondary" size="md" onClick={handleEdit}>
+                <Edit className="h-4 w-4 mr-[var(--bb-space-2,0.5rem)]" />
+                Edit
+              </Button>
+              <Button variant="ghost" size="md" onClick={handleDelete}>
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          }
+        />
 
-        // LEFT PANEL: Collapsible Property Sections
-        left={
-          <>
-            {/* Basic Information */}
-            <PanelSection
-              title="Basic Information"
-              collapsible
-              defaultOpen
-              storageKey="pet-basic-info"
-            >
-              <PropertyList
-                properties={[
-                  { label: 'Name', value: pet.name },
-                  { label: 'Breed', value: pet.breed || '—' },
-                  { label: 'Species', value: pet.species || '—' },
-                  { label: 'Gender', value: pet.gender || '—' },
-                  { label: 'Age', value: pet.age || '—' },
-                  { label: 'Weight', value: pet.weight ? `${pet.weight} lbs` : '—' },
-                  { label: 'Color', value: pet.color || '—' },
-                  { label: 'Microchip', value: pet.microchipNumber || '—' },
-                ]}
-              />
-            </PanelSection>
-
-            {/* Current Stay */}
-            {currentBooking && (
-              <PanelSection
-                title="Current Stay"
-                collapsible
-                defaultOpen
-                storageKey="pet-current-stay"
-              >
-                <PropertyList
-                  properties={[
-                    {
-                      label: 'Status',
-                      render: <Badge variant="success">Checked In</Badge>
-                    },
-                    { label: 'Room', value: currentBooking.roomNumber || '—' },
-                    { label: 'Check-In', value: formatDate(currentBooking.checkIn) },
-                    { label: 'Check-Out', value: formatDate(currentBooking.checkOut) },
-                    {
-                      label: 'Duration',
-                      value: `${calculateDays(currentBooking.checkIn, currentBooking.checkOut)} days`
-                    },
-                  ]}
-                />
-              </PanelSection>
-            )}
-
-            {/* Medical Information */}
-            <PanelSection
-              title="Medical Information"
-              collapsible
-              defaultOpen={false}
-              storageKey="pet-medical-info"
-            >
-              <PropertyList
-                properties={[
-                  { label: 'Medical Notes', value: pet.medicalNotes || 'None reported' },
-                  { label: 'Special Needs', value: pet.specialNeeds || 'None' },
-                  { label: 'Last Vet Visit', value: formatDate(pet.lastVetVisit) },
-                  { label: 'Next Appointment', value: formatDate(pet.nextAppointment) },
-                ]}
-              />
-            </PanelSection>
-
-            {/* Dietary Information */}
-            <PanelSection
-              title="Dietary Information"
-              collapsible
-              defaultOpen={false}
-              storageKey="pet-dietary-info"
-            >
-              <PropertyList
-                properties={[
-                  { label: 'Dietary Notes', value: pet.dietaryNotes || 'Not provided' },
-                  { label: 'Special Diet', value: pet.specialDiet || 'None' },
-                ]}
-              />
-            </PanelSection>
-
-            {/* Behavior Information */}
-            {pet.behaviorNotes && (
-              <PanelSection
-                title="Behavior Notes"
-                collapsible
-                defaultOpen={false}
-                storageKey="pet-behavior-info"
-              >
-                <p className="text-sm text-[var(--text-primary)]">
-                  {pet.behaviorNotes}
-                </p>
-              </PanelSection>
-            )}
-          </>
-        }
-
-        // CENTER PANEL: Tab Navigation and Content
-        center={
-          <div className="h-full flex flex-col">
-            <PetInfoSection className="rounded-none border-0 border-b border-gray-200 dark:border-[var(--border-light)] bg-transparent">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/20">
-                    <PawPrint className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div>
-                    <h1 className="mb-1 text-2xl font-semibold text-[var(--text-primary)]">
-                      {pet.name}
-                    </h1>
-                    <p className="text-sm text-[var(--text-secondary)]">
-                      {pet.breed && `${pet.breed} • `}
-                      {pet.gender && `${pet.gender} • `}
-                      {pet.age || 'Age unknown'}
-                    </p>
-                  </div>
+        {/* Two-column layout */}
+        <div className="grid gap-[var(--bb-space-6,1.5rem)] lg:grid-cols-12">
+          {/* Left column: Main profile & core info */}
+          <div className="lg:col-span-8 space-y-[var(--bb-space-6,1.5rem)]">
+            {/* Pet Profile Card */}
+            <Card className="p-[var(--bb-space-6,1.5rem)]">
+              <div className="flex items-start gap-[var(--bb-space-4,1rem)]">
+                <div
+                  className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full"
+                  style={{
+                    backgroundColor: 'var(--bb-color-accent-soft)',
+                    color: 'var(--bb-color-accent)',
+                  }}
+                >
+                  <PawPrint className="h-8 w-8" />
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="secondary" size="sm" onClick={handleEdit}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={handleDelete}>
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete
-                  </Button>
+                <div className="flex-1 min-w-0">
+                  <h2
+                    className="text-[var(--bb-font-size-xl,1.5rem)] font-[var(--bb-font-weight-semibold,600)]"
+                    style={{ color: 'var(--bb-color-text-primary)' }}
+                  >
+                    {pet.name}
+                  </h2>
+                  <p
+                    className="text-[var(--bb-font-size-sm,0.875rem)] mt-[var(--bb-space-1,0.25rem)]"
+                    style={{ color: 'var(--bb-color-text-muted)' }}
+                  >
+                    {petDescription || 'No details available'}
+                  </p>
+                  <div className="flex items-center gap-[var(--bb-space-2,0.5rem)] mt-[var(--bb-space-2,0.5rem)]">
+                    <Badge variant={currentBooking ? 'success' : 'neutral'}>
+                      {currentBooking ? 'In Facility' : 'Not Checked In'}
+                    </Badge>
+                    {pet.age && (
+                      <span
+                        className="text-[var(--bb-font-size-sm,0.875rem)]"
+                        style={{ color: 'var(--bb-color-text-muted)' }}
+                      >
+                        {pet.age}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-            </PetInfoSection>
-            <div className="px-6">
-              <nav className="flex space-x-8 border-b border-gray-200 dark:border-[var(--border-light)] -mb-px">
+
+              {/* Basic Info Grid */}
+              <div className="mt-[var(--bb-space-6,1.5rem)] grid gap-[var(--bb-space-4,1rem)] sm:grid-cols-2 lg:grid-cols-4">
+                <InfoItem label="Breed" value={pet.breed || '—'} />
+                <InfoItem label="Species" value={pet.species || '—'} />
+                <InfoItem label="Gender" value={pet.gender || '—'} />
+                <InfoItem label="Weight" value={pet.weight ? `${pet.weight} lbs` : '—'} />
+                <InfoItem label="Color" value={pet.color || '—'} />
+                <InfoItem label="Microchip" value={pet.microchipNumber || '—'} />
+                <InfoItem label="Last Vet Visit" value={formatDate(pet.lastVetVisit)} />
+                <InfoItem label="Next Appointment" value={formatDate(pet.nextAppointment)} />
+              </div>
+            </Card>
+
+            {/* Tab Navigation */}
+            <Card className="p-0">
+              <nav
+                className="flex border-b px-[var(--bb-space-4,1rem)]"
+                style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+              >
                 {tabs.map(tab => {
                   const Icon = tab.icon;
                   return (
@@ -444,10 +348,10 @@ const PetDetail = () => {
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
                       className={cn(
-                        "flex items-center gap-2 pb-4 px-1 border-b-2 font-medium text-sm transition-colors",
+                        "flex items-center gap-[var(--bb-space-2,0.5rem)] px-[var(--bb-space-4,1rem)] py-[var(--bb-space-3,0.75rem)] border-b-2 text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] transition-colors -mb-px",
                         activeTab === tab.id
-                          ? "border-primary-600 text-primary-600"
-                          : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-gray-300 dark:hover:border-[var(--border)]"
+                          ? "border-[color:var(--bb-color-accent)] text-[color:var(--bb-color-accent)]"
+                          : "border-transparent text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] hover:border-[color:var(--bb-color-border-strong)]"
                       )}
                     >
                       <Icon className="w-4 h-4" />
@@ -456,158 +360,248 @@ const PetDetail = () => {
                   );
                 })}
               </nav>
-            </div>
 
-            {/* Tab Content */}
-            <div className="flex-1 overflow-y-auto p-6">
-              {activeTab === 'overview' && <OverviewTab pet={pet} />}
-              {activeTab === 'history' && <HistoryTab pet={pet} />}
-              {activeTab === 'health' && (
-                <HealthTab
-                  pet={pet}
-                  vaccinations={vaccinations}
-                  vaccLoading={vaccLoading}
-                  getDefaultVaccines={getDefaultVaccines}
-                  getVaccinationForType={getVaccinationForType}
-                  getVaccinationStatus={getVaccinationStatus}
-                  getStatusDisplay={getStatusDisplay}
-                  handleAddVaccination={handleAddVaccination}
-                  handleEditVaccination={handleEditVaccination}
-                  handleDeleteClick={handleDeleteClick}
-                />
-              )}
-              {activeTab === 'bookings' && <BookingsTab pet={pet} />}
-              {activeTab === 'documents' && <DocumentsTab pet={pet} />}
-            </div>
+              {/* Tab Content */}
+              <div className="p-[var(--bb-space-6,1.5rem)]">
+                {activeTab === 'overview' && <OverviewTab pet={pet} formatDate={formatDate} />}
+                {activeTab === 'health' && (
+                  <HealthTab
+                    pet={pet}
+                    vaccinations={vaccinations}
+                    vaccLoading={vaccLoading}
+                    getDefaultVaccines={getDefaultVaccines}
+                    getVaccinationForType={getVaccinationForType}
+                    getVaccinationStatus={getVaccinationStatus}
+                    getStatusDisplay={getStatusDisplay}
+                    handleAddVaccination={handleAddVaccination}
+                    handleEditVaccination={handleEditVaccination}
+                    handleDeleteClick={handleDeleteClick}
+                    formatDate={formatDate}
+                  />
+                )}
+                {activeTab === 'bookings' && <BookingsTab pet={pet} formatDate={formatDate} calculateDays={calculateDays} />}
+                {activeTab === 'documents' && <DocumentsTab pet={pet} />}
+              </div>
+            </Card>
           </div>
-        }
 
-        // RIGHT PANEL: Owner & Quick Actions
-        right={
-          <div className="space-y-6">
-            {primaryOwner && (
-              <RelatedOwnerSection title="Owner">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/20">
-                      <User className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-[var(--text-primary)]">
-                        {primaryOwner.name || `${primaryOwner.firstName || ''} ${primaryOwner.lastName || ''}`.trim()}
-                      </p>
-                      <p className="truncate text-xs text-[var(--text-secondary)]">
-                        {primaryOwner.email}
-                      </p>
-                    </div>
+          {/* Right column: Status + quick actions + secondary info */}
+          <div className="lg:col-span-4 space-y-[var(--bb-space-6,1.5rem)]">
+            {/* Status Card */}
+            {currentBooking && (
+              <Card className="p-[var(--bb-space-6,1.5rem)]">
+                <h3
+                  className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)] uppercase tracking-wide mb-[var(--bb-space-4,1rem)]"
+                  style={{ color: 'var(--bb-color-text-muted)' }}
+                >
+                  Current Stay
+                </h3>
+                <div className="space-y-[var(--bb-space-3,0.75rem)]">
+                  <div className="flex items-center justify-between">
+                    <span style={{ color: 'var(--bb-color-text-muted)' }}>Status</span>
+                    <Badge variant="success">Checked In</Badge>
                   </div>
-                  {primaryOwner.phone && (
-                    <PropertyList
-                      properties={[
-                        { label: 'Phone', value: primaryOwner.phone },
-                        { label: 'Email', value: primaryOwner.email },
-                      ]}
-                    />
-                  )}
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => navigate(`/owners/${primaryOwner.recordId}`)}
-                  >
-                    View Owner Profile
-                  </Button>
+                  <InfoItem label="Room" value={currentBooking.roomNumber || '—'} inline />
+                  <InfoItem label="Check-In" value={formatDate(currentBooking.checkIn)} inline />
+                  <InfoItem label="Check-Out" value={formatDate(currentBooking.checkOut)} inline />
+                  <InfoItem
+                    label="Duration"
+                    value={`${calculateDays(currentBooking.checkIn, currentBooking.checkOut)} days`}
+                    inline
+                  />
                 </div>
-              </RelatedOwnerSection>
+              </Card>
             )}
 
-            {/* Quick Actions */}
-            <PanelSection title="Quick Actions">
-              <div className="space-y-2">
+            {/* Owner Card */}
+            {primaryOwner && (
+              <Card className="p-[var(--bb-space-6,1.5rem)]">
+                <h3
+                  className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)] uppercase tracking-wide mb-[var(--bb-space-4,1rem)]"
+                  style={{ color: 'var(--bb-color-text-muted)' }}
+                >
+                  Owner
+                </h3>
+                <div className="flex items-center gap-[var(--bb-space-3,0.75rem)]">
+                  <div
+                    className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full"
+                    style={{
+                      backgroundColor: 'var(--bb-color-purple-soft)',
+                      color: 'var(--bb-color-purple)',
+                    }}
+                  >
+                    <User className="h-6 w-6" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className="truncate text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                      style={{ color: 'var(--bb-color-text-primary)' }}
+                    >
+                      {primaryOwner.name || `${primaryOwner.firstName || ''} ${primaryOwner.lastName || ''}`.trim()}
+                    </p>
+                    {primaryOwner.email && (
+                      <p
+                        className="truncate text-[var(--bb-font-size-xs,0.75rem)]"
+                        style={{ color: 'var(--bb-color-text-muted)' }}
+                      >
+                        {primaryOwner.email}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {(primaryOwner.phone || primaryOwner.email) && (
+                  <div className="mt-[var(--bb-space-4,1rem)] space-y-[var(--bb-space-2,0.5rem)]">
+                    {primaryOwner.phone && (
+                      <div
+                        className="flex items-center gap-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)]"
+                        style={{ color: 'var(--bb-color-text-muted)' }}
+                      >
+                        <Phone className="h-4 w-4" />
+                        {primaryOwner.phone}
+                      </div>
+                    )}
+                    {primaryOwner.email && (
+                      <div
+                        className="flex items-center gap-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)]"
+                        style={{ color: 'var(--bb-color-text-muted)' }}
+                      >
+                        <Mail className="h-4 w-4" />
+                        {primaryOwner.email}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full mt-[var(--bb-space-4,1rem)]"
+                  onClick={() => navigate(`/owners/${primaryOwner.recordId}`)}
+                >
+                  View Owner Profile
+                </Button>
+              </Card>
+            )}
+
+            {/* Quick Actions Card */}
+            <Card className="p-[var(--bb-space-6,1.5rem)]">
+              <h3
+                className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)] uppercase tracking-wide mb-[var(--bb-space-4,1rem)]"
+                style={{ color: 'var(--bb-color-text-muted)' }}
+              >
+                Quick Actions
+              </h3>
+              <div className="space-y-[var(--bb-space-2,0.5rem)]">
                 {primaryOwner?.phone && (
                   <Button
-                    variant="secondary"
+                    variant="outline"
                     className="w-full justify-start"
                     onClick={() => window.open(`tel:${primaryOwner.phone}`)}
                   >
-                    <Phone className="w-4 h-4 mr-2" />
+                    <Phone className="w-4 h-4 mr-[var(--bb-space-2,0.5rem)]" />
                     Call Owner
                   </Button>
                 )}
 
                 {primaryOwner?.email && (
                   <Button
-                    variant="secondary"
+                    variant="outline"
                     className="w-full justify-start"
                     onClick={() => window.open(`mailto:${primaryOwner.email}`)}
                   >
-                    <Mail className="w-4 h-4 mr-2" />
+                    <Mail className="w-4 h-4 mr-[var(--bb-space-2,0.5rem)]" />
                     Email Owner
                   </Button>
                 )}
 
                 <Button
-                  variant="secondary"
+                  variant="outline"
                   className="w-full justify-start"
-                  onClick={() => toast.info('Booking feature coming soon')}
+                  onClick={() => navigate('/bookings?action=new')}
                 >
-                  <Calendar className="w-4 h-4 mr-2" />
+                  <Calendar className="w-4 h-4 mr-[var(--bb-space-2,0.5rem)]" />
                   Book Stay
                 </Button>
 
                 {currentBooking && (
                   <Button
-                    variant="secondary"
+                    variant="outline"
                     className="w-full justify-start"
                     onClick={() => toast.info('Check out feature coming soon')}
                   >
-                    <CheckCircle className="w-4 h-4 mr-2" />
+                    <CheckCircle className="w-4 h-4 mr-[var(--bb-space-2,0.5rem)]" />
                     Check Out
                   </Button>
                 )}
-
-                <Button
-                  variant="secondary"
-                  className="w-full justify-start"
-                  onClick={() => toast.info('Logging visits coming soon')}
-                >
-                  <ClipboardList className="w-4 h-4 mr-2" />
-                  Log Visit
-                </Button>
               </div>
-            </PanelSection>
+            </Card>
+
+            {/* Notes Card */}
+            {(pet.medicalNotes || pet.behaviorNotes || pet.dietaryNotes) && (
+              <Card className="p-[var(--bb-space-6,1.5rem)]">
+                <h3
+                  className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)] uppercase tracking-wide mb-[var(--bb-space-4,1rem)]"
+                  style={{ color: 'var(--bb-color-text-muted)' }}
+                >
+                  Notes
+                </h3>
+                <div className="space-y-[var(--bb-space-4,1rem)]">
+                  {pet.medicalNotes && (
+                    <NoteItem label="Medical" value={pet.medicalNotes} variant="warning" />
+                  )}
+                  {pet.behaviorNotes && (
+                    <NoteItem label="Behavior" value={pet.behaviorNotes} variant="info" />
+                  )}
+                  {pet.dietaryNotes && (
+                    <NoteItem label="Dietary" value={pet.dietaryNotes} variant="neutral" />
+                  )}
+                </div>
+              </Card>
+            )}
 
             {/* Other Owners (if multiple) */}
             {pet.owners && pet.owners.length > 1 && (
-              <PanelSection
-                title="Other Owners"
-                collapsible
-                defaultOpen={false}
-                storageKey="pet-other-owners"
-              >
-                <div className="space-y-2">
+              <Card className="p-[var(--bb-space-6,1.5rem)]">
+                <h3
+                  className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)] uppercase tracking-wide mb-[var(--bb-space-4,1rem)]"
+                  style={{ color: 'var(--bb-color-text-muted)' }}
+                >
+                  Other Owners
+                </h3>
+                <div className="space-y-[var(--bb-space-2,0.5rem)]">
                   {pet.owners.slice(1).map(owner => (
                     <button
                       key={owner.recordId}
                       onClick={() => navigate(`/owners/${owner.recordId}`)}
-                      className="w-full p-3 rounded-lg text-left hover:bg-gray-50 dark:hover:bg-[var(--bg-secondary)] transition-colors border border-gray-200 dark:border-[var(--border-light)]"
+                      className="w-full p-[var(--bb-space-3,0.75rem)] rounded-lg text-left transition-colors border"
+                      style={{
+                        borderColor: 'var(--bb-color-border-subtle)',
+                        backgroundColor: 'transparent',
+                      }}
                     >
-                      <p className="text-sm font-medium text-[var(--text-primary)]">
+                      <p
+                        className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                        style={{ color: 'var(--bb-color-text-primary)' }}
+                      >
                         {owner.name || `${owner.firstName || ''} ${owner.lastName || ''}`.trim()}
                       </p>
-                      <p className="text-xs text-[var(--text-secondary)]">
+                      <p
+                        className="text-[var(--bb-font-size-xs,0.75rem)]"
+                        style={{ color: 'var(--bb-color-text-muted)' }}
+                      >
                         {owner.email}
                       </p>
                     </button>
                   ))}
                 </div>
-              </PanelSection>
+              </Card>
             )}
           </div>
-        }
-      />
+        </div>
+      </div>
 
-      {/* Slideouts stay mounted so transitions can run smoothly */}
+      {/* Modals */}
       <PetFormModal
         open={editModalOpen}
         onClose={() => setEditModalOpen(false)}
@@ -660,22 +654,121 @@ const PetDetail = () => {
   );
 };
 
+// Helper Components
+
+function InfoItem({ label, value, inline = false }) {
+  if (inline) {
+    return (
+      <div className="flex items-center justify-between">
+        <span
+          className="text-[var(--bb-font-size-sm,0.875rem)]"
+          style={{ color: 'var(--bb-color-text-muted)' }}
+        >
+          {label}
+        </span>
+        <span
+          className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+          style={{ color: 'var(--bb-color-text-primary)' }}
+        >
+          {value}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <p
+        className="text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide mb-[var(--bb-space-1,0.25rem)]"
+        style={{ color: 'var(--bb-color-text-muted)' }}
+      >
+        {label}
+      </p>
+      <p
+        className="text-[var(--bb-font-size-sm,0.875rem)]"
+        style={{ color: 'var(--bb-color-text-primary)' }}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function NoteItem({ label, value, variant = 'neutral' }) {
+  const bgColors = {
+    warning: 'var(--bb-color-status-negative-soft)',
+    info: 'var(--bb-color-info-soft)',
+    neutral: 'var(--bb-color-bg-elevated)',
+  };
+
+  return (
+    <div
+      className="p-[var(--bb-space-3,0.75rem)] rounded-lg"
+      style={{ backgroundColor: bgColors[variant] }}
+    >
+      <p
+        className="text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-semibold,600)] uppercase tracking-wide mb-[var(--bb-space-1,0.25rem)]"
+        style={{ color: 'var(--bb-color-text-muted)' }}
+      >
+        {label}
+      </p>
+      <p
+        className="text-[var(--bb-font-size-sm,0.875rem)]"
+        style={{ color: 'var(--bb-color-text-primary)' }}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function StatBox({ label, value, icon: Icon }) {
+  return (
+    <div
+      className="p-[var(--bb-space-4,1rem)] rounded-lg border"
+      style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+    >
+      <div className="flex items-center gap-[var(--bb-space-3,0.75rem)] mb-[var(--bb-space-2,0.5rem)]">
+        <Icon className="w-5 h-5" style={{ color: 'var(--bb-color-text-muted)' }} />
+        <p
+          className="text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide"
+          style={{ color: 'var(--bb-color-text-muted)' }}
+        >
+          {label}
+        </p>
+      </div>
+      <p
+        className="text-[var(--bb-font-size-xl,1.5rem)] font-[var(--bb-font-weight-semibold,600)]"
+        style={{ color: 'var(--bb-color-text-primary)' }}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
 // TAB COMPONENTS
 
-function OverviewTab({ pet }) {
+function OverviewTab({ pet, formatDate }) {
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-[var(--bb-space-6,1.5rem)]">
       <div>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">
+        <h3
+          className="text-[var(--bb-font-size-md,1.125rem)] font-[var(--bb-font-weight-semibold,600)] mb-[var(--bb-space-3,0.75rem)]"
+          style={{ color: 'var(--bb-color-text-primary)' }}
+        >
           About {pet.name}
-        </h2>
-        <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+        </h3>
+        <p
+          className="text-[var(--bb-font-size-sm,0.875rem)] leading-relaxed"
+          style={{ color: 'var(--bb-color-text-muted)' }}
+        >
           {pet.notes || pet.behaviorNotes || `${pet.name} is a ${pet.age || 'young'} ${pet.breed || pet.species}.`}
         </p>
       </div>
 
       {/* Key Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-[var(--bb-space-4,1rem)]">
         <StatBox
           label="Total Stays"
           value={pet.bookings?.length || 0}
@@ -696,48 +789,6 @@ function OverviewTab({ pet }) {
   );
 }
 
-function HistoryTab({ pet }) {
-  // Convert bookings to timeline items
-  const timelineItems = (pet.bookings || [])
-    .sort((a, b) => new Date(b.checkIn) - new Date(a.checkIn))
-    .map(booking => ({
-      id: booking.recordId,
-      type: 'booking',
-      title: `Booking #${booking.recordId?.slice(0, 8) || booking.id?.slice(0, 8)}`,
-      description: `${formatDate(booking.checkIn)} - ${formatDate(booking.checkOut)}`,
-      timestamp: booking.checkIn,
-      status: booking.status,
-    }));
-
-  return (
-    <div className="space-y-6 max-w-4xl">
-      <div>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">
-          Activity Timeline
-        </h2>
-
-        <Timeline
-          items={timelineItems}
-          emptyMessage="No activity recorded yet"
-          renderItem={(activity) => (
-            <TimelineItem
-              icon={getActivityIcon(activity.type)}
-              title={activity.title}
-              description={activity.description}
-              timestamp={activity.timestamp}
-              metadata={
-                activity.status && (
-                  <StatusPill status={activity.status} />
-                )
-              }
-            />
-          )}
-        />
-      </div>
-    </div>
-  );
-}
-
 function HealthTab({
   pet,
   vaccinations,
@@ -749,22 +800,26 @@ function HealthTab({
   handleAddVaccination,
   handleEditVaccination,
   handleDeleteClick,
+  formatDate,
 }) {
   const defaultVaccines = getDefaultVaccines(pet.species);
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-[var(--bb-space-6,1.5rem)]">
       <div>
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">
+        <h3
+          className="text-[var(--bb-font-size-md,1.125rem)] font-[var(--bb-font-weight-semibold,600)] mb-[var(--bb-space-4,1rem)]"
+          style={{ color: 'var(--bb-color-text-primary)' }}
+        >
           Vaccinations
-        </h2>
+        </h3>
 
         {vaccLoading ? (
-          <p className="text-sm text-[var(--text-secondary)]">Loading vaccinations…</p>
+          <p style={{ color: 'var(--bb-color-text-muted)' }}>Loading vaccinations…</p>
         ) : (
           <>
             {/* Vaccination Cards */}
-            <div className="space-y-3 mb-6">
+            <div className="space-y-[var(--bb-space-3,0.75rem)] mb-[var(--bb-space-6,1.5rem)]">
               {defaultVaccines.map((vaccineType) => {
                 const vaccination = getVaccinationForType(vaccineType);
                 const status = getVaccinationStatus(vaccination);
@@ -773,24 +828,46 @@ function HealthTab({
                 return (
                   <div
                     key={vaccineType}
-                    className="flex items-center justify-between p-4 border border-gray-200 dark:border-[var(--border-light)] rounded-lg hover:border-primary-600 dark:hover:border-primary-600 transition-colors"
+                    className="flex items-center justify-between p-[var(--bb-space-4,1rem)] border rounded-lg transition-colors"
+                    style={{
+                      borderColor: 'var(--bb-color-border-subtle)',
+                    }}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/20">
-                        <Syringe className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    <div className="flex items-center gap-[var(--bb-space-3,0.75rem)]">
+                      <div
+                        className="flex h-10 w-10 items-center justify-center rounded-full"
+                        style={{
+                          backgroundColor: 'var(--bb-color-info-soft)',
+                          color: 'var(--bb-color-info)',
+                        }}
+                      >
+                        <Syringe className="h-5 w-5" />
                       </div>
                       <div>
-                        <p className="font-medium text-[var(--text-primary)]">{vaccineType}</p>
+                        <p
+                          className="font-[var(--bb-font-weight-medium,500)]"
+                          style={{ color: 'var(--bb-color-text-primary)' }}
+                        >
+                          {vaccineType}
+                        </p>
                         {vaccination ? (
-                          <p className="text-sm text-[var(--text-secondary)]">
+                          <p
+                            className="text-[var(--bb-font-size-sm,0.875rem)]"
+                            style={{ color: 'var(--bb-color-text-muted)' }}
+                          >
                             Expires {formatDate(vaccination.expiresAt)}
                           </p>
                         ) : (
-                          <p className="text-sm text-[var(--text-secondary)]">Not recorded</p>
+                          <p
+                            className="text-[var(--bb-font-size-sm,0.875rem)]"
+                            style={{ color: 'var(--bb-color-text-muted)' }}
+                          >
+                            Not recorded
+                          </p>
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
                       <StatusPill intent={intent}>{label}</StatusPill>
                       {vaccination ? (
                         <>
@@ -805,7 +882,6 @@ function HealthTab({
                             size="sm"
                             variant="ghost"
                             onClick={() => handleDeleteClick(vaccination)}
-                            className="text-red-600 hover:text-red-700"
                           >
                             Delete
                           </Button>
@@ -840,11 +916,20 @@ function HealthTab({
       {/* Medical Notes */}
       {pet.medicalNotes && (
         <div>
-          <h3 className="text-base font-semibold text-[var(--text-primary)] mb-3">
+          <h3
+            className="text-[var(--bb-font-size-base,1rem)] font-[var(--bb-font-weight-semibold,600)] mb-[var(--bb-space-3,0.75rem)]"
+            style={{ color: 'var(--bb-color-text-primary)' }}
+          >
             Medical Notes
           </h3>
-          <div className="p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800">
-            <p className="text-sm text-[var(--text-primary)]">
+          <div
+            className="p-[var(--bb-space-4,1rem)] rounded-lg"
+            style={{ backgroundColor: 'var(--bb-color-status-negative-soft)' }}
+          >
+            <p
+              className="text-[var(--bb-font-size-sm,0.875rem)]"
+              style={{ color: 'var(--bb-color-text-primary)' }}
+            >
               {pet.medicalNotes}
             </p>
           </div>
@@ -854,38 +939,56 @@ function HealthTab({
   );
 }
 
-function BookingsTab({ pet }) {
+function BookingsTab({ pet, formatDate, calculateDays }) {
   const allBookings = pet?.bookings || [];
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-[var(--bb-space-6,1.5rem)]">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+        <h3
+          className="text-[var(--bb-font-size-md,1.125rem)] font-[var(--bb-font-weight-semibold,600)]"
+          style={{ color: 'var(--bb-color-text-primary)' }}
+        >
           Booking History
-        </h2>
-        <span className="text-sm text-[var(--text-secondary)]">
+        </h3>
+        <span
+          className="text-[var(--bb-font-size-sm,0.875rem)]"
+          style={{ color: 'var(--bb-color-text-muted)' }}
+        >
           {allBookings.length} {allBookings.length === 1 ? 'booking' : 'bookings'}
         </span>
       </div>
 
       {allBookings.length === 0 ? (
-        <p className="text-sm text-[var(--text-secondary)] text-center py-8">
+        <p
+          className="text-[var(--bb-font-size-sm,0.875rem)] text-center py-[var(--bb-space-8,2rem)]"
+          style={{ color: 'var(--bb-color-text-muted)' }}
+        >
           No bookings yet
         </p>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-[var(--bb-space-3,0.75rem)]">
           {allBookings.map((booking) => (
             <div
               key={booking.recordId}
-              className="p-4 rounded-lg border border-gray-200 dark:border-[var(--border-light)] hover:border-primary-600 dark:hover:border-primary-600 transition-colors cursor-pointer"
+              className="p-[var(--bb-space-4,1rem)] rounded-lg border transition-colors cursor-pointer"
+              style={{
+                borderColor: 'var(--bb-color-border-subtle)',
+              }}
             >
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-medium text-[var(--text-primary)]">
+              <div className="flex items-center justify-between mb-[var(--bb-space-2,0.5rem)]">
+                <h4
+                  className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                  style={{ color: 'var(--bb-color-text-primary)' }}
+                >
                   {formatDate(booking.checkIn)} - {formatDate(booking.checkOut)}
                 </h4>
                 <StatusPill status={booking.status} />
               </div>
-              <p className="text-xs text-[var(--text-secondary)]">
+              <p
+                className="text-[var(--bb-font-size-xs,0.75rem)]"
+                style={{ color: 'var(--bb-color-text-muted)' }}
+              >
                 {booking.roomNumber && `Room ${booking.roomNumber} • `}
                 {calculateDays(booking.checkIn, booking.checkOut)} days
               </p>
@@ -899,64 +1002,28 @@ function BookingsTab({ pet }) {
 
 function DocumentsTab({ pet }) {
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-[var(--bb-space-6,1.5rem)]">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">
+        <h3
+          className="text-[var(--bb-font-size-md,1.125rem)] font-[var(--bb-font-weight-semibold,600)]"
+          style={{ color: 'var(--bb-color-text-primary)' }}
+        >
           Documents
-        </h2>
+        </h3>
         <Button size="sm">
-          <FileText className="w-4 h-4 mr-2" />
+          <FileText className="w-4 h-4 mr-[var(--bb-space-2,0.5rem)]" />
           Upload Document
         </Button>
       </div>
 
-      <p className="text-sm text-[var(--text-secondary)] text-center py-8">
+      <p
+        className="text-[var(--bb-font-size-sm,0.875rem)] text-center py-[var(--bb-space-8,2rem)]"
+        style={{ color: 'var(--bb-color-text-muted)' }}
+      >
         No documents uploaded yet
       </p>
     </div>
   );
-}
-
-// Helper Components
-
-function StatBox({ label, value, icon: Icon }) {
-  return (
-    <div className="p-4 rounded-lg border border-gray-200 dark:border-[var(--border-light)]">
-      <div className="flex items-center gap-3 mb-2">
-        <Icon className="w-5 h-5 text-[var(--text-secondary)]" />
-        <p className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wide">
-          {label}
-        </p>
-      </div>
-      <p className="text-xl font-semibold text-[var(--text-primary)]">
-        {value}
-      </p>
-    </div>
-  );
-}
-
-// Helper Functions
-
-function formatDate(date) {
-  if (!date) return '—';
-  return new Date(date).toLocaleDateString();
-}
-
-function calculateDays(start, end) {
-  const startDate = new Date(start);
-  const endDate = new Date(end);
-  const diff = endDate - startDate;
-  return Math.ceil(diff / (1000 * 60 * 60 * 24));
-}
-
-function getActivityIcon(type) {
-  const icons = {
-    'booking': Calendar,
-    'vaccination': Syringe,
-    'note': FileText,
-    'visit': MapPin,
-  };
-  return icons[type] || Activity;
 }
 
 export default PetDetail;
