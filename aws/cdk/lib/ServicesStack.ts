@@ -37,6 +37,7 @@ export class ServicesStack extends cdk.Stack {
   public readonly adminApiFn: lambda.Function;
   public readonly getUploadUrlFn: lambda.Function;
   public readonly getDownloadUrlFn: lambda.Function;
+  public readonly authApiFunction: lambda.Function;
 
   constructor(scope: Construct, id: string, props: ServicesStackProps) {
     super(scope, id, props);
@@ -699,6 +700,61 @@ export class ServicesStack extends cdk.Stack {
       methods: [apigwv2.HttpMethod.GET],
       integration: downloadUrlIntegration,
       authorizer: props.authorizer,
+    });
+
+    // === Auth API Lambda ===
+    // JWT and cookie configuration for authentication
+    const jwtSecret = process.env.JWT_SECRET || '';
+    const jwtSecretOld = process.env.JWT_SECRET_OLD || '';
+    const cookieDomain =
+      this.node.tryGetContext('cookieDomain') ?? process.env.COOKIE_DOMAIN ?? '';
+
+    const authApiEnv: { [key: string]: string } = {
+      ...dbEnv,
+      ...authEnv,
+      // JWT configuration (required for token signing/verification)
+      ...(jwtSecret ? { JWT_SECRET: jwtSecret } : {}),
+      ...(jwtSecretOld ? { JWT_SECRET_OLD: jwtSecretOld } : {}),
+      // Cookie domain for production/staging (optional)
+      ...(cookieDomain ? { COOKIE_DOMAIN: cookieDomain } : {}),
+    };
+
+    this.authApiFunction = new lambda.Function(this, 'AuthApiFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/auth-api')),
+      layers: [dbLayer, authLayer],
+      environment: authApiEnv,
+      timeout: cdk.Duration.seconds(30),
+      ...vpcConfig,
+    });
+    props.dbSecret.grantRead(this.authApiFunction);
+
+    // Grant Cognito permissions if user pool is configured
+    if (props.userPool) {
+      props.userPool.grant(this.authApiFunction, 'cognito-idp:InitiateAuth');
+    }
+
+    // Auth API routes (no authorizer - these are public endpoints)
+    const authIntegration = new integrations.HttpLambdaIntegration(
+      'AuthApiIntegration',
+      this.authApiFunction,
+    );
+
+    // Root auth path for future endpoints
+    props.httpApi.addRoutes({
+      path: '/api/v1/auth',
+      methods: [apigwv2.HttpMethod.ANY],
+      integration: authIntegration,
+      // No authorizer - auth endpoints are public
+    });
+
+    // Proxy for all auth sub-paths: /login, /signup, /refresh, /logout, /register, etc.
+    props.httpApi.addRoutes({
+      path: '/api/v1/auth/{proxy+}',
+      methods: [apigwv2.HttpMethod.ANY],
+      integration: authIntegration,
+      // No authorizer - auth endpoints are public
     });
 
     cdk.Tags.of(this).add('Stage', props.stage);
