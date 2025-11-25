@@ -69,7 +69,13 @@ const Messages = () => {
 
   return (
     <div>
-      <PageHeader title="Messages" breadcrumb="Home > Messages" />
+      <PageHeader 
+        breadcrumbs={[
+          { label: 'Operations', href: '/messages' },
+          { label: 'Messages' }
+        ]}
+        title="Messages" 
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
         {/* Conversations List */}

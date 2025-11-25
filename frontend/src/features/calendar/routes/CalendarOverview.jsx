@@ -54,9 +54,12 @@ const CalendarOverview = () => {
     <div className="space-y-6">
       {/* Page Header with Enhanced Navigation */}
       <PageHeader
-        breadcrumb="Home > Intake > Calendar"
+        breadcrumbs={[
+          { label: 'Operations', href: '/calendar' },
+          { label: 'Calendar' }
+        ]}
         title="Calendar & Capacity"
-        subtitle="Complete operations dashboard for kennel management"
+        description="Complete operations dashboard for kennel management"
         actions={
           <div className="flex items-center gap-2">
             {/* Quick Access Buttons */}

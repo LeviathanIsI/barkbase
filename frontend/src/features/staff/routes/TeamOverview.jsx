@@ -275,9 +275,12 @@ const TeamOverview = () => {
     <div className="space-y-6">
       {/* Page Header with Navigation */}
       <PageHeader
-        breadcrumb="Home > Staff > Team Management"
+        breadcrumbs={[
+          { label: 'Administration', href: '/team' },
+          { label: 'Team' }
+        ]}
         title="Team Management"
-        subtitle="Manage staff, schedules, permissions, and performance"
+        description="Manage staff, schedules, permissions, and performance"
         actions={
           <div className="flex items-center gap-2">
             {/* View Toggle */}

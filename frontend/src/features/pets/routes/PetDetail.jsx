@@ -257,7 +257,11 @@ const PetDetail = () => {
       <div className="space-y-[var(--bb-space-6,1.5rem)]">
         {/* Page Header with strong identity */}
         <PageHeader
-          breadcrumb="Home > Clients > Pets"
+          breadcrumbs={[
+            { label: 'Directory', href: '/pets' },
+            { label: 'Pets', href: '/pets' },
+            { label: pet.name }
+          ]}
           title={pet.name}
           description={petDescription || 'Pet details'}
           actions={

@@ -23,8 +23,11 @@ const Facilities = () => {
     return (
       <div>
         <PageHeader 
+          breadcrumbs={[
+            { label: 'Operations', href: '/facilities' },
+            { label: 'Facilities' }
+          ]}
           title="Capacity View" 
-          breadcrumb="Home > Intake > Capacity View" 
         />
         <Skeleton className="h-96" />
       </div>
@@ -35,9 +38,12 @@ const Facilities = () => {
     return (
       <div>
         <PageHeader
+          breadcrumbs={[
+            { label: 'Operations', href: '/facilities' },
+            { label: 'Facilities' }
+          ]}
           title="Capacity View"
-          subtitle="Visual map of facility layout with real-time availability"
-          breadcrumb="Home > Intake > Capacity View"
+          description="Visual map of facility layout with real-time availability"
         />
         <Card>
           <div className="text-center py-12">

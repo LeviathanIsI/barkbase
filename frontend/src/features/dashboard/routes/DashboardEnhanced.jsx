@@ -135,7 +135,10 @@ const DashboardEnhanced = () => {
     <div>
       {/* Page Header */}
       <PageHeader
-        breadcrumb="Home > Dashboard"
+        breadcrumbs={[
+          { label: 'Home', href: '/' },
+          { label: 'Dashboard' }
+        ]}
         title="Dashboard"
         actions={
           <div className="flex flex-wrap items-center gap-3">
