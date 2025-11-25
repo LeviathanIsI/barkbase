@@ -1,3 +1,8 @@
+/**
+ * PetHoverPreview - Quick pet info popup on hover
+ * Uses token-based styling for consistent theming
+ */
+
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, Syringe, Home, AlertCircle, Clock } from 'lucide-react';
@@ -15,7 +20,7 @@ const PetHoverPreview = ({ children, pet, className }) => {
   // Calculate vaccination status
   const getVaccinationStatus = () => {
     if (!pet?.vaccinations?.length) {
-      return { status: 'missing', label: 'No vaccination records', color: 'text-red-600' };
+      return { status: 'missing', label: 'No vaccination records', variant: 'negative' };
     }
 
     const now = new Date();
@@ -31,12 +36,12 @@ const PetHoverPreview = ({ children, pet, className }) => {
     });
 
     if (hasExpired) {
-      return { status: 'expired', label: 'Vaccinations expired', color: 'text-red-600' };
+      return { status: 'expired', label: 'Vaccinations expired', variant: 'negative' };
     }
     if (expiringSoon) {
-      return { status: 'expiring', label: 'Vaccinations expiring soon', color: 'text-yellow-600' };
+      return { status: 'expiring', label: 'Vaccinations expiring soon', variant: 'warning' };
     }
-    return { status: 'current', label: 'Vaccinations current', color: 'text-success-600' };
+    return { status: 'current', label: 'Vaccinations current', variant: 'positive' };
   };
 
   const vaccinationStatus = getVaccinationStatus();
@@ -52,20 +57,32 @@ const PetHoverPreview = ({ children, pet, className }) => {
         return {
           status: 'in-facility',
           label: `In facility until ${format(checkOut, 'MMM d')}`,
-          color: 'text-blue-600'
+          variant: 'info'
         };
       } else if (now < checkIn) {
         return {
           status: 'upcoming',
           label: `Arriving ${format(checkIn, 'MMM d')}`,
-          color: 'text-indigo-600'
+          variant: 'accent'
         };
       }
     }
-    return { status: 'none', label: 'No current booking', color: 'text-gray-500' };
+    return { status: 'none', label: 'No current booking', variant: 'muted' };
   };
 
   const bookingStatus = getBookingStatus();
+
+  const getStatusColor = (variant) => {
+    const colors = {
+      negative: 'text-[var(--bb-color-status-negative)]',
+      warning: 'text-[var(--bb-color-status-warning)]',
+      positive: 'text-[var(--bb-color-status-positive)]',
+      info: 'text-[var(--bb-color-status-info)]',
+      accent: 'text-[var(--bb-color-accent)]',
+      muted: 'text-[var(--bb-color-text-muted)]',
+    };
+    return colors[variant] || colors.muted;
+  };
 
   const handleMouseEnter = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -134,23 +151,23 @@ const PetHoverPreview = ({ children, pet, className }) => {
       {isVisible && createPortal(
         <div
           ref={previewRef}
-          className="fixed z-[9999] w-80 rounded-lg border border-gray-200 bg-white p-4 shadow-xl dark:border-gray-700 dark:bg-gray-800"
+          className="fixed z-[9999] w-80 rounded-[var(--bb-radius-lg)] border border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] p-[var(--bb-space-4)] shadow-[var(--bb-elevation-card)]"
           style={{ top: position.top, left: position.left }}
           onMouseEnter={handlePreviewEnter}
           onMouseLeave={handlePreviewLeave}
         >
           {/* Header with pet info */}
-          <div className="flex items-start gap-3 mb-3">
+          <div className="flex items-start gap-[var(--bb-space-3)] mb-[var(--bb-space-3)]">
             <PetAvatar pet={pet} size="lg" showStatus={false} />
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-gray-900 dark:text-white truncate">
+              <h3 className="font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)] truncate">
                 {pet.name}
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
                 {pet.breed || 'Unknown breed'} • {pet.species || 'Dog'}
               </p>
               {pet.weight && (
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+                <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
                   {pet.weight} lbs
                 </p>
               )}
@@ -158,28 +175,28 @@ const PetHoverPreview = ({ children, pet, className }) => {
           </div>
 
           {/* Status indicators */}
-          <div className="space-y-2 border-t pt-3">
+          <div className="space-y-[var(--bb-space-2)] border-t border-[var(--bb-color-border-subtle)] pt-[var(--bb-space-3)]">
             {/* Vaccination status */}
-            <div className="flex items-center gap-2">
-              <Syringe className={cn("h-4 w-4", vaccinationStatus.color)} />
-              <span className={cn("text-sm", vaccinationStatus.color)}>
+            <div className="flex items-center gap-[var(--bb-space-2)]">
+              <Syringe className={cn("h-4 w-4", getStatusColor(vaccinationStatus.variant))} />
+              <span className={cn("text-[var(--bb-font-size-sm)]", getStatusColor(vaccinationStatus.variant))}>
                 {vaccinationStatus.label}
               </span>
             </div>
 
             {/* Booking status */}
-            <div className="flex items-center gap-2">
-              <Home className={cn("h-4 w-4", bookingStatus.color)} />
-              <span className={cn("text-sm", bookingStatus.color)}>
+            <div className="flex items-center gap-[var(--bb-space-2)]">
+              <Home className={cn("h-4 w-4", getStatusColor(bookingStatus.variant))} />
+              <span className={cn("text-[var(--bb-font-size-sm)]", getStatusColor(bookingStatus.variant))}>
                 {bookingStatus.label}
               </span>
             </div>
 
             {/* Last visit */}
             {pet.lastVisit && (
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-gray-500" />
-                <span className="text-sm text-gray-600 dark:text-gray-400">
+              <div className="flex items-center gap-[var(--bb-space-2)]">
+                <Calendar className="h-4 w-4 text-[var(--bb-color-text-muted)]" />
+                <span className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
                   Last visit: {format(new Date(pet.lastVisit), 'MMM d, yyyy')}
                 </span>
               </div>
@@ -187,9 +204,9 @@ const PetHoverPreview = ({ children, pet, className }) => {
 
             {/* Medical alerts */}
             {pet.medicalAlerts && pet.medicalAlerts.length > 0 && (
-              <div className="flex items-start gap-2 mt-2">
-                <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-red-600 dark:text-red-400">
+              <div className="flex items-start gap-[var(--bb-space-2)] mt-[var(--bb-space-2)]">
+                <AlertCircle className="h-4 w-4 text-[var(--bb-color-status-negative)] flex-shrink-0 mt-0.5" />
+                <div className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-status-negative)]">
                   {pet.medicalAlerts.map((alert, i) => (
                     <div key={i}>{alert}</div>
                   ))}
@@ -199,9 +216,9 @@ const PetHoverPreview = ({ children, pet, className }) => {
 
             {/* Special needs */}
             {pet.specialNeeds && (
-              <div className="flex items-start gap-2">
-                <Clock className="h-4 w-4 text-yellow-500 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-gray-600 dark:text-gray-400">
+              <div className="flex items-start gap-[var(--bb-space-2)]">
+                <Clock className="h-4 w-4 text-[var(--bb-color-status-warning)] flex-shrink-0 mt-0.5" />
+                <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
                   {pet.specialNeeds}
                 </p>
               </div>
@@ -209,14 +226,14 @@ const PetHoverPreview = ({ children, pet, className }) => {
           </div>
 
           {/* Quick actions */}
-          <div className="flex gap-2 mt-3 pt-3 border-t">
-            <button className="flex-1 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/30">
+          <div className="flex gap-[var(--bb-space-2)] mt-[var(--bb-space-3)] pt-[var(--bb-space-3)] border-t border-[var(--bb-color-border-subtle)]">
+            <button className="flex-1 px-[var(--bb-space-3)] py-[var(--bb-space-2)] text-[var(--bb-font-size-xs)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-accent)] bg-[var(--bb-color-accent-soft)] rounded-[var(--bb-radius-md)] hover:bg-[var(--bb-color-accent)]/20 transition-colors">
               View Profile
             </button>
-            <button className="flex-1 px-3 py-1.5 text-xs font-medium text-success-600 bg-success-100 rounded hover:bg-success-200/60 dark:bg-success-600/10 dark:text-success-400 dark:hover:bg-success-600/20">
+            <button className="flex-1 px-[var(--bb-space-3)] py-[var(--bb-space-2)] text-[var(--bb-font-size-xs)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-status-positive)] bg-[var(--bb-color-status-positive-soft)] rounded-[var(--bb-radius-md)] hover:bg-[var(--bb-color-status-positive)]/20 transition-colors">
               Book Stay
             </button>
-            <button className="flex-1 px-3 py-1.5 text-xs font-medium text-purple-600 bg-purple-50 rounded hover:bg-purple-100 dark:bg-purple-900/20 dark:text-purple-400 dark:hover:bg-purple-900/30">
+            <button className="flex-1 px-[var(--bb-space-3)] py-[var(--bb-space-2)] text-[var(--bb-font-size-xs)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-purple)] bg-[var(--bb-color-purple-soft)] rounded-[var(--bb-radius-md)] hover:bg-[var(--bb-color-purple)]/20 transition-colors">
               Check In
             </button>
           </div>

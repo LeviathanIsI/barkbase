@@ -1,34 +1,63 @@
-import { X } from 'lucide-react';
+/**
+ * RunDetailModal - Run/Kennel detail inspector using unified Inspector system
+ */
+
+import { Home, Edit2 } from 'lucide-react';
+import {
+  InspectorRoot,
+  InspectorHeader,
+  InspectorSection,
+  InspectorField,
+  InspectorFooter,
+} from '@/components/ui/inspector';
 import Button from '@/components/ui/Button';
 
-const RunDetailModal = ({ run, isOpen, onClose }) => {
+const RunDetailModal = ({ run, isOpen, onClose, onEdit }) => {
   if (!isOpen || !run) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-surface-primary rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-surface-border">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">Run Details</h3>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary rounded-full">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <InspectorRoot
+      isOpen={isOpen}
+      onClose={onClose}
+      title={run.name || 'Run Details'}
+      subtitle={run.type || 'Kennel'}
+      variant="info"
+      size="md"
+    >
+      <InspectorHeader
+        status={run.status || 'Available'}
+        statusIntent={run.status === 'occupied' ? 'info' : 'success'}
+        metrics={[
+          { label: 'Capacity', value: run.capacity || 1 },
+          { label: 'Size', value: run.size || 'Standard' },
+          { label: 'Zone', value: run.zone || 'Main' },
+        ]}
+      />
 
-        <div className="p-6">
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">🏠</div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">Complete Run Details</h3>
-            <p className="text-gray-600 dark:text-text-secondary">Full run information, history, and management coming soon...</p>
-          </div>
+      <InspectorSection title="Run Information" icon={Home}>
+        <div className="text-center py-[var(--bb-space-8)]">
+          <div className="text-6xl mb-[var(--bb-space-4)]">🏠</div>
+          <h3 className="text-[var(--bb-font-size-lg)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)] mb-[var(--bb-space-2)]">
+            Complete Run Details
+          </h3>
+          <p className="text-[var(--bb-color-text-muted)]">
+            Full run information, history, and management coming soon...
+          </p>
         </div>
+      </InspectorSection>
 
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-surface-border">
-          <Button variant="outline" onClick={onClose}>
-            Close
+      <InspectorFooter>
+        <Button variant="secondary" onClick={onClose}>
+          Close
+        </Button>
+        {onEdit && (
+          <Button variant="primary" onClick={onEdit}>
+            <Edit2 className="w-4 h-4 mr-[var(--bb-space-2)]" />
+            Edit Run
           </Button>
-        </div>
-      </div>
-    </div>
+        )}
+      </InspectorFooter>
+    </InspectorRoot>
   );
 };
 

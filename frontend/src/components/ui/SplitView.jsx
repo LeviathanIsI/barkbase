@@ -35,25 +35,26 @@ export function SplitView({
   return (
     <div className={cn("flex h-full min-h-0", className)}>
       {/* Left: Compact List */}
-      <div className="w-96 flex-shrink-0 border-r border-gray-200 dark:border-[var(--border-light)] overflow-y-auto bg-white dark:bg-[var(--surface-primary)]">
+      <div className="w-96 flex-shrink-0 border-r border-[var(--bb-color-border-subtle)] overflow-y-auto bg-[var(--bb-color-bg-surface)]">
         {items && items.length > 0 ? (
-          <div className="divide-y divide-gray-200 dark:divide-[var(--border-light)]">
+          <div className="divide-y divide-[var(--bb-color-border-subtle)]">
             {items.map(item => (
               <div
                 key={item.id || item.recordId}
                 onClick={() => onItemSelect(item)}
                 className={cn(
-                  "p-4 cursor-pointer transition-colors",
-                  "hover:bg-gray-50 dark:hover:bg-[var(--bg-secondary)]",
-                  (selectedItem?.id === item.id || selectedItem?.recordId === item.recordId) && "bg-primary-50 dark:bg-primary-900/10 border-l-2 border-primary-600"
+                  "p-[var(--bb-space-4)] cursor-pointer transition-colors",
+                  "hover:bg-[var(--bb-color-bg-elevated)]",
+                  (selectedItem?.id === item.id || selectedItem?.recordId === item.recordId) && 
+                    "bg-[var(--bb-color-accent-soft)] border-l-2 border-[var(--bb-color-accent)]"
                 )}
               >
                 {renderListItem ? renderListItem(item) : (
                   <div>
-                    <h4 className="font-medium text-[var(--text-primary)] mb-1">
+                    <h4 className="font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)] mb-[var(--bb-space-1)]">
                       {item.name || item.title || item.id}
                     </h4>
-                    <p className="text-sm text-[var(--text-secondary)]">
+                    <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
                       {item.subtitle || item.description || ''}
                     </p>
                   </div>
@@ -62,19 +63,19 @@ export function SplitView({
             ))}
           </div>
         ) : (
-          <div className="flex items-center justify-center h-full p-8 text-center">
-            <p className="text-sm text-[var(--text-secondary)]">{emptyMessage}</p>
+          <div className="flex items-center justify-center h-full p-[var(--bb-space-8)] text-center">
+            <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">{emptyMessage}</p>
           </div>
         )}
       </div>
 
       {/* Right: Detail Panel */}
-      <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-[var(--bg-primary)]">
+      <div className="flex-1 overflow-y-auto bg-[var(--bb-color-bg-base)]">
         {selectedItem && renderDetail ? (
           renderDetail(selectedItem)
         ) : (
-          <div className="flex items-center justify-center h-full p-8 text-center">
-            <p className="text-sm text-[var(--text-secondary)]">{emptyDetailMessage}</p>
+          <div className="flex items-center justify-center h-full p-[var(--bb-space-8)] text-center">
+            <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">{emptyDetailMessage}</p>
           </div>
         )}
       </div>

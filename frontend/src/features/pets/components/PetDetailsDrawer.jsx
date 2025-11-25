@@ -1,8 +1,12 @@
+/**
+ * PetDetailsDrawer - Inspector-based pet detail panel
+ * Uses the unified Inspector component family for consistent view-only display
+ */
+
 import { useState } from 'react';
 import { 
   User, 
   Calendar, 
-  MapPin, 
   Phone, 
   Mail, 
   FileText, 
@@ -10,21 +14,18 @@ import {
   AlertCircle,
   Edit2,
   Camera,
-  DollarSign,
   Clock,
   Shield,
   PawPrint
 } from 'lucide-react';
-import { DetailDrawer, DrawerTabPanel } from '@/components/ui/SlideOutDrawer';
+import {
+  InspectorRoot,
+  InspectorSection,
+  InspectorField,
+  InspectorFooter,
+} from '@/components/ui/inspector';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import { Card } from '@/components/ui/Card';
-
-/**
- * PetDetailsDrawer - Example of drawer-first pattern
- * Shows pet details without navigating to a new page
- * Keeps context visible and allows quick actions
- */
 
 const PetDetailsDrawer = ({ pet, isOpen, onClose, onEdit }) => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -33,340 +34,401 @@ const PetDetailsDrawer = ({ pet, isOpen, onClose, onEdit }) => {
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: PawPrint },
-    { id: 'medical', label: 'Medical', icon: Syringe, count: 5 },
-    { id: 'bookings', label: 'Bookings', icon: Calendar, count: 12 },
-    { id: 'notes', label: 'Notes', icon: FileText, count: 3 },
+    { id: 'medical', label: 'Medical', icon: Syringe },
+    { id: 'bookings', label: 'Bookings', icon: Calendar },
+    { id: 'notes', label: 'Notes', icon: FileText },
   ];
 
   return (
-    <DetailDrawer
+    <InspectorRoot
       isOpen={isOpen}
       onClose={onClose}
       title={pet.name}
-      subtitle={`${pet.breed} • ${pet.age}`}
+      subtitle={`${pet.breed || 'Unknown breed'} • ${pet.age || 'Unknown age'}`}
+      variant="pet"
       size="lg"
-      actions={
-        <>
-          <Button variant="secondary" size="sm" onClick={onEdit}>
-            <Edit2 className="h-4 w-4 mr-2" />
-            Edit
-          </Button>
-          <Button variant="secondary" size="sm">
-            <Camera className="h-4 w-4 mr-2" />
-            Add Photo
-          </Button>
-        </>
-      }
     >
-      <DrawerTabPanel tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab}>
+      {/* Tab Navigation */}
+      <div className="border-b border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-elevated)]">
+        <div className="flex overflow-x-auto scrollbar-hide">
+          {tabs.map((tab) => {
+            const TabIcon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`
+                  px-[var(--bb-space-4)] py-[var(--bb-space-3)] 
+                  text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] 
+                  border-b-2 transition-colors whitespace-nowrap
+                  flex items-center gap-[var(--bb-space-2)]
+                  ${activeTab === tab.id
+                    ? 'border-[var(--bb-color-accent)] text-[var(--bb-color-accent)]'
+                    : 'border-transparent text-[var(--bb-color-text-muted)] hover:text-[var(--bb-color-text-primary)]'
+                  }
+                `}
+              >
+                <TabIcon className="h-4 w-4" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      <div className="flex-1 overflow-y-auto">
         {activeTab === 'overview' && <OverviewTab pet={pet} />}
         {activeTab === 'medical' && <MedicalTab pet={pet} />}
         {activeTab === 'bookings' && <BookingsTab pet={pet} />}
         {activeTab === 'notes' && <NotesTab pet={pet} />}
-      </DrawerTabPanel>
-    </DetailDrawer>
+      </div>
+
+      {/* Footer Actions */}
+      <InspectorFooter>
+        <Button variant="secondary" size="sm" onClick={onClose}>
+          Close
+        </Button>
+        <Button variant="secondary" size="sm">
+          <Camera className="h-4 w-4 mr-[var(--bb-space-2)]" />
+          Add Photo
+        </Button>
+        <Button variant="primary" size="sm" onClick={onEdit}>
+          <Edit2 className="h-4 w-4 mr-[var(--bb-space-2)]" />
+          Edit
+        </Button>
+      </InspectorFooter>
+    </InspectorRoot>
   );
 };
 
 // Overview Tab
 const OverviewTab = ({ pet }) => {
   return (
-    <div className="space-y-6">
+    <>
       {/* Pet Photo and Basic Info */}
-      <div className="flex items-start gap-6">
-        <div className="flex-shrink-0">
-          {pet.photo ? (
-            <img 
-              src={pet.photo} 
-              alt={pet.name}
-              className="w-32 h-32 rounded-lg object-cover"
-            />
-          ) : (
-            <div className="w-32 h-32 bg-gray-200 dark:bg-surface-border rounded-lg flex items-center justify-center">
-              <PawPrint className="h-12 w-12 text-gray-400 dark:text-text-tertiary" />
-            </div>
-          )}
+      <InspectorSection title="Basic Information" icon={PawPrint}>
+        <div className="flex items-start gap-[var(--bb-space-4)]">
+          <div className="flex-shrink-0">
+            {pet.photo ? (
+              <img 
+                src={pet.photo} 
+                alt={pet.name}
+                className="w-24 h-24 rounded-[var(--bb-radius-lg)] object-cover"
+              />
+            ) : (
+              <div className="w-24 h-24 bg-[var(--bb-color-bg-elevated)] rounded-[var(--bb-radius-lg)] flex items-center justify-center border border-[var(--bb-color-border-subtle)]">
+                <PawPrint className="h-10 w-10 text-[var(--bb-color-text-muted)]" />
+              </div>
+            )}
+          </div>
+          
+          <div className="flex-1 grid grid-cols-2 gap-[var(--bb-space-3)]">
+            <InspectorField label="Species" value={pet.species} layout="stacked" />
+            <InspectorField label="Breed" value={pet.breed} layout="stacked" />
+            <InspectorField label="Age" value={pet.age} layout="stacked" />
+            <InspectorField label="Weight" value={pet.weight ? `${pet.weight} lbs` : null} layout="stacked" />
+            <InspectorField label="Color" value={pet.color} layout="stacked" />
+            <InspectorField label="Gender" value={pet.gender} layout="stacked" />
+          </div>
         </div>
-        
-        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <InfoItem label="Species" value={pet.species} />
-          <InfoItem label="Breed" value={pet.breed} />
-          <InfoItem label="Age" value={pet.age} />
-          <InfoItem label="Weight" value={`${pet.weight} lbs`} />
-          <InfoItem label="Color" value={pet.color} />
-          <InfoItem label="Gender" value={pet.gender} />
-          <InfoItem label="Microchip" value={pet.microchip || 'Not chipped'} />
-          <InfoItem label="Status" value={
-            <Badge variant={pet.status === 'active' ? 'success' : 'secondary'}>
-              {pet.status}
-            </Badge>
-          } />
+
+        <div className="mt-[var(--bb-space-4)] pt-[var(--bb-space-4)] border-t border-[var(--bb-color-border-subtle)]">
+          <div className="grid grid-cols-2 gap-[var(--bb-space-3)]">
+            <InspectorField label="Microchip" value={pet.microchip || 'Not chipped'} layout="stacked" />
+            <InspectorField label="Status" layout="stacked">
+              <Badge variant={pet.status === 'active' ? 'success' : 'neutral'}>
+                {pet.status || 'Unknown'}
+              </Badge>
+            </InspectorField>
+          </div>
         </div>
-      </div>
+      </InspectorSection>
 
       {/* Special Requirements */}
       {(pet.specialNeeds || pet.behaviorNotes) && (
-        <Card className="p-4 bg-warning-50 border-warning-200">
-          <h3 className="font-medium text-warning-900 mb-2 flex items-center gap-2">
-            <AlertCircle className="h-5 w-5" />
-            Special Requirements
-          </h3>
-          <div className="space-y-2 text-sm text-warning-800">
-            {pet.specialNeeds && <p>{pet.specialNeeds}</p>}
-            {pet.behaviorNotes && <p>{pet.behaviorNotes}</p>}
+        <InspectorSection>
+          <div className="rounded-[var(--bb-radius-lg)] bg-[var(--bb-color-status-warning-soft)] border border-[var(--bb-color-status-warning)] p-[var(--bb-space-4)]">
+            <div className="flex items-center gap-[var(--bb-space-2)] mb-[var(--bb-space-2)]">
+              <AlertCircle className="h-5 w-5 text-[var(--bb-color-status-warning)]" />
+              <h4 className="font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+                Special Requirements
+              </h4>
+            </div>
+            <div className="space-y-[var(--bb-space-2)] text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)]">
+              {pet.specialNeeds && <p>{pet.specialNeeds}</p>}
+              {pet.behaviorNotes && <p>{pet.behaviorNotes}</p>}
+            </div>
           </div>
-        </Card>
+        </InspectorSection>
       )}
 
       {/* Owner Information */}
-      <div>
-        <h3 className="font-medium text-gray-900 dark:text-text-primary mb-3">Owner Information</h3>
-        <Card className="p-4">
+      <InspectorSection title="Owner Information" icon={User}>
+        <div className="rounded-[var(--bb-radius-lg)] bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)] p-[var(--bb-space-4)]">
           <div className="flex items-start justify-between">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-gray-400 dark:text-text-tertiary" />
-                <span className="font-medium">{pet.owner?.name || 'Unknown'}</span>
+            <div className="space-y-[var(--bb-space-2)]">
+              <div className="flex items-center gap-[var(--bb-space-2)]">
+                <User className="h-4 w-4 text-[var(--bb-color-text-muted)]" />
+                <span className="font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+                  {pet.owner?.name || 'Unknown'}
+                </span>
               </div>
-              <div className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-gray-400 dark:text-text-tertiary" />
-                <span className="text-sm text-gray-600 dark:text-text-secondary">{pet.owner?.phone}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-gray-400 dark:text-text-tertiary" />
-                <span className="text-sm text-gray-600 dark:text-text-secondary">{pet.owner?.email}</span>
-              </div>
+              {pet.owner?.phone && (
+                <div className="flex items-center gap-[var(--bb-space-2)]">
+                  <Phone className="h-4 w-4 text-[var(--bb-color-text-muted)]" />
+                  <span className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
+                    {pet.owner.phone}
+                  </span>
+                </div>
+              )}
+              {pet.owner?.email && (
+                <div className="flex items-center gap-[var(--bb-space-2)]">
+                  <Mail className="h-4 w-4 text-[var(--bb-color-text-muted)]" />
+                  <span className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
+                    {pet.owner.email}
+                  </span>
+                </div>
+              )}
             </div>
             <Button variant="secondary" size="sm">
               View Owner
             </Button>
           </div>
-        </Card>
-      </div>
+        </div>
+      </InspectorSection>
 
       {/* Emergency Contact */}
       {pet.emergencyContact && (
-        <div>
-          <h3 className="font-medium text-gray-900 dark:text-text-primary mb-3">Emergency Contact</h3>
-          <Card className="p-4 border-error-200 bg-error-50">
-            <div className="space-y-2">
-              <p className="font-medium text-error-900">{pet.emergencyContact.name}</p>
-              <p className="text-sm text-error-700">
-                {pet.emergencyContact.phone} • {pet.emergencyContact.relationship}
-              </p>
-            </div>
-          </Card>
-        </div>
+        <InspectorSection title="Emergency Contact">
+          <div className="rounded-[var(--bb-radius-lg)] bg-[var(--bb-color-status-negative-soft)] border border-[var(--bb-color-status-negative)] p-[var(--bb-space-4)]">
+            <p className="font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+              {pet.emergencyContact.name}
+            </p>
+            <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
+              {pet.emergencyContact.phone} • {pet.emergencyContact.relationship}
+            </p>
+          </div>
+        </InspectorSection>
       )}
-    </div>
+    </>
   );
 };
 
 // Medical Tab
 const MedicalTab = ({ pet }) => {
-  const vaccinations = [
+  const vaccinations = pet.vaccinations || [
     { name: 'Rabies', date: '2024-03-15', expires: '2025-03-15', status: 'current' },
     { name: 'DHPP', date: '2024-06-20', expires: '2025-06-20', status: 'current' },
     { name: 'Bordetella', date: '2024-01-10', expires: '2024-07-10', status: 'expired' },
   ];
 
   return (
-    <div className="space-y-6">
+    <>
       {/* Vaccination Status Summary */}
-      <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg">
-        <Shield className="h-8 w-8 text-success-600" />
-        <div className="flex-1">
-          <p className="font-medium text-gray-900 dark:text-text-primary">Vaccination Status</p>
-          <p className="text-sm text-gray-600 dark:text-text-secondary">2 current, 1 needs update</p>
+      <InspectorSection>
+        <div className="flex items-center gap-[var(--bb-space-4)] p-[var(--bb-space-4)] rounded-[var(--bb-radius-lg)] bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)]">
+          <Shield className="h-8 w-8 text-[var(--bb-color-status-positive)]" />
+          <div className="flex-1">
+            <p className="font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+              Vaccination Status
+            </p>
+            <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
+              {vaccinations.filter(v => v.status === 'current').length} current, {vaccinations.filter(v => v.status !== 'current').length} needs update
+            </p>
+          </div>
+          <Button variant="secondary" size="sm">
+            <Syringe className="h-4 w-4 mr-[var(--bb-space-2)]" />
+            Update Records
+          </Button>
         </div>
-        <Button variant="secondary" size="sm">
-          <Syringe className="h-4 w-4 mr-2" />
-          Update Records
-        </Button>
-      </div>
+      </InspectorSection>
 
       {/* Vaccinations List */}
-      <div>
-        <h3 className="font-medium text-gray-900 dark:text-text-primary mb-3">Vaccinations</h3>
-        <div className="space-y-2">
+      <InspectorSection title="Vaccinations" icon={Syringe}>
+        <div className="space-y-[var(--bb-space-2)]">
           {vaccinations.map((vax, idx) => (
-            <Card key={idx} className="p-4">
+            <div 
+              key={idx} 
+              className="p-[var(--bb-space-4)] rounded-[var(--bb-radius-lg)] bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)]"
+            >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-text-primary">{vax.name}</p>
-                  <p className="text-sm text-gray-600 dark:text-text-secondary">
+                  <p className="font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+                    {vax.name}
+                  </p>
+                  <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
                     Given: {new Date(vax.date).toLocaleDateString()} • 
                     Expires: {new Date(vax.expires).toLocaleDateString()}
                   </p>
                 </div>
-                <Badge 
-                  variant={vax.status === 'current' ? 'success' : 'error'}
-                  className="capitalize"
-                >
+                <Badge variant={vax.status === 'current' ? 'success' : 'danger'}>
                   {vax.status}
                 </Badge>
               </div>
-            </Card>
+            </div>
           ))}
         </div>
-      </div>
+      </InspectorSection>
 
       {/* Medical Conditions */}
-      {pet.medicalConditions && (
-        <div>
-          <h3 className="font-medium text-gray-900 dark:text-text-primary mb-3">Medical Conditions</h3>
-          <Card className="p-4 space-y-2">
+      {pet.medicalConditions && pet.medicalConditions.length > 0 && (
+        <InspectorSection title="Medical Conditions" icon={AlertCircle}>
+          <div className="space-y-[var(--bb-space-2)]">
             {pet.medicalConditions.map((condition, idx) => (
-              <div key={idx} className="flex items-start gap-2">
-                <AlertCircle className="h-4 w-4 text-warning-600 mt-0.5" />
+              <div key={idx} className="flex items-start gap-[var(--bb-space-2)]">
+                <AlertCircle className="h-4 w-4 text-[var(--bb-color-status-warning)] mt-0.5" />
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-text-primary">{condition.name}</p>
-                  <p className="text-sm text-gray-600 dark:text-text-secondary">{condition.notes}</p>
+                  <p className="font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+                    {condition.name}
+                  </p>
+                  <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
+                    {condition.notes}
+                  </p>
                 </div>
               </div>
             ))}
-          </Card>
-        </div>
+          </div>
+        </InspectorSection>
       )}
 
       {/* Medications */}
-      {pet.medications && (
-        <div>
-          <h3 className="font-medium text-gray-900 dark:text-text-primary mb-3">Medications</h3>
-          <div className="space-y-2">
+      {pet.medications && pet.medications.length > 0 && (
+        <InspectorSection title="Medications">
+          <div className="space-y-[var(--bb-space-2)]">
             {pet.medications.map((med, idx) => (
-              <Card key={idx} className="p-4">
+              <div 
+                key={idx} 
+                className="p-[var(--bb-space-4)] rounded-[var(--bb-radius-lg)] bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)]"
+              >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium text-gray-900 dark:text-text-primary">{med.name}</p>
-                    <p className="text-sm text-gray-600 dark:text-text-secondary">
+                    <p className="font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+                      {med.name}
+                    </p>
+                    <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
                       {med.dosage} • {med.frequency}
                     </p>
                   </div>
-                  <Badge variant="secondary">{med.administeredBy}</Badge>
+                  <Badge variant="neutral">{med.administeredBy}</Badge>
                 </div>
-              </Card>
+              </div>
             ))}
           </div>
-        </div>
+        </InspectorSection>
       )}
-    </div>
+    </>
   );
 };
 
 // Bookings Tab
 const BookingsTab = ({ pet }) => {
-  const bookings = [
-    { 
-      id: 1, 
-      service: 'Boarding', 
-      dates: 'Mar 15-18, 2024', 
-      status: 'completed',
-      total: 180
-    },
-    { 
-      id: 2, 
-      service: 'Daycare', 
-      dates: 'Mar 20, 2024', 
-      status: 'upcoming',
-      total: 45
-    },
+  const bookings = pet.bookings || [
+    { id: 1, service: 'Boarding', dates: 'Mar 15-18, 2024', status: 'completed', total: 180 },
+    { id: 2, service: 'Daycare', dates: 'Mar 20, 2024', status: 'upcoming', total: 45 },
   ];
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-gray-600 dark:text-text-secondary">
-          Total bookings: 12 • Revenue: $1,245
-        </p>
-        <Button variant="secondary" size="sm">
-          <Calendar className="h-4 w-4 mr-2" />
-          New Booking
-        </Button>
-      </div>
+    <>
+      <InspectorSection>
+        <div className="flex items-center justify-between">
+          <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
+            Total bookings: {bookings.length} • Revenue: ${bookings.reduce((acc, b) => acc + b.total, 0)}
+          </p>
+          <Button variant="secondary" size="sm">
+            <Calendar className="h-4 w-4 mr-[var(--bb-space-2)]" />
+            New Booking
+          </Button>
+        </div>
+      </InspectorSection>
 
-      <div className="space-y-2">
-        {bookings.map(booking => (
-          <Card key={booking.id} className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-gray-900 dark:text-text-primary">{booking.service}</p>
-                <p className="text-sm text-gray-600 dark:text-text-secondary">{booking.dates}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge variant={
-                  booking.status === 'completed' ? 'secondary' : 
-                  booking.status === 'upcoming' ? 'primary' : 'warning'
-                }>
-                  {booking.status}
-                </Badge>
-                <span className="font-medium">${booking.total}</span>
+      <InspectorSection title="Booking History" icon={Calendar}>
+        <div className="space-y-[var(--bb-space-2)]">
+          {bookings.map(booking => (
+            <div 
+              key={booking.id} 
+              className="p-[var(--bb-space-4)] rounded-[var(--bb-radius-lg)] bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)]"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+                    {booking.service}
+                  </p>
+                  <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
+                    {booking.dates}
+                  </p>
+                </div>
+                <div className="flex items-center gap-[var(--bb-space-3)]">
+                  <Badge variant={
+                    booking.status === 'completed' ? 'neutral' : 
+                    booking.status === 'upcoming' ? 'info' : 'warning'
+                  }>
+                    {booking.status}
+                  </Badge>
+                  <span className="font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+                    ${booking.total}
+                  </span>
+                </div>
               </div>
             </div>
-          </Card>
-        ))}
-      </div>
-    </div>
+          ))}
+        </div>
+      </InspectorSection>
+    </>
   );
 };
 
 // Notes Tab
 const NotesTab = ({ pet }) => {
-  const notes = [
-    { 
-      date: '2024-03-18', 
-      author: 'Emma W.', 
-      note: 'Max did great during boarding! Played well with others.',
-      type: 'positive'
-    },
-    { 
-      date: '2024-03-15', 
-      author: 'Jake M.', 
-      note: 'Needs to be separated during feeding time - resource guarding.',
-      type: 'warning'
-    },
+  const notes = pet.notes || [
+    { date: '2024-03-18', author: 'Emma W.', note: 'Did great during boarding! Played well with others.', type: 'positive' },
+    { date: '2024-03-15', author: 'Jake M.', note: 'Needs to be separated during feeding time - resource guarding.', type: 'warning' },
   ];
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button variant="secondary" size="sm">
-          <FileText className="h-4 w-4 mr-2" />
-          Add Note
-        </Button>
-      </div>
+    <>
+      <InspectorSection>
+        <div className="flex justify-end">
+          <Button variant="secondary" size="sm">
+            <FileText className="h-4 w-4 mr-[var(--bb-space-2)]" />
+            Add Note
+          </Button>
+        </div>
+      </InspectorSection>
 
-      <div className="space-y-3">
-        {notes.map((note, idx) => (
-          <Card 
-            key={idx} 
-            className={`p-4 ${
-              note.type === 'warning' ? 'bg-warning-50 border-warning-200' : ''
-            }`}
-          >
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-gray-400 dark:text-text-tertiary" />
-                <span className="text-sm font-medium text-gray-900 dark:text-text-primary">{note.author}</span>
+      <InspectorSection title="Notes" icon={FileText}>
+        <div className="space-y-[var(--bb-space-3)]">
+          {notes.map((note, idx) => (
+            <div 
+              key={idx} 
+              className={`
+                p-[var(--bb-space-4)] rounded-[var(--bb-radius-lg)] border
+                ${note.type === 'warning' 
+                  ? 'bg-[var(--bb-color-status-warning-soft)] border-[var(--bb-color-status-warning)]' 
+                  : 'bg-[var(--bb-color-bg-elevated)] border-[var(--bb-color-border-subtle)]'
+                }
+              `}
+            >
+              <div className="flex items-start justify-between mb-[var(--bb-space-2)]">
+                <div className="flex items-center gap-[var(--bb-space-2)]">
+                  <User className="h-4 w-4 text-[var(--bb-color-text-muted)]" />
+                  <span className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+                    {note.author}
+                  </span>
+                </div>
+                <span className="text-[var(--bb-font-size-xs)] text-[var(--bb-color-text-muted)]">
+                  {note.date}
+                </span>
               </div>
-              <span className="text-xs text-gray-500 dark:text-text-secondary">{note.date}</span>
+              <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)]">
+                {note.note}
+              </p>
             </div>
-            <p className="text-sm text-gray-700 dark:text-text-primary">{note.note}</p>
-          </Card>
-        ))}
-      </div>
-    </div>
+          ))}
+        </div>
+      </InspectorSection>
+    </>
   );
 };
 
-// Utility component
-const InfoItem = ({ label, value }) => (
-  <div>
-    <p className="text-xs text-gray-500 dark:text-text-secondary">{label}</p>
-    <p className="font-medium text-gray-900 dark:text-text-primary">{value}</p>
-  </div>
-);
-
 export default PetDetailsDrawer;
-
-
