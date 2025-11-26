@@ -26,7 +26,7 @@ export default function Page({
             headerClassName,
           )}
         >
-          <div className="mx-auto flex w-full max-w-7xl flex-col gap-3 px-6 py-6">
+          <div className="flex w-full flex-col gap-3 px-6 py-6">
             {(breadcrumbs || title || subtitle || actions) && (
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div className="min-w-0">
@@ -60,7 +60,7 @@ export default function Page({
         </div>
       )}
 
-      <div className={cn('mx-auto flex w-full max-w-7xl flex-1 flex-col px-6 py-8', contentClassName)}>
+      <div className={cn('flex w-full flex-1 flex-col px-6 py-8', contentClassName)}>
         {children}
       </div>
     </div>
