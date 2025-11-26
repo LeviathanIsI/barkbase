@@ -1005,7 +1005,9 @@ const ColumnsDropdown = ({ columns, visibleColumns, columnOrder, onToggle, onReo
   const handleDrop = (e, index) => {
     e.preventDefault();
     if (draggedIndex !== null && draggedIndex !== index) {
-      onReorder(draggedIndex, index);
+      // When moving down, adjust target index to account for removal shifting indices
+      const targetIndex = draggedIndex < index ? index - 1 : index;
+      onReorder(draggedIndex, targetIndex);
     }
     setDraggedIndex(null);
     setDropIndicatorIndex(null);
@@ -1026,8 +1028,8 @@ const ColumnsDropdown = ({ columns, visibleColumns, columnOrder, onToggle, onReo
         <p className="px-2 py-1 text-xs font-semibold uppercase text-[color:var(--bb-color-text-muted)]">Toggle & Reorder</p>
         {orderedColumns.map((column, index) => (
           <div key={column.id} className="relative">
-            {/* Drop indicator line - shows above the item */}
-            {dropIndicatorIndex === index && draggedIndex !== null && draggedIndex > index && (
+            {/* Drop indicator line - always shows above the hovered item */}
+            {dropIndicatorIndex === index && draggedIndex !== null && (
               <div className="absolute -top-0.5 left-2 right-2 h-0.5 bg-[color:var(--bb-color-accent)] rounded-full" />
             )}
             <div
@@ -1046,10 +1048,6 @@ const ColumnsDropdown = ({ columns, visibleColumns, columnOrder, onToggle, onReo
               <input type="checkbox" checked={visibleColumns.includes(column.id)} onChange={() => onToggle(column.id)} className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]" />
               <span className="text-[color:var(--bb-color-text-primary)]">{column.label}</span>
             </div>
-            {/* Drop indicator line - shows below the item */}
-            {dropIndicatorIndex === index && draggedIndex !== null && draggedIndex < index && (
-              <div className="absolute -bottom-0.5 left-2 right-2 h-0.5 bg-[color:var(--bb-color-accent)] rounded-full" />
-            )}
           </div>
         ))}
       </div>
