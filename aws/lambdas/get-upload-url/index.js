@@ -5,7 +5,7 @@ const {
 	errorResponse,
 	auditLog,
 	getRequestMetadata,
-} = require('../shared/security-utils');
+} = require('./security-utils');
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION });
 const BUCKET_NAME = process.env.S3_BUCKET;
