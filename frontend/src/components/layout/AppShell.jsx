@@ -46,8 +46,8 @@ const AppShell = () => {
           className="flex-1"
           style={{ backgroundColor: 'var(--bb-color-bg-body)' }}
         >
-          {/* Global content rail - controls max width and centering for all pages */}
-          <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {/* Global content rail - wide layout for SaaS app with comfortable side padding */}
+          <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-6">
             <Outlet />
           </div>
         </main>
