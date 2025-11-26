@@ -153,11 +153,73 @@ const BrandThemeTab = () => {
   const [themeMode, setThemeMode] = useState('system'); // system, light, dark
   const [isSaving, setIsSaving] = useState(false);
 
+  // Branding assets state
+  const [logoLight, setLogoLight] = useState(tenant.theme?.assets?.logo || null);
+  const [logoDark, setLogoDark] = useState(tenant.theme?.assets?.logoDark || null);
+  const [favicon, setFavicon] = useState(tenant.theme?.assets?.favicon || null);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isUploadingLogoDark, setIsUploadingLogoDark] = useState(false);
+  const [isUploadingFavicon, setIsUploadingFavicon] = useState(false);
+
   // Sync with tenant data
   useEffect(() => {
     setPrimaryColor(rgbToHex(tenant.theme?.colors?.primary) || '#3b82f6');
     setAccentColor(rgbToHex(tenant.theme?.colors?.accent) || '#f97316');
+    setLogoLight(tenant.theme?.assets?.logo || null);
+    setLogoDark(tenant.theme?.assets?.logoDark || null);
+    setFavicon(tenant.theme?.assets?.favicon || null);
   }, [tenant]);
+
+  // File upload handler helper
+  const handleBrandingUpload = async (file, category, setUrl, setUploading) => {
+    if (!file || !hasWriteAccess) return;
+
+    // Validate file type
+    const validTypes = category === 'tenant-favicon' 
+      ? ['image/png', 'image/x-icon', 'image/svg+xml', 'image/vnd.microsoft.icon']
+      : ['image/png', 'image/jpeg', 'image/svg+xml'];
+    
+    if (!validTypes.includes(file.type)) {
+      toast.error(`Invalid file type. Please upload ${category === 'tenant-favicon' ? 'PNG, ICO, or SVG' : 'PNG, JPEG, or SVG'}`);
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    const maxSize = 2 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error('File too large. Maximum size is 2MB.');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const { uploadFile } = await import('@/lib/apiClient');
+      const { key, publicUrl } = await uploadFile({ file, category });
+      const url = publicUrl || key;
+      setUrl(url);
+      toast.success('Image uploaded successfully');
+    } catch (error) {
+      console.error('Branding upload error:', error);
+      toast.error('Failed to upload image. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleLogoLightUpload = (file) => handleBrandingUpload(file, 'tenant-logo', setLogoLight, setIsUploadingLogo);
+  const handleLogoDarkUpload = (file) => handleBrandingUpload(file, 'tenant-logo-dark', setLogoDark, setIsUploadingLogoDark);
+  const handleFaviconUpload = (file) => handleBrandingUpload(file, 'tenant-favicon', setFavicon, setIsUploadingFavicon);
+
+  const triggerFileInput = (handler, acceptTypes) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = acceptTypes;
+    input.onchange = (e) => {
+      const file = e.target.files?.[0];
+      if (file) handler(file);
+    };
+    input.click();
+  };
 
   // Generate derived colors from primary
   const generateThemeColors = (primary, accent) => {
@@ -181,7 +243,12 @@ const BrandThemeTab = () => {
     
     setIsSaving(true);
     const colors = generateThemeColors(primaryColor, accentColor);
-    const themePayload = { colors };
+    const assets = {
+      logo: logoLight,
+      logoDark: logoDark,
+      favicon: favicon,
+    };
+    const themePayload = { colors, assets };
     
     updateTheme(themePayload);
     
@@ -218,45 +285,93 @@ const BrandThemeTab = () => {
             {/* Light Logo */}
             <div className="group">
               <p className="text-sm font-medium text-text mb-2">Light Logo</p>
-              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary/50 hover:bg-surface-secondary/50 transition-all cursor-pointer">
-                <div className="h-12 w-12 bg-surface-secondary rounded-lg mx-auto mb-3 flex items-center justify-center">
-                  <Image className="h-6 w-6 text-muted" />
+              <div 
+                className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary/50 hover:bg-surface-secondary/50 transition-all cursor-pointer"
+                onClick={() => hasWriteAccess && !isUploadingLogo && triggerFileInput(handleLogoLightUpload, 'image/png,image/jpeg,image/svg+xml')}
+              >
+                <div className="h-12 w-12 bg-surface-secondary rounded-lg mx-auto mb-3 flex items-center justify-center overflow-hidden">
+                  {logoLight ? (
+                    <img src={logoLight} alt="Light logo" className="h-full w-full object-contain" />
+                  ) : (
+                    <Image className="h-6 w-6 text-muted" />
+                  )}
                 </div>
-                <Button variant="ghost" size="sm" disabled={!hasWriteAccess}>
-                  <Upload className="h-3.5 w-3.5 mr-1.5" />
-                  Upload
+                <Button variant="ghost" size="sm" disabled={!hasWriteAccess || isUploadingLogo}>
+                  {isUploadingLogo ? (
+                    <>
+                      <RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-3.5 w-3.5 mr-1.5" />
+                      {logoLight ? 'Change' : 'Upload'}
+                    </>
+                  )}
                 </Button>
-                <p className="text-xs text-muted mt-2">PNG, SVG • Max 2MB</p>
+                <p className="text-xs text-muted mt-2">PNG, JPG, SVG • Max 2MB</p>
               </div>
             </div>
 
             {/* Dark Logo */}
             <div className="group">
               <p className="text-sm font-medium text-text mb-2">Dark Logo</p>
-              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary/50 hover:bg-surface-secondary/50 transition-all cursor-pointer">
-                <div className="h-12 w-12 bg-gray-800 rounded-lg mx-auto mb-3 flex items-center justify-center">
-                  <Image className="h-6 w-6 text-gray-400" />
+              <div 
+                className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary/50 hover:bg-surface-secondary/50 transition-all cursor-pointer"
+                onClick={() => hasWriteAccess && !isUploadingLogoDark && triggerFileInput(handleLogoDarkUpload, 'image/png,image/jpeg,image/svg+xml')}
+              >
+                <div className="h-12 w-12 bg-gray-800 rounded-lg mx-auto mb-3 flex items-center justify-center overflow-hidden">
+                  {logoDark ? (
+                    <img src={logoDark} alt="Dark logo" className="h-full w-full object-contain" />
+                  ) : (
+                    <Image className="h-6 w-6 text-gray-400" />
+                  )}
                 </div>
-                <Button variant="ghost" size="sm" disabled={!hasWriteAccess}>
-                  <Upload className="h-3.5 w-3.5 mr-1.5" />
-                  Upload
+                <Button variant="ghost" size="sm" disabled={!hasWriteAccess || isUploadingLogoDark}>
+                  {isUploadingLogoDark ? (
+                    <>
+                      <RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-3.5 w-3.5 mr-1.5" />
+                      {logoDark ? 'Change' : 'Upload'}
+                    </>
+                  )}
                 </Button>
-                <p className="text-xs text-muted mt-2">PNG, SVG • Max 2MB</p>
+                <p className="text-xs text-muted mt-2">PNG, JPG, SVG • Max 2MB</p>
               </div>
             </div>
 
             {/* Favicon */}
             <div className="group">
               <p className="text-sm font-medium text-text mb-2">Favicon</p>
-              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary/50 hover:bg-surface-secondary/50 transition-all cursor-pointer">
-                <div className="h-12 w-12 bg-surface-secondary rounded-lg mx-auto mb-3 flex items-center justify-center">
-                  <div className="h-6 w-6 rounded bg-muted/30" />
+              <div 
+                className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary/50 hover:bg-surface-secondary/50 transition-all cursor-pointer"
+                onClick={() => hasWriteAccess && !isUploadingFavicon && triggerFileInput(handleFaviconUpload, 'image/png,image/x-icon,image/svg+xml')}
+              >
+                <div className="h-12 w-12 bg-surface-secondary rounded-lg mx-auto mb-3 flex items-center justify-center overflow-hidden">
+                  {favicon ? (
+                    <img src={favicon} alt="Favicon" className="h-full w-full object-contain" />
+                  ) : (
+                    <div className="h-6 w-6 rounded bg-muted/30" />
+                  )}
                 </div>
-                <Button variant="ghost" size="sm" disabled={!hasWriteAccess}>
-                  <Upload className="h-3.5 w-3.5 mr-1.5" />
-                  Upload
+                <Button variant="ghost" size="sm" disabled={!hasWriteAccess || isUploadingFavicon}>
+                  {isUploadingFavicon ? (
+                    <>
+                      <RefreshCw className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-3.5 w-3.5 mr-1.5" />
+                      {favicon ? 'Change' : 'Upload'}
+                    </>
+                  )}
                 </Button>
-                <p className="text-xs text-muted mt-2">32×32 or 64×64 PNG</p>
+                <p className="text-xs text-muted mt-2">32×32 or 64×64 PNG, ICO</p>
               </div>
             </div>
           </div>

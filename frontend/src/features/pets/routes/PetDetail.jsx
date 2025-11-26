@@ -32,6 +32,7 @@ import {
   Utensils,
   AlertCircle,
   Dog,
+  RefreshCw,
 } from 'lucide-react';
 import { format, formatDistanceToNow, isAfter, isBefore, startOfToday } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -542,7 +543,7 @@ const PetDetail = () => {
                   </TabsContent>
 
                   <TabsContent value="documents" className="mt-0">
-                    <DocumentsTab pet={pet} />
+                    <DocumentsTab pet={pet} onUpdatePet={updatePetMutation.mutateAsync} />
                   </TabsContent>
                 </div>
               </Tabs>
@@ -1506,8 +1507,98 @@ function BookingsTab({ bookings, filter, onFilterChange, petId }) {
 // DOCUMENTS TAB
 // ============================================================================
 
-function DocumentsTab({ pet }) {
-  const documents = pet.documents || [];
+function DocumentsTab({ pet, onUpdatePet }) {
+  const [uploadedDocs, setUploadedDocs] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useState(null);
+
+  // Combine backend documents (if any) with locally uploaded ones
+  const allDocuments = [...(pet.documents || []), ...uploadedDocs];
+
+  const handleUploadClick = () => {
+    // Create and trigger a file input
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.accept = '.pdf,.doc,.docx,.jpg,.jpeg,.png,.gif';
+    input.onchange = (e) => handleFileSelect(e.target.files);
+    input.click();
+  };
+
+  const handleFileSelect = async (files) => {
+    if (!files || files.length === 0) return;
+
+    const { uploadFile } = await import('@/lib/apiClient');
+    const fileArray = Array.from(files);
+    
+    setIsUploading(true);
+    const newDocs = [];
+
+    try {
+      for (const file of fileArray) {
+        // Validate file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+          toast.error(`${file.name} is too large. Maximum size is 10MB.`);
+          continue;
+        }
+
+        const { key, publicUrl } = await uploadFile({
+          file,
+          category: 'pet-documents',
+        });
+
+        const doc = {
+          recordId: `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          name: file.name,
+          type: file.type.split('/')[1]?.toUpperCase() || 'FILE',
+          url: publicUrl || key,
+          key,
+          createdAt: new Date().toISOString(),
+        };
+
+        newDocs.push(doc);
+      }
+
+      if (newDocs.length > 0) {
+        setUploadedDocs(prev => [...prev, ...newDocs]);
+        toast.success(`${newDocs.length} document${newDocs.length > 1 ? 's' : ''} uploaded successfully`);
+        
+        // Optionally update the pet record with the new documents
+        // Note: This requires backend support for storing documents on the pet model
+        if (onUpdatePet && typeof onUpdatePet === 'function') {
+          try {
+            await onUpdatePet({
+              documents: [...(pet.documents || []), ...newDocs],
+            });
+          } catch (err) {
+            // Documents uploaded to S3 but not saved to pet record
+            console.warn('Documents uploaded but could not be saved to pet record:', err);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Document upload error:', error);
+      toast.error('Failed to upload document. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDownload = (doc) => {
+    if (doc.url) {
+      window.open(doc.url, '_blank');
+    } else if (doc.key) {
+      // If only key is available, we'd need to get a download URL
+      // For now, just show an error
+      toast.error('Download link not available');
+    }
+  };
+
+  const handleOpenExternal = (doc) => {
+    if (doc.url) {
+      window.open(doc.url, '_blank');
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -1516,14 +1607,23 @@ function DocumentsTab({ pet }) {
         <h3 className="text-lg font-semibold" style={{ color: 'var(--bb-color-text-primary)' }}>
           Documents
         </h3>
-        <Button size="sm" onClick={() => toast.info('Document upload coming soon')}>
-          <Upload className="w-4 h-4 mr-1" />
-          Upload Document
+        <Button size="sm" onClick={handleUploadClick} disabled={isUploading}>
+          {isUploading ? (
+            <>
+              <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+              Uploading...
+            </>
+          ) : (
+            <>
+              <Upload className="w-4 h-4 mr-1" />
+              Upload Document
+            </>
+          )}
         </Button>
       </div>
 
       {/* Documents List */}
-      {documents.length === 0 ? (
+      {allDocuments.length === 0 ? (
         <div 
           className="text-center py-12 rounded-lg border-2 border-dashed"
           style={{ borderColor: 'var(--bb-color-border-subtle)' }}
@@ -1535,16 +1635,25 @@ function DocumentsTab({ pet }) {
           <p className="text-sm mt-1" style={{ color: 'var(--bb-color-text-muted)' }}>
             Upload vaccination records, vet reports, or liability forms
           </p>
-          <Button variant="outline" size="sm" className="mt-4" onClick={() => toast.info('Document upload coming soon')}>
-            <Upload className="w-4 h-4 mr-1" />
-            Upload First Document
+          <Button variant="outline" size="sm" className="mt-4" onClick={handleUploadClick} disabled={isUploading}>
+            {isUploading ? (
+              <>
+                <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+                Uploading...
+              </>
+            ) : (
+              <>
+                <Upload className="w-4 h-4 mr-1" />
+                Upload First Document
+              </>
+            )}
           </Button>
         </div>
       ) : (
         <div className="space-y-2">
-          {documents.map(doc => (
+          {allDocuments.map(doc => (
             <div
-              key={doc.recordId}
+              key={doc.recordId || doc.key}
               className="flex items-center justify-between p-4 border rounded-lg"
               style={{ borderColor: 'var(--bb-color-border-subtle)' }}
             >
@@ -1565,10 +1674,10 @@ function DocumentsTab({ pet }) {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button size="sm" variant="ghost">
+                <Button size="sm" variant="ghost" onClick={() => handleOpenExternal(doc)} title="Open in new tab">
                   <ExternalLink className="w-4 h-4" />
                 </Button>
-                <Button size="sm" variant="ghost">
+                <Button size="sm" variant="ghost" onClick={() => handleDownload(doc)} title="Download">
                   <Download className="w-4 h-4" />
                 </Button>
               </div>
