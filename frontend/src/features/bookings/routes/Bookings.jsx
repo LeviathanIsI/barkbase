@@ -1317,7 +1317,6 @@ const ListView = ({
                   key={col.id}
                   className={cn(
                     'px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] whitespace-nowrap text-left',
-                    col.id !== 'select' && 'first:pl-6 lg:first:pl-6 last:pr-6 lg:last:pr-6',
                     col.sortable && 'cursor-pointer hover:text-[color:var(--bb-color-text-primary)]'
                   )}
                   style={{ width: col.width }}

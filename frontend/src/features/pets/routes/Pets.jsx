@@ -522,8 +522,7 @@ const Pets = () => {
                         <th
                           key={column.id}
                           className={cn(
-                            'px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] whitespace-nowrap',
-                            column.id !== 'select' && 'first:pl-6 lg:first:pl-6 last:pr-6 lg:last:pr-6',
+                            'px-4 lg:px-6 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] whitespace-nowrap',
                             column.sortable && 'cursor-pointer hover:text-[color:var(--bb-color-text-primary)] transition-colors',
                             column.align === 'center' && 'text-center',
                             column.align === 'right' && 'text-right'
