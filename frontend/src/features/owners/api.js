@@ -1,12 +1,32 @@
+/**
+ * Owners API Hooks
+ * 
+ * Uses the shared API hook factory for standardized query/mutation patterns.
+ * All hooks are tenant-aware and follow consistent error handling.
+ */
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import { useTenantStore } from '@/stores/tenant';
+import { normalizeListResponse } from '@/lib/createApiHooks';
 import { listQueryDefaults, detailQueryDefaults, searchQueryDefaults } from '@/lib/queryConfig';
+
+// ============================================================================
+// TENANT HELPERS
+// ============================================================================
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
+// ============================================================================
+// LIST QUERY
+// ============================================================================
+
+/**
+ * Fetch all owners for the current tenant
+ * Returns normalized array of owners
+ */
 export const useOwnersQuery = (params = {}) => {
   const tenantKey = useTenantKey();
   
@@ -15,7 +35,9 @@ export const useOwnersQuery = (params = {}) => {
     queryFn: async () => {
       try {
         const res = await apiClient.get(canonicalEndpoints.owners.list, { params });
-        return Array.isArray(res.data) ? res.data : (res.data?.data ?? res.data ?? []);
+        // Normalize using factory helper, return just items for backwards compat
+        const normalized = normalizeListResponse(res?.data, 'owners');
+        return normalized.items;
       } catch (e) {
         console.warn('[owners] Falling back to empty list due to API error:', e?.message || e);
         return [];
@@ -26,6 +48,13 @@ export const useOwnersQuery = (params = {}) => {
   });
 };
 
+// ============================================================================
+// DETAIL QUERY
+// ============================================================================
+
+/**
+ * Fetch a single owner by ID
+ */
 export const useOwnerDetailsQuery = (ownerId, options = {}) => {
   const tenantKey = useTenantKey();
   const { enabled = Boolean(ownerId), ...queryOptions } = options;
@@ -48,8 +77,47 @@ export const useOwnerDetailsQuery = (ownerId, options = {}) => {
   });
 };
 
+// Alias for convenience
 export const useOwnerQuery = (ownerId, options = {}) => useOwnerDetailsQuery(ownerId, options);
 
+// ============================================================================
+// SEARCH QUERY
+// ============================================================================
+
+/**
+ * Search owners for quick lookups (debounce-friendly)
+ */
+export const useOwnerSearchQuery = (searchTerm, options = {}) => {
+  const tenantKey = useTenantKey();
+  const { enabled = searchTerm?.length >= 2, ...queryOptions } = options;
+  
+  return useQuery({
+    queryKey: [...queryKeys.owners(tenantKey), 'search', searchTerm],
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get(canonicalEndpoints.owners.list, { 
+          params: { search: searchTerm, limit: 10 } 
+        });
+        const normalized = normalizeListResponse(res?.data, 'owners');
+        return normalized.items;
+      } catch (e) {
+        console.warn('[owner-search] Error:', e?.message || e);
+        return [];
+      }
+    },
+    enabled,
+    ...searchQueryDefaults,
+    ...queryOptions,
+  });
+};
+
+// ============================================================================
+// MUTATIONS
+// ============================================================================
+
+/**
+ * Create a new owner
+ */
 export const useCreateOwnerMutation = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
@@ -71,6 +139,9 @@ export const useCreateOwnerMutation = () => {
   });
 };
 
+/**
+ * Update an existing owner
+ */
 export const useUpdateOwnerMutation = (ownerId) => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
@@ -107,6 +178,9 @@ export const useUpdateOwnerMutation = (ownerId) => {
   });
 };
 
+/**
+ * Delete an owner
+ */
 export const useDeleteOwnerMutation = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
@@ -136,31 +210,13 @@ export const useDeleteOwnerMutation = () => {
   });
 };
 
-// Search owners for quick lookups
-export const useOwnerSearchQuery = (searchTerm, options = {}) => {
-  const tenantKey = useTenantKey();
-  const { enabled = searchTerm?.length >= 2, ...queryOptions } = options;
-  
-  return useQuery({
-    queryKey: [...queryKeys.owners(tenantKey), 'search', searchTerm],
-    queryFn: async () => {
-      try {
-        const res = await apiClient.get(canonicalEndpoints.owners.list, { 
-          params: { search: searchTerm, limit: 10 } 
-        });
-        return Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
-      } catch (e) {
-        console.warn('[owner-search] Error:', e?.message || e);
-        return [];
-      }
-    },
-    enabled,
-    ...searchQueryDefaults,
-    ...queryOptions,
-  });
-};
+// ============================================================================
+// PET RELATIONSHIP MUTATIONS
+// ============================================================================
 
-// Add pet to owner
+/**
+ * Add pet to owner
+ */
 export const useAddPetToOwnerMutation = (ownerId) => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
@@ -180,7 +236,9 @@ export const useAddPetToOwnerMutation = (ownerId) => {
   });
 };
 
-// Remove pet from owner
+/**
+ * Remove pet from owner
+ */
 export const useRemovePetFromOwnerMutation = (ownerId) => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
@@ -197,6 +255,9 @@ export const useRemovePetFromOwnerMutation = (ownerId) => {
   });
 };
 
-// Aliases for convenience
+// ============================================================================
+// CONVENIENCE ALIASES
+// ============================================================================
+
 export const useOwner = useOwnerQuery;
 export const useOwners = useOwnersQuery;
