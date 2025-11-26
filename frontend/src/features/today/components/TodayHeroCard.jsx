@@ -6,7 +6,7 @@ import TodayCard from './TodayCard';
 import { UpdateChip } from '@/components/PageLoader';
 import { cn } from '@/lib/utils';
 
-const TodayHeroCard = ({ kennelName, formattedDate, stats, isLoading, isUpdating, onRefresh, lastRefreshed }) => {
+const TodayHeroCard = ({ kennelName, formattedDate, stats, isUpdating, onRefresh, lastRefreshed, onNewBooking }) => {
   const navigate = useNavigate();
 
   const formatLastRefreshed = () => {
@@ -53,7 +53,7 @@ const TodayHeroCard = ({ kennelName, formattedDate, stats, isLoading, isUpdating
             variant="primary"
             size="md"
             className="self-start sm:self-auto gap-2"
-            onClick={() => navigate('/bookings/new')}
+            onClick={onNewBooking}
           >
             <Plus className="h-4 w-4" />
             New Booking

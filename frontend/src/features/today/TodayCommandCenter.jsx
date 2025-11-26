@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, AlertTriangle, Clock, ListTodo } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Clock, ListTodo, ChevronLeft } from 'lucide-react';
 import { useUserProfileQuery } from '@/features/settings/api-user';
 // Dashboard hooks available if needed:
 // import { useDashboardStatsQuery } from '@/features/dashboard/api';
@@ -11,6 +11,7 @@ import TodayDeparturesList from '@/features/today/components/TodayDeparturesList
 import TodayBatchCheckInModal from '@/features/today/components/TodayBatchCheckInModal';
 import TodayBatchCheckOutModal from '@/features/today/components/TodayBatchCheckOutModal';
 import useTodayBookingsSnapshot, { getTodayBookingsSnapshotKey } from '@/features/today/hooks/useTodayBookingsSnapshot';
+import SinglePageBookingWizard from '@/features/bookings/components/SinglePageBookingWizard';
 import { PageLoader } from '@/components/PageLoader';
 import TodayCard from '@/features/today/components/TodayCard';
 import TodaySection from '@/features/today/components/TodaySection';
@@ -30,6 +31,7 @@ const TodayCommandCenter = () => {
   const queryClient = useQueryClient();
   const [showBatchCheckIn, setShowBatchCheckIn] = useState(false);
   const [showBatchCheckOut, setShowBatchCheckOut] = useState(false);
+  const [showNewBooking, setShowNewBooking] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState(() => new Date());
 
   // Today's date for filtering
@@ -79,6 +81,13 @@ const TodayCommandCenter = () => {
     queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     queryClient.invalidateQueries({ queryKey: ['tasks'] });
     setLastRefreshed(new Date());
+  }, [queryClient, snapshotQueryKey]);
+
+  const handleBookingComplete = useCallback(() => {
+    setShowNewBooking(false);
+    queryClient.invalidateQueries({ queryKey: snapshotQueryKey });
+    queryClient.invalidateQueries({ queryKey: ['bookings'] });
+    toast.success('Booking created successfully!');
   }, [queryClient, snapshotQueryKey]);
 
   const handleCompleteTask = useCallback(async (taskId) => {
@@ -135,6 +144,21 @@ const TodayCommandCenter = () => {
     return <PageLoader label="Loading today's schedule…" />;
   }
 
+  // Show booking wizard in full-page mode
+  if (showNewBooking) {
+    return (
+      <div className="flex h-full flex-col">
+        <div className="mb-4">
+          <Button variant="ghost" onClick={() => setShowNewBooking(false)} className="gap-2">
+            <ChevronLeft className="h-4 w-4" />
+            Back to Today
+          </Button>
+        </div>
+        <SinglePageBookingWizard onComplete={handleBookingComplete} />
+      </div>
+    );
+  }
+
   return (
     <div className={cn(
       "space-y-[var(--bb-space-6,1.5rem)] transition-opacity duration-200",
@@ -152,6 +176,7 @@ const TodayCommandCenter = () => {
             isUpdating={isUpdatingSnapshot}
             onRefresh={handleRefresh}
             lastRefreshed={lastRefreshed}
+            onNewBooking={() => setShowNewBooking(true)}
           />
         </div>
 
