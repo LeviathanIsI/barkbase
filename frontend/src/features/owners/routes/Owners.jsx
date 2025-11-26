@@ -418,8 +418,8 @@ const Owners = () => {
               <EmptyState hasFilters={hasActiveFilters} onClearFilters={clearFilters} onAddOwner={() => setFormModalOpen(true)} />
             </div>
           ) : (
-            <div className="flex-1 overflow-x-auto">
-              <table className="w-full text-sm" style={{ minWidth: '1280px' }}>
+            <div className="flex-1 overflow-x-auto max-w-full">
+              <table className="w-full text-sm min-w-[1024px]">
                 <thead>
                   <tr style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderBottom: '2px solid var(--bb-color-border-subtle)' }}>
                     {orderedColumns.map((column) => (

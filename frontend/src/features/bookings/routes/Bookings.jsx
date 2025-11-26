@@ -1308,8 +1308,8 @@ const ListView = ({
       )}
 
       {/* Table */}
-      <div className="flex-1 overflow-x-auto -mx-6 lg:-mx-12">
-        <table className="w-full text-sm" style={{ minWidth: '1100px' }}>
+      <div className="flex-1 overflow-x-auto max-w-full -mx-6 lg:-mx-12 px-6 lg:px-12">
+        <table className="w-full text-sm min-w-[900px]">
           <thead>
             <tr style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderBottom: '2px solid var(--bb-color-border-subtle)' }}>
               {columns.map((col) => (
