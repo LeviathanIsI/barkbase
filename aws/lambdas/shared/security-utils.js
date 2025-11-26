@@ -252,7 +252,10 @@ function errorResponse(statusCode, errorCode, message, event) {
 
   return {
     statusCode,
-    headers: getSecureHeaders(origin, stage),
+    headers: {
+      'Content-Type': 'application/json',
+      ...getSecureHeaders(origin, stage),
+    },
     body: JSON.stringify({
       error: errorCode,
       message
@@ -276,6 +279,7 @@ function successResponse(statusCode, data, event, additionalHeaders = {}) {
   return {
     statusCode,
     headers: {
+      'Content-Type': 'application/json',
       ...getSecureHeaders(origin, stage),
       ...additionalHeaders
     },
