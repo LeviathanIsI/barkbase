@@ -33,22 +33,8 @@ class ErrorBoundary extends Component {
       });
     }
     
-    // Also send to backend error logging endpoint
-    try {
-      fetch('/api/v1/errors/log', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          error: error.toString(),
-          errorInfo,
-          timestamp: new Date().toISOString(),
-          url: window.location.href,
-          userAgent: navigator.userAgent
-        })
-      });
-    } catch (logError) {
-      console.error('Failed to log error to backend:', logError);
-    }
+    // NOTE: Backend error logging endpoint not implemented.
+    // Errors are logged to console and Sentry (when configured).
 
     this.setState({
       errorInfo,

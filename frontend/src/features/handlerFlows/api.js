@@ -1,15 +1,16 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import apiClient from '@/lib/apiClient';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
-// NOTE: The 'handlerFlows' feature appears to be highly custom.
-// The table 'handler_flows' does not exist in the schema.
-// All API calls will be disabled until a proper backend is created for this feature.
+// handler-flows endpoints DISABLED (backend not implemented)
+// All hooks return no-op/empty data to prevent runtime 404s.
+// UI components can still render but will show empty states.
+
 const disabledQuery = () => Promise.resolve(null);
+const disabledMutation = () => Promise.resolve({ success: false, message: 'Handler flows backend not implemented' });
 
 export const useHandlerFlowsQuery = (options = {}) => {
   return useQuery({
     queryKey: ['handlerFlows'],
-    queryFn: disabledQuery, // implement REST when backend exists
+    queryFn: disabledQuery,
     enabled: false,
   });
 };
@@ -18,68 +19,45 @@ export const useHandlerFlowQuery = (flowId) =>
   useQuery({
     queryKey: ['handlerFlows', flowId],
     queryFn: disabledQuery,
-    enabled: Boolean(flowId),
+    enabled: false, // Disabled - backend not implemented
   });
 
 export const useCreateHandlerFlowMutation = () => {
-  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload) => apiClient('/api/v1/handler-flows', { method: 'POST', body: payload }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['handlerFlows'] });
-    },
+    mutationFn: disabledMutation,
+    // No-op: backend not implemented
   });
 };
 
 export const useUpdateHandlerFlowMutation = () => {
-  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ flowId, ...payload }) =>
-      apiClient(`/api/v1/handler-flows/${flowId}`, { method: 'POST', body: payload }),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['handlerFlows'] });
-      if (variables?.flowId) {
-        queryClient.invalidateQueries({ queryKey: ['handlerFlows', variables.flowId] });
-      }
-    },
+    mutationFn: disabledMutation,
+    // No-op: backend not implemented
   });
 };
 
 export const usePublishHandlerFlowMutation = () => {
-  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ flowId }) => apiClient(`/api/v1/handler-flows/${flowId}/publish`, { method: 'POST' }),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['handlerFlows'] });
-      if (variables?.flowId) {
-        queryClient.invalidateQueries({ queryKey: ['handlerFlows', variables.flowId] });
-      }
-    },
+    mutationFn: disabledMutation,
+    // No-op: backend not implemented
   });
 };
 
 export const useValidateFlowMutation = () =>
   useMutation({
-    mutationFn: (definition) =>
-      apiClient('/api/v1/handler-flows/validate', {
-        method: 'POST',
-        body: { definition },
-      }),
+    mutationFn: disabledMutation,
+    // No-op: backend not implemented
   });
 
 export const useManualRunMutation = () =>
   useMutation({
-    mutationFn: ({ flowId, payload, idempotencyKey }) =>
-      apiClient(`/api/v1/handler-flows/${flowId}/run`, {
-        method: 'POST',
-        body: { payload, idempotencyKey },
-      }),
+    mutationFn: disabledMutation,
+    // No-op: backend not implemented
   });
 
 export const useRunLogsQuery = (runId) =>
   useQuery({
     queryKey: ['handlerRuns', runId, 'logs'],
     queryFn: disabledQuery,
-    enabled: Boolean(runId),
-    refetchInterval: (query) => (query.state.data?.length ? 5000 : false),
+    enabled: false, // Disabled - backend not implemented
   });

@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Plus, CheckCircle, Bell, Command, X } from 'lucide-react';
+import { Search, Plus, CheckCircle, Bell, Command, X, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
-import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
 import toast from 'react-hot-toast';
 
@@ -19,19 +18,9 @@ const QuickAccessBar = () => {
   const [searchResults, setSearchResults] = useState({ pets: [], owners: [], bookings: [] });
   const [isSearching, setIsSearching] = useState(false);
 
-  // Fetch notification count
-  const { data: notificationCount = 0 } = useQuery({
-    queryKey: ['notifications', 'count'],
-    queryFn: async () => {
-      try {
-        const response = await apiClient.get('/api/v1/notifications/unread-count');
-        return response?.data?.count || 0;
-      } catch {
-        return 0;
-      }
-    },
-    refetchInterval: 60000, // Refresh every minute
-  });
+  // Notification count placeholder
+  // NOTE: Backend notifications endpoint not implemented. Using placeholder value.
+  const notificationCount = 0;
 
   // Global search function
   const performSearch = async (query) => {
