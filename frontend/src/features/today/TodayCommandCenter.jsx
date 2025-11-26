@@ -1,8 +1,10 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import apiClient from '@/lib/apiClient';
-import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
+import { useQueryClient } from '@tanstack/react-query';
+import { CheckCircle, AlertTriangle, Clock, ListTodo } from 'lucide-react';
 import { useUserProfileQuery } from '@/features/settings/api-user';
+// Dashboard hooks available if needed:
+// import { useDashboardStatsQuery } from '@/features/dashboard/api';
+import { useTodaysTasksQuery, useOverdueTasksQuery, useCompleteTaskMutation, TASK_STATUS } from '@/features/tasks/api';
 import TodayHeroCard from '@/features/today/components/TodayHeroCard';
 import TodayArrivalsList from '@/features/today/components/TodayArrivalsList';
 import TodayDeparturesList from '@/features/today/components/TodayDeparturesList';
@@ -10,12 +12,19 @@ import TodayBatchCheckInModal from '@/features/today/components/TodayBatchCheckI
 import TodayBatchCheckOutModal from '@/features/today/components/TodayBatchCheckOutModal';
 import useTodayBookingsSnapshot, { getTodayBookingsSnapshotKey } from '@/features/today/hooks/useTodayBookingsSnapshot';
 import { PageLoader } from '@/components/PageLoader';
+import TodayCard from '@/features/today/components/TodayCard';
+import TodaySection from '@/features/today/components/TodaySection';
+import Badge from '@/components/ui/Badge';
+import Button from '@/components/ui/Button';
 import { cn } from '@/lib/cn';
+import toast from 'react-hot-toast';
 
 /**
  * TodayCommandCenter Component
- * Simplified operational view focused on arrivals and departures
- * Provides calm, focused interface for daily operations
+ * 
+ * The main "operations cockpit" for day-to-day kennel management.
+ * Shows arrivals, departures, tasks, and key metrics using the new
+ * normalized API hooks for bookings, tasks, and dashboard data.
  */
 const TodayCommandCenter = () => {
   const queryClient = useQueryClient();
@@ -23,22 +32,34 @@ const TodayCommandCenter = () => {
   const [showBatchCheckOut, setShowBatchCheckOut] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState(() => new Date());
 
-  // Fetch today's data
+  // Today's date for filtering
   const today = new Date().toISOString().split('T')[0];
   
-  // Get kennel name from user profile or settings
-  const { data: userProfile = {} } = useUserProfileQuery();
+  // ============================================================================
+  // DATA FETCHING - Using canonical hooks
+  // ============================================================================
   
+  // User profile for kennel name
+  const { data: userProfile = {} } = useUserProfileQuery();
   const kennelName = userProfile?.propertyName || userProfile?.businessName || '';
 
+  // Bookings snapshot (arrivals, departures, in-facility)
   const todaySnapshot = useTodayBookingsSnapshot(today);
   const snapshotQueryKey = getTodayBookingsSnapshotKey(today);
   const arrivals = todaySnapshot.data?.arrivalsToday ?? [];
   const departures = todaySnapshot.data?.departuresToday ?? [];
   const inFacility = todaySnapshot.data?.inFacility ?? [];
-  // Show skeleton only on initial load when there's no cached data
+  
+  // Dashboard stats from analytics-service (available for future use)
+  // const { data: dashboardStats = {} } = useDashboardStatsQuery();
+  
+  // Tasks from refactored tasks API
+  const { data: todaysTasks = [], isLoading: tasksLoading } = useTodaysTasksQuery();
+  const { data: overdueTasks = [], isLoading: overdueLoading } = useOverdueTasksQuery();
+  const completeTaskMutation = useCompleteTaskMutation();
+  
+  // Loading states
   const loadingSnapshot = todaySnapshot.isLoading && !todaySnapshot.data;
-  // Track background updates for subtle indicators
   const isUpdatingSnapshot = todaySnapshot.isFetching && !todaySnapshot.isLoading && !!todaySnapshot.data;
   
   // Fade-in animation state
@@ -49,75 +70,46 @@ const TodayCommandCenter = () => {
     }
   }, [loadingSnapshot, todaySnapshot.data, hasLoaded]);
 
-  // Refresh handler
+  // ============================================================================
+  // HANDLERS
+  // ============================================================================
+  
   const handleRefresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: snapshotQueryKey });
-    queryClient.invalidateQueries({ queryKey: ['dashboard', 'stats'] });
-    queryClient.invalidateQueries({ queryKey: ['attention', 'items'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    queryClient.invalidateQueries({ queryKey: ['tasks'] });
     setLastRefreshed(new Date());
   }, [queryClient, snapshotQueryKey]);
 
-  const dashboardStatsQuery = useQuery({
-    queryKey: ['dashboard', 'stats', today],
-    queryFn: async () => {
-      try {
-        const response = await apiClient.get(canonicalEndpoints.reports.dashboardStats);
-        return response?.data || {};
-      } catch (e) {
-        console.warn('[dashboard-stats] Error:', e?.message || e);
-        return {};
-      }
-    },
-    refetchInterval: 60000, // Refresh every minute
-    staleTime: 60000,
-    refetchOnWindowFocus: false,
-    placeholderData: (previousData) => previousData,
-  });
+  const handleCompleteTask = useCallback(async (taskId) => {
+    try {
+      await completeTaskMutation.mutateAsync({ taskId });
+      toast.success('Task completed!');
+    } catch {
+      toast.error('Failed to complete task');
+    }
+  }, [completeTaskMutation]);
 
-  const dashboardStats = dashboardStatsQuery.data || {};
+  // ============================================================================
+  // COMPUTED VALUES
+  // ============================================================================
 
-  const attentionItemsQuery = useQuery({
-    queryKey: ['attention', 'items', today],
-    queryFn: async () => {
-      try {
-        // Check for bookings with issues
-        const unpaidResponse = await apiClient.get(canonicalEndpoints.bookings.list, { params: { status: 'UNPAID' } });
-        const unpaidBookings = Array.isArray(unpaidResponse?.data) ? unpaidResponse.data : unpaidResponse?.data?.data || [];
-        
-        // Check arrivals for vaccination issues
-        const vaccinationIssues = arrivals.filter(b => b.hasExpiringVaccinations).length;
-        
-        return unpaidBookings.length + vaccinationIssues;
-      } catch (error) {
-        return 0;
-      }
-    },
-    enabled: arrivals.length > 0,
-    refetchInterval: 60000,
-    staleTime: 60000,
-    refetchOnWindowFocus: false,
-    placeholderData: (previousData) => previousData,
-  });
+  // Calculate attention items (overdue tasks + unpaid/issues)
+  const attentionItems = useMemo(() => {
+    const overdueCount = overdueTasks.length;
+    const vaccinationIssues = arrivals.filter(b => b.hasExpiringVaccinations).length;
+    return overdueCount + vaccinationIssues;
+  }, [overdueTasks, arrivals]);
 
-  const attentionItems = attentionItemsQuery.data ?? 0;
+  // Stats for hero card
+  const stats = useMemo(() => ({
+    arrivals: arrivals.length,
+    departures: departures.length,
+    inFacility: inFacility.length,
+    attentionItems,
+  }), [arrivals, departures, inFacility, attentionItems]);
 
-  // Calculate stats
-  const stats = useMemo(() => {
-    return {
-      arrivals: arrivals.length,
-      departures: departures.length,
-      inFacility: inFacility.length,
-      attentionItems
-    };
-  }, [arrivals, departures, inFacility, attentionItems]);
-
-  // Format time
-  const formatTime = (dateString) => {
-    if (!dateString) return 'TBD';
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-  };
-
+  // Formatted date
   const formattedDate = useMemo(
     () =>
       new Date().toLocaleDateString('en-US', {
@@ -129,7 +121,16 @@ const TodayCommandCenter = () => {
     [],
   );
 
-  // Page-level loading state
+  // Pending tasks (not completed)
+  const pendingTasks = useMemo(() => 
+    todaysTasks.filter(t => t.status !== TASK_STATUS.COMPLETED),
+    [todaysTasks]
+  );
+
+  // ============================================================================
+  // RENDER
+  // ============================================================================
+
   if (loadingSnapshot) {
     return <PageLoader label="Loading today's schedule…" />;
   }
@@ -171,8 +172,55 @@ const TodayCommandCenter = () => {
             onBatchCheckOut={() => setShowBatchCheckOut(true)}
           />
         </div>
+
+        {/* Tasks Section */}
+        <div className="lg:col-span-12">
+          <div className="grid gap-[var(--bb-space-6,1.5rem)] lg:grid-cols-2">
+            {/* Today's Tasks */}
+            <TodayCard>
+              <TodaySection
+                title="Today's Tasks"
+                icon={ListTodo}
+                iconClassName="text-blue-600 dark:text-blue-400"
+                badge={<Badge variant="info">{pendingTasks.length}</Badge>}
+              >
+                <TasksList
+                  tasks={pendingTasks}
+                  isLoading={tasksLoading}
+                  emptyMessage="All tasks complete! 🎉"
+                  onComplete={handleCompleteTask}
+                  isCompleting={completeTaskMutation.isPending}
+                />
+              </TodaySection>
+            </TodayCard>
+
+            {/* Overdue Tasks */}
+            <TodayCard>
+              <TodaySection
+                title="Overdue Tasks"
+                icon={AlertTriangle}
+                iconClassName="text-amber-600 dark:text-amber-400"
+                badge={
+                  <Badge variant={overdueTasks.length > 0 ? "warning" : "success"}>
+                    {overdueTasks.length}
+                  </Badge>
+                }
+              >
+                <TasksList
+                  tasks={overdueTasks}
+                  isLoading={overdueLoading}
+                  emptyMessage="No overdue tasks 🎉"
+                  onComplete={handleCompleteTask}
+                  isCompleting={completeTaskMutation.isPending}
+                  isOverdue
+                />
+              </TodaySection>
+            </TodayCard>
+          </div>
+        </div>
       </div>
 
+      {/* Modals */}
       <TodayBatchCheckInModal
         open={showBatchCheckIn}
         onClose={() => setShowBatchCheckIn(false)}
@@ -183,6 +231,78 @@ const TodayCommandCenter = () => {
         departures={departures}
         snapshotQueryKey={snapshotQueryKey}
       />
+    </div>
+  );
+};
+
+// ============================================================================
+// TASKS LIST COMPONENT
+// ============================================================================
+
+const TasksList = ({ tasks, isLoading, emptyMessage, onComplete, isCompleting, isOverdue }) => {
+  if (isLoading) {
+    return (
+      <div className="space-y-2">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-12 bg-[color:var(--bb-color-bg-elevated)] rounded-lg animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  if (!tasks.length) {
+    return (
+      <div className="text-center py-8">
+        <CheckCircle className="h-10 w-10 mx-auto mb-2 text-emerald-500" />
+        <p className="text-[color:var(--bb-color-text-muted)] text-sm">{emptyMessage}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2 max-h-64 overflow-y-auto">
+      {tasks.slice(0, 10).map((task) => (
+        <div
+          key={task.recordId}
+          className={cn(
+            "flex items-center justify-between p-3 rounded-lg border transition-colors",
+            isOverdue 
+              ? "bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800"
+              : "bg-[color:var(--bb-color-bg-elevated)] border-[color:var(--bb-color-border)]"
+          )}
+        >
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-sm text-[color:var(--bb-color-text-primary)] truncate">
+              {task.title || `${task.type} ${task.petName ? `- ${task.petName}` : ''}`}
+            </p>
+            {task.scheduledFor && (
+              <p className="text-xs text-[color:var(--bb-color-text-muted)] flex items-center gap-1 mt-0.5">
+                <Clock className="h-3 w-3" />
+                {new Date(task.scheduledFor).toLocaleTimeString('en-US', { 
+                  hour: 'numeric', 
+                  minute: '2-digit', 
+                  hour12: true 
+                })}
+              </p>
+            )}
+          </div>
+          <Button
+            size="sm"
+            variant={isOverdue ? "warning" : "outline"}
+            onClick={() => onComplete(task.recordId)}
+            disabled={isCompleting}
+            className="ml-2 flex-shrink-0"
+          >
+            <CheckCircle className="h-3.5 w-3.5 mr-1" />
+            Done
+          </Button>
+        </div>
+      ))}
+      {tasks.length > 10 && (
+        <p className="text-center text-xs text-[color:var(--bb-color-text-muted)] pt-2">
+          +{tasks.length - 10} more tasks
+        </p>
+      )}
     </div>
   );
 };
