@@ -201,8 +201,8 @@ export default function SettingsLayout() {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex justify-center md:pt-0 pt-24">
-        <div className="w-full max-w-7xl p-6 md:p-8">
+      <div className="flex-1 md:pt-0 pt-24">
+        <div className="w-full p-6 md:p-8">
           {/* Page Title */}
           {activeItem && (
             <div className="mb-6">
