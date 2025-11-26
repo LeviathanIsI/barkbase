@@ -484,7 +484,7 @@ const Bookings = () => {
 
       {/* Sticky Toolbar */}
       <div
-        className="sticky top-0 z-20 -mx-6 lg:-mx-12 px-6 lg:px-12 py-3 border-b shadow-sm"
+        className="sticky top-0 z-20 py-3 border-b shadow-sm"
         style={{
           backgroundColor: 'var(--bb-color-bg-surface)',
           borderColor: 'var(--bb-color-border-subtle)',
