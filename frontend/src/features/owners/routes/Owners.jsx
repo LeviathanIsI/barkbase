@@ -257,10 +257,28 @@ const Owners = () => {
 
   return (
     <>
-      {/* Full-width container - remove default padding constraints */}
-      <div className="flex flex-col h-full -mx-6 lg:-mx-12 px-4 lg:px-6">
+      {/* 
+        Full-width container - breaks out of parent max-w-6xl constraint
+        Uses viewport-relative positioning to span edge-to-edge
+      */}
+      <div 
+        className="flex flex-col min-h-[calc(100vh-120px)]"
+        style={{
+          width: '100vw',
+          position: 'relative',
+          left: '50%',
+          right: '50%',
+          marginLeft: '-50vw',
+          marginRight: '-50vw',
+          paddingLeft: 'max(1rem, env(safe-area-inset-left))',
+          paddingRight: 'max(1rem, env(safe-area-inset-right))',
+        }}
+      >
         {/* Header Section - Full Width */}
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between py-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+        <div 
+          className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between py-4 px-4 lg:px-6 border-b"
+          style={{ borderColor: 'var(--bb-color-border-subtle)', backgroundColor: 'var(--bb-color-bg-body)' }}
+        >
           <div>
             <h1 className="text-2xl font-bold text-[color:var(--bb-color-text-primary)]">Pet Owners</h1>
             <p className="mt-0.5 text-sm text-[color:var(--bb-color-text-muted)]">
@@ -279,7 +297,7 @@ const Owners = () => {
 
         {/* Sticky Toolbar - Full Width with Shadow */}
         <div
-          className="sticky top-0 z-20 py-3 border-b shadow-sm"
+          className="sticky top-[var(--bb-topbar-height,56px)] z-20 py-3 px-4 lg:px-6 border-b shadow-sm"
           style={{
             backgroundColor: 'var(--bb-color-bg-surface)',
             borderColor: 'var(--bb-color-border-subtle)',
@@ -407,109 +425,109 @@ const Owners = () => {
           )}
         </div>
 
-        {/* Table - Full Width */}
-        {isLoading ? (
-          <TableSkeleton />
-        ) : sortedOwners.length === 0 ? (
-          <EmptyState hasFilters={hasActiveFilters} onClearFilters={clearFilters} onAddOwner={() => setFormModalOpen(true)} />
-        ) : (
-          <div className="flex-1 mt-4 overflow-x-auto">
-            <table className="w-full min-w-[1000px] text-sm border-collapse">
-              <thead>
-                <tr
-                  className="border-b"
-                  style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
-                >
-                  {orderedColumns.map((column) => (
-                    <th
-                      key={column.id}
-                      className={cn(
-                        'px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]',
-                        column.sortable && 'cursor-pointer hover:text-[color:var(--bb-color-text-primary)] transition-colors',
-                        column.align === 'center' && 'text-center',
-                        column.align === 'right' && 'text-right'
-                      )}
-                      style={{
-                        minWidth: column.minWidth,
-                        maxWidth: column.maxWidth,
-                        width: column.flex ? `${column.flex * 100}px` : undefined,
-                      }}
-                      onClick={() => column.sortable && handleSort(column.sortKey)}
-                    >
-                      <div className={cn('flex items-center gap-1', column.align === 'center' && 'justify-center', column.align === 'right' && 'justify-end')}>
-                        {column.id === 'select' ? (
-                          <input
-                            type="checkbox"
-                            checked={selectedRows.size === paginatedOwners.length && paginatedOwners.length > 0}
-                            onChange={handleSelectAll}
-                            className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]"
-                          />
-                        ) : (
-                          <>
-                            {column.label}
-                            {column.sortable && <SortIcon active={sortConfig.key === column.sortKey} direction={sortConfig.direction} />}
-                          </>
-                        )}
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedOwners.map((owner, index) => (
-                  <OwnerRow
-                    key={owner.recordId}
-                    owner={owner}
-                    columns={orderedColumns}
-                    isSelected={selectedRows.has(owner.recordId)}
-                    onSelect={() => handleSelectRow(owner.recordId)}
-                    onDoubleClick={() => handleRowDoubleClick(owner)}
-                    onView={() => navigate(`/customers/${owner.recordId}`)}
-                    isEven={index % 2 === 0}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Pagination - Full Width */}
-        {sortedOwners.length > 0 && (
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4 border-t mt-auto" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-            <div className="flex items-center gap-2 text-sm text-[color:var(--bb-color-text-muted)]">
-              <span>Rows per page:</span>
-              <select
-                value={pageSize}
-                onChange={(e) => setPageSize(Number(e.target.value))}
-                className="rounded border px-2 py-1.5 text-sm"
-                style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }}
-              >
-                {PAGE_SIZE_OPTIONS.map((size) => (<option key={size} value={size}>{size}</option>))}
-              </select>
+        {/* Table Section - Full Width Edge-to-Edge */}
+        <div className="flex-1 flex flex-col" style={{ backgroundColor: 'var(--bb-color-bg-body)' }}>
+          {isLoading ? (
+            <TableSkeleton />
+          ) : sortedOwners.length === 0 ? (
+            <div className="px-4 lg:px-6 py-4">
+              <EmptyState hasFilters={hasActiveFilters} onClearFilters={clearFilters} onAddOwner={() => setFormModalOpen(true)} />
             </div>
+          ) : (
+            <div className="flex-1 overflow-x-auto">
+              <table className="w-full text-sm" style={{ minWidth: '1200px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderBottom: '1px solid var(--bb-color-border-subtle)' }}>
+                    {orderedColumns.map((column) => (
+                      <th
+                        key={column.id}
+                        className={cn(
+                          'px-4 lg:px-6 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] whitespace-nowrap',
+                          column.sortable && 'cursor-pointer hover:text-[color:var(--bb-color-text-primary)] transition-colors',
+                          column.align === 'center' && 'text-center',
+                          column.align === 'right' && 'text-right'
+                        )}
+                        style={{ minWidth: column.minWidth, maxWidth: column.maxWidth }}
+                        onClick={() => column.sortable && handleSort(column.sortKey)}
+                      >
+                        <div className={cn('flex items-center gap-1.5', column.align === 'center' && 'justify-center', column.align === 'right' && 'justify-end')}>
+                          {column.id === 'select' ? (
+                            <input
+                              type="checkbox"
+                              checked={selectedRows.size === paginatedOwners.length && paginatedOwners.length > 0}
+                              onChange={handleSelectAll}
+                              className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]"
+                            />
+                          ) : (
+                            <>
+                              {column.label}
+                              {column.sortable && <SortIcon active={sortConfig.key === column.sortKey} direction={sortConfig.direction} />}
+                            </>
+                          )}
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedOwners.map((owner, index) => (
+                    <OwnerRow
+                      key={owner.recordId}
+                      owner={owner}
+                      columns={orderedColumns}
+                      isSelected={selectedRows.has(owner.recordId)}
+                      onSelect={() => handleSelectRow(owner.recordId)}
+                      onDoubleClick={() => handleRowDoubleClick(owner)}
+                      onView={() => navigate(`/customers/${owner.recordId}`)}
+                      isEven={index % 2 === 0}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-[color:var(--bb-color-text-muted)]">
-                {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, sortedOwners.length)} of {sortedOwners.length}
-              </span>
-              <div className="flex items-center gap-1">
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="px-2 h-8">
-                  <ChevronLeft className="h-4 w-4" /><ChevronLeft className="h-4 w-4 -ml-2" />
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-2 h-8">
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="px-3 text-sm font-medium text-[color:var(--bb-color-text-primary)]">{currentPage}</span>
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-2 h-8">
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="px-2 h-8">
-                  <ChevronRight className="h-4 w-4" /><ChevronRight className="h-4 w-4 -ml-2" />
-                </Button>
+          {/* Pagination - Full Width */}
+          {sortedOwners.length > 0 && !isLoading && (
+            <div 
+              className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4 px-4 lg:px-6 border-t"
+              style={{ borderColor: 'var(--bb-color-border-subtle)', backgroundColor: 'var(--bb-color-bg-surface)' }}
+            >
+              <div className="flex items-center gap-2 text-sm text-[color:var(--bb-color-text-muted)]">
+                <span>Rows per page:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                  className="rounded border px-2 py-1.5 text-sm"
+                  style={{ backgroundColor: 'var(--bb-color-bg-body)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }}
+                >
+                  {PAGE_SIZE_OPTIONS.map((size) => (<option key={size} value={size}>{size}</option>))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-[color:var(--bb-color-text-muted)]">
+                  {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, sortedOwners.length)} of {sortedOwners.length}
+                </span>
+                <div className="flex items-center gap-1">
+                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="px-2 h-8">
+                    <ChevronLeft className="h-4 w-4" /><ChevronLeft className="h-4 w-4 -ml-2" />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-2 h-8">
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="px-3 text-sm font-medium text-[color:var(--bb-color-text-primary)]">{currentPage}</span>
+                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-2 h-8">
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="px-2 h-8">
+                    <ChevronRight className="h-4 w-4" /><ChevronRight className="h-4 w-4 -ml-2" />
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       <OwnerFormModal
@@ -556,35 +574,36 @@ const SortIcon = ({ active, direction }) => {
 // Owner Row Component
 const OwnerRow = ({ owner, columns, isSelected, onSelect, onDoubleClick, onView, isEven }) => {
   const [showActions, setShowActions] = useState(false);
+  const cellPadding = 'px-4 lg:px-6 py-3';
 
   const renderCell = (column) => {
     switch (column.id) {
       case 'select':
         return (
-          <td key={column.id} className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+          <td key={column.id} className={cn(cellPadding, 'text-center')} onClick={(e) => e.stopPropagation()}>
             <input type="checkbox" checked={isSelected} onChange={onSelect} className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]" />
           </td>
         );
       case 'owner':
         return (
-          <td key={column.id} className="px-4 py-3">
+          <td key={column.id} className={cellPadding}>
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold" style={{ backgroundColor: 'var(--bb-color-accent)', color: 'var(--bb-color-text-on-accent)' }}>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold" style={{ backgroundColor: 'var(--bb-color-accent)', color: 'var(--bb-color-text-on-accent)' }}>
                 {owner.fullName?.[0]?.toUpperCase() || 'O'}
               </div>
               <div className="min-w-0">
-                <p className="font-medium text-[color:var(--bb-color-text-primary)] truncate">{owner.fullName}</p>
-                <p className="text-xs text-[color:var(--bb-color-text-muted)] truncate">{owner.email || 'No email'}</p>
+                <p className="font-semibold text-[color:var(--bb-color-text-primary)]">{owner.fullName}</p>
+                <p className="text-xs text-[color:var(--bb-color-text-muted)]">{owner.email || 'No email'}</p>
               </div>
             </div>
           </td>
         );
       case 'contact':
         return (
-          <td key={column.id} className="px-4 py-3">
+          <td key={column.id} className={cellPadding}>
             {owner.phone ? (
-              <div className="flex items-center gap-1.5 text-[color:var(--bb-color-text-muted)]">
-                <Phone className="h-3.5 w-3.5" />
+              <div className="flex items-center gap-1.5 text-[color:var(--bb-color-text-primary)]">
+                <Phone className="h-3.5 w-3.5 text-[color:var(--bb-color-text-muted)]" />
                 <span>{owner.phone}</span>
               </div>
             ) : (
@@ -594,18 +613,18 @@ const OwnerRow = ({ owner, columns, isSelected, onSelect, onDoubleClick, onView,
         );
       case 'pets':
         return (
-          <td key={column.id} className="px-4 py-3">
+          <td key={column.id} className={cellPadding}>
             {owner.pets?.length > 0 ? (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
                 <div className="flex -space-x-1.5">
                   {owner.pets.slice(0, 3).map((pet, i) => (
-                    <div key={i} className="flex h-7 w-7 items-center justify-center rounded-full border-2 text-[0.65rem] font-medium" style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-bg-surface)', color: 'var(--bb-color-text-muted)' }} title={pet.name}>
+                    <div key={i} className="flex h-7 w-7 items-center justify-center rounded-full border-2 text-[0.65rem] font-semibold" style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-bg-surface)', color: 'var(--bb-color-text-muted)' }} title={pet.name}>
                       {pet.name?.[0]?.toUpperCase() || <PawPrint className="h-3 w-3" />}
                     </div>
                   ))}
                 </div>
-                {owner.pets.length > 3 && <span className="ml-1.5 text-xs text-[color:var(--bb-color-text-muted)]">+{owner.pets.length - 3}</span>}
-                <span className="ml-2 text-xs text-[color:var(--bb-color-text-muted)]">{owner.pets.length} pet{owner.pets.length !== 1 ? 's' : ''}</span>
+                <span className="text-sm text-[color:var(--bb-color-text-primary)]">{owner.pets.length}</span>
+                {owner.pets.length > 3 && <span className="text-xs text-[color:var(--bb-color-text-muted)]">(+{owner.pets.length - 3})</span>}
               </div>
             ) : (
               <span className="text-[color:var(--bb-color-text-muted)]">—</span>
@@ -614,21 +633,21 @@ const OwnerRow = ({ owner, columns, isSelected, onSelect, onDoubleClick, onView,
         );
       case 'status':
         return (
-          <td key={column.id} className="px-4 py-3 text-center">
+          <td key={column.id} className={cn(cellPadding, 'text-center')}>
             <Badge variant={owner.status === 'ACTIVE' ? 'success' : 'neutral'}>{owner.status === 'ACTIVE' ? 'Active' : 'Inactive'}</Badge>
           </td>
         );
       case 'bookings':
         return (
-          <td key={column.id} className="px-4 py-3 text-center">
-            <span className="font-medium text-[color:var(--bb-color-text-primary)]">{owner.totalBookings}</span>
+          <td key={column.id} className={cn(cellPadding, 'text-center')}>
+            <span className="font-semibold text-[color:var(--bb-color-text-primary)]">{owner.totalBookings}</span>
           </td>
         );
       case 'lastVisit':
         return (
-          <td key={column.id} className="px-4 py-3 text-center">
+          <td key={column.id} className={cn(cellPadding, 'text-center')}>
             {owner.lastBooking ? (
-              <span className="text-[color:var(--bb-color-text-muted)]">{new Date(owner.lastBooking).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}</span>
+              <span className="text-[color:var(--bb-color-text-primary)]">{new Date(owner.lastBooking).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}</span>
             ) : (
               <span className="text-[color:var(--bb-color-text-muted)]">Never</span>
             )}
@@ -636,28 +655,28 @@ const OwnerRow = ({ owner, columns, isSelected, onSelect, onDoubleClick, onView,
         );
       case 'lifetimeValue':
         return (
-          <td key={column.id} className="px-4 py-3 text-right">
+          <td key={column.id} className={cn(cellPadding, 'text-right')}>
             <span className="font-semibold text-[color:var(--bb-color-text-primary)]">{formatCurrency(owner.lifetimeValue)}</span>
           </td>
         );
       case 'actions':
         return (
-          <td key={column.id} className="px-4 py-3 text-right">
-            <div className={cn('flex items-center justify-end gap-0.5 transition-opacity', showActions ? 'opacity-100' : 'opacity-0')}>
-              <button type="button" onClick={(e) => { e.stopPropagation(); onView(); }} className="p-1.5 rounded hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)]" title="View profile">
+          <td key={column.id} className={cn(cellPadding, 'text-right')}>
+            <div className={cn('flex items-center justify-end gap-1 transition-opacity', showActions ? 'opacity-100' : 'opacity-0')}>
+              <button type="button" onClick={(e) => { e.stopPropagation(); onView(); }} className="p-2 rounded-lg hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] transition-colors" title="View profile">
                 <Eye className="h-4 w-4" />
               </button>
-              <button type="button" onClick={(e) => e.stopPropagation()} className="p-1.5 rounded hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)]" title="Send message">
+              <button type="button" onClick={(e) => e.stopPropagation()} className="p-2 rounded-lg hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] transition-colors" title="Send message">
                 <MessageSquare className="h-4 w-4" />
               </button>
-              <button type="button" onClick={(e) => e.stopPropagation()} className="p-1.5 rounded hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)]" title="More actions">
+              <button type="button" onClick={(e) => e.stopPropagation()} className="p-2 rounded-lg hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] transition-colors" title="More actions">
                 <MoreHorizontal className="h-4 w-4" />
               </button>
             </div>
           </td>
         );
       default:
-        return <td key={column.id} className="px-4 py-3">—</td>;
+        return <td key={column.id} className={cellPadding}>—</td>;
     }
   };
 
@@ -767,38 +786,58 @@ const ColumnsDropdown = ({ columns, visibleColumns, columnOrder, onToggle, onReo
   );
 };
 
-// Table Skeleton Component
+// Table Skeleton Component - Full Width
 const TableSkeleton = () => (
-  <div className="mt-4 rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
-    <div className="p-4 space-y-3">
-      {Array.from({ length: 10 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4">
-          <Skeleton className="h-4 w-4 rounded" />
-          <Skeleton className="h-9 w-9 rounded-full" />
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-4 w-48" />
-            <Skeleton className="h-3 w-32" />
+  <div className="flex-1" style={{ backgroundColor: 'var(--bb-color-bg-body)' }}>
+    <div className="px-4 lg:px-6 py-4 space-y-0">
+      {/* Header skeleton */}
+      <div className="flex items-center gap-6 py-3 border-b" style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}>
+        <Skeleton className="h-4 w-4 rounded ml-2" />
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-4 w-20" />
+        <Skeleton className="h-4 w-16" />
+        <Skeleton className="h-4 w-16" />
+        <Skeleton className="h-4 w-20" />
+        <Skeleton className="h-4 w-20" />
+        <Skeleton className="h-4 w-24" />
+      </div>
+      {/* Row skeletons */}
+      {Array.from({ length: 12 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-6 py-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+          <Skeleton className="h-4 w-4 rounded ml-2" />
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-10 w-10 rounded-full" />
+            <div className="space-y-1.5">
+              <Skeleton className="h-4 w-36" />
+              <Skeleton className="h-3 w-28" />
+            </div>
           </div>
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-4 w-28" />
+          <div className="flex -space-x-1">
+            <Skeleton className="h-7 w-7 rounded-full" />
+            <Skeleton className="h-7 w-7 rounded-full" />
+          </div>
           <Skeleton className="h-6 w-16 rounded-full" />
-          <Skeleton className="h-4 w-12" />
+          <Skeleton className="h-4 w-8" />
           <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-4 w-16" />
         </div>
       ))}
     </div>
   </div>
 );
 
-// Empty State Component
+// Empty State Component - Full Width
 const EmptyState = ({ hasFilters, onClearFilters, onAddOwner }) => (
-  <div className="flex flex-col items-center justify-center rounded-xl border py-20 mt-4" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
-    <Users className="h-14 w-14 text-[color:var(--bb-color-text-muted)] opacity-40 mb-4" />
-    <h3 className="text-lg font-semibold text-[color:var(--bb-color-text-primary)] mb-1">{hasFilters ? 'No owners match your filters' : 'No owners yet'}</h3>
-    <p className="text-sm text-[color:var(--bb-color-text-muted)] mb-6">{hasFilters ? 'Try adjusting your search or filters' : 'Get started by adding your first pet owner'}</p>
+  <div className="flex-1 flex flex-col items-center justify-center py-24" style={{ backgroundColor: 'var(--bb-color-bg-body)' }}>
+    <div className="flex h-20 w-20 items-center justify-center rounded-full mb-6" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+      <Users className="h-10 w-10 text-[color:var(--bb-color-text-muted)]" />
+    </div>
+    <h3 className="text-xl font-semibold text-[color:var(--bb-color-text-primary)] mb-2">{hasFilters ? 'No owners match your filters' : 'No owners yet'}</h3>
+    <p className="text-sm text-[color:var(--bb-color-text-muted)] mb-8 max-w-md text-center">{hasFilters ? 'Try adjusting your search or filters to find what you\'re looking for' : 'Get started by adding your first pet owner to the system'}</p>
     <div className="flex gap-3">
-      {hasFilters && <Button variant="outline" onClick={onClearFilters}>Clear filters</Button>}
-      <Button onClick={onAddOwner}><Plus className="h-4 w-4 mr-1.5" />Add Owner</Button>
+      {hasFilters && <Button variant="outline" size="lg" onClick={onClearFilters}>Clear filters</Button>}
+      <Button size="lg" onClick={onAddOwner}><Plus className="h-4 w-4 mr-2" />Add Owner</Button>
     </div>
   </div>
 );
