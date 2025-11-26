@@ -1573,8 +1573,10 @@ function DocumentsTab({ pet, onUpdatePet }) {
   };
 
   const getSignedUrl = async (key, forceDownload = false) => {
-    const { post } = await import('@/lib/apiClient');
-    const { data } = await post('/api/v1/download-url', { key, forceDownload });
+    const { default: apiClient } = await import('@/lib/apiClient');
+    const params = { key };
+    if (forceDownload) params.forceDownload = 'true';
+    const { data } = await apiClient.get('/api/v1/download-url', { params });
     return data?.downloadUrl;
   };
 
