@@ -1,12 +1,9 @@
 // Guardrail: only define new frontend API usage here.
-// TODO: Collapse properties v1/v2 once the backend migrates CRUD into v2.
 type PathBuilder = (id: string) => string;
 
 const build = (template: string): PathBuilder => (id) => template.replace('{id}', id);
 const buildWithSuffix = (template: string, suffix: string): PathBuilder => (id) =>
   `${template.replace('{id}', id)}/${suffix}`;
-const buildWithQuery = (template: string, query: string): PathBuilder => (id) =>
-  `${template.replace('{id}', id)}${query}`;
 
 /**
  * Canonical API endpoints grouped by domain.
@@ -28,25 +25,16 @@ export const canonicalEndpoints = {
     pets: build('/api/v1/owners/{id}/pets'),
   },
   properties: {
-    // TODO: Mixed domain – CRUD now routes through /api/v2 in legacy mode until consolidation finishes.
-    v1: {
-      list: '/api/v2/properties?mode=legacy',
-      detail: buildWithQuery('/api/v2/properties/{id}', '?mode=legacy'),
-      create: '/api/v2/properties',
-      update: build('/api/v2/properties/{id}'),
-      delete: buildWithQuery('/api/v2/properties/{id}', '?mode=legacy'),
-      archive: buildWithSuffix('/api/v2/properties/{id}', 'archive'),
-      restore: buildWithSuffix('/api/v2/properties/{id}', 'restore'),
-    },
-    v2: {
-      list: '/api/v2/properties',
-      detail: build('/api/v2/properties/{id}'),
-      archive: buildWithSuffix('/api/v2/properties/{id}', 'archive'),
-      restore: buildWithSuffix('/api/v2/properties/{id}', 'restore'),
-      dependencies: buildWithSuffix('/api/v2/properties/{id}', 'dependencies'),
-      impactAnalysis: buildWithSuffix('/api/v2/properties/{id}', 'impact-analysis'),
-      substitute: buildWithSuffix('/api/v2/properties/{id}', 'substitute'),
-    },
+    // Properties domain is fully v2-only. All CRUD and advanced operations use /api/v2/properties.
+    list: '/api/v2/properties',
+    detail: build('/api/v2/properties/{id}'),
+    create: '/api/v2/properties',
+    update: build('/api/v2/properties/{id}'),
+    archive: buildWithSuffix('/api/v2/properties/{id}', 'archive'),
+    restore: buildWithSuffix('/api/v2/properties/{id}', 'restore'),
+    dependencies: buildWithSuffix('/api/v2/properties/{id}', 'dependencies'),
+    impactAnalysis: buildWithSuffix('/api/v2/properties/{id}', 'impact-analysis'),
+    substitute: buildWithSuffix('/api/v2/properties/{id}', 'substitute'),
   },
   bookings: {
     list: '/api/v1/bookings',

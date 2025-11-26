@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 /**
  * Hook to fetch and cache properties for all object types
  * Used throughout the app for filters, workflows, forms, etc.
+ * Uses v2 properties API exclusively.
  */
 export function useProperties() {
   const [properties, setProperties] = useState({});
@@ -10,7 +11,7 @@ export function useProperties() {
   const [error, setError] = useState(null);
 
   /**
-   * Fetch properties for a specific object type
+   * Fetch properties for a specific object type (uses v2 API)
    */
   const fetchProperties = useCallback(async (objectType) => {
     if (properties[objectType] || loading[objectType]) {
@@ -19,16 +20,18 @@ export function useProperties() {
 
     setLoading((prev) => ({ ...prev, [objectType]: true }));
     try {
-      const response = await fetch(`/api/v1/settings/properties?object=${objectType}`);
+      const response = await fetch(`/api/v2/properties?objectType=${objectType}`);
       if (!response.ok) {
         throw new Error(`Failed to fetch properties for ${objectType}`);
       }
       const data = await response.json();
+      // v2 API returns { properties: [], metadata: {...} }
+      const normalized = data?.properties || data;
 
-      setProperties((prev) => ({ ...prev, [objectType]: data }));
+      setProperties((prev) => ({ ...prev, [objectType]: normalized }));
       setLoading((prev) => ({ ...prev, [objectType]: false }));
 
-      return data;
+      return normalized;
     } catch (err) {
       console.error(`Error fetching properties for ${objectType}:`, err);
       setError(err.message);

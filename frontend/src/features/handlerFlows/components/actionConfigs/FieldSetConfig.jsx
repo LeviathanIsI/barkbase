@@ -24,24 +24,18 @@ const FieldSetConfig = ({ node, onUpdate }) => {
   // Selected field metadata
   const [selectedFieldMeta, setSelectedFieldMeta] = useState(null);
 
-  // Fetch properties when object changes
+  // Fetch properties when object changes (uses v2 API)
   useEffect(() => {
     const fetchProperties = async () => {
       if (!object) return;
 
       setLoadingProperties(true);
       try {
-        const response = await apiClient(`/api/v1/settings/properties?object=${object}`);
+        const response = await apiClient.get(`/api/v2/properties?objectType=${object}`);
+        const data = response.data;
 
-        // Flatten properties from groups
-        const allProps = [];
-        if (response?.groups) {
-          response.groups.forEach(group => {
-            if (group.properties) {
-              allProps.push(...group.properties);
-            }
-          });
-        }
+        // v2 returns { properties: [], metadata: {...} }
+        const allProps = data?.properties || data || [];
 
         setProperties(allProps);
       } catch (error) {

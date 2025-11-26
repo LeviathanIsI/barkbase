@@ -33,12 +33,13 @@ const PropertyDetail = () => {
   const fetchProperty = async () => {
     setLoading(true);
     try {
-      // Fetch all properties for the object type
-      const data = await apiClient(`/api/v1/settings/properties?object=${objectType}`);
+      // Fetch all properties for the object type (v2 API)
+      const res = await apiClient.get(`/api/v2/properties?objectType=${objectType}`);
+      const data = res.data;
 
-      // Find the specific property
-      const allProperties = data.groups?.flatMap(g => g.properties || []) || [];
-      const prop = allProperties.find(p => p.recordId === propertyId);
+      // v2 returns { properties: [], metadata: {...} }
+      const allProperties = data?.properties || data || [];
+      const prop = allProperties.find(p => p.propertyId === propertyId || p.recordId === propertyId);
 
       if (prop) {
         setProperty(prop);
@@ -62,9 +63,11 @@ const PropertyDetail = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await apiClient(`/api/v1/settings/properties/${propertyId}`, {
-        method: 'PATCH',
-        body: formData,
+      // Use v2 API for updates
+      await apiClient.patch(`/api/v2/properties/${propertyId}`, {
+        displayLabel: formData.label,
+        description: formData.description,
+        propertyGroup: formData.group,
       });
 
       navigate(`/settings/properties?tab=${objectType}`);

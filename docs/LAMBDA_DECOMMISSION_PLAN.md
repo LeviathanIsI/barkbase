@@ -1,6 +1,6 @@
-# Lambda Decommission Plan (Preview)
+# Lambda Decommission Plan
 
-This document outlines the steps BarkBase will follow when retiring legacy Lambdas in future phases. **No code changes happen during this phase.**
+This document outlines the steps BarkBase follows when retiring legacy Lambdas. As of Phase 15, all legacy Lambdas have been fully decommissioned and converted to 410 tombstones.
 
 ## 1. Scope
 - **Entity-era Lambdas:** `pets-api`, `owners-api`, `staff-api`.
@@ -110,4 +110,29 @@ Following this plan will let us retire the duplicate Lambdas safely without intr
 - `tasks-api`, `notes-api`, `incidents-api`, `messages-api`, `communication-api`, and `invites-api` have been removed from CDK stacks and API Gateway routing.
 - `features-service` is now the only deployed backend for all `/api/v1/tasks*`, `/api/v1/notes*`, `/api/v1/incidents*`, `/api/v1/messages*`, `/api/v1/communications*`, and `/api/v1/invites*` endpoints.
 - Legacy Lambda folders remain in the repo as 410 tombstones for historical reference; no runtime usage.
+
+### Phase 15 Milestone (COMPLETE)
+All legacy Lambdas have been fully decommissioned:
+
+| Lambda | Status | Replacement |
+|--------|--------|-------------|
+| `pets-api` | 410 Tombstone | `entity-service` |
+| `owners-api` | 410 Tombstone | `entity-service` |
+| `staff-api` | 410 Tombstone | `entity-service` |
+| `tasks-api` | 410 Tombstone | `features-service` |
+| `notes-api` | 410 Tombstone | `features-service` |
+| `runs-api` | 410 Tombstone | `operations-service` |
+| `schedule-api` | 410 Tombstone | `analytics-service` |
+| `reports-api` | 410 Tombstone | `analytics-service` |
+| `roles-api` | 410 Tombstone | `config-service` |
+| `services-api` | 410 Tombstone | `config-service` |
+| `tenants-api` | 410 Tombstone | `config-service` |
+| `properties-api` | 410 Tombstone | `properties-api-v2` |
+| `user-permissions-api` | 410 Tombstone | `config-service` |
+
+**Actions completed:**
+- All legacy Lambdas return `410 Gone` with JSON message indicating the canonical replacement.
+- CDK stacks do NOT deploy or route to any of these Lambdas.
+- Legacy code has been removed; only the tombstone handler remains.
+- Source folders preserved in repo for historical reference only.
 

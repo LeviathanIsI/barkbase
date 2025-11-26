@@ -7,19 +7,23 @@ import { useAuthStore } from '@/stores/auth';
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
-// TODO (Consolidation Phase): Properties use mixed v1 (CRUD) + v2 (advanced).
-// Keep these as-is until the backend consolidation is complete.
-// Properties API v1 (Legacy)
+// Properties API (v2-only)
+// All Properties CRUD and advanced operations use the v2 endpoints.
 export const usePropertiesQuery = (objectType, options = {}) => {
   const tenantKey = useTenantKey();
+  const { includeUsage = false, includeDependencies = false, includeArchived = false } = options;
+
   return useQuery({
     queryKey: queryKeys.properties(tenantKey, { objectType }),
     queryFn: async () => {
-      const baseUrl = canonicalEndpoints.properties.v1.list;
-      const params = new URLSearchParams({ objectType });
-      const url = `${baseUrl}&${params.toString()}`;
-      const res = await apiClient.get(url);
-      // Handle both array response and { properties: [] } response formats
+      const params = new URLSearchParams({
+        objectType,
+        includeUsage: includeUsage.toString(),
+        includeDependencies: includeDependencies.toString(),
+        includeArchived: includeArchived.toString(),
+      });
+      const res = await apiClient.get(`${canonicalEndpoints.properties.list}?${params.toString()}`);
+      // v2 returns { properties: [], metadata: {...} }
       const data = res.data;
       return Array.isArray(data) ? data : (data?.properties || []);
     },
@@ -29,9 +33,7 @@ export const usePropertiesQuery = (objectType, options = {}) => {
   });
 };
 
-// TODO (Consolidation Phase): Properties use mixed v1 (CRUD) + v2 (advanced).
-// Keep these as-is until the backend consolidation is complete.
-// Properties API v2 (Enterprise - with rich metadata, usage stats, dependencies)
+// Properties API v2 (with rich metadata, usage stats, dependencies)
 export const usePropertiesV2Query = (objectType, options = {}) => {
   const tenantKey = useTenantKey();
   const { includeUsage = true, includeDependencies = false, includeArchived = false } = options;
@@ -45,10 +47,8 @@ export const usePropertiesV2Query = (objectType, options = {}) => {
         includeDependencies: includeDependencies.toString(),
         includeArchived: includeArchived.toString(),
       });
-      const baseUrl = canonicalEndpoints.properties.v2.list;
-      const joiner = baseUrl.includes('?') ? '&' : '?';
-      const res = await apiClient.get(`${baseUrl}${joiner}${params.toString()}`);
-      // Handle both array response and { properties: [] } response formats
+      const res = await apiClient.get(`${canonicalEndpoints.properties.list}?${params.toString()}`);
+      // v2 returns { properties: [], metadata: {...} }
       const data = res.data;
       return Array.isArray(data) ? data : (data?.properties || []);
     },
@@ -58,15 +58,15 @@ export const usePropertiesV2Query = (objectType, options = {}) => {
   });
 };
 
-// TODO (Consolidation Phase): Properties use mixed v1 (CRUD) + v2 (advanced).
-// Keep these as-is until the backend consolidation is complete.
+// Create property (v2 payload format)
 export const useCreatePropertyMutation = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
 
   return useMutation({
     mutationFn: async (propertyData) => {
-      const res = await apiClient.post(canonicalEndpoints.properties.v1.create, propertyData);
+      // v2 payload expects: propertyName, displayLabel, objectType, propertyType, dataType
+      const res = await apiClient.post(canonicalEndpoints.properties.create, propertyData);
       return res.data;
     },
     onSuccess: (data) => {
@@ -78,15 +78,15 @@ export const useCreatePropertyMutation = () => {
   });
 };
 
-// TODO (Consolidation Phase): Properties use mixed v1 (CRUD) + v2 (advanced).
-// Keep these as-is until the backend consolidation is complete.
+// Update property (v2 payload format)
 export const useUpdatePropertyMutation = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
 
   return useMutation({
     mutationFn: async ({ propertyId, ...propertyData }) => {
-      const res = await apiClient.patch(canonicalEndpoints.properties.v1.update(propertyId), propertyData);
+      // v2 payload expects: displayLabel, description, propertyGroup
+      const res = await apiClient.patch(canonicalEndpoints.properties.update(propertyId), propertyData);
       return res.data;
     },
     onSuccess: (data) => {
@@ -97,16 +97,21 @@ export const useUpdatePropertyMutation = () => {
   });
 };
 
-// TODO (Consolidation Phase): Properties use mixed v1 (CRUD) + v2 (advanced).
-// Keep these as-is until the backend consolidation is complete.
+// Delete property (uses v2 archive with cascade)
+// v2 does not have hard delete; use archive instead.
 export const useDeletePropertyMutation = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
 
   return useMutation({
-    mutationFn: async ({ propertyId, objectType }) => {
-      await apiClient.delete(canonicalEndpoints.properties.v1.delete(propertyId));
-      return { propertyId, objectType };
+    mutationFn: async ({ propertyId, objectType, reason = 'Deleted via UI' }) => {
+      // Use archive endpoint for deletion (v2 soft-delete)
+      const res = await apiClient.post(canonicalEndpoints.properties.archive(propertyId), {
+        reason,
+        confirmed: true,
+        cascadeStrategy: 'cancel',
+      });
+      return { propertyId, objectType, ...res.data };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ 
@@ -116,16 +121,14 @@ export const useDeletePropertyMutation = () => {
   });
 };
 
-// TODO (Consolidation Phase): Properties use mixed v1 (CRUD) + v2 (advanced).
-// Keep these as-is until the backend consolidation is complete.
-// Archive property (v2 - soft delete with cascade strategies)
+// Archive property (soft delete with cascade strategies)
 export const useArchivePropertyMutation = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
 
   return useMutation({
     mutationFn: async ({ propertyId, reason, confirmed = true, cascadeStrategy = 'cancel' }) => {
-      const res = await apiClient.post(canonicalEndpoints.properties.v2.archive(propertyId), {
+      const res = await apiClient.post(canonicalEndpoints.properties.archive(propertyId), {
         reason,
         confirmed,
         cascadeStrategy,
@@ -138,16 +141,14 @@ export const useArchivePropertyMutation = () => {
   });
 };
 
-// TODO (Consolidation Phase): Properties use mixed v1 (CRUD) + v2 (advanced).
-// Keep these as-is until the backend consolidation is complete.
-// Restore property (v2 - from soft delete or archive)
+// Restore property (from soft delete or archive)
 export const useRestorePropertyMutation = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
 
   return useMutation({
     mutationFn: async (propertyId) => {
-      const res = await apiClient.post(canonicalEndpoints.properties.v2.restore(propertyId));
+      const res = await apiClient.post(canonicalEndpoints.properties.restore(propertyId));
       return res.data;
     },
     onSuccess: () => {
@@ -156,8 +157,6 @@ export const useRestorePropertyMutation = () => {
   });
 };
 
-// TODO (Consolidation Phase): Properties use mixed v1 (CRUD) + v2 (advanced).
-// Keep these as-is until the backend consolidation is complete.
 // Get dependency graph for a property
 export const useDependencyGraphQuery = (propertyId, options = {}) => {
   const tenantKey = useTenantKey();
@@ -165,7 +164,7 @@ export const useDependencyGraphQuery = (propertyId, options = {}) => {
   return useQuery({
     queryKey: ['dependencies', tenantKey, propertyId],
     queryFn: async () => {
-      const res = await apiClient.get(canonicalEndpoints.properties.v2.dependencies(propertyId));
+      const res = await apiClient.get(canonicalEndpoints.properties.dependencies(propertyId));
       return res.data;
     },
     enabled: !!propertyId,
@@ -173,13 +172,11 @@ export const useDependencyGraphQuery = (propertyId, options = {}) => {
   });
 };
 
-// TODO (Consolidation Phase): Properties use mixed v1 (CRUD) + v2 (advanced).
-// Keep these as-is until the backend consolidation is complete.
 // Get impact analysis for a property
 export const useImpactAnalysisMutation = () => {
   return useMutation({
     mutationFn: async ({ propertyId, modificationType = 'delete' }) => {
-      const res = await apiClient.post(canonicalEndpoints.properties.v2.impactAnalysis(propertyId), {
+      const res = await apiClient.post(canonicalEndpoints.properties.impactAnalysis(propertyId), {
         modificationType,
       });
       return res.data;
@@ -202,79 +199,6 @@ export const usePermissionProfilesQuery = (options = {}) => {
   });
 };
 
-/*
-export const useCreatePropertyMutation = () => {
-  const queryClient = useQueryClient();
-  const tenantKey = useTenantKey();
-
-  return useMutation({
-    mutationFn: (propertyData) => apiClient('/api/v1/settings/properties', {
-      method: 'POST',
-      body: propertyData,
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.properties(tenantKey, {}) });
-    },
-  });
-};
-
-export const useUpdatePropertyMutation = (propertyId) => {
-  const queryClient = useQueryClient();
-  const tenantKey = useTenantKey();
-
-  return useMutation({
-    mutationFn: (propertyData) => apiClient(`/api/v1/settings/properties/${propertyId}`, {
-      method: 'PATCH',
-      body: propertyData,
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.properties(tenantKey, {}) });
-    },
-  });
-};
-
-export const useArchivePropertyMutation = () => {
-  const queryClient = useQueryClient();
-  const tenantKey = useTenantKey();
-
-  return useMutation({
-    mutationFn: (propertyId) => apiClient(`/api/v1/settings/properties/${propertyId}/archive`, {
-      method: 'POST',
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.properties(tenantKey, {}) });
-    },
-  });
-};
-
-export const useRestorePropertyMutation = () => {
-  const queryClient = useQueryClient();
-  const tenantKey = useTenantKey();
-
-  return useMutation({
-    mutationFn: (propertyId) => apiClient(`/api/v1/settings/properties/${propertyId}/restore`, {
-      method: 'POST',
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.properties(tenantKey, {}) });
-    },
-  });
-};
-
-export const useDeletePropertyMutation = () => {
-  const queryClient = useQueryClient();
-  const tenantKey = useTenantKey();
-
-  return useMutation({
-    mutationFn: (propertyId) => apiClient(`/api/v1/settings/properties/${propertyId}`, {
-      method: 'DELETE',
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.properties(tenantKey, {}) });
-    },
-  });
-};
-*/
 
 
 // Services API (prefer using features/services/api.js)
