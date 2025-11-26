@@ -1,22 +1,18 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Plus, Users, PawPrint } from 'lucide-react';
-import { Card } from '@/components/ui/Card';
+import { Search, Plus, Users, PawPrint, LayoutGrid, List, X, Filter } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import apiClient from '@/lib/apiClient';
-import DirectoryListHeader from '@/features/directory/components/DirectoryListHeader';
+import UnifiedOwnerCard from '@/features/directory/components/UnifiedOwnerCard';
 import DirectoryEmptyState from '@/features/directory/components/DirectoryEmptyState';
 import DirectoryErrorState from '@/features/directory/components/DirectoryErrorState';
 import { DirectoryTableSkeleton } from '@/features/directory/components/DirectorySkeleton';
-import UnifiedOwnerCard from '@/features/directory/components/UnifiedOwnerCard';
 import { cn } from '@/lib/cn';
 
 /**
  * UnifiedPetPeopleView Component
- * Shows owner details with all pets in a single unified view
- * Addresses research finding: "pet/client info separated from operational context"
+ * HubSpot-grade CRM interface for managing owners and pets
  */
-// TODO (C1:4 - Directory Query Consolidation): Replace ad-hoc owners+pets fetching with shared directory snapshot hook.
 const UnifiedPetPeopleView = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
@@ -103,27 +99,18 @@ const UnifiedPetPeopleView = () => {
     return 'current';
   };
 
-  const headerActions = (
-    <>
-      <Button key="add-owner" variant="outline">
-        <Plus className="mr-1 h-4 w-4" />
-        Add Owner
-      </Button>
-      <Button key="add-pet">
-        <Plus className="mr-1 h-4 w-4" />
-        Add Pet
-      </Button>
-    </>
-  );
+  const hasActiveFilters = filterType !== 'all' || searchTerm;
+  const filterLabel = filterType === 'all' ? 'All Clients' : filterType === 'active' ? 'Active Clients' : 'Inactive Clients';
+
+  const clearFilters = () => {
+    setFilterType('all');
+    setSearchTerm('');
+  };
 
   if (error) {
     return (
       <div className="space-y-6">
-        <DirectoryListHeader
-          title="Pets & People"
-          breadcrumb="Home > Pets & People"
-          actions={headerActions}
-        />
+        <PageHeader stats={stats} />
         <DirectoryErrorState message="Unable to load pets & people data. Please try again." />
       </div>
     );
@@ -131,77 +118,168 @@ const UnifiedPetPeopleView = () => {
 
   return (
     <div className="space-y-6">
-      <DirectoryListHeader
-        title="Pets & People"
-        breadcrumb="Home > Pets & People"
-        actions={headerActions}
-      >
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard icon={Users} label="Total Owners" value={stats.totalOwners} color="text-blue-600" />
-          <StatCard icon={Users} label="Active Owners" value={stats.activeOwners} color="text-green-600" />
-          <StatCard icon={PawPrint} label="Total Pets" value={stats.totalPets} color="text-purple-600" />
-          <StatCard icon={PawPrint} label="Active Pets" value={stats.activePets} color="text-orange-600" />
-        </div>
+      {/* Header + Stats + Actions */}
+      <PageHeader stats={stats} />
 
-        <Card className="p-4">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
+      {/* Search & Filter Row */}
+      <div
+        className="rounded-xl border p-4"
+        style={{
+          backgroundColor: 'var(--bb-color-bg-surface)',
+          borderColor: 'var(--bb-color-border-subtle)',
+        }}
+      >
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
+          {/* Search Input with Label */}
+          <div className="flex-1">
+            <label
+              htmlFor="client-search"
+              className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]"
+            >
+              Search Clients & Pets
+            </label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--bb-color-text-muted)]" />
               <input
+                id="client-search"
                 type="text"
-                placeholder="Search by owner name, email, phone, or pet name..."
+                placeholder="Search by name, email, phone, or pet..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-surface-border"
+                className="w-full rounded-lg border py-2.5 pl-10 pr-4 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]"
+                style={{
+                  backgroundColor: 'var(--bb-color-bg-body)',
+                  borderColor: 'var(--bb-color-border-subtle)',
+                  color: 'var(--bb-color-text-primary)',
+                }}
+                aria-label="Search clients and pets"
               />
             </div>
-            <div className="flex flex-1 flex-col gap-3 sm:flex-row lg:flex-none lg:gap-2">
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-surface-border sm:w-auto"
+          </div>
+
+          {/* Filter Dropdown */}
+          <div>
+            <label
+              htmlFor="client-filter"
+              className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]"
+            >
+              Filter
+            </label>
+            <select
+              id="client-filter"
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              className="w-full min-w-[140px] rounded-lg border px-3 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]"
+              style={{
+                backgroundColor: 'var(--bb-color-bg-body)',
+                borderColor: 'var(--bb-color-border-subtle)',
+                color: 'var(--bb-color-text-primary)',
+              }}
+              aria-label="Filter clients"
+            >
+              <option value="all">All Clients</option>
+              <option value="active">Active Only</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+
+          {/* View Toggle - Segmented Buttons */}
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]">
+              View
+            </label>
+            <div
+              className="inline-flex rounded-lg border p-1"
+              style={{ backgroundColor: 'var(--bb-color-bg-body)', borderColor: 'var(--bb-color-border-subtle)' }}
+              role="group"
+              aria-label="View mode"
+            >
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className={cn(
+                  'flex items-center justify-center rounded-md px-3 py-1.5 transition-all',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)]',
+                  viewMode === 'grid'
+                    ? 'bg-[color:var(--bb-color-accent)] text-white shadow-sm'
+                    : 'text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] hover:bg-[color:var(--bb-color-bg-elevated)]'
+                )}
+                aria-label="Grid view"
+                aria-pressed={viewMode === 'grid'}
               >
-                <option value="all">All Clients</option>
-                <option value="active">Active Only</option>
-                <option value="inactive">Inactive</option>
-              </select>
-              <div className="flex items-center gap-2">
-                <Button
-                  key="view-grid"
-                  variant={viewMode === 'grid' ? 'primary' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('grid')}
-                >
-                  Grid
-                </Button>
-                <Button
-                  key="view-list"
-                  variant={viewMode === 'list' ? 'primary' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('list')}
-                >
-                  List
-                </Button>
-              </div>
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('list')}
+                className={cn(
+                  'flex items-center justify-center rounded-md px-3 py-1.5 transition-all',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)]',
+                  viewMode === 'list'
+                    ? 'bg-[color:var(--bb-color-accent)] text-white shadow-sm'
+                    : 'text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] hover:bg-[color:var(--bb-color-bg-elevated)]'
+                )}
+                aria-label="List view"
+                aria-pressed={viewMode === 'list'}
+              >
+                <List className="h-4 w-4" />
+              </button>
             </div>
           </div>
-        </Card>
-      </DirectoryListHeader>
+        </div>
 
+        {/* Filter Tag Summary */}
+        {hasActiveFilters && (
+          <div className="mt-3 flex items-center gap-2 border-t pt-3" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+            <Filter className="h-3.5 w-3.5 text-[color:var(--bb-color-text-muted)]" />
+            <span className="text-sm text-[color:var(--bb-color-text-muted)]">
+              Showing: <strong className="text-[color:var(--bb-color-text-primary)]">{filterLabel}</strong>
+              {searchTerm && (
+                <>
+                  {' '}matching "<strong className="text-[color:var(--bb-color-text-primary)]">{searchTerm}</strong>"
+                </>
+              )}
+              <span className="ml-1 text-[color:var(--bb-color-text-muted)]">
+                ({filteredOwners.length} result{filteredOwners.length !== 1 ? 's' : ''})
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="ml-2 inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-[color:var(--bb-color-accent)] hover:bg-[color:var(--bb-color-accent-soft)] transition-colors"
+              aria-label="Clear all filters"
+            >
+              <X className="h-3 w-3" />
+              Clear Filters
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Results */}
       {isLoading ? (
         <DirectoryTableSkeleton />
       ) : filteredOwners.length > 0 ? (
-        <div className={viewMode === 'grid' ? 'grid gap-6 lg:grid-cols-2' : 'space-y-4'}>
+        <div
+          className={cn(
+            viewMode === 'grid'
+              ? 'grid gap-x-6 gap-y-8 md:grid-cols-2 xl:grid-cols-3'
+              : 'space-y-4'
+          )}
+        >
           {filteredOwners.map((owner, index) => (
-            <UnifiedOwnerCard key={owner.id || owner.recordId || index} owner={owner} getVaccinationStatus={getVaccinationStatus} />
+            <UnifiedOwnerCard
+              key={owner.id || owner.recordId || index}
+              owner={owner}
+              getVaccinationStatus={getVaccinationStatus}
+              viewMode={viewMode}
+            />
           ))}
         </div>
       ) : (
         <DirectoryEmptyState
           title="No clients found"
-          description={
-            searchTerm ? `No results for "${searchTerm}"` : 'Start by adding your first client.'
-          }
+          description={searchTerm ? `No results for "${searchTerm}"` : 'Start by adding your first client.'}
           icon={Users}
         >
           {!searchTerm && (
@@ -216,16 +294,61 @@ const UnifiedPetPeopleView = () => {
   );
 };
 
-const StatCard = ({ icon: Icon, label, value, color }) => (
-  <Card className="p-4">
-    <div className="flex items-center gap-3">
-      <Icon className={cn('h-8 w-8 opacity-20', color)} />
+// Page Header Component with Stats and Actions
+const PageHeader = ({ stats }) => (
+  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    {/* Left: Title + Stats */}
+    <div className="space-y-4">
       <div>
-        <p className="text-2xl font-bold">{value}</p>
-        <p className="text-xs text-gray-600 dark:text-text-secondary">{label}</p>
+        <h1 className="text-2xl font-bold text-[color:var(--bb-color-text-primary)]">Pets & People</h1>
+        <p className="mt-0.5 text-sm text-[color:var(--bb-color-text-muted)]">
+          Manage your clients and their furry friends
+        </p>
+      </div>
+
+      {/* Stats Row - Pill Badges */}
+      <div className="flex flex-wrap items-center gap-2">
+        <StatBadge icon={Users} label="Total Owners" value={stats.totalOwners} variant="neutral" />
+        <StatBadge icon={Users} label="Active" value={stats.activeOwners} variant="success" />
+        <StatBadge icon={PawPrint} label="Total Pets" value={stats.totalPets} variant="neutral" />
+        <StatBadge icon={PawPrint} label="Active" value={stats.activePets} variant="warning" />
       </div>
     </div>
-  </Card>
+
+    {/* Right: Actions */}
+    <div className="flex items-center gap-2">
+      <Button variant="outline" className="gap-1.5">
+        <Plus className="h-4 w-4" />
+        Add Owner
+      </Button>
+      <Button className="gap-1.5">
+        <Plus className="h-4 w-4" />
+        Add Pet
+      </Button>
+    </div>
+  </div>
 );
+
+// Stat Badge Component - Pill style
+const StatBadge = ({ icon: Icon, label, value, variant = 'neutral' }) => {
+  const variants = {
+    neutral: 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300',
+    success: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400',
+    warning: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400',
+  };
+
+  return (
+    <div
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium',
+        variants[variant]
+      )}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      <span className="font-semibold">{value}</span>
+      <span className="opacity-70">{label}</span>
+    </div>
+  );
+};
 
 export default UnifiedPetPeopleView;
