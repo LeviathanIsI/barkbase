@@ -5,6 +5,7 @@ import * as integrations from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as s3 from "aws-cdk-lib/aws-s3";
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import { Construct } from "constructs";
 import * as path from "path";
@@ -136,10 +137,44 @@ export class ServicesStack extends cdk.Stack {
       ...(jwtSecretOld ? { JWT_SECRET_OLD: jwtSecretOld } : {}),
     };
 
-    const fileBucketName =
+    // S3 bucket for file uploads - use existing if provided, otherwise create one
+    const existingBucketName =
       this.node.tryGetContext("uploadsBucketName") ??
       process.env.UPLOADS_BUCKET ??
       "";
+    
+    let uploadsBucket: s3.IBucket;
+    let fileBucketName: string;
+    
+    if (existingBucketName) {
+      // Reference existing bucket
+      uploadsBucket = s3.Bucket.fromBucketName(this, "ImportedUploadsBucket", existingBucketName);
+      fileBucketName = existingBucketName;
+    } else {
+      // Create a new bucket for uploads
+      uploadsBucket = new s3.Bucket(this, "UploadsBucket", {
+        blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+        encryption: s3.BucketEncryption.S3_MANAGED,
+        enforceSSL: true,
+        cors: [
+          {
+            allowedHeaders: ["*"],
+            allowedMethods: [s3.HttpMethods.PUT, s3.HttpMethods.GET, s3.HttpMethods.HEAD],
+            allowedOrigins: ["*"], // Tighten in production
+            maxAge: 3000,
+          },
+        ],
+        removalPolicy: cdk.RemovalPolicy.RETAIN,
+      });
+      fileBucketName = uploadsBucket.bucketName;
+      
+      // Output the bucket name for reference
+      new cdk.CfnOutput(this, "UploadsBucketName", {
+        value: uploadsBucket.bucketName,
+        description: "S3 bucket for file uploads",
+      });
+    }
+
     const cloudFrontDomain =
       this.node.tryGetContext("cloudFrontDomain") ??
       process.env.CLOUDFRONT_DOMAIN ??
@@ -854,6 +889,9 @@ export class ServicesStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(30),
       ...vpcConfig,
     });
+    
+    // Grant the upload Lambda permission to generate presigned PUT URLs
+    uploadsBucket.grantWrite(this.getUploadUrlFn);
 
     this.getDownloadUrlFn = new lambda.Function(
       this,
@@ -869,6 +907,9 @@ export class ServicesStack extends cdk.Stack {
         ...vpcConfig,
       }
     );
+    
+    // Grant the download Lambda permission to generate presigned GET URLs
+    uploadsBucket.grantRead(this.getDownloadUrlFn);
 
     if (!skipHttpRoutes) {
       const uploadUrlIntegration = new integrations.HttpLambdaIntegration(

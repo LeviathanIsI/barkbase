@@ -10,12 +10,19 @@ const {
 const s3Client = new S3Client({ region: process.env.AWS_REGION });
 const BUCKET_NAME = process.env.S3_BUCKET;
 const CLOUDFRONT_DOMAIN = process.env.CLOUDFRONT_DOMAIN;
+const S3_KMS_KEY_ID = process.env.S3_KMS_KEY_ID; // Optional: only set if using KMS encryption
 const UPLOAD_EXPIRATION_SECONDS = 300; // 5 minutes
 
 exports.handler = async (event) => {
 	const requestMetadata = getRequestMetadata(event);
 
 	try {
+		// Validate bucket configuration
+		if (!BUCKET_NAME) {
+			console.error('S3_BUCKET environment variable is not configured');
+			return errorResponse(500, 'CONFIGURATION_ERROR', 'Upload service is not configured correctly', event);
+		}
+
 		const body = JSON.parse(event.body || '{}');
 		const { fileName, fileType, category } = body;
 
@@ -48,12 +55,20 @@ exports.handler = async (event) => {
 		const categoryPath = category ? `${category}/` : '';
 		const key = `uploads/${tenantId}/${categoryPath}${timestamp}-${fileName}`;
 
-		const command = new PutObjectCommand({
+		// Build command options - KMS encryption is optional
+		const commandOptions = {
 			Bucket: BUCKET_NAME,
 			Key: key,
 			ContentType: fileType,
-			ServerSideEncryption: 'aws:kms',
-		});
+		};
+
+		// Only add KMS encryption if a key ID is configured
+		if (S3_KMS_KEY_ID) {
+			commandOptions.ServerSideEncryption = 'aws:kms';
+			commandOptions.SSEKMSKeyId = S3_KMS_KEY_ID;
+		}
+
+		const command = new PutObjectCommand(commandOptions);
 
 		const uploadUrl = await getSignedUrl(s3Client, command, {
 			expiresIn: UPLOAD_EXPIRATION_SECONDS,
