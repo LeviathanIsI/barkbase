@@ -522,8 +522,8 @@ const Pets = () => {
                         <th
                           key={column.id}
                           className={cn(
-                            'px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] whitespace-nowrap',
-                            'first:pl-6 lg:first:pl-12 last:pr-6 lg:last:pr-12',
+                            'px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] whitespace-nowrap',
+                            column.id !== 'select' && 'first:pl-6 lg:first:pl-6 last:pr-6 lg:last:pr-6',
                             column.sortable && 'cursor-pointer hover:text-[color:var(--bb-color-text-primary)] transition-colors',
                             column.align === 'center' && 'text-center',
                             column.align === 'right' && 'text-right'
@@ -531,21 +531,21 @@ const Pets = () => {
                           style={{ minWidth: column.minWidth, maxWidth: column.maxWidth }}
                           onClick={() => column.sortable && handleSort(column.sortKey)}
                         >
-                          <div className={cn('flex items-center gap-1.5', column.align === 'center' && 'justify-center', column.align === 'right' && 'justify-end')}>
-                            {column.id === 'select' ? (
+                          {column.id === 'select' ? (
+                            <div className="flex items-center justify-center">
                               <input
                                 type="checkbox"
                                 checked={selectedRows.size === paginatedPets.length && paginatedPets.length > 0}
                                 onChange={handleSelectAll}
                                 className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]"
                               />
-                            ) : (
-                              <>
-                                {column.label}
-                                {column.sortable && <SortIcon active={sortConfig.key === column.sortKey} direction={sortConfig.direction} />}
-                              </>
-                            )}
-                          </div>
+                            </div>
+                          ) : (
+                            <div className={cn('flex items-center gap-1.5', column.align === 'center' && 'justify-center', column.align === 'right' && 'justify-end')}>
+                              {column.label}
+                              {column.sortable && <SortIcon active={sortConfig.key === column.sortKey} direction={sortConfig.direction} />}
+                            </div>
+                          )}
                         </th>
                       ))}
                     </tr>
@@ -720,8 +720,10 @@ const PetRow = ({ pet, columns, isSelected, onSelect, onDoubleClick, onView, onE
     switch (column.id) {
       case 'select':
         return (
-          <td key={column.id} className={cn(cellPadding, 'text-center')} onClick={(e) => e.stopPropagation()}>
-            <input type="checkbox" checked={isSelected} onChange={onSelect} className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]" />
+          <td key={column.id} className={cn(cellPadding)} onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-center">
+              <input type="checkbox" checked={isSelected} onChange={onSelect} className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]" />
+            </div>
           </td>
         );
       case 'pet':

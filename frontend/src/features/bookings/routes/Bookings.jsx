@@ -1317,19 +1317,21 @@ const ListView = ({
                   key={col.id}
                   className={cn(
                     'px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] whitespace-nowrap text-left',
-                    'first:pl-6 lg:first:pl-12 last:pr-6 lg:last:pr-12',
+                    col.id !== 'select' && 'first:pl-6 lg:first:pl-6 last:pr-6 lg:last:pr-6',
                     col.sortable && 'cursor-pointer hover:text-[color:var(--bb-color-text-primary)]'
                   )}
                   style={{ width: col.width }}
                   onClick={() => col.sortable && onSort(col.sortKey)}
                 >
                   {col.id === 'select' ? (
-                    <input
-                      type="checkbox"
-                      checked={selectedRows.size === bookings.length && bookings.length > 0}
-                      onChange={onSelectAll}
-                      className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]"
-                    />
+                    <div className="flex items-center justify-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedRows.size === bookings.length && bookings.length > 0}
+                        onChange={onSelectAll}
+                        className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]"
+                      />
+                    </div>
                   ) : (
                     <div className="flex items-center gap-1">
                       {col.label}
@@ -1417,13 +1419,15 @@ const BookingRow = ({ booking, isSelected, onSelect, onClick, isEven }) => {
       onMouseLeave={() => setShowActions(false)}
       onClick={onClick}
     >
-      <td className="px-4 py-3 first:pl-6 lg:first:pl-12" onClick={(e) => e.stopPropagation()}>
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={onSelect}
-          className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]"
-        />
+      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-center">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={onSelect}
+            className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]"
+          />
+        </div>
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
