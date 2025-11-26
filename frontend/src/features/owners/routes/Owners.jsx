@@ -257,28 +257,10 @@ const Owners = () => {
 
   return (
     <>
-      {/* 
-        Full-width container - breaks out of parent max-w-6xl constraint
-        Uses viewport-relative positioning to span edge-to-edge
-      */}
-      <div 
-        className="flex flex-col min-h-[calc(100vh-120px)]"
-        style={{
-          width: '100vw',
-          position: 'relative',
-          left: '50%',
-          right: '50%',
-          marginLeft: '-50vw',
-          marginRight: '-50vw',
-          paddingLeft: 'max(1rem, env(safe-area-inset-left))',
-          paddingRight: 'max(1rem, env(safe-area-inset-right))',
-        }}
-      >
-        {/* Header Section - Full Width */}
-        <div 
-          className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between py-4 px-4 lg:px-6 border-b"
-          style={{ borderColor: 'var(--bb-color-border-subtle)', backgroundColor: 'var(--bb-color-bg-body)' }}
-        >
+      {/* Main content container - stretches to fill available space in app shell */}
+      <div className="flex flex-col flex-grow w-full min-h-[calc(100vh-180px)]">
+        {/* Header Section */}
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between pb-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
           <div>
             <h1 className="text-2xl font-bold text-[color:var(--bb-color-text-primary)]">Pet Owners</h1>
             <p className="mt-0.5 text-sm text-[color:var(--bb-color-text-muted)]">
@@ -295,15 +277,15 @@ const Owners = () => {
           </div>
         </div>
 
-        {/* Sticky Toolbar - Full Width with Shadow */}
+        {/* Sticky Toolbar */}
         <div
-          className="sticky top-[var(--bb-topbar-height,56px)] z-20 py-3 px-4 lg:px-6 border-b shadow-sm"
+          className="sticky top-0 z-20 -mx-6 lg:-mx-12 px-6 lg:px-12 py-3 border-b shadow-sm"
           style={{
             backgroundColor: 'var(--bb-color-bg-surface)',
             borderColor: 'var(--bb-color-border-subtle)',
           }}
         >
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             {/* Left: Filters + Views + Clear */}
             <div className="flex flex-wrap items-center gap-2">
               {/* Filters Button */}
@@ -425,24 +407,25 @@ const Owners = () => {
           )}
         </div>
 
-        {/* Table Section - Full Width Edge-to-Edge */}
-        <div className="flex-1 flex flex-col" style={{ backgroundColor: 'var(--bb-color-bg-body)' }}>
+        {/* Table Section - Uses full available width in content area */}
+        <div className="flex-1 flex flex-col mt-4 -mx-6 lg:-mx-12">
           {isLoading ? (
             <TableSkeleton />
           ) : sortedOwners.length === 0 ? (
-            <div className="px-4 lg:px-6 py-4">
+            <div className="px-6 lg:px-12">
               <EmptyState hasFilters={hasActiveFilters} onClearFilters={clearFilters} onAddOwner={() => setFormModalOpen(true)} />
             </div>
           ) : (
             <div className="flex-1 overflow-x-auto">
-              <table className="w-full text-sm" style={{ minWidth: '1200px' }}>
+              <table className="w-full text-sm" style={{ minWidth: '1280px' }}>
                 <thead>
-                  <tr style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderBottom: '1px solid var(--bb-color-border-subtle)' }}>
+                  <tr style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderBottom: '2px solid var(--bb-color-border-subtle)' }}>
                     {orderedColumns.map((column) => (
                       <th
                         key={column.id}
                         className={cn(
-                          'px-4 lg:px-6 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] whitespace-nowrap',
+                          'px-4 py-3.5 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] whitespace-nowrap',
+                          'first:pl-6 lg:first:pl-12 last:pr-6 lg:last:pr-12',
                           column.sortable && 'cursor-pointer hover:text-[color:var(--bb-color-text-primary)] transition-colors',
                           column.align === 'center' && 'text-center',
                           column.align === 'right' && 'text-right'
@@ -487,10 +470,10 @@ const Owners = () => {
             </div>
           )}
 
-          {/* Pagination - Full Width */}
+          {/* Pagination */}
           {sortedOwners.length > 0 && !isLoading && (
             <div 
-              className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4 px-4 lg:px-6 border-t"
+              className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4 px-6 lg:px-12 border-t"
               style={{ borderColor: 'var(--bb-color-border-subtle)', backgroundColor: 'var(--bb-color-bg-surface)' }}
             >
               <div className="flex items-center gap-2 text-sm text-[color:var(--bb-color-text-muted)]">
