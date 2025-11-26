@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { X, Upload, FileText } from 'lucide-react';
+import { Upload, FileText } from 'lucide-react';
+import { Modal } from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 
 const BulkImportModal = ({ isOpen, onClose, onImport }) => {
@@ -25,23 +26,30 @@ const BulkImportModal = ({ isOpen, onClose, onImport }) => {
     }
   };
 
-  if (!isOpen) return null;
+  const footer = (
+    <>
+      <Button variant="ghost" onClick={onClose}>
+        Cancel
+      </Button>
+      <Button
+        variant="primary"
+        onClick={handleImport}
+        disabled={!uploadedFile || isUploading}
+      >
+        {isUploading ? 'Importing...' : 'Import Services'}
+      </Button>
+    </>
+  );
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-surface-primary rounded-lg w-full max-w-2xl max-h-[90vh] overflow-hidden">
-        {/* Header */}
-        <div className="p-6 border-b border-gray-200 dark:border-surface-border">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">Import Services from Spreadsheet</h2>
-            <Button variant="ghost" size="icon-sm" onClick={onClose}>
-              <X className="w-5 h-5" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="p-6">
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      title="Import Services from Spreadsheet"
+      size="lg"
+      footer={footer}
+    >
+      <div>
           <div className="text-center mb-6">
             <Upload className="w-12 h-12 text-gray-400 dark:text-text-tertiary mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 dark:text-text-primary mb-2">Upload Your Pricing Sheet</h3>
@@ -102,22 +110,8 @@ const BulkImportModal = ({ isOpen, onClose, onImport }) => {
             </div>
           </div>
         </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between p-[var(--bb-space-6)] border-t border-[var(--bb-color-border-subtle)]">
-          <Button variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleImport}
-            disabled={!uploadedFile || isUploading}
-          >
-            {isUploading ? 'Importing...' : 'Import Services'}
-          </Button>
-        </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 

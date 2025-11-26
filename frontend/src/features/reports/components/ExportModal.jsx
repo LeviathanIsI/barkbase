@@ -1,25 +1,32 @@
-import { X, Download, FileText, Mail, Cloud } from 'lucide-react';
+import { Download } from 'lucide-react';
+import { Modal } from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 
 const ExportModal = ({ report, data, isOpen, onClose }) => {
-  if (!isOpen || !report || !data) return null;
+  if (!report || !data) return null;
+
+  const footer = (
+    <>
+      <Button variant="outline" onClick={onClose}>
+        Cancel
+      </Button>
+      <Button>
+        <Download className="w-4 h-4 mr-2" />
+        Export Report
+      </Button>
+    </>
+  );
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-surface-primary rounded-lg w-full max-w-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-surface-border">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">Export Report</h3>
-            <p className="text-sm text-gray-600 dark:text-text-secondary">{data.title} - {data.period}</p>
-          </div>
-          <Button variant="ghost" size="icon-sm" onClick={onClose}>
-            <X className="w-5 h-5" />
-          </Button>
-        </div>
-
-        {/* Content */}
-        <div className="p-6 space-y-6">
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      title="Export Report"
+      description={`${data.title} - ${data.period}`}
+      size="lg"
+      footer={footer}
+    >
+      <div className="space-y-6">
           {/* Format Selection */}
           <div>
             <h4 className="text-sm font-semibold text-gray-900 dark:text-text-primary mb-3">FORMAT</h4>
@@ -142,18 +149,8 @@ const ExportModal = ({ report, data, isOpen, onClose }) => {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-surface-border">
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button>
-            <Download className="w-4 h-4 mr-2" />
-            Export Report
-          </Button>
-        </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 

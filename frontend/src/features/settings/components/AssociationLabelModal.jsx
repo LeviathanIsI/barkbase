@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { Modal } from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 import {
@@ -99,27 +99,31 @@ const AssociationLabelModal = ({ open, onClose, association = null }) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  if (!open) return null;
+  const footer = (
+    <>
+      <Button variant="outline" onClick={onClose} type="button">
+        Cancel
+      </Button>
+      <Button
+        type="submit"
+        form="association-label-form"
+        disabled={createMutation.isPending || updateMutation.isPending}
+      >
+        {isEditing ? 'Update' : 'Create'} Label
+      </Button>
+    </>
+  );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-lg rounded-lg bg-white dark:bg-surface-primary shadow-xl">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border bg-primary px-6 py-4">
-          <h2 className="text-xl font-semibold text-white">
-            {isEditing ? 'Edit Association Label' : 'Create Association Label'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="rounded-md p-1 text-white hover:bg-primary/80"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6">
-          <div className="space-y-4">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={isEditing ? 'Edit Association Label' : 'Create Association Label'}
+      size="default"
+      footer={footer}
+    >
+      <form id="association-label-form" onSubmit={handleSubmit}>
+        <div className="space-y-4">
             {/* Label Type Selection */}
             <div>
               <label className="block text-sm font-medium text-text mb-2">
@@ -260,29 +264,15 @@ const AssociationLabelModal = ({ open, onClose, association = null }) => {
             </div>
 
             {isEditing && association?.isSystemDefined && (
-              <div className="rounded-md bg-yellow-50 dark:bg-surface-primary border border-yellow-200 dark:border-yellow-900/30 p-3">
-                <p className="text-sm text-yellow-800">
+              <div className="rounded-md bg-yellow-50 dark:bg-[var(--bb-color-bg-elevated)] border border-yellow-200 dark:border-yellow-900/30 p-3">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
                   <strong>Note:</strong> This is a system-defined association. You can only edit the label name and association type.
                 </p>
               </div>
             )}
           </div>
-
-          {/* Footer */}
-          <div className="mt-6 flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose} type="button">
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={createMutation.isPending || updateMutation.isPending}
-            >
-              {isEditing ? 'Update' : 'Create'} Label
-            </Button>
-          </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 };
 
