@@ -137,43 +137,15 @@ export class ServicesStack extends cdk.Stack {
       ...(jwtSecretOld ? { JWT_SECRET_OLD: jwtSecretOld } : {}),
     };
 
-    // S3 bucket for file uploads - use existing if provided, otherwise create one
-    const existingBucketName =
+    // S3 bucket for file uploads - must be created externally due to stack resource limits
+    // Create via: aws s3 mb s3://barkbase-uploads-{stage} --region us-east-2
+    // Then set UPLOADS_BUCKET env var or uploadsBucketName context
+    const fileBucketName =
       this.node.tryGetContext("uploadsBucketName") ??
       process.env.UPLOADS_BUCKET ??
-      "";
+      `barkbase-uploads-${props.stage}`; // Default naming convention
     
-    let uploadsBucket: s3.IBucket;
-    let fileBucketName: string;
-    
-    if (existingBucketName) {
-      // Reference existing bucket
-      uploadsBucket = s3.Bucket.fromBucketName(this, "ImportedUploadsBucket", existingBucketName);
-      fileBucketName = existingBucketName;
-    } else {
-      // Create a new bucket for uploads
-      uploadsBucket = new s3.Bucket(this, "UploadsBucket", {
-        blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-        encryption: s3.BucketEncryption.S3_MANAGED,
-        enforceSSL: true,
-        cors: [
-          {
-            allowedHeaders: ["*"],
-            allowedMethods: [s3.HttpMethods.PUT, s3.HttpMethods.GET, s3.HttpMethods.HEAD],
-            allowedOrigins: ["*"], // Tighten in production
-            maxAge: 3000,
-          },
-        ],
-        removalPolicy: cdk.RemovalPolicy.RETAIN,
-      });
-      fileBucketName = uploadsBucket.bucketName;
-      
-      // Output the bucket name for reference
-      new cdk.CfnOutput(this, "UploadsBucketName", {
-        value: uploadsBucket.bucketName,
-        description: "S3 bucket for file uploads",
-      });
-    }
+    const uploadsBucket = s3.Bucket.fromBucketName(this, "ImportedUploadsBucket", fileBucketName);
 
     const cloudFrontDomain =
       this.node.tryGetContext("cloudFrontDomain") ??
