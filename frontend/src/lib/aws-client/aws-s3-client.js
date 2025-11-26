@@ -15,7 +15,7 @@ export class S3Client {
     async getUploadUrl({ fileName, fileType }) {
         const idToken = await this.auth.getIdToken(); // Assumes getIdToken is implemented to retrieve the token
 
-        const response = await fetch(`${this.apiUrl}/upload-url`, {
+        const response = await fetch(`${this.apiUrl}/api/v1/upload-url`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -40,7 +40,7 @@ export class S3Client {
     async getDownloadUrl(key) {
         const idToken = await this.auth.getIdToken();
         
-        const url = new URL(`${this.apiUrl}/download-url`);
+        const url = new URL(`${this.apiUrl}/api/v1/download-url`);
         url.searchParams.append('key', key);
 
         const response = await fetch(url.toString(), {

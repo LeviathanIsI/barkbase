@@ -150,22 +150,68 @@ const buildError = (res, data) => {
 };
 
 /**
- * Upload client for backward compatibility.
- * This simulates the old upload functionality for development.
+ * Upload a file to S3 using presigned URLs.
+ * 
+ * @param {Object} options - Upload options
+ * @param {File} options.file - The File object to upload
+ * @param {string} [options.category] - Optional category for path organization (e.g., 'avatars', 'documents')
+ * @returns {Promise<{key: string, publicUrl: string}>} The S3 key and public URL of the uploaded file
+ * 
+ * @example
+ * const { key, publicUrl } = await uploadFile({ file: fileObject, category: 'avatars' });
+ */
+export const uploadFile = async ({ file, category = 'general' }) => {
+  if (!file || !(file instanceof File)) {
+    throw new Error('A valid File object is required');
+  }
+
+  // 1. Get presigned URL from backend
+  const { data } = await post('/api/v1/upload-url', {
+    fileName: file.name,
+    fileType: file.type,
+    category,
+  });
+
+  const { uploadUrl, key, publicUrl } = data;
+
+  if (!uploadUrl) {
+    throw new Error('Failed to get upload URL from server');
+  }
+
+  // 2. Upload file directly to S3 using the presigned URL
+  const uploadResponse = await fetch(uploadUrl, {
+    method: 'PUT',
+    body: file,
+    headers: {
+      'Content-Type': file.type,
+    },
+  });
+
+  if (!uploadResponse.ok) {
+    throw new Error(`S3 upload failed with status ${uploadResponse.status}`);
+  }
+
+  return { key, publicUrl };
+};
+
+/**
+ * @deprecated Use uploadFile() instead. This function is kept for backward compatibility.
  */
 export const uploadClient = async (endpoint, formData) => {
-  // TODO: Implement proper file upload using AWS S3 pre-signed URLs
-  // For now, simulate a successful upload
-  console.warn('uploadClient() is not yet implemented. Simulating successful upload.');
+  console.warn('uploadClient() is deprecated. Use uploadFile() instead.');
+  
+  // Try to extract file from FormData for backward compatibility
+  const file = formData?.get?.('file');
+  if (file instanceof File) {
+    const result = await uploadFile({ file });
+    return {
+      success: true,
+      message: 'File uploaded successfully',
+      data: { url: result.publicUrl || result.key },
+    };
+  }
 
-  return {
-    success: true,
-    message: 'File uploaded successfully (mock)',
-    // Simulate a response that might contain file info
-    data: {
-      url: 'https://example.com/mock-uploaded-file.jpg'
-    }
-  };
+  throw new Error('uploadClient() requires FormData with a "file" field. Consider using uploadFile() instead.');
 };
 
 // Lightweight REST helpers for feature APIs that call concrete endpoints
@@ -280,7 +326,8 @@ const del = async (path, options = {}) => {
 const apiClient = {
   auth,
   storage,
-  uploadClient,
+  uploadFile,
+  uploadClient, // deprecated, use uploadFile instead
   get,
   post,
   put,

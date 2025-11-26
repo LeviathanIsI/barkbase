@@ -18,6 +18,7 @@ import PasswordStrength from '@/components/ui/PasswordStrength';
 import { useUserProfileQuery, useUpdateUserProfileMutation } from '../api-user';
 import { useAuthStore } from '@/stores/auth';
 import { useNavigate } from 'react-router-dom';
+import { uploadFile } from '@/lib/apiClient';
 
 const Profile = () => {
   const { data: profile, isLoading, error } = useUserProfileQuery();
@@ -197,31 +198,20 @@ const Profile = () => {
   // Profile photo upload
   const handleProfilePhotoUpload = async (file) => {
     try {
-      // Read file as data URL for preview
+      // Show preview immediately while upload happens in background
       const reader = new FileReader();
       reader.onload = (e) => {
         setProfilePhoto(e.target.result);
       };
       reader.readAsDataURL(file);
 
-      // Upload to storage
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('type', 'profile');
-      
-      const response = await fetch('/api/v1/upload', {
-        method: 'POST',
-        credentials: 'include',
-        body: formData
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        toast.success('Profile photo updated successfully');
-        await updateProfile.mutateAsync({ avatarUrl: data.url });
-      } else {
-        throw new Error('Upload failed');
-      }
+      // Upload to S3 using presigned URL
+      const { key, publicUrl } = await uploadFile({ file, category: 'avatars' });
+
+      // Save the URL to the user's profile
+      const avatarUrl = publicUrl || key;
+      await updateProfile.mutateAsync({ avatarUrl });
+      toast.success('Profile photo updated successfully');
     } catch (error) {
       console.error('Profile photo upload error:', error);
       toast.error('Failed to upload profile photo');
