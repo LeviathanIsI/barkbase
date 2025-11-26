@@ -172,7 +172,7 @@ export const uploadFile = async ({ file, category = 'general' }) => {
     category,
   });
 
-  const { uploadUrl, key, publicUrl } = data;
+  const { uploadUrl, key, publicUrl } = data || {};
 
   if (!uploadUrl) {
     throw new Error('Failed to get upload URL from server');
