@@ -1053,7 +1053,7 @@ const RunBoardView = ({
           borderBottom: '1px solid var(--bb-color-border-subtle)',
         }}
       >
-        <div className="text-xs font-medium text-[color:var(--bb-color-text-muted)] uppercase tracking-wide flex items-center">
+        <div className="px-3 text-xs font-medium text-[color:var(--bb-color-text-muted)] uppercase tracking-wide flex items-center">
           Run Utilization
         </div>
         {dateRange.map((date, idx) => {
