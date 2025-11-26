@@ -18,9 +18,8 @@ export const sidebarSections = [
     collapsible: true,
     defaultExpanded: true,
     items: [
-      { path: '/pets-people', label: 'Clients', icon: 'users' },
-      { path: '/pets', label: 'Pets', icon: 'paw-print' },
       { path: '/owners', label: 'Owners', icon: 'user-round' },
+      { path: '/pets', label: 'Pets', icon: 'paw-print' },
       { path: '/vaccinations', label: 'Vaccinations', icon: 'syringe' },
       { path: '/segments', label: 'Segments', icon: 'layers' },
     ],

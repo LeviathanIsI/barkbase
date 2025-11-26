@@ -33,7 +33,6 @@ const iconMap = {
   'layout-dashboard': LayoutDashboard,
   '/dashboard': Home,
   home: Home,
-  '/pets-people': Users,
   users: Users,
   '/pets': PawPrint,
   'paw-print': PawPrint,

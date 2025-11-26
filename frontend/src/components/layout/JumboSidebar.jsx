@@ -27,7 +27,6 @@ const iconMap = {
   "/bookings": BookOpen,
   "/tasks": CheckCircle,
   "/runs": Clock,
-  "/pets-people": Users,
   "/pets": PawPrint,
   "/owners": Users,
   "/vaccinations": Shield,

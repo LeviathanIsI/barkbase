@@ -122,7 +122,7 @@ const GlobalKeyboardShortcuts = () => {
         const handleNextKey = (e2) => {
           if (e2.key === 'p') {
             e2.preventDefault();
-            navigate('/pets-people');
+            navigate('/pets');
           }
           window.removeEventListener('keydown', handleNextKey);
         };

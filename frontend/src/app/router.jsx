@@ -36,9 +36,6 @@ function RoutePersistence() {
 const TodayCommandCenter = lazy(() =>
   import("@/features/today/TodayCommandCenter")
 );
-const UnifiedPetPeopleView = lazy(() =>
-  import("@/features/pets-people/UnifiedPetPeopleView")
-);
 const Bookings = lazy(() => import("@/features/bookings/routes/Bookings"));
 const Schedule = lazy(() => import("@/features/schedule/routes/Schedule"));
 const Pets = lazy(() => import("@/features/pets/routes/Pets"));
@@ -268,7 +265,6 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <Navigate to="/today" replace /> },
               { path: "today", element: <TodayCommandCenter /> },
-              { path: "pets-people", element: <UnifiedPetPeopleView /> },
               { path: "bookings", element: <Bookings /> },
               { path: "schedule", element: <Schedule /> },
               { path: "calendar", element: <Navigate to="/schedule" replace /> },

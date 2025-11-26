@@ -14,8 +14,8 @@ const MobileBottomNav = () => {
   const navItems = [
     { id: 'today', icon: Home, label: 'Today', path: '/today', active: location.pathname === '/today' },
     { id: 'schedule', icon: Calendar, label: 'Schedule', path: '/schedule', active: location.pathname.startsWith('/schedule') },
-    { id: 'pets', icon: PawPrint, label: 'Pets', path: '/pets-people', active: location.pathname.startsWith('/pets') },
-    { id: 'owners', icon: Users, label: 'Owners', path: '/pets-people', active: location.pathname.startsWith('/owners') },
+    { id: 'pets', icon: PawPrint, label: 'Pets', path: '/pets', active: location.pathname.startsWith('/pets') },
+    { id: 'owners', icon: Users, label: 'Owners', path: '/owners', active: location.pathname.startsWith('/owners') },
     { id: 'more', icon: Menu, label: 'More', path: '/settings', active: location.pathname.startsWith('/settings') },
   ];
 
