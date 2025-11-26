@@ -1,10 +1,10 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Users, Phone, DollarSign, Plus, Search, Filter, Mail, ChevronDown,
-  ChevronLeft, ChevronRight, Download, Columns, MoreHorizontal, Edit,
-  MessageSquare, Eye, Trash2, Check, X, Star, SlidersHorizontal,
-  BookmarkPlus, PawPrint, Calendar, ArrowUpDown, ArrowUp, ArrowDown,
+  Users, Phone, DollarSign, Plus, Search, Mail, ChevronDown,
+  ChevronLeft, ChevronRight, Download, Columns, MoreHorizontal,
+  MessageSquare, Eye, Check, X, Star, SlidersHorizontal,
+  BookmarkPlus, PawPrint, ArrowUpDown, ArrowUp, ArrowDown, GripVertical,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -22,17 +22,17 @@ const DEFAULT_VIEWS = [
   { id: 'high-value', name: 'High Value', filters: { minLifetimeValue: 100000 } },
 ];
 
-// Column definitions
+// Column definitions with better sizing for full-width
 const ALL_COLUMNS = [
-  { id: 'select', label: '', width: '48px', sortable: false, hideable: false },
-  { id: 'owner', label: 'Owner', width: 'minmax(200px, 1fr)', sortable: true, sortKey: 'fullName' },
-  { id: 'contact', label: 'Contact', width: '180px', sortable: false },
-  { id: 'pets', label: 'Pets', width: '160px', sortable: true, sortKey: 'petCount' },
-  { id: 'status', label: 'Status', width: '100px', sortable: true, sortKey: 'status' },
-  { id: 'bookings', label: 'Bookings', width: '120px', sortable: true, sortKey: 'totalBookings' },
-  { id: 'lastVisit', label: 'Last Visit', width: '120px', sortable: true, sortKey: 'lastBooking' },
-  { id: 'lifetimeValue', label: 'Lifetime Value', width: '140px', sortable: true, sortKey: 'lifetimeValue' },
-  { id: 'actions', label: '', width: '80px', sortable: false, hideable: false },
+  { id: 'select', label: '', minWidth: 48, maxWidth: 48, align: 'center', sortable: false, hideable: false },
+  { id: 'owner', label: 'Owner', minWidth: 240, flex: 2, align: 'left', sortable: true, sortKey: 'fullName' },
+  { id: 'contact', label: 'Contact', minWidth: 180, flex: 1, align: 'left', sortable: false },
+  { id: 'pets', label: 'Pets', minWidth: 140, maxWidth: 200, align: 'left', sortable: true, sortKey: 'petCount' },
+  { id: 'status', label: 'Status', minWidth: 100, maxWidth: 120, align: 'center', sortable: true, sortKey: 'status' },
+  { id: 'bookings', label: 'Bookings', minWidth: 100, maxWidth: 120, align: 'center', sortable: true, sortKey: 'totalBookings' },
+  { id: 'lastVisit', label: 'Last Visit', minWidth: 120, maxWidth: 140, align: 'center', sortable: true, sortKey: 'lastBooking' },
+  { id: 'lifetimeValue', label: 'Lifetime Value', minWidth: 130, maxWidth: 150, align: 'right', sortable: true, sortKey: 'lifetimeValue' },
+  { id: 'actions', label: '', minWidth: 100, maxWidth: 100, align: 'right', sortable: false, hideable: false },
 ];
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
@@ -56,26 +56,50 @@ const Owners = () => {
     const saved = localStorage.getItem('owners-visible-columns');
     return saved ? JSON.parse(saved) : ALL_COLUMNS.map(c => c.id);
   });
+  const [columnOrder, setColumnOrder] = useState(() => {
+    const saved = localStorage.getItem('owners-column-order');
+    return saved ? JSON.parse(saved) : ALL_COLUMNS.map(c => c.id);
+  });
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
 
   // Saved views state
-  const [savedViews, setSavedViews] = useState(() => {
+  const [savedViews] = useState(() => {
     const saved = localStorage.getItem('owners-saved-views');
     return saved ? JSON.parse(saved) : DEFAULT_VIEWS;
   });
+
+  // Refs for click outside
+  const filterRef = useRef(null);
+  const viewsRef = useRef(null);
+  const columnsRef = useRef(null);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (filterRef.current && !filterRef.current.contains(e.target)) setShowFilterPanel(false);
+      if (viewsRef.current && !viewsRef.current.contains(e.target)) setShowViewsDropdown(false);
+      if (columnsRef.current && !columnsRef.current.contains(e.target)) setShowColumnsDropdown(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Data fetching
   const { data: ownersData, isLoading, error } = useOwnersQuery();
   const createOwnerMutation = useCreateOwnerMutation();
   const owners = useMemo(() => Array.isArray(ownersData) ? ownersData : (ownersData?.data ?? []), [ownersData]);
 
-  // Save visible columns to localStorage
+  // Save preferences to localStorage
   useEffect(() => {
     localStorage.setItem('owners-visible-columns', JSON.stringify(visibleColumns));
   }, [visibleColumns]);
+
+  useEffect(() => {
+    localStorage.setItem('owners-column-order', JSON.stringify(columnOrder));
+  }, [columnOrder]);
 
   // Calculate enhanced owner data with metrics
   const ownersWithMetrics = useMemo(() => {
@@ -99,25 +123,19 @@ const Owners = () => {
     return view?.filters || {};
   }, [activeView, savedViews]);
 
-  // Filter owners based on search, view, and custom filters
+  // Filter owners
   const filteredOwners = useMemo(() => {
     const filters = { ...activeViewFilters, ...customFilters };
     
     return ownersWithMetrics.filter(owner => {
-      // Search filter
       const matchesSearch = !searchTerm ||
         owner.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         owner.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         owner.phone?.includes(searchTerm) ||
         owner.pets?.some(pet => pet.name?.toLowerCase().includes(searchTerm.toLowerCase()));
 
-      // Status filter
       const matchesStatus = !filters.status || owner.status === filters.status;
-
-      // Lifetime value filter
       const matchesMinValue = !filters.minLifetimeValue || owner.lifetimeValue >= filters.minLifetimeValue;
-
-      // Pet count filter
       const matchesPetCount = !filters.minPetCount || owner.petCount >= filters.minPetCount;
 
       return matchesSearch && matchesStatus && matchesMinValue && matchesPetCount;
@@ -132,11 +150,9 @@ const Owners = () => {
       let aVal = a[sortConfig.key];
       let bVal = b[sortConfig.key];
 
-      // Handle null/undefined
       if (aVal == null) aVal = '';
       if (bVal == null) bVal = '';
 
-      // String comparison
       if (typeof aVal === 'string') {
         aVal = aVal.toLowerCase();
         bVal = bVal.toLowerCase();
@@ -168,6 +184,13 @@ const Owners = () => {
     highValue: ownersWithMetrics.filter(o => o.lifetimeValue >= 100000).length,
     totalRevenue: ownersWithMetrics.reduce((sum, o) => sum + o.lifetimeValue, 0),
   }), [owners, ownersWithMetrics]);
+
+  // Get ordered and visible columns
+  const orderedColumns = useMemo(() => {
+    return columnOrder
+      .map(id => ALL_COLUMNS.find(c => c.id === id))
+      .filter(c => c && visibleColumns.includes(c.id));
+  }, [columnOrder, visibleColumns]);
 
   // Handlers
   const handleSort = useCallback((key) => {
@@ -203,11 +226,24 @@ const Owners = () => {
     });
   }, []);
 
+  const moveColumn = useCallback((fromIndex, toIndex) => {
+    setColumnOrder(prev => {
+      const next = [...prev];
+      const [removed] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, removed);
+      return next;
+    });
+  }, []);
+
   const clearFilters = useCallback(() => {
     setSearchTerm('');
     setCustomFilters({});
     setActiveView('all');
   }, []);
+
+  const handleRowDoubleClick = useCallback((owner) => {
+    navigate(`/customers/${owner.recordId}`);
+  }, [navigate]);
 
   const hasActiveFilters = searchTerm || Object.keys(customFilters).length > 0 || activeView !== 'all';
 
@@ -221,9 +257,10 @@ const Owners = () => {
 
   return (
     <>
-      <div className="flex flex-col h-full">
-        {/* Header Section */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-4">
+      {/* Full-width container - remove default padding constraints */}
+      <div className="flex flex-col h-full -mx-6 lg:-mx-12 px-4 lg:px-6">
+        {/* Header Section - Full Width */}
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between py-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
           <div>
             <h1 className="text-2xl font-bold text-[color:var(--bb-color-text-primary)]">Pet Owners</h1>
             <p className="mt-0.5 text-sm text-[color:var(--bb-color-text-muted)]">
@@ -231,7 +268,7 @@ const Owners = () => {
             </p>
           </div>
 
-          {/* Compact Stats */}
+          {/* Stats Pills - Right Aligned */}
           <div className="flex flex-wrap items-center gap-2">
             <StatBadge icon={Users} value={stats.total} label="Total" />
             <StatBadge icon={Star} value={stats.active} label="Active" variant="success" />
@@ -240,24 +277,24 @@ const Owners = () => {
           </div>
         </div>
 
-        {/* Sticky Toolbar */}
+        {/* Sticky Toolbar - Full Width with Shadow */}
         <div
-          className="sticky top-0 z-20 -mx-6 px-6 py-3 mb-4 border-y"
+          className="sticky top-0 z-20 py-3 border-b shadow-sm"
           style={{
             backgroundColor: 'var(--bb-color-bg-surface)',
             borderColor: 'var(--bb-color-border-subtle)',
           }}
         >
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            {/* Left: Filters + Saved Views */}
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            {/* Left: Filters + Views + Clear */}
             <div className="flex flex-wrap items-center gap-2">
               {/* Filters Button */}
-              <div className="relative">
+              <div className="relative" ref={filterRef}>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setShowFilterPanel(!showFilterPanel)}
-                  className={cn('gap-1.5', showFilterPanel && 'ring-2 ring-[var(--bb-color-accent)]')}
+                  className={cn('gap-1.5 h-9', showFilterPanel && 'ring-2 ring-[var(--bb-color-accent)]')}
                 >
                   <SlidersHorizontal className="h-4 w-4" />
                   Filters
@@ -267,63 +304,56 @@ const Owners = () => {
                     </span>
                   )}
                 </Button>
-
-                {/* Filter Panel */}
                 {showFilterPanel && (
-                  <FilterPanel
-                    filters={customFilters}
-                    onFiltersChange={setCustomFilters}
-                    onClose={() => setShowFilterPanel(false)}
-                  />
+                  <FilterPanel filters={customFilters} onFiltersChange={setCustomFilters} onClose={() => setShowFilterPanel(false)} />
                 )}
               </div>
 
-              {/* Saved Views Dropdown */}
-              <div className="relative">
+              {/* Saved Views */}
+              <div className="relative" ref={viewsRef}>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setShowViewsDropdown(!showViewsDropdown)}
-                  className="gap-1.5"
+                  className="gap-1.5 h-9"
                 >
                   <BookmarkPlus className="h-4 w-4" />
-                  {savedViews.find(v => v.id === activeView)?.name || 'Views'}
+                  <span className="max-w-[100px] truncate">{savedViews.find(v => v.id === activeView)?.name || 'Views'}</span>
                   <ChevronDown className={cn('h-4 w-4 transition-transform', showViewsDropdown && 'rotate-180')} />
                 </Button>
-
                 {showViewsDropdown && (
-                  <ViewsDropdown
-                    views={savedViews}
-                    activeView={activeView}
-                    onSelectView={(id) => { setActiveView(id); setShowViewsDropdown(false); }}
-                    onClose={() => setShowViewsDropdown(false)}
-                  />
+                  <ViewsDropdown views={savedViews} activeView={activeView} onSelectView={(id) => { setActiveView(id); setShowViewsDropdown(false); }} />
                 )}
               </div>
 
               {/* Clear Filters */}
               {hasActiveFilters && (
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="flex items-center gap-1 text-sm text-[color:var(--bb-color-accent)] hover:underline"
-                >
+                <button type="button" onClick={clearFilters} className="flex items-center gap-1 text-sm text-[color:var(--bb-color-accent)] hover:underline">
                   <X className="h-3.5 w-3.5" />
                   Clear all
                 </button>
               )}
+
+              {/* Results Count */}
+              <span className="text-sm text-[color:var(--bb-color-text-muted)] ml-2">
+                {sortedOwners.length} owner{sortedOwners.length !== 1 ? 's' : ''}{hasActiveFilters && ' filtered'}
+              </span>
             </div>
 
-            {/* Center: Search */}
-            <div className="flex-1 max-w-md">
-              <div className="relative">
+            {/* Spacer */}
+            <div className="flex-1" />
+
+            {/* Right: Search + Actions */}
+            <div className="flex items-center gap-2">
+              {/* Search */}
+              <div className="relative w-full lg:w-72">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--bb-color-text-muted)]" />
                 <input
                   type="text"
                   placeholder="Search owners, pets, email, phone..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full rounded-lg border py-2 pl-10 pr-4 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]"
+                  className="w-full h-9 rounded-lg border pl-10 pr-4 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]"
                   style={{
                     backgroundColor: 'var(--bb-color-bg-body)',
                     borderColor: 'var(--bb-color-border-subtle)',
@@ -331,40 +361,32 @@ const Owners = () => {
                   }}
                 />
               </div>
-            </div>
 
-            {/* Right: Actions */}
-            <div className="flex items-center gap-2">
               {/* Column Controls */}
-              <div className="relative">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowColumnsDropdown(!showColumnsDropdown)}
-                  className="gap-1.5"
-                >
+              <div className="relative" ref={columnsRef}>
+                <Button variant="outline" size="sm" onClick={() => setShowColumnsDropdown(!showColumnsDropdown)} className="gap-1.5 h-9">
                   <Columns className="h-4 w-4" />
                   <span className="hidden sm:inline">Columns</span>
                 </Button>
-
                 {showColumnsDropdown && (
                   <ColumnsDropdown
                     columns={ALL_COLUMNS.filter(c => c.hideable !== false)}
                     visibleColumns={visibleColumns}
+                    columnOrder={columnOrder}
                     onToggle={toggleColumn}
-                    onClose={() => setShowColumnsDropdown(false)}
+                    onReorder={moveColumn}
                   />
                 )}
               </div>
 
-              <Button variant="outline" size="sm" className="gap-1.5">
+              <Button variant="outline" size="sm" className="gap-1.5 h-9">
                 <Download className="h-4 w-4" />
                 <span className="hidden sm:inline">Export</span>
               </Button>
 
-              <Button size="sm" onClick={() => setFormModalOpen(true)} className="gap-1.5">
+              <Button size="sm" onClick={() => setFormModalOpen(true)} className="gap-1.5 h-9">
                 <Plus className="h-4 w-4" />
-                Add Owner
+                <span className="hidden sm:inline">Add Owner</span>
               </Button>
             </div>
           </div>
@@ -372,84 +394,60 @@ const Owners = () => {
           {/* Bulk Actions Bar */}
           {selectedRows.size > 0 && (
             <div className="mt-3 flex items-center gap-3 rounded-lg border p-2" style={{ backgroundColor: 'var(--bb-color-accent-soft)', borderColor: 'var(--bb-color-accent)' }}>
-              <span className="text-sm font-medium text-[color:var(--bb-color-accent)]">
-                {selectedRows.size} selected
-              </span>
+              <span className="text-sm font-medium text-[color:var(--bb-color-accent)]">{selectedRows.size} selected</span>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="gap-1.5">
-                  <Mail className="h-3.5 w-3.5" />
-                  Email
-                </Button>
-                <Button variant="outline" size="sm" className="gap-1.5">
-                  <MessageSquare className="h-3.5 w-3.5" />
-                  SMS
-                </Button>
-                <Button variant="outline" size="sm" className="gap-1.5">
-                  <Download className="h-3.5 w-3.5" />
-                  Export
-                </Button>
+                <Button variant="outline" size="sm" className="gap-1.5 h-8"><Mail className="h-3.5 w-3.5" />Email</Button>
+                <Button variant="outline" size="sm" className="gap-1.5 h-8"><MessageSquare className="h-3.5 w-3.5" />SMS</Button>
+                <Button variant="outline" size="sm" className="gap-1.5 h-8"><Download className="h-3.5 w-3.5" />Export</Button>
               </div>
-              <button
-                type="button"
-                onClick={() => setSelectedRows(new Set())}
-                className="ml-auto text-sm text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]"
-              >
+              <button type="button" onClick={() => setSelectedRows(new Set())} className="ml-auto text-sm text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]">
                 Clear selection
               </button>
             </div>
           )}
         </div>
 
-        {/* Results Summary */}
-        <div className="mb-3 text-sm text-[color:var(--bb-color-text-muted)]">
-          Showing {paginatedOwners.length} of {sortedOwners.length} owners
-          {hasActiveFilters && ' (filtered)'}
-        </div>
-
-        {/* Table */}
+        {/* Table - Full Width */}
         {isLoading ? (
           <TableSkeleton />
         ) : sortedOwners.length === 0 ? (
-          <EmptyState
-            hasFilters={hasActiveFilters}
-            onClearFilters={clearFilters}
-            onAddOwner={() => setFormModalOpen(true)}
-          />
+          <EmptyState hasFilters={hasActiveFilters} onClearFilters={clearFilters} onAddOwner={() => setFormModalOpen(true)} />
         ) : (
-          <div
-            className="flex-1 overflow-auto rounded-xl border"
-            style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
-          >
-            <table className="w-full text-sm">
+          <div className="flex-1 mt-4 overflow-x-auto">
+            <table className="w-full min-w-[1000px] text-sm border-collapse">
               <thead>
-                <tr className="border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-                  {ALL_COLUMNS.filter(c => visibleColumns.includes(c.id)).map((column) => (
+                <tr
+                  className="border-b"
+                  style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
+                >
+                  {orderedColumns.map((column) => (
                     <th
                       key={column.id}
                       className={cn(
-                        'px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]',
-                        column.sortable && 'cursor-pointer hover:text-[color:var(--bb-color-text-primary)]'
+                        'px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]',
+                        column.sortable && 'cursor-pointer hover:text-[color:var(--bb-color-text-primary)] transition-colors',
+                        column.align === 'center' && 'text-center',
+                        column.align === 'right' && 'text-right'
                       )}
-                      style={{ width: column.width }}
+                      style={{
+                        minWidth: column.minWidth,
+                        maxWidth: column.maxWidth,
+                        width: column.flex ? `${column.flex * 100}px` : undefined,
+                      }}
                       onClick={() => column.sortable && handleSort(column.sortKey)}
                     >
-                      <div className="flex items-center gap-1">
+                      <div className={cn('flex items-center gap-1', column.align === 'center' && 'justify-center', column.align === 'right' && 'justify-end')}>
                         {column.id === 'select' ? (
                           <input
                             type="checkbox"
                             checked={selectedRows.size === paginatedOwners.length && paginatedOwners.length > 0}
                             onChange={handleSelectAll}
-                            className="h-4 w-4 rounded border-gray-300"
+                            className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]"
                           />
                         ) : (
                           <>
                             {column.label}
-                            {column.sortable && (
-                              <SortIcon
-                                active={sortConfig.key === column.sortKey}
-                                direction={sortConfig.direction}
-                              />
-                            )}
+                            {column.sortable && <SortIcon active={sortConfig.key === column.sortKey} direction={sortConfig.direction} />}
                           </>
                         )}
                       </div>
@@ -462,10 +460,11 @@ const Owners = () => {
                   <OwnerRow
                     key={owner.recordId}
                     owner={owner}
+                    columns={orderedColumns}
                     isSelected={selectedRows.has(owner.recordId)}
                     onSelect={() => handleSelectRow(owner.recordId)}
-                    onClick={() => navigate(`/customers/${owner.recordId}`)}
-                    visibleColumns={visibleColumns}
+                    onDoubleClick={() => handleRowDoubleClick(owner)}
+                    onView={() => navigate(`/customers/${owner.recordId}`)}
                     isEven={index % 2 === 0}
                   />
                 ))}
@@ -474,49 +473,38 @@ const Owners = () => {
           </div>
         )}
 
-        {/* Pagination */}
+        {/* Pagination - Full Width */}
         {sortedOwners.length > 0 && (
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4 border-t mt-auto" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
             <div className="flex items-center gap-2 text-sm text-[color:var(--bb-color-text-muted)]">
               <span>Rows per page:</span>
               <select
                 value={pageSize}
                 onChange={(e) => setPageSize(Number(e.target.value))}
-                className="rounded border px-2 py-1 text-sm"
-                style={{
-                  backgroundColor: 'var(--bb-color-bg-surface)',
-                  borderColor: 'var(--bb-color-border-subtle)',
-                  color: 'var(--bb-color-text-primary)',
-                }}
+                className="rounded border px-2 py-1.5 text-sm"
+                style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }}
               >
-                {PAGE_SIZE_OPTIONS.map((size) => (
-                  <option key={size} value={size}>{size}</option>
-                ))}
+                {PAGE_SIZE_OPTIONS.map((size) => (<option key={size} value={size}>{size}</option>))}
               </select>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <span className="text-sm text-[color:var(--bb-color-text-muted)]">
-                Page {currentPage} of {totalPages}
+                {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, sortedOwners.length)} of {sortedOwners.length}
               </span>
               <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-2"
-                >
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="px-2 h-8">
+                  <ChevronLeft className="h-4 w-4" /><ChevronLeft className="h-4 w-4 -ml-2" />
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-2 h-8">
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-2"
-                >
+                <span className="px-3 text-sm font-medium text-[color:var(--bb-color-text-primary)]">{currentPage}</span>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-2 h-8">
                   <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="px-2 h-8">
+                  <ChevronRight className="h-4 w-4" /><ChevronRight className="h-4 w-4 -ml-2" />
                 </Button>
               </div>
             </div>
@@ -566,280 +554,213 @@ const SortIcon = ({ active, direction }) => {
 };
 
 // Owner Row Component
-const OwnerRow = ({ owner, isSelected, onSelect, onClick, visibleColumns, isEven }) => {
+const OwnerRow = ({ owner, columns, isSelected, onSelect, onDoubleClick, onView, isEven }) => {
   const [showActions, setShowActions] = useState(false);
 
-  return (
-    <tr
-      className={cn(
-        'cursor-pointer transition-colors',
-        'hover:bg-[color:var(--bb-color-bg-elevated)]',
-        isSelected && 'bg-[color:var(--bb-color-accent-soft)]'
-      )}
-      style={{
-        borderBottom: '1px solid var(--bb-color-border-subtle)',
-        backgroundColor: isEven && !isSelected ? 'transparent' : undefined,
-      }}
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
-    >
-      {visibleColumns.includes('select') && (
-        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={onSelect}
-            className="h-4 w-4 rounded border-gray-300"
-          />
-        </td>
-      )}
-
-      {visibleColumns.includes('owner') && (
-        <td className="px-4 py-3" onClick={onClick}>
-          <div className="flex items-center gap-3">
-            <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
-              style={{ backgroundColor: 'var(--bb-color-accent)', color: 'var(--bb-color-text-on-accent)' }}
-            >
-              {owner.fullName?.[0]?.toUpperCase() || 'O'}
+  const renderCell = (column) => {
+    switch (column.id) {
+      case 'select':
+        return (
+          <td key={column.id} className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+            <input type="checkbox" checked={isSelected} onChange={onSelect} className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]" />
+          </td>
+        );
+      case 'owner':
+        return (
+          <td key={column.id} className="px-4 py-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold" style={{ backgroundColor: 'var(--bb-color-accent)', color: 'var(--bb-color-text-on-accent)' }}>
+                {owner.fullName?.[0]?.toUpperCase() || 'O'}
+              </div>
+              <div className="min-w-0">
+                <p className="font-medium text-[color:var(--bb-color-text-primary)] truncate">{owner.fullName}</p>
+                <p className="text-xs text-[color:var(--bb-color-text-muted)] truncate">{owner.email || 'No email'}</p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="font-medium text-[color:var(--bb-color-text-primary)] truncate">{owner.fullName}</p>
-              <p className="text-xs text-[color:var(--bb-color-text-muted)] truncate">{owner.email || 'No email'}</p>
-            </div>
-          </div>
-        </td>
-      )}
-
-      {visibleColumns.includes('contact') && (
-        <td className="px-4 py-3" onClick={onClick}>
-          {owner.phone ? (
-            <div className="flex items-center gap-1.5 text-[color:var(--bb-color-text-muted)]">
-              <Phone className="h-3.5 w-3.5" />
-              <span>{owner.phone}</span>
-            </div>
-          ) : (
-            <span className="text-[color:var(--bb-color-text-muted)]">—</span>
-          )}
-        </td>
-      )}
-
-      {visibleColumns.includes('pets') && (
-        <td className="px-4 py-3" onClick={onClick}>
-          <div className="flex items-center gap-1">
+          </td>
+        );
+      case 'contact':
+        return (
+          <td key={column.id} className="px-4 py-3">
+            {owner.phone ? (
+              <div className="flex items-center gap-1.5 text-[color:var(--bb-color-text-muted)]">
+                <Phone className="h-3.5 w-3.5" />
+                <span>{owner.phone}</span>
+              </div>
+            ) : (
+              <span className="text-[color:var(--bb-color-text-muted)]">—</span>
+            )}
+          </td>
+        );
+      case 'pets':
+        return (
+          <td key={column.id} className="px-4 py-3">
             {owner.pets?.length > 0 ? (
-              <>
-                <div className="flex -space-x-1">
+              <div className="flex items-center gap-1">
+                <div className="flex -space-x-1.5">
                   {owner.pets.slice(0, 3).map((pet, i) => (
-                    <div
-                      key={i}
-                      className="flex h-6 w-6 items-center justify-center rounded-full border-2 text-[0.6rem] font-medium"
-                      style={{
-                        backgroundColor: 'var(--bb-color-bg-elevated)',
-                        borderColor: 'var(--bb-color-bg-surface)',
-                        color: 'var(--bb-color-text-muted)',
-                      }}
-                      title={pet.name}
-                    >
+                    <div key={i} className="flex h-7 w-7 items-center justify-center rounded-full border-2 text-[0.65rem] font-medium" style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-bg-surface)', color: 'var(--bb-color-text-muted)' }} title={pet.name}>
                       {pet.name?.[0]?.toUpperCase() || <PawPrint className="h-3 w-3" />}
                     </div>
                   ))}
                 </div>
-                {owner.pets.length > 3 && (
-                  <span className="ml-1 text-xs text-[color:var(--bb-color-text-muted)]">+{owner.pets.length - 3}</span>
-                )}
-              </>
+                {owner.pets.length > 3 && <span className="ml-1.5 text-xs text-[color:var(--bb-color-text-muted)]">+{owner.pets.length - 3}</span>}
+                <span className="ml-2 text-xs text-[color:var(--bb-color-text-muted)]">{owner.pets.length} pet{owner.pets.length !== 1 ? 's' : ''}</span>
+              </div>
             ) : (
               <span className="text-[color:var(--bb-color-text-muted)]">—</span>
             )}
-          </div>
-        </td>
-      )}
+          </td>
+        );
+      case 'status':
+        return (
+          <td key={column.id} className="px-4 py-3 text-center">
+            <Badge variant={owner.status === 'ACTIVE' ? 'success' : 'neutral'}>{owner.status === 'ACTIVE' ? 'Active' : 'Inactive'}</Badge>
+          </td>
+        );
+      case 'bookings':
+        return (
+          <td key={column.id} className="px-4 py-3 text-center">
+            <span className="font-medium text-[color:var(--bb-color-text-primary)]">{owner.totalBookings}</span>
+          </td>
+        );
+      case 'lastVisit':
+        return (
+          <td key={column.id} className="px-4 py-3 text-center">
+            {owner.lastBooking ? (
+              <span className="text-[color:var(--bb-color-text-muted)]">{new Date(owner.lastBooking).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}</span>
+            ) : (
+              <span className="text-[color:var(--bb-color-text-muted)]">Never</span>
+            )}
+          </td>
+        );
+      case 'lifetimeValue':
+        return (
+          <td key={column.id} className="px-4 py-3 text-right">
+            <span className="font-semibold text-[color:var(--bb-color-text-primary)]">{formatCurrency(owner.lifetimeValue)}</span>
+          </td>
+        );
+      case 'actions':
+        return (
+          <td key={column.id} className="px-4 py-3 text-right">
+            <div className={cn('flex items-center justify-end gap-0.5 transition-opacity', showActions ? 'opacity-100' : 'opacity-0')}>
+              <button type="button" onClick={(e) => { e.stopPropagation(); onView(); }} className="p-1.5 rounded hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)]" title="View profile">
+                <Eye className="h-4 w-4" />
+              </button>
+              <button type="button" onClick={(e) => e.stopPropagation()} className="p-1.5 rounded hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)]" title="Send message">
+                <MessageSquare className="h-4 w-4" />
+              </button>
+              <button type="button" onClick={(e) => e.stopPropagation()} className="p-1.5 rounded hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)]" title="More actions">
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+            </div>
+          </td>
+        );
+      default:
+        return <td key={column.id} className="px-4 py-3">—</td>;
+    }
+  };
 
-      {visibleColumns.includes('status') && (
-        <td className="px-4 py-3" onClick={onClick}>
-          <Badge variant={owner.status === 'ACTIVE' ? 'success' : 'neutral'}>
-            {owner.status === 'ACTIVE' ? 'Active' : 'Inactive'}
-          </Badge>
-        </td>
-      )}
-
-      {visibleColumns.includes('bookings') && (
-        <td className="px-4 py-3" onClick={onClick}>
-          <span className="font-medium text-[color:var(--bb-color-text-primary)]">{owner.totalBookings}</span>
-        </td>
-      )}
-
-      {visibleColumns.includes('lastVisit') && (
-        <td className="px-4 py-3" onClick={onClick}>
-          {owner.lastBooking ? (
-            <span className="text-[color:var(--bb-color-text-muted)]">
-              {new Date(owner.lastBooking).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
-            </span>
-          ) : (
-            <span className="text-[color:var(--bb-color-text-muted)]">Never</span>
-          )}
-        </td>
-      )}
-
-      {visibleColumns.includes('lifetimeValue') && (
-        <td className="px-4 py-3" onClick={onClick}>
-          <span className="font-medium text-[color:var(--bb-color-text-primary)]">{formatCurrency(owner.lifetimeValue)}</span>
-        </td>
-      )}
-
-      {visibleColumns.includes('actions') && (
-        <td className="px-4 py-3">
-          <div className={cn('flex items-center gap-1 transition-opacity', showActions ? 'opacity-100' : 'opacity-0')}>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onClick(); }}
-              className="p-1.5 rounded hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)]"
-              title="View profile"
-            >
-              <Eye className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => e.stopPropagation()}
-              className="p-1.5 rounded hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)]"
-              title="Send message"
-            >
-              <MessageSquare className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => e.stopPropagation()}
-              className="p-1.5 rounded hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)]"
-              title="More actions"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </button>
-          </div>
-        </td>
-      )}
+  return (
+    <tr
+      className={cn('cursor-pointer transition-colors', isSelected && 'bg-[color:var(--bb-color-accent-soft)]')}
+      style={{ borderBottom: '1px solid var(--bb-color-border-subtle)', backgroundColor: !isSelected && isEven ? 'var(--bb-color-bg-surface)' : !isSelected ? 'var(--bb-color-bg-body)' : undefined }}
+      onMouseEnter={() => setShowActions(true)}
+      onMouseLeave={() => setShowActions(false)}
+      onClick={onView}
+      onDoubleClick={onDoubleClick}
+    >
+      {columns.map(renderCell)}
     </tr>
   );
 };
 
 // Filter Panel Component
-const FilterPanel = ({ filters, onFiltersChange, onClose }) => {
-  return (
-    <div
-      className="absolute left-0 top-full mt-2 w-72 rounded-xl border p-4 shadow-lg z-30"
-      style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
-    >
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Filters</h3>
-        <button type="button" onClick={onClose} className="text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]">
-          <X className="h-4 w-4" />
-        </button>
+const FilterPanel = ({ filters, onFiltersChange, onClose }) => (
+  <div className="absolute left-0 top-full mt-2 w-72 rounded-xl border p-4 shadow-lg z-30" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
+    <div className="flex items-center justify-between mb-4">
+      <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Filters</h3>
+      <button type="button" onClick={onClose} className="text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]"><X className="h-4 w-4" /></button>
+    </div>
+    <div className="space-y-4">
+      <div>
+        <label className="block text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-1.5">Status</label>
+        <select value={filters.status || ''} onChange={(e) => onFiltersChange({ ...filters, status: e.target.value || undefined })} className="w-full rounded-lg border px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bb-color-bg-body)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }}>
+          <option value="">Any</option>
+          <option value="ACTIVE">Active</option>
+          <option value="INACTIVE">Inactive</option>
+        </select>
       </div>
-
-      <div className="space-y-4">
-        <div>
-          <label className="block text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-1.5">Status</label>
-          <select
-            value={filters.status || ''}
-            onChange={(e) => onFiltersChange({ ...filters, status: e.target.value || undefined })}
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-            style={{ backgroundColor: 'var(--bb-color-bg-body)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }}
-          >
-            <option value="">Any</option>
-            <option value="ACTIVE">Active</option>
-            <option value="INACTIVE">Inactive</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-1.5">Min Pet Count</label>
-          <input
-            type="number"
-            min="0"
-            value={filters.minPetCount || ''}
-            onChange={(e) => onFiltersChange({ ...filters, minPetCount: e.target.value ? Number(e.target.value) : undefined })}
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-            style={{ backgroundColor: 'var(--bb-color-bg-body)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }}
-            placeholder="0"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-1.5">Min Lifetime Value</label>
-          <input
-            type="number"
-            min="0"
-            value={filters.minLifetimeValue ? filters.minLifetimeValue / 100 : ''}
-            onChange={(e) => onFiltersChange({ ...filters, minLifetimeValue: e.target.value ? Number(e.target.value) * 100 : undefined })}
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-            style={{ backgroundColor: 'var(--bb-color-bg-body)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }}
-            placeholder="$0"
-          />
-        </div>
+      <div>
+        <label className="block text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-1.5">Min Pet Count</label>
+        <input type="number" min="0" value={filters.minPetCount || ''} onChange={(e) => onFiltersChange({ ...filters, minPetCount: e.target.value ? Number(e.target.value) : undefined })} className="w-full rounded-lg border px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bb-color-bg-body)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }} placeholder="0" />
       </div>
-
-      <div className="mt-4 flex gap-2">
-        <Button variant="outline" size="sm" className="flex-1" onClick={() => onFiltersChange({})}>
-          Reset
-        </Button>
-        <Button size="sm" className="flex-1" onClick={onClose}>
-          Apply
-        </Button>
+      <div>
+        <label className="block text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-1.5">Min Lifetime Value ($)</label>
+        <input type="number" min="0" value={filters.minLifetimeValue ? filters.minLifetimeValue / 100 : ''} onChange={(e) => onFiltersChange({ ...filters, minLifetimeValue: e.target.value ? Number(e.target.value) * 100 : undefined })} className="w-full rounded-lg border px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bb-color-bg-body)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }} placeholder="0" />
       </div>
     </div>
-  );
-};
+    <div className="mt-4 flex gap-2">
+      <Button variant="outline" size="sm" className="flex-1" onClick={() => onFiltersChange({})}>Reset</Button>
+      <Button size="sm" className="flex-1" onClick={onClose}>Apply</Button>
+    </div>
+  </div>
+);
 
 // Views Dropdown Component
-const ViewsDropdown = ({ views, activeView, onSelectView, onClose }) => {
-  return (
-    <div
-      className="absolute left-0 top-full mt-2 w-52 rounded-xl border shadow-lg z-30"
-      style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
-    >
-      <div className="py-1">
-        {views.map((view) => (
-          <button
-            key={view.id}
-            type="button"
-            onClick={() => onSelectView(view.id)}
-            className={cn(
-              'flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors',
-              'hover:bg-[color:var(--bb-color-bg-elevated)]',
-              activeView === view.id && 'bg-[color:var(--bb-color-accent-soft)] text-[color:var(--bb-color-accent)]'
-            )}
-          >
-            {activeView === view.id && <Check className="h-4 w-4" />}
-            <span className={activeView !== view.id ? 'ml-6' : ''}>{view.name}</span>
-          </button>
-        ))}
-      </div>
+const ViewsDropdown = ({ views, activeView, onSelectView }) => (
+  <div className="absolute left-0 top-full mt-2 w-52 rounded-xl border shadow-lg z-30" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
+    <div className="py-1">
+      {views.map((view) => (
+        <button key={view.id} type="button" onClick={() => onSelectView(view.id)} className={cn('flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-[color:var(--bb-color-bg-elevated)]', activeView === view.id && 'bg-[color:var(--bb-color-accent-soft)] text-[color:var(--bb-color-accent)]')}>
+          {activeView === view.id && <Check className="h-4 w-4" />}
+          <span className={activeView !== view.id ? 'ml-6' : ''}>{view.name}</span>
+        </button>
+      ))}
     </div>
-  );
-};
+  </div>
+);
 
-// Columns Dropdown Component
-const ColumnsDropdown = ({ columns, visibleColumns, onToggle, onClose }) => {
+// Columns Dropdown Component with Drag & Reorder
+const ColumnsDropdown = ({ columns, visibleColumns, columnOrder, onToggle, onReorder }) => {
+  const [draggedIndex, setDraggedIndex] = useState(null);
+
+  const handleDragStart = (e, index) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    if (draggedIndex !== null && draggedIndex !== index) {
+      onReorder(draggedIndex, index);
+      setDraggedIndex(index);
+    }
+  };
+
+  const handleDragEnd = () => setDraggedIndex(null);
+
+  const orderedColumns = columnOrder
+    .map(id => columns.find(c => c.id === id))
+    .filter(Boolean);
+
   return (
-    <div
-      className="absolute right-0 top-full mt-2 w-48 rounded-xl border shadow-lg z-30"
-      style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
-    >
+    <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border shadow-lg z-30" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
       <div className="p-2">
-        <p className="px-2 py-1 text-xs font-semibold uppercase text-[color:var(--bb-color-text-muted)]">Toggle Columns</p>
-        {columns.map((column) => (
-          <label
+        <p className="px-2 py-1 text-xs font-semibold uppercase text-[color:var(--bb-color-text-muted)]">Toggle & Reorder</p>
+        {orderedColumns.map((column, index) => (
+          <div
             key={column.id}
-            className="flex items-center gap-2 px-2 py-1.5 text-sm cursor-pointer hover:bg-[color:var(--bb-color-bg-elevated)] rounded"
+            draggable
+            onDragStart={(e) => handleDragStart(e, index)}
+            onDragOver={(e) => handleDragOver(e, index)}
+            onDragEnd={handleDragEnd}
+            className={cn('flex items-center gap-2 px-2 py-1.5 text-sm cursor-move hover:bg-[color:var(--bb-color-bg-elevated)] rounded', draggedIndex === index && 'opacity-50')}
           >
-            <input
-              type="checkbox"
-              checked={visibleColumns.includes(column.id)}
-              onChange={() => onToggle(column.id)}
-              className="h-4 w-4 rounded border-gray-300"
-            />
+            <GripVertical className="h-4 w-4 text-[color:var(--bb-color-text-muted)] opacity-50" />
+            <input type="checkbox" checked={visibleColumns.includes(column.id)} onChange={() => onToggle(column.id)} className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]" />
             <span className="text-[color:var(--bb-color-text-primary)]">{column.label}</span>
-          </label>
+          </div>
         ))}
       </div>
     </div>
@@ -848,19 +769,21 @@ const ColumnsDropdown = ({ columns, visibleColumns, onToggle, onClose }) => {
 
 // Table Skeleton Component
 const TableSkeleton = () => (
-  <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
+  <div className="mt-4 rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
     <div className="p-4 space-y-3">
-      {Array.from({ length: 8 }).map((_, i) => (
+      {Array.from({ length: 10 }).map((_, i) => (
         <div key={i} className="flex items-center gap-4">
+          <Skeleton className="h-4 w-4 rounded" />
           <Skeleton className="h-9 w-9 rounded-full" />
           <div className="flex-1 space-y-2">
-            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-4 w-48" />
             <Skeleton className="h-3 w-32" />
           </div>
+          <Skeleton className="h-4 w-24" />
           <Skeleton className="h-4 w-20" />
           <Skeleton className="h-6 w-16 rounded-full" />
           <Skeleton className="h-4 w-12" />
-          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-4 w-20" />
         </div>
       ))}
     </div>
@@ -869,27 +792,13 @@ const TableSkeleton = () => (
 
 // Empty State Component
 const EmptyState = ({ hasFilters, onClearFilters, onAddOwner }) => (
-  <div
-    className="flex flex-col items-center justify-center rounded-xl border py-16"
-    style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
-  >
-    <Users className="h-12 w-12 text-[color:var(--bb-color-text-muted)] opacity-40 mb-4" />
-    <h3 className="text-lg font-semibold text-[color:var(--bb-color-text-primary)] mb-1">
-      {hasFilters ? 'No owners match your filters' : 'No owners yet'}
-    </h3>
-    <p className="text-sm text-[color:var(--bb-color-text-muted)] mb-4">
-      {hasFilters ? 'Try adjusting your search or filters' : 'Get started by adding your first pet owner'}
-    </p>
-    <div className="flex gap-2">
-      {hasFilters && (
-        <Button variant="outline" onClick={onClearFilters}>
-          Clear filters
-        </Button>
-      )}
-      <Button onClick={onAddOwner}>
-        <Plus className="h-4 w-4 mr-1.5" />
-        Add Owner
-      </Button>
+  <div className="flex flex-col items-center justify-center rounded-xl border py-20 mt-4" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
+    <Users className="h-14 w-14 text-[color:var(--bb-color-text-muted)] opacity-40 mb-4" />
+    <h3 className="text-lg font-semibold text-[color:var(--bb-color-text-primary)] mb-1">{hasFilters ? 'No owners match your filters' : 'No owners yet'}</h3>
+    <p className="text-sm text-[color:var(--bb-color-text-muted)] mb-6">{hasFilters ? 'Try adjusting your search or filters' : 'Get started by adding your first pet owner'}</p>
+    <div className="flex gap-3">
+      {hasFilters && <Button variant="outline" onClick={onClearFilters}>Clear filters</Button>}
+      <Button onClick={onAddOwner}><Plus className="h-4 w-4 mr-1.5" />Add Owner</Button>
     </div>
   </div>
 );
