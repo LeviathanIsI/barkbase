@@ -1,11 +1,12 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Users, Phone, DollarSign, Plus, Search, Mail, ChevronDown,
+  Users, Phone, DollarSign, Plus, Mail, ChevronDown,
   ChevronLeft, ChevronRight, Download, Columns, MoreHorizontal,
   MessageSquare, Eye, Check, X, Star, SlidersHorizontal,
   BookmarkPlus, PawPrint, ArrowUpDown, ArrowUp, ArrowDown, GripVertical,
 } from 'lucide-react';
+import EntityToolbar from '@/components/EntityToolbar';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { PageLoader, UpdateChip } from '@/components/PageLoader';
@@ -301,112 +302,96 @@ const Owners = () => {
             borderColor: 'var(--bb-color-border-subtle)',
           }}
         >
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            {/* Left: Filters + Views + Clear */}
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Filters Button */}
-              <div className="relative" ref={filterRef}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowFilterPanel(!showFilterPanel)}
-                  className={cn('gap-1.5 h-9', showFilterPanel && 'ring-2 ring-[var(--bb-color-accent)]')}
-                >
-                  <SlidersHorizontal className="h-4 w-4" />
-                  Filters
-                  {Object.keys(customFilters).length > 0 && (
-                    <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-[color:var(--bb-color-accent)] text-xs text-white">
-                      {Object.keys(customFilters).length}
-                    </span>
+          <EntityToolbar
+            searchValue={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Search owners, pets, email, phone..."
+            leftContent={
+              <>
+                {/* Filters Button */}
+                <div className="relative" ref={filterRef}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowFilterPanel(!showFilterPanel)}
+                    className={cn('gap-1.5 h-9', showFilterPanel && 'ring-2 ring-[var(--bb-color-accent)]')}
+                  >
+                    <SlidersHorizontal className="h-4 w-4" />
+                    Filters
+                    {Object.keys(customFilters).length > 0 && (
+                      <span className="ml-1 flex h-5 w-5 items-center justify-center rounded-full bg-[color:var(--bb-color-accent)] text-xs text-white">
+                        {Object.keys(customFilters).length}
+                      </span>
+                    )}
+                  </Button>
+                  {showFilterPanel && (
+                    <FilterPanel filters={customFilters} onFiltersChange={setCustomFilters} onClose={() => setShowFilterPanel(false)} />
                   )}
-                </Button>
-                {showFilterPanel && (
-                  <FilterPanel filters={customFilters} onFiltersChange={setCustomFilters} onClose={() => setShowFilterPanel(false)} />
+                </div>
+
+                {/* Saved Views */}
+                <div className="relative" ref={viewsRef}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowViewsDropdown(!showViewsDropdown)}
+                    className="gap-1.5 h-9"
+                  >
+                    <BookmarkPlus className="h-4 w-4" />
+                    <span className="max-w-[100px] truncate">{savedViews.find(v => v.id === activeView)?.name || 'Views'}</span>
+                    <ChevronDown className={cn('h-4 w-4 transition-transform', showViewsDropdown && 'rotate-180')} />
+                  </Button>
+                  {showViewsDropdown && (
+                    <ViewsDropdown views={savedViews} activeView={activeView} onSelectView={(id) => { setActiveView(id); setShowViewsDropdown(false); }} />
+                  )}
+                </div>
+
+                {/* Clear Filters */}
+                {hasActiveFilters && (
+                  <button type="button" onClick={clearFilters} className="flex items-center gap-1 text-sm text-[color:var(--bb-color-accent)] hover:underline">
+                    <X className="h-3.5 w-3.5" />
+                    Clear all
+                  </button>
                 )}
-              </div>
 
-              {/* Saved Views */}
-              <div className="relative" ref={viewsRef}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowViewsDropdown(!showViewsDropdown)}
-                  className="gap-1.5 h-9"
-                >
-                  <BookmarkPlus className="h-4 w-4" />
-                  <span className="max-w-[100px] truncate">{savedViews.find(v => v.id === activeView)?.name || 'Views'}</span>
-                  <ChevronDown className={cn('h-4 w-4 transition-transform', showViewsDropdown && 'rotate-180')} />
+                {/* Results Count */}
+                <span className="text-sm text-[color:var(--bb-color-text-muted)] ml-2">
+                  {sortedOwners.length} owner{sortedOwners.length !== 1 ? 's' : ''}{hasActiveFilters && ' filtered'}
+                  {isUpdating && <UpdateChip className="ml-2" />}
+                </span>
+              </>
+            }
+            rightContent={
+              <>
+                {/* Column Controls */}
+                <div className="relative" ref={columnsRef}>
+                  <Button variant="outline" size="sm" onClick={() => setShowColumnsDropdown(!showColumnsDropdown)} className="gap-1.5 h-9">
+                    <Columns className="h-4 w-4" />
+                    <span className="hidden sm:inline">Columns</span>
+                  </Button>
+                  {showColumnsDropdown && (
+                    <ColumnsDropdown
+                      columns={ALL_COLUMNS.filter(c => c.hideable !== false)}
+                      visibleColumns={visibleColumns}
+                      columnOrder={columnOrder}
+                      onToggle={toggleColumn}
+                      onReorder={moveColumn}
+                    />
+                  )}
+                </div>
+
+                <Button variant="outline" size="sm" className="gap-1.5 h-9">
+                  <Download className="h-4 w-4" />
+                  <span className="hidden sm:inline">Export</span>
                 </Button>
-                {showViewsDropdown && (
-                  <ViewsDropdown views={savedViews} activeView={activeView} onSelectView={(id) => { setActiveView(id); setShowViewsDropdown(false); }} />
-                )}
-              </div>
 
-              {/* Clear Filters */}
-              {hasActiveFilters && (
-                <button type="button" onClick={clearFilters} className="flex items-center gap-1 text-sm text-[color:var(--bb-color-accent)] hover:underline">
-                  <X className="h-3.5 w-3.5" />
-                  Clear all
-                </button>
-              )}
-
-              {/* Results Count */}
-              <span className="text-sm text-[color:var(--bb-color-text-muted)] ml-2">
-                {sortedOwners.length} owner{sortedOwners.length !== 1 ? 's' : ''}{hasActiveFilters && ' filtered'}
-                {isUpdating && <UpdateChip className="ml-2" />}
-              </span>
-            </div>
-
-            {/* Spacer */}
-            <div className="flex-1" />
-
-            {/* Right: Search + Actions */}
-            <div className="flex items-center gap-2">
-              {/* Search */}
-              <div className="relative w-full lg:w-72">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--bb-color-text-muted)]" />
-                <input
-                  type="text"
-                  placeholder="Search owners, pets, email, phone..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full h-9 rounded-lg border pl-10 pr-4 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]"
-                  style={{
-                    backgroundColor: 'var(--bb-color-bg-body)',
-                    borderColor: 'var(--bb-color-border-subtle)',
-                    color: 'var(--bb-color-text-primary)',
-                  }}
-                />
-              </div>
-
-              {/* Column Controls */}
-              <div className="relative" ref={columnsRef}>
-                <Button variant="outline" size="sm" onClick={() => setShowColumnsDropdown(!showColumnsDropdown)} className="gap-1.5 h-9">
-                  <Columns className="h-4 w-4" />
-                  <span className="hidden sm:inline">Columns</span>
+                <Button size="sm" onClick={() => setFormModalOpen(true)} className="gap-1.5 h-9">
+                  <Plus className="h-4 w-4" />
+                  <span className="hidden sm:inline">Add Owner</span>
                 </Button>
-                {showColumnsDropdown && (
-                  <ColumnsDropdown
-                    columns={ALL_COLUMNS.filter(c => c.hideable !== false)}
-                    visibleColumns={visibleColumns}
-                    columnOrder={columnOrder}
-                    onToggle={toggleColumn}
-                    onReorder={moveColumn}
-                  />
-                )}
-              </div>
-
-              <Button variant="outline" size="sm" className="gap-1.5 h-9">
-                <Download className="h-4 w-4" />
-                <span className="hidden sm:inline">Export</span>
-              </Button>
-
-              <Button size="sm" onClick={() => setFormModalOpen(true)} className="gap-1.5 h-9">
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Add Owner</span>
-              </Button>
-            </div>
-          </div>
+              </>
+            }
+          />
 
           {/* Bulk Actions Bar */}
           {selectedRows.size > 0 && (
