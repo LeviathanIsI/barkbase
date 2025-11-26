@@ -1,11 +1,11 @@
 /**
- * Pet Detail Page - Phase 7 Enterprise Layout
- * Two-column layout with strong detail header, clear content zones,
- * and token-based styling consistent with the enterprise design system.
+ * Pet Detail Page - Enterprise 360° View
+ * Two-column layout with tabbed content and sticky sidebar
+ * Designed as a medical + operational chart for kennel staff
  */
 
-import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useState, useMemo } from 'react';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import {
   PawPrint,
   Edit,
@@ -13,22 +13,34 @@ import {
   Calendar,
   Syringe,
   User,
-  ClipboardList,
   Activity,
   Heart,
   FileText,
   Phone,
   Mail,
-  MapPin,
   CheckCircle,
   Plus,
+  AlertTriangle,
+  Clock,
+  ChevronRight,
+  Download,
+  Upload,
+  ExternalLink,
+  Copy,
+  ArrowLeft,
+  Shield,
+  Utensils,
+  AlertCircle,
+  Dog,
 } from 'lucide-react';
+import { format, formatDistanceToNow, isAfter, isBefore, startOfToday } from 'date-fns';
 import toast from 'react-hot-toast';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { Card, PageHeader } from '@/components/ui/Card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
+import { Skeleton } from '@/components/ui/skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { PropertyList } from '@/components/ui/PropertyList';
 import { StatusPill } from '@/components/primitives';
 import {
   usePetQuery,
@@ -39,11 +51,84 @@ import {
   useUpdateVaccinationMutation,
   useDeleteVaccinationMutation,
 } from '../api';
+import { useBookingsQuery } from '@/features/bookings/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTenantStore } from '@/stores/tenant';
 import { queryKeys } from '@/lib/queryKeys';
-import { PetFormModal, VaccinationFormModal } from '../components';
-import { cn } from '@/lib/utils';
+import { VaccinationFormModal } from '../components';
+import { cn, formatCurrency } from '@/lib/utils';
+import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+const safeFormatDate = (dateStr, formatStr = 'MMM d, yyyy') => {
+  if (!dateStr) return '—';
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '—';
+    return format(date, formatStr);
+  } catch {
+    return '—';
+  }
+};
+
+const safeFormatDistance = (dateStr) => {
+  if (!dateStr) return 'Never';
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 'Never';
+    return formatDistanceToNow(date, { addSuffix: true });
+  } catch {
+    return 'Never';
+  }
+};
+
+const calculateAge = (dob) => {
+  if (!dob) return null;
+  const birth = new Date(dob);
+  if (isNaN(birth.getTime())) return null;
+  const now = new Date();
+  let years = now.getFullYear() - birth.getFullYear();
+  const monthDiff = now.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) {
+    years--;
+  }
+  if (years < 1) {
+    const months = (now.getFullYear() - birth.getFullYear()) * 12 + now.getMonth() - birth.getMonth();
+    return `${months} months`;
+  }
+  return `${years} ${years === 1 ? 'year' : 'years'} old`;
+};
+
+const getStatusVariant = (status) => {
+  const statusMap = {
+    PENDING: 'warning',
+    CONFIRMED: 'info',
+    CHECKED_IN: 'success',
+    CHECKED_OUT: 'neutral',
+    CANCELLED: 'danger',
+    COMPLETED: 'success',
+  };
+  return statusMap[status?.toUpperCase()] || 'neutral';
+};
+
+const copyToClipboard = (text) => {
+  navigator.clipboard.writeText(text);
+  toast.success('Copied to clipboard');
+};
+
+const calculateDays = (start, end) => {
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  const diff = endDate - startDate;
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+};
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
 
 const PetDetail = () => {
   const { petId } = useParams();
@@ -51,9 +136,11 @@ const PetDetail = () => {
   const queryClient = useQueryClient();
   const tenantId = useTenantStore((state) => state.tenant?.recordId ?? 'unknown');
 
+  // Global slideout
+  const { openSlideout } = useSlideout();
+
   // State
   const [activeTab, setActiveTab] = useState('overview');
-  const [editModalOpen, setEditModalOpen] = useState(false);
   const [vaccinationModalOpen, setVaccinationModalOpen] = useState(false);
   const [editingVaccination, setEditingVaccination] = useState(null);
   const [selectedVaccineType, setSelectedVaccineType] = useState('');
@@ -62,10 +149,12 @@ const PetDetail = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deletePetDialogOpen, setDeletePetDialogOpen] = useState(false);
   const [isDeletingPet, setIsDeletingPet] = useState(false);
+  const [bookingFilter, setBookingFilter] = useState('all');
 
-  // API Queries - PRESERVE existing data fetching
+  // API Queries
   const petQuery = usePetQuery(petId);
   const { data: vaccinations = [], isLoading: vaccLoading } = usePetVaccinationsQuery(petId);
+  const { data: allBookingsData } = useBookingsQuery({});
   const pet = petQuery.data;
 
   // Mutations
@@ -75,15 +164,52 @@ const PetDetail = () => {
   const updateVaccinationMutation = useUpdateVaccinationMutation(petId);
   const deleteVaccinationMutation = useDeleteVaccinationMutation(petId);
 
-  // Tabs configuration
-  const tabs = [
-    { id: 'overview', label: 'Overview', icon: Activity },
-    { id: 'health', label: 'Health', icon: Heart },
-    { id: 'bookings', label: 'Bookings', icon: Calendar },
-    { id: 'documents', label: 'Documents', icon: FileText },
-  ];
+  // Derived data
+  const petBookings = useMemo(() => {
+    if (!allBookingsData || !petId) return [];
+    const bookingsArray = Array.isArray(allBookingsData) 
+      ? allBookingsData 
+      : (allBookingsData?.data ?? allBookingsData?.bookings ?? []);
+    return bookingsArray.filter(b => b.petId === petId || b.pets?.some(p => p.recordId === petId));
+  }, [allBookingsData, petId]);
 
-  // Helper functions for vaccinations (preserved from original)
+  const { upcomingBookings, recentBookings, totalStays, lastVisitDate } = useMemo(() => {
+    const today = startOfToday();
+    const upcoming = petBookings
+      .filter(b => isAfter(new Date(b.checkIn), today) && b.status !== 'CANCELLED')
+      .sort((a, b) => new Date(a.checkIn) - new Date(b.checkIn))
+      .slice(0, 3);
+    const recent = petBookings
+      .filter(b => isBefore(new Date(b.checkIn), today) || b.status === 'CHECKED_OUT' || b.status === 'COMPLETED')
+      .sort((a, b) => new Date(b.checkIn) - new Date(a.checkIn))
+      .slice(0, 3);
+    const completedStays = petBookings.filter(b => 
+      b.status === 'COMPLETED' || b.status === 'CHECKED_OUT'
+    ).length;
+    const lastVisit = recent[0]?.checkOut || recent[0]?.checkIn;
+    return { 
+      upcomingBookings: upcoming, 
+      recentBookings: recent, 
+      totalStays: completedStays,
+      lastVisitDate: lastVisit 
+    };
+  }, [petBookings]);
+
+  const filteredBookings = useMemo(() => {
+    const today = startOfToday();
+    switch (bookingFilter) {
+      case 'upcoming':
+        return petBookings.filter(b => isAfter(new Date(b.checkIn), today) && b.status !== 'CANCELLED');
+      case 'past':
+        return petBookings.filter(b => isBefore(new Date(b.checkOut || b.checkIn), today) || b.status === 'COMPLETED');
+      case 'cancelled':
+        return petBookings.filter(b => b.status === 'CANCELLED');
+      default:
+        return petBookings;
+    }
+  }, [petBookings, bookingFilter]);
+
+  // Vaccination helpers
   const getDefaultVaccines = (species) => {
     if (species === 'Dog') {
       return ['Rabies', 'DAPP', 'DHPP', 'Bordetella', 'Influenza', 'Leptospirosis'];
@@ -124,7 +250,23 @@ const PetDetail = () => {
     return matchingVaccinations.sort((a, b) => new Date(b.administeredAt) - new Date(a.administeredAt))[0];
   };
 
-  // Vaccination handlers (preserved)
+  const vaccinationsSummary = useMemo(() => {
+    if (!pet?.species) return { status: 'unknown', overdue: 0, dueSoon: 0 };
+    const defaults = getDefaultVaccines(pet.species);
+    let overdue = 0;
+    let dueSoon = 0;
+    defaults.forEach(type => {
+      const vacc = getVaccinationForType(type);
+      const status = getVaccinationStatus(vacc);
+      if (status === 'expired' || status === 'missing') overdue++;
+      else if (status === 'expiring') dueSoon++;
+    });
+    if (overdue > 0) return { status: 'overdue', overdue, dueSoon };
+    if (dueSoon > 0) return { status: 'due-soon', overdue, dueSoon };
+    return { status: 'up-to-date', overdue, dueSoon };
+  }, [pet?.species, vaccinations]);
+
+  // Handlers
   const handleAddVaccination = (vaccineType) => {
     setSelectedVaccineType(vaccineType);
     setEditingVaccination(null);
@@ -179,18 +321,8 @@ const PetDetail = () => {
     }
   };
 
-  // Pet handlers (preserved)
-  const handleEdit = () => setEditModalOpen(true);
-
-  const handleEditSubmit = async (data) => {
-    try {
-      await updatePetMutation.mutateAsync(data);
-      setEditModalOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['pets', { tenantId }, petId] });
-      toast.success('Pet updated successfully');
-    } catch (error) {
-      console.error('Failed to update pet:', error);
-    }
+  const handleEdit = () => {
+    openSlideout(SLIDEOUT_TYPES.PET_EDIT, { pet });
   };
 
   const handleDelete = () => setDeletePetDialogOpen(true);
@@ -210,27 +342,18 @@ const PetDetail = () => {
     }
   };
 
-  // Helper functions
-  const formatDate = (date) => {
-    if (!date) return '—';
-    return new Date(date).toLocaleDateString();
-  };
-
-  const calculateDays = (start, end) => {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    const diff = endDate - startDate;
-    return Math.ceil(diff / (1000 * 60 * 60 * 24));
-  };
-
   // Loading state
   if (petQuery.isLoading) {
     return (
-      <div
-        className="flex items-center justify-center h-full"
-        style={{ color: 'var(--bb-color-text-muted)' }}
-      >
-        <div className="animate-pulse">Loading pet details...</div>
+      <div className="space-y-6 p-6">
+        <Skeleton className="h-12 w-64" />
+        <div className="grid grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24" />)}
+        </div>
+        <div className="grid grid-cols-12 gap-6">
+          <div className="col-span-8"><Skeleton className="h-96" /></div>
+          <div className="col-span-4"><Skeleton className="h-96" /></div>
+        </div>
       </div>
     );
   }
@@ -238,382 +361,229 @@ const PetDetail = () => {
   // Not found state
   if (!pet) {
     return (
-      <div
-        className="flex items-center justify-center h-full"
-        style={{ color: 'var(--bb-color-text-muted)' }}
-      >
-        <p>Pet not found</p>
+      <div className="flex flex-col items-center justify-center h-full py-20">
+        <PawPrint className="w-16 h-16 mb-4" style={{ color: 'var(--bb-color-text-muted)' }} />
+        <h2 className="text-xl font-semibold" style={{ color: 'var(--bb-color-text-primary)' }}>
+          Pet not found
+        </h2>
+        <p className="mt-2" style={{ color: 'var(--bb-color-text-muted)' }}>
+          This pet may have been deleted or you don't have access.
+        </p>
+        <Button variant="outline" className="mt-6" onClick={() => navigate('/pets')}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Pets
+        </Button>
       </div>
     );
   }
 
-  // Get primary owner
   const primaryOwner = pet.owners?.[0];
-  const currentBooking = pet.currentBooking || pet.bookings?.find(b => b.status === 'CHECKED_IN');
-  const petDescription = [pet.breed, pet.species, pet.gender].filter(Boolean).join(' • ');
+  const currentBooking = pet.currentBooking || petBookings?.find(b => b.status === 'CHECKED_IN');
+  const petDescription = [pet.breed, pet.species].filter(Boolean).join(' • ');
+  const petAge = calculateAge(pet.dateOfBirth) || pet.age;
+  const hasAlerts = pet.medicalNotes || pet.behaviorNotes || pet.dietaryNotes;
 
   return (
     <>
-      <div className="space-y-[var(--bb-space-6,1.5rem)]">
-        {/* Page Header with strong identity */}
-        <PageHeader
-          breadcrumbs={[
-            { label: 'Directory', href: '/pets' },
-            { label: 'Pets', href: '/pets' },
-            { label: pet.name }
-          ]}
-          title={pet.name}
-          description={petDescription || 'Pet details'}
-          actions={
-            <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
-              <Button variant="outline" size="md" onClick={() => navigate('/bookings?action=new')}>
-                <Plus className="h-4 w-4 mr-[var(--bb-space-2,0.5rem)]" />
-                New Booking
-              </Button>
-              <Button variant="secondary" size="md" onClick={handleEdit}>
-                <Edit className="h-4 w-4 mr-[var(--bb-space-2,0.5rem)]" />
-                Edit
-              </Button>
-              <Button variant="ghost" size="md" onClick={handleDelete}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          }
-        />
-
-        {/* Two-column layout */}
-        <div className="grid gap-[var(--bb-space-6,1.5rem)] lg:grid-cols-12">
-          {/* Left column: Main profile & core info */}
-          <div className="lg:col-span-8 space-y-[var(--bb-space-6,1.5rem)]">
-            {/* Pet Profile Card */}
-            <Card className="p-[var(--bb-space-6,1.5rem)]">
-              <div className="flex items-start gap-[var(--bb-space-4,1rem)]">
-                <div
-                  className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full"
-                  style={{
-                    backgroundColor: 'var(--bb-color-accent-soft)',
-                    color: 'var(--bb-color-accent)',
-                  }}
-                >
-                  <PawPrint className="h-8 w-8" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h2
-                    className="text-[var(--bb-font-size-xl,1.5rem)] font-[var(--bb-font-weight-semibold,600)]"
-                    style={{ color: 'var(--bb-color-text-primary)' }}
-                  >
-                    {pet.name}
-                  </h2>
-                  <p
-                    className="text-[var(--bb-font-size-sm,0.875rem)] mt-[var(--bb-space-1,0.25rem)]"
-                    style={{ color: 'var(--bb-color-text-muted)' }}
-                  >
-                    {petDescription || 'No details available'}
-                  </p>
-                  <div className="flex items-center gap-[var(--bb-space-2,0.5rem)] mt-[var(--bb-space-2,0.5rem)]">
-                    <Badge variant={currentBooking ? 'success' : 'neutral'}>
-                      {currentBooking ? 'In Facility' : 'Not Checked In'}
-                    </Badge>
-                    {pet.age && (
-                      <span
-                        className="text-[var(--bb-font-size-sm,0.875rem)]"
-                        style={{ color: 'var(--bb-color-text-muted)' }}
-                      >
-                        {pet.age}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Basic Info Grid */}
-              <div className="mt-[var(--bb-space-6,1.5rem)] grid gap-[var(--bb-space-4,1rem)] sm:grid-cols-2 lg:grid-cols-4">
-                <InfoItem label="Breed" value={pet.breed || '—'} />
-                <InfoItem label="Species" value={pet.species || '—'} />
-                <InfoItem label="Gender" value={pet.gender || '—'} />
-                <InfoItem label="Weight" value={pet.weight ? `${pet.weight} lbs` : '—'} />
-                <InfoItem label="Color" value={pet.color || '—'} />
-                <InfoItem label="Microchip" value={pet.microchipNumber || '—'} />
-                <InfoItem label="Last Vet Visit" value={formatDate(pet.lastVetVisit)} />
-                <InfoItem label="Next Appointment" value={formatDate(pet.nextAppointment)} />
-              </div>
-            </Card>
-
-            {/* Tab Navigation */}
-            <Card className="p-0">
-              <nav
-                className="flex border-b px-[var(--bb-space-4,1rem)]"
-                style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+      <div className="space-y-6">
+        {/* ================================================================
+            HEADER
+        ================================================================ */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 flex-1">
+            {/* Breadcrumb */}
+            <nav className="flex items-center gap-2 text-sm mb-2" style={{ color: 'var(--bb-color-text-muted)' }}>
+              <Link 
+                to="/pets" 
+                className="flex items-center gap-1 hover:text-[color:var(--bb-color-text-primary)] transition-colors"
               >
-                {tabs.map(tab => {
-                  const Icon = tab.icon;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={cn(
-                        "flex items-center gap-[var(--bb-space-2,0.5rem)] px-[var(--bb-space-4,1rem)] py-[var(--bb-space-3,0.75rem)] border-b-2 text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] transition-colors -mb-px",
-                        activeTab === tab.id
-                          ? "border-[color:var(--bb-color-accent)] text-[color:var(--bb-color-accent)]"
-                          : "border-transparent text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] hover:border-[color:var(--bb-color-border-strong)]"
-                      )}
-                    >
-                      <Icon className="w-4 h-4" />
-                      {tab.label}
-                    </button>
-                  );
-                })}
-              </nav>
+                <ArrowLeft className="w-4 h-4" />
+                Pets
+              </Link>
+              <ChevronRight className="w-4 h-4" />
+              <span style={{ color: 'var(--bb-color-text-primary)' }}>{pet.name}</span>
+            </nav>
+            
+            {/* Title & Status */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 
+                className="text-2xl font-semibold truncate"
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                {pet.name}
+              </h1>
+              <Badge variant={currentBooking ? 'success' : 'neutral'}>
+                {currentBooking ? 'Currently Boarding' : 'Not Checked In'}
+              </Badge>
+              {hasAlerts && (
+                <Badge variant="warning" className="flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  Alerts
+                </Badge>
+              )}
+            </div>
+            
+            {/* Subtitle */}
+            <p className="mt-1 text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
+              {petDescription} {petAge && `• ${petAge}`}
+            </p>
+          </div>
 
-              {/* Tab Content */}
-              <div className="p-[var(--bb-space-6,1.5rem)]">
-                {activeTab === 'overview' && <OverviewTab pet={pet} formatDate={formatDate} />}
-                {activeTab === 'health' && (
-                  <HealthTab
-                    pet={pet}
-                    vaccinations={vaccinations}
-                    vaccLoading={vaccLoading}
-                    getDefaultVaccines={getDefaultVaccines}
-                    getVaccinationForType={getVaccinationForType}
-                    getVaccinationStatus={getVaccinationStatus}
-                    getStatusDisplay={getStatusDisplay}
-                    handleAddVaccination={handleAddVaccination}
-                    handleEditVaccination={handleEditVaccination}
-                    handleDeleteClick={handleDeleteClick}
-                    formatDate={formatDate}
-                  />
-                )}
-                {activeTab === 'bookings' && <BookingsTab pet={pet} formatDate={formatDate} calculateDays={calculateDays} />}
-                {activeTab === 'documents' && <DocumentsTab pet={pet} />}
-              </div>
+          {/* Actions */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Button variant="primary" onClick={() => openSlideout(SLIDEOUT_TYPES.BOOKING_CREATE, { petId, ownerId: primaryOwner?.recordId })}>
+              <Plus className="w-4 h-4 mr-2" />
+              New Booking
+            </Button>
+            <Button variant="secondary" onClick={handleEdit}>
+              <Edit className="w-4 h-4 mr-2" />
+              Edit
+            </Button>
+            <Button variant="ghost" onClick={handleDelete} className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* ================================================================
+            METRICS STRIP
+        ================================================================ */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <MetricCard 
+            label="Total Stays" 
+            value={totalStays || pet.bookings?.length || 0} 
+          />
+          <MetricCard 
+            label="Last Visit" 
+            value={safeFormatDistance(lastVisitDate || pet.lastVetVisit)} 
+          />
+          <MetricCard 
+            label="Next Booking" 
+            value={upcomingBookings[0] ? safeFormatDate(upcomingBookings[0].checkIn) : 'None'} 
+          />
+          <MetricCard 
+            label="Vaccinations" 
+            value={vaccinationsSummary.status === 'up-to-date' ? 'Up to date' : 
+                   vaccinationsSummary.status === 'due-soon' ? `${vaccinationsSummary.dueSoon} due soon` :
+                   `${vaccinationsSummary.overdue} overdue`}
+            variant={vaccinationsSummary.status === 'up-to-date' ? 'success' : 
+                    vaccinationsSummary.status === 'due-soon' ? 'warning' : 'danger'}
+          />
+        </div>
+
+        {/* ================================================================
+            TWO-COLUMN LAYOUT
+        ================================================================ */}
+        <div className="grid gap-6 lg:grid-cols-12">
+          {/* LEFT COLUMN: Pet Summary + Tabbed Content */}
+          <div className="lg:col-span-8 space-y-6">
+            {/* Pet Summary Card */}
+            <PetSummaryCard pet={pet} currentBooking={currentBooking} />
+
+            {/* Tabbed Content */}
+            <Card className="overflow-hidden">
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <div className="border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+                  <TabsList className="w-full justify-start px-4 h-12 bg-transparent">
+                    <TabsTrigger value="overview" className="flex items-center gap-2">
+                      <Activity className="w-4 h-4" />
+                      Overview
+                    </TabsTrigger>
+                    <TabsTrigger value="health" className="flex items-center gap-2">
+                      <Heart className="w-4 h-4" />
+                      Health
+                    </TabsTrigger>
+                    <TabsTrigger value="bookings" className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4" />
+                      Bookings
+                    </TabsTrigger>
+                    <TabsTrigger value="documents" className="flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      Documents
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
+
+                <div className="p-6">
+                  <TabsContent value="overview" className="mt-0">
+                    <OverviewTab 
+                      pet={pet}
+                      upcomingBookings={upcomingBookings}
+                      recentBookings={recentBookings}
+                      vaccinationsSummary={vaccinationsSummary}
+                      onSwitchToHealth={() => setActiveTab('health')}
+                      onSwitchToBookings={() => setActiveTab('bookings')}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="health" className="mt-0">
+                    <HealthTab
+                      pet={pet}
+                      vaccinations={vaccinations}
+                      vaccLoading={vaccLoading}
+                      getDefaultVaccines={getDefaultVaccines}
+                      getVaccinationForType={getVaccinationForType}
+                      getVaccinationStatus={getVaccinationStatus}
+                      getStatusDisplay={getStatusDisplay}
+                      handleAddVaccination={handleAddVaccination}
+                      handleEditVaccination={handleEditVaccination}
+                      handleDeleteClick={handleDeleteClick}
+                      onEdit={handleEdit}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="bookings" className="mt-0">
+                    <BookingsTab 
+                      bookings={filteredBookings}
+                      filter={bookingFilter}
+                      onFilterChange={setBookingFilter}
+                      petId={petId}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="documents" className="mt-0">
+                    <DocumentsTab pet={pet} />
+                  </TabsContent>
+                </div>
+              </Tabs>
             </Card>
           </div>
 
-          {/* Right column: Status + quick actions + secondary info */}
-          <div className="lg:col-span-4 space-y-[var(--bb-space-6,1.5rem)]">
-            {/* Status Card */}
-            {currentBooking && (
-              <Card className="p-[var(--bb-space-6,1.5rem)]">
-                <h3
-                  className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)] uppercase tracking-wide mb-[var(--bb-space-4,1rem)]"
-                  style={{ color: 'var(--bb-color-text-muted)' }}
-                >
-                  Current Stay
-                </h3>
-                <div className="space-y-[var(--bb-space-3,0.75rem)]">
-                  <div className="flex items-center justify-between">
-                    <span style={{ color: 'var(--bb-color-text-muted)' }}>Status</span>
-                    <Badge variant="success">Checked In</Badge>
-                  </div>
-                  <InfoItem label="Room" value={currentBooking.roomNumber || '—'} inline />
-                  <InfoItem label="Check-In" value={formatDate(currentBooking.checkIn)} inline />
-                  <InfoItem label="Check-Out" value={formatDate(currentBooking.checkOut)} inline />
-                  <InfoItem
-                    label="Duration"
-                    value={`${calculateDays(currentBooking.checkIn, currentBooking.checkOut)} days`}
-                    inline
-                  />
-                </div>
-              </Card>
-            )}
+          {/* RIGHT COLUMN: Sticky Sidebar */}
+          <div className="lg:col-span-4">
+            <div className="lg:sticky lg:top-6 space-y-6">
+              {/* Current Stay Card */}
+              {currentBooking && (
+                <CurrentStayCard booking={currentBooking} />
+              )}
 
-            {/* Owner Card */}
-            {primaryOwner && (
-              <Card className="p-[var(--bb-space-6,1.5rem)]">
-                <h3
-                  className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)] uppercase tracking-wide mb-[var(--bb-space-4,1rem)]"
-                  style={{ color: 'var(--bb-color-text-muted)' }}
-                >
-                  Owner
-                </h3>
-                <div className="flex items-center gap-[var(--bb-space-3,0.75rem)]">
-                  <div
-                    className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full"
-                    style={{
-                      backgroundColor: 'var(--bb-color-purple-soft)',
-                      color: 'var(--bb-color-purple)',
-                    }}
-                  >
-                    <User className="h-6 w-6" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className="truncate text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
-                      style={{ color: 'var(--bb-color-text-primary)' }}
-                    >
-                      {primaryOwner.name || `${primaryOwner.firstName || ''} ${primaryOwner.lastName || ''}`.trim()}
-                    </p>
-                    {primaryOwner.email && (
-                      <p
-                        className="truncate text-[var(--bb-font-size-xs,0.75rem)]"
-                        style={{ color: 'var(--bb-color-text-muted)' }}
-                      >
-                        {primaryOwner.email}
-                      </p>
-                    )}
-                  </div>
-                </div>
+              {/* Owner Card */}
+              {primaryOwner && (
+                <PetOwnerCard owner={primaryOwner} />
+              )}
 
-                {(primaryOwner.phone || primaryOwner.email) && (
-                  <div className="mt-[var(--bb-space-4,1rem)] space-y-[var(--bb-space-2,0.5rem)]">
-                    {primaryOwner.phone && (
-                      <div
-                        className="flex items-center gap-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)]"
-                        style={{ color: 'var(--bb-color-text-muted)' }}
-                      >
-                        <Phone className="h-4 w-4" />
-                        {primaryOwner.phone}
-                      </div>
-                    )}
-                    {primaryOwner.email && (
-                      <div
-                        className="flex items-center gap-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)]"
-                        style={{ color: 'var(--bb-color-text-muted)' }}
-                      >
-                        <Mail className="h-4 w-4" />
-                        {primaryOwner.email}
-                      </div>
-                    )}
-                  </div>
-                )}
+              {/* Quick Actions */}
+              <PetQuickActions 
+                owner={primaryOwner} 
+                petId={petId} 
+                currentBooking={currentBooking}
+              />
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full mt-[var(--bb-space-4,1rem)]"
-                  onClick={() => navigate(`/owners/${primaryOwner.recordId}`)}
-                >
-                  View Owner Profile
-                </Button>
-              </Card>
-            )}
+              {/* Notes/Alerts Card */}
+              <NotesAlertsCard pet={pet} />
 
-            {/* Quick Actions Card */}
-            <Card className="p-[var(--bb-space-6,1.5rem)]">
-              <h3
-                className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)] uppercase tracking-wide mb-[var(--bb-space-4,1rem)]"
-                style={{ color: 'var(--bb-color-text-muted)' }}
-              >
-                Quick Actions
-              </h3>
-              <div className="space-y-[var(--bb-space-2,0.5rem)]">
-                {primaryOwner?.phone && (
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start"
-                    onClick={() => window.open(`tel:${primaryOwner.phone}`)}
-                  >
-                    <Phone className="w-4 h-4 mr-[var(--bb-space-2,0.5rem)]" />
-                    Call Owner
-                  </Button>
-                )}
-
-                {primaryOwner?.email && (
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start"
-                    onClick={() => window.open(`mailto:${primaryOwner.email}`)}
-                  >
-                    <Mail className="w-4 h-4 mr-[var(--bb-space-2,0.5rem)]" />
-                    Email Owner
-                  </Button>
-                )}
-
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  onClick={() => navigate('/bookings?action=new')}
-                >
-                  <Calendar className="w-4 h-4 mr-[var(--bb-space-2,0.5rem)]" />
-                  Book Stay
-                </Button>
-
-                {currentBooking && (
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start"
-                    onClick={() => toast.info('Check out feature coming soon')}
-                  >
-                    <CheckCircle className="w-4 h-4 mr-[var(--bb-space-2,0.5rem)]" />
-                    Check Out
-                  </Button>
-                )}
-              </div>
-            </Card>
-
-            {/* Notes Card */}
-            {(pet.medicalNotes || pet.behaviorNotes || pet.dietaryNotes) && (
-              <Card className="p-[var(--bb-space-6,1.5rem)]">
-                <h3
-                  className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)] uppercase tracking-wide mb-[var(--bb-space-4,1rem)]"
-                  style={{ color: 'var(--bb-color-text-muted)' }}
-                >
-                  Notes
-                </h3>
-                <div className="space-y-[var(--bb-space-4,1rem)]">
-                  {pet.medicalNotes && (
-                    <NoteItem label="Medical" value={pet.medicalNotes} variant="warning" />
-                  )}
-                  {pet.behaviorNotes && (
-                    <NoteItem label="Behavior" value={pet.behaviorNotes} variant="info" />
-                  )}
-                  {pet.dietaryNotes && (
-                    <NoteItem label="Dietary" value={pet.dietaryNotes} variant="neutral" />
-                  )}
-                </div>
-              </Card>
-            )}
-
-            {/* Other Owners (if multiple) */}
-            {pet.owners && pet.owners.length > 1 && (
-              <Card className="p-[var(--bb-space-6,1.5rem)]">
-                <h3
-                  className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)] uppercase tracking-wide mb-[var(--bb-space-4,1rem)]"
-                  style={{ color: 'var(--bb-color-text-muted)' }}
-                >
-                  Other Owners
-                </h3>
-                <div className="space-y-[var(--bb-space-2,0.5rem)]">
-                  {pet.owners.slice(1).map(owner => (
-                    <button
-                      key={owner.recordId}
-                      onClick={() => navigate(`/owners/${owner.recordId}`)}
-                      className="w-full p-[var(--bb-space-3,0.75rem)] rounded-lg text-left transition-colors border"
-                      style={{
-                        borderColor: 'var(--bb-color-border-subtle)',
-                        backgroundColor: 'transparent',
-                      }}
-                    >
-                      <p
-                        className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
-                        style={{ color: 'var(--bb-color-text-primary)' }}
-                      >
-                        {owner.name || `${owner.firstName || ''} ${owner.lastName || ''}`.trim()}
-                      </p>
-                      <p
-                        className="text-[var(--bb-font-size-xs,0.75rem)]"
-                        style={{ color: 'var(--bb-color-text-muted)' }}
-                      >
-                        {owner.email}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-              </Card>
-            )}
+              {/* Other Owners */}
+              {pet.owners && pet.owners.length > 1 && (
+                <OtherOwnersCard owners={pet.owners.slice(1)} />
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Modals */}
-      <PetFormModal
-        open={editModalOpen}
-        onClose={() => setEditModalOpen(false)}
-        pet={pet}
-        onSubmit={handleEditSubmit}
-        isLoading={updatePetMutation.isPending}
-      />
-
+      {/* ================================================================
+          MODALS
+      ================================================================ */}
       <VaccinationFormModal
         open={vaccinationModalOpen}
         onClose={() => {
@@ -658,140 +628,580 @@ const PetDetail = () => {
   );
 };
 
-// Helper Components
+// ============================================================================
+// METRIC CARD COMPONENT
+// ============================================================================
 
-function InfoItem({ label, value, inline = false }) {
-  if (inline) {
-    return (
-      <div className="flex items-center justify-between">
-        <span
-          className="text-[var(--bb-font-size-sm,0.875rem)]"
-          style={{ color: 'var(--bb-color-text-muted)' }}
-        >
-          {label}
-        </span>
-        <span
-          className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
-          style={{ color: 'var(--bb-color-text-primary)' }}
-        >
-          {value}
-        </span>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <p
-        className="text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide mb-[var(--bb-space-1,0.25rem)]"
-        style={{ color: 'var(--bb-color-text-muted)' }}
-      >
-        {label}
-      </p>
-      <p
-        className="text-[var(--bb-font-size-sm,0.875rem)]"
-        style={{ color: 'var(--bb-color-text-primary)' }}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function NoteItem({ label, value, variant = 'neutral' }) {
-  const bgColors = {
-    warning: 'var(--bb-color-status-negative-soft)',
-    info: 'var(--bb-color-info-soft)',
-    neutral: 'var(--bb-color-bg-elevated)',
+function MetricCard({ label, value, variant = 'neutral' }) {
+  const variantStyles = {
+    success: 'var(--bb-color-status-positive)',
+    warning: 'var(--bb-color-status-caution)',
+    danger: 'var(--bb-color-status-negative)',
+    neutral: 'var(--bb-color-text-primary)',
   };
 
   return (
-    <div
-      className="p-[var(--bb-space-3,0.75rem)] rounded-lg"
-      style={{ backgroundColor: bgColors[variant] }}
-    >
-      <p
-        className="text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-semibold,600)] uppercase tracking-wide mb-[var(--bb-space-1,0.25rem)]"
-        style={{ color: 'var(--bb-color-text-muted)' }}
-      >
+    <Card className="p-4">
+      <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--bb-color-text-muted)' }}>
         {label}
       </p>
-      <p
-        className="text-[var(--bb-font-size-sm,0.875rem)]"
-        style={{ color: 'var(--bb-color-text-primary)' }}
-      >
+      <p className="text-lg font-semibold" style={{ color: variantStyles[variant] }}>
         {value}
       </p>
-    </div>
+    </Card>
   );
 }
 
-function StatBox({ label, value, icon: Icon }) {
+// ============================================================================
+// PET SUMMARY CARD
+// ============================================================================
+
+function PetSummaryCard({ pet, currentBooking }) {
+  const petAge = calculateAge(pet.dateOfBirth) || pet.age;
+
+  const fields = [
+    { label: 'Breed', value: pet.breed },
+    { label: 'Species', value: pet.species },
+    { label: 'Gender', value: pet.gender },
+    { label: 'Weight', value: pet.weight ? `${pet.weight} lbs` : null },
+    { label: 'Color', value: pet.color },
+    { label: 'Age', value: petAge },
+    { label: 'Microchip', value: pet.microchipNumber },
+    { label: 'Last Vet Visit', value: safeFormatDate(pet.lastVetVisit) },
+  ];
+
   return (
-    <div
-      className="p-[var(--bb-space-4,1rem)] rounded-lg border"
-      style={{ borderColor: 'var(--bb-color-border-subtle)' }}
-    >
-      <div className="flex items-center gap-[var(--bb-space-3,0.75rem)] mb-[var(--bb-space-2,0.5rem)]">
-        <Icon className="w-5 h-5" style={{ color: 'var(--bb-color-text-muted)' }} />
-        <p
-          className="text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide"
-          style={{ color: 'var(--bb-color-text-muted)' }}
+    <Card className="p-6">
+      <div className="flex items-start gap-4">
+        {/* Avatar */}
+        <div 
+          className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full"
+          style={{ backgroundColor: 'var(--bb-color-accent-soft)', color: 'var(--bb-color-accent)' }}
         >
-          {label}
-        </p>
+          <PawPrint className="h-8 w-8" />
+        </div>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-xl font-semibold" style={{ color: 'var(--bb-color-text-primary)' }}>
+              {pet.name}
+            </h2>
+            {currentBooking && (
+              <Badge variant="success">In Facility</Badge>
+            )}
+          </div>
+          <p className="text-sm mt-1" style={{ color: 'var(--bb-color-text-muted)' }}>
+            {[pet.breed, pet.species, pet.gender].filter(Boolean).join(' • ')}
+          </p>
+          
+          {/* Risk Badges */}
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
+            {pet.medicalNotes && (
+              <Badge variant="danger" className="flex items-center gap-1 text-xs">
+                <AlertCircle className="w-3 h-3" />
+                Medical Alert
+              </Badge>
+            )}
+            {pet.behaviorNotes && (
+              <Badge variant="warning" className="flex items-center gap-1 text-xs">
+                <Shield className="w-3 h-3" />
+                Behavior Note
+              </Badge>
+            )}
+            {pet.dietaryNotes && (
+              <Badge variant="info" className="flex items-center gap-1 text-xs">
+                <Utensils className="w-3 h-3" />
+                Special Diet
+              </Badge>
+            )}
+          </div>
+        </div>
       </div>
-      <p
-        className="text-[var(--bb-font-size-xl,1.5rem)] font-[var(--bb-font-weight-semibold,600)]"
-        style={{ color: 'var(--bb-color-text-primary)' }}
+
+      {/* Fields Grid */}
+      <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {fields.map(({ label, value }) => (
+          <div key={label}>
+            <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--bb-color-text-muted)' }}>
+              {label}
+            </p>
+            <p className="text-sm" style={{ color: value ? 'var(--bb-color-text-primary)' : 'var(--bb-color-text-muted)' }}>
+              {value || '—'}
+            </p>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+// ============================================================================
+// CURRENT STAY CARD
+// ============================================================================
+
+function CurrentStayCard({ booking }) {
+  return (
+    <Card className="p-5" style={{ borderColor: 'var(--bb-color-status-positive)', borderWidth: '2px' }}>
+      <div className="flex items-center gap-2 mb-4">
+        <div 
+          className="flex h-8 w-8 items-center justify-center rounded-full"
+          style={{ backgroundColor: 'var(--bb-color-status-positive-soft)', color: 'var(--bb-color-status-positive)' }}
+        >
+          <CheckCircle className="w-4 h-4" />
+        </div>
+        <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--bb-color-status-positive)' }}>
+          Current Stay
+        </h3>
+      </div>
+      
+      <div className="space-y-3">
+        <InfoRow label="Status" value={<Badge variant="success">Checked In</Badge>} />
+        <InfoRow label="Room" value={booking.roomNumber || booking.kennelName || '—'} />
+        <InfoRow label="Check-In" value={safeFormatDate(booking.checkIn)} />
+        <InfoRow label="Check-Out" value={safeFormatDate(booking.checkOut)} />
+        <InfoRow 
+          label="Duration" 
+          value={`${calculateDays(booking.checkIn, booking.checkOut)} days`} 
+        />
+      </div>
+    </Card>
+  );
+}
+
+// ============================================================================
+// PET OWNER CARD
+// ============================================================================
+
+function PetOwnerCard({ owner }) {
+  const navigate = useNavigate();
+  const ownerName = owner.name || `${owner.firstName || ''} ${owner.lastName || ''}`.trim();
+
+  return (
+    <Card className="p-5">
+      <h3 className="text-sm font-semibold uppercase tracking-wide mb-4" style={{ color: 'var(--bb-color-text-muted)' }}>
+        Owner
+      </h3>
+      
+      <div className="flex items-center gap-3 mb-4">
+        <div 
+          className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full"
+          style={{ backgroundColor: 'var(--bb-color-purple-soft)', color: 'var(--bb-color-purple)' }}
+        >
+          <User className="h-6 w-6" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-medium truncate" style={{ color: 'var(--bb-color-text-primary)' }}>
+            {ownerName}
+          </p>
+          <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
+            Primary Owner
+          </p>
+        </div>
+      </div>
+
+      {/* Contact Info */}
+      <div className="space-y-2 mb-4">
+        {owner.email && (
+          <div className="flex items-center gap-2 group">
+            <Mail className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--bb-color-text-muted)' }} />
+            <a 
+              href={`mailto:${owner.email}`}
+              className="text-sm truncate flex-1 hover:underline"
+              style={{ color: 'var(--bb-color-text-primary)' }}
+            >
+              {owner.email}
+            </a>
+            <button 
+              onClick={() => copyToClipboard(owner.email)}
+              className="opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Copy className="w-3.5 h-3.5" style={{ color: 'var(--bb-color-text-muted)' }} />
+            </button>
+          </div>
+        )}
+        {owner.phone && (
+          <div className="flex items-center gap-2 group">
+            <Phone className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--bb-color-text-muted)' }} />
+            <a 
+              href={`tel:${owner.phone}`}
+              className="text-sm flex-1 hover:underline"
+              style={{ color: 'var(--bb-color-text-primary)' }}
+            >
+              {owner.phone}
+            </a>
+            <button 
+              onClick={() => copyToClipboard(owner.phone)}
+              className="opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Copy className="w-3.5 h-3.5" style={{ color: 'var(--bb-color-text-muted)' }} />
+            </button>
+          </div>
+        )}
+      </div>
+
+      <Button
+        variant="outline"
+        size="sm"
+        className="w-full"
+        onClick={() => navigate(`/customers/${owner.recordId}`)}
       >
-        {value}
+        View Owner Profile
+        <ExternalLink className="w-3.5 h-3.5 ml-2" />
+      </Button>
+    </Card>
+  );
+}
+
+// ============================================================================
+// PET QUICK ACTIONS
+// ============================================================================
+
+function PetQuickActions({ owner, petId, currentBooking }) {
+  const { openSlideout } = useSlideout();
+
+  return (
+    <Card className="p-5">
+      <h3 className="text-sm font-semibold uppercase tracking-wide mb-4" style={{ color: 'var(--bb-color-text-muted)' }}>
+        Quick Actions
+      </h3>
+      
+      <div className="space-y-2">
+        {owner?.phone && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start"
+            onClick={() => window.open(`tel:${owner.phone}`)}
+          >
+            <Phone className="w-4 h-4 mr-2" />
+            Call Owner
+          </Button>
+        )}
+
+        {owner?.email && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start"
+            onClick={() => window.open(`mailto:${owner.email}`)}
+          >
+            <Mail className="w-4 h-4 mr-2" />
+            Email Owner
+          </Button>
+        )}
+
+        <Button
+          variant="primary"
+          size="sm"
+          className="w-full justify-start"
+          onClick={() => openSlideout(SLIDEOUT_TYPES.BOOKING_CREATE, { petId, ownerId: owner?.recordId })}
+        >
+          <Calendar className="w-4 h-4 mr-2" />
+          Book Stay
+        </Button>
+
+        {currentBooking && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start"
+            onClick={() => toast.info('Check out feature coming soon')}
+          >
+            <CheckCircle className="w-4 h-4 mr-2" />
+            Check Out
+          </Button>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+// ============================================================================
+// NOTES/ALERTS CARD
+// ============================================================================
+
+function NotesAlertsCard({ pet }) {
+  const hasNotes = pet.medicalNotes || pet.behaviorNotes || pet.dietaryNotes;
+
+  return (
+    <Card className="p-5">
+      <h3 className="text-sm font-semibold uppercase tracking-wide mb-4" style={{ color: 'var(--bb-color-text-muted)' }}>
+        Notes & Alerts
+      </h3>
+
+      {hasNotes ? (
+        <div className="space-y-3">
+          {pet.medicalNotes && (
+            <AlertNote 
+              icon={AlertCircle}
+              label="Medical"
+              content={pet.medicalNotes}
+              variant="danger"
+            />
+          )}
+          {pet.behaviorNotes && (
+            <AlertNote 
+              icon={Shield}
+              label="Behavior"
+              content={pet.behaviorNotes}
+              variant="warning"
+            />
+          )}
+          {pet.dietaryNotes && (
+            <AlertNote 
+              icon={Utensils}
+              label="Dietary"
+              content={pet.dietaryNotes}
+              variant="info"
+            />
+          )}
+        </div>
+      ) : (
+        <p className="text-sm text-center py-4" style={{ color: 'var(--bb-color-text-muted)' }}>
+          No critical notes added yet
+        </p>
+      )}
+    </Card>
+  );
+}
+
+function AlertNote({ icon: Icon, label, content, variant }) {
+  const bgColors = {
+    danger: 'var(--bb-color-status-negative-soft)',
+    warning: 'var(--bb-color-status-caution-soft)',
+    info: 'var(--bb-color-info-soft)',
+  };
+  const iconColors = {
+    danger: 'var(--bb-color-status-negative)',
+    warning: 'var(--bb-color-status-caution)',
+    info: 'var(--bb-color-info)',
+  };
+
+  return (
+    <div className="p-3 rounded-lg" style={{ backgroundColor: bgColors[variant] }}>
+      <div className="flex items-center gap-2 mb-1">
+        <Icon className="w-4 h-4" style={{ color: iconColors[variant] }} />
+        <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: iconColors[variant] }}>
+          {label}
+        </span>
+      </div>
+      <p className="text-sm line-clamp-3" style={{ color: 'var(--bb-color-text-primary)' }}>
+        {content}
       </p>
     </div>
   );
 }
 
-// TAB COMPONENTS
+// ============================================================================
+// OTHER OWNERS CARD
+// ============================================================================
 
-function OverviewTab({ pet, formatDate }) {
+function OtherOwnersCard({ owners }) {
+  const navigate = useNavigate();
+
   return (
-    <div className="space-y-[var(--bb-space-6,1.5rem)]">
-      <div>
-        <h3
-          className="text-[var(--bb-font-size-md,1.125rem)] font-[var(--bb-font-weight-semibold,600)] mb-[var(--bb-space-3,0.75rem)]"
-          style={{ color: 'var(--bb-color-text-primary)' }}
-        >
+    <Card className="p-5">
+      <h3 className="text-sm font-semibold uppercase tracking-wide mb-4" style={{ color: 'var(--bb-color-text-muted)' }}>
+        Other Owners
+      </h3>
+      <div className="space-y-2">
+        {owners.map(owner => (
+          <button
+            key={owner.recordId}
+            onClick={() => navigate(`/customers/${owner.recordId}`)}
+            className="w-full p-3 rounded-lg text-left transition-colors border hover:bg-[color:var(--bb-color-bg-elevated)]"
+            style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+          >
+            <p className="text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+              {owner.name || `${owner.firstName || ''} ${owner.lastName || ''}`.trim()}
+            </p>
+            <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
+              {owner.email}
+            </p>
+          </button>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+// ============================================================================
+// INFO ROW HELPER
+// ============================================================================
+
+function InfoRow({ label, value }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>{label}</span>
+      <span className="text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+        {typeof value === 'string' ? value : value}
+      </span>
+    </div>
+  );
+}
+
+// ============================================================================
+// OVERVIEW TAB
+// ============================================================================
+
+function OverviewTab({ pet, upcomingBookings, recentBookings, vaccinationsSummary, onSwitchToHealth, onSwitchToBookings }) {
+  return (
+    <div className="space-y-8">
+      {/* About Section */}
+      <section>
+        <h3 className="text-lg font-semibold mb-3" style={{ color: 'var(--bb-color-text-primary)' }}>
           About {pet.name}
         </h3>
-        <p
-          className="text-[var(--bb-font-size-sm,0.875rem)] leading-relaxed"
-          style={{ color: 'var(--bb-color-text-muted)' }}
-        >
-          {pet.notes || pet.behaviorNotes || `${pet.name} is a ${pet.age || 'young'} ${pet.breed || pet.species}.`}
+        <p className="text-sm leading-relaxed" style={{ color: 'var(--bb-color-text-muted)' }}>
+          {pet.notes || pet.description || `${pet.name} is a ${calculateAge(pet.dateOfBirth) || ''} ${pet.breed || pet.species || 'pet'}.`}
         </p>
-      </div>
+      </section>
 
-      {/* Key Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-[var(--bb-space-4,1rem)]">
-        <StatBox
-          label="Total Stays"
-          value={pet.bookings?.length || 0}
-          icon={Calendar}
-        />
-        <StatBox
-          label="Last Visit"
-          value={pet.lastVetVisit ? formatDate(pet.lastVetVisit) : 'Never'}
-          icon={MapPin}
-        />
-        <StatBox
-          label="Next Booking"
-          value={pet.nextAppointment ? formatDate(pet.nextAppointment) : 'None'}
-          icon={Calendar}
-        />
-      </div>
+      {/* Health Summary Chips */}
+      <section>
+        <h3 className="text-sm font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--bb-color-text-muted)' }}>
+          Health Summary
+        </h3>
+        <div className="flex flex-wrap gap-2">
+          <button 
+            onClick={onSwitchToHealth}
+            className={cn(
+              "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+              vaccinationsSummary.status === 'up-to-date' 
+                ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                : vaccinationsSummary.status === 'due-soon'
+                ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+            )}
+          >
+            <Syringe className="w-3.5 h-3.5 inline mr-1.5" />
+            Vaccinations: {vaccinationsSummary.status === 'up-to-date' ? 'Up to date' : 
+                          vaccinationsSummary.status === 'due-soon' ? 'Due soon' : 'Overdue'}
+          </button>
+          
+          <button 
+            onClick={onSwitchToHealth}
+            className={cn(
+              "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+              pet.medicalNotes 
+                ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+            )}
+          >
+            <AlertCircle className="w-3.5 h-3.5 inline mr-1.5" />
+            Medical: {pet.medicalNotes ? 'Alert' : 'None'}
+          </button>
+
+          <button 
+            onClick={onSwitchToHealth}
+            className={cn(
+              "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+              pet.dietaryNotes 
+                ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+            )}
+          >
+            <Utensils className="w-3.5 h-3.5 inline mr-1.5" />
+            Diet: {pet.dietaryNotes ? 'Special' : 'Standard'}
+          </button>
+
+          <button 
+            onClick={onSwitchToHealth}
+            className={cn(
+              "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+              pet.behaviorNotes 
+                ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+            )}
+          >
+            <Shield className="w-3.5 h-3.5 inline mr-1.5" />
+            Behavior: {pet.behaviorNotes ? 'Needs caution' : 'Normal'}
+          </button>
+        </div>
+      </section>
+
+      {/* Upcoming & Recent Bookings */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold uppercase tracking-wide" style={{ color: 'var(--bb-color-text-muted)' }}>
+            Bookings
+          </h3>
+          <button 
+            onClick={onSwitchToBookings}
+            className="text-sm font-medium hover:underline"
+            style={{ color: 'var(--bb-color-accent)' }}
+          >
+            View all →
+          </button>
+        </div>
+
+        {upcomingBookings.length === 0 && recentBookings.length === 0 ? (
+          <div 
+            className="text-center py-8 rounded-lg border-2 border-dashed"
+            style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+          >
+            <Calendar className="w-8 h-8 mx-auto mb-2" style={{ color: 'var(--bb-color-text-muted)' }} />
+            <p className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
+              No bookings yet
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {upcomingBookings.map(booking => (
+              <BookingRow key={booking.recordId} booking={booking} type="upcoming" />
+            ))}
+            {recentBookings.slice(0, 2).map(booking => (
+              <BookingRow key={booking.recordId} booking={booking} type="past" />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
+
+function BookingRow({ booking, type }) {
+  const navigate = useNavigate();
+  
+  return (
+    <button
+      onClick={() => navigate(`/bookings/${booking.recordId}`)}
+      className="w-full p-3 rounded-lg border text-left transition-colors hover:bg-[color:var(--bb-color-bg-elevated)]"
+      style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div 
+            className={cn(
+              "flex h-8 w-8 items-center justify-center rounded-full",
+              type === 'upcoming' 
+                ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+                : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+            )}
+          >
+            <Calendar className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+              {safeFormatDate(booking.checkIn)} - {safeFormatDate(booking.checkOut)}
+            </p>
+            <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
+              {booking.serviceName || booking.serviceType || 'Boarding'} • {calculateDays(booking.checkIn, booking.checkOut)} days
+            </p>
+          </div>
+        </div>
+        <Badge variant={getStatusVariant(booking.status)}>
+          {booking.status?.replace(/_/g, ' ')}
+        </Badge>
+      </div>
+    </button>
+  );
+}
+
+// ============================================================================
+// HEALTH TAB
+// ============================================================================
 
 function HealthTab({
   pet,
@@ -804,228 +1214,368 @@ function HealthTab({
   handleAddVaccination,
   handleEditVaccination,
   handleDeleteClick,
-  formatDate,
+  onEdit,
 }) {
   const defaultVaccines = getDefaultVaccines(pet.species);
 
   return (
-    <div className="space-y-[var(--bb-space-6,1.5rem)]">
-      <div>
-        <h3
-          className="text-[var(--bb-font-size-md,1.125rem)] font-[var(--bb-font-weight-semibold,600)] mb-[var(--bb-space-4,1rem)]"
-          style={{ color: 'var(--bb-color-text-primary)' }}
-        >
-          Vaccinations
-        </h3>
+    <div className="space-y-8">
+      {/* Vaccinations Section */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold" style={{ color: 'var(--bb-color-text-primary)' }}>
+            Vaccinations
+          </h3>
+          <Button size="sm" variant="outline" onClick={() => handleAddVaccination('')}>
+            <Plus className="w-4 h-4 mr-1" />
+            Add Vaccine
+          </Button>
+        </div>
 
         {vaccLoading ? (
-          <p style={{ color: 'var(--bb-color-text-muted)' }}>Loading vaccinations…</p>
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-16" />)}
+          </div>
         ) : (
-          <>
-            {/* Vaccination Cards */}
-            <div className="space-y-[var(--bb-space-3,0.75rem)] mb-[var(--bb-space-6,1.5rem)]">
-              {defaultVaccines.map((vaccineType) => {
-                const vaccination = getVaccinationForType(vaccineType);
-                const status = getVaccinationStatus(vaccination);
-                const { label, intent } = getStatusDisplay(status);
+          <div className="space-y-2">
+            {defaultVaccines.map((vaccineType) => {
+              const vaccination = getVaccinationForType(vaccineType);
+              const status = getVaccinationStatus(vaccination);
+              const { label, intent } = getStatusDisplay(status);
 
-                return (
-                  <div
-                    key={vaccineType}
-                    className="flex items-center justify-between p-[var(--bb-space-4,1rem)] border rounded-lg transition-colors"
-                    style={{
-                      borderColor: 'var(--bb-color-border-subtle)',
-                    }}
-                  >
-                    <div className="flex items-center gap-[var(--bb-space-3,0.75rem)]">
-                      <div
-                        className="flex h-10 w-10 items-center justify-center rounded-full"
-                        style={{
-                          backgroundColor: 'var(--bb-color-info-soft)',
-                          color: 'var(--bb-color-info)',
-                        }}
-                      >
-                        <Syringe className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <p
-                          className="font-[var(--bb-font-weight-medium,500)]"
-                          style={{ color: 'var(--bb-color-text-primary)' }}
-                        >
-                          {vaccineType}
-                        </p>
-                        {vaccination ? (
-                          <p
-                            className="text-[var(--bb-font-size-sm,0.875rem)]"
-                            style={{ color: 'var(--bb-color-text-muted)' }}
-                          >
-                            Expires {formatDate(vaccination.expiresAt)}
-                          </p>
-                        ) : (
-                          <p
-                            className="text-[var(--bb-font-size-sm,0.875rem)]"
-                            style={{ color: 'var(--bb-color-text-muted)' }}
-                          >
-                            Not recorded
-                          </p>
-                        )}
-                      </div>
+              return (
+                <div
+                  key={vaccineType}
+                  className="flex items-center justify-between p-4 border rounded-lg transition-colors hover:bg-[color:var(--bb-color-bg-elevated)]"
+                  style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="flex h-10 w-10 items-center justify-center rounded-full"
+                      style={{ backgroundColor: 'var(--bb-color-info-soft)', color: 'var(--bb-color-info)' }}
+                    >
+                      <Syringe className="h-5 w-5" />
                     </div>
-                    <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
-                      <StatusPill intent={intent}>{label}</StatusPill>
-                      {vaccination ? (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleEditVaccination(vaccination)}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleDeleteClick(vaccination)}
-                          >
-                            Delete
-                          </Button>
-                        </>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleAddVaccination(vaccineType)}
-                        >
-                          Add
-                        </Button>
-                      )}
+                    <div>
+                      <p className="font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+                        {vaccineType}
+                      </p>
+                      <p className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
+                        {vaccination 
+                          ? `Expires ${safeFormatDate(vaccination.expiresAt)}`
+                          : 'Not recorded'}
+                      </p>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-
-            {/* Add Custom Vaccine */}
-            <Button
-              variant="outline"
-              onClick={() => handleAddVaccination('')}
-              className="w-full"
-            >
-              + Add Custom Vaccine
-            </Button>
-          </>
+                  <div className="flex items-center gap-2">
+                    <StatusPill intent={intent}>{label}</StatusPill>
+                    {vaccination ? (
+                      <>
+                        <Button size="sm" variant="ghost" onClick={() => handleEditVaccination(vaccination)}>
+                          Edit
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleDeleteClick(vaccination)}>
+                          Delete
+                        </Button>
+                      </>
+                    ) : (
+                      <Button size="sm" variant="ghost" onClick={() => handleAddVaccination(vaccineType)}>
+                        Add
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
-      </div>
+      </section>
 
-      {/* Medical Notes */}
-      {pet.medicalNotes && (
-        <div>
-          <h3
-            className="text-[var(--bb-font-size-base,1rem)] font-[var(--bb-font-weight-semibold,600)] mb-[var(--bb-space-3,0.75rem)]"
-            style={{ color: 'var(--bb-color-text-primary)' }}
-          >
+      {/* Medical Notes Section */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold" style={{ color: 'var(--bb-color-text-primary)' }}>
             Medical Notes
           </h3>
-          <div
-            className="p-[var(--bb-space-4,1rem)] rounded-lg"
+          <Button size="sm" variant="outline" onClick={onEdit}>
+            <Edit className="w-4 h-4 mr-1" />
+            Edit
+          </Button>
+        </div>
+        
+        {pet.medicalNotes ? (
+          <div 
+            className="p-4 rounded-lg"
             style={{ backgroundColor: 'var(--bb-color-status-negative-soft)' }}
           >
-            <p
-              className="text-[var(--bb-font-size-sm,0.875rem)]"
-              style={{ color: 'var(--bb-color-text-primary)' }}
-            >
+            <div className="flex items-center gap-2 mb-2">
+              <AlertCircle className="w-4 h-4" style={{ color: 'var(--bb-color-status-negative)' }} />
+              <span className="text-sm font-semibold" style={{ color: 'var(--bb-color-status-negative)' }}>
+                Medical Alert
+              </span>
+            </div>
+            <p className="text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>
               {pet.medicalNotes}
             </p>
           </div>
-        </div>
-      )}
+        ) : (
+          <p className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
+            No medical conditions or medications recorded.
+          </p>
+        )}
+      </section>
+
+      {/* Behavior & Handling Section */}
+      <section>
+        <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--bb-color-text-primary)' }}>
+          Behavior & Handling
+        </h3>
+        
+        {pet.behaviorNotes ? (
+          <div 
+            className="p-4 rounded-lg"
+            style={{ backgroundColor: 'var(--bb-color-status-caution-soft)' }}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Shield className="w-4 h-4" style={{ color: 'var(--bb-color-status-caution)' }} />
+              <span className="text-sm font-semibold" style={{ color: 'var(--bb-color-status-caution)' }}>
+                Behavior Notes
+              </span>
+            </div>
+            <p className="text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>
+              {pet.behaviorNotes}
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
+            No special handling instructions recorded.
+          </p>
+        )}
+      </section>
+
+      {/* Diet & Feeding Section */}
+      <section>
+        <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--bb-color-text-primary)' }}>
+          Diet & Feeding
+        </h3>
+        
+        {pet.dietaryNotes ? (
+          <div 
+            className="p-4 rounded-lg"
+            style={{ backgroundColor: 'var(--bb-color-info-soft)' }}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Utensils className="w-4 h-4" style={{ color: 'var(--bb-color-info)' }} />
+              <span className="text-sm font-semibold" style={{ color: 'var(--bb-color-info)' }}>
+                Special Diet
+              </span>
+            </div>
+            <p className="text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>
+              {pet.dietaryNotes}
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
+            Standard diet. No restrictions or special requirements.
+          </p>
+        )}
+      </section>
     </div>
   );
 }
 
-function BookingsTab({ pet, formatDate, calculateDays }) {
-  const allBookings = pet?.bookings || [];
+// ============================================================================
+// BOOKINGS TAB
+// ============================================================================
+
+function BookingsTab({ bookings, filter, onFilterChange, petId }) {
+  const navigate = useNavigate();
+  const { openSlideout } = useSlideout();
+
+  const filters = [
+    { value: 'all', label: 'All' },
+    { value: 'upcoming', label: 'Upcoming' },
+    { value: 'past', label: 'Past' },
+    { value: 'cancelled', label: 'Cancelled' },
+  ];
 
   return (
-    <div className="space-y-[var(--bb-space-6,1.5rem)]">
-      <div className="flex items-center justify-between">
-        <h3
-          className="text-[var(--bb-font-size-md,1.125rem)] font-[var(--bb-font-weight-semibold,600)]"
-          style={{ color: 'var(--bb-color-text-primary)' }}
-        >
-          Booking History
-        </h3>
-        <span
-          className="text-[var(--bb-font-size-sm,0.875rem)]"
-          style={{ color: 'var(--bb-color-text-muted)' }}
-        >
-          {allBookings.length} {allBookings.length === 1 ? 'booking' : 'bookings'}
-        </span>
-      </div>
-
-      {allBookings.length === 0 ? (
-        <p
-          className="text-[var(--bb-font-size-sm,0.875rem)] text-center py-[var(--bb-space-8,2rem)]"
-          style={{ color: 'var(--bb-color-text-muted)' }}
-        >
-          No bookings yet
-        </p>
-      ) : (
-        <div className="space-y-[var(--bb-space-3,0.75rem)]">
-          {allBookings.map((booking) => (
-            <div
-              key={booking.recordId}
-              className="p-[var(--bb-space-4,1rem)] rounded-lg border transition-colors cursor-pointer"
-              style={{
-                borderColor: 'var(--bb-color-border-subtle)',
-              }}
+    <div className="space-y-4">
+      {/* Header with filters */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-2">
+          {filters.map(f => (
+            <button
+              key={f.value}
+              onClick={() => onFilterChange(f.value)}
+              className={cn(
+                "px-3 py-1.5 text-sm font-medium rounded-lg transition-colors",
+                filter === f.value
+                  ? "bg-[color:var(--bb-color-accent)] text-white"
+                  : "bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]"
+              )}
             >
-              <div className="flex items-center justify-between mb-[var(--bb-space-2,0.5rem)]">
-                <h4
-                  className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
-                  style={{ color: 'var(--bb-color-text-primary)' }}
-                >
-                  {formatDate(booking.checkIn)} - {formatDate(booking.checkOut)}
-                </h4>
-                <StatusPill status={booking.status} />
-              </div>
-              <p
-                className="text-[var(--bb-font-size-xs,0.75rem)]"
-                style={{ color: 'var(--bb-color-text-muted)' }}
-              >
-                {booking.roomNumber && `Room ${booking.roomNumber} • `}
-                {calculateDays(booking.checkIn, booking.checkOut)} days
-              </p>
-            </div>
+              {f.label}
+            </button>
           ))}
         </div>
+        <Button size="sm" onClick={() => openSlideout(SLIDEOUT_TYPES.BOOKING_CREATE, { petId })}>
+          <Plus className="w-4 h-4 mr-1" />
+          New Booking
+        </Button>
+      </div>
+
+      {/* Bookings List */}
+      {bookings.length === 0 ? (
+        <div 
+          className="text-center py-12 rounded-lg border-2 border-dashed"
+          style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+        >
+          <Calendar className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--bb-color-text-muted)' }} />
+          <p className="text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+            No {filter !== 'all' ? filter : ''} bookings
+          </p>
+          <p className="text-sm mt-1" style={{ color: 'var(--bb-color-text-muted)' }}>
+            {filter === 'all' ? 'Schedule a booking to get started' : `No ${filter} bookings found`}
+          </p>
+        </div>
+      ) : (
+        <div className="border rounded-lg overflow-hidden" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+          <table className="w-full">
+            <thead>
+              <tr style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--bb-color-text-muted)' }}>
+                  Dates
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--bb-color-text-muted)' }}>
+                  Service
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--bb-color-text-muted)' }}>
+                  Status
+                </th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--bb-color-text-muted)' }}>
+                  Kennel
+                </th>
+                <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--bb-color-text-muted)' }}>
+                  Total
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+              {bookings.map(booking => (
+                <tr 
+                  key={booking.recordId}
+                  onClick={() => navigate(`/bookings/${booking.recordId}`)}
+                  className="cursor-pointer transition-colors hover:bg-[color:var(--bb-color-bg-elevated)]"
+                >
+                  <td className="px-4 py-3">
+                    <p className="text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+                      {safeFormatDate(booking.checkIn)} - {safeFormatDate(booking.checkOut)}
+                    </p>
+                    <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
+                      {calculateDays(booking.checkIn, booking.checkOut)} days
+                    </p>
+                  </td>
+                  <td className="px-4 py-3 text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>
+                    {booking.serviceName || booking.serviceType || 'Boarding'}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge variant={getStatusVariant(booking.status)}>
+                      {booking.status?.replace(/_/g, ' ')}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3 text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
+                    {booking.kennelName || booking.roomNumber || '—'}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-right font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+                    {booking.totalPriceInCents 
+                      ? formatCurrency(booking.totalPriceInCents / 100)
+                      : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
 }
 
+// ============================================================================
+// DOCUMENTS TAB
+// ============================================================================
+
 function DocumentsTab({ pet }) {
+  const documents = pet.documents || [];
+
   return (
-    <div className="space-y-[var(--bb-space-6,1.5rem)]">
+    <div className="space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <h3
-          className="text-[var(--bb-font-size-md,1.125rem)] font-[var(--bb-font-weight-semibold,600)]"
-          style={{ color: 'var(--bb-color-text-primary)' }}
-        >
+        <h3 className="text-lg font-semibold" style={{ color: 'var(--bb-color-text-primary)' }}>
           Documents
         </h3>
-        <Button size="sm">
-          <FileText className="w-4 h-4 mr-[var(--bb-space-2,0.5rem)]" />
+        <Button size="sm" onClick={() => toast.info('Document upload coming soon')}>
+          <Upload className="w-4 h-4 mr-1" />
           Upload Document
         </Button>
       </div>
 
-      <p
-        className="text-[var(--bb-font-size-sm,0.875rem)] text-center py-[var(--bb-space-8,2rem)]"
-        style={{ color: 'var(--bb-color-text-muted)' }}
-      >
-        No documents uploaded yet
-      </p>
+      {/* Documents List */}
+      {documents.length === 0 ? (
+        <div 
+          className="text-center py-12 rounded-lg border-2 border-dashed"
+          style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+        >
+          <FileText className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--bb-color-text-muted)' }} />
+          <p className="text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+            No documents uploaded
+          </p>
+          <p className="text-sm mt-1" style={{ color: 'var(--bb-color-text-muted)' }}>
+            Upload vaccination records, vet reports, or liability forms
+          </p>
+          <Button variant="outline" size="sm" className="mt-4" onClick={() => toast.info('Document upload coming soon')}>
+            <Upload className="w-4 h-4 mr-1" />
+            Upload First Document
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {documents.map(doc => (
+            <div
+              key={doc.recordId}
+              className="flex items-center justify-between p-4 border rounded-lg"
+              style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+            >
+              <div className="flex items-center gap-3">
+                <div 
+                  className="flex h-10 w-10 items-center justify-center rounded-lg"
+                  style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+                >
+                  <FileText className="w-5 h-5" style={{ color: 'var(--bb-color-text-muted)' }} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+                    {doc.name}
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
+                    {doc.type} • Uploaded {safeFormatDate(doc.createdAt)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="ghost">
+                  <ExternalLink className="w-4 h-4" />
+                </Button>
+                <Button size="sm" variant="ghost">
+                  <Download className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

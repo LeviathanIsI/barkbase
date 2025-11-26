@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
 import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
@@ -9,6 +9,8 @@ import TodayDeparturesList from '@/features/today/components/TodayDeparturesList
 import TodayBatchCheckInModal from '@/features/today/components/TodayBatchCheckInModal';
 import TodayBatchCheckOutModal from '@/features/today/components/TodayBatchCheckOutModal';
 import useTodayBookingsSnapshot, { getTodayBookingsSnapshotKey } from '@/features/today/hooks/useTodayBookingsSnapshot';
+import { PageLoader } from '@/components/PageLoader';
+import { cn } from '@/lib/cn';
 
 /**
  * TodayCommandCenter Component
@@ -34,7 +36,18 @@ const TodayCommandCenter = () => {
   const arrivals = todaySnapshot.data?.arrivalsToday ?? [];
   const departures = todaySnapshot.data?.departuresToday ?? [];
   const inFacility = todaySnapshot.data?.inFacility ?? [];
-  const loadingSnapshot = todaySnapshot.isLoading;
+  // Show skeleton only on initial load when there's no cached data
+  const loadingSnapshot = todaySnapshot.isLoading && !todaySnapshot.data;
+  // Track background updates for subtle indicators
+  const isUpdatingSnapshot = todaySnapshot.isFetching && !todaySnapshot.isLoading && !!todaySnapshot.data;
+  
+  // Fade-in animation state
+  const [hasLoaded, setHasLoaded] = useState(false);
+  useEffect(() => {
+    if (!loadingSnapshot && todaySnapshot.data && !hasLoaded) {
+      setHasLoaded(true);
+    }
+  }, [loadingSnapshot, todaySnapshot.data, hasLoaded]);
 
   // Refresh handler
   const handleRefresh = useCallback(() => {
@@ -47,10 +60,18 @@ const TodayCommandCenter = () => {
   const dashboardStatsQuery = useQuery({
     queryKey: ['dashboard', 'stats', today],
     queryFn: async () => {
-      const response = await apiClient.get(canonicalEndpoints.reports.dashboardStats);
-      return response?.data || {};
+      try {
+        const response = await apiClient.get(canonicalEndpoints.reports.dashboardStats);
+        return response?.data || {};
+      } catch (e) {
+        console.warn('[dashboard-stats] Error:', e?.message || e);
+        return {};
+      }
     },
-    refetchInterval: 60000 // Refresh every minute
+    refetchInterval: 60000, // Refresh every minute
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
+    placeholderData: (previousData) => previousData,
   });
 
   const dashboardStats = dashboardStatsQuery.data || {};
@@ -72,7 +93,10 @@ const TodayCommandCenter = () => {
       }
     },
     enabled: arrivals.length > 0,
-    refetchInterval: 60000
+    refetchInterval: 60000,
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
+    placeholderData: (previousData) => previousData,
   });
 
   const attentionItems = attentionItemsQuery.data ?? 0;
@@ -105,9 +129,16 @@ const TodayCommandCenter = () => {
     [],
   );
 
-  // Loading state
+  // Page-level loading state
+  if (loadingSnapshot) {
+    return <PageLoader label="Loading today's schedule…" />;
+  }
+
   return (
-    <div className="space-y-[var(--bb-space-6,1.5rem)]">
+    <div className={cn(
+      "space-y-[var(--bb-space-6,1.5rem)] transition-opacity duration-200",
+      hasLoaded ? "opacity-100" : "opacity-0"
+    )}>
       {/* 12-column grid layout */}
       <div className="grid gap-[var(--bb-space-6,1.5rem)] lg:grid-cols-12">
         {/* Hero card spans full width */}
@@ -116,7 +147,8 @@ const TodayCommandCenter = () => {
             kennelName={kennelName}
             formattedDate={formattedDate}
             stats={stats}
-            isLoading={loadingSnapshot}
+            isLoading={false}
+            isUpdating={isUpdatingSnapshot}
             onRefresh={handleRefresh}
             lastRefreshed={lastRefreshed}
           />
@@ -126,7 +158,7 @@ const TodayCommandCenter = () => {
         <div className="lg:col-span-6">
           <TodayArrivalsList
             arrivals={arrivals}
-            isLoading={loadingSnapshot}
+            isLoading={false}
             hasError={todaySnapshot.isError}
             onBatchCheckIn={() => setShowBatchCheckIn(true)}
           />
@@ -134,7 +166,7 @@ const TodayCommandCenter = () => {
         <div className="lg:col-span-6">
           <TodayDeparturesList
             departures={departures}
-            isLoading={loadingSnapshot}
+            isLoading={false}
             hasError={todaySnapshot.isError}
             onBatchCheckOut={() => setShowBatchCheckOut(true)}
           />

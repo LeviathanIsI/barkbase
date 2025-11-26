@@ -317,24 +317,100 @@ exports.handler = async (event) => {
 
         // ========== COMMUNICATIONS ROUTES (/api/v1/communications) ==========
         if (path.startsWith('/api/v1/communications')) {
+            // Parse proxy path for owner-specific routes
+            const proxyPath = event.pathParameters?.proxy || '';
+            const ownerStatsMatch = proxyPath.match(/^owner\/([^\/]+)\/stats$/);
+            const ownerTimelineMatch = proxyPath.match(/^owner\/([^\/]+)\/timeline$/);
+            
+            // GET /api/v1/communications/owner/{ownerId}/stats - Communication stats for owner
+            if (httpMethod === 'GET' && ownerStatsMatch) {
+                const ownerId = ownerStatsMatch[1];
+                try {
+                    // Try to get communication stats
+                    const { rows } = await pool.query(
+                        `SELECT 
+                            COUNT(*) as "total",
+                            COUNT(CASE WHEN "type" = 'EMAIL' THEN 1 END) as "emails",
+                            COUNT(CASE WHEN "type" = 'SMS' THEN 1 END) as "sms",
+                            COUNT(CASE WHEN "type" = 'PHONE' THEN 1 END) as "phone",
+                            COUNT(CASE WHEN "type" = 'NOTE' THEN 1 END) as "notes",
+                            COUNT(CASE WHEN "direction" = 'INBOUND' THEN 1 END) as "inbound",
+                            COUNT(CASE WHEN "direction" = 'OUTBOUND' THEN 1 END) as "outbound"
+                         FROM "Communication" 
+                         WHERE "tenantId" = $1 AND "ownerId" = $2`,
+                        [tenantId, ownerId]
+                    );
+                    return ok(event, 200, rows[0] || { total: 0, emails: 0, sms: 0, phone: 0, notes: 0, inbound: 0, outbound: 0 });
+                } catch (e) {
+                    // Communication table may not exist - return empty stats
+                    console.log('[COMMUNICATIONS] Stats query failed (table may not exist):', e.message);
+                    return ok(event, 200, { total: 0, emails: 0, sms: 0, phone: 0, notes: 0, inbound: 0, outbound: 0 });
+                }
+            }
+            
+            // GET /api/v1/communications/owner/{ownerId}/timeline - Communication timeline for owner
+            if (httpMethod === 'GET' && ownerTimelineMatch) {
+                const ownerId = ownerTimelineMatch[1];
+                const { offset = '0', limit = '50' } = event.queryStringParameters || {};
+                try {
+                    const { rows } = await pool.query(
+                        `SELECT * FROM "Communication" 
+                         WHERE "tenantId" = $1 AND "ownerId" = $2 
+                         ORDER BY "timestamp" DESC 
+                         LIMIT $3 OFFSET $4`,
+                        [tenantId, ownerId, parseInt(limit), parseInt(offset)]
+                    );
+                    const countResult = await pool.query(
+                        `SELECT COUNT(*) FROM "Communication" WHERE "tenantId" = $1 AND "ownerId" = $2`,
+                        [tenantId, ownerId]
+                    );
+                    const total = parseInt(countResult.rows[0]?.count || '0');
+                    return ok(event, 200, { 
+                        data: rows, 
+                        offset: parseInt(offset), 
+                        limit: parseInt(limit), 
+                        total 
+                    });
+                } catch (e) {
+                    // Communication table may not exist - return empty timeline
+                    console.log('[COMMUNICATIONS] Timeline query failed (table may not exist):', e.message);
+                    return ok(event, 200, { 
+                        data: [], 
+                        offset: parseInt(offset), 
+                        limit: parseInt(limit), 
+                        total: 0 
+                    });
+                }
+            }
+            
             // GET /api/v1/communications - List communications
             if (httpMethod === 'GET') {
-                const { rows } = await pool.query(
-                    `SELECT * FROM "Communication" WHERE "tenantId" = $1 ORDER BY "timestamp" DESC LIMIT 100`,
-                    [tenantId]
-                );
-                return ok(event, 200, rows);
+                try {
+                    const { rows } = await pool.query(
+                        `SELECT * FROM "Communication" WHERE "tenantId" = $1 ORDER BY "timestamp" DESC LIMIT 100`,
+                        [tenantId]
+                    );
+                    return ok(event, 200, rows);
+                } catch (e) {
+                    console.log('[COMMUNICATIONS] List query failed (table may not exist):', e.message);
+                    return ok(event, 200, []);
+                }
             }
 
             // POST /api/v1/communications - Create communication
             if (httpMethod === 'POST') {
-                const { ownerId, type, direction, content, metadata } = JSON.parse(event.body);
-                const { rows } = await pool.query(
-                    `INSERT INTO "Communication" ("recordId", "tenantId", "ownerId", "type", "direction", "content", "metadata", "timestamp", "updatedAt")
-                     VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW(), NOW()) RETURNING *`,
-                    [tenantId, ownerId, type || 'NOTE', direction || 'OUTBOUND', content, JSON.stringify(metadata || {})]
-                );
-                return ok(event, 201, rows[0]);
+                try {
+                    const { ownerId, type, direction, content, metadata } = JSON.parse(event.body);
+                    const { rows } = await pool.query(
+                        `INSERT INTO "Communication" ("recordId", "tenantId", "ownerId", "type", "direction", "content", "metadata", "timestamp", "updatedAt")
+                         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW(), NOW()) RETURNING *`,
+                        [tenantId, ownerId, type || 'NOTE', direction || 'OUTBOUND', content, JSON.stringify(metadata || {})]
+                    );
+                    return ok(event, 201, rows[0]);
+                } catch (e) {
+                    console.error('[COMMUNICATIONS] Create failed:', e.message);
+                    return fail(event, 500, { message: 'Failed to create communication. Communication table may not exist.' });
+                }
             }
         }
 

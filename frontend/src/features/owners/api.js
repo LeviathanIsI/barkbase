@@ -3,6 +3,7 @@ import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import { useTenantStore } from '@/stores/tenant';
+import { listQueryDefaults, detailQueryDefaults, searchQueryDefaults } from '@/lib/queryConfig';
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
@@ -20,7 +21,8 @@ export const useOwnersQuery = (params = {}) => {
         return [];
       }
     },
-    staleTime: 30 * 1000,
+    ...listQueryDefaults,
+    placeholderData: (previousData) => previousData,
   });
 };
 
@@ -40,6 +42,8 @@ export const useOwnerDetailsQuery = (ownerId, options = {}) => {
       }
     },
     enabled,
+    ...detailQueryDefaults,
+    placeholderData: (previousData) => previousData,
     ...queryOptions,
   });
 };
@@ -98,6 +102,7 @@ export const useUpdateOwnerMutation = (ownerId) => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: listKey });
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.owners(tenantKey), ownerId] });
     },
   });
 };
@@ -150,10 +155,11 @@ export const useOwnerSearchQuery = (searchTerm, options = {}) => {
       }
     },
     enabled,
-    staleTime: 30 * 1000,
+    ...searchQueryDefaults,
     ...queryOptions,
   });
 };
+
 // Add pet to owner
 export const useAddPetToOwnerMutation = (ownerId) => {
   const queryClient = useQueryClient();

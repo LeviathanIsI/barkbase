@@ -2,15 +2,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
+import { listQueryDefaults, detailQueryDefaults } from '@/lib/queryConfig';
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
-// TODO: The queries in this file fetch tasks by custom filters like 'today' or 'overdue'.
-// This requires dedicated Lambda functions or more advanced filtering capabilities in the ApiClient.
-// For now, we will provide a basic CRUD implementation for the 'tasks' table.
-
 export const useTasksQuery = (filters = {}) => {
   const tenantKey = useTenantKey();
+  
   return useQuery({
     queryKey: queryKeys.tasks(tenantKey, filters),
     queryFn: async () => {
@@ -22,14 +20,36 @@ export const useTasksQuery = (filters = {}) => {
         return [];
       }
     },
-    staleTime: 30 * 1000,
+    ...listQueryDefaults,
+    placeholderData: (previousData) => previousData,
   });
 };
 
-// Convenience hooks expected by the Tasks route. We fetch tasks and filter client-side
-// until dedicated API endpoints are available.
+export const useTaskQuery = (taskId, options = {}) => {
+  const tenantKey = useTenantKey();
+  
+  return useQuery({
+    queryKey: queryKeys.tasks(tenantKey, { id: taskId }),
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get(`/api/v1/tasks/${taskId}`);
+        return res.data;
+      } catch (e) {
+        console.warn('[task] Falling back to null due to API error:', e?.message || e);
+        return null;
+      }
+    },
+    enabled: !!taskId && (options.enabled !== false),
+    ...detailQueryDefaults,
+    placeholderData: (previousData) => previousData,
+    ...options,
+  });
+};
+
+// Convenience hooks expected by the Tasks route. Filter client-side for now.
 export const useTodaysTasksQuery = () => {
   const tenantKey = useTenantKey();
+  
   return useQuery({
     queryKey: queryKeys.tasks(tenantKey, { type: 'today' }),
     queryFn: async () => {
@@ -50,12 +70,15 @@ export const useTodaysTasksQuery = () => {
         return [];
       }
     },
-    staleTime: 60 * 1000,
+    ...listQueryDefaults,
+    staleTime: 60 * 1000, // 1 minute for today's tasks
+    placeholderData: (previousData) => previousData,
   });
 };
 
 export const useOverdueTasksQuery = () => {
   const tenantKey = useTenantKey();
+  
   return useQuery({
     queryKey: queryKeys.tasks(tenantKey, { type: 'overdue' }),
     queryFn: async () => {
@@ -69,65 +92,69 @@ export const useOverdueTasksQuery = () => {
         return [];
       }
     },
+    ...listQueryDefaults,
     staleTime: 60 * 1000,
+    placeholderData: (previousData) => previousData,
   });
 };
-
 
 export const useCreateTaskMutation = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
+  
   return useMutation({
     mutationFn: async (taskData) => {
       const res = await apiClient.post('/api/v1/tasks', taskData);
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks(tenantKey, {}) });
-    }
+      // Invalidate all task-related queries
+      queryClient.invalidateQueries({ queryKey: [tenantKey, 'tasks'] });
+    },
   });
 };
 
-// TODO: This requires a custom Lambda to handle the logic of completing a task.
 export const useCompleteTaskMutation = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
+  
   return useMutation({
     mutationFn: async ({ taskId, notes }) => {
       const res = await apiClient.post(`/api/v1/tasks/${taskId}/complete`, { notes });
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks(tenantKey, {}) });
-    }
+      queryClient.invalidateQueries({ queryKey: [tenantKey, 'tasks'] });
+    },
   });
 };
 
 export const useUpdateTaskMutation = (taskId) => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
+  
   return useMutation({
     mutationFn: async (updates) => {
       const res = await apiClient.put(`/api/v1/tasks/${taskId}`, updates);
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks(tenantKey, {}) });
-    }
+      queryClient.invalidateQueries({ queryKey: [tenantKey, 'tasks'] });
+    },
   });
 };
 
 export const useDeleteTaskMutation = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
+  
   return useMutation({
     mutationFn: async (taskId) => {
       await apiClient.delete(`/api/v1/tasks/${taskId}`);
       return taskId;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks(tenantKey, {}) });
-    }
+      queryClient.invalidateQueries({ queryKey: [tenantKey, 'tasks'] });
+    },
   });
 };
-

@@ -3,6 +3,7 @@ import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import { useTenantStore } from '@/stores/tenant';
+import { listQueryDefaults, detailQueryDefaults } from '@/lib/queryConfig';
 
 const useTenantId = () => useTenantStore((state) => state.tenant?.recordId ?? 'unknown');
 
@@ -26,11 +27,7 @@ const ensurePetsArray = (result) => {
   if (result && Array.isArray(result.pets)) {
     return result;
   }
-
-  console.warn('[PETS API WARNING] Normalized pets is not an array. Falling back to empty list.', {
-    result,
-  });
-
+  console.warn('[PETS API WARNING] Normalized pets is not an array. Falling back to empty list.', { result });
   return { pets: [], total: 0, raw: result?.raw ?? result ?? null };
 };
 
@@ -66,7 +63,9 @@ export const usePetsQuery = (params = {}) => {
         return { pets: [], total: 0, raw: null };
       }
     },
-    staleTime: 30 * 1000,
+    ...listQueryDefaults,
+    // Keep previous data during background refetch
+    placeholderData: (previousData) => previousData,
   });
 };
 
@@ -78,7 +77,6 @@ export const usePetDetailsQuery = (petId, options = {}) => {
     queryKey: ['pets', { tenantId }, petId],
     queryFn: async () => {
       try {
-        // Call REST endpoint which enriches the pet with owners[] and primaryOwnerId
         const res = await apiClient.get(canonicalEndpoints.pets.detail(petId));
         return res?.data ?? null;
       } catch (e) {
@@ -87,6 +85,8 @@ export const usePetDetailsQuery = (petId, options = {}) => {
       }
     },
     enabled,
+    ...detailQueryDefaults,
+    placeholderData: (previousData) => previousData,
     ...queryOptions,
   });
 };
@@ -96,41 +96,22 @@ export const usePetQuery = (petId, options = {}) => usePetDetailsQuery(petId, op
 export const usePetVaccinationsQuery = (petId, options = {}) => {
   const enabled = Boolean(petId) && (options.enabled ?? true);
   const tenantId = useTenantId();
+  
   return useQuery({
     queryKey: ['petVaccinations', { tenantId, petId }],
     enabled,
     queryFn: async () => {
       try {
-
-        // Try direct API call to the Lambda endpoint
         const res = await apiClient.get(canonicalEndpoints.pets.vaccinations(petId));
-        // Normalize to an array whether backend returns [..] or { data: [..] }
         const list = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
         return list;
-
-        // TEMPORARY: If API fails, return your rabies vaccine data here
-        // Replace with your actual rabies vaccine data from the database
-        /*
-        return [
-          {
-            recordId: 'your-actual-rabies-record-id',
-            type: 'Rabies',
-            administeredAt: '2024-01-15T00:00:00.000Z',
-            expiresAt: '2025-01-15T00:00:00.000Z',
-            documentUrl: null,
-            notes: 'Your rabies vaccination notes'
-          }
-        ];
-        */
       } catch (error) {
         console.error('Error fetching vaccinations:', error);
-        // Return empty array so UI shows "No vaccinations recorded"
         return [];
       }
     },
-    staleTime: 30 * 1000,
-    retry: 1,
-    retryDelay: 1000,
+    ...detailQueryDefaults,
+    placeholderData: (previousData) => previousData,
     ...options,
   });
 };
@@ -139,6 +120,7 @@ export const useUpdatePetMutation = (petId) => {
   const queryClient = useQueryClient();
   const tenantId = useTenantId();
   const listKey = queryKeys.pets(tenantId);
+  
   return useMutation({
     mutationFn: async (payload) => {
       const res = await apiClient.put(canonicalEndpoints.pets.detail(petId), payload);
@@ -167,6 +149,7 @@ export const useUpdatePetMutation = (petId) => {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: listKey });
+      queryClient.invalidateQueries({ queryKey: ['pets', { tenantId }, petId] });
     },
   });
 };
@@ -175,6 +158,7 @@ export const useDeletePetMutation = () => {
   const queryClient = useQueryClient();
   const tenantId = useTenantId();
   const listKey = queryKeys.pets(tenantId);
+  
   return useMutation({
     mutationFn: async (petId) => {
       await apiClient.delete(canonicalEndpoints.pets.detail(petId));
@@ -210,6 +194,7 @@ export const useCreatePetMutation = () => {
   const queryClient = useQueryClient();
   const tenantId = useTenantId();
   const listKey = queryKeys.pets(tenantId);
+  
   return useMutation({
     mutationFn: async (payload) => {
       const res = await apiClient.post(canonicalEndpoints.pets.list, payload);
@@ -237,6 +222,7 @@ export const useCreateVaccinationMutation = (petId) => {
   const queryClient = useQueryClient();
   const tenantId = useTenantId();
   const vaccinationsKey = ['petVaccinations', { tenantId, petId }];
+  
   return useMutation({
     mutationFn: async (payload) => {
       const res = await apiClient.post(canonicalEndpoints.pets.vaccinations(petId), payload);
@@ -252,6 +238,7 @@ export const useUpdateVaccinationMutation = (petId) => {
   const queryClient = useQueryClient();
   const tenantId = useTenantId();
   const vaccinationsKey = ['petVaccinations', { tenantId, petId }];
+  
   return useMutation({
     mutationFn: async ({ vaccinationId, payload }) => {
       const res = await apiClient.put(`${canonicalEndpoints.pets.vaccinations(petId)}/${vaccinationId}`, payload);
@@ -267,6 +254,7 @@ export const useDeleteVaccinationMutation = (petId) => {
   const queryClient = useQueryClient();
   const tenantId = useTenantId();
   const vaccinationsKey = ['petVaccinations', { tenantId, petId }];
+  
   return useMutation({
     mutationFn: async (vaccinationId) => {
       const res = await apiClient.delete(`${canonicalEndpoints.pets.vaccinations(petId)}/${vaccinationId}`);

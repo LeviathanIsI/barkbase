@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { PageLoader, UpdateChip } from '@/components/PageLoader';
 import { useOwnersQuery, useCreateOwnerMutation } from '../api';
 import OwnerFormModal from '../components/OwnerFormModal';
 import { formatCurrency } from '@/lib/utils';
@@ -88,9 +88,22 @@ const Owners = () => {
   }, []);
 
   // Data fetching
-  const { data: ownersData, isLoading, error } = useOwnersQuery();
+  const { data: ownersData, isLoading, isFetching, error } = useOwnersQuery();
   const createOwnerMutation = useCreateOwnerMutation();
   const owners = useMemo(() => Array.isArray(ownersData) ? ownersData : (ownersData?.data ?? []), [ownersData]);
+  
+  // Show skeleton only on initial load when there's no cached data
+  const showSkeleton = isLoading && !ownersData;
+  // Show subtle indicator during background refetch when we have data
+  const isUpdating = isFetching && !isLoading && !!ownersData;
+  
+  // Fade-in animation state
+  const [hasLoaded, setHasLoaded] = useState(false);
+  useEffect(() => {
+    if (!showSkeleton && ownersData && !hasLoaded) {
+      setHasLoaded(true);
+    }
+  }, [showSkeleton, ownersData, hasLoaded]);
 
   // Save preferences to localStorage
   useEffect(() => {
@@ -258,7 +271,10 @@ const Owners = () => {
   return (
     <>
       {/* Main content container - stretches to fill available space in app shell */}
-      <div className="flex flex-col flex-grow w-full min-h-[calc(100vh-180px)]">
+      <div className={cn(
+        "flex flex-col flex-grow w-full min-h-[calc(100vh-180px)] transition-opacity duration-200",
+        hasLoaded ? "opacity-100" : "opacity-0"
+      )}>
         {/* Header Section */}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between pb-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
           <div>
@@ -337,6 +353,7 @@ const Owners = () => {
               {/* Results Count */}
               <span className="text-sm text-[color:var(--bb-color-text-muted)] ml-2">
                 {sortedOwners.length} owner{sortedOwners.length !== 1 ? 's' : ''}{hasActiveFilters && ' filtered'}
+                {isUpdating && <UpdateChip className="ml-2" />}
               </span>
             </div>
 
@@ -409,8 +426,8 @@ const Owners = () => {
 
         {/* Table Section - Uses full available width in content area */}
         <div className="flex-1 flex flex-col mt-4 -mx-6 lg:-mx-12">
-          {isLoading ? (
-            <TableSkeleton />
+          {showSkeleton ? (
+            <PageLoader label="Loading owners…" />
           ) : sortedOwners.length === 0 ? (
             <div className="px-6 lg:px-12">
               <EmptyState hasFilters={hasActiveFilters} onClearFilters={clearFilters} onAddOwner={() => setFormModalOpen(true)} />
@@ -471,7 +488,7 @@ const Owners = () => {
           )}
 
           {/* Pagination */}
-          {sortedOwners.length > 0 && !isLoading && (
+          {sortedOwners.length > 0 && !showSkeleton && (
             <div 
               className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4 px-6 lg:px-12 border-t"
               style={{ borderColor: 'var(--bb-color-border-subtle)', backgroundColor: 'var(--bb-color-bg-surface)' }}
@@ -768,47 +785,6 @@ const ColumnsDropdown = ({ columns, visibleColumns, columnOrder, onToggle, onReo
     </div>
   );
 };
-
-// Table Skeleton Component - Full Width
-const TableSkeleton = () => (
-  <div className="flex-1" style={{ backgroundColor: 'var(--bb-color-bg-body)' }}>
-    <div className="px-4 lg:px-6 py-4 space-y-0">
-      {/* Header skeleton */}
-      <div className="flex items-center gap-6 py-3 border-b" style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}>
-        <Skeleton className="h-4 w-4 rounded ml-2" />
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-4 w-20" />
-        <Skeleton className="h-4 w-16" />
-        <Skeleton className="h-4 w-16" />
-        <Skeleton className="h-4 w-20" />
-        <Skeleton className="h-4 w-20" />
-        <Skeleton className="h-4 w-24" />
-      </div>
-      {/* Row skeletons */}
-      {Array.from({ length: 12 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-6 py-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-          <Skeleton className="h-4 w-4 rounded ml-2" />
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-10 w-10 rounded-full" />
-            <div className="space-y-1.5">
-              <Skeleton className="h-4 w-36" />
-              <Skeleton className="h-3 w-28" />
-            </div>
-          </div>
-          <Skeleton className="h-4 w-28" />
-          <div className="flex -space-x-1">
-            <Skeleton className="h-7 w-7 rounded-full" />
-            <Skeleton className="h-7 w-7 rounded-full" />
-          </div>
-          <Skeleton className="h-6 w-16 rounded-full" />
-          <Skeleton className="h-4 w-8" />
-          <Skeleton className="h-4 w-20" />
-          <Skeleton className="h-4 w-16" />
-        </div>
-      ))}
-    </div>
-  </div>
-);
 
 // Empty State Component - Full Width
 const EmptyState = ({ hasFilters, onClearFilters, onAddOwner }) => (

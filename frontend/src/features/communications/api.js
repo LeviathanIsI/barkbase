@@ -2,18 +2,27 @@ import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from '@tansta
 import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
+import { listQueryDefaults, detailQueryDefaults } from '@/lib/queryConfig';
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
 export const useCommunicationsQuery = (ownerId) => {
   const tenantKey = useTenantKey();
+  
   return useQuery({
-    queryKey: queryKeys.communications(tenantKey, ownerId),
+    queryKey: queryKeys.communications?.(tenantKey, ownerId) ?? ['communications', tenantKey, ownerId],
     queryFn: async () => {
-      const res = await apiClient.get('/api/v1/communications', { params: { ownerId } });
-      return res.data;
+      try {
+        const res = await apiClient.get('/api/v1/communications', { params: { ownerId } });
+        return res.data;
+      } catch (e) {
+        console.warn('[communications] Falling back to empty list:', e?.message || e);
+        return [];
+      }
     },
     enabled: !!ownerId,
+    ...listQueryDefaults,
+    placeholderData: (previousData) => previousData,
   });
 };
 
@@ -28,7 +37,9 @@ export const useCreateCommunicationMutation = () => {
     },
     onSuccess: (data) => {
       if (data?.ownerId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.communications(tenantKey, data.ownerId) });
+        queryClient.invalidateQueries({ queryKey: ['communications', tenantKey, data.ownerId] });
+        queryClient.invalidateQueries({ queryKey: ['timeline', data.ownerId] });
+        queryClient.invalidateQueries({ queryKey: ['communication-stats', data.ownerId] });
       }
     },
   });
@@ -37,27 +48,43 @@ export const useCreateCommunicationMutation = () => {
 export const useCustomerTimeline = (ownerId) => {
   return useInfiniteQuery({
     queryKey: ['timeline', ownerId],
-    queryFn: ({ pageParam = 0 }) =>
-      apiClient.get(`/api/v1/communications/owner/${ownerId}/timeline`, {
-        params: {
-          offset: pageParam,
-          limit: 50,
-        },
-      }),
+    queryFn: async ({ pageParam = 0 }) => {
+      try {
+        const res = await apiClient.get(`/api/v1/communications/owner/${ownerId}/timeline`, {
+          params: { offset: pageParam, limit: 50 },
+        });
+        return res.data || { items: [], total: 0, offset: pageParam, limit: 50 };
+      } catch (e) {
+        console.warn('[timeline] Error:', e?.message || e);
+        return { items: [], total: 0, offset: pageParam, limit: 50 };
+      }
+    },
     getNextPageParam: (lastPage) => {
-      const { offset, limit, total } = lastPage;
+      const { offset = 0, limit = 50, total = 0 } = lastPage;
       const nextOffset = offset + limit;
       return nextOffset < total ? nextOffset : undefined;
     },
     enabled: !!ownerId,
+    refetchOnWindowFocus: false,
+    staleTime: 60 * 1000,
   });
 };
 
 export const useCommunicationStats = (ownerId) => {
   return useQuery({
     queryKey: ['communication-stats', ownerId],
-    queryFn: () => apiClient.get(`/api/v1/communications/owner/${ownerId}/stats`),
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get(`/api/v1/communications/owner/${ownerId}/stats`);
+        return res.data || { total: 0, emails: 0, sms: 0, phone: 0, notes: 0 };
+      } catch (e) {
+        console.warn('[communication-stats] Error:', e?.message || e);
+        return { total: 0, emails: 0, sms: 0, phone: 0, notes: 0 };
+      }
+    },
     enabled: !!ownerId,
+    ...detailQueryDefaults,
+    placeholderData: (previousData) => previousData,
   });
 };
 
@@ -66,11 +93,16 @@ export const useCreateCommunication = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (data) => apiClient.post('/api/v1/communications', data),
+    mutationFn: async (data) => {
+      const res = await apiClient.post('/api/v1/communications', data);
+      return res.data;
+    },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['communications', data.ownerId] });
-      queryClient.invalidateQueries({ queryKey: ['timeline', data.ownerId] });
-      queryClient.invalidateQueries({ queryKey: ['communication-stats', data.ownerId] });
+      if (data?.ownerId) {
+        queryClient.invalidateQueries({ queryKey: ['communications', data.ownerId] });
+        queryClient.invalidateQueries({ queryKey: ['timeline', data.ownerId] });
+        queryClient.invalidateQueries({ queryKey: ['communication-stats', data.ownerId] });
+      }
     },
   });
 };
@@ -78,19 +110,36 @@ export const useCreateCommunication = () => {
 // Note queries
 export const useEntityNotes = (entityType, entityId, options = {}) => {
   return useQuery({
-    queryKey: ['notes', entityType, entityId, options],
-    queryFn: () =>
-      apiClient.get(`/api/v1/notes/${entityType}/${entityId}`, {
-        params: options,
-      }),
+    queryKey: ['notes', entityType, entityId],
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get(`/api/v1/notes/${entityType}/${entityId}`, { params: options });
+        return res.data || [];
+      } catch (e) {
+        console.warn('[notes] Error:', e?.message || e);
+        return [];
+      }
+    },
     enabled: !!entityType && !!entityId,
+    ...listQueryDefaults,
+    placeholderData: (previousData) => previousData,
   });
 };
 
 export const useNoteCategories = () => {
   return useQuery({
     queryKey: ['note-categories'],
-    queryFn: () => apiClient.get('/api/v1/notes/categories'),
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get('/api/v1/notes/categories');
+        return res.data || [];
+      } catch (e) {
+        console.warn('[note-categories] Error:', e?.message || e);
+        return [];
+      }
+    },
+    staleTime: 10 * 60 * 1000, // Categories rarely change
+    refetchOnWindowFocus: false,
   });
 };
 
@@ -99,13 +148,16 @@ export const useCreateNote = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (data) => apiClient.post('/api/v1/notes', data),
+    mutationFn: async (data) => {
+      const res = await apiClient.post('/api/v1/notes', data);
+      return res.data;
+    },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ 
-        queryKey: ['notes', data.entityType, data.entityId] 
-      });
-      if (data.entityType === 'owner') {
-        queryClient.invalidateQueries({ queryKey: ['timeline', data.entityId] });
+      if (data?.entityType && data?.entityId) {
+        queryClient.invalidateQueries({ queryKey: ['notes', data.entityType, data.entityId] });
+        if (data.entityType === 'owner') {
+          queryClient.invalidateQueries({ queryKey: ['timeline', data.entityId] });
+        }
       }
     },
   });
@@ -115,12 +167,14 @@ export const useUpdateNote = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ noteId, ...data }) => 
-      apiClient.put(`/api/v1/notes/${noteId}`, data),
+    mutationFn: async ({ noteId, ...data }) => {
+      const res = await apiClient.put(`/api/v1/notes/${noteId}`, data);
+      return res.data;
+    },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ 
-        queryKey: ['notes', data.entityType, data.entityId] 
-      });
+      if (data?.entityType && data?.entityId) {
+        queryClient.invalidateQueries({ queryKey: ['notes', data.entityType, data.entityId] });
+      }
     },
   });
 };
@@ -129,9 +183,11 @@ export const useDeleteNote = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (noteId) => apiClient.delete(`/api/v1/notes/${noteId}`),
-    onSuccess: (_, noteId) => {
-      // Invalidate all note queries since we don't know the entity
+    mutationFn: async (noteId) => {
+      await apiClient.delete(`/api/v1/notes/${noteId}`);
+      return noteId;
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes'] });
     },
   });
@@ -141,11 +197,14 @@ export const useToggleNotePin = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (noteId) => apiClient.post(`/api/v1/notes/${noteId}/pin`),
+    mutationFn: async (noteId) => {
+      const res = await apiClient.post(`/api/v1/notes/${noteId}/pin`);
+      return res.data;
+    },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ 
-        queryKey: ['notes', data.entityType, data.entityId] 
-      });
+      if (data?.entityType && data?.entityId) {
+        queryClient.invalidateQueries({ queryKey: ['notes', data.entityType, data.entityId] });
+      }
     },
   });
 };
@@ -153,35 +212,43 @@ export const useToggleNotePin = () => {
 // Segment queries
 export const useSegments = (options = {}) => {
   return useQuery({
-    queryKey: ['segments', options],
+    queryKey: ['segments'],
     queryFn: async () => {
-      const res = await apiClient.get('/api/v1/segments', { params: options });
-      return res.data || [];
+      try {
+        const res = await apiClient.get('/api/v1/segments', { params: options });
+        return res.data || [];
+      } catch (e) {
+        console.warn('[segments] Error:', e?.message || e);
+        return [];
+      }
     },
+    ...listQueryDefaults,
+    placeholderData: (previousData) => previousData,
   });
 };
 
 export const useSegmentMembers = (segmentId, options = {}) => {
   return useInfiniteQuery({
-    queryKey: ['segment-members', segmentId, options],
+    queryKey: ['segment-members', segmentId],
     queryFn: async ({ pageParam = 0 }) => {
-      const res = await apiClient.get(`/api/v1/segments/${segmentId}/members`, {
-        params: {
-          ...options,
-          offset: pageParam,
-          limit: 50,
-        },
-      });
-      // Normalize response - backend returns { data: [], hasMore } or just array
-      const data = res.data?.data || res.data || [];
-      const hasMore = res.data?.hasMore ?? false;
-      return { data, hasMore, offset: pageParam, limit: 50 };
+      try {
+        const res = await apiClient.get(`/api/v1/segments/${segmentId}/members`, {
+          params: { ...options, offset: pageParam, limit: 50 },
+        });
+        const data = res.data?.data || res.data || [];
+        const hasMore = res.data?.hasMore ?? false;
+        return { data, hasMore, offset: pageParam, limit: 50 };
+      } catch (e) {
+        console.warn('[segment-members] Error:', e?.message || e);
+        return { data: [], hasMore: false, offset: pageParam, limit: 50 };
+      }
     },
     getNextPageParam: (lastPage) => {
       if (!lastPage.hasMore) return undefined;
       return lastPage.offset + lastPage.limit;
     },
     enabled: !!segmentId,
+    refetchOnWindowFocus: false,
   });
 };
 
@@ -190,7 +257,10 @@ export const useCreateSegment = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (data) => apiClient.post('/api/v1/segments', data),
+    mutationFn: async (data) => {
+      const res = await apiClient.post('/api/v1/segments', data);
+      return res.data;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['segments'] });
     },
@@ -201,8 +271,10 @@ export const useUpdateSegment = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ segmentId, ...data }) => 
-      apiClient.put(`/api/v1/segments/${segmentId}`, data),
+    mutationFn: async ({ segmentId, ...data }) => {
+      const res = await apiClient.put(`/api/v1/segments/${segmentId}`, data);
+      return res.data;
+    },
     onSuccess: (_, { segmentId }) => {
       queryClient.invalidateQueries({ queryKey: ['segments'] });
       queryClient.invalidateQueries({ queryKey: ['segment-members', segmentId] });
@@ -214,8 +286,10 @@ export const useAddSegmentMembers = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ segmentId, ownerIds }) => 
-      apiClient.post(`/api/v1/segments/${segmentId}/members`, { ownerIds }),
+    mutationFn: async ({ segmentId, ownerIds }) => {
+      const res = await apiClient.post(`/api/v1/segments/${segmentId}/members`, { ownerIds });
+      return res.data;
+    },
     onSuccess: (_, { segmentId }) => {
       queryClient.invalidateQueries({ queryKey: ['segment-members', segmentId] });
       queryClient.invalidateQueries({ queryKey: ['segments'] });
@@ -227,10 +301,9 @@ export const useRemoveSegmentMembers = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ segmentId, ownerIds }) => 
-      apiClient.delete(`/api/v1/segments/${segmentId}/members`, { 
-        data: { ownerIds } 
-      }),
+    mutationFn: async ({ segmentId, ownerIds }) => {
+      await apiClient.delete(`/api/v1/segments/${segmentId}/members`, { data: { ownerIds } });
+    },
     onSuccess: (_, { segmentId }) => {
       queryClient.invalidateQueries({ queryKey: ['segment-members', segmentId] });
       queryClient.invalidateQueries({ queryKey: ['segments'] });
@@ -242,7 +315,9 @@ export const useDeleteSegment = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (segmentId) => apiClient.delete(`/api/v1/segments/${segmentId}`),
+    mutationFn: async (segmentId) => {
+      await apiClient.delete(`/api/v1/segments/${segmentId}`);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['segments'] });
     },
@@ -253,11 +328,12 @@ export const useRefreshSegments = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: () => apiClient.post('/api/v1/segments/refresh'),
+    mutationFn: async () => {
+      await apiClient.post('/api/v1/segments/refresh');
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['segments'] });
       queryClient.invalidateQueries({ queryKey: ['segment-members'] });
     },
   });
 };
-

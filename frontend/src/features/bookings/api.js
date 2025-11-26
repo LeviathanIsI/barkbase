@@ -2,26 +2,33 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
+import { listQueryDefaults } from '@/lib/queryConfig';
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
-// TODO: Create/add endpoints for additional booking actions as needed
-
 export const useBookingsQuery = (params = {}) => {
   const tenantKey = useTenantKey();
+  
   return useQuery({
     queryKey: queryKeys.bookings(tenantKey, params),
     queryFn: async () => {
-      const res = await apiClient.get('/api/v1/bookings', { params });
-      return res.data;
+      try {
+        const res = await apiClient.get('/api/v1/bookings', { params });
+        return res.data;
+      } catch (e) {
+        console.warn('[bookings] Falling back to empty list due to API error:', e?.message || e);
+        return [];
+      }
     },
-    staleTime: 30 * 1000,
+    ...listQueryDefaults,
+    placeholderData: (previousData) => previousData,
   });
 };
 
 export const useCreateBookingMutation = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
+  
   return useMutation({
     mutationFn: async (payload) => {
       const res = await apiClient.post('/api/v1/bookings', payload);
@@ -29,6 +36,7 @@ export const useCreateBookingMutation = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.bookings(tenantKey, {}) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(tenantKey) });
     },
   });
 };
@@ -36,6 +44,7 @@ export const useCreateBookingMutation = () => {
 export const useUpdateBookingMutation = (bookingId) => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
+  
   return useMutation({
     mutationFn: async (payload) => {
       const res = await apiClient.put(`/api/v1/bookings/${bookingId}`, payload);
@@ -50,6 +59,7 @@ export const useUpdateBookingMutation = (bookingId) => {
 export const useDeleteBookingMutation = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
+  
   return useMutation({
     mutationFn: async (bookingId) => {
       await apiClient.delete(`/api/v1/bookings/${bookingId}`);
@@ -61,16 +71,10 @@ export const useDeleteBookingMutation = () => {
   });
 };
 
-// TODO: The following mutations require dedicated Lambda functions for custom business logic.
-// They cannot be handled by the generic CRUD client.
-/*
-export const useUpdateBookingStatusMutation = (bookingId) => { ... };
-export const useQuickCheckInMutation = () => { ... };
-*/
-
 export const useBookingCheckInMutation = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
+  
   return useMutation({
     mutationFn: async ({ bookingId, payload }) => {
       const res = await apiClient.post(`/api/v1/bookings/${bookingId}/checkin`, payload);
@@ -78,7 +82,7 @@ export const useBookingCheckInMutation = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.bookings(tenantKey, {}) });
-      // Invalidate other relevant queries like dashboard stats if needed
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(tenantKey) });
     },
   });
 };
@@ -86,6 +90,7 @@ export const useBookingCheckInMutation = () => {
 export const useBookingCheckOutMutation = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
+  
   return useMutation({
     mutationFn: async ({ bookingId, payload }) => {
       const res = await apiClient.post(`/api/v1/bookings/${bookingId}/checkout`, payload);
@@ -93,14 +98,8 @@ export const useBookingCheckOutMutation = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.bookings(tenantKey, {}) });
-      // Invalidate payments and dashboard queries as well
       queryClient.invalidateQueries({ queryKey: queryKeys.payments(tenantKey, {}) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.stats(tenantKey) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(tenantKey) });
     },
   });
 };
-
-/*
-export const useIncidentsQuery = ({ bookingId, petId } = {}) => { ... };
-export const useCapturePaymentMutation = () => { ... };
-*/

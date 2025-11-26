@@ -1,0 +1,343 @@
+/**
+ * BookingSlideoutForm - Booking creation/edit form for slideout
+ * Simplified version of the booking wizard for quick actions
+ */
+
+import { useState, useMemo } from 'react';
+import { useForm } from 'react-hook-form';
+import { format, addDays } from 'date-fns';
+import Button from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import Badge from '@/components/ui/Badge';
+import { cn } from '@/lib/cn';
+import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
+import { useOwnerSearchQuery } from '@/features/owners/api';
+import { usePetsQuery, usePetQuery } from '@/features/pets/api';
+import { useServicesQuery } from '@/features/services/api';
+import { useCreateBookingMutation, useUpdateBookingMutation } from '../api';
+import { Calendar, Users, PawPrint, DollarSign, Search, Check } from 'lucide-react';
+import toast from 'react-hot-toast';
+
+const BookingSlideoutForm = ({
+  mode = 'create',
+  bookingId,
+  initialPetId,
+  initialOwnerId,
+  onSuccess,
+  onCancel,
+}) => {
+  const isEdit = mode === 'edit';
+  
+  // Form state
+  const [selectedOwner, setSelectedOwner] = useState(null);
+  const [selectedPets, setSelectedPets] = useState([]);
+  const [ownerSearch, setOwnerSearch] = useState('');
+  
+  // Queries
+  const { data: ownersData } = useOwnerSearchQuery(ownerSearch, { enabled: ownerSearch.length >= 2 });
+  const { data: petsData } = usePetsQuery();
+  const { data: servicesData } = useServicesQuery();
+  const { data: initialPet } = usePetQuery(initialPetId, { enabled: !!initialPetId });
+  
+  // Mutations
+  const createMutation = useCreateBookingMutation();
+  const updateMutation = useUpdateBookingMutation(bookingId);
+  
+  const owners = ownersData?.owners || ownersData || [];
+  const pets = petsData?.pets || [];
+  const services = servicesData?.services || servicesData || [];
+  
+  // Filter pets by selected owner
+  const ownerPets = useMemo(() => {
+    if (!selectedOwner) return [];
+    return pets.filter(p => 
+      p.ownerId === selectedOwner.recordId || 
+      p.owners?.some(o => o.recordId === selectedOwner.recordId)
+    );
+  }, [selectedOwner, pets]);
+  
+  // Form
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    defaultValues: {
+      checkIn: format(new Date(), 'yyyy-MM-dd'),
+      checkOut: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
+      serviceId: '',
+      notes: '',
+      specialRequirements: '',
+    },
+  });
+  
+  // Initialize from initial props
+  useState(() => {
+    if (initialPet && initialPet.owners?.[0]) {
+      setSelectedOwner(initialPet.owners[0]);
+      setSelectedPets([initialPet]);
+    }
+  });
+  
+  const onSubmit = async (data) => {
+    if (!selectedOwner) {
+      toast.error('Please select an owner');
+      return;
+    }
+    if (selectedPets.length === 0) {
+      toast.error('Please select at least one pet');
+      return;
+    }
+    if (!data.serviceId) {
+      toast.error('Please select a service');
+      return;
+    }
+    
+    try {
+      // Create a booking for each pet
+      const bookings = await Promise.all(
+        selectedPets.map(pet => {
+          const payload = {
+            ownerId: selectedOwner.recordId,
+            petId: pet.recordId,
+            serviceId: data.serviceId,
+            checkIn: data.checkIn,
+            checkOut: data.checkOut,
+            notes: data.notes,
+            specialRequirements: data.specialRequirements,
+            status: 'PENDING',
+          };
+          
+          if (isEdit) {
+            return updateMutation.mutateAsync(payload);
+          }
+          return createMutation.mutateAsync(payload);
+        })
+      );
+      
+      onSuccess?.(bookings[0]);
+    } catch (error) {
+      console.error('Failed to save booking:', error);
+      toast.error(error?.message || 'Failed to save booking');
+    }
+  };
+  
+  const inputStyles = {
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    borderColor: 'var(--bb-color-border-subtle)',
+    color: 'var(--bb-color-text-primary)',
+  };
+
+  const inputClass = cn(
+    'w-full rounded-md border px-3 py-2 text-sm',
+    'focus:outline-none focus:ring-1',
+    'transition-colors'
+  );
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      {/* Step 1: Owner Selection */}
+      <FormSection title="1. Select Owner">
+        {selectedOwner ? (
+          <div 
+            className="flex items-center justify-between p-3 rounded-lg border"
+            style={{ borderColor: 'var(--bb-color-accent)', backgroundColor: 'var(--bb-color-accent-soft)' }}
+          >
+            <div className="flex items-center gap-3">
+              <div 
+                className="flex h-10 w-10 items-center justify-center rounded-full"
+                style={{ backgroundColor: 'var(--bb-color-purple-soft)', color: 'var(--bb-color-purple)' }}
+              >
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+                  {selectedOwner.firstName} {selectedOwner.lastName}
+                </p>
+                <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
+                  {selectedOwner.email || selectedOwner.phone}
+                </p>
+              </div>
+            </div>
+            <Button type="button" variant="ghost" size="sm" onClick={() => {
+              setSelectedOwner(null);
+              setSelectedPets([]);
+            }}>
+              Change
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--bb-color-text-muted)' }} />
+              <input
+                type="text"
+                placeholder="Search owners by name, email, or phone..."
+                value={ownerSearch}
+                onChange={(e) => setOwnerSearch(e.target.value)}
+                className={cn(inputClass, 'pl-10')}
+                style={inputStyles}
+              />
+            </div>
+            {ownerSearch.length >= 2 && owners.length > 0 && (
+              <div className="border rounded-lg divide-y" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+                {owners.slice(0, 5).map(owner => (
+                  <button
+                    key={owner.recordId}
+                    type="button"
+                    onClick={() => setSelectedOwner(owner)}
+                    className="w-full p-3 text-left hover:bg-[color:var(--bb-color-bg-elevated)] transition-colors flex items-center gap-3"
+                  >
+                    <Users className="w-4 h-4" style={{ color: 'var(--bb-color-text-muted)' }} />
+                    <div>
+                      <p className="font-medium text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>
+                        {owner.firstName} {owner.lastName}
+                      </p>
+                      <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
+                        {owner.email}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </FormSection>
+
+      {/* Step 2: Pet Selection */}
+      <FormSection title="2. Select Pet(s)">
+        {selectedOwner ? (
+          ownerPets.length > 0 ? (
+            <div className="grid grid-cols-2 gap-2">
+              {ownerPets.map(pet => {
+                const isSelected = selectedPets.some(p => p.recordId === pet.recordId);
+                return (
+                  <button
+                    key={pet.recordId}
+                    type="button"
+                    onClick={() => {
+                      if (isSelected) {
+                        setSelectedPets(prev => prev.filter(p => p.recordId !== pet.recordId));
+                      } else {
+                        setSelectedPets(prev => [...prev, pet]);
+                      }
+                    }}
+                    className={cn(
+                      "p-3 rounded-lg border text-left transition-colors flex items-center gap-3",
+                      isSelected && "ring-2 ring-[color:var(--bb-color-accent)]"
+                    )}
+                    style={{ 
+                      borderColor: isSelected ? 'var(--bb-color-accent)' : 'var(--bb-color-border-subtle)',
+                      backgroundColor: isSelected ? 'var(--bb-color-accent-soft)' : 'transparent',
+                    }}
+                  >
+                    <PawPrint className="w-5 h-5" style={{ color: isSelected ? 'var(--bb-color-accent)' : 'var(--bb-color-text-muted)' }} />
+                    <div>
+                      <p className="font-medium text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>
+                        {pet.name}
+                      </p>
+                      <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
+                        {pet.breed || pet.species}
+                      </p>
+                    </div>
+                    {isSelected && <Check className="w-4 h-4 ml-auto" style={{ color: 'var(--bb-color-accent)' }} />}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-center py-4" style={{ color: 'var(--bb-color-text-muted)' }}>
+              No pets found for this owner
+            </p>
+          )
+        ) : (
+          <p className="text-sm text-center py-4" style={{ color: 'var(--bb-color-text-muted)' }}>
+            Select an owner first
+          </p>
+        )}
+      </FormSection>
+
+      {/* Step 3: Service & Dates */}
+      <FormSection title="3. Service & Dates">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+              Service <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+            </label>
+            <select
+              {...register('serviceId', { required: 'Service is required' })}
+              className={inputClass}
+              style={inputStyles}
+            >
+              <option value="">Select a service</option>
+              {services.map(service => (
+                <option key={service.recordId} value={service.recordId}>
+                  {service.name} {service.priceCents ? `- $${(service.priceCents / 100).toFixed(2)}/day` : ''}
+                </option>
+              ))}
+            </select>
+            {errors.serviceId && (
+              <p className="text-xs" style={{ color: 'var(--bb-color-status-negative)' }}>{errors.serviceId.message}</p>
+            )}
+          </div>
+
+          <FormGrid cols={2}>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+                Check-in <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+              </label>
+              <input
+                type="date"
+                {...register('checkIn', { required: 'Check-in date is required' })}
+                className={inputClass}
+                style={inputStyles}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+                Check-out <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+              </label>
+              <input
+                type="date"
+                {...register('checkOut', { required: 'Check-out date is required' })}
+                className={inputClass}
+                style={inputStyles}
+              />
+            </div>
+          </FormGrid>
+        </div>
+      </FormSection>
+
+      {/* Step 4: Notes */}
+      <FormSection title="4. Notes (Optional)">
+        <div className="space-y-2">
+          <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+            Special Requirements
+          </label>
+          <textarea
+            {...register('specialRequirements')}
+            rows={3}
+            className={cn(inputClass, 'resize-y')}
+            style={inputStyles}
+            placeholder="Medications, feeding instructions, special handling..."
+          />
+        </div>
+      </FormSection>
+
+      <FormActions>
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={isSubmitting}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Creating...' : isEdit ? 'Update Booking' : 'Create Booking'}
+        </Button>
+      </FormActions>
+    </form>
+  );
+};
+
+export default BookingSlideoutForm;
+

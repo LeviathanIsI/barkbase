@@ -8,6 +8,7 @@ import AuthLoader from "./AuthLoader";
 import QueryProvider from "./QueryProvider";
 import TenantLoader from "./TenantLoader";
 import TokenRefresher from "./TokenRefresher";
+import { SlideoutProvider, SlideoutHost } from "@/components/slideout";
 
 const RealtimeProvider = ({ children }) => {
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -43,13 +44,16 @@ const RealtimeProvider = ({ children }) => {
 const AppProviders = ({ children, fallback = null }) => (
   <ThemeProvider>
     <QueryProvider>
-      <RealtimeProvider>
-        <AuthLoader />
-        <TenantLoader />
-        <TokenRefresher />
-        <Suspense fallback={fallback}>{children}</Suspense>
-        <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
-      </RealtimeProvider>
+      <SlideoutProvider>
+        <RealtimeProvider>
+          <AuthLoader />
+          <TenantLoader />
+          <TokenRefresher />
+          <Suspense fallback={fallback}>{children}</Suspense>
+          <SlideoutHost />
+          <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+        </RealtimeProvider>
+      </SlideoutProvider>
     </QueryProvider>
   </ThemeProvider>
 );

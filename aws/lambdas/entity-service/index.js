@@ -182,6 +182,14 @@ exports.handler = async (event) => {
     try {
         // ==================== PETS ROUTES ====================
         if (path.startsWith('/api/v1/pets')) {
+            // Extract pet ID and sub-path from proxy parameter (API Gateway uses {proxy+} routing)
+            // proxy could be: "petId", "petId/vaccinations", "petId/vaccinations/vaccinationId"
+            const proxyPath = event.pathParameters?.proxy || '';
+            const proxyParts = proxyPath.split('/');
+            const petId = proxyParts[0] || event.pathParameters?.id;
+            const subResource = proxyParts[1]; // 'vaccinations' or undefined
+            const vaccinationId = proxyParts[2]; // vaccination ID or undefined
+            
             // Vaccination routes - must come before general pet routes to avoid incorrect matching
             if (httpMethod === 'GET' && path === '/api/v1/pets/vaccinations/expiring') {
                 return await listExpiringVaccinations(event, tenantId);
@@ -190,17 +198,24 @@ exports.handler = async (event) => {
             if (httpMethod === 'GET' && path === '/api/v1/pets/medical-alerts') {
                 return await listMedicalAlerts(event, tenantId);
             }
-            if (httpMethod === 'POST' && path.endsWith('/vaccinations') && event.pathParameters?.id && event.pathParameters?.vaccinationId === undefined) {
-                return await createPetVaccination(event, tenantId);
-            }
-            if (httpMethod === 'PUT' && event.pathParameters?.id && event.pathParameters?.vaccinationId && path.includes('/vaccinations/')) {
-                return await updatePetVaccination(event, tenantId);
-            }
-            if (httpMethod === 'DELETE' && event.pathParameters?.id && event.pathParameters?.vaccinationId && path.includes('/vaccinations/')) {
-                return await deletePetVaccination(event, tenantId);
-            }
-            if (httpMethod === 'GET' && path.endsWith('/vaccinations') && event.pathParameters?.id && event.pathParameters?.vaccinationId === undefined) {
-                return await listPetVaccinations(event, tenantId);
+            
+            // Vaccination sub-routes (petId/vaccinations/...)
+            if (petId && subResource === 'vaccinations') {
+                // Inject petId and vaccinationId into pathParameters for handler compatibility
+                event.pathParameters = { ...event.pathParameters, id: petId, vaccinationId };
+                
+                if (httpMethod === 'POST' && !vaccinationId) {
+                    return await createPetVaccination(event, tenantId);
+                }
+                if (httpMethod === 'PUT' && vaccinationId) {
+                    return await updatePetVaccination(event, tenantId);
+                }
+                if (httpMethod === 'DELETE' && vaccinationId) {
+                    return await deletePetVaccination(event, tenantId);
+                }
+                if (httpMethod === 'GET' && !vaccinationId) {
+                    return await listPetVaccinations(event, tenantId);
+                }
             }
 
             // Pet owner association route
@@ -215,32 +230,45 @@ exports.handler = async (event) => {
             if (httpMethod === 'POST' && path === '/api/v1/pets') {
                 return await createPet(event, tenantId);
             }
-            if (httpMethod === 'GET' && event.pathParameters?.id) {
-                return await getPetById(event, tenantId);
-            }
-            if (httpMethod === 'PUT' && event.pathParameters?.id) {
-                return await updatePet(event, tenantId);
-            }
-            if (httpMethod === 'DELETE' && event.pathParameters?.id) {
-                return await deletePet(event, tenantId);
+            // Single pet routes (petId only, no sub-resource)
+            if (petId && !subResource) {
+                // Inject petId into pathParameters for handler compatibility
+                event.pathParameters = { ...event.pathParameters, id: petId };
+                
+                if (httpMethod === 'GET') {
+                    return await getPetById(event, tenantId);
+                }
+                if (httpMethod === 'PUT') {
+                    return await updatePet(event, tenantId);
+                }
+                if (httpMethod === 'DELETE') {
+                    return await deletePet(event, tenantId);
+                }
             }
         }
 
         // ==================== OWNERS ROUTES ====================
         if (path.startsWith('/api/v1/owners')) {
+            // Extract owner ID from proxy path parameter (API Gateway uses {proxy+} routing)
+            const ownerId = event.pathParameters?.proxy || event.pathParameters?.id;
+            
             if (httpMethod === 'GET' && path === '/api/v1/owners') {
                 return await listOwners(event, tenantId);
             }
             if (httpMethod === 'POST' && path === '/api/v1/owners') {
                 return await createOwner(event, tenantId);
             }
-            if (httpMethod === 'GET' && event.pathParameters?.id) {
+            if (httpMethod === 'GET' && ownerId) {
+                // Inject ownerId into pathParameters for handler compatibility
+                event.pathParameters = { ...event.pathParameters, id: ownerId };
                 return await getOwnerById(event, tenantId);
             }
-            if (httpMethod === 'PUT' && event.pathParameters?.id) {
+            if (httpMethod === 'PUT' && ownerId) {
+                event.pathParameters = { ...event.pathParameters, id: ownerId };
                 return await updateOwner(event, tenantId);
             }
-            if (httpMethod === 'DELETE' && event.pathParameters?.id) {
+            if (httpMethod === 'DELETE' && ownerId) {
+                event.pathParameters = { ...event.pathParameters, id: ownerId };
                 return await deleteOwner(event, tenantId);
             }
         }
@@ -806,20 +834,23 @@ async function getOwnerById(event, tenantId) {
     owner.pets = owner.pets || [];
     owner.petCount = owner.pets.length;
 
-    // Get recent bookings for this owner
-    const bookingsResult = await pool.query(
-        `SELECT b."recordId", b."status", b."checkIn", b."checkOut",
-                p."name" as "petName", s."name" as "serviceName"
-         FROM "Booking" b
-         LEFT JOIN "Pet" p ON b."petId" = p."recordId"
-         LEFT JOIN "Service" s ON b."serviceId" = s."recordId"
-         WHERE b."ownerId" = $1 AND b."tenantId" = $2
-         ORDER BY b."checkIn" DESC
-         LIMIT 5`,
-        [id, tenantId]
-    );
-
-    owner.recentBookings = bookingsResult.rows;
+    // Get recent bookings for this owner (wrapped in try/catch for schema flexibility)
+    try {
+        const bookingsResult = await pool.query(
+            `SELECT b."recordId", b."status", b."checkIn", b."checkOut",
+                    p."name" as "petName"
+             FROM "Booking" b
+             LEFT JOIN "Pet" p ON b."petId" = p."recordId"
+             WHERE b."ownerId" = $1 AND b."tenantId" = $2
+             ORDER BY b."checkIn" DESC
+             LIMIT 5`,
+            [id, tenantId]
+        );
+        owner.recentBookings = bookingsResult.rows;
+    } catch (e) {
+        console.warn('[getOwnerById] Failed to fetch recent bookings:', e.message);
+        owner.recentBookings = [];
+    }
 
     return ok(event, 200, owner);
 }

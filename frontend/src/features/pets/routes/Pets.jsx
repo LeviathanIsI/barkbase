@@ -10,7 +10,7 @@ import {
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import PetAvatar from '@/components/ui/PetAvatar';
-import { Skeleton } from '@/components/ui/skeleton';
+import { PageLoader, UpdateChip } from '@/components/PageLoader';
 import { usePetsQuery, useCreatePetMutation, useDeletePetMutation } from '../api';
 import { useExpiringVaccinationsQuery } from '../api-vaccinations';
 import { PetFormModal } from '../components';
@@ -91,10 +91,23 @@ const Pets = () => {
   }, []);
 
   // Data fetching
-  const { data: petsResult, isLoading, error } = usePetsQuery();
+  const { data: petsResult, isLoading, isFetching, error } = usePetsQuery();
   const pets = petsResult?.pets ?? [];
   const createPetMutation = useCreatePetMutation();
   const deletePetMutation = useDeletePetMutation();
+  
+  // Show skeleton only on initial load when there's no cached data
+  const showSkeleton = isLoading && !petsResult?.pets;
+  // Show subtle indicator during background refetch when we have data
+  const isUpdating = isFetching && !isLoading && !!petsResult?.pets;
+  
+  // Fade-in animation state
+  const [hasLoaded, setHasLoaded] = useState(false);
+  useEffect(() => {
+    if (!showSkeleton && petsResult?.pets && !hasLoaded) {
+      setHasLoaded(true);
+    }
+  }, [showSkeleton, petsResult?.pets, hasLoaded]);
 
   // Get expiring vaccinations data
   const { data: expiringVaccsData } = useExpiringVaccinationsQuery(30);
@@ -282,7 +295,10 @@ const Pets = () => {
   return (
     <>
       {/* Main content container - stretches to fill available space in app shell */}
-      <div className="flex flex-col flex-grow w-full min-h-[calc(100vh-180px)]">
+      <div className={cn(
+        "flex flex-col flex-grow w-full min-h-[calc(100vh-180px)] transition-opacity duration-200",
+        hasLoaded ? "opacity-100" : "opacity-0"
+      )}>
         {/* Header Section */}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between pb-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
           <div>
@@ -395,6 +411,7 @@ const Pets = () => {
               {/* Results Count */}
               <span className="text-sm text-[color:var(--bb-color-text-muted)] ml-2">
                 {sortedPets.length} pet{sortedPets.length !== 1 ? 's' : ''}{hasActiveFilters && ' filtered'}
+                {isUpdating && <UpdateChip className="ml-2" />}
               </span>
             </div>
 
@@ -503,8 +520,8 @@ const Pets = () => {
 
         {/* Table Section - Uses full available width in content area */}
         <div className="flex-1 flex flex-col mt-4 -mx-6 lg:-mx-12">
-          {isLoading ? (
-            <TableSkeleton />
+          {showSkeleton ? (
+            <PageLoader label="Loading pets…" />
           ) : sortedPets.length === 0 ? (
             <div className="px-6 lg:px-12">
               <EmptyState hasFilters={hasActiveFilters} onClearFilters={clearFilters} onAddPet={() => setPetFormModalOpen(true)} />
@@ -583,7 +600,7 @@ const Pets = () => {
           )}
 
           {/* Pagination */}
-          {sortedPets.length > 0 && !isLoading && (
+          {sortedPets.length > 0 && !showSkeleton && (
             <div
               className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4 px-6 lg:px-12 border-t"
               style={{ borderColor: 'var(--bb-color-border-subtle)', backgroundColor: 'var(--bb-color-bg-surface)' }}
@@ -1024,45 +1041,6 @@ const ColumnsDropdown = ({ columns, visibleColumns, columnOrder, onToggle, onReo
     </div>
   );
 };
-
-// Table Skeleton Component - Full Width
-const TableSkeleton = () => (
-  <div className="flex-1" style={{ backgroundColor: 'var(--bb-color-bg-body)' }}>
-    <div className="px-4 lg:px-6 py-4 space-y-0">
-      {/* Header skeleton */}
-      <div className="flex items-center gap-6 py-3 border-b" style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}>
-        <Skeleton className="h-4 w-4 rounded ml-2" />
-        <Skeleton className="h-4 w-32" />
-        <Skeleton className="h-4 w-28" />
-        <Skeleton className="h-4 w-16" />
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-4 w-16" />
-        <Skeleton className="h-4 w-12" />
-      </div>
-      {/* Row skeletons */}
-      {Array.from({ length: 12 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-6 py-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-          <Skeleton className="h-4 w-4 rounded ml-2" />
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-10 w-10 rounded-full" />
-            <div className="space-y-1.5">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-3 w-36" />
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-8 w-8 rounded-full" />
-            <Skeleton className="h-4 w-24" />
-          </div>
-          <Skeleton className="h-6 w-16 rounded-full" />
-          <Skeleton className="h-6 w-24 rounded-full" />
-          <Skeleton className="h-4 w-12" />
-          <Skeleton className="h-4 w-10" />
-        </div>
-      ))}
-    </div>
-  </div>
-);
 
 // Empty State Component - Full Width
 const EmptyState = ({ hasFilters, onClearFilters, onAddPet }) => (

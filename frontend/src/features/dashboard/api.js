@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
+import { dashboardQueryDefaults, listQueryDefaults } from '@/lib/queryConfig';
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
@@ -23,16 +24,12 @@ export const useDashboardStatsQuery = (options = {}) => {
           todayCheckins: 0,
           todayCheckouts: 0,
           occupancyRate: 0,
-          revenue: {
-            today: 0,
-            thisWeek: 0,
-            thisMonth: 0
-          }
+          revenue: { today: 0, thisWeek: 0, thisMonth: 0 }
         };
       }
     },
-    staleTime: 60 * 1000, // 1 minute
-    refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
+    ...dashboardQueryDefaults,
+    placeholderData: (previousData) => previousData,
     ...options,
   });
 };
@@ -51,8 +48,8 @@ export const useTodaysPetsQuery = (options = {}) => {
         return [];
       }
     },
-    staleTime: 60 * 1000, // 1 minute
-    refetchInterval: 2 * 60 * 1000, // Refresh every 2 minutes
+    ...dashboardQueryDefaults,
+    placeholderData: (previousData) => previousData,
     ...options,
   });
 };
@@ -64,16 +61,16 @@ export const useUpcomingArrivalsQuery = (days = 7, options = {}) => {
     queryKey: [...queryKeys.dashboard(tenantKey), 'arrivals', days],
     queryFn: async () => {
       try {
-        const res = await apiClient.get('/api/v1/reports/arrivals', { 
-          params: { days } 
-        });
+        const res = await apiClient.get('/api/v1/reports/arrivals', { params: { days } });
         return Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
       } catch (e) {
         console.warn('[arrivals] Error:', e?.message || e);
         return [];
       }
     },
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    ...dashboardQueryDefaults,
+    staleTime: 2 * 60 * 1000,
+    placeholderData: (previousData) => previousData,
     ...options,
   });
 };
@@ -85,16 +82,16 @@ export const useUpcomingDeparturesQuery = (days = 7, options = {}) => {
     queryKey: [...queryKeys.dashboard(tenantKey), 'departures', days],
     queryFn: async () => {
       try {
-        const res = await apiClient.get('/api/v1/reports/departures', { 
-          params: { days } 
-        });
+        const res = await apiClient.get('/api/v1/reports/departures', { params: { days } });
         return Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
       } catch (e) {
         console.warn('[departures] Error:', e?.message || e);
         return [];
       }
     },
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    ...dashboardQueryDefaults,
+    staleTime: 2 * 60 * 1000,
+    placeholderData: (previousData) => previousData,
     ...options,
   });
 };
@@ -115,15 +112,12 @@ export const useOccupancyQuery = (options = {}) => {
         };
       } catch (e) {
         console.warn('[occupancy] Error:', e?.message || e);
-        return {
-          current: 0,
-          total: 0,
-          percentage: 0,
-          byCategory: {}
-        };
+        return { current: 0, total: 0, percentage: 0, byCategory: {} };
       }
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    ...dashboardQueryDefaults,
+    staleTime: 5 * 60 * 1000,
+    placeholderData: (previousData) => previousData,
     ...options,
   });
 };
@@ -135,9 +129,7 @@ export const useRevenueMetricsQuery = (period = 'month', options = {}) => {
     queryKey: [...queryKeys.dashboard(tenantKey), 'revenue', period],
     queryFn: async () => {
       try {
-        const res = await apiClient.get('/api/v1/reports/revenue', { 
-          params: { period } 
-        });
+        const res = await apiClient.get('/api/v1/reports/revenue', { params: { period } });
         return res?.data ?? {
           total: 0,
           collected: 0,
@@ -147,16 +139,12 @@ export const useRevenueMetricsQuery = (period = 'month', options = {}) => {
         };
       } catch (e) {
         console.warn('[revenue] Error:', e?.message || e);
-        return {
-          total: 0,
-          collected: 0,
-          pending: 0,
-          overdue: 0,
-          chartData: []
-        };
+        return { total: 0, collected: 0, pending: 0, overdue: 0, chartData: [] };
       }
     },
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    ...dashboardQueryDefaults,
+    staleTime: 10 * 60 * 1000,
+    placeholderData: (previousData) => previousData,
     ...options,
   });
 };
@@ -168,31 +156,29 @@ export const useActivityFeedQuery = (limit = 20, options = {}) => {
     queryKey: [...queryKeys.dashboard(tenantKey), 'activity', limit],
     queryFn: async () => {
       try {
-        const res = await apiClient.get('/api/v1/reports/activity', { 
-          params: { limit } 
-        });
+        const res = await apiClient.get('/api/v1/reports/activity', { params: { limit } });
         return Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
       } catch (e) {
         console.warn('[activity] Error:', e?.message || e);
         return [];
       }
     },
-    staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: 60 * 1000, // Refresh every minute
+    ...dashboardQueryDefaults,
+    staleTime: 30 * 1000,
+    placeholderData: (previousData) => previousData,
     ...options,
   });
 };
 
-// Alias exports for backwards compatibility with existing components
+// Alias exports for backwards compatibility
 export const useDashboardStats = (options = {}) => {
   const statsQuery = useDashboardStatsQuery(options);
   
-  // Transform the data to match what the dashboard component expects
   const transformedData = statsQuery.data ? {
     ...statsQuery.data,
     revenueToday: statsQuery.data.revenue?.today || 0,
     pendingCheckins: statsQuery.data.todayCheckins || 0,
-    availableSpots: Math.max(0, (statsQuery.data.totalOwners || 0) - (statsQuery.data.activeBookings || 0)), // Rough estimate
+    availableSpots: Math.max(0, (statsQuery.data.totalOwners || 0) - (statsQuery.data.activeBookings || 0)),
   } : {
     totalPets: 0,
     totalOwners: 0,
@@ -203,11 +189,7 @@ export const useDashboardStats = (options = {}) => {
     revenueToday: 0,
     pendingCheckins: 0,
     availableSpots: 0,
-    revenue: {
-      today: 0,
-      thisWeek: 0,
-      thisMonth: 0
-    }
+    revenue: { today: 0, thisWeek: 0, thisMonth: 0 }
   };
   
   return {
@@ -219,8 +201,6 @@ export const useDashboardStats = (options = {}) => {
 export const useDashboardOccupancy = (options = {}) => {
   const occupancyQuery = useOccupancyQuery(options);
   
-  // Transform the data to match what the dashboard expects
-  // Generate 7 days of occupancy data
   const transformedData = occupancyQuery.data ? (() => {
     const days = [];
     const today = new Date();
@@ -229,7 +209,7 @@ export const useDashboardOccupancy = (options = {}) => {
       date.setDate(date.getDate() - i);
       days.push({
         dayLabel: date.toLocaleDateString('en-US', { weekday: 'short' }),
-        occupancy: i === 0 ? (occupancyQuery.data.current || 0) : Math.floor(Math.random() * (occupancyQuery.data.total || 10)), // Use actual for today, mock for past days
+        occupancy: i === 0 ? (occupancyQuery.data.current || 0) : Math.floor(Math.random() * (occupancyQuery.data.total || 10)),
         date: date.toISOString().split('T')[0]
       });
     }
@@ -242,7 +222,6 @@ export const useDashboardOccupancy = (options = {}) => {
   };
 };
 
-// Vaccinations hook - uses the expiring vaccinations from pets API
 export const useDashboardVaccinations = (options = {}) => {
   const tenantKey = useTenantKey();
   const { limit = 5 } = options;
@@ -256,7 +235,6 @@ export const useDashboardVaccinations = (options = {}) => {
         });
         const vaccinations = Array.isArray(res.data) ? res.data : (res.data?.data ?? []);
         
-        // Transform to match dashboard format
         return vaccinations.map(vacc => ({
           recordId: vacc.recordId || vacc.vaccinationId,
           petName: vacc.petName || vacc.pet?.name || 'Unknown',
@@ -267,16 +245,14 @@ export const useDashboardVaccinations = (options = {}) => {
             const expDate = new Date(vacc.expiresAt);
             const today = new Date();
             const diffTime = expDate - today;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            return diffDays;
+            return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
           })(),
           severity: (() => {
             const days = vacc.daysUntil || (() => {
               if (!vacc.expiresAt) return 999;
               const expDate = new Date(vacc.expiresAt);
               const today = new Date();
-              const diffTime = expDate - today;
-              return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              return Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
             })();
             if (days < 0) return 'danger';
             if (days <= 7) return 'warning';
@@ -288,7 +264,9 @@ export const useDashboardVaccinations = (options = {}) => {
         return [];
       }
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    ...dashboardQueryDefaults,
+    staleTime: 5 * 60 * 1000,
+    placeholderData: (previousData) => previousData,
     ...options,
   });
 };

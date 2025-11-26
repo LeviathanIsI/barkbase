@@ -31,14 +31,32 @@ const timelineColors = {
   note: 'gray',
 };
 
+const formatTimestamp = (timestamp) => {
+  if (!timestamp) return 'Unknown time';
+  try {
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return 'Unknown time';
+    return formatDistanceToNow(date, { addSuffix: true });
+  } catch {
+    return 'Unknown time';
+  }
+};
+
 const TimelineItem = ({ item }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   
-  const Icon = item.type === 'communication' 
-    ? timelineIcons.communication[item.subtype] 
-    : timelineIcons[item.type];
+  if (!item) return null;
+  
+  const itemType = item.type || 'note';
+  const itemSubtype = item.subtype || 'note';
+  
+  const Icon = itemType === 'communication' 
+    ? (timelineIcons.communication[itemSubtype] || FileText)
+    : (timelineIcons[itemType] || FileText);
     
-  const color = timelineColors[item.type];
+  const color = timelineColors[itemType] || 'gray';
+  const title = item.title || item.content || 'Activity';
+  const description = item.description || '';
 
   return (
     <div className="flex gap-4 group">
@@ -56,13 +74,13 @@ const TimelineItem = ({ item }) => {
         >
           <div className="flex items-start justify-between">
             <div>
-              <h4 className="font-medium text-text">{item.title}</h4>
-              {item.description && (
-                <p className="text-sm text-text-secondary mt-0.5">{item.description}</p>
+              <h4 className="font-medium text-text">{title}</h4>
+              {description && (
+                <p className="text-sm text-text-secondary mt-0.5">{description}</p>
               )}
             </div>
             <div className="flex items-center gap-2 text-xs text-text-muted">
-              <span>{formatDistanceToNow(new Date(item.timestamp), { addSuffix: true })}</span>
+              <span>{formatTimestamp(item.timestamp)}</span>
               <ChevronRight 
                 className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
               />
@@ -129,7 +147,7 @@ export default function CommunicationTimeline({ ownerId }) {
     <Card>
       <div className="relative">
         {timeline.map((item, index) => (
-          <div key={item.recordId} className={index === timeline.length - 1 ? '[&_.absolute]:hidden' : ''}>
+          <div key={item.recordId || item.id || `timeline-${index}`} className={index === timeline.length - 1 ? '[&_.absolute]:hidden' : ''}>
             <TimelineItem item={item} />
           </div>
         ))}

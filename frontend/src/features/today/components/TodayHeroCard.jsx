@@ -1,21 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, Clock, Home, PawPrint, Plus, RefreshCw, UserCheck, UserX } from 'lucide-react';
+import { AlertCircle, Clock, Home, Plus, RefreshCw, UserCheck, UserX } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import TodayCard from './TodayCard';
-import { TodayHeroSkeleton } from './TodaySkeleton';
+import { UpdateChip } from '@/components/PageLoader';
 import { cn } from '@/lib/utils';
 
-const TodayHeroCard = ({ kennelName, formattedDate, stats, isLoading, onRefresh, lastRefreshed }) => {
+const TodayHeroCard = ({ kennelName, formattedDate, stats, isLoading, isUpdating, onRefresh, lastRefreshed }) => {
   const navigate = useNavigate();
-
-  if (isLoading) {
-    return (
-      <TodayCard>
-        <TodayHeroSkeleton />
-      </TodayCard>
-    );
-  }
 
   const formatLastRefreshed = () => {
     if (!lastRefreshed) return null;
@@ -36,7 +28,9 @@ const TodayHeroCard = ({ kennelName, formattedDate, stats, isLoading, onRefresh,
               <p className="text-[color:var(--bb-color-text-muted)] text-[var(--bb-font-size-sm,0.875rem)]">
                 {formattedDate}
               </p>
-              {lastRefreshed && (
+              {isUpdating ? (
+                <UpdateChip />
+              ) : lastRefreshed ? (
                 <div className="flex items-center gap-1.5 text-[0.75rem] text-[color:var(--bb-color-text-muted)]">
                   <Clock className="h-3 w-3" />
                   <span>Last refreshed at {formatLastRefreshed()}</span>
@@ -51,7 +45,7 @@ const TodayHeroCard = ({ kennelName, formattedDate, stats, isLoading, onRefresh,
                     </button>
                   )}
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
 
