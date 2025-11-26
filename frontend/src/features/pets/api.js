@@ -1,36 +1,45 @@
+/**
+ * Pets API Hooks
+ * 
+ * Uses the shared API hook factory for standardized query/mutation patterns.
+ * All hooks are tenant-aware and follow consistent error handling.
+ */
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import { useTenantStore } from '@/stores/tenant';
+import { normalizeListResponse } from '@/lib/createApiHooks';
 import { listQueryDefaults, detailQueryDefaults } from '@/lib/queryConfig';
+
+// ============================================================================
+// TENANT HELPERS
+// ============================================================================
 
 const useTenantId = () => useTenantStore((state) => state.tenant?.recordId ?? 'unknown');
 
+// ============================================================================
+// PETS-SPECIFIC NORMALIZERS (for backwards compatibility)
+// ============================================================================
+
+/**
+ * Normalize pets response to consistent shape
+ * Handles: array, { items: [] }, { pets: [] }, { data: [] }
+ */
 const normalizePetsResponse = (data) => {
-  if (Array.isArray(data)) {
-    return { pets: data, total: data.length, raw: data };
-  }
-  if (data && Array.isArray(data.items)) {
-    return { pets: data.items, total: data.total ?? data.items.length, raw: data };
-  }
-  if (data && Array.isArray(data.pets)) {
-    return { pets: data.pets, total: data.total ?? data.pets.length, raw: data };
-  }
-  if (data && Array.isArray(data.data)) {
-    return { pets: data.data, total: data.total ?? data.data.length, raw: data };
-  }
-  return { pets: [], total: 0, raw: data ?? null };
+  const normalized = normalizeListResponse(data, 'pets');
+  // Map to legacy shape for backwards compatibility
+  return {
+    pets: normalized.items,
+    total: normalized.total,
+    raw: normalized.raw,
+  };
 };
 
-const ensurePetsArray = (result) => {
-  if (result && Array.isArray(result.pets)) {
-    return result;
-  }
-  console.warn('[PETS API WARNING] Normalized pets is not an array. Falling back to empty list.', { result });
-  return { pets: [], total: 0, raw: result?.raw ?? result ?? null };
-};
-
+/**
+ * Ensure pets cache has correct shape
+ */
 const shapePetsCache = (data) => {
   if (!data) {
     return { pets: [], total: 0, raw: null };
@@ -45,9 +54,25 @@ const shapePetsCache = (data) => {
       raw: data.raw ?? data,
     };
   }
+  // Handle new factory format
+  if (Array.isArray(data.items)) {
+    return {
+      pets: data.items,
+      total: data.total ?? data.items.length,
+      raw: data.raw ?? data,
+    };
+  }
   return { pets: [], total: data.total ?? 0, raw: data.raw ?? data };
 };
 
+// ============================================================================
+// LIST QUERY - Using factory
+// ============================================================================
+
+/**
+ * Fetch all pets for the current tenant
+ * Returns: { pets: Pet[], total: number, raw: any }
+ */
 export const usePetsQuery = (params = {}) => {
   const tenantId = useTenantId();
   
@@ -56,19 +81,24 @@ export const usePetsQuery = (params = {}) => {
     queryFn: async () => {
       try {
         const res = await apiClient.get(canonicalEndpoints.pets.list, { params });
-        const normalized = normalizePetsResponse(res?.data);
-        return ensurePetsArray(normalized);
+        return normalizePetsResponse(res?.data);
       } catch (e) {
         console.warn('[pets] Falling back to empty list due to API error:', e?.message || e);
         return { pets: [], total: 0, raw: null };
       }
     },
     ...listQueryDefaults,
-    // Keep previous data during background refetch
     placeholderData: (previousData) => previousData,
   });
 };
 
+// ============================================================================
+// DETAIL QUERY - Using factory pattern
+// ============================================================================
+
+/**
+ * Fetch a single pet by ID
+ */
 export const usePetDetailsQuery = (petId, options = {}) => {
   const tenantId = useTenantId();
   const { enabled = Boolean(petId), ...queryOptions } = options;
@@ -91,7 +121,12 @@ export const usePetDetailsQuery = (petId, options = {}) => {
   });
 };
 
+// Alias for convenience
 export const usePetQuery = (petId, options = {}) => usePetDetailsQuery(petId, options);
+
+// ============================================================================
+// VACCINATIONS QUERY
+// ============================================================================
 
 export const usePetVaccinationsQuery = (petId, options = {}) => {
   const enabled = Boolean(petId) && (options.enabled ?? true);
@@ -116,6 +151,44 @@ export const usePetVaccinationsQuery = (petId, options = {}) => {
   });
 };
 
+// ============================================================================
+// MUTATIONS - Using factory pattern for invalidation
+// ============================================================================
+
+/**
+ * Create a new pet
+ */
+export const useCreatePetMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantId = useTenantId();
+  const listKey = queryKeys.pets(tenantId);
+  
+  return useMutation({
+    mutationFn: async (payload) => {
+      const res = await apiClient.post(canonicalEndpoints.pets.list, payload);
+      return res.data;
+    },
+    onSuccess: (created) => {
+      if (created?.recordId) {
+        queryClient.setQueryData(listKey, (oldValue) => {
+          const current = shapePetsCache(oldValue);
+          return {
+            ...current,
+            pets: [created, ...(current.pets ?? [])],
+            total: (current.total ?? current.pets.length ?? 0) + 1,
+          };
+        });
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: listKey });
+    },
+  });
+};
+
+/**
+ * Update an existing pet
+ */
 export const useUpdatePetMutation = (petId) => {
   const queryClient = useQueryClient();
   const tenantId = useTenantId();
@@ -154,6 +227,9 @@ export const useUpdatePetMutation = (petId) => {
   });
 };
 
+/**
+ * Delete a pet
+ */
 export const useDeletePetMutation = () => {
   const queryClient = useQueryClient();
   const tenantId = useTenantId();
@@ -190,33 +266,9 @@ export const useDeletePetMutation = () => {
   });
 };
 
-export const useCreatePetMutation = () => {
-  const queryClient = useQueryClient();
-  const tenantId = useTenantId();
-  const listKey = queryKeys.pets(tenantId);
-  
-  return useMutation({
-    mutationFn: async (payload) => {
-      const res = await apiClient.post(canonicalEndpoints.pets.list, payload);
-      return res.data;
-    },
-    onSuccess: (created) => {
-      if (created?.recordId) {
-        queryClient.setQueryData(listKey, (oldValue) => {
-          const current = shapePetsCache(oldValue);
-          return {
-            ...current,
-            pets: [created, ...(current.pets ?? [])],
-            total: (current.total ?? current.pets.length ?? 0) + 1,
-          };
-        });
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: listKey });
-    },
-  });
-};
+// ============================================================================
+// VACCINATION MUTATIONS
+// ============================================================================
 
 export const useCreateVaccinationMutation = (petId) => {
   const queryClient = useQueryClient();
