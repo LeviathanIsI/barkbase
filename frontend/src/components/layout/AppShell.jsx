@@ -46,7 +46,7 @@ const AppShell = () => {
           className="flex-1 px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-6,1.5rem)] sm:px-[var(--bb-space-8,2rem)] lg:px-[var(--bb-space-12,3rem)]"
           style={{ backgroundColor: 'var(--bb-color-bg-body)' }}
         >
-          <div className="mx-auto w-full max-w-6xl">
+          <div className="w-full">
             <Outlet />
           </div>
         </main>
