@@ -140,7 +140,7 @@ export default function SettingsLayout() {
   );
 
   return (
-    <div className="flex w-full min-h-screen bg-background">
+    <div className="flex w-full bg-background rounded-lg border border-border overflow-hidden" style={{ minHeight: '70vh' }}>
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 flex-shrink-0 flex-col border-r border-border bg-card">
         <SidebarContent />

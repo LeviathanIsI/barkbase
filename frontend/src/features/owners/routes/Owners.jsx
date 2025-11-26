@@ -296,7 +296,7 @@ const Owners = () => {
 
         {/* Sticky Toolbar */}
         <div
-          className="sticky top-0 z-20 -mx-6 lg:-mx-12 px-6 lg:px-12 py-3 border-b shadow-sm"
+          className="sticky top-0 z-20 py-3 border-b shadow-sm rounded-lg"
           style={{
             backgroundColor: 'var(--bb-color-bg-surface)',
             borderColor: 'var(--bb-color-border-subtle)',
@@ -410,11 +410,11 @@ const Owners = () => {
         </div>
 
         {/* Table Section - Uses full available width in content area */}
-        <div className="flex-1 flex flex-col mt-4 -mx-6 lg:-mx-12">
+        <div className="flex-1 flex flex-col mt-4">
           {showSkeleton ? (
             <PageLoader label="Loading owners…" />
           ) : sortedOwners.length === 0 ? (
-            <div className="px-6 lg:px-12">
+            <div className="py-8">
               <EmptyState hasFilters={hasActiveFilters} onClearFilters={clearFilters} onAddOwner={() => setFormModalOpen(true)} />
             </div>
           ) : (
@@ -475,7 +475,7 @@ const Owners = () => {
           {/* Pagination */}
           {sortedOwners.length > 0 && !showSkeleton && (
             <div 
-              className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4 px-6 lg:px-12 border-t"
+              className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4 px-4 border-t rounded-b-lg"
               style={{ borderColor: 'var(--bb-color-border-subtle)', backgroundColor: 'var(--bb-color-bg-surface)' }}
             >
               <div className="flex items-center gap-2 text-sm text-[color:var(--bb-color-text-muted)]">

@@ -43,10 +43,11 @@ const AppShell = () => {
         <Topbar onToggleSidebar={() => setMobileSidebarOpen(true)} />
         <GlobalKeyboardShortcuts />
         <main
-          className="flex-1 px-[var(--bb-space-6,1.5rem)] py-[var(--bb-space-6,1.5rem)] sm:px-[var(--bb-space-8,2rem)] lg:px-[var(--bb-space-12,3rem)]"
+          className="flex-1"
           style={{ backgroundColor: 'var(--bb-color-bg-body)' }}
         >
-          <div className="w-full">
+          {/* Global content rail - controls max width and centering for all pages */}
+          <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <Outlet />
           </div>
         </main>
