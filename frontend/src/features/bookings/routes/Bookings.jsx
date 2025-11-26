@@ -1044,10 +1044,10 @@ const RunBoardView = ({
   }
 
   return (
-    <div className="flex-1 flex flex-col -mx-6 lg:-mx-12">
+    <div className="flex-1 flex flex-col">
       {/* Occupancy Indicators */}
       <div
-        className="grid gap-px px-6 lg:px-12 py-2"
+        className="grid gap-px py-2"
         style={{
           gridTemplateColumns: `180px repeat(${dateRange.length}, minmax(120px, 1fr))`,
           backgroundColor: 'var(--bb-color-bg-surface)',
@@ -1083,7 +1083,7 @@ const RunBoardView = ({
 
       {/* Grid */}
       <div className="flex-1 overflow-auto" ref={scrollRef}>
-        <div style={{ minWidth: `${180 + dateRange.length * 120}px` }}>
+        <div className="w-full" style={{ minWidth: `${180 + dateRange.length * 120}px` }}>
           {/* Header Row */}
           <div
             className="grid gap-px sticky top-0 z-10"
