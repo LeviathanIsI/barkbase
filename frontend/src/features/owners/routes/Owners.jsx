@@ -728,6 +728,7 @@ const ViewsDropdown = ({ views, activeView, onSelectView }) => (
 // Columns Dropdown Component with Drag & Reorder
 const ColumnsDropdown = ({ columns, visibleColumns, columnOrder, onToggle, onReorder }) => {
   const [draggedIndex, setDraggedIndex] = useState(null);
+  const [dropIndicatorIndex, setDropIndicatorIndex] = useState(null);
 
   const handleDragStart = (e, index) => {
     setDraggedIndex(index);
@@ -737,12 +738,27 @@ const ColumnsDropdown = ({ columns, visibleColumns, columnOrder, onToggle, onReo
   const handleDragOver = (e, index) => {
     e.preventDefault();
     if (draggedIndex !== null && draggedIndex !== index) {
-      onReorder(draggedIndex, index);
-      setDraggedIndex(index);
+      setDropIndicatorIndex(index);
     }
   };
 
-  const handleDragEnd = () => setDraggedIndex(null);
+  const handleDragLeave = () => {
+    setDropIndicatorIndex(null);
+  };
+
+  const handleDrop = (e, index) => {
+    e.preventDefault();
+    if (draggedIndex !== null && draggedIndex !== index) {
+      onReorder(draggedIndex, index);
+    }
+    setDraggedIndex(null);
+    setDropIndicatorIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDropIndicatorIndex(null);
+  };
 
   const orderedColumns = columnOrder
     .map(id => columns.find(c => c.id === id))
@@ -753,17 +769,31 @@ const ColumnsDropdown = ({ columns, visibleColumns, columnOrder, onToggle, onReo
       <div className="p-2">
         <p className="px-2 py-1 text-xs font-semibold uppercase text-[color:var(--bb-color-text-muted)]">Toggle & Reorder</p>
         {orderedColumns.map((column, index) => (
-          <div
-            key={column.id}
-            draggable
-            onDragStart={(e) => handleDragStart(e, index)}
-            onDragOver={(e) => handleDragOver(e, index)}
-            onDragEnd={handleDragEnd}
-            className={cn('flex items-center gap-2 px-2 py-1.5 text-sm cursor-move hover:bg-[color:var(--bb-color-bg-elevated)] rounded', draggedIndex === index && 'opacity-50')}
-          >
-            <GripVertical className="h-4 w-4 text-[color:var(--bb-color-text-muted)] opacity-50" />
-            <input type="checkbox" checked={visibleColumns.includes(column.id)} onChange={() => onToggle(column.id)} className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]" />
-            <span className="text-[color:var(--bb-color-text-primary)]">{column.label}</span>
+          <div key={column.id} className="relative">
+            {/* Drop indicator line - shows above the item */}
+            {dropIndicatorIndex === index && draggedIndex !== null && draggedIndex > index && (
+              <div className="absolute -top-0.5 left-2 right-2 h-0.5 bg-[color:var(--bb-color-accent)] rounded-full" />
+            )}
+            <div
+              draggable
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, index)}
+              onDragEnd={handleDragEnd}
+              className={cn(
+                'flex items-center gap-2 px-2 py-1.5 text-sm cursor-move hover:bg-[color:var(--bb-color-bg-elevated)] rounded transition-opacity',
+                draggedIndex === index && 'opacity-40 bg-[color:var(--bb-color-accent-soft)]'
+              )}
+            >
+              <GripVertical className="h-4 w-4 text-[color:var(--bb-color-text-muted)] opacity-50" />
+              <input type="checkbox" checked={visibleColumns.includes(column.id)} onChange={() => onToggle(column.id)} className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]" />
+              <span className="text-[color:var(--bb-color-text-primary)]">{column.label}</span>
+            </div>
+            {/* Drop indicator line - shows below the item */}
+            {dropIndicatorIndex === index && draggedIndex !== null && draggedIndex < index && (
+              <div className="absolute -bottom-0.5 left-2 right-2 h-0.5 bg-[color:var(--bb-color-accent)] rounded-full" />
+            )}
           </div>
         ))}
       </div>
