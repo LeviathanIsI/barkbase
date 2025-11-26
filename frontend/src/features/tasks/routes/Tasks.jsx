@@ -541,7 +541,7 @@ const Tasks = () => {
       </div>
 
       {/* Category Filter Tabs - Sticky */}
-      <div className="sticky top-0 z-20 -mx-4 px-4 py-3 bg-[var(--bb-color-bg-base)] border-b border-border">
+      <div className="sticky top-0 z-20 px-4 py-3 bg-[var(--bb-color-bg-base)] border-b border-border rounded-lg">
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
           {[
             { key: 'all', label: 'All Tasks' },

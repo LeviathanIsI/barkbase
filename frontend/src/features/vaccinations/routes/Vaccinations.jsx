@@ -353,7 +353,7 @@ const Vaccinations = () => {
 
       {/* Sticky Toolbar */}
       <div
-        className="sticky top-0 z-20 -mx-6 lg:-mx-12 px-6 lg:px-12 py-3 border-b shadow-sm"
+        className="sticky top-0 z-20 px-4 py-3 border-b shadow-sm rounded-lg"
         style={{
           backgroundColor: 'var(--bb-color-bg-surface)',
           borderColor: 'var(--bb-color-border-subtle)',
