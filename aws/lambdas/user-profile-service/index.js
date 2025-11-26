@@ -10,16 +10,51 @@
  * Implements profile inheritance and effective permission caching
  */
 
-const { getPool } = require('/opt/nodejs');
-const { getTenantIdFromEvent } = require('/opt/nodejs');
+const { getPool, getTenantIdFromEvent, getJWTValidator } = require('/opt/nodejs');
 const permissionCalculator = require('./permission-calculator');
 const {
   getSecureHeaders,
   errorResponse,
   successResponse,
-} = require('../shared/security-utils');
+} = require('/opt/nodejs/security-utils');
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
+
+// Enhanced authorization with fallback JWT validation
+async function getUserInfoFromEvent(event) {
+    // First, try to get claims from API Gateway JWT authorizer
+    const claims = event?.requestContext?.authorizer?.jwt?.claims;
+
+    if (claims && claims.sub) {
+        console.log('[AUTH] Using API Gateway JWT claims');
+        return {
+            userId: claims.sub,
+            email: claims.email || claims['cognito:username'],
+            tenantId: claims.tenantId || claims['custom:tenantId'],
+            role: claims.role || claims['custom:role']
+        };
+    }
+
+    // Fallback: Manually validate the JWT token
+    console.log('[AUTH] No API Gateway claims, falling back to manual JWT validation');
+    const authHeader = event?.headers?.authorization || event?.headers?.Authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.log('[AUTH] No Authorization header');
+        return null;
+    }
+
+    const token = authHeader.substring(7);
+
+    try {
+        const jwtValidator = getJWTValidator();
+        const validationResult = await jwtValidator.validateToken(token);
+        const userInfo = jwtValidator.extractUserInfo(validationResult.decoded, validationResult.tokenType);
+        return userInfo;
+    } catch (error) {
+        console.error('[AUTH] JWT validation failed:', error.message);
+        return null;
+    }
+}
 
 const ok = (event, statusCode, data = '', additionalHeaders = {}) => {
   if (statusCode === 204) {
@@ -70,7 +105,7 @@ const fail = (event, statusCode, errorCodeOrBody, message, additionalHeaders = {
 
 exports.handler = async (event) => {
 
-  const { httpMethod: method, path } = event.requestContext.http;
+  const { method, path } = event.requestContext.http;
   const pathParams = event.pathParameters || {};
   const queryParams = event.queryStringParameters || {};
   const body = event.body ? JSON.parse(event.body) : {};
@@ -81,9 +116,9 @@ exports.handler = async (event) => {
     return fail(event, 401, { error: 'Missing tenant context' });
   }
 
-  // Extract user ID
-  const claims = event?.requestContext?.authorizer?.jwt?.claims || {};
-  const currentUserId = claims['sub'] || null;
+  // Extract user info with fallback JWT validation
+  const userInfo = await getUserInfoFromEvent(event);
+  const currentUserId = userInfo?.userId || null;
 
   console.log('[ROUTING DEBUG]', {
     route: path,
@@ -382,6 +417,7 @@ async function getCurrentUserProfile(event, userId, tenantId) {
   }
 
   const pool = getPool();
+  // Support both custom tokens (sub = recordId) and Cognito tokens (sub = cognitoSub)
   const { rows } = await pool.query(
     `SELECT 
       u."recordId",
@@ -395,7 +431,7 @@ async function getCurrentUserProfile(event, userId, tenantId) {
       m."tenantId" AS "membershipTenantId"
      FROM "User" u
      LEFT JOIN "Membership" m ON m."userId" = u."recordId" AND m."tenantId" = $2
-     WHERE u."recordId" = $1`,
+     WHERE u."recordId" = $1 OR u."cognitoSub" = $1`,
     [userId, tenantId]
   );
 
@@ -441,10 +477,11 @@ async function updateCurrentUserProfile(event, userId, tenantId, data = {}) {
   values.push(userId);
 
   const pool = getPool();
+  // Support both custom tokens (sub = recordId) and Cognito tokens (sub = cognitoSub)
   const result = await pool.query(
     `UPDATE "User"
      SET ${updates.join(', ')}, "updatedAt" = NOW()
-     WHERE "recordId" = $${values.length}
+     WHERE "recordId" = $${values.length} OR "cognitoSub" = $${values.length}
      RETURNING "recordId"`,
     values
   );

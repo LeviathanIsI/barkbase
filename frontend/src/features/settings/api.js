@@ -19,7 +19,9 @@ export const usePropertiesQuery = (objectType, options = {}) => {
       const params = new URLSearchParams({ objectType });
       const url = `${baseUrl}&${params.toString()}`;
       const res = await apiClient.get(url);
-      return res.data;
+      // Handle both array response and { properties: [] } response formats
+      const data = res.data;
+      return Array.isArray(data) ? data : (data?.properties || []);
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     enabled: !!objectType,
@@ -46,7 +48,9 @@ export const usePropertiesV2Query = (objectType, options = {}) => {
       const baseUrl = canonicalEndpoints.properties.v2.list;
       const joiner = baseUrl.includes('?') ? '&' : '?';
       const res = await apiClient.get(`${baseUrl}${joiner}${params.toString()}`);
-      return res.data;
+      // Handle both array response and { properties: [] } response formats
+      const data = res.data;
+      return Array.isArray(data) ? data : (data?.properties || []);
     },
     staleTime: 5 * 60 * 1000,
     enabled: !!objectType,

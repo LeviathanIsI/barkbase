@@ -192,8 +192,8 @@ const UnifiedPetPeopleView = () => {
         <DirectoryTableSkeleton />
       ) : filteredOwners.length > 0 ? (
         <div className={viewMode === 'grid' ? 'grid gap-6 lg:grid-cols-2' : 'space-y-4'}>
-          {filteredOwners.map((owner) => (
-            <UnifiedOwnerCard key={owner.id} owner={owner} getVaccinationStatus={getVaccinationStatus} />
+          {filteredOwners.map((owner, index) => (
+            <UnifiedOwnerCard key={owner.id || owner.recordId || index} owner={owner} getVaccinationStatus={getVaccinationStatus} />
           ))}
         </div>
       ) : (

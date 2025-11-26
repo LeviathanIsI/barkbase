@@ -154,25 +154,32 @@ export const useToggleNotePin = () => {
 export const useSegments = (options = {}) => {
   return useQuery({
     queryKey: ['segments', options],
-    queryFn: () => apiClient.get('/api/v1/segments', { params: options }),
+    queryFn: async () => {
+      const res = await apiClient.get('/api/v1/segments', { params: options });
+      return res.data || [];
+    },
   });
 };
 
 export const useSegmentMembers = (segmentId, options = {}) => {
   return useInfiniteQuery({
     queryKey: ['segment-members', segmentId, options],
-    queryFn: ({ pageParam = 0 }) =>
-      apiClient.get(`/api/v1/segments/${segmentId}/members`, {
+    queryFn: async ({ pageParam = 0 }) => {
+      const res = await apiClient.get(`/api/v1/segments/${segmentId}/members`, {
         params: {
           ...options,
           offset: pageParam,
           limit: 50,
         },
-      }),
+      });
+      // Normalize response - backend returns { data: [], hasMore } or just array
+      const data = res.data?.data || res.data || [];
+      const hasMore = res.data?.hasMore ?? false;
+      return { data, hasMore, offset: pageParam, limit: 50 };
+    },
     getNextPageParam: (lastPage) => {
-      const { offset, limit, total } = lastPage;
-      const nextOffset = offset + limit;
-      return nextOffset < total ? nextOffset : undefined;
+      if (!lastPage.hasMore) return undefined;
+      return lastPage.offset + lastPage.limit;
     },
     enabled: !!segmentId,
   });

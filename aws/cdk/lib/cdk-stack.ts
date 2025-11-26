@@ -1,49 +1,30 @@
 import * as cdk from "aws-cdk-lib";
 import * as apigw from "aws-cdk-lib/aws-apigatewayv2";
-import { HttpLambdaIntegration, WebSocketLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
-import * as ec2 from "aws-cdk-lib/aws-ec2";
-import * as lambda from "aws-cdk-lib/aws-lambda";
-import * as s3 from "aws-cdk-lib/aws-s3";
-import * as iam from "aws-cdk-lib/aws-iam";
-import * as cognito from "aws-cdk-lib/aws-cognito";
 import { HttpUserPoolAuthorizer } from "aws-cdk-lib/aws-apigatewayv2-authorizers";
-import * as kms from "aws-cdk-lib/aws-kms";
-import * as logs from "aws-cdk-lib/aws-logs";
-import * as cw from "aws-cdk-lib/aws-cloudwatch";
-import * as wafv2 from "aws-cdk-lib/aws-wafv2";
-import * as sns from "aws-cdk-lib/aws-sns";
-import * as snsSubscriptions from "aws-cdk-lib/aws-sns-subscriptions";
-import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
-import * as cloudwatchActions from "aws-cdk-lib/aws-cloudwatch-actions";
+import {
+  HttpLambdaIntegration,
+  WebSocketLambdaIntegration,
+} from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
+import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
+import * as cloudwatchActions from "aws-cdk-lib/aws-cloudwatch-actions";
+import * as cognito from "aws-cdk-lib/aws-cognito";
+import * as ec2 from "aws-cdk-lib/aws-ec2";
+import * as iam from "aws-cdk-lib/aws-iam";
+import * as kms from "aws-cdk-lib/aws-kms";
+import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as logs from "aws-cdk-lib/aws-logs";
+import * as s3 from "aws-cdk-lib/aws-s3";
+import * as sns from "aws-cdk-lib/aws-sns";
+import * as snsSubscriptions from "aws-cdk-lib/aws-sns-subscriptions";
 // import * as acm from "aws-cdk-lib/aws-certificatemanager";
-import * as codedeploy from "aws-cdk-lib/aws-codedeploy";
-import * as rds from "aws-cdk-lib/aws-rds";
-import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import * as events from "aws-cdk-lib/aws-events";
 import * as targets from "aws-cdk-lib/aws-events-targets";
+import * as rds from "aws-cdk-lib/aws-rds";
+import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import { Construct } from "constructs";
 import * as path from "path";
-// Custom integration that prevents per-route Lambda permissions
-class LambdaIntegrationNoPermission extends HttpLambdaIntegration {
-  private readonly lambdaFn: lambda.IFunction;
-
-  constructor(id: string, handler: lambda.IFunction) {
-    super(id, handler);
-    this.lambdaFn = handler;
-  }
-
-  // Override bind to prevent automatic permission creation
-  public bind(options: apigw.HttpRouteIntegrationBindOptions): apigw.HttpRouteIntegrationConfig {
-    // Return integration config WITHOUT calling super.bind() or grantInvoke()
-    return {
-      type: apigw.HttpIntegrationType.AWS_PROXY,
-      uri: this.lambdaFn.functionArn,
-      payloadFormatVersion: apigw.PayloadFormatVersion.VERSION_2_0,
-    };
-  }
-}
 
 export class CdkStack extends cdk.Stack {
   public readonly stage: string;
@@ -63,13 +44,13 @@ export class CdkStack extends cdk.Stack {
     // ENVIRONMENT CONFIGURATION
     // ===================================================================
     // Deployment stage (dev, staging, prod)
-    const stage = process.env.STAGE || process.env.ENVIRONMENT || 'dev';
+    const stage = process.env.STAGE || process.env.ENVIRONMENT || "dev";
     this.stage = stage;
 
     // Feature flags for cost optimization
-    const enableVpcEndpoints = process.env.ENABLE_VPC_ENDPOINTS === 'true';
-    const enableRdsProxy = process.env.ENABLE_RDS_PROXY === 'true';
-    const deployLambdasInVpc = process.env.DEPLOY_LAMBDAS_IN_VPC === 'true';
+    const enableVpcEndpoints = process.env.ENABLE_VPC_ENDPOINTS === "true";
+    const enableRdsProxy = process.env.ENABLE_RDS_PROXY === "true";
+    const deployLambdasInVpc = process.env.DEPLOY_LAMBDAS_IN_VPC === "true";
     this.deployLambdasInVpc = deployLambdasInVpc;
 
     // Environment-specific configuration
@@ -107,13 +88,15 @@ export class CdkStack extends cdk.Stack {
 ║ BARKBASE INFRASTRUCTURE DEPLOYMENT                                ║
 ╠═══════════════════════════════════════════════════════════════════╣
 ║ Stage:                ${stage.padEnd(45)}║
-║ VPC Endpoints:        ${(enableVpcEndpoints ? 'ENABLED' : 'DISABLED').padEnd(45)}║
-║ RDS Proxy:            ${(enableRdsProxy ? 'ENABLED' : 'DISABLED').padEnd(45)}║
-║ Lambdas in VPC:       ${(deployLambdasInVpc ? 'YES' : 'NO').padEnd(45)}║
-║ Log Retention:        ${envConfig.logRetentionDays + ' days'.padEnd(45)}║
-║ Backup Retention:     ${envConfig.backupRetentionDays + ' days'.padEnd(45)}║
+║ VPC Endpoints:        ${(enableVpcEndpoints ? "ENABLED" : "DISABLED").padEnd(
+      45
+    )}║
+║ RDS Proxy:            ${(enableRdsProxy ? "ENABLED" : "DISABLED").padEnd(45)}║
+║ Lambdas in VPC:       ${(deployLambdasInVpc ? "YES" : "NO").padEnd(45)}║
+║ Log Retention:        ${envConfig.logRetentionDays + " days".padEnd(45)}║
+║ Backup Retention:     ${envConfig.backupRetentionDays + " days".padEnd(45)}║
 ║ RDS Instance:         t4g.${envConfig.rdsInstanceSize.padEnd(39)}║
-║ Multi-AZ:             ${(envConfig.rdsMultiAz ? 'YES' : 'NO').padEnd(45)}║
+║ Multi-AZ:             ${(envConfig.rdsMultiAz ? "YES" : "NO").padEnd(45)}║
 ╚═══════════════════════════════════════════════════════════════════╝
     `);
 
@@ -131,7 +114,9 @@ export class CdkStack extends cdk.Stack {
     // Security groups
     // NOTE: Lambda functions are NOT deployed in VPC for cost optimization
     // If you deploy Lambdas in VPC, uncomment the security groups below
-    const lambdaSG = new ec2.SecurityGroup(this, "LambdaSecurityGroup", { vpc });
+    const lambdaSG = new ec2.SecurityGroup(this, "LambdaSecurityGroup", {
+      vpc,
+    });
     this.lambdaSecurityGroup = lambdaSG;
     // const dbSG = new ec2.SecurityGroup(this, "DatabaseSecurityGroup", { vpc });
     // dbSG.addIngressRule(lambdaSG, ec2.Port.tcp(5432), "Allow Lambda to Postgres");
@@ -140,19 +125,23 @@ export class CdkStack extends cdk.Stack {
     // Cost: ~$14.40/month for interface endpoints
     // Enable by setting ENABLE_VPC_ENDPOINTS=true environment variable
     if (enableVpcEndpoints) {
-      console.log('✓ Creating VPC Endpoints (Cost: ~$14.40/month)');
-      vpc.addGatewayEndpoint("S3Endpoint", { service: ec2.GatewayVpcEndpointAwsService.S3 });
+      console.log("✓ Creating VPC Endpoints (Cost: ~$14.40/month)");
+      vpc.addGatewayEndpoint("S3Endpoint", {
+        service: ec2.GatewayVpcEndpointAwsService.S3,
+      });
       vpc.addInterfaceEndpoint("SecretsManagerEndpoint", {
         service: ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
-        securityGroups: [lambdaSG]
+        securityGroups: [lambdaSG],
       });
       vpc.addInterfaceEndpoint("CloudWatchLogsEndpoint", {
         service: ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS,
-        securityGroups: [lambdaSG]
+        securityGroups: [lambdaSG],
       });
     } else {
-      console.log('✗ VPC Endpoints disabled (Saving: ~$14.40/month)');
-      console.log('  Note: Lambda functions must NOT be deployed in VPC or have NAT Gateway');
+      console.log("✗ VPC Endpoints disabled (Saving: ~$14.40/month)");
+      console.log(
+        "  Note: Lambda functions must NOT be deployed in VPC or have NAT Gateway"
+      );
     }
 
     // === IMPORT EXISTING RDS INSTANCE (barkbase-dev-public) ===
@@ -169,12 +158,23 @@ export class CdkStack extends cdk.Stack {
     this.dbSecret = dbSecret;
 
     // Import existing RDS instance so monitoring/alarms still work
-    const dbInstance = rds.DatabaseInstance.fromDatabaseInstanceAttributes(this, 'ExistingDB', {
-      instanceIdentifier: 'barkbase-dev-public',
-      instanceEndpointAddress: 'barkbase-dev-public.ctuea6sg4d0d.us-east-2.rds.amazonaws.com',
-      port: 5432,
-      securityGroups: [ec2.SecurityGroup.fromSecurityGroupId(this, 'ExistingDBSG', 'sg-0ec9960ae33807760')]
-    });
+    const dbInstance = rds.DatabaseInstance.fromDatabaseInstanceAttributes(
+      this,
+      "ExistingDB",
+      {
+        instanceIdentifier: "barkbase-dev-public",
+        instanceEndpointAddress:
+          "barkbase-dev-public.ctuea6sg4d0d.us-east-2.rds.amazonaws.com",
+        port: 5432,
+        securityGroups: [
+          ec2.SecurityGroup.fromSecurityGroupId(
+            this,
+            "ExistingDBSG",
+            "sg-0ec9960ae33807760"
+          ),
+        ],
+      }
+    );
 
     // Use the imported instance endpoints
     const dbEndpoint = dbInstance.dbInstanceEndpointAddress;
@@ -188,7 +188,9 @@ export class CdkStack extends cdk.Stack {
       - Secret: Barkbase-dev-db-credentials-VybGGM
     `);
 
-    console.log('✗ RDS Proxy disabled (using direct connection to existing instance)');
+    console.log(
+      "✗ RDS Proxy disabled (using direct connection to existing instance)"
+    );
 
     // INFRASTRUCTURE FIX: Database connection configuration
     // Now uses the actual RDS instance/proxy endpoint created in this stack
@@ -197,9 +199,9 @@ export class CdkStack extends cdk.Stack {
       DB_HOST: dbEndpoint,
       DB_PORT: dbPort,
       DB_NAME: dbName,
-      DB_SECRET_ID: 'Barkbase-dev-db-credentials',  // Use secret NAME for easy fetching
-      DB_SECRET_ARN: dbSecret.secretArn,  // Also provide ARN for IAM permissions
-      ENVIRONMENT: stage,  // For SSL config and other environment-specific logic
+      DB_SECRET_ID: "Barkbase-dev-db-credentials", // Use secret NAME for easy fetching
+      DB_SECRET_ARN: dbSecret.secretArn, // Also provide ARN for IAM permissions
+      ENVIRONMENT: stage, // For SSL config and other environment-specific logic
       STAGE: stage, // For application logic (e.g., CORS origins)
     };
     this.dbEnvironment = dbEnvironment;
@@ -226,7 +228,9 @@ export class CdkStack extends cdk.Stack {
       description?: string;
     }
 
-    const createLambdaFunction = (props: CreateLambdaProps): lambda.Function => {
+    const createLambdaFunction = (
+      props: CreateLambdaProps
+    ): lambda.Function => {
       const lambdaFunction = new lambda.Function(this, props.id, {
         runtime: lambda.Runtime.NODEJS_20_X,
         handler: props.handler,
@@ -241,11 +245,13 @@ export class CdkStack extends cdk.Stack {
         logRetention: envConfig.logRetentionDays,
 
         // VPC CONFIGURATION: Conditional based on deployment strategy
-        ...(deployLambdasInVpc ? {
-          vpc,
-          vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
-          securityGroups: [lambdaSG],
-        } : {}),
+        ...(deployLambdasInVpc
+          ? {
+              vpc,
+              vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+              securityGroups: [lambdaSG],
+            }
+          : {}),
       });
 
       return lambdaFunction;
@@ -253,7 +259,7 @@ export class CdkStack extends cdk.Stack {
 
     console.log(`✓ Lambda configuration:
       - Log Retention: ${envConfig.logRetentionDays} days
-      - VPC Deployment: ${deployLambdasInVpc ? 'YES' : 'NO'}
+      - VPC Deployment: ${deployLambdasInVpc ? "YES" : "NO"}
       - Default Timeout: 30 seconds
       - Default Memory: 1024 MB
     `);
@@ -296,27 +302,35 @@ export class CdkStack extends cdk.Stack {
     // Auth API will be created after Cognito resources are defined
 
     // === Cognito Pre-SignUp Trigger (auto-confirm for dev) ===
-    const preSignUpFunction = new lambda.Function(this, "CognitoPreSignUpFunction", {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: "index.handler",
-      code: lambda.Code.fromAsset(
-        path.join(__dirname, "../../lambdas/cognito-pre-signup")
-      ),
-      timeout: cdk.Duration.seconds(10),
-    });
+    const preSignUpFunction = new lambda.Function(
+      this,
+      "CognitoPreSignUpFunction",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: "index.handler",
+        code: lambda.Code.fromAsset(
+          path.join(__dirname, "../../lambdas/cognito-pre-signup")
+        ),
+        timeout: cdk.Duration.seconds(10),
+      }
+    );
 
     // === Cognito Post-Confirmation Trigger ===
-    const postConfirmationFunction = new lambda.Function(this, "CognitoPostConfirmationFunction", {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: "index.handler",
-      code: lambda.Code.fromAsset(
-        path.join(__dirname, "../../lambdas/cognito-post-confirmation")
-      ),
-      layers: [dbLayer],
-      environment: dbEnvironment,
-      // No VPC - connects to public database
-      timeout: cdk.Duration.seconds(30),
-    });
+    const postConfirmationFunction = new lambda.Function(
+      this,
+      "CognitoPostConfirmationFunction",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: "index.handler",
+        code: lambda.Code.fromAsset(
+          path.join(__dirname, "../../lambdas/cognito-post-confirmation")
+        ),
+        layers: [dbLayer],
+        environment: dbEnvironment,
+        // No VPC - connects to public database
+        timeout: cdk.Duration.seconds(30),
+      }
+    );
 
     dbSecret.grantRead(postConfirmationFunction);
 
@@ -345,34 +359,34 @@ export class CdkStack extends cdk.Stack {
 
     // Hosted UI domain for Cognito (unique per stack)
     const domainPrefix = `barkbase-${this.node.addr.slice(0, 8).toLowerCase()}`;
-    new cognito.UserPoolDomain(this, 'BarkbaseUserPoolDomain', {
+    new cognito.UserPoolDomain(this, "BarkbaseUserPoolDomain", {
       userPool,
       cognitoDomain: { domainPrefix },
     });
 
-    const userPoolClient = new cognito.UserPoolClient(this, "BarkbaseUserPoolClient", {
-      userPool,
-      authFlows: {
-        userPassword: true,
-        userSrp: true,
-      },
-      oAuth: {
-        flows: { authorizationCodeGrant: true },
-        scopes: [
-          cognito.OAuthScope.OPENID,
-          cognito.OAuthScope.EMAIL,
-          cognito.OAuthScope.PROFILE,
-        ],
-        // Local dev callback/logout; CloudFront can be added later if needed
-        callbackUrls: [
-          'http://localhost:5173',
-        ],
-        logoutUrls: [
-          'http://localhost:5173',
-        ],
-      },
-      generateSecret: false,
-    });
+    const userPoolClient = new cognito.UserPoolClient(
+      this,
+      "BarkbaseUserPoolClient",
+      {
+        userPool,
+        authFlows: {
+          userPassword: true,
+          userSrp: true,
+        },
+        oAuth: {
+          flows: { authorizationCodeGrant: true },
+          scopes: [
+            cognito.OAuthScope.OPENID,
+            cognito.OAuthScope.EMAIL,
+            cognito.OAuthScope.PROFILE,
+          ],
+          // Local dev callback/logout; CloudFront can be added later if needed
+          callbackUrls: ["http://localhost:5173"],
+          logoutUrls: ["http://localhost:5173"],
+        },
+        generateSecret: false,
+      }
+    );
     this.userPool = userPool;
     this.userPoolClient = userPoolClient;
 
@@ -391,40 +405,41 @@ export class CdkStack extends cdk.Stack {
     const authEnvironment = {
       ...dbEnvironment,
       JWT_SECRET: process.env.JWT_SECRET!,
-      ...(process.env.JWT_SECRET_OLD ? { JWT_SECRET_OLD: process.env.JWT_SECRET_OLD } : {}),
+      ...(process.env.JWT_SECRET_OLD
+        ? { JWT_SECRET_OLD: process.env.JWT_SECRET_OLD }
+        : {}),
       // Cognito configuration for OAuth users
       COGNITO_USER_POOL_ID: userPool.userPoolId,
       COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
-      USER_POOL_ID: userPool.userPoolId,  // Alternative name for compatibility
-      CLIENT_ID: userPoolClient.userPoolClientId,  // Alternative name for compatibility
+      USER_POOL_ID: userPool.userPoolId, // Alternative name for compatibility
+      CLIENT_ID: userPoolClient.userPoolClientId, // Alternative name for compatibility
     };
 
     console.log(`✓ JWT Configuration:
       - Primary Secret: ${process.env.JWT_SECRET!.substring(0, 10)}...
-      - Rotation Secret: ${process.env.JWT_SECRET_OLD ? 'CONFIGURED' : 'NOT SET'}
+      - Rotation Secret: ${
+        process.env.JWT_SECRET_OLD ? "CONFIGURED" : "NOT SET"
+      }
       - Cognito User Pool: ${userPool.userPoolId}
       - Cognito Client ID: ${userPoolClient.userPoolClientId}
     `);
 
     // Auth API Lambda
     const authApiFunction = createLambdaFunction({
-      id: 'AuthApiFunction',
-      handler: 'index.handler',
-      codePath: path.join(__dirname, '../../lambdas/auth-api'),
+      id: "AuthApiFunction",
+      handler: "index.handler",
+      codePath: path.join(__dirname, "../../lambdas/auth-api"),
       environment: authEnvironment,
       layers: [dbLayer],
-      description: 'Authentication API with JWT and Cognito support',
+      description: "Authentication API with JWT and Cognito support",
     });
     dbSecret.grantRead(authApiFunction);
 
     // Grant Cognito permissions to auth Lambda
-    userPool.grant(authApiFunction, 'cognito-idp:InitiateAuth');
+    userPool.grant(authApiFunction, "cognito-idp:InitiateAuth");
 
     // Allowed origins for CORS come from env (comma-separated), fallback to "*" for dev
-    const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:5173")
-      .split(",")
-      .map((o) => o.trim())
-      .filter((o) => o.length > 0);
+    const allowedOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
 
     // SECURITY: HTTP API Gateway with rate limiting and credential support
     const httpApi = new apigw.HttpApi(this, "BarkbaseApi", {
@@ -457,11 +472,12 @@ export class CdkStack extends cdk.Stack {
     // SECURITY: Add default stage with throttling
     // Note: HTTP API (API Gateway v2) only supports default throttling, not per-route
     // Per-route throttling is only available in REST API (API Gateway v1)
-    const defaultStage = httpApi.defaultStage?.node.defaultChild as apigw.CfnStage;
+    const defaultStage = httpApi.defaultStage?.node
+      .defaultChild as apigw.CfnStage;
     if (defaultStage) {
       defaultStage.defaultRouteSettings = {
-        throttlingBurstLimit: 100,  // Max concurrent requests (conservative for all routes)
-        throttlingRateLimit: 50,    // Requests per second (sustained)
+        throttlingBurstLimit: 100, // Max concurrent requests (conservative for all routes)
+        throttlingRateLimit: 50, // Requests per second (sustained)
       };
 
       // For stricter per-route limits, consider using AWS WAF rate-based rules
@@ -473,30 +489,14 @@ export class CdkStack extends cdk.Stack {
       "UsersIntegration",
       usersApiFunction
     );
-    httpApi.addRoutes({
-      path: "/api/v1/users",
-      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST],
-      integration: usersIntegration,
-      // Removed API Gateway authorizer - Lambda validates custom JWT tokens
-    });
-    httpApi.addRoutes({
-      path: "/api/v1/users/{id}",
-      methods: [
-        apigw.HttpMethod.GET,
-        apigw.HttpMethod.PUT,
-        apigw.HttpMethod.DELETE,
-      ],
-      integration: usersIntegration,
-      // Removed API Gateway authorizer - Lambda validates custom JWT tokens
-    });
 
     // S3 Bucket (private with KMS-SSE)
-    const kmsKey = new kms.Key(this, 'UploadsKmsKey', {
+    const kmsKey = new kms.Key(this, "UploadsKmsKey", {
       enableKeyRotation: true,
       alias: `alias/${id}-uploads`,
     });
 
-    const bucket = new s3.Bucket(this, 'UploadsBucket', {
+    const bucket = new s3.Bucket(this, "UploadsBucket", {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       encryption: s3.BucketEncryption.KMS,
       encryptionKey: kmsKey,
@@ -522,7 +522,6 @@ export class CdkStack extends cdk.Stack {
         ),
         environment: s3Environment,
         timeout: cdk.Duration.seconds(30),
-        
       }
     );
     bucket.grantWrite(getUploadUrlFunction);
@@ -531,65 +530,77 @@ export class CdkStack extends cdk.Stack {
       "GetUploadUrlIntegration",
       getUploadUrlFunction
     );
-    httpApi.addRoutes({
-      path: "/api/v1/upload-url",
-      methods: [apigw.HttpMethod.POST],
-      integration: getUploadUrlIntegration,
-      // Removed API Gateway authorizer - Lambda validates custom JWT tokens
-    });
 
     // --- S3 Download URL Generator ---
-    const getDownloadUrlFunction = new lambda.Function(this, 'GetDownloadUrlFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/get-download-url')),
-      environment: s3Environment,
-      
-    });
+    const getDownloadUrlFunction = new lambda.Function(
+      this,
+      "GetDownloadUrlFunction",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: "index.handler",
+        code: lambda.Code.fromAsset(
+          path.join(__dirname, "../../lambdas/get-download-url")
+        ),
+        environment: s3Environment,
+      }
+    );
     bucket.grantRead(getDownloadUrlFunction);
-    const getDownloadUrlIntegration = new HttpLambdaIntegration('GetDownloadUrlIntegration', getDownloadUrlFunction);
-    httpApi.addRoutes({
-      path: '/api/v1/download-url',
-      methods: [apigw.HttpMethod.GET],
-      integration: getDownloadUrlIntegration,
-      // Removed API Gateway authorizer - Lambda validates custom JWT tokens
-    });
+    const getDownloadUrlIntegration = new HttpLambdaIntegration(
+      "GetDownloadUrlIntegration",
+      getDownloadUrlFunction
+    );
 
     // === Phase 5: Frontend hosting (S3 + CloudFront) ===
-    const siteBucket = new s3.Bucket(this, 'SiteBucket', {
+    const siteBucket = new s3.Bucket(this, "SiteBucket", {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       encryption: s3.BucketEncryption.S3_MANAGED,
       enforceSSL: true,
     });
-    const siteOai = new cloudfront.OriginAccessIdentity(this, 'SiteOAI');
+    const siteOai = new cloudfront.OriginAccessIdentity(this, "SiteOAI");
     siteBucket.grantRead(siteOai);
 
-    const webAclArn = this.node.tryGetContext('webAclArn');
-    const distribution = new cloudfront.Distribution(this, 'SiteDistribution', {
-      defaultRootObject: 'index.html',
+    const webAclArn = this.node.tryGetContext("webAclArn");
+    const distribution = new cloudfront.Distribution(this, "SiteDistribution", {
+      defaultRootObject: "index.html",
       webAclId: webAclArn,
       defaultBehavior: {
-        origin: new origins.S3Origin(siteBucket, { originAccessIdentity: siteOai }),
+        origin: new origins.S3Origin(siteBucket, {
+          originAccessIdentity: siteOai,
+        }),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
         compress: true,
       },
       additionalBehaviors: {
-        '/api/*': {
-          origin: new origins.HttpOrigin(`${httpApi.apiId}.execute-api.${this.region}.amazonaws.com`, {
-            originPath: '/$default',
-            protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
-          }),
-          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        "/api/*": {
+          origin: new origins.HttpOrigin(
+            `${httpApi.apiId}.execute-api.${this.region}.amazonaws.com`,
+            {
+              originPath: "/$default",
+              protocolPolicy: cloudfront.OriginProtocolPolicy.HTTPS_ONLY,
+            }
+          ),
+          viewerProtocolPolicy:
+            cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
           allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
           cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
           originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER,
         },
       },
       errorResponses: [
-        { httpStatus: 403, responseHttpStatus: 200, responsePagePath: '/index.html', ttl: cdk.Duration.minutes(5) },
-        { httpStatus: 404, responseHttpStatus: 200, responsePagePath: '/index.html', ttl: cdk.Duration.minutes(5) },
+        {
+          httpStatus: 403,
+          responseHttpStatus: 200,
+          responsePagePath: "/index.html",
+          ttl: cdk.Duration.minutes(5),
+        },
+        {
+          httpStatus: 404,
+          responseHttpStatus: 200,
+          responsePagePath: "/index.html",
+          ttl: cdk.Duration.minutes(5),
+        },
       ],
     });
 
@@ -597,8 +608,8 @@ export class CdkStack extends cdk.Stack {
 
     // === SECURITY MONITORING ===
     // SNS Topic for security alerts
-    const securityAlertTopic = new sns.Topic(this, 'SecurityAlertTopic', {
-      displayName: 'BarkBase Security Alerts',
+    const securityAlertTopic = new sns.Topic(this, "SecurityAlertTopic", {
+      displayName: "BarkBase Security Alerts",
       topicName: `barkbase-security-alerts-${stage}`,
     });
 
@@ -613,15 +624,16 @@ export class CdkStack extends cdk.Stack {
     // SECURITY ALARM: Failed Login Attempts
     // Triggers when >10 failed logins per minute detected
     const failedLoginMetric = new cloudwatch.Metric({
-      namespace: 'BarkBase/Security',
-      metricName: 'FailedLoginAttempts',
-      statistic: 'Sum',
+      namespace: "BarkBase/Security",
+      metricName: "FailedLoginAttempts",
+      statistic: "Sum",
       period: cdk.Duration.minutes(1),
     });
 
-    new cloudwatch.Alarm(this, 'FailedLoginAlarm', {
+    new cloudwatch.Alarm(this, "FailedLoginAlarm", {
       alarmName: `barkbase-failed-logins-${stage}`,
-      alarmDescription: 'Alert on suspicious number of failed login attempts (potential brute-force attack)',
+      alarmDescription:
+        "Alert on suspicious number of failed login attempts (potential brute-force attack)",
       metric: failedLoginMetric,
       threshold: 10,
       evaluationPeriods: 1,
@@ -632,15 +644,16 @@ export class CdkStack extends cdk.Stack {
     // SECURITY ALARM: Authorization Failures (403s)
     // Triggers when >50 authorization failures per minute
     const authFailureMetric = new cloudwatch.Metric({
-      namespace: 'BarkBase/Security',
-      metricName: 'AuthorizationFailures',
-      statistic: 'Sum',
+      namespace: "BarkBase/Security",
+      metricName: "AuthorizationFailures",
+      statistic: "Sum",
       period: cdk.Duration.minutes(1),
     });
 
-    new cloudwatch.Alarm(this, 'AuthorizationFailureAlarm', {
+    new cloudwatch.Alarm(this, "AuthorizationFailureAlarm", {
       alarmName: `barkbase-auth-failures-${stage}`,
-      alarmDescription: 'Alert on excessive authorization failures (potential privilege escalation attempts)',
+      alarmDescription:
+        "Alert on excessive authorization failures (potential privilege escalation attempts)",
       metric: authFailureMetric,
       threshold: 50,
       evaluationPeriods: 1,
@@ -651,15 +664,16 @@ export class CdkStack extends cdk.Stack {
     // SECURITY ALARM: Input Validation Failures
     // Triggers when >20 validation failures per minute (potential attack attempts)
     const validationFailureMetric = new cloudwatch.Metric({
-      namespace: 'BarkBase/Security',
-      metricName: 'InputValidationFailures',
-      statistic: 'Sum',
+      namespace: "BarkBase/Security",
+      metricName: "InputValidationFailures",
+      statistic: "Sum",
       period: cdk.Duration.minutes(1),
     });
 
-    new cloudwatch.Alarm(this, 'ValidationFailureAlarm', {
+    new cloudwatch.Alarm(this, "ValidationFailureAlarm", {
       alarmName: `barkbase-validation-failures-${stage}`,
-      alarmDescription: 'Alert on excessive input validation failures (potential injection attacks)',
+      alarmDescription:
+        "Alert on excessive input validation failures (potential injection attacks)",
       metric: validationFailureMetric,
       threshold: 20,
       evaluationPeriods: 1,
@@ -670,15 +684,16 @@ export class CdkStack extends cdk.Stack {
     // SECURITY ALARM: Database Connection Errors
     // Triggers on database connectivity issues
     const dbErrorMetric = new cloudwatch.Metric({
-      namespace: 'BarkBase/Security',
-      metricName: 'DatabaseConnectionErrors',
-      statistic: 'Sum',
+      namespace: "BarkBase/Security",
+      metricName: "DatabaseConnectionErrors",
+      statistic: "Sum",
       period: cdk.Duration.minutes(5),
     });
 
-    new cloudwatch.Alarm(this, 'DatabaseErrorAlarm', {
+    new cloudwatch.Alarm(this, "DatabaseErrorAlarm", {
       alarmName: `barkbase-database-errors-${stage}`,
-      alarmDescription: 'Alert on database connection errors (potential infrastructure issue or attack)',
+      alarmDescription:
+        "Alert on database connection errors (potential infrastructure issue or attack)",
       metric: dbErrorMetric,
       threshold: 5,
       evaluationPeriods: 1,
@@ -690,8 +705,8 @@ export class CdkStack extends cdk.Stack {
     // OPERATIONAL MONITORING & DASHBOARDS
     // ===================================================================
     // SNS Topic for operational alerts (non-security)
-    const operationalAlertTopic = new sns.Topic(this, 'OperationalAlertTopic', {
-      displayName: 'BarkBase Operational Alerts',
+    const operationalAlertTopic = new sns.Topic(this, "OperationalAlertTopic", {
+      displayName: "BarkBase Operational Alerts",
       topicName: `barkbase-ops-alerts-${stage}`,
     });
 
@@ -702,11 +717,11 @@ export class CdkStack extends cdk.Stack {
     }
 
     // RDS MONITORING: CPU Utilization
-    new cloudwatch.Alarm(this, 'RdsCpuAlarm', {
+    new cloudwatch.Alarm(this, "RdsCpuAlarm", {
       alarmName: `barkbase-rds-cpu-${stage}`,
-      alarmDescription: 'Alert when RDS CPU exceeds 80%',
+      alarmDescription: "Alert when RDS CPU exceeds 80%",
       metric: dbInstance.metricCPUUtilization({
-        statistic: 'Average',
+        statistic: "Average",
         period: cdk.Duration.minutes(5),
       }),
       threshold: 80,
@@ -715,11 +730,11 @@ export class CdkStack extends cdk.Stack {
     }).addAlarmAction(new cloudwatchActions.SnsAction(operationalAlertTopic));
 
     // RDS MONITORING: Database Connections
-    new cloudwatch.Alarm(this, 'RdsConnectionsAlarm', {
+    new cloudwatch.Alarm(this, "RdsConnectionsAlarm", {
       alarmName: `barkbase-rds-connections-${stage}`,
-      alarmDescription: 'Alert when database connections are high',
+      alarmDescription: "Alert when database connections are high",
       metric: dbInstance.metricDatabaseConnections({
-        statistic: 'Average',
+        statistic: "Average",
         period: cdk.Duration.minutes(5),
       }),
       threshold: 80, // Alert at 80 connections (max is typically 100 for t4g.micro)
@@ -728,11 +743,11 @@ export class CdkStack extends cdk.Stack {
     }).addAlarmAction(new cloudwatchActions.SnsAction(operationalAlertTopic));
 
     // RDS MONITORING: Free Storage Space
-    new cloudwatch.Alarm(this, 'RdsStorageAlarm', {
+    new cloudwatch.Alarm(this, "RdsStorageAlarm", {
       alarmName: `barkbase-rds-storage-${stage}`,
-      alarmDescription: 'Alert when RDS free storage is low',
+      alarmDescription: "Alert when RDS free storage is low",
       metric: dbInstance.metricFreeStorageSpace({
-        statistic: 'Average',
+        statistic: "Average",
         period: cdk.Duration.minutes(5),
       }),
       threshold: 2 * 1024 * 1024 * 1024, // 2 GB in bytes
@@ -741,16 +756,16 @@ export class CdkStack extends cdk.Stack {
     }).addAlarmAction(new cloudwatchActions.SnsAction(operationalAlertTopic));
 
     // API GATEWAY MONITORING: High Latency
-    new cloudwatch.Alarm(this, 'ApiGatewayLatencyAlarm', {
+    new cloudwatch.Alarm(this, "ApiGatewayLatencyAlarm", {
       alarmName: `barkbase-api-latency-${stage}`,
-      alarmDescription: 'Alert when API Gateway latency exceeds 2000ms',
+      alarmDescription: "Alert when API Gateway latency exceeds 2000ms",
       metric: new cloudwatch.Metric({
-        namespace: 'AWS/ApiGateway',
-        metricName: 'Latency',
+        namespace: "AWS/ApiGateway",
+        metricName: "Latency",
         dimensionsMap: {
           ApiId: httpApi.apiId,
         },
-        statistic: 'Average',
+        statistic: "Average",
         period: cdk.Duration.minutes(5),
       }),
       threshold: 2000, // 2 seconds
@@ -759,16 +774,16 @@ export class CdkStack extends cdk.Stack {
     }).addAlarmAction(new cloudwatchActions.SnsAction(operationalAlertTopic));
 
     // API GATEWAY MONITORING: 5xx Errors
-    new cloudwatch.Alarm(this, 'ApiGateway5xxAlarm', {
+    new cloudwatch.Alarm(this, "ApiGateway5xxAlarm", {
       alarmName: `barkbase-api-5xx-${stage}`,
-      alarmDescription: 'Alert on API Gateway 5xx errors',
+      alarmDescription: "Alert on API Gateway 5xx errors",
       metric: new cloudwatch.Metric({
-        namespace: 'AWS/ApiGateway',
-        metricName: '5XXError',
+        namespace: "AWS/ApiGateway",
+        metricName: "5XXError",
         dimensionsMap: {
           ApiId: httpApi.apiId,
         },
-        statistic: 'Sum',
+        statistic: "Sum",
         period: cdk.Duration.minutes(5),
       }),
       threshold: 10,
@@ -778,44 +793,48 @@ export class CdkStack extends cdk.Stack {
     }).addAlarmAction(new cloudwatchActions.SnsAction(operationalAlertTopic));
 
     // CLOUDWATCH DASHBOARD: Application Overview
-    const dashboard = new cloudwatch.Dashboard(this, 'BarkbaseDashboard', {
+    const dashboard = new cloudwatch.Dashboard(this, "BarkbaseDashboard", {
       dashboardName: `BarkBase-${stage}`,
     });
 
     dashboard.addWidgets(
       new cloudwatch.GraphWidget({
-        title: 'API Gateway - Request Count',
-        left: [new cloudwatch.Metric({
-          namespace: 'AWS/ApiGateway',
-          metricName: 'Count',
-          dimensionsMap: { ApiId: httpApi.apiId },
-          statistic: 'Sum',
-          period: cdk.Duration.minutes(5),
-        })],
+        title: "API Gateway - Request Count",
+        left: [
+          new cloudwatch.Metric({
+            namespace: "AWS/ApiGateway",
+            metricName: "Count",
+            dimensionsMap: { ApiId: httpApi.apiId },
+            statistic: "Sum",
+            period: cdk.Duration.minutes(5),
+          }),
+        ],
         width: 12,
       }),
       new cloudwatch.GraphWidget({
-        title: 'API Gateway - Latency',
-        left: [new cloudwatch.Metric({
-          namespace: 'AWS/ApiGateway',
-          metricName: 'Latency',
-          dimensionsMap: { ApiId: httpApi.apiId },
-          statistic: 'Average',
-          period: cdk.Duration.minutes(5),
-        })],
+        title: "API Gateway - Latency",
+        left: [
+          new cloudwatch.Metric({
+            namespace: "AWS/ApiGateway",
+            metricName: "Latency",
+            dimensionsMap: { ApiId: httpApi.apiId },
+            statistic: "Average",
+            period: cdk.Duration.minutes(5),
+          }),
+        ],
         width: 12,
       })
     );
 
     dashboard.addWidgets(
       new cloudwatch.GraphWidget({
-        title: 'RDS - CPU & Connections',
+        title: "RDS - CPU & Connections",
         left: [dbInstance.metricCPUUtilization()],
         right: [dbInstance.metricDatabaseConnections()],
         width: 12,
       }),
       new cloudwatch.GraphWidget({
-        title: 'RDS - Storage & IOPS',
+        title: "RDS - Storage & IOPS",
         left: [dbInstance.metricFreeStorageSpace()],
         right: [dbInstance.metricReadIOPS(), dbInstance.metricWriteIOPS()],
         width: 12,
@@ -824,7 +843,7 @@ export class CdkStack extends cdk.Stack {
 
     dashboard.addWidgets(
       new cloudwatch.GraphWidget({
-        title: 'Lambda - Invocations',
+        title: "Lambda - Invocations",
         left: [
           usersApiFunction.metricInvocations(),
           authApiFunction.metricInvocations(),
@@ -832,18 +851,15 @@ export class CdkStack extends cdk.Stack {
         width: 12,
       }),
       new cloudwatch.GraphWidget({
-        title: 'Lambda - Errors',
-        left: [
-          usersApiFunction.metricErrors(),
-          authApiFunction.metricErrors(),
-        ],
+        title: "Lambda - Errors",
+        left: [usersApiFunction.metricErrors(), authApiFunction.metricErrors()],
         width: 12,
       })
     );
 
     dashboard.addWidgets(
       new cloudwatch.GraphWidget({
-        title: 'Lambda - Duration',
+        title: "Lambda - Duration",
         left: [
           usersApiFunction.metricDuration(),
           authApiFunction.metricDuration(),
@@ -851,7 +867,7 @@ export class CdkStack extends cdk.Stack {
         width: 12,
       }),
       new cloudwatch.GraphWidget({
-        title: 'Security Events',
+        title: "Security Events",
         left: [failedLoginMetric, authFailureMetric, validationFailureMetric],
         width: 12,
       })
@@ -866,19 +882,29 @@ export class CdkStack extends cdk.Stack {
       - Lambda Monitoring: Invocations, Errors, Duration
     `);
 
-    new cdk.CfnOutput(this, 'SiteBucketName', { value: siteBucket.bucketName });
-    new cdk.CfnOutput(this, 'CloudFrontDistributionId', { value: distribution.distributionId });
-    new cdk.CfnOutput(this, 'CloudFrontDomainName', { value: distribution.domainName });
-    new cdk.CfnOutput(this, 'CognitoDomain', { value: `https://${domainPrefix}.auth.${this.region}.amazoncognito.com` });
-    new cdk.CfnOutput(this, 'SecurityAlertTopicArn', { value: securityAlertTopic.topicArn });
-    new cdk.CfnOutput(this, 'OperationalAlertTopicArn', { value: operationalAlertTopic.topicArn });
-    new cdk.CfnOutput(this, 'DashboardUrl', {
-      value: `https://console.aws.amazon.com/cloudwatch/home?region=${this.region}#dashboards:name=BarkBase-${stage}`,
-      description: 'CloudWatch Dashboard URL',
+    new cdk.CfnOutput(this, "SiteBucketName", { value: siteBucket.bucketName });
+    new cdk.CfnOutput(this, "CloudFrontDistributionId", {
+      value: distribution.distributionId,
     });
-    new cdk.CfnOutput(this, 'DatabaseEndpoint', {
+    new cdk.CfnOutput(this, "CloudFrontDomainName", {
+      value: distribution.domainName,
+    });
+    new cdk.CfnOutput(this, "CognitoDomain", {
+      value: `https://${domainPrefix}.auth.${this.region}.amazoncognito.com`,
+    });
+    new cdk.CfnOutput(this, "SecurityAlertTopicArn", {
+      value: securityAlertTopic.topicArn,
+    });
+    new cdk.CfnOutput(this, "OperationalAlertTopicArn", {
+      value: operationalAlertTopic.topicArn,
+    });
+    new cdk.CfnOutput(this, "DashboardUrl", {
+      value: `https://console.aws.amazon.com/cloudwatch/home?region=${this.region}#dashboards:name=BarkBase-${stage}`,
+      description: "CloudWatch Dashboard URL",
+    });
+    new cdk.CfnOutput(this, "DatabaseEndpoint", {
       value: dbEndpoint,
-      description: 'RDS Database Endpoint',
+      description: "RDS Database Endpoint",
     });
 
     // ===================================================================
@@ -888,615 +914,351 @@ export class CdkStack extends cdk.Stack {
     // This prevents deployment with weak default secrets
     if (!process.env.JWT_SECRET) {
       throw new Error(
-        '╔═══════════════════════════════════════════════════════════════════╗\n' +
-        '║ FATAL ERROR: JWT_SECRET NOT CONFIGURED                           ║\n' +
-        '╠═══════════════════════════════════════════════════════════════════╣\n' +
-        '║ JWT_SECRET environment variable must be set before deployment.   ║\n' +
-        '║                                                                   ║\n' +
-        '║ Generate a secure secret:                                        ║\n' +
-        '║   openssl rand -base64 64                                        ║\n' +
-        '║                                                                   ║\n' +
-        '║ Then set it:                                                     ║\n' +
-        '║   export JWT_SECRET="your-generated-secret"                      ║\n' +
-        '║                                                                   ║\n' +
-        '║ See aws/SECURITY_DEPLOYMENT_GUIDE.md for more details.          ║\n' +
-        '╚═══════════════════════════════════════════════════════════════════╝'
+        "╔═══════════════════════════════════════════════════════════════════╗\n" +
+          "║ FATAL ERROR: JWT_SECRET NOT CONFIGURED                           ║\n" +
+          "╠═══════════════════════════════════════════════════════════════════╣\n" +
+          "║ JWT_SECRET environment variable must be set before deployment.   ║\n" +
+          "║                                                                   ║\n" +
+          "║ Generate a secure secret:                                        ║\n" +
+          "║   openssl rand -base64 64                                        ║\n" +
+          "║                                                                   ║\n" +
+          "║ Then set it:                                                     ║\n" +
+          '║   export JWT_SECRET="your-generated-secret"                      ║\n' +
+          "║                                                                   ║\n" +
+          "║ See aws/SECURITY_DEPLOYMENT_GUIDE.md for more details.          ║\n" +
+          "╚═══════════════════════════════════════════════════════════════════╝"
       );
     }
 
-    const authIntegration = new HttpLambdaIntegration('AuthIntegration', authApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/auth/login', methods: [apigw.HttpMethod.POST], integration: authIntegration });
-    httpApi.addRoutes({ path: '/api/v1/auth/signup', methods: [apigw.HttpMethod.POST], integration: authIntegration });
-    httpApi.addRoutes({ path: '/api/v1/auth/refresh', methods: [apigw.HttpMethod.POST], integration: authIntegration });
-    httpApi.addRoutes({ path: '/api/v1/auth/logout', methods: [apigw.HttpMethod.POST], integration: authIntegration });
-    httpApi.addRoutes({ path: '/api/v1/auth/register', methods: [apigw.HttpMethod.POST], integration: authIntegration });
+    const authIntegration = new HttpLambdaIntegration(
+      "AuthIntegration",
+      authApiFunction
+    );
 
     // Lambda Error Rate Alarms (for each critical Lambda)
     [authApiFunction].forEach((lambdaFn, index) => {
-      const errorAlarm = new cloudwatch.Alarm(this, `Lambda${index}ErrorAlarm`, {
-        alarmName: `barkbase-lambda-errors-${lambdaFn.functionName}-${stage}`,
-        alarmDescription: `Alert on errors in ${lambdaFn.functionName}`,
-        metric: lambdaFn.metricErrors({
-          statistic: 'Sum',
-          period: cdk.Duration.minutes(5),
-        }),
-        threshold: 10,
-        evaluationPeriods: 1,
-        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
-        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
-      });
-      errorAlarm.addAlarmAction(new cloudwatchActions.SnsAction(securityAlertTopic));
+      const errorAlarm = new cloudwatch.Alarm(
+        this,
+        `Lambda${index}ErrorAlarm`,
+        {
+          alarmName: `barkbase-lambda-errors-${lambdaFn.functionName}-${stage}`,
+          alarmDescription: `Alert on errors in ${lambdaFn.functionName}`,
+          metric: lambdaFn.metricErrors({
+            statistic: "Sum",
+            period: cdk.Duration.minutes(5),
+          }),
+          threshold: 10,
+          evaluationPeriods: 1,
+          comparisonOperator:
+            cloudwatch.ComparisonOperator.GREATER_THAN_THRESHOLD,
+          treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+        }
+      );
+      errorAlarm.addAlarmAction(
+        new cloudwatchActions.SnsAction(securityAlertTopic)
+      );
     });
 
     // Financial Service (consolidates payments-api, invoices-api, billing-api)
     // Saves 10 CloudFormation resources: 3 Lambdas → 1 Lambda
-    const financialServiceFunction = new lambda.Function(this, 'FinancialServiceFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/financial-service')),
-      layers: [dbLayer, authLayer],
-      environment: {
-        ...dbEnvironment,
-        USER_POOL_ID: userPool.userPoolId,
-        CLIENT_ID: userPoolClient.userPoolClientId,
-      },
-      // No VPC - connects to public database
-      timeout: cdk.Duration.seconds(30),
-    });
-    dbSecret.grantRead(financialServiceFunction);  // FIX: Add missing Secrets Manager permission
-    const financialIntegration = new HttpLambdaIntegration('FinancialIntegration', financialServiceFunction);
+    const financialServiceFunction = new lambda.Function(
+      this,
+      "FinancialServiceFunction",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: "index.handler",
+        code: lambda.Code.fromAsset(
+          path.join(__dirname, "../../lambdas/financial-service")
+        ),
+        layers: [dbLayer, authLayer],
+        environment: {
+          ...dbEnvironment,
+          USER_POOL_ID: userPool.userPoolId,
+          CLIENT_ID: userPoolClient.userPoolClientId,
+        },
+        // No VPC - connects to public database
+        timeout: cdk.Duration.seconds(30),
+      }
+    );
+    dbSecret.grantRead(financialServiceFunction); // FIX: Add missing Secrets Manager permission
+    const financialIntegration = new HttpLambdaIntegration(
+      "FinancialIntegration",
+      financialServiceFunction
+    );
 
     // Payments routes (from payments-api)
-    httpApi.addRoutes({ path: '/api/v1/payments', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: financialIntegration, authorizer: httpAuthorizer });
-    httpApi.addRoutes({ path: '/api/v1/payments/{paymentId}', methods: [apigw.HttpMethod.GET], integration: financialIntegration });
-
-    // Invoices routes (from invoices-api)
-    httpApi.addRoutes({ path: '/api/v1/invoices', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: financialIntegration, authorizer: httpAuthorizer });
-
-    // Billing routes (from billing-api)
-    httpApi.addRoutes({ path: '/api/v1/billing/overview', methods: [apigw.HttpMethod.GET], integration: financialIntegration, authorizer: httpAuthorizer });
-    httpApi.addRoutes({ path: '/api/v1/billing/metrics', methods: [apigw.HttpMethod.GET], integration: financialIntegration, authorizer: httpAuthorizer });
 
     // Analytics Service (consolidated: dashboard-api + reports-api + schedule-api)
-    const analyticsServiceFunction = new lambda.Function(this, 'AnalyticsServiceFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/analytics-service')),
-      layers: [dbLayer, authLayer],
-      environment: {
-        ...dbEnvironment,
-        USER_POOL_ID: userPool.userPoolId,
-        CLIENT_ID: userPoolClient.userPoolClientId,
-      },
-      // No VPC - connects to public database
-      timeout: cdk.Duration.seconds(30),
-    });
+    const analyticsServiceFunction = new lambda.Function(
+      this,
+      "AnalyticsServiceFunction",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: "index.handler",
+        code: lambda.Code.fromAsset(
+          path.join(__dirname, "../../lambdas/analytics-service")
+        ),
+        layers: [dbLayer, authLayer],
+        environment: {
+          ...dbEnvironment,
+          USER_POOL_ID: userPool.userPoolId,
+          CLIENT_ID: userPoolClient.userPoolClientId,
+        },
+        // No VPC - connects to public database
+        timeout: cdk.Duration.seconds(30),
+      }
+    );
     dbSecret.grantRead(analyticsServiceFunction);
-    const analyticsIntegration = new HttpLambdaIntegration('AnalyticsIntegration', analyticsServiceFunction);
-
-    // Dashboard routes (Lambda validates custom JWT tokens)
-    httpApi.addRoutes({ path: '/api/v1/dashboard/stats', methods: [apigw.HttpMethod.GET], integration: analyticsIntegration, authorizer: httpAuthorizer });
-    httpApi.addRoutes({ path: '/api/v1/dashboard/today-pets', methods: [apigw.HttpMethod.GET], integration: analyticsIntegration, authorizer: httpAuthorizer });
-    httpApi.addRoutes({ path: '/api/v1/dashboard/arrivals', methods: [apigw.HttpMethod.GET], integration: analyticsIntegration, authorizer: httpAuthorizer });
-    httpApi.addRoutes({ path: '/api/v1/dashboard/departures', methods: [apigw.HttpMethod.GET], integration: analyticsIntegration, authorizer: httpAuthorizer });
-    httpApi.addRoutes({ path: '/api/v1/dashboard/occupancy', methods: [apigw.HttpMethod.GET], integration: analyticsIntegration, authorizer: httpAuthorizer });
-    httpApi.addRoutes({ path: '/api/v1/dashboard/revenue', methods: [apigw.HttpMethod.GET], integration: analyticsIntegration, authorizer: httpAuthorizer });
-    httpApi.addRoutes({ path: '/api/v1/dashboard/activity', methods: [apigw.HttpMethod.GET], integration: analyticsIntegration, authorizer: httpAuthorizer });
-
-    // Reports routes (Lambda validates custom JWT tokens)
-    httpApi.addRoutes({ path: '/api/v1/reports/dashboard', methods: [apigw.HttpMethod.GET], integration: analyticsIntegration, authorizer: httpAuthorizer });
-    httpApi.addRoutes({ path: '/api/v1/reports/revenue', methods: [apigw.HttpMethod.GET], integration: analyticsIntegration, authorizer: httpAuthorizer });
-    httpApi.addRoutes({ path: '/api/v1/reports/occupancy', methods: [apigw.HttpMethod.GET], integration: analyticsIntegration, authorizer: httpAuthorizer });
-    httpApi.addRoutes({ path: '/api/v1/reports/arrivals', methods: [apigw.HttpMethod.GET], integration: analyticsIntegration, authorizer: httpAuthorizer });
-    httpApi.addRoutes({ path: '/api/v1/reports/departures', methods: [apigw.HttpMethod.GET], integration: analyticsIntegration, authorizer: httpAuthorizer });
-
-    // Schedule routes (Lambda validates custom JWT tokens)
-    httpApi.addRoutes({ path: '/api/v1/schedule', methods: [apigw.HttpMethod.GET], integration: analyticsIntegration, authorizer: httpAuthorizer });
-    httpApi.addRoutes({ path: '/api/v1/schedule/capacity', methods: [apigw.HttpMethod.GET], integration: analyticsIntegration, authorizer: httpAuthorizer });
+    const analyticsIntegration = new HttpLambdaIntegration(
+      "AnalyticsIntegration",
+      analyticsServiceFunction
+    );
 
 
     // === ENTERPRISE PROPERTY MANAGEMENT SYSTEM ===
 
     // Properties API v2 (Enhanced with rich metadata, dependencies, and enterprise features)
-    const propertiesApiV2Function = new lambda.Function(this, 'PropertiesApiV2Function', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/properties-api-v2')),
-      layers: [dbLayer],
-      environment: dbEnvironment,
-      timeout: cdk.Duration.seconds(30),
-    });
+    const propertiesApiV2Function = new lambda.Function(
+      this,
+      "PropertiesApiV2Function",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: "index.handler",
+        code: lambda.Code.fromAsset(
+          path.join(__dirname, "../../lambdas/properties-api-v2")
+        ),
+        layers: [dbLayer],
+        environment: dbEnvironment,
+        timeout: cdk.Duration.seconds(30),
+      }
+    );
     dbSecret.grantRead(propertiesApiV2Function);
-    const propertiesV2Integration = new HttpLambdaIntegration('PropertiesV2Integration', propertiesApiV2Function);
-    httpApi.addRoutes({ path: '/api/v2/properties', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: propertiesV2Integration, authorizer: httpAuthorizer });
-    httpApi.addRoutes({ path: '/api/v2/properties/{propertyId}', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE], integration: propertiesV2Integration, authorizer: httpAuthorizer });
-    httpApi.addRoutes({ path: '/api/v2/properties/{propertyId}/archive', methods: [apigw.HttpMethod.POST], integration: propertiesV2Integration, authorizer: httpAuthorizer });
-    httpApi.addRoutes({ path: '/api/v2/properties/{propertyId}/restore', methods: [apigw.HttpMethod.POST], integration: propertiesV2Integration, authorizer: httpAuthorizer });
-    // Note: Advanced endpoints (dependencies, impact-analysis, usage-report, substitute, force) 
+    const propertiesV2Integration = new HttpLambdaIntegration(
+      "PropertiesV2Integration",
+      propertiesApiV2Function
+    );
+    // Note: Advanced endpoints (dependencies, impact-analysis, usage-report, substitute, force)
     // accessible via direct Lambda invocation to optimize resource count
 
     // Property Dependency Service (consolidated into properties-api-v2 for resource optimization)
     // Dependency endpoints available via /api/v2/properties/{propertyId}/dependencies etc.
 
-    // User Profile Service (Permission profiles and FLS management)  
-    const userProfileServiceFunction = new lambda.Function(this, 'UserProfileServiceFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/user-profile-service')),
-      layers: [dbLayer],
-      environment: dbEnvironment,
-      timeout: cdk.Duration.seconds(30),
-    });
+    // User Profile Service (Permission profiles and FLS management)
+    const userProfileServiceFunction = new lambda.Function(
+      this,
+      "UserProfileServiceFunction",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: "index.handler",
+        code: lambda.Code.fromAsset(
+          path.join(__dirname, "../../lambdas/user-profile-service")
+        ),
+        layers: [dbLayer],
+        environment: dbEnvironment,
+        timeout: cdk.Duration.seconds(30),
+      }
+    );
     dbSecret.grantRead(userProfileServiceFunction);
-    const userProfileIntegration = new HttpLambdaIntegration('UserProfileIntegration', userProfileServiceFunction);
-    httpApi.addRoutes({ path: '/api/v1/profiles', methods: [apigw.HttpMethod.GET], integration: userProfileIntegration, authorizer: httpAuthorizer });
-    httpApi.addRoutes({ path: '/api/v1/users/{userId}/profiles', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST], integration: userProfileIntegration, authorizer: httpAuthorizer });
-    httpApi.addRoutes({ path: '/api/v1/users/profile', methods: [apigw.HttpMethod.GET, apigw.HttpMethod.PATCH], integration: userProfileIntegration, authorizer: httpAuthorizer });
-    httpApi.addRoutes({ path: '/api/v1/users/password', methods: [apigw.HttpMethod.POST], integration: userProfileIntegration, authorizer: httpAuthorizer });
-    httpApi.addRoutes({ path: '/api/v1/users/avatar', methods: [apigw.HttpMethod.PATCH], integration: userProfileIntegration, authorizer: httpAuthorizer });
+    const userProfileIntegration = new HttpLambdaIntegration(
+      "UserProfileIntegration",
+      userProfileServiceFunction
+    );
 
     // Property Archival Job (Scheduled - runs daily at 2 AM UTC)
-    const propertyArchivalJobFunction = new lambda.Function(this, 'PropertyArchivalJobFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/property-archival-job')),
-      layers: [dbLayer],
-      environment: dbEnvironment,
-      timeout: cdk.Duration.minutes(15),
-    });
+    const propertyArchivalJobFunction = new lambda.Function(
+      this,
+      "PropertyArchivalJobFunction",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: "index.handler",
+        code: lambda.Code.fromAsset(
+          path.join(__dirname, "../../lambdas/property-archival-job")
+        ),
+        layers: [dbLayer],
+        environment: dbEnvironment,
+        timeout: cdk.Duration.minutes(15),
+      }
+    );
     dbSecret.grantRead(propertyArchivalJobFunction);
-    const archivalSchedule = new events.Rule(this, 'PropertyArchivalSchedule', {
-      schedule: events.Schedule.cron({ hour: '2', minute: '0' }),
+    const archivalSchedule = new events.Rule(this, "PropertyArchivalSchedule", {
+      schedule: events.Schedule.cron({ hour: "2", minute: "0" }),
     });
-    archivalSchedule.addTarget(new targets.LambdaFunction(propertyArchivalJobFunction));
+    archivalSchedule.addTarget(
+      new targets.LambdaFunction(propertyArchivalJobFunction)
+    );
 
     // Property Permanent Deletion Job (Scheduled - runs weekly on Sundays at 3 AM UTC)
-    const propertyPermanentDeletionJobFunction = new lambda.Function(this, 'PropertyPermanentDeletionJobFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/property-permanent-deletion-job')),
-      layers: [dbLayer],
-      environment: dbEnvironment,
-      timeout: cdk.Duration.minutes(15),
-    });
+    const propertyPermanentDeletionJobFunction = new lambda.Function(
+      this,
+      "PropertyPermanentDeletionJobFunction",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: "index.handler",
+        code: lambda.Code.fromAsset(
+          path.join(__dirname, "../../lambdas/property-permanent-deletion-job")
+        ),
+        layers: [dbLayer],
+        environment: dbEnvironment,
+        timeout: cdk.Duration.minutes(15),
+      }
+    );
     dbSecret.grantRead(propertyPermanentDeletionJobFunction);
-    const permanentDeletionSchedule = new events.Rule(this, 'PropertyPermanentDeletionSchedule', {
-      schedule: events.Schedule.cron({ weekDay: 'SUN', hour: '3', minute: '0' }),
-    });
-    permanentDeletionSchedule.addTarget(new targets.LambdaFunction(propertyPermanentDeletionJobFunction));
-
+    const permanentDeletionSchedule = new events.Rule(
+      this,
+      "PropertyPermanentDeletionSchedule",
+      {
+        schedule: events.Schedule.cron({
+          weekDay: "SUN",
+          hour: "3",
+          minute: "0",
+        }),
+      }
+    );
+    permanentDeletionSchedule.addTarget(
+      new targets.LambdaFunction(propertyPermanentDeletionJobFunction)
+    );
 
     // Admin API
-    const adminApiFunction = new lambda.Function(this, 'AdminApiFunction', {
+    const adminApiFunction = new lambda.Function(this, "AdminApiFunction", {
       runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/admin-api')),
+      handler: "index.handler",
+      code: lambda.Code.fromAsset(
+        path.join(__dirname, "../../lambdas/admin-api")
+      ),
       layers: [dbLayer],
       environment: dbEnvironment,
       // No VPC - connects to public database
       timeout: cdk.Duration.seconds(30),
       allowPublicSubnet: true,
     });
-    const adminIntegration = new HttpLambdaIntegration('AdminIntegration', adminApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/admin/stats', methods: [apigw.HttpMethod.GET], integration: adminIntegration, authorizer: httpAuthorizer });
+    const adminIntegration = new HttpLambdaIntegration(
+      "AdminIntegration",
+      adminApiFunction
+    );
 
     // === NEW CONSOLIDATED SERVICES (Replaces 22 individual Lambda functions) ===
 
     // Operations Service (consolidates bookings, runs, check-in, check-out, kennels)
-    const operationsServiceFunction = new lambda.Function(this, 'OperationsServiceFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/operations-service')),
-      layers: [dbLayer, authLayer],
-      environment: {
-        ...dbEnvironment,
-        USER_POOL_ID: userPool.userPoolId,
-        CLIENT_ID: userPoolClient.userPoolClientId,
-      },
-      timeout: cdk.Duration.seconds(30),
-    });
+    const operationsServiceFunction = new lambda.Function(
+      this,
+      "OperationsServiceFunction",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: "index.handler",
+        code: lambda.Code.fromAsset(
+          path.join(__dirname, "../../lambdas/operations-service")
+        ),
+        layers: [dbLayer, authLayer],
+        environment: {
+          ...dbEnvironment,
+          USER_POOL_ID: userPool.userPoolId,
+          CLIENT_ID: userPoolClient.userPoolClientId,
+        },
+        timeout: cdk.Duration.seconds(30),
+      }
+    );
     dbSecret.grantRead(operationsServiceFunction);
 
     // Entity Service (consolidates pets, owners, staff)
-    const entityServiceFunction = new lambda.Function(this, 'EntityServiceFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/entity-service')),
-      layers: [dbLayer, authLayer],
-      environment: {
-        ...dbEnvironment,
-        USER_POOL_ID: userPool.userPoolId,
-        CLIENT_ID: userPoolClient.userPoolClientId,
-      },
-      timeout: cdk.Duration.seconds(30),
-    });
+    const entityServiceFunction = new lambda.Function(
+      this,
+      "EntityServiceFunction",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: "index.handler",
+        code: lambda.Code.fromAsset(
+          path.join(__dirname, "../../lambdas/entity-service")
+        ),
+        layers: [dbLayer, authLayer],
+        environment: {
+          ...dbEnvironment,
+          USER_POOL_ID: userPool.userPoolId,
+          CLIENT_ID: userPoolClient.userPoolClientId,
+        },
+        timeout: cdk.Duration.seconds(30),
+      }
+    );
     dbSecret.grantRead(entityServiceFunction);
 
     // Features Service (consolidates tasks, notes, incidents, messages, communication, invites)
-    const featuresServiceFunction = new lambda.Function(this, 'FeaturesServiceFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/features-service')),
-      layers: [dbLayer, authLayer],
-      environment: {
-        ...dbEnvironment,
-        USER_POOL_ID: userPool.userPoolId,
-        CLIENT_ID: userPoolClient.userPoolClientId,
-      },
-      timeout: cdk.Duration.seconds(30),
-    });
+    const featuresServiceFunction = new lambda.Function(
+      this,
+      "FeaturesServiceFunction",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: "index.handler",
+        code: lambda.Code.fromAsset(
+          path.join(__dirname, "../../lambdas/features-service")
+        ),
+        layers: [dbLayer, authLayer],
+        environment: {
+          ...dbEnvironment,
+          USER_POOL_ID: userPool.userPoolId,
+          CLIENT_ID: userPoolClient.userPoolClientId,
+        },
+        timeout: cdk.Duration.seconds(30),
+      }
+    );
     dbSecret.grantRead(featuresServiceFunction);
 
     // Config Service (consolidates services, tenants, roles, defaults, facility, packages, memberships, permissions)
-    const configServiceFunction = new lambda.Function(this, 'ConfigServiceFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/config-service')),
-      layers: [dbLayer, authLayer],
-      environment: {
-        ...dbEnvironment,
-        USER_POOL_ID: userPool.userPoolId,
-        CLIENT_ID: userPoolClient.userPoolClientId,
-      },
-      timeout: cdk.Duration.seconds(30),
-    });
+    const configServiceFunction = new lambda.Function(
+      this,
+      "ConfigServiceFunction",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: "index.handler",
+        code: lambda.Code.fromAsset(
+          path.join(__dirname, "../../lambdas/config-service")
+        ),
+        layers: [dbLayer, authLayer],
+        environment: {
+          ...dbEnvironment,
+          USER_POOL_ID: userPool.userPoolId,
+          CLIENT_ID: userPoolClient.userPoolClientId,
+        },
+        timeout: cdk.Duration.seconds(30),
+      }
+    );
     dbSecret.grantRead(configServiceFunction);
 
-    // OPTIONS Handler (dedicated lightweight Lambda for CORS preflight)
-    // This Lambda ONLY handles OPTIONS requests - no database access needed
-    const optionsHandlerFunction = new lambda.Function(this, 'OptionsHandlerFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/options-handler')),
-      timeout: cdk.Duration.seconds(3),
-      memorySize: 128,
-    });
-
-    // Use custom integration class to prevent 217 individual permissions
-    const optionsIntegration = new LambdaIntegrationNoPermission(
-      'OptionsIntegration',
-      optionsHandlerFunction
+    const entityIntegration = new HttpLambdaIntegration(
+      "EntityIntegration",
+      entityServiceFunction
     );
 
-    // Operations Service routes
-    const operationsIntegration = new HttpLambdaIntegration('OperationsIntegration', operationsServiceFunction);
-    // Base paths (for list/create operations)
-    httpApi.addRoutes({
-      path: '/api/v1/bookings',
-      methods: [apigw.HttpMethod.ANY],
-      integration: operationsIntegration, authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/runs',
-      methods: [apigw.HttpMethod.ANY],
-      integration: operationsIntegration, authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/run-templates',
-      methods: [apigw.HttpMethod.ANY],
-      integration: operationsIntegration, authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/check-ins',
-      methods: [apigw.HttpMethod.ANY],
-      integration: operationsIntegration, authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/check-outs',
-      methods: [apigw.HttpMethod.ANY],
-      integration: operationsIntegration, authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/kennels',
-      methods: [apigw.HttpMethod.ANY],
-      integration: operationsIntegration, authorizer: httpAuthorizer,
-    });
-    // Specific routes for runs/assignments and kennels/occupancy
-    httpApi.addRoutes({
-      path: '/api/v1/runs/assignments',
-      methods: [apigw.HttpMethod.GET],
-      integration: operationsIntegration,
-      authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/kennels/occupancy',
-      methods: [apigw.HttpMethod.GET],
-      integration: operationsIntegration,
-      authorizer: httpAuthorizer,
-    });
-
-    // Proxy paths (for operations on specific resources)
-    // Use explicit methods (not ANY) to exclude OPTIONS, allowing wildcard OPTIONS route to match
-    httpApi.addRoutes({
-      path: '/api/v1/bookings/{proxy+}',
-      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST, apigw.HttpMethod.PUT, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE],
-      integration: operationsIntegration,
-      authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/runs/{proxy+}',
-      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST, apigw.HttpMethod.PUT, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE],
-      integration: operationsIntegration,
-      authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/run-templates/{proxy+}',
-      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST, apigw.HttpMethod.PUT, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE],
-      integration: operationsIntegration,
-      authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/check-ins/{proxy+}',
-      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST, apigw.HttpMethod.PUT, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE],
-      integration: operationsIntegration,
-      authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/check-outs/{proxy+}',
-      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST, apigw.HttpMethod.PUT, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE],
-      integration: operationsIntegration,
-      authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/kennels/{proxy+}',
-      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST, apigw.HttpMethod.PUT, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE],
-      integration: operationsIntegration,
-      authorizer: httpAuthorizer,
-    });
-
-    // Entity Service routes
-    const entityIntegration = new HttpLambdaIntegration('EntityIntegration', entityServiceFunction);
-    // Base paths
-    httpApi.addRoutes({
-      path: '/api/v1/pets',
-      methods: [apigw.HttpMethod.ANY],
-      integration: entityIntegration, authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/owners',
-      methods: [apigw.HttpMethod.ANY],
-      integration: entityIntegration, authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/staff',
-      methods: [apigw.HttpMethod.ANY],
-      integration: entityIntegration, authorizer: httpAuthorizer,
-    });
-    // Proxy paths
-    httpApi.addRoutes({
-      path: '/api/v1/pets/{proxy+}',
-      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST, apigw.HttpMethod.PUT, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE],
-      integration: entityIntegration,
-      authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/owners/{proxy+}',
-      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST, apigw.HttpMethod.PUT, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE],
-      integration: entityIntegration,
-      authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/staff/{proxy+}',
-      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST, apigw.HttpMethod.PUT, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE],
-      integration: entityIntegration,
-      authorizer: httpAuthorizer,
-    });
-
     // Features Service routes
-    const featuresIntegration = new HttpLambdaIntegration('FeaturesIntegration', featuresServiceFunction);
-    // Base paths
-    httpApi.addRoutes({
-      path: '/api/v1/tasks',
-      methods: [apigw.HttpMethod.ANY],
-      integration: featuresIntegration, authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/notes',
-      methods: [apigw.HttpMethod.ANY],
-      integration: featuresIntegration, authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/incidents',
-      methods: [apigw.HttpMethod.ANY],
-      integration: featuresIntegration, authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/messages',
-      methods: [apigw.HttpMethod.ANY],
-      integration: featuresIntegration, authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/communications',
-      methods: [apigw.HttpMethod.ANY],
-      integration: featuresIntegration, authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/invites',
-      methods: [apigw.HttpMethod.ANY],
-      integration: featuresIntegration, authorizer: httpAuthorizer,
-    });
-    // Proxy paths
-    httpApi.addRoutes({
-      path: '/api/v1/tasks/{proxy+}',
-      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST, apigw.HttpMethod.PUT, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE],
-      integration: featuresIntegration,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/notes/{proxy+}',
-      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST, apigw.HttpMethod.PUT, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE],
-      integration: featuresIntegration,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/incidents/{proxy+}',
-      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST, apigw.HttpMethod.PUT, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE],
-      integration: featuresIntegration,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/messages/{proxy+}',
-      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST, apigw.HttpMethod.PUT, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE],
-      integration: featuresIntegration,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/communications/{proxy+}',
-      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST, apigw.HttpMethod.PUT, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE],
-      integration: featuresIntegration,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/invites/{proxy+}',
-      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST, apigw.HttpMethod.PUT, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE],
-      integration: featuresIntegration,
-    });
+    const featuresIntegration = new HttpLambdaIntegration(
+      "FeaturesIntegration",
+      featuresServiceFunction
+    );
 
     // Config Service routes
-    const configIntegration = new HttpLambdaIntegration('ConfigIntegration', configServiceFunction);
-    // Base paths
-    httpApi.addRoutes({
-      path: '/api/v1/services',
-      methods: [apigw.HttpMethod.ANY],
-      integration: configIntegration, authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/tenants',
-      methods: [apigw.HttpMethod.ANY],
-      integration: configIntegration, authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/roles',
-      methods: [apigw.HttpMethod.ANY],
-      integration: configIntegration, authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/account-defaults',
-      methods: [apigw.HttpMethod.ANY],
-      integration: configIntegration, authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/facility',
-      methods: [apigw.HttpMethod.ANY],
-      integration: configIntegration, authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/packages',
-      methods: [apigw.HttpMethod.ANY],
-      integration: configIntegration, authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/memberships',
-      methods: [apigw.HttpMethod.ANY],
-      integration: configIntegration, authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/user-permissions',
-      methods: [apigw.HttpMethod.ANY],
-      integration: configIntegration, authorizer: httpAuthorizer,
-    });
-    // Proxy paths
-    httpApi.addRoutes({
-      path: '/api/v1/services/{proxy+}',
-      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST, apigw.HttpMethod.PUT, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE],
-      integration: configIntegration,
-      authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/tenants/{proxy+}',
-      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST, apigw.HttpMethod.PUT, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE],
-      integration: configIntegration,
-      authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/roles/{proxy+}',
-      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST, apigw.HttpMethod.PUT, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE],
-      integration: configIntegration,
-      authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/account-defaults/{proxy+}',
-      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST, apigw.HttpMethod.PUT, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE],
-      integration: configIntegration,
-      authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/facility/{proxy+}',
-      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST, apigw.HttpMethod.PUT, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE],
-      integration: configIntegration,
-      authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/packages/{proxy+}',
-      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST, apigw.HttpMethod.PUT, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE],
-      integration: configIntegration,
-      authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/memberships/{proxy+}',
-      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST, apigw.HttpMethod.PUT, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE],
-      integration: configIntegration,
-      authorizer: httpAuthorizer,
-    });
-    httpApi.addRoutes({
-      path: '/api/v1/user-permissions/{proxy+}',
-      methods: [apigw.HttpMethod.GET, apigw.HttpMethod.POST, apigw.HttpMethod.PUT, apigw.HttpMethod.PATCH, apigw.HttpMethod.DELETE],
-      integration: configIntegration,
-      authorizer: httpAuthorizer,
-    });
-
-    // ===== CORS PREFLIGHT OPTIONS ROUTES (NO AUTHORIZATION) =====
-    // These routes handle CORS preflight requests without requiring JWT authentication
-    // All OPTIONS routes use the dedicated OPTIONS handler Lambda
-
-    // Operations Service OPTIONS routes
-    httpApi.addRoutes({ path: '/api/v1/bookings', methods: [apigw.HttpMethod.OPTIONS], integration: optionsIntegration, authorizer: new apigw.HttpNoneAuthorizer() });
-    httpApi.addRoutes({ path: '/api/v1/runs', methods: [apigw.HttpMethod.OPTIONS], integration: optionsIntegration, authorizer: new apigw.HttpNoneAuthorizer() });
-    httpApi.addRoutes({ path: '/api/v1/run-templates', methods: [apigw.HttpMethod.OPTIONS], integration: optionsIntegration, authorizer: new apigw.HttpNoneAuthorizer() });
-    httpApi.addRoutes({ path: '/api/v1/check-ins', methods: [apigw.HttpMethod.OPTIONS], integration: optionsIntegration, authorizer: new apigw.HttpNoneAuthorizer() });
-    httpApi.addRoutes({ path: '/api/v1/check-outs', methods: [apigw.HttpMethod.OPTIONS], integration: optionsIntegration, authorizer: new apigw.HttpNoneAuthorizer() });
-    httpApi.addRoutes({ path: '/api/v1/kennels', methods: [apigw.HttpMethod.OPTIONS], integration: optionsIntegration, authorizer: new apigw.HttpNoneAuthorizer() });
-
-    // Entity Service OPTIONS routes
-    httpApi.addRoutes({ path: '/api/v1/pets', methods: [apigw.HttpMethod.OPTIONS], integration: optionsIntegration, authorizer: new apigw.HttpNoneAuthorizer() });
-    httpApi.addRoutes({ path: '/api/v1/owners', methods: [apigw.HttpMethod.OPTIONS], integration: optionsIntegration, authorizer: new apigw.HttpNoneAuthorizer() });
-    httpApi.addRoutes({ path: '/api/v1/staff', methods: [apigw.HttpMethod.OPTIONS], integration: optionsIntegration, authorizer: new apigw.HttpNoneAuthorizer() });
-
-    // Features Service OPTIONS routes
-    httpApi.addRoutes({ path: '/api/v1/tasks', methods: [apigw.HttpMethod.OPTIONS], integration: optionsIntegration, authorizer: new apigw.HttpNoneAuthorizer() });
-    httpApi.addRoutes({ path: '/api/v1/notes', methods: [apigw.HttpMethod.OPTIONS], integration: optionsIntegration, authorizer: new apigw.HttpNoneAuthorizer() });
-    httpApi.addRoutes({ path: '/api/v1/incidents', methods: [apigw.HttpMethod.OPTIONS], integration: optionsIntegration, authorizer: new apigw.HttpNoneAuthorizer() });
-    httpApi.addRoutes({ path: '/api/v1/messages', methods: [apigw.HttpMethod.OPTIONS], integration: optionsIntegration, authorizer: new apigw.HttpNoneAuthorizer() });
-    httpApi.addRoutes({ path: '/api/v1/communications', methods: [apigw.HttpMethod.OPTIONS], integration: optionsIntegration, authorizer: new apigw.HttpNoneAuthorizer() });
-    httpApi.addRoutes({ path: '/api/v1/invites', methods: [apigw.HttpMethod.OPTIONS], integration: optionsIntegration, authorizer: new apigw.HttpNoneAuthorizer() });
-
-    // Config Service OPTIONS routes
-    httpApi.addRoutes({ path: '/api/v1/services', methods: [apigw.HttpMethod.OPTIONS], integration: optionsIntegration, authorizer: new apigw.HttpNoneAuthorizer() });
-    httpApi.addRoutes({ path: '/api/v1/tenants', methods: [apigw.HttpMethod.OPTIONS], integration: optionsIntegration, authorizer: new apigw.HttpNoneAuthorizer() });
-    httpApi.addRoutes({ path: '/api/v1/roles', methods: [apigw.HttpMethod.OPTIONS], integration: optionsIntegration, authorizer: new apigw.HttpNoneAuthorizer() });
-    httpApi.addRoutes({ path: '/api/v1/account-defaults', methods: [apigw.HttpMethod.OPTIONS], integration: optionsIntegration, authorizer: new apigw.HttpNoneAuthorizer() });
-    httpApi.addRoutes({ path: '/api/v1/facility', methods: [apigw.HttpMethod.OPTIONS], integration: optionsIntegration, authorizer: new apigw.HttpNoneAuthorizer() });
-    httpApi.addRoutes({ path: '/api/v1/packages', methods: [apigw.HttpMethod.OPTIONS], integration: optionsIntegration, authorizer: new apigw.HttpNoneAuthorizer() });
-    httpApi.addRoutes({ path: '/api/v1/memberships', methods: [apigw.HttpMethod.OPTIONS], integration: optionsIntegration, authorizer: new apigw.HttpNoneAuthorizer() });
-    httpApi.addRoutes({ path: '/api/v1/user-permissions', methods: [apigw.HttpMethod.OPTIONS], integration: optionsIntegration, authorizer: new apigw.HttpNoneAuthorizer() });
-
-    // Wildcard OPTIONS route for all sub-paths under /api/v1/* (CORS preflight)
-    // This catches OPTIONS requests like /api/v1/pets/vaccinations/expiring, /api/v1/bookings/{id}, etc.
-    // Works because {proxy+} routes now use explicit methods (GET,POST,PUT,PATCH,DELETE) instead of ANY
-    httpApi.addRoutes({
-      path: '/api/v1/{proxy+}',
-      methods: [apigw.HttpMethod.OPTIONS],
-      integration: optionsIntegration,
-      authorizer: new apigw.HttpNoneAuthorizer()  // CRITICAL: No auth on OPTIONS
-    });
+    const configIntegration = new HttpLambdaIntegration(
+      "ConfigIntegration",
+      configServiceFunction
+    );
 
     // Migration API (for running database migrations)
-    const migrationApiFunction = new lambda.Function(this, 'MigrationApiFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/migration-api')),
-      layers: [dbLayer],
-      environment: dbEnvironment,
-      // No VPC - connects to public database
-      timeout: cdk.Duration.seconds(60), // Longer timeout for migrations
-    });
-    const migrationIntegration = new HttpLambdaIntegration('MigrationIntegration', migrationApiFunction);
-    httpApi.addRoutes({ path: '/api/v1/migration', methods: [apigw.HttpMethod.POST], integration: migrationIntegration, authorizer: httpAuthorizer });
+    const migrationApiFunction = new lambda.Function(
+      this,
+      "MigrationApiFunction",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: "index.handler",
+        code: lambda.Code.fromAsset(
+          path.join(__dirname, "../../lambdas/migration-api")
+        ),
+        layers: [dbLayer],
+        environment: dbEnvironment,
+        // No VPC - connects to public database
+        timeout: cdk.Duration.seconds(60), // Longer timeout for migrations
+      }
+    );
+    const migrationIntegration = new HttpLambdaIntegration(
+      "MigrationIntegration",
+      migrationApiFunction
+    );
 
     // === GRANT DATABASE SECRET READ PERMISSIONS TO ALL LAMBDA FUNCTIONS ===
     // Grant all Lambda functions that need DB access permission to read the secret
@@ -1521,89 +1283,130 @@ export class CdkStack extends cdk.Stack {
     ];
 
     // Grant read access to the database secret for all Lambda functions
-    lambdasNeedingDbAccess.forEach(fn => {
+    lambdasNeedingDbAccess.forEach((fn) => {
       if (fn) {
         dbSecret.grantRead(fn);
       }
     });
 
-    console.log(`✓ Granted database secret read access to ${lambdasNeedingDbAccess.filter(fn => fn).length} Lambda functions`);
+    console.log(
+      `✓ Granted database secret read access to ${
+        lambdasNeedingDbAccess.filter((fn) => fn).length
+      } Lambda functions`
+    );
 
     // === WEBSOCKET API FOR REAL-TIME ===
 
     // WebSocket Connect Handler
-    const wsConnectFunction = new lambda.Function(this, 'WebSocketConnectFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/websocket-connect')),
-      layers: [dbLayer],
-      environment: dbEnvironment,
-      // No VPC - connects to public database
-      timeout: cdk.Duration.seconds(30),
-    });
+    const wsConnectFunction = new lambda.Function(
+      this,
+      "WebSocketConnectFunction",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: "index.handler",
+        code: lambda.Code.fromAsset(
+          path.join(__dirname, "../../lambdas/websocket-connect")
+        ),
+        layers: [dbLayer],
+        environment: dbEnvironment,
+        // No VPC - connects to public database
+        timeout: cdk.Duration.seconds(30),
+      }
+    );
     dbSecret.grantRead(wsConnectFunction);
 
     // WebSocket Disconnect Handler
-    const wsDisconnectFunction = new lambda.Function(this, 'WebSocketDisconnectFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/websocket-disconnect')),
-      layers: [dbLayer],
-      environment: dbEnvironment,
-      // No VPC - connects to public database
-      timeout: cdk.Duration.seconds(30),
-    });
+    const wsDisconnectFunction = new lambda.Function(
+      this,
+      "WebSocketDisconnectFunction",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: "index.handler",
+        code: lambda.Code.fromAsset(
+          path.join(__dirname, "../../lambdas/websocket-disconnect")
+        ),
+        layers: [dbLayer],
+        environment: dbEnvironment,
+        // No VPC - connects to public database
+        timeout: cdk.Duration.seconds(30),
+      }
+    );
     dbSecret.grantRead(wsDisconnectFunction);
 
     // WebSocket Message Handler
-    const wsMessageFunction = new lambda.Function(this, 'WebSocketMessageFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/websocket-message')),
-      layers: [dbLayer],
-      environment: dbEnvironment,
-      // No VPC - connects to public database
-      timeout: cdk.Duration.seconds(30),
-    });
+    const wsMessageFunction = new lambda.Function(
+      this,
+      "WebSocketMessageFunction",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: "index.handler",
+        code: lambda.Code.fromAsset(
+          path.join(__dirname, "../../lambdas/websocket-message")
+        ),
+        layers: [dbLayer],
+        environment: dbEnvironment,
+        // No VPC - connects to public database
+        timeout: cdk.Duration.seconds(30),
+      }
+    );
     dbSecret.grantRead(wsMessageFunction);
 
     // WebSocket Broadcast Function (invoked by other Lambdas)
-    const wsBroadcastFunction = new lambda.Function(this, 'WebSocketBroadcastFunction', {
-      runtime: lambda.Runtime.NODEJS_20_X,
-      handler: 'index.handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/websocket-broadcast')),
-      layers: [dbLayer],
-      environment: dbEnvironment,
-      // No VPC - connects to public database
-      timeout: cdk.Duration.seconds(30),
-    });
+    const wsBroadcastFunction = new lambda.Function(
+      this,
+      "WebSocketBroadcastFunction",
+      {
+        runtime: lambda.Runtime.NODEJS_20_X,
+        handler: "index.handler",
+        code: lambda.Code.fromAsset(
+          path.join(__dirname, "../../lambdas/websocket-broadcast")
+        ),
+        layers: [dbLayer],
+        environment: dbEnvironment,
+        // No VPC - connects to public database
+        timeout: cdk.Duration.seconds(30),
+      }
+    );
     dbSecret.grantRead(wsBroadcastFunction);
 
     // Create WebSocket API
-    const webSocketApi = new apigw.WebSocketApi(this, 'BarkbaseWebSocketApi', {
+    const webSocketApi = new apigw.WebSocketApi(this, "BarkbaseWebSocketApi", {
       connectRouteOptions: {
-        integration: new WebSocketLambdaIntegration('ConnectIntegration', wsConnectFunction),
+        integration: new WebSocketLambdaIntegration(
+          "ConnectIntegration",
+          wsConnectFunction
+        ),
       },
       disconnectRouteOptions: {
-        integration: new WebSocketLambdaIntegration('DisconnectIntegration', wsDisconnectFunction),
+        integration: new WebSocketLambdaIntegration(
+          "DisconnectIntegration",
+          wsDisconnectFunction
+        ),
       },
       defaultRouteOptions: {
-        integration: new WebSocketLambdaIntegration('DefaultIntegration', wsMessageFunction),
+        integration: new WebSocketLambdaIntegration(
+          "DefaultIntegration",
+          wsMessageFunction
+        ),
       },
     });
 
-    const webSocketStage = new apigw.WebSocketStage(this, 'BarkbaseWebSocketStage', {
-      webSocketApi,
-      stageName: 'production',
-      autoDeploy: true,
-    });
+    const webSocketStage = new apigw.WebSocketStage(
+      this,
+      "BarkbaseWebSocketStage",
+      {
+        webSocketApi,
+        stageName: "production",
+        autoDeploy: true,
+      }
+    );
 
     // Grant WebSocket management permissions
     const wsManagementPolicy = new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
-      actions: ['execute-api:ManageConnections'],
+      actions: ["execute-api:ManageConnections"],
       resources: [
-        `arn:aws:execute-api:${this.region}:${this.account}:${webSocketApi.apiId}/*`
+        `arn:aws:execute-api:${this.region}:${this.account}:${webSocketApi.apiId}/*`,
       ],
     });
 
@@ -1650,80 +1453,74 @@ export class CdkStack extends cdk.Stack {
     removePermissions(this.node);
 
     // Re-add ONLY the wildcard permissions we need
-    optionsHandlerFunction.addPermission('ApiGatewayWildcard', {
-      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+    operationsServiceFunction.addPermission("ApiGatewayWildcard", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${httpApi.apiId}/*/*/*`,
     });
 
-    operationsServiceFunction.addPermission('ApiGatewayWildcard', {
-      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+    entityServiceFunction.addPermission("ApiGatewayWildcard", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${httpApi.apiId}/*/*/*`,
     });
 
-    entityServiceFunction.addPermission('ApiGatewayWildcard', {
-      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+    featuresServiceFunction.addPermission("ApiGatewayWildcard", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${httpApi.apiId}/*/*/*`,
     });
 
-    featuresServiceFunction.addPermission('ApiGatewayWildcard', {
-      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+    configServiceFunction.addPermission("ApiGatewayWildcard", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${httpApi.apiId}/*/*/*`,
     });
 
-    configServiceFunction.addPermission('ApiGatewayWildcard', {
-      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+    usersApiFunction.addPermission("ApiGatewayWildcard", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${httpApi.apiId}/*/*/*`,
     });
 
-    usersApiFunction.addPermission('ApiGatewayWildcard', {
-      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+    authApiFunction.addPermission("ApiGatewayWildcard", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${httpApi.apiId}/*/*/*`,
     });
 
-    authApiFunction.addPermission('ApiGatewayWildcard', {
-      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+    financialServiceFunction.addPermission("ApiGatewayWildcard", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${httpApi.apiId}/*/*/*`,
     });
 
-    financialServiceFunction.addPermission('ApiGatewayWildcard', {
-      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+    analyticsServiceFunction.addPermission("ApiGatewayWildcard", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${httpApi.apiId}/*/*/*`,
     });
 
-    analyticsServiceFunction.addPermission('ApiGatewayWildcard', {
-      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+    propertiesApiV2Function.addPermission("ApiGatewayWildcard", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${httpApi.apiId}/*/*/*`,
     });
 
-    propertiesApiV2Function.addPermission('ApiGatewayWildcard', {
-      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+    userProfileServiceFunction.addPermission("ApiGatewayWildcard", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${httpApi.apiId}/*/*/*`,
     });
 
-    userProfileServiceFunction.addPermission('ApiGatewayWildcard', {
-      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+    adminApiFunction.addPermission("ApiGatewayWildcard", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${httpApi.apiId}/*/*/*`,
     });
 
-    adminApiFunction.addPermission('ApiGatewayWildcard', {
-      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+    migrationApiFunction.addPermission("ApiGatewayWildcard", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${httpApi.apiId}/*/*/*`,
     });
 
-    migrationApiFunction.addPermission('ApiGatewayWildcard', {
-      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+    getUploadUrlFunction.addPermission("ApiGatewayWildcard", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${httpApi.apiId}/*/*/*`,
     });
 
-    getUploadUrlFunction.addPermission('ApiGatewayWildcard', {
-      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
-      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${httpApi.apiId}/*/*/*`,
-    });
-
-    getDownloadUrlFunction.addPermission('ApiGatewayWildcard', {
-      principal: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+    getDownloadUrlFunction.addPermission("ApiGatewayWildcard", {
+      principal: new iam.ServicePrincipal("apigateway.amazonaws.com"),
       sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${httpApi.apiId}/*/*/*`,
     });
   }
 }
-

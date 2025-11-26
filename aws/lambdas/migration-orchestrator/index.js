@@ -13,7 +13,7 @@ const rollbackHandler = require('./rollback-handler');
 
 exports.handler = async (event) => {
 
-  const { httpMethod: method, path } = event.requestContext.http;
+  const { method, path } = event.requestContext.http;
   const body = event.body ? JSON.parse(event.body) : {};
 
   try {

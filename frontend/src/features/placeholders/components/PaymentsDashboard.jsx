@@ -48,11 +48,13 @@ const PaymentsDashboard = ({ onViewPayment, onProcessRefund }) => {
     }
   };
 
-  const handleSelectPayment = (paymentId) => {
+  const getPaymentKey = (payment) => payment.recordId || payment.id;
+
+  const handleSelectPayment = (paymentKey) => {
     setSelectedPayments(prev =>
-      prev.includes(paymentId)
-        ? prev.filter(id => id !== paymentId)
-        : [...prev, paymentId]
+      prev.includes(paymentKey)
+        ? prev.filter(k => k !== paymentKey)
+        : [...prev, paymentKey]
     );
   };
 
@@ -60,7 +62,7 @@ const PaymentsDashboard = ({ onViewPayment, onProcessRefund }) => {
     setSelectedPayments(
       selectedPayments.length === payments.length
         ? []
-        : payments.map(p => p.id)
+        : payments.map(p => getPaymentKey(p))
     );
   };
 
@@ -134,7 +136,7 @@ const PaymentsDashboard = ({ onViewPayment, onProcessRefund }) => {
               Process Refund ({selectedPayments.length})
             </Button>
             <Button variant="outline" size="sm" onClick={() => {
-              const csv = payments.filter(p => selectedPayments.includes(p.id)).map(p => `${p.id},${p.customer},${p.amount},${p.status}`).join('\n');
+              const csv = payments.filter(p => selectedPayments.includes(getPaymentKey(p))).map(p => `${getPaymentKey(p)},${p.ownerFirstName || ''} ${p.ownerLastName || ''},${(p.amountCents || p.amount || 0) / 100},${p.status}`).join('\n');
               const blob = new Blob([`ID,Customer,Amount,Status\n${csv}`], { type: 'text/csv' });
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
@@ -175,14 +177,14 @@ const PaymentsDashboard = ({ onViewPayment, onProcessRefund }) => {
             <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">No payments found</h3>
             <p className="text-gray-600 dark:text-text-secondary">Payments will appear here once transactions are processed</p>
           </Card>
-        ) : payments.map((payment) => (
-          <Card key={payment.id} className="p-6">
+        ) : payments.map((payment, index) => (
+          <Card key={`${payment.recordId || payment.id}-${index}`} className="p-6">
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-4 flex-1">
                 <input
                   type="checkbox"
-                  checked={selectedPayments.includes(payment.id)}
-                  onChange={() => handleSelectPayment(payment.id)}
+                  checked={selectedPayments.includes(getPaymentKey(payment))}
+                  onChange={() => handleSelectPayment(getPaymentKey(payment))}
                   className="mt-1"
                 />
 

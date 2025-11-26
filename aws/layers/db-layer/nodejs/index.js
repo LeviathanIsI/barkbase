@@ -140,20 +140,18 @@ let JWTValidator = null;
 const getJWTValidator = () => {
     if (!jwtValidator) {
         try {
-            // Try to require JWTValidator at runtime when it's actually needed
-            // This avoids circular dependency issues during layer initialization
+            // Load JWTValidator from auth-layer's jwt-validator.js
+            // IMPORTANT: Don't use require('/opt/nodejs') as that returns this file's exports!
+            // The auth-layer files are at /opt/nodejs/jwt-validator.js when layers are merged
             if (!JWTValidator) {
-                // First try to import from jwt-validator file directly (both layers merged at runtime)
                 try {
-                    const jwtValidatorModule = require('./jwt-validator');
+                    // Direct path to jwt-validator in merged layers
+                    const jwtValidatorModule = require('/opt/nodejs/jwt-validator');
                     JWTValidator = jwtValidatorModule.JWTValidator;
-                    console.log('[JWT] Successfully loaded JWTValidator from ./jwt-validator');
+                    console.log('[JWT] Successfully loaded JWTValidator from /opt/nodejs/jwt-validator');
                 } catch (e) {
-                    // Fallback to auth-layer's index export
-                    console.log('[JWT] Failed to load from ./jwt-validator, trying auth layer exports');
-                    const authLayer = require('/opt/nodejs');
-                    JWTValidator = authLayer.JWTValidator;
-                    console.log('[JWT] Successfully loaded JWTValidator from auth layer');
+                    console.error('[JWT] Failed to load JWTValidator:', e.message);
+                    throw new Error('JWTValidator module not found. Ensure auth-layer is attached to this Lambda.');
                 }
             }
 
@@ -164,12 +162,6 @@ const getJWTValidator = () => {
                 console.error('[JWT] Missing USER_POOL_ID or CLIENT_ID environment variables');
                 console.error('[JWT] USER_POOL_ID:', userPoolId);
                 console.error('[JWT] CLIENT_ID:', clientId);
-                console.error('[JWT] Environment:', {
-                    USER_POOL_ID: process.env.USER_POOL_ID,
-                    COGNITO_USER_POOL_ID: process.env.COGNITO_USER_POOL_ID,
-                    CLIENT_ID: process.env.CLIENT_ID,
-                    COGNITO_CLIENT_ID: process.env.COGNITO_CLIENT_ID
-                });
                 throw new Error('JWT configuration missing: USER_POOL_ID and CLIENT_ID required');
             }
 
@@ -192,59 +184,121 @@ module.exports = {
 	testConnection,
 	getTenantIdFromEvent,
 	getJWTValidator,
+	validateJWTFromEvent,
 };
 
 // Cache for Cognito sub -> tenantId lookups (in-memory per Lambda instance)
 const tenantIdCache = new Map();
 
 /**
+ * Extract user info from event by validating JWT token.
+ * This is used when API Gateway authorizer is not configured.
+ * Returns { sub, tenantId, email, role } or null if validation fails.
+ */
+async function validateJWTFromEvent(event) {
+    const authHeader = event?.headers?.Authorization || event?.headers?.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.log('[validateJWTFromEvent] No Authorization header found');
+        return null;
+    }
+
+    try {
+        const jwtValidator = getJWTValidator();
+        const userInfo = await jwtValidator.validateRequest(event);
+        console.log('[validateJWTFromEvent] JWT validated successfully:', {
+            sub: userInfo.sub,
+            tenantId: userInfo.tenantId,
+            tokenType: userInfo.tokenType
+        });
+        return userInfo;
+    } catch (error) {
+        console.error('[validateJWTFromEvent] JWT validation failed:', error.message);
+        return null;
+    }
+}
+
+/**
  * Extract tenantId from API Gateway HTTP API event.
- * Priority: JWT claims -> Database lookup by Cognito sub
+ * Priority: 
+ * 1. API Gateway JWT authorizer claims
+ * 2. Manual JWT validation (when no authorizer)
+ * 3. X-Tenant-Id header (fallback)
+ * 4. Database lookup by user sub
  */
 async function getTenantIdFromEvent(event) {
+    // 1. Try API Gateway JWT authorizer claims first
     const claims = event?.requestContext?.authorizer?.jwt?.claims || {};
     
-    // First check if tenantId is in JWT claims (for custom attributes)
-    const claimTenant = claims["tenantId"] || claims["custom:tenantId"] || null;
+    let claimTenant = claims["tenantId"] || claims["custom:tenantId"] || null;
+    let cognitoSub = claims["sub"] || null;
+
+    // 2. If no API Gateway claims, try manual JWT validation
+    if (!claimTenant && !cognitoSub) {
+        console.log('[getTenantIdFromEvent] No API Gateway claims, trying manual JWT validation...');
+        const userInfo = await validateJWTFromEvent(event);
+        if (userInfo) {
+            claimTenant = userInfo.tenantId;
+            cognitoSub = userInfo.sub || userInfo.userId;
+            console.log('[getTenantIdFromEvent] Got user info from JWT:', { tenantId: claimTenant, sub: cognitoSub });
+        }
+    }
+
+    // Return tenant from claims/JWT if found
     if (claimTenant) {
         return claimTenant;
     }
 
-    // Extract Cognito sub (user ID) from JWT
-    const cognitoSub = claims["sub"] || null;
+    // 3. Try X-Tenant-Id header as fallback
+    const headerTenant = event?.headers?.['x-tenant-id'] || event?.headers?.['X-Tenant-Id'];
+    if (headerTenant && cognitoSub) {
+        // We have a user but no tenant in token - trust the header
+        console.log('[getTenantIdFromEvent] Using X-Tenant-Id header:', headerTenant);
+        return headerTenant;
+    }
+
     if (!cognitoSub) {
-        console.warn('[getTenantIdFromEvent] No tenantId in claims and no Cognito sub found');
+        console.warn('[getTenantIdFromEvent] No tenantId and no user sub found');
         return null;
     }
 
-    // Check cache first
+    // 4. Check cache
     if (tenantIdCache.has(cognitoSub)) {
         return tenantIdCache.get(cognitoSub);
     }
 
-    // Query database to get tenantId
+    // 5. Query database to get tenantId
     try {
         const pool = getPool();
         const result = await pool.query(
             `SELECT m."tenantId" 
              FROM "Membership" m
              INNER JOIN "User" u ON u."recordId" = m."userId"
-             WHERE u."cognitoSub" = $1
+             WHERE u."cognitoSub" = $1 OR u."recordId" = $1
              LIMIT 1`,
             [cognitoSub]
         );
 
         if (result.rows.length === 0) {
-            console.warn(`[getTenantIdFromEvent] No tenant found for Cognito sub: ${cognitoSub}`);
+            console.warn(`[getTenantIdFromEvent] No tenant found for user: ${cognitoSub}`);
+            // Fall back to header if available
+            if (headerTenant) {
+                console.log('[getTenantIdFromEvent] Falling back to X-Tenant-Id header:', headerTenant);
+                return headerTenant;
+            }
             return null;
         }
 
         const tenantId = result.rows[0].tenantId;
         tenantIdCache.set(cognitoSub, tenantId); // Cache for future requests
-        console.log(`[getTenantIdFromEvent] Found tenantId ${tenantId} for Cognito sub ${cognitoSub}`);
+        console.log(`[getTenantIdFromEvent] Found tenantId ${tenantId} for user ${cognitoSub}`);
         return tenantId;
     } catch (error) {
         console.error('[getTenantIdFromEvent] Database query failed:', error);
+        // Fall back to header on DB error
+        if (headerTenant) {
+            console.log('[getTenantIdFromEvent] DB failed, using X-Tenant-Id header:', headerTenant);
+            return headerTenant;
+        }
         return null;
     }
 }

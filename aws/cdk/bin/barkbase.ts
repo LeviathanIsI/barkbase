@@ -72,12 +72,23 @@ if (userPoolId && userPoolClientId) {
     "AuthStack: Skipping AuthStack synthesis because COGNITO_USER_POOL_ID / COGNITO_USER_POOL_CLIENT_ID were not provided in env or context."
   );
 }
-const apiCoreStack = new ApiCoreStack(app, `Barkbase-ApiCoreStack-${stage}`, {
-  env,
-  stage,
-  userPool: authStack?.userPool,
-  userPoolClient: authStack?.userPoolClient,
-});
+const skipApiCore =
+  process.env.SKIP_APICORE === "1" ||
+  process.env.SKIP_APICORE?.toLowerCase() === "true";
+
+let apiCoreStack: ApiCoreStack | undefined;
+if (!skipApiCore) {
+  apiCoreStack = new ApiCoreStack(app, `Barkbase-ApiCoreStack-${stage}`, {
+    env,
+    stage,
+    userPool: authStack?.userPool,
+    userPoolClient: authStack?.userPoolClient,
+  });
+} else {
+  console.warn(
+    "ApiCoreStack: Skipping instantiation because SKIP_APICORE flag is set (temporary workaround for HTTP API resource limits)."
+  );
+}
 const servicesStack = new ServicesStack(app, `Barkbase-ServicesStack-${stage}`, {
   env,
   stage,
@@ -87,10 +98,11 @@ const servicesStack = new ServicesStack(app, `Barkbase-ServicesStack-${stage}`, 
   dbHost: databaseStack.dbHost ?? '',
   dbPort: databaseStack.dbPort ?? 5432,
   dbName: databaseStack.dbName,
-  httpApi: apiCoreStack.httpApi,
+  httpApi: apiCoreStack?.httpApi,
+  httpApiId: process.env.HTTP_API_ID ?? app.node.tryGetContext("httpApiId"),
   userPool: authStack?.userPool,
   userPoolClient: authStack?.userPoolClient,
-  authorizer: apiCoreStack.authorizer,
+  authorizer: apiCoreStack?.authorizer,
 });
 const realtimeStack = new RealtimeStack(app, `Barkbase-RealtimeStack-${stage}`, {
   env,

@@ -23,14 +23,12 @@ const TenantLoader = () => {
       
       // If tenant already has recordId (restored from localStorage), skip loading
       if (currentTenant?.recordId) {
-        console.log('[TenantLoader] Tenant already loaded from localStorage:', currentTenant.recordId);
         return;
       }
 
       // Check if tenant is already being loaded
       const { isLoading } = useTenantStore.getState();
       if (isLoading) {
-        console.log('[TenantLoader] Tenant already being loaded, skipping...');
         return;
       }
 
@@ -55,7 +53,7 @@ const TenantLoader = () => {
               await loadTenantById(authTenantId);
               return;
             } catch (e) {
-              console.warn('[TenantLoader] Tenant load by id failed:', e.message);
+              // Tenant load by ID failed, try other paths
             }
           }
 
@@ -67,12 +65,11 @@ const TenantLoader = () => {
               setTenantSlugCookie(slug);
               return;
             } catch (error) {
-              console.warn('[TenantLoader] Tenant load by slug failed:', slug, error.message);
+              // Tenant load by slug failed, try fallback
             }
           }
 
           // Path 3: Ultimate fallback - fetch from backend using JWT sub
-          console.log('[TenantLoader] Fetching tenant from backend as final fallback...');
           const response = await apiClient.get('/api/v1/tenants/current');
           if (response.data) {
             setTenant(response.data);

@@ -88,12 +88,12 @@ const UnifiedOwnerCard = ({ owner, getVaccinationStatus }) => {
         </div>
 
         <div className="space-y-3">
-          {(expanded ? owner.pets : owner.pets?.slice(0, 2))?.map((pet) => {
+          {(expanded ? owner.pets : owner.pets?.slice(0, 2))?.map((pet, index) => {
             const vaccStatus = getVaccinationStatus(pet);
 
             return (
               <div
-                key={pet.id}
+                key={pet.id || pet.recordId || index}
                 className="flex items-center gap-4 rounded-lg bg-gray-50 p-3 dark:bg-surface-secondary"
               >
                 <PetAvatar pet={pet} size="md" />

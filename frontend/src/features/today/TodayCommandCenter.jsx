@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useMemo, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
 import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import { useUserProfileQuery } from '@/features/settings/api-user';
@@ -8,7 +8,6 @@ import TodayArrivalsList from '@/features/today/components/TodayArrivalsList';
 import TodayDeparturesList from '@/features/today/components/TodayDeparturesList';
 import TodayBatchCheckInModal from '@/features/today/components/TodayBatchCheckInModal';
 import TodayBatchCheckOutModal from '@/features/today/components/TodayBatchCheckOutModal';
-// TodayGrid removed - now using direct 12-column grid in layout
 import useTodayBookingsSnapshot, { getTodayBookingsSnapshotKey } from '@/features/today/hooks/useTodayBookingsSnapshot';
 
 /**
@@ -17,13 +16,10 @@ import useTodayBookingsSnapshot, { getTodayBookingsSnapshotKey } from '@/feature
  * Provides calm, focused interface for daily operations
  */
 const TodayCommandCenter = () => {
-  // TODO (Nav Cleanup B:4): Update nav labels + section grouping once Today page is finalized.
-  // TODO (Today Refactor B:3): Visual cleanup + layout polish next.
-  // TODO (B:6 Query Consolidation):
-  // Many Today queries fetch overlapping booking data.
-  // In the next phase we will consolidate these queries into a unified "TodaySnapshot" hook.
+  const queryClient = useQueryClient();
   const [showBatchCheckIn, setShowBatchCheckIn] = useState(false);
   const [showBatchCheckOut, setShowBatchCheckOut] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState(() => new Date());
 
   // Fetch today's data
   const today = new Date().toISOString().split('T')[0];
@@ -39,6 +35,14 @@ const TodayCommandCenter = () => {
   const departures = todaySnapshot.data?.departuresToday ?? [];
   const inFacility = todaySnapshot.data?.inFacility ?? [];
   const loadingSnapshot = todaySnapshot.isLoading;
+
+  // Refresh handler
+  const handleRefresh = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: snapshotQueryKey });
+    queryClient.invalidateQueries({ queryKey: ['dashboard', 'stats'] });
+    queryClient.invalidateQueries({ queryKey: ['attention', 'items'] });
+    setLastRefreshed(new Date());
+  }, [queryClient, snapshotQueryKey]);
 
   const dashboardStatsQuery = useQuery({
     queryKey: ['dashboard', 'stats', today],
@@ -113,6 +117,8 @@ const TodayCommandCenter = () => {
             formattedDate={formattedDate}
             stats={stats}
             isLoading={loadingSnapshot}
+            onRefresh={handleRefresh}
+            lastRefreshed={lastRefreshed}
           />
         </div>
 

@@ -9,7 +9,7 @@ const {
     getSecureHeaders,
     errorResponse,
     successResponse,
-} = require('../shared/security-utils');
+} = require('/opt/nodejs/security-utils');
 
 const ok = (event, statusCode, data = '', additionalHeaders = {}) => {
     if (statusCode === 204) {

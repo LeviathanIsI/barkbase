@@ -58,11 +58,6 @@ export const useTenantStore = create(
         };
         applyTheme(mergedTheme);
         set({ tenant, initialized: true });
-
-        // Development indicator
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[TenantStore] Tenant set:', { recordId: tenant.recordId, slug: tenant.slug, plan: tenant.plan });
-        }
       },
       setLoading: (loading) => set({ isLoading: loading }),
       loadTenant: async (slug) => {

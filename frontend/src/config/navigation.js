@@ -2,6 +2,7 @@ export const sidebarSections = [
   {
     id: 'today',
     label: 'Today',
+    collapsible: false,
     items: [
       {
         path: '/today',
@@ -9,16 +10,13 @@ export const sidebarSections = [
         icon: 'layout-dashboard',
         priority: 1,
       },
-      {
-        path: '/dashboard',
-        label: 'Legacy Dashboard',
-        icon: 'home',
-      },
     ],
   },
   {
     id: 'clients',
-    label: 'Clients & Records',
+    label: 'Clients',
+    collapsible: true,
+    defaultExpanded: true,
     items: [
       { path: '/pets-people', label: 'Clients', icon: 'users' },
       { path: '/pets', label: 'Pets', icon: 'paw-print' },
@@ -30,20 +28,31 @@ export const sidebarSections = [
   {
     id: 'operations',
     label: 'Operations',
+    collapsible: true,
+    defaultExpanded: true,
     items: [
       { path: '/bookings', label: 'Bookings', icon: 'calendar-plus' },
       { path: '/schedule', label: 'Schedule', icon: 'calendar-days' },
-      { path: '/calendar', label: 'Calendar', icon: 'calendar' },
       { path: '/runs', label: 'Runs', icon: 'activity' },
       { path: '/tasks', label: 'Tasks', icon: 'check-square' },
       { path: '/kennels', label: 'Kennels', icon: 'home' },
       { path: '/operations', label: 'Ops Overview', icon: 'panels-top-left' },
+    ],
+  },
+  {
+    id: 'communications',
+    label: 'Communications',
+    collapsible: true,
+    defaultExpanded: false,
+    items: [
       { path: '/messages', label: 'Messages', icon: 'message-square' },
     ],
   },
   {
     id: 'finance',
-    label: 'Finance & Reporting',
+    label: 'Finance',
+    collapsible: true,
+    defaultExpanded: true,
     items: [
       { path: '/payments', label: 'Payments', icon: 'credit-card' },
       { path: '/invoices', label: 'Invoices', icon: 'file-text' },
@@ -53,6 +62,8 @@ export const sidebarSections = [
   {
     id: 'admin',
     label: 'Administration',
+    collapsible: true,
+    defaultExpanded: false,
     items: [
       { path: '/staff', label: 'Team', icon: 'user-cog' },
       { path: '/tenants', label: 'Tenants', icon: 'building-2' },
@@ -60,4 +71,3 @@ export const sidebarSections = [
     ],
   },
 ];
-

@@ -4,12 +4,12 @@
 // All NEW endpoints for this domain must be implemented here.
 // Do NOT add new logic or endpoints to legacy Lambdas for this domain.
 
-const { getPool, getTenantIdFromEvent } = require('/opt/nodejs');
+const { getPool, getTenantIdFromEvent, validateJWTFromEvent } = require('/opt/nodejs');
 const {
     getSecureHeaders,
     errorResponse,
     successResponse,
-} = require('../shared/security-utils');
+} = require('/opt/nodejs/security-utils');
 
 const ok = (event, statusCode, data = '', additionalHeaders = {}) => {
     if (statusCode === 204) {
@@ -50,18 +50,32 @@ const fail = (event, statusCode, errorCodeOrBody, message, additionalHeaders = {
     };
 };
 
-function getUserInfoFromEvent(event) {
+async function getUserInfoFromEvent(event) {
+    // First try API Gateway JWT authorizer claims
     const claims = event?.requestContext?.authorizer?.jwt?.claims;
-    if (!claims) {
-        console.error('No JWT claims found in event');
-        return null;
+    if (claims && claims.sub) {
+        return {
+            sub: claims.sub,
+            username: claims.username || claims['cognito:username'],
+            email: claims.email,
+            tenantId: claims['custom:tenantId'] || claims.tenantId
+        };
     }
-    return {
-        sub: claims.sub,
-        username: claims.username,
-        email: claims.email,
-        tenantId: claims['custom:tenantId'] || claims.tenantId
-    };
+
+    // Fallback to manual JWT validation
+    console.log('[AUTH] No API Gateway claims, trying manual JWT validation...');
+    const userInfo = await validateJWTFromEvent(event);
+    if (userInfo) {
+        return {
+            sub: userInfo.sub || userInfo.userId,
+            username: userInfo.username,
+            email: userInfo.email,
+            tenantId: userInfo.tenantId
+        };
+    }
+
+    console.error('[AUTH] No valid authentication found');
+    return null;
 }
 
 exports.handler = async (event) => {
@@ -78,7 +92,7 @@ exports.handler = async (event) => {
         };
     }
 
-    const userInfo = getUserInfoFromEvent(event);
+    const userInfo = await getUserInfoFromEvent(event);
     if (!userInfo) {
         return fail(event, 401, { message: 'Unauthorized' });
     }
@@ -344,6 +358,177 @@ exports.handler = async (event) => {
                     [tenantId, email, role || 'STAFF']
                 );
                 return ok(event, 201, rows[0]);
+            }
+        }
+
+        // ========== SEGMENTS ROUTES (/api/v1/segments) ==========
+        if (path.startsWith('/api/v1/segments')) {
+            const segmentId = event.pathParameters?.proxy || event.pathParameters?.segmentId;
+            
+            // GET /api/v1/segments - List all segments
+            if (httpMethod === 'GET' && !segmentId) {
+                try {
+                    const { rows } = await pool.query(
+                        `SELECT s.*, 
+                            (SELECT COUNT(*) FROM "SegmentMember" sm WHERE sm."segmentId" = s."recordId")::int as "memberCount"
+                         FROM "Segment" s 
+                         WHERE s."tenantId" = $1 
+                         ORDER BY s."createdAt" DESC`,
+                        [tenantId]
+                    );
+                    // Format with _count for frontend compatibility
+                    const formatted = rows.map(seg => ({
+                        ...seg,
+                        _count: { members: seg.memberCount || 0, campaigns: 0 }
+                    }));
+                    return ok(event, 200, formatted);
+                } catch (e) {
+                    // Table might not exist - return empty array
+                    console.log('[SEGMENTS] Table may not exist, returning empty:', e.message);
+                    return ok(event, 200, []);
+                }
+            }
+
+            // GET /api/v1/segments/{segmentId}/members - Get segment members
+            if (httpMethod === 'GET' && segmentId && path.includes('/members')) {
+                const actualSegmentId = segmentId.replace('/members', '');
+                try {
+                    const { rows } = await pool.query(
+                        `SELECT o.* FROM "Owner" o
+                         INNER JOIN "SegmentMember" sm ON o."recordId" = sm."ownerId"
+                         WHERE sm."segmentId" = $1 AND o."tenantId" = $2
+                         ORDER BY o."name" ASC`,
+                        [actualSegmentId, tenantId]
+                    );
+                    return ok(event, 200, { data: rows, hasMore: false });
+                } catch (e) {
+                    console.log('[SEGMENTS] Members query failed:', e.message);
+                    return ok(event, 200, { data: [], hasMore: false });
+                }
+            }
+
+            // GET /api/v1/segments/{segmentId} - Get single segment
+            if (httpMethod === 'GET' && segmentId) {
+                try {
+                    const { rows } = await pool.query(
+                        `SELECT s.*, 
+                            (SELECT COUNT(*) FROM "SegmentMember" sm WHERE sm."segmentId" = s."recordId")::int as "memberCount"
+                         FROM "Segment" s 
+                         WHERE s."recordId" = $1 AND s."tenantId" = $2`,
+                        [segmentId, tenantId]
+                    );
+                    if (rows.length === 0) {
+                        return fail(event, 404, { message: 'Segment not found' });
+                    }
+                    return ok(event, 200, { ...rows[0], _count: { members: rows[0].memberCount || 0, campaigns: 0 } });
+                } catch (e) {
+                    return fail(event, 404, { message: 'Segment not found' });
+                }
+            }
+
+            // POST /api/v1/segments - Create segment
+            if (httpMethod === 'POST' && !path.includes('/members') && !path.includes('/refresh')) {
+                const { name, description, isAutomatic, criteria, isActive } = JSON.parse(event.body || '{}');
+                if (!name) {
+                    return fail(event, 400, { message: 'Name is required' });
+                }
+                try {
+                    const { rows } = await pool.query(
+                        `INSERT INTO "Segment" ("recordId", "tenantId", "name", "description", "isAutomatic", "criteria", "isActive", "createdAt", "updatedAt")
+                         VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, NOW(), NOW()) RETURNING *`,
+                        [tenantId, name, description || '', isAutomatic || false, JSON.stringify(criteria || {}), isActive !== false]
+                    );
+                    return ok(event, 201, { ...rows[0], _count: { members: 0, campaigns: 0 } });
+                } catch (e) {
+                    console.error('[SEGMENTS] Create failed:', e.message);
+                    return fail(event, 500, { message: 'Failed to create segment' });
+                }
+            }
+
+            // POST /api/v1/segments/refresh - Refresh auto segments
+            if (httpMethod === 'POST' && path.includes('/refresh')) {
+                // Stub - auto-segment refresh not implemented
+                return ok(event, 200, { message: 'Segments refreshed', updated: 0 });
+            }
+
+            // PUT /api/v1/segments/{segmentId} - Update segment
+            if (httpMethod === 'PUT' && segmentId) {
+                const { name, description, isAutomatic, criteria, isActive } = JSON.parse(event.body || '{}');
+                try {
+                    const { rows } = await pool.query(
+                        `UPDATE "Segment" SET 
+                            "name" = COALESCE($3, "name"),
+                            "description" = COALESCE($4, "description"),
+                            "isAutomatic" = COALESCE($5, "isAutomatic"),
+                            "criteria" = COALESCE($6, "criteria"),
+                            "isActive" = COALESCE($7, "isActive"),
+                            "updatedAt" = NOW()
+                         WHERE "recordId" = $1 AND "tenantId" = $2 RETURNING *`,
+                        [segmentId, tenantId, name, description, isAutomatic, criteria ? JSON.stringify(criteria) : null, isActive]
+                    );
+                    if (rows.length === 0) {
+                        return fail(event, 404, { message: 'Segment not found' });
+                    }
+                    return ok(event, 200, rows[0]);
+                } catch (e) {
+                    return fail(event, 500, { message: 'Failed to update segment' });
+                }
+            }
+
+            // DELETE /api/v1/segments/{segmentId} - Delete segment
+            if (httpMethod === 'DELETE' && segmentId && !path.includes('/members')) {
+                try {
+                    await pool.query(`DELETE FROM "SegmentMember" WHERE "segmentId" = $1`, [segmentId]);
+                    const result = await pool.query(
+                        `DELETE FROM "Segment" WHERE "recordId" = $1 AND "tenantId" = $2`,
+                        [segmentId, tenantId]
+                    );
+                    if (result.rowCount === 0) {
+                        return fail(event, 404, { message: 'Segment not found' });
+                    }
+                    return ok(event, 204);
+                } catch (e) {
+                    return fail(event, 500, { message: 'Failed to delete segment' });
+                }
+            }
+
+            // POST /api/v1/segments/{segmentId}/members - Add members to segment
+            if (httpMethod === 'POST' && segmentId && path.includes('/members')) {
+                const actualSegmentId = segmentId.replace('/members', '');
+                const { ownerIds } = JSON.parse(event.body || '{}');
+                if (!ownerIds?.length) {
+                    return fail(event, 400, { message: 'ownerIds is required' });
+                }
+                try {
+                    for (const ownerId of ownerIds) {
+                        await pool.query(
+                            `INSERT INTO "SegmentMember" ("recordId", "segmentId", "ownerId", "createdAt")
+                             VALUES (gen_random_uuid(), $1, $2, NOW()) ON CONFLICT DO NOTHING`,
+                            [actualSegmentId, ownerId]
+                        );
+                    }
+                    return ok(event, 200, { added: ownerIds.length });
+                } catch (e) {
+                    return fail(event, 500, { message: 'Failed to add members' });
+                }
+            }
+
+            // DELETE /api/v1/segments/{segmentId}/members - Remove members from segment
+            if (httpMethod === 'DELETE' && segmentId && path.includes('/members')) {
+                const actualSegmentId = segmentId.replace('/members', '');
+                const { ownerIds } = JSON.parse(event.body || '{}');
+                if (!ownerIds?.length) {
+                    return fail(event, 400, { message: 'ownerIds is required' });
+                }
+                try {
+                    await pool.query(
+                        `DELETE FROM "SegmentMember" WHERE "segmentId" = $1 AND "ownerId" = ANY($2)`,
+                        [actualSegmentId, ownerIds]
+                    );
+                    return ok(event, 200, { removed: ownerIds.length });
+                } catch (e) {
+                    return fail(event, 500, { message: 'Failed to remove members' });
+                }
             }
         }
 

@@ -33,9 +33,6 @@ function RoutePersistence() {
   return null;
 }
 
-const Dashboard = lazy(() =>
-  import("@/features/dashboard/routes/DashboardEnhanced")
-);
 const TodayCommandCenter = lazy(() =>
   import("@/features/today/TodayCommandCenter")
 );
@@ -43,7 +40,6 @@ const UnifiedPetPeopleView = lazy(() =>
   import("@/features/pets-people/UnifiedPetPeopleView")
 );
 const Bookings = lazy(() => import("@/features/bookings/routes/Bookings"));
-const Calendar = lazy(() => import("@/features/calendar/routes/Calendar"));
 const Schedule = lazy(() => import("@/features/schedule/routes/Schedule"));
 const Pets = lazy(() => import("@/features/pets/routes/Pets"));
 const Owners = lazy(() => import("@/features/owners/routes/Owners"));
@@ -272,11 +268,10 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <Navigate to="/today" replace /> },
               { path: "today", element: <TodayCommandCenter /> },
-              { path: "dashboard", element: <Dashboard /> },
               { path: "pets-people", element: <UnifiedPetPeopleView /> },
               { path: "bookings", element: <Bookings /> },
               { path: "schedule", element: <Schedule /> },
-              { path: "calendar", element: <Calendar /> },
+              { path: "calendar", element: <Navigate to="/schedule" replace /> },
               { path: "kennels", element: <Kennels /> },
               { path: "pets", element: <Pets /> },
               { path: "pets/:petId", element: <PetDetail /> },

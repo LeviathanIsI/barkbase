@@ -1,4 +1,4 @@
-import { AlertCircle, UserX } from 'lucide-react';
+import { AlertCircle, Heart, LogOut, UserX } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import PetAvatar from '@/components/ui/PetAvatar';
@@ -16,11 +16,11 @@ const TodayDeparturesList = ({ departures, onBatchCheckOut, isLoading, hasError 
   }
 
   return (
-    <TodayCard className="h-full">
+    <TodayCard className="h-full" id="departures-section">
       <TodaySection
         title="Today's Departures"
         icon={UserX}
-        iconClassName="text-amber-500"
+        iconClassName="text-amber-600 dark:text-amber-400"
         badge={<Badge variant="warning">{departures.length}</Badge>}
         actions={
           <Button
@@ -33,38 +33,43 @@ const TodayDeparturesList = ({ departures, onBatchCheckOut, isLoading, hasError 
           </Button>
         }
       >
-        <ListBody
-          items={departures}
-          emptyMessage="No departures scheduled today."
-          hasError={hasError}
-        />
+        <ListBody items={departures} hasError={hasError} />
       </TodaySection>
     </TodayCard>
   );
 };
 
-const ListBody = ({ items, emptyMessage, hasError }) => {
+const ListBody = ({ items, hasError }) => {
   if (hasError) {
     return (
       <div
-        className="rounded-lg border p-[var(--bb-space-4,1rem)]"
+        className="rounded-xl border p-[var(--bb-space-4,1rem)] text-center"
         style={{
           backgroundColor: 'rgba(239, 68, 68, 0.08)',
           borderColor: 'rgba(239, 68, 68, 0.2)',
           color: 'var(--bb-color-status-negative)',
         }}
       >
-        Unable to load departures.
+        <AlertCircle className="mx-auto mb-2 h-6 w-6" />
+        <p className="font-medium">Unable to load departures</p>
+        <p className="text-sm opacity-80">Please refresh the page</p>
       </div>
     );
   }
 
   if (!items.length) {
     return (
-      <div className="py-[var(--bb-space-12,3rem)] text-center">
-        <UserX className="mx-auto mb-3 h-12 w-12 text-amber-500 opacity-20" />
-        <p className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] text-[color:var(--bb-color-text-muted)]">
-          {emptyMessage}
+      <div className="py-[var(--bb-space-10,2.5rem)] text-center">
+        <div className="relative mx-auto mb-4 h-16 w-16">
+          <div className="absolute inset-0 rounded-full bg-amber-100 dark:bg-amber-900/30" />
+          <LogOut className="absolute inset-0 m-auto h-8 w-8 text-amber-500 dark:text-amber-400" />
+          <Heart className="absolute -top-1 -right-1 h-5 w-5 text-rose-400" />
+        </div>
+        <p className="text-[var(--bb-font-size-base,1rem)] font-semibold text-[color:var(--bb-color-text-primary)]">
+          No pets departing today
+        </p>
+        <p className="mt-1 text-[var(--bb-font-size-sm,0.875rem)] text-[color:var(--bb-color-text-muted)]">
+          Everyone's staying cozy! 🏠
         </p>
       </div>
     );
@@ -84,10 +89,8 @@ const DepartureRow = ({ booking }) => {
 
   return (
     <div
-      className="flex items-center gap-[var(--bb-space-3,0.75rem)] rounded-lg p-[var(--bb-space-3,0.75rem)] transition-colors"
-      style={{
-        backgroundColor: 'var(--bb-color-bg-elevated)',
-      }}
+      className="flex items-center gap-[var(--bb-space-3,0.75rem)] rounded-xl p-[var(--bb-space-3,0.75rem)] transition-all hover:shadow-sm cursor-pointer"
+      style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
     >
       <PetAvatar
         pet={booking.pet || { name: booking.petName }}
@@ -96,7 +99,7 @@ const DepartureRow = ({ booking }) => {
       />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
-          <p className="truncate text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)] text-[color:var(--bb-color-text-primary)]">
+          <p className="truncate text-[var(--bb-font-size-sm,0.875rem)] font-semibold text-[color:var(--bb-color-text-primary)]">
             {booking.petName || booking.pet?.name}
           </p>
           <Badge variant="warning" className="shrink-0 text-xs">
@@ -113,7 +116,7 @@ const DepartureRow = ({ booking }) => {
         )}
       </div>
       {booking.hasExpiringVaccinations && (
-        <AlertCircle className="h-4 w-4 shrink-0 text-amber-500" />
+        <AlertCircle className="h-4 w-4 shrink-0 text-amber-500" title="Expiring vaccinations" />
       )}
     </div>
   );
@@ -130,4 +133,3 @@ const formatTime = (dateString) => {
 };
 
 export default TodayDeparturesList;
-

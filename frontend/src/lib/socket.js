@@ -19,9 +19,6 @@ const WEBSOCKET_ENABLED = import.meta.env.VITE_WEBSOCKET_ENABLED === 'true' || f
  */
 export const initSocket = (token) => {
   if (!WEBSOCKET_ENABLED) {
-    if (import.meta.env.DEV) {
-      console.warn('[WebSocket] Disabled - Backend not implemented yet');
-    }
     return null;
   }
 
@@ -34,7 +31,6 @@ export const initSocket = (token) => {
     socketInstance = new WebSocket(wsUrl);
 
     socketInstance.onopen = () => {
-      console.log('[WebSocket] Connected');
       reconnectAttempts = 0;
 
       // Send authentication
@@ -61,14 +57,12 @@ export const initSocket = (token) => {
     };
 
     socketInstance.onclose = () => {
-      console.log('[WebSocket] Disconnected');
       triggerEvent('disconnect');
       socketInstance = null;
 
       // Attempt reconnection
       if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
         reconnectAttempts++;
-        console.log(`[WebSocket] Reconnecting... (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
         reconnectTimer = setTimeout(() => {
           initSocket(token);
         }, RECONNECT_DELAY);
@@ -97,7 +91,6 @@ export const getSocket = () => {
  */
 export const sendMessage = (type, data) => {
   if (!socketInstance || socketInstance.readyState !== WebSocket.OPEN) {
-    console.warn('[WebSocket] Cannot send message - not connected');
     return false;
   }
 
@@ -146,9 +139,8 @@ const handleMessage = (message) => {
       triggerEvent('conflict', data);
       break;
     default:
-      if (import.meta.env.DEV) {
-        console.log('[WebSocket] Unhandled message type:', type);
-      }
+      // Unhandled message type
+      break;
   }
 };
 

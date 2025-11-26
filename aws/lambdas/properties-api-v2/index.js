@@ -13,9 +13,9 @@
 // Phase 5 will migrate v1 CRUD flows into this Lambda and decommission the legacy handler.
 // Until then, avoid collapsing routes; follow docs/PROPERTIES_CONSOLIDATION_PLAN.md for timing.
 
-const { getPool } = require('/opt/nodejs');
-const { getTenantIdFromEvent } = require('/opt/nodejs');
-const { v4: uuidv4 } = require('uuid');
+const { getPool, getTenantIdFromEvent, getJWTValidator } = require('/opt/nodejs');
+const crypto = require('crypto');
+const uuidv4 = () => crypto.randomUUID();
 const propertySerializer = require('./serializers/property-serializer');
 const dependenciesHandler = require('./handlers/dependencies');
 const cascadeOperationsHandler = require('./handlers/cascade-operations');
@@ -23,7 +23,32 @@ const {
   getSecureHeaders,
   errorResponse,
   successResponse,
-} = require('../shared/security-utils');
+} = require('/opt/nodejs/security-utils');
+
+// Extract user info with JWT fallback validation
+async function getUserInfoFromEvent(event) {
+    const claims = event?.requestContext?.authorizer?.jwt?.claims;
+    if (claims && claims.sub) {
+        console.log('[AUTH] Using API Gateway JWT claims');
+        return { sub: claims.sub, email: claims.email, tenantId: claims['custom:tenantId'] || claims.tenantId };
+    }
+
+    console.log('[AUTH] No API Gateway claims, falling back to manual JWT validation');
+    const authHeader = event?.headers?.authorization || event?.headers?.Authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return null;
+    }
+
+    try {
+        const jwtValidator = getJWTValidator();
+        const validationResult = await jwtValidator.validateToken(authHeader.substring(7));
+        const userInfo = jwtValidator.extractUserInfo(validationResult.decoded, validationResult.tokenType);
+        return { sub: userInfo.userId, email: userInfo.email, tenantId: userInfo.tenantId };
+    } catch (error) {
+        console.error('[AUTH] JWT validation failed:', error.message);
+        return null;
+    }
+}
 
 const API_HEADERS = {
   'X-API-Version': 'v2',
@@ -102,9 +127,12 @@ exports.handler = async (event) => {
     return fail(event, 401, { error: 'Missing tenant context' });
   }
 
-  // Extract user ID
-  const claims = event?.requestContext?.authorizer?.jwt?.claims || {};
-  const userId = claims['sub'] || null;
+  // Extract user info with JWT fallback
+  const userInfo = await getUserInfoFromEvent(event);
+  const userId = userInfo?.sub || null;
+
+  // Legacy mode is no longer supported - v2 handles all properties
+  const isLegacyMode = false;
 
   try {
     

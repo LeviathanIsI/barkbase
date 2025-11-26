@@ -3,6 +3,9 @@ import { Construct } from 'constructs';
 import * as apigwv2 from 'aws-cdk-lib/aws-apigatewayv2';
 import * as apigwAuthorizers from 'aws-cdk-lib/aws-apigatewayv2-authorizers';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
+import * as apigw from "aws-cdk-lib/aws-apigatewayv2";
+import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
+import * as lambda from "aws-cdk-lib/aws-lambda";
 
 export interface ApiCoreStackProps extends cdk.StackProps {
   stage: string;
@@ -51,6 +54,61 @@ export class ApiCoreStack extends cdk.Stack {
         allowCredentials: true,
       },
     });
+    const httpApi = this.httpApi;
+
+    // --- Auth API wiring (Barkbase-ServicesStack-dev → Barkbase-ApiCoreStack-dev) ---
+
+    const authFnArn = cdk.Fn.importValue(
+      "Barkbase-ServicesStack-dev:ExportsOutputFnGetAttAuthApiFunction31FCF8B8ArnAEE430B2"
+    );
+
+    const authFunction = lambda.Function.fromFunctionAttributes(
+      this,
+      "AuthApiFunctionImported",
+      {
+        functionArn: authFnArn,
+        // Ensure CDK can attach invoke permissions for this HttpApi
+        sameEnvironment: true,
+      }
+    );
+
+    const authIntegration = new HttpLambdaIntegration(
+      "AuthApiHttpIntegration",
+      authFunction
+    );
+
+    // register all auth routes
+    httpApi.addRoutes({
+      path: "/api/v1/auth/login",
+      methods: [apigw.HttpMethod.POST],
+      integration: authIntegration,
+    });
+
+    httpApi.addRoutes({
+      path: "/api/v1/auth/signup",
+      methods: [apigw.HttpMethod.POST],
+      integration: authIntegration,
+    });
+
+    httpApi.addRoutes({
+      path: "/api/v1/auth/refresh",
+      methods: [apigw.HttpMethod.POST],
+      integration: authIntegration,
+    });
+
+    httpApi.addRoutes({
+      path: "/api/v1/auth/logout",
+      methods: [apigw.HttpMethod.POST],
+      integration: authIntegration,
+    });
+
+    httpApi.addRoutes({
+      path: "/api/v1/auth/register",
+      methods: [apigw.HttpMethod.POST],
+      integration: authIntegration,
+    });
+
+    // --- End auth wiring ---
 
     // Optional Cognito authorizer – created only when both resources are passed in
     if (props.userPool && props.userPoolClient) {

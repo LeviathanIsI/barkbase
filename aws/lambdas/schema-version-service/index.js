@@ -9,7 +9,7 @@ const { getTenantIdFromEvent } = require('/opt/nodejs');
 
 exports.handler = async (event) => {
 
-  const { httpMethod: method, path } = event.requestContext.http;
+  const { method, path } = event.requestContext.http;
   const pathParams = event.pathParameters || {};
   const queryParams = event.queryStringParameters || {};
   const body = event.body ? JSON.parse(event.body) : {};

@@ -43,7 +43,6 @@ export class RealtimeClient {
     )}`;
 
     try {
-      console.log('[Realtime] Connecting WS to', wsUrl);
       this.ws = new WebSocket(wsUrl);
       this.ws.onopen = () => {
         this.backoff = 1000;

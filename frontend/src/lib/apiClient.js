@@ -107,11 +107,13 @@ const ensureAuthorized = async (response) => {
 };
 
 const logRequest = (method, url, tenantId) => {
-  console.log(`[FRONTEND API DEBUG] Calling: ${method} ${url} as tenant=${tenantId || 'unknown'}`);
+  // Debug logging disabled - uncomment for troubleshooting
+  // console.log(`[FRONTEND API DEBUG] Calling: ${method} ${url} as tenant=${tenantId || 'unknown'}`);
 };
 
 const logResponse = (status, data) => {
-  console.log(`[FRONTEND API DEBUG] Result: ${status} | Data type: ${typeof data}`);
+  // Debug logging disabled - uncomment for troubleshooting
+  // console.log(`[FRONTEND API DEBUG] Result: ${status} | Data type: ${typeof data}`);
 };
 
 const parseResponse = async (res) => {
@@ -169,7 +171,7 @@ export const uploadClient = async (endpoint, formData) => {
 // Lightweight REST helpers for feature APIs that call concrete endpoints
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL_UNIFIED
   || import.meta.env.VITE_API_BASE_URL
-  || 'https://smvidb1rd0.execute-api.us-east-2.amazonaws.com';
+  || 'https://ejxp74eyhe.execute-api.us-east-2.amazonaws.com';
 
 const buildUrl = (path, params) => {
   const url = new URL(path, API_BASE_URL);

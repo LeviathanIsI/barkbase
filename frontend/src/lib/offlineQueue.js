@@ -56,7 +56,6 @@ export async function queueOperation(operation) {
     const request = store.add(operationWithMeta);
 
     request.onsuccess = () => {
-      console.log('Operation queued:', operation.type);
       resolve(request.result);
     };
     request.onerror = () => reject(request.error);
@@ -111,7 +110,6 @@ export async function deleteOperation(id) {
     const request = store.delete(id);
 
     request.onsuccess = () => {
-      console.log('Operation removed from queue:', id);
       resolve();
     };
     request.onerror = () => reject(request.error);
@@ -131,7 +129,6 @@ export async function clearAllOperations() {
     const request = store.clear();
 
     request.onsuccess = () => {
-      console.log('All operations cleared');
       resolve();
     };
     request.onerror = () => reject(request.error);
