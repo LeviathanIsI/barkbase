@@ -1572,34 +1572,54 @@ function DocumentsTab({ pet, onUpdatePet }) {
     }
   };
 
-  const getSignedUrl = async (key) => {
+  const getSignedUrl = async (key, forceDownload = false) => {
     const { post } = await import('@/lib/apiClient');
-    const { data } = await post('/api/v1/download-url', { key });
+    const { data } = await post('/api/v1/download-url', { key, forceDownload });
     return data?.downloadUrl;
   };
 
-  const handleDownload = async (doc) => {
+  // Open file in new tab for viewing (PDFs, images, text files)
+  const handleOpenExternal = async (doc) => {
     try {
-      // Prefer direct URL if available (CloudFront), otherwise get signed URL
       if (doc.url && doc.url.startsWith('http')) {
         window.open(doc.url, '_blank');
       } else if (doc.key) {
-        const downloadUrl = await getSignedUrl(doc.key);
-        if (downloadUrl) {
-          window.open(downloadUrl, '_blank');
+        const viewUrl = await getSignedUrl(doc.key, false);
+        if (viewUrl) {
+          window.open(viewUrl, '_blank');
         } else {
-          toast.error('Could not generate download link');
+          toast.error('Could not generate view link');
         }
       }
     } catch (err) {
-      console.error('Error getting download URL:', err);
-      toast.error('Download link not available');
+      console.error('Error getting view URL:', err);
+      toast.error('View link not available');
     }
   };
 
-  const handleOpenExternal = async (doc) => {
-    // Same as download - open in new tab
-    await handleDownload(doc);
+  // Force download the file
+  const handleDownload = async (doc) => {
+    try {
+      if (doc.key) {
+        const downloadUrl = await getSignedUrl(doc.key, true);
+        if (downloadUrl) {
+          // Create a temporary link to trigger download
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = doc.name || 'document';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } else {
+          toast.error('Could not generate download link');
+        }
+      } else if (doc.url && doc.url.startsWith('http')) {
+        window.open(doc.url, '_blank');
+      }
+    } catch (err) {
+      console.error('Error downloading file:', err);
+      toast.error('Download failed');
+    }
   };
 
   const handleDeleteDocument = async (docToDelete) => {

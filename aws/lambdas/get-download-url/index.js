@@ -26,11 +26,15 @@ exports.handler = async (event) => {
 
         // Support both GET (query params) and POST (body)
         let fileKey;
+        let forceDownload = false;
+        
         if (event.httpMethod === 'POST' || event.requestContext?.http?.method === 'POST') {
             const body = JSON.parse(event.body || '{}');
             fileKey = body.key;
+            forceDownload = body.forceDownload === true;
         } else {
             fileKey = event.queryStringParameters?.key;
+            forceDownload = event.queryStringParameters?.forceDownload === 'true';
         }
 
         if (!fileKey) {
@@ -66,10 +70,20 @@ exports.handler = async (event) => {
             };
         }
 
-        const command = new GetObjectCommand({
+        // Extract filename from key for Content-Disposition header
+        const fileName = fileKey.split('/').pop();
+        
+        const commandOptions = {
             Bucket: BUCKET_NAME,
             Key: fileKey,
-        });
+        };
+        
+        // If forceDownload, set Content-Disposition to attachment to trigger browser download
+        if (forceDownload && fileName) {
+            commandOptions.ResponseContentDisposition = `attachment; filename="${fileName}"`;
+        }
+        
+        const command = new GetObjectCommand(commandOptions);
 
         const downloadUrl = await getSignedUrl(s3Client, command, {
             expiresIn: DOWNLOAD_EXPIRATION_SECONDS,

@@ -1,0 +1,6 @@
+     UID     PID    PPID  TTY        STIME COMMAND
+    Josh    1442       1 cons0    08:52:26 /usr/bin/bash --init-file e:\Users\Josh\AppData\Local\Programs\Microsoft VS Code\resources\app/out/vs/workbench/contrib/terminal/common/scripts/shellIntegration-bash.sh 
+    Josh    1617    1442 cons0    09:53:43 bash /c/Program Files/nodejs/npm run dev 
+    Josh    1487       1 cons1    08:52:29 /usr/bin/bash --init-file e:\Users\Josh\AppData\Local\Programs\Microsoft VS Code\resources\app/out/vs/workbench/contrib/terminal/common/scripts/shellIntegration-bash.sh 
+    Josh    1676    1487 cons1    11:13:55 PS D:barkbase-reactawscdk -f aws/scripts/migrations/001-add-pet-documents.sql 
+    Josh    1625    1617 cons0    09:53:43 "C:\Program Files\nodejs\node.exe" "C:\Program Files\nodejs/node_modules/npm/bin/npm-cli.js" run dev /wo 
