@@ -1572,30 +1572,34 @@ function DocumentsTab({ pet, onUpdatePet }) {
     }
   };
 
+  const getSignedUrl = async (key) => {
+    const { post } = await import('@/lib/apiClient');
+    const { data } = await post('/api/v1/download-url', { key });
+    return data?.downloadUrl;
+  };
+
   const handleDownload = async (doc) => {
-    if (doc.url) {
-      window.open(doc.url, '_blank');
-    } else if (doc.key) {
-      // Get a signed download URL from backend
-      try {
-        const { apiClient } = await import('@/lib/apiClient');
-        const { data } = await apiClient.post('/api/v1/download-url', { key: doc.key });
-        if (data?.downloadUrl) {
-          window.open(data.downloadUrl, '_blank');
+    try {
+      // Prefer direct URL if available (CloudFront), otherwise get signed URL
+      if (doc.url && doc.url.startsWith('http')) {
+        window.open(doc.url, '_blank');
+      } else if (doc.key) {
+        const downloadUrl = await getSignedUrl(doc.key);
+        if (downloadUrl) {
+          window.open(downloadUrl, '_blank');
         } else {
           toast.error('Could not generate download link');
         }
-      } catch (err) {
-        console.error('Error getting download URL:', err);
-        toast.error('Download link not available');
       }
+    } catch (err) {
+      console.error('Error getting download URL:', err);
+      toast.error('Download link not available');
     }
   };
 
-  const handleOpenExternal = (doc) => {
-    if (doc.url) {
-      window.open(doc.url, '_blank');
-    }
+  const handleOpenExternal = async (doc) => {
+    // Same as download - open in new tab
+    await handleDownload(doc);
   };
 
   const handleDeleteDocument = async (docToDelete) => {
