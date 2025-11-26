@@ -479,7 +479,7 @@ const createPet = async (event, tenantId) => {
     const {
         name, species, breed, birthdate, photoUrl,
         medicalNotes, dietaryNotes, behaviorFlags, status,
-        weight, allergies, lastVetVisit, nextAppointment
+        weight, allergies, lastVetVisit, nextAppointment, documents
     } = body;
 
     if (!name) {
@@ -491,14 +491,14 @@ const createPet = async (event, tenantId) => {
         `INSERT INTO "Pet" (
             "recordId", "tenantId", "name", "species", "breed", "birthdate",
             "photoUrl", "medicalNotes", "dietaryNotes", "behaviorFlags", "status",
-            "weight", "allergies", "lastVetVisit", "nextAppointment", "updatedAt"
+            "weight", "allergies", "lastVetVisit", "nextAppointment", "documents", "updatedAt"
         ) VALUES (
-            gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW()
+            gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW()
         ) RETURNING *`,
         [
             tenantId, name, species, breed, birthdate, photoUrl,
             medicalNotes, dietaryNotes, JSON.stringify(behaviorFlags || {}), status || 'active',
-            weight, allergies, lastVetVisit, nextAppointment
+            weight, allergies, lastVetVisit, nextAppointment, JSON.stringify(documents || [])
         ]
     );
 
@@ -518,13 +518,15 @@ const updatePet = async (event, tenantId) => {
     const updatableFields = [
         'name', 'species', 'breed', 'birthdate', 'photoUrl',
         'medicalNotes', 'dietaryNotes', 'behaviorFlags', 'status',
-        'weight', 'allergies', 'lastVetVisit', 'nextAppointment'
+        'weight', 'allergies', 'lastVetVisit', 'nextAppointment', 'documents'
     ];
 
     for (const field of updatableFields) {
         if (body[field] !== undefined) {
-            // Handle JSON fields
-            const value = (field === 'behaviorFlags') ? JSON.stringify(body[field]) : body[field];
+            // Handle JSON fields (behaviorFlags is object, documents is array)
+            const value = (field === 'behaviorFlags' || field === 'documents') 
+                ? JSON.stringify(body[field]) 
+                : body[field];
             fields.push(`"${field}" = $${paramCount++}`);
             values.push(value);
         }

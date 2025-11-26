@@ -1508,12 +1508,10 @@ function BookingsTab({ bookings, filter, onFilterChange, petId }) {
 // ============================================================================
 
 function DocumentsTab({ pet, onUpdatePet }) {
-  const [uploadedDocs, setUploadedDocs] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useState(null);
 
-  // Combine backend documents (if any) with locally uploaded ones
-  const allDocuments = [...(pet.documents || []), ...uploadedDocs];
+  // Use pet.documents from backend as the sole source of truth
+  const documents = pet.documents || [];
 
   const handleUploadClick = () => {
     // Create and trigger a file input
@@ -1544,37 +1542,27 @@ function DocumentsTab({ pet, onUpdatePet }) {
 
         const { key, publicUrl } = await uploadFile({
           file,
-          category: 'pet-documents',
+          category: `pet-documents/${pet.recordId}`,
         });
 
         const doc = {
-          recordId: `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           name: file.name,
           type: file.type.split('/')[1]?.toUpperCase() || 'FILE',
           url: publicUrl || key,
           key,
-          createdAt: new Date().toISOString(),
+          uploadedAt: new Date().toISOString(),
         };
 
         newDocs.push(doc);
       }
 
       if (newDocs.length > 0) {
-        setUploadedDocs(prev => [...prev, ...newDocs]);
+        // Persist documents to the pet record in the database
+        // The mutation will invalidate the pet query, refreshing pet.documents
+        await onUpdatePet({
+          documents: [...documents, ...newDocs],
+        });
         toast.success(`${newDocs.length} document${newDocs.length > 1 ? 's' : ''} uploaded successfully`);
-        
-        // Optionally update the pet record with the new documents
-        // Note: This requires backend support for storing documents on the pet model
-        if (onUpdatePet && typeof onUpdatePet === 'function') {
-          try {
-            await onUpdatePet({
-              documents: [...(pet.documents || []), ...newDocs],
-            });
-          } catch (err) {
-            // Documents uploaded to S3 but not saved to pet record
-            console.warn('Documents uploaded but could not be saved to pet record:', err);
-          }
-        }
       }
     } catch (error) {
       console.error('Document upload error:', error);
@@ -1584,19 +1572,40 @@ function DocumentsTab({ pet, onUpdatePet }) {
     }
   };
 
-  const handleDownload = (doc) => {
+  const handleDownload = async (doc) => {
     if (doc.url) {
       window.open(doc.url, '_blank');
     } else if (doc.key) {
-      // If only key is available, we'd need to get a download URL
-      // For now, just show an error
-      toast.error('Download link not available');
+      // Get a signed download URL from backend
+      try {
+        const { apiClient } = await import('@/lib/apiClient');
+        const { data } = await apiClient.post('/api/v1/download-url', { key: doc.key });
+        if (data?.downloadUrl) {
+          window.open(data.downloadUrl, '_blank');
+        } else {
+          toast.error('Could not generate download link');
+        }
+      } catch (err) {
+        console.error('Error getting download URL:', err);
+        toast.error('Download link not available');
+      }
     }
   };
 
   const handleOpenExternal = (doc) => {
     if (doc.url) {
       window.open(doc.url, '_blank');
+    }
+  };
+
+  const handleDeleteDocument = async (docToDelete) => {
+    try {
+      const updatedDocs = documents.filter(d => d.key !== docToDelete.key);
+      await onUpdatePet({ documents: updatedDocs });
+      toast.success('Document removed');
+    } catch (error) {
+      console.error('Failed to remove document:', error);
+      toast.error('Failed to remove document');
     }
   };
 
@@ -1623,7 +1632,7 @@ function DocumentsTab({ pet, onUpdatePet }) {
       </div>
 
       {/* Documents List */}
-      {allDocuments.length === 0 ? (
+      {documents.length === 0 ? (
         <div 
           className="text-center py-12 rounded-lg border-2 border-dashed"
           style={{ borderColor: 'var(--bb-color-border-subtle)' }}
@@ -1651,9 +1660,9 @@ function DocumentsTab({ pet, onUpdatePet }) {
         </div>
       ) : (
         <div className="space-y-2">
-          {allDocuments.map(doc => (
+          {documents.map((doc, idx) => (
             <div
-              key={doc.recordId || doc.key}
+              key={doc.key || idx}
               className="flex items-center justify-between p-4 border rounded-lg"
               style={{ borderColor: 'var(--bb-color-border-subtle)' }}
             >
@@ -1669,16 +1678,27 @@ function DocumentsTab({ pet, onUpdatePet }) {
                     {doc.name}
                   </p>
                   <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
-                    {doc.type} • Uploaded {safeFormatDate(doc.createdAt)}
+                    {doc.type} • Uploaded {safeFormatDate(doc.uploadedAt)}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button size="sm" variant="ghost" onClick={() => handleOpenExternal(doc)} title="Open in new tab">
-                  <ExternalLink className="w-4 h-4" />
-                </Button>
+                {doc.url && (
+                  <Button size="sm" variant="ghost" onClick={() => handleOpenExternal(doc)} title="Open in new tab">
+                    <ExternalLink className="w-4 h-4" />
+                  </Button>
+                )}
                 <Button size="sm" variant="ghost" onClick={() => handleDownload(doc)} title="Download">
                   <Download className="w-4 h-4" />
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  onClick={() => handleDeleteDocument(doc)} 
+                  title="Remove"
+                  className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                >
+                  <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
             </div>
