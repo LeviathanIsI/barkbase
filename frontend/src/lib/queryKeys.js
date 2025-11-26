@@ -40,4 +40,9 @@ export const queryKeys = {
   runs: (tenantKey, params = {}) => [tenantKey, 'runs', params],
   tasks: (tenantKey, params = {}) => [tenantKey, 'tasks', params],
   facilitySettings: (tenantKey) => [tenantKey, 'facility-settings'],
+  associations: (tenantKey, params = {}) => [tenantKey, 'associations', params],
+  notifications: {
+    unreadCount: (tenantKey) => [tenantKey, 'notifications', 'unread-count'],
+    list: (tenantKey, params = {}) => [tenantKey, 'notifications', 'list', params],
+  },
 };

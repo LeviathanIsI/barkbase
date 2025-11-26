@@ -215,6 +215,13 @@ exports.handler = async (event) => {
         if (httpMethod === 'GET' && path === '/api/v1/reports/departures') {
             return await getReportDepartures(event, tenantId);
         }
+        // Additional reports routes (aliases for dashboard endpoints)
+        if (httpMethod === 'GET' && path === '/api/v1/reports/today-pets') {
+            return await getTodaysPets(event, tenantId);
+        }
+        if (httpMethod === 'GET' && path === '/api/v1/reports/activity') {
+            return await getActivityFeed(event, tenantId);
+        }
 
         // ============================================
         // SCHEDULE ROUTES (from schedule-api)
@@ -224,6 +231,19 @@ exports.handler = async (event) => {
         }
         if (httpMethod === 'GET' && path === '/api/v1/schedule') {
             return await getSchedule(event, tenantId);
+        }
+
+        // ============================================
+        // CALENDAR ROUTES
+        // ============================================
+        if (httpMethod === 'GET' && path === '/api/v1/calendar/events') {
+            return await getCalendarEvents(event, tenantId);
+        }
+        if (httpMethod === 'GET' && path === '/api/v1/calendar') {
+            return await getCalendarEvents(event, tenantId);
+        }
+        if (httpMethod === 'GET' && path === '/api/v1/calendar/occupancy') {
+            return await getCalendarOccupancy(event, tenantId);
         }
 
         // No matching route
@@ -939,4 +959,248 @@ async function getSchedule(event, tenantId) {
     );
 
     return ok(event, 200, rows);
+}
+
+// ============================================
+// CALENDAR HANDLERS
+// ============================================
+
+/**
+ * GET /api/v1/calendar/events
+ * Aggregates events from bookings, runs, and tasks into a unified calendar format
+ */
+async function getCalendarEvents(event, tenantId) {
+    const pool = getPool();
+    const { start, end, from, to, types } = event.queryStringParameters || {};
+    
+    // Support both naming conventions (start/end or from/to)
+    const startDate = start || from;
+    const endDate = end || to;
+    
+    if (!startDate || !endDate) {
+        return fail(event, 400, { message: 'start and end query parameters are required' });
+    }
+    
+    // Parse types filter (default: all types)
+    const typeFilter = types ? types.split(',').map(t => t.trim().toLowerCase()) : ['bookings', 'runs', 'tasks'];
+    
+    const events = [];
+    
+    // 1. Fetch bookings as calendar events
+    if (typeFilter.includes('bookings') || typeFilter.includes('booking')) {
+        const bookingsResult = await pool.query(
+            `SELECT 
+                b."recordId",
+                b."checkIn",
+                b."checkOut",
+                b."status",
+                b."serviceType",
+                p."name" as "petName",
+                p."recordId" as "petId",
+                o."firstName" || ' ' || o."lastName" as "ownerName",
+                o."recordId" as "ownerId"
+             FROM "Booking" b
+             LEFT JOIN "Pet" p ON b."petId" = p."recordId"
+             LEFT JOIN "Owner" o ON b."ownerId" = o."recordId"
+             WHERE b."tenantId" = $1
+               AND b."checkIn"::date <= $3::date
+               AND b."checkOut"::date >= $2::date
+               AND b."status" NOT IN ('CANCELLED')
+             ORDER BY b."checkIn"`,
+            [tenantId, startDate, endDate]
+        );
+        
+        bookingsResult.rows.forEach(row => {
+            events.push({
+                id: row.recordId,
+                type: 'booking',
+                title: `${row.petName || 'Unknown Pet'} - ${row.serviceType || 'Boarding'}`,
+                start: row.checkIn,
+                end: row.checkOut,
+                allDay: true,
+                entityId: row.recordId,
+                petId: row.petId,
+                petName: row.petName,
+                ownerId: row.ownerId,
+                ownerName: row.ownerName,
+                status: row.status,
+                serviceType: row.serviceType
+            });
+        });
+    }
+    
+    // 2. Fetch runs/daycare sessions as calendar events
+    if (typeFilter.includes('runs') || typeFilter.includes('run')) {
+        try {
+            const runsResult = await pool.query(
+                `SELECT 
+                    r."recordId",
+                    r."name",
+                    r."date",
+                    r."startTime",
+                    r."endTime",
+                    r."status",
+                    rt."name" as "templateName",
+                    rt."maxCapacity",
+                    (
+                        SELECT COUNT(*)::int 
+                        FROM "Booking" b 
+                        WHERE b."runTemplateId" = r."runTemplateId" 
+                          AND b."checkIn"::date <= r."date"::date 
+                          AND b."checkOut"::date >= r."date"::date
+                          AND b."status" NOT IN ('CANCELLED')
+                    ) as "bookedCount"
+                 FROM "Run" r
+                 LEFT JOIN "RunTemplate" rt ON r."runTemplateId" = rt."recordId"
+                 WHERE r."tenantId" = $1
+                   AND r."date"::date >= $2::date
+                   AND r."date"::date <= $3::date
+                 ORDER BY r."date", r."startTime"`,
+                [tenantId, startDate, endDate]
+            );
+            
+            runsResult.rows.forEach(row => {
+                // Construct datetime from date and time
+                const startDateTime = row.startTime 
+                    ? `${row.date}T${row.startTime}` 
+                    : row.date;
+                const endDateTime = row.endTime 
+                    ? `${row.date}T${row.endTime}` 
+                    : row.date;
+                    
+                events.push({
+                    id: row.recordId,
+                    type: 'run',
+                    title: row.name || row.templateName || 'Run Session',
+                    start: startDateTime,
+                    end: endDateTime,
+                    allDay: !row.startTime,
+                    entityId: row.recordId,
+                    status: row.status,
+                    capacity: row.maxCapacity,
+                    bookedCount: row.bookedCount || 0
+                });
+            });
+        } catch (e) {
+            // Run table may not exist or have different schema
+            console.warn('[CALENDAR] Runs query failed:', e.message);
+        }
+    }
+    
+    // 3. Fetch tasks as calendar events
+    if (typeFilter.includes('tasks') || typeFilter.includes('task')) {
+        try {
+            const tasksResult = await pool.query(
+                `SELECT 
+                    t."recordId",
+                    t."type",
+                    t."scheduledFor",
+                    t."completedAt",
+                    t."priority",
+                    t."notes",
+                    t."relatedType",
+                    t."relatedId",
+                    p."name" as "petName"
+                 FROM "Task" t
+                 LEFT JOIN "Pet" p ON t."relatedType" = 'pet' AND t."relatedId" = p."recordId"
+                 WHERE t."tenantId" = $1
+                   AND t."scheduledFor"::date >= $2::date
+                   AND t."scheduledFor"::date <= $3::date
+                 ORDER BY t."scheduledFor"`,
+                [tenantId, startDate, endDate]
+            );
+            
+            tasksResult.rows.forEach(row => {
+                events.push({
+                    id: row.recordId,
+                    type: 'task',
+                    title: `${row.type}${row.petName ? ` - ${row.petName}` : ''}`,
+                    start: row.scheduledFor,
+                    end: row.scheduledFor,
+                    allDay: false,
+                    entityId: row.recordId,
+                    status: row.completedAt ? 'completed' : 'pending',
+                    priority: row.priority,
+                    relatedType: row.relatedType,
+                    relatedId: row.relatedId,
+                    petName: row.petName
+                });
+            });
+        } catch (e) {
+            // Task table may not exist
+            console.warn('[CALENDAR] Tasks query failed:', e.message);
+        }
+    }
+    
+    // Sort all events by start date
+    events.sort((a, b) => new Date(a.start) - new Date(b.start));
+    
+    return ok(event, 200, { events });
+}
+
+/**
+ * GET /api/v1/calendar/occupancy
+ * Returns daily occupancy percentages for a date range
+ */
+async function getCalendarOccupancy(event, tenantId) {
+    const pool = getPool();
+    const { start, end, from, to } = event.queryStringParameters || {};
+    
+    const startDate = start || from;
+    const endDate = end || to;
+    
+    if (!startDate || !endDate) {
+        return fail(event, 400, { message: 'start and end query parameters are required' });
+    }
+    
+    // Get total capacity from kennels or run templates
+    const capacityResult = await pool.query(
+        `SELECT 
+            COALESCE(
+                (SELECT SUM("maxCapacity") FROM "RunTemplate" WHERE "tenantId" = $1 AND "isActive" = true),
+                (SELECT COUNT(*) FROM "Kennel" WHERE "tenantId" = $1),
+                10
+            )::int as "totalCapacity"`,
+        [tenantId]
+    );
+    
+    const totalCapacity = capacityResult.rows[0]?.totalCapacity || 10;
+    
+    // Get occupancy for each day in range
+    const occupancyResult = await pool.query(
+        `WITH date_series AS (
+            SELECT generate_series(
+                $2::date,
+                $3::date,
+                '1 day'::interval
+            )::date AS date
+        )
+        SELECT
+            ds.date,
+            COUNT(DISTINCT b."recordId")::int as "occupied",
+            $4::int as "capacity",
+            ROUND(
+                COALESCE(COUNT(DISTINCT b."recordId")::numeric / NULLIF($4, 0) * 100, 0),
+                1
+            )::float as "percentage"
+        FROM date_series ds
+        LEFT JOIN "Booking" b ON
+            b."tenantId" = $1
+            AND b."checkIn"::date <= ds.date
+            AND b."checkOut"::date >= ds.date
+            AND b."status" NOT IN ('CANCELLED')
+        GROUP BY ds.date
+        ORDER BY ds.date`,
+        [tenantId, startDate, endDate, totalCapacity]
+    );
+    
+    return ok(event, 200, {
+        totalCapacity,
+        days: occupancyResult.rows.map(row => ({
+            date: row.date,
+            occupied: row.occupied,
+            capacity: row.capacity,
+            percentage: row.percentage
+        }))
+    });
 }

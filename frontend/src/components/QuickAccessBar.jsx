@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import apiClient from '@/lib/apiClient';
 import toast from 'react-hot-toast';
+import { useUnreadNotificationsCount } from '@/features/notifications/api';
 
 /**
  * QuickAccessBar Component
@@ -18,9 +19,8 @@ const QuickAccessBar = () => {
   const [searchResults, setSearchResults] = useState({ pets: [], owners: [], bookings: [] });
   const [isSearching, setIsSearching] = useState(false);
 
-  // Notification count placeholder
-  // NOTE: Backend notifications endpoint not implemented. Using placeholder value.
-  const notificationCount = 0;
+  // Fetch unread notification count from backend
+  const { data: notificationCount = 0 } = useUnreadNotificationsCount();
 
   // Global search function
   const performSearch = async (query) => {

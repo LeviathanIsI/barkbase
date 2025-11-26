@@ -608,6 +608,145 @@ exports.handler = async (event) => {
             }
         }
 
+        // ========== NOTIFICATIONS ROUTES (/api/v1/notifications) ==========
+        if (path.startsWith('/api/v1/notifications')) {
+            const userId = userInfo.sub;
+
+            // GET /api/v1/notifications/unread-count - Get unread notification count
+            if (httpMethod === 'GET' && path.endsWith('/unread-count')) {
+                try {
+                    const { rows } = await pool.query(
+                        `SELECT COUNT(*)::int as count 
+                         FROM "Notification" 
+                         WHERE "tenantId" = $1 
+                           AND ("userId" = $2 OR "userId" IS NULL)
+                           AND "isRead" = false`,
+                        [tenantId, userId]
+                    );
+                    return ok(event, 200, { unreadCount: rows[0]?.count || 0 });
+                } catch (e) {
+                    // Table may not exist yet - return 0
+                    console.log('[NOTIFICATIONS] Unread count query failed (table may not exist):', e.message);
+                    return ok(event, 200, { unreadCount: 0 });
+                }
+            }
+
+            // POST /api/v1/notifications/mark-read - Mark notifications as read
+            if (httpMethod === 'POST' && path.endsWith('/mark-read')) {
+                const { ids } = JSON.parse(event.body || '{}');
+                if (!ids || !Array.isArray(ids) || ids.length === 0) {
+                    return fail(event, 400, { message: 'ids array is required' });
+                }
+                try {
+                    const { rowCount } = await pool.query(
+                        `UPDATE "Notification" 
+                         SET "isRead" = true, "readAt" = NOW()
+                         WHERE "recordId" = ANY($1) 
+                           AND "tenantId" = $2 
+                           AND ("userId" = $3 OR "userId" IS NULL)`,
+                        [ids, tenantId, userId]
+                    );
+                    return ok(event, 200, { status: 'ok', updated: rowCount });
+                } catch (e) {
+                    console.error('[NOTIFICATIONS] Mark read failed:', e.message);
+                    return fail(event, 500, { message: 'Failed to mark notifications as read' });
+                }
+            }
+
+            // POST /api/v1/notifications/mark-all-read - Mark all notifications as read
+            if (httpMethod === 'POST' && path.endsWith('/mark-all-read')) {
+                try {
+                    const { rowCount } = await pool.query(
+                        `UPDATE "Notification" 
+                         SET "isRead" = true, "readAt" = NOW()
+                         WHERE "tenantId" = $1 
+                           AND ("userId" = $2 OR "userId" IS NULL)
+                           AND "isRead" = false`,
+                        [tenantId, userId]
+                    );
+                    return ok(event, 200, { status: 'ok', updated: rowCount });
+                } catch (e) {
+                    console.error('[NOTIFICATIONS] Mark all read failed:', e.message);
+                    return fail(event, 500, { message: 'Failed to mark all notifications as read' });
+                }
+            }
+
+            // GET /api/v1/notifications - List notifications
+            if (httpMethod === 'GET') {
+                const { limit = '50', offset = '0', unreadOnly = 'false' } = event.queryStringParameters || {};
+                try {
+                    let query = `
+                        SELECT * FROM "Notification" 
+                        WHERE "tenantId" = $1 
+                          AND ("userId" = $2 OR "userId" IS NULL)
+                    `;
+                    const params = [tenantId, userId];
+                    
+                    if (unreadOnly === 'true') {
+                        query += ` AND "isRead" = false`;
+                    }
+                    
+                    query += ` ORDER BY "createdAt" DESC LIMIT $3 OFFSET $4`;
+                    params.push(parseInt(limit), parseInt(offset));
+                    
+                    const { rows } = await pool.query(query, params);
+                    
+                    // Get total count
+                    let countQuery = `
+                        SELECT COUNT(*)::int as total FROM "Notification" 
+                        WHERE "tenantId" = $1 AND ("userId" = $2 OR "userId" IS NULL)
+                    `;
+                    if (unreadOnly === 'true') {
+                        countQuery += ` AND "isRead" = false`;
+                    }
+                    const countResult = await pool.query(countQuery, [tenantId, userId]);
+                    
+                    return ok(event, 200, { 
+                        items: rows.map(n => ({
+                            id: n.recordId,
+                            type: n.type,
+                            title: n.title,
+                            body: n.body,
+                            metadata: n.metadata,
+                            isRead: n.isRead,
+                            createdAt: n.createdAt,
+                            readAt: n.readAt
+                        })),
+                        total: countResult.rows[0]?.total || 0
+                    });
+                } catch (e) {
+                    console.log('[NOTIFICATIONS] List query failed (table may not exist):', e.message);
+                    return ok(event, 200, { items: [], total: 0 });
+                }
+            }
+
+            // POST /api/v1/notifications - Create notification (internal use)
+            if (httpMethod === 'POST' && !path.includes('/mark')) {
+                const { userId: targetUserId, type, title, body, metadata } = JSON.parse(event.body || '{}');
+                if (!title) {
+                    return fail(event, 400, { message: 'title is required' });
+                }
+                try {
+                    const { rows } = await pool.query(
+                        `INSERT INTO "Notification" ("recordId", "tenantId", "userId", "type", "title", "body", "metadata")
+                         VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6) RETURNING *`,
+                        [tenantId, targetUserId || null, type || 'system', title, body || null, JSON.stringify(metadata || {})]
+                    );
+                    return ok(event, 201, {
+                        id: rows[0].recordId,
+                        type: rows[0].type,
+                        title: rows[0].title,
+                        body: rows[0].body,
+                        isRead: rows[0].isRead,
+                        createdAt: rows[0].createdAt
+                    });
+                } catch (e) {
+                    console.error('[NOTIFICATIONS] Create failed:', e.message);
+                    return fail(event, 500, { message: 'Failed to create notification' });
+                }
+            }
+        }
+
         return fail(event, 404, { message: 'Not Found' });
 
     } catch (error) {

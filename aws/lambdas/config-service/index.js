@@ -1,5 +1,5 @@
 // Canonical Service:
-// Domain: Config (Tenants / Facility / Services / Account Defaults / Roles)
+// Domain: Config (Tenants / Facility / Services / Account Defaults / Roles / Associations)
 // This Lambda is the authoritative backend for this domain.
 // All NEW endpoints for this domain must be implemented here.
 // Do NOT add new logic or endpoints to legacy Lambdas for this domain.
@@ -274,6 +274,41 @@ exports.handler = async (event) => {
         if (path.startsWith('/api/v1/user-permissions')) {
             if (httpMethod === 'GET') {
                 return await getUserPermissions(event);
+            }
+        }
+
+        // ========== ASSOCIATIONS ROUTES ==========
+        if (path.startsWith('/api/v1/associations')) {
+            const associationId = event.pathParameters?.associationId || event.pathParameters?.id;
+            
+            // POST /api/v1/associations/seed - Seed system associations (dev only)
+            if (httpMethod === 'POST' && path.includes('/seed')) {
+                return await seedSystemAssociations(event, tenantId, userInfo);
+            }
+            
+            // GET /api/v1/associations - List all associations
+            if (httpMethod === 'GET' && !associationId) {
+                return await listAssociations(event, tenantId);
+            }
+            
+            // GET /api/v1/associations/{id} - Get single association
+            if (httpMethod === 'GET' && associationId) {
+                return await getAssociationById(event, tenantId, associationId);
+            }
+            
+            // POST /api/v1/associations - Create association
+            if (httpMethod === 'POST' && !associationId) {
+                return await createAssociation(event, tenantId, userInfo);
+            }
+            
+            // PUT /api/v1/associations/{id} - Update association
+            if (httpMethod === 'PUT' && associationId) {
+                return await updateAssociation(event, tenantId, associationId, userInfo);
+            }
+            
+            // DELETE /api/v1/associations/{id} - Archive/delete association
+            if (httpMethod === 'DELETE' && associationId) {
+                return await deleteAssociation(event, tenantId, associationId, userInfo);
             }
         }
 
@@ -877,4 +912,359 @@ async function getUserPermissions(event) {
         READONLY: ['*:read']
     };
     return ok(event, 200, permissions);
+}
+
+// ========================================
+// ASSOCIATIONS HANDLERS
+// ========================================
+
+/**
+ * List all association labels for a tenant
+ * GET /api/v1/associations?includeArchived=false&fromObjectType=pet&toObjectType=owner
+ */
+async function listAssociations(event, tenantId) {
+    const pool = getPool();
+    const { includeArchived, fromObjectType, toObjectType } = event.queryStringParameters || {};
+
+    let query = `
+        SELECT 
+            al.*,
+            COALESCE(
+                (SELECT COUNT(*) FROM "AssociationInstance" ai 
+                 WHERE ai."associationLabelId" = al."recordId"),
+                0
+            )::int AS "usageCount"
+        FROM "AssociationLabel" al
+        WHERE al."tenantId" = $1
+    `;
+    const params = [tenantId];
+    let paramCount = 2;
+
+    // Filter by archived status
+    if (includeArchived !== 'true') {
+        query += ` AND al."archived" = false`;
+    }
+
+    // Filter by fromObjectType
+    if (fromObjectType) {
+        query += ` AND al."fromObjectType" = $${paramCount}`;
+        params.push(fromObjectType);
+        paramCount++;
+    }
+
+    // Filter by toObjectType
+    if (toObjectType) {
+        query += ` AND al."toObjectType" = $${paramCount}`;
+        params.push(toObjectType);
+        paramCount++;
+    }
+
+    query += ` ORDER BY al."fromObjectType", al."toObjectType", al."label"`;
+
+    try {
+        const { rows } = await pool.query(query, params);
+        return ok(event, 200, rows);
+    } catch (error) {
+        // Table might not exist yet - return empty array
+        if (error.code === '42P01') {
+            console.log('[ASSOCIATIONS] Table does not exist yet, returning empty array');
+            return ok(event, 200, []);
+        }
+        throw error;
+    }
+}
+
+/**
+ * Get a single association label by ID
+ * GET /api/v1/associations/{id}
+ */
+async function getAssociationById(event, tenantId, associationId) {
+    const pool = getPool();
+
+    try {
+        const { rows } = await pool.query(
+            `SELECT 
+                al.*,
+                COALESCE(
+                    (SELECT COUNT(*) FROM "AssociationInstance" ai 
+                     WHERE ai."associationLabelId" = al."recordId"),
+                    0
+                )::int AS "usageCount"
+             FROM "AssociationLabel" al
+             WHERE al."recordId" = $1 AND al."tenantId" = $2`,
+            [associationId, tenantId]
+        );
+
+        if (rows.length === 0) {
+            return fail(event, 404, { message: 'Association not found' });
+        }
+
+        return ok(event, 200, rows[0]);
+    } catch (error) {
+        if (error.code === '42P01') {
+            return fail(event, 404, { message: 'Association not found' });
+        }
+        throw error;
+    }
+}
+
+/**
+ * Create a new association label
+ * POST /api/v1/associations
+ * Body: { label, reverseLabel, isPaired, fromObjectType, toObjectType, limitType }
+ */
+async function createAssociation(event, tenantId, userInfo) {
+    const pool = getPool();
+    const body = JSON.parse(event.body || '{}');
+    const {
+        label,
+        reverseLabel,
+        isPaired = false,
+        fromObjectType,
+        toObjectType,
+        limitType = 'MANY_TO_MANY'
+    } = body;
+
+    // Validation
+    if (!label || !label.trim()) {
+        return fail(event, 400, { message: 'Label is required' });
+    }
+    if (!fromObjectType || !toObjectType) {
+        return fail(event, 400, { message: 'fromObjectType and toObjectType are required' });
+    }
+    if (isPaired && (!reverseLabel || !reverseLabel.trim())) {
+        return fail(event, 400, { message: 'reverseLabel is required for paired associations' });
+    }
+
+    const validObjectTypes = ['pet', 'owner', 'booking', 'invoice', 'payment', 'ticket', 'service', 'package', 'kennel'];
+    if (!validObjectTypes.includes(fromObjectType) || !validObjectTypes.includes(toObjectType)) {
+        return fail(event, 400, { message: 'Invalid object type' });
+    }
+
+    const validLimitTypes = ['ONE_TO_ONE', 'ONE_TO_MANY', 'MANY_TO_MANY'];
+    if (!validLimitTypes.includes(limitType)) {
+        return fail(event, 400, { message: 'Invalid limitType. Must be ONE_TO_ONE, ONE_TO_MANY, or MANY_TO_MANY' });
+    }
+
+    try {
+        const { rows } = await pool.query(
+            `INSERT INTO "AssociationLabel" (
+                "recordId", "tenantId", "label", "reverseLabel", "isPaired",
+                "fromObjectType", "toObjectType", "limitType", "isSystemDefined", "archived"
+            ) VALUES (
+                gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, false, false
+            ) RETURNING *`,
+            [tenantId, label.trim(), isPaired ? reverseLabel?.trim() : null, isPaired, fromObjectType, toObjectType, limitType]
+        );
+
+        const association = rows[0];
+        association.usageCount = 0;
+
+        return ok(event, 201, association);
+    } catch (error) {
+        console.error('[ASSOCIATIONS] Create error:', error);
+        return fail(event, 500, { message: 'Failed to create association', error: error.message });
+    }
+}
+
+/**
+ * Update an association label
+ * PUT /api/v1/associations/{id}
+ * Body: { label, reverseLabel, isPaired, limitType }
+ */
+async function updateAssociation(event, tenantId, associationId, userInfo) {
+    const pool = getPool();
+    const body = JSON.parse(event.body || '{}');
+    const { label, reverseLabel, isPaired, limitType } = body;
+
+    // Check if association exists and belongs to tenant
+    const existingResult = await pool.query(
+        `SELECT * FROM "AssociationLabel" WHERE "recordId" = $1 AND "tenantId" = $2`,
+        [associationId, tenantId]
+    );
+
+    if (existingResult.rows.length === 0) {
+        return fail(event, 404, { message: 'Association not found' });
+    }
+
+    const existing = existingResult.rows[0];
+
+    // System associations can only have label and limitType updated
+    if (existing.isSystemDefined) {
+        const allowedUpdates = ['label', 'reverseLabel', 'limitType'];
+        const providedKeys = Object.keys(body);
+        const invalidKeys = providedKeys.filter(k => !allowedUpdates.includes(k) && body[k] !== undefined);
+        if (invalidKeys.length > 0) {
+            return fail(event, 400, { 
+                message: 'System associations can only have label, reverseLabel, and limitType updated' 
+            });
+        }
+    }
+
+    // Build update query
+    const updates = [];
+    const values = [associationId, tenantId];
+    let paramCount = 3;
+
+    if (label !== undefined) {
+        updates.push(`"label" = $${paramCount}`);
+        values.push(label.trim());
+        paramCount++;
+    }
+
+    if (reverseLabel !== undefined) {
+        updates.push(`"reverseLabel" = $${paramCount}`);
+        values.push(reverseLabel?.trim() || null);
+        paramCount++;
+    }
+
+    if (isPaired !== undefined) {
+        updates.push(`"isPaired" = $${paramCount}`);
+        values.push(isPaired);
+        paramCount++;
+    }
+
+    if (limitType !== undefined) {
+        const validLimitTypes = ['ONE_TO_ONE', 'ONE_TO_MANY', 'MANY_TO_MANY'];
+        if (!validLimitTypes.includes(limitType)) {
+            return fail(event, 400, { message: 'Invalid limitType' });
+        }
+        updates.push(`"limitType" = $${paramCount}`);
+        values.push(limitType);
+        paramCount++;
+    }
+
+    if (updates.length === 0) {
+        return fail(event, 400, { message: 'No valid fields to update' });
+    }
+
+    updates.push(`"updatedAt" = NOW()`);
+
+    const { rows } = await pool.query(
+        `UPDATE "AssociationLabel" 
+         SET ${updates.join(', ')}
+         WHERE "recordId" = $1 AND "tenantId" = $2
+         RETURNING *`,
+        values
+    );
+
+    const association = rows[0];
+    
+    // Get usage count
+    const countResult = await pool.query(
+        `SELECT COUNT(*)::int AS count FROM "AssociationInstance" WHERE "associationLabelId" = $1`,
+        [associationId]
+    );
+    association.usageCount = countResult.rows[0]?.count || 0;
+
+    return ok(event, 200, association);
+}
+
+/**
+ * Delete (archive) an association label
+ * DELETE /api/v1/associations/{id}
+ */
+async function deleteAssociation(event, tenantId, associationId, userInfo) {
+    const pool = getPool();
+
+    // Check if association exists
+    const existingResult = await pool.query(
+        `SELECT * FROM "AssociationLabel" WHERE "recordId" = $1 AND "tenantId" = $2`,
+        [associationId, tenantId]
+    );
+
+    if (existingResult.rows.length === 0) {
+        return fail(event, 404, { message: 'Association not found' });
+    }
+
+    const existing = existingResult.rows[0];
+
+    // System associations cannot be deleted
+    if (existing.isSystemDefined) {
+        return fail(event, 400, { message: 'System associations cannot be deleted' });
+    }
+
+    // Check if association has any instances
+    const instanceCount = await pool.query(
+        `SELECT COUNT(*) FROM "AssociationInstance" WHERE "associationLabelId" = $1`,
+        [associationId]
+    );
+
+    if (parseInt(instanceCount.rows[0].count) > 0) {
+        // Soft delete - archive it
+        await pool.query(
+            `UPDATE "AssociationLabel" SET "archived" = true, "updatedAt" = NOW() 
+             WHERE "recordId" = $1 AND "tenantId" = $2`,
+            [associationId, tenantId]
+        );
+        return ok(event, 200, { message: 'Association archived (has existing instances)' });
+    }
+
+    // Hard delete if no instances
+    await pool.query(
+        `DELETE FROM "AssociationLabel" WHERE "recordId" = $1 AND "tenantId" = $2`,
+        [associationId, tenantId]
+    );
+
+    return ok(event, 200, { message: 'Association deleted successfully' });
+}
+
+/**
+ * Seed system-defined association labels for a tenant
+ * POST /api/v1/associations/seed
+ */
+async function seedSystemAssociations(event, tenantId, userInfo) {
+    const pool = getPool();
+
+    // System associations that every tenant should have
+    const systemAssociations = [
+        { label: 'Owner', reverseLabel: 'Pet', isPaired: true, fromObjectType: 'pet', toObjectType: 'owner', limitType: 'MANY_TO_MANY' },
+        { label: 'Guest', reverseLabel: 'Booking', isPaired: true, fromObjectType: 'booking', toObjectType: 'pet', limitType: 'ONE_TO_MANY' },
+        { label: 'Customer', reverseLabel: 'Booking', isPaired: true, fromObjectType: 'booking', toObjectType: 'owner', limitType: 'ONE_TO_MANY' },
+        { label: 'Invoice', reverseLabel: 'Booking', isPaired: true, fromObjectType: 'booking', toObjectType: 'invoice', limitType: 'ONE_TO_ONE' },
+        { label: 'Payment', reverseLabel: 'Invoice', isPaired: true, fromObjectType: 'invoice', toObjectType: 'payment', limitType: 'ONE_TO_MANY' },
+        { label: 'Emergency Contact', reverseLabel: null, isPaired: false, fromObjectType: 'owner', toObjectType: 'owner', limitType: 'MANY_TO_MANY' },
+        { label: 'Family Member', reverseLabel: null, isPaired: false, fromObjectType: 'owner', toObjectType: 'owner', limitType: 'MANY_TO_MANY' },
+        { label: 'Authorized Pickup', reverseLabel: null, isPaired: false, fromObjectType: 'owner', toObjectType: 'owner', limitType: 'MANY_TO_MANY' },
+    ];
+
+    const created = [];
+    const skipped = [];
+
+    for (const assoc of systemAssociations) {
+        // Check if this system association already exists
+        const existing = await pool.query(
+            `SELECT "recordId" FROM "AssociationLabel" 
+             WHERE "tenantId" = $1 
+               AND "fromObjectType" = $2 
+               AND "toObjectType" = $3 
+               AND "label" = $4
+               AND "isSystemDefined" = true`,
+            [tenantId, assoc.fromObjectType, assoc.toObjectType, assoc.label]
+        );
+
+        if (existing.rows.length > 0) {
+            skipped.push(assoc.label);
+            continue;
+        }
+
+        // Create the system association
+        const result = await pool.query(
+            `INSERT INTO "AssociationLabel" (
+                "recordId", "tenantId", "label", "reverseLabel", "isPaired",
+                "fromObjectType", "toObjectType", "limitType", "isSystemDefined", "archived"
+            ) VALUES (
+                gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, true, false
+            ) RETURNING "label"`,
+            [tenantId, assoc.label, assoc.reverseLabel, assoc.isPaired, assoc.fromObjectType, assoc.toObjectType, assoc.limitType]
+        );
+
+        created.push(result.rows[0].label);
+    }
+
+    return ok(event, 200, {
+        message: 'System associations seeded',
+        created,
+        skipped
+    });
 }

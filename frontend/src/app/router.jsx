@@ -52,18 +52,6 @@ const TenantSettings = lazy(() =>
 );
 const Staff = lazy(() => import("@/features/staff/routes/Staff"));
 const Login = lazy(() => import("@/features/auth/routes/Login"));
-const HandlerFlows = lazy(() =>
-  import("@/features/handlerFlows/routes/HandlerFlows")
-);
-const HandlerFlowDetail = lazy(() =>
-  import("@/features/handlerFlows/routes/HandlerFlowDetail")
-);
-const HandlerRunDetail = lazy(() =>
-  import("@/features/handlerFlows/routes/HandlerRunDetail")
-);
-const WorkflowBuilder = lazy(() =>
-  import("@/features/handlerFlows/routes/WorkflowBuilder")
-);
 const SettingsLayout = lazy(() =>
   import("@/features/settings/components/SettingsLayout")
 );
@@ -252,8 +240,6 @@ export const router = createBrowserRouter([
       {
         element: <ProtectedRoute />,
         children: [
-          // Full-screen workflow builder (outside AppShell)
-          { path: "handler-flows/builder", element: <WorkflowBuilder /> },
           {
             element: (
               <>
@@ -292,14 +278,6 @@ export const router = createBrowserRouter([
               { path: "packages", element: <Packages /> },
               // Billing
               { path: "invoices", element: <Invoices /> },
-              // Automations
-              { path: "handler-flows", element: <HandlerFlows /> },
-              { path: "handler-flows/:flowId", element: <HandlerFlowDetail /> },
-              {
-                path: "handler-flows/runs/:runId",
-                element: <HandlerRunDetail />,
-              },
-              // Removed placeholder routes: follow-ups, webhooks, custom-code, tickets, knowledge-base, logs
               // Communication
               { path: "messages", element: <Messages /> },
               // Admin/Staff

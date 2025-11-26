@@ -27,6 +27,13 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // Discourage console.* except for warn/error (legitimate error reporting)
+      'no-console': [
+        'warn',
+        {
+          allow: ['warn', 'error'],
+        },
+      ],
       // Prevent importing from deprecated/duplicate component locations
       'no-restricted-imports': [
         'error',

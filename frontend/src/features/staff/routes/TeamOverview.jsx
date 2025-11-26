@@ -1241,7 +1241,6 @@ const TeamOverview = () => {
   };
 
   const handleAddStaffComplete = (data) => {
-    console.log('New staff:', data);
     setShowAddStaff(false);
   };
 

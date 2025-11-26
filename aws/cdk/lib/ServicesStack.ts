@@ -414,6 +414,7 @@ export class ServicesStack extends cdk.Stack {
         "/api/v1/communications",
         "/api/v1/invites",
         "/api/v1/segments",
+        "/api/v1/notifications",
       ];
 
       featuresBasePaths.forEach((pathName) => {
@@ -433,6 +434,7 @@ export class ServicesStack extends cdk.Stack {
         "/api/v1/communications/{proxy+}",
         "/api/v1/invites/{proxy+}",
         "/api/v1/segments/{proxy+}",
+        "/api/v1/notifications/{proxy+}",
       ];
 
       featuresProxyPaths.forEach((pathName) => {
@@ -551,6 +553,7 @@ export class ServicesStack extends cdk.Stack {
         "/api/v1/services",
         "/api/v1/account-defaults",
         "/api/v1/packages",
+        "/api/v1/associations",
       ].forEach((pathName) => {
         registerRoutes(
           `FacilityConfig${pathName.replace(/[^A-Za-z0-9]/g, "")}Root`,
@@ -564,6 +567,7 @@ export class ServicesStack extends cdk.Stack {
         "/api/v1/services/{proxy+}",
         "/api/v1/account-defaults/{proxy+}",
         "/api/v1/packages/{proxy+}",
+        "/api/v1/associations/{proxy+}",
       ].forEach((pathName) => {
         registerRoutes(
           `FacilityConfig${pathName.replace(/[^A-Za-z0-9]/g, "")}Proxy`,
@@ -813,8 +817,13 @@ export class ServicesStack extends cdk.Stack {
         "/api/v1/reports/occupancy",
         "/api/v1/reports/arrivals",
         "/api/v1/reports/departures",
+        "/api/v1/reports/today-pets",
+        "/api/v1/reports/activity",
         "/api/v1/schedule",
         "/api/v1/schedule/capacity",
+        "/api/v1/calendar",
+        "/api/v1/calendar/events",
+        "/api/v1/calendar/occupancy",
       ].forEach((pathName) => {
         registerRoutes(
           `Analytics${pathName.replace(/[^A-Za-z0-9]/g, "")}`,

@@ -87,6 +87,14 @@ export const canonicalEndpoints = {
     roles: '/api/v1/roles',
     userPermissions: '/api/v1/user-permissions',
   },
+  associations: {
+    list: '/api/v1/associations',
+    detail: build('/api/v1/associations/{id}'),
+    create: '/api/v1/associations',
+    update: build('/api/v1/associations/{id}'),
+    delete: build('/api/v1/associations/{id}'),
+    seed: '/api/v1/associations/seed',
+  },
   userProfile: {
     self: '/api/v1/users/profile',
     profiles: '/api/v1/profiles',

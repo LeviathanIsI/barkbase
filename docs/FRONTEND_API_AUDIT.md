@@ -15,8 +15,9 @@ This document captures every HTTP endpoint reference found under `frontend/src/`
   - `/api/v1/upload` (Profile photo upload) – backend exposes `/api/v1/upload-url` instead.
   - `/api/v1/notifications/unread-count` (QuickAccessBar) – no Lambda references.
   - `/api/v1/integrations/*`, `/api/v1/reports/email`, `/api/v1/payments/export/csv` in placeholder components – mock only.
-  - `/api/v1/handler-flows*` and `/api/v1/segments*` – no Lambdas; features are placeholders.
-  - `/api/associations` – disabled association designer stubs.
+  - `/api/v1/handler-flows*` – **REMOVED** (feature removed from current version).
+  - `/api/v1/segments*` – no Lambda; feature is placeholder.
+  - `/api/v1/associations` – **IMPLEMENTED** in config-service (list, create, update, delete, seed).
   - `/api/v1/calendar*` – commented-out experimental hooks.
   - Booking check-in calls use `/api/v1/bookings/{id}/check-in`, while `operations-service` currently matches `/checkin` (no hyphen); needs alignment before enabling guardrails.
 
@@ -106,7 +107,7 @@ Everything else traces back to canonical services (entity-service, operations-se
 | File | Function / Hook | Endpoint(s) | Status | Notes |
 | --- | --- | --- | --- | --- |
 | `frontend/src/features/settings/api.js` | `usePropertiesQuery`, `usePropertiesV2Query`, CRUD + archive/restore/dependency/impact hooks | `/api/v1/properties*` (CRUD) & `/api/v2/properties*` (advanced) | ⚠ Mixed | v1 still powers CRUD, v2 handles archive/dependency flows. TODO comments added per Phase 2 instructions. |
-| `frontend/src/features/settings/routes/PropertyDetail.jsx`, `frontend/src/features/handlerFlows/components/actionConfigs/FieldSetConfig.jsx`, `frontend/src/hooks/useProperties.js` | `loadPropertyDetail`, `useProperties`, etc. | `/api/v1/settings/properties*` | ✅ | These hit the config-service “settings” endpoints (canonical), distinct from the mixed `/api/v1/properties`. |
+| `frontend/src/features/settings/routes/PropertyDetail.jsx`, `frontend/src/hooks/useProperties.js` | `loadPropertyDetail`, `useProperties`, etc. | `/api/v1/settings/properties*` | ✅ | These hit the config-service "settings" endpoints (canonical), distinct from the mixed `/api/v1/properties`. |
 
 ## Settings & Configuration (Non-property)
 | File | Function / Hook | Endpoint(s) | Status | Notes |
@@ -126,9 +127,7 @@ Everything else traces back to canonical services (entity-service, operations-se
 | `frontend/src/features/settings/routes/Profile.jsx` | `handleProfilePhotoUpload` | `/api/v1/upload` | ⚠ Unknown | Should migrate to `/api/v1/upload-url` flow; backend lacks `/api/v1/upload`. |
 
 ## Handler Flows (Placeholder)
-| File | Function / Hook | Endpoint(s) | Status | Notes |
-| --- | --- | --- | --- | --- |
-| `frontend/src/features/handlerFlows/api.js` | `useHandlerFlowsQuery`, `usePublishFlowMutation`, `useValidateFlowMutation`, `useRunFlowMutation` | `/api/v1/handler-flows*` | ⚠ Unknown | No Lambda currently owns these endpoints; all mutations should remain disabled until a service exists. |
+> **Note:** The handler-flows feature has been removed from the current version of BarkBase and may return in a future release.
 
 ## Messaging / Segments / Integrations
 Covered above under Communications & Messaging and Payments placeholder sections.
@@ -146,7 +145,7 @@ Covered above under Communications & Messaging and Payments placeholder sections
 ### Key Follow-ups
 1. **Properties** – still mixed between `/api/v1/properties` and `/api/v2/properties`; TODO comments added where these calls originate.
 2. **Missing endpoints** – implement or retire:
-   - `/api/v1/errors/log`, `/api/v1/upload`, `/api/v1/notifications/unread-count`, `/api/v1/integrations/*`, `/api/v1/reports/email`, `/api/v1/handler-flows*`, `/api/v1/segments*`, `/api/associations`.
+   - `/api/v1/errors/log`, `/api/v1/upload`, `/api/v1/notifications/unread-count`, `/api/v1/integrations/*`, `/api/v1/reports/email`, `/api/v1/segments*`, `/api/associations`.
 3. **Booking check-in route** – align frontend and backend on either `/check-in` or `/checkin` before enforcing guardrails.
 4. **Guardrails** – `src/lib/canonicalEndpoints.ts` now documents that these constants are the only approved endpoints for new code, and it highlights the properties split until consolidation.
 

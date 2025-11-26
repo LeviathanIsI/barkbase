@@ -6,57 +6,98 @@ import { useAuthStore } from '@/stores/auth';
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
-// TODO: All functions in this file require dedicated Lambdas for calendar-specific logic.
-const disabledQuery = () => Promise.resolve(null);
-
-export const useCalendarViewQuery = ({ from, to }) => {
+/**
+ * Fetch calendar events for a date range
+ * Aggregates bookings, runs, and tasks into unified calendar events
+ */
+export const useCalendarEventsQuery = ({ start, end, types }) => {
   const tenantKey = useTenantKey();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
   
   return useQuery({
-    queryKey: queryKeys.calendar(tenantKey, { from, to }),
-    queryFn: disabledQuery, // apiClient.get(`/api/v1/calendar`, { params: { from, to } })
-    enabled: Boolean(from && to && isAuthenticated),
+    queryKey: queryKeys.calendar(tenantKey, { start, end, types }),
+    queryFn: async () => {
+      const params = { start, end };
+      if (types) params.types = types;
+      
+      const response = await apiClient.get('/api/v1/calendar/events', { params });
+      return response.data?.events || [];
+    },
+    enabled: Boolean(start && end && isAuthenticated),
     staleTime: 30 * 1000,
   });
 };
 
-export const useOccupancyQuery = ({ from, to }) => {
+/**
+ * Legacy alias for useCalendarEventsQuery
+ * Supports both 'from/to' and 'start/end' naming
+ */
+export const useCalendarViewQuery = ({ from, to, start, end }) => {
+  const startDate = start || from;
+  const endDate = end || to;
+  return useCalendarEventsQuery({ start: startDate, end: endDate });
+};
+
+/**
+ * Fetch occupancy data for a date range
+ */
+export const useOccupancyQuery = ({ from, to, start, end }) => {
   const tenantKey = useTenantKey();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  
+  const startDate = start || from;
+  const endDate = end || to;
 
   return useQuery({
-    queryKey: queryKeys.occupancy(tenantKey, { from, to }),
-    queryFn: disabledQuery, // apiClient(`/api/v1/calendar/occupancy?${params.toString()}`),
-    enabled: Boolean(from && to && isAuthenticated),
+    queryKey: queryKeys.occupancy(tenantKey, { start: startDate, end: endDate }),
+    queryFn: async () => {
+      const response = await apiClient.get('/api/v1/calendar/occupancy', {
+        params: { start: startDate, end: endDate }
+      });
+      return response.data;
+    },
+    enabled: Boolean(startDate && endDate && isAuthenticated),
     staleTime: 30 * 1000,
   });
 };
 
+/**
+ * Suggest kennel for a booking (stub - not yet implemented)
+ */
 export const useSuggestKennelQuery = (params, options = {}) => {
   const tenantKey = useTenantKey();
   return useQuery({
     queryKey: queryKeys.suggestKennel(tenantKey, params),
-    queryFn: disabledQuery, // apiClient(`/api/v1/calendar/suggest-kennel?${params.toString()}`),
-    enabled: false, // Disabled until backend is implemented
+    queryFn: async () => null, // Not implemented yet
+    enabled: false,
     staleTime: 60 * 1000,
   });
 };
 
+/**
+ * Assign kennel mutation (stub - not yet implemented)
+ */
 export const useAssignKennelMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: disabledQuery, // Custom logic needed
+    mutationFn: async () => {
+      throw new Error('Kennel assignment not yet implemented');
+    },
     onSuccess: () => {
       // invalidate queries
     },
   });
 };
 
+/**
+ * Reassign kennel mutation (stub - not yet implemented)
+ */
 export const useReassignKennelMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: disabledQuery, // Custom logic needed
+    mutationFn: async () => {
+      throw new Error('Kennel reassignment not yet implemented');
+    },
     onSuccess: () => {
       // invalidate queries
     },

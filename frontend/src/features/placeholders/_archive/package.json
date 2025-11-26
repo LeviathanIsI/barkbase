@@ -1,8 +1,0 @@
-{
-  "name": "@barkbase/placeholders-archive",
-  "version": "0.0.0",
-  "private": true,
-  "description": "Archived placeholder components - DO NOT IMPORT",
-  "sideEffects": false
-}
-

@@ -64,12 +64,7 @@ All paths below inherit the global nav (JumboHeader + JumboSidebar), QuickAccess
 
 ### Automations & Handler Flows
 
-| Path | Component | Notes |
-| --- | --- | --- |
-| `/handler-flows` | `HandlerFlows` | Automation runs list. |
-| `/handler-flows/:flowId` | `HandlerFlowDetail` | Flow overview. |
-| `/handler-flows/runs/:runId` | `HandlerRunDetail` | Execution detail. |
-| `/handler-flows/builder` | `WorkflowBuilder` | **Outside AppShell** full screen builder. |
+> **Note:** The handler-flows feature has been removed from the current version of BarkBase and may return in a future release.
 
 ### Messaging & Staff
 

@@ -110,7 +110,6 @@ const BulkImportModal = ({ isOpen, onClose, onImport }) => {
             </div>
           </div>
         </div>
-      </div>
     </Modal>
   );
 };

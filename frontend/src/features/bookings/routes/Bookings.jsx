@@ -341,7 +341,6 @@ const Bookings = () => {
 
   const handleEmptyCellClick = useCallback((runId, date) => {
     // Pre-populate booking wizard with run and date
-    console.log('Create booking for run:', runId, 'on date:', date);
     setShowNewBooking(true);
   }, []);
 
