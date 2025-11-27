@@ -12,8 +12,13 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import PetAvatar from '@/components/ui/PetAvatar';
 import { PageLoader, UpdateChip } from '@/components/PageLoader';
+import InlineEditableCell from '@/components/table/InlineEditableCell';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { usePetsQuery, useCreatePetMutation, useDeletePetMutation } from '../api';
+import apiClient from '@/lib/apiClient';
+import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import { useExpiringVaccinationsQuery } from '../api-vaccinations';
+import { useOwnersQuery } from '@/features/owners/api';
 import { PetFormModal } from '../components';
 import { cn } from '@/lib/cn';
 
@@ -27,16 +32,78 @@ const DEFAULT_VIEWS = [
   { id: 'cats', name: 'Cats Only', filters: { species: 'cat' } },
 ];
 
-// Column definitions with better sizing for full-width
+// Status options for inline editing
+const STATUS_OPTIONS = [
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
+];
+
+// Species options for inline editing
+const SPECIES_OPTIONS = [
+  { value: 'dog', label: 'Dog' },
+  { value: 'cat', label: 'Cat' },
+  { value: 'bird', label: 'Bird' },
+  { value: 'rabbit', label: 'Rabbit' },
+  { value: 'other', label: 'Other' },
+];
+
+// Column definitions with editable metadata
 const ALL_COLUMNS = [
-  { id: 'select', label: '', minWidth: 48, maxWidth: 48, align: 'center', sortable: false, hideable: false },
-  { id: 'pet', label: 'Pet', minWidth: 260, flex: 2, align: 'left', sortable: true, sortKey: 'name' },
-  { id: 'owner', label: 'Owner', minWidth: 200, flex: 1.5, align: 'left', sortable: true, sortKey: 'ownerName' },
-  { id: 'status', label: 'Status', minWidth: 100, maxWidth: 120, align: 'center', sortable: true, sortKey: 'status' },
-  { id: 'vaccinations', label: 'Vaccinations', minWidth: 140, maxWidth: 160, align: 'center', sortable: true, sortKey: 'vaccinationStatus' },
-  { id: 'species', label: 'Species', minWidth: 100, maxWidth: 120, align: 'center', sortable: true, sortKey: 'species' },
-  { id: 'age', label: 'Age', minWidth: 80, maxWidth: 100, align: 'center', sortable: true, sortKey: 'age' },
-  { id: 'actions', label: '', minWidth: 100, maxWidth: 100, align: 'right', sortable: false, hideable: false },
+  { id: 'select', label: '', minWidth: 48, maxWidth: 48, align: 'center', sortable: false, hideable: false, editable: false },
+  { id: 'pet', label: 'Pet', minWidth: 260, flex: 2, align: 'left', sortable: true, sortKey: 'name', primary: true, editable: false },
+  { 
+    id: 'owner', 
+    label: 'Owner', 
+    minWidth: 200, 
+    flex: 1.5, 
+    align: 'left', 
+    sortable: true, 
+    sortKey: 'ownerName',
+    editable: true,
+    editorType: 'relationship',
+    editorOptions: { lookupType: 'owner', placeholder: 'No owner' },
+    accessor: (row) => row.ownerId,
+  },
+  { 
+    id: 'status', 
+    label: 'Status', 
+    minWidth: 100, 
+    maxWidth: 120, 
+    align: 'center', 
+    sortable: true, 
+    sortKey: 'status',
+    editable: true,
+    editorType: 'status',
+    editorOptions: { options: STATUS_OPTIONS },
+    accessor: (row) => row.status || 'active',
+  },
+  { id: 'vaccinations', label: 'Vaccinations', minWidth: 140, maxWidth: 160, align: 'center', sortable: true, sortKey: 'vaccinationStatus', editable: false },
+  { 
+    id: 'species', 
+    label: 'Species', 
+    minWidth: 100, 
+    maxWidth: 120, 
+    align: 'center', 
+    sortable: true, 
+    sortKey: 'species',
+    editable: true,
+    editorType: 'enum',
+    editorOptions: { options: SPECIES_OPTIONS },
+    accessor: (row) => row.species?.toLowerCase() || 'dog',
+  },
+  { 
+    id: 'age', 
+    label: 'Age', 
+    minWidth: 80, 
+    maxWidth: 100, 
+    align: 'center', 
+    sortable: true, 
+    sortKey: 'age',
+    editable: true,
+    editorType: 'number',
+    accessor: (row) => row.age,
+  },
+  { id: 'actions', label: '', minWidth: 100, maxWidth: 100, align: 'right', sortable: false, hideable: false, editable: false },
 ];
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
@@ -92,10 +159,53 @@ const Pets = () => {
   }, []);
 
   // Data fetching
+  const queryClient = useQueryClient();
   const { data: petsResult, isLoading, isFetching, error } = usePetsQuery();
   const pets = petsResult?.pets ?? [];
   const createPetMutation = useCreatePetMutation();
   const deletePetMutation = useDeletePetMutation();
+  
+  // Owners for relationship lookup
+  const { data: ownersResult, isLoading: ownersLoading } = useOwnersQuery();
+  const owners = ownersResult?.items ?? ownersResult ?? [];
+  
+  // Inline update mutation for editable cells
+  const inlineUpdateMutation = useMutation({
+    mutationFn: async ({ petId, field, value }) => {
+      const response = await apiClient.put(canonicalEndpoints.pets.detail(petId), { [field]: value });
+      return response.data;
+    },
+    onMutate: async ({ petId, field, value }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['pets'] });
+      
+      // Snapshot previous value
+      const previousPets = queryClient.getQueryData(['pets']);
+      
+      // Optimistically update the cache
+      queryClient.setQueryData(['pets'], (old) => {
+        if (!old?.pets) return old;
+        return {
+          ...old,
+          pets: old.pets.map((pet) =>
+            pet.recordId === petId ? { ...pet, [field]: value } : pet
+          ),
+        };
+      });
+      
+      return { previousPets };
+    },
+    onError: (err, variables, context) => {
+      // Roll back on error
+      if (context?.previousPets) {
+        queryClient.setQueryData(['pets'], context.previousPets);
+      }
+    },
+    onSettled: () => {
+      // Refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: ['pets'] });
+    },
+  });
   
   // Show skeleton only on initial load when there's no cached data
   const showSkeleton = isLoading && !petsResult?.pets;
@@ -282,6 +392,11 @@ const Pets = () => {
   const handleRowDoubleClick = useCallback((pet) => {
     navigate(`/pets/${pet.recordId}`);
   }, [navigate]);
+
+  // Inline field update handler
+  const handleInlineUpdateField = useCallback(async (petId, fieldName, value) => {
+    return inlineUpdateMutation.mutateAsync({ petId, field: fieldName, value });
+  }, [inlineUpdateMutation]);
 
   const hasActiveFilters = searchTerm || Object.keys(customFilters).length > 0 || activeView !== 'all';
 
@@ -564,6 +679,9 @@ const Pets = () => {
                         onEdit={() => navigate(`/pets/${pet.recordId}`)}
                         onDelete={() => deletePetMutation.mutate(pet.recordId)}
                         isEven={index % 2 === 0}
+                        onUpdateField={handleInlineUpdateField}
+                        owners={owners}
+                        ownersLoading={ownersLoading}
                       />
                     ))}
                   </tbody>
@@ -699,11 +817,33 @@ const VaccinationBadge = ({ status }) => {
 };
 
 // Pet Row Component
-const PetRow = ({ pet, columns, isSelected, onSelect, onDoubleClick, onView, onEdit, onDelete, isEven }) => {
+const PetRow = ({ 
+  pet, 
+  columns, 
+  isSelected, 
+  onSelect, 
+  onDoubleClick, 
+  onView, 
+  onEdit, 
+  onDelete, 
+  isEven,
+  onUpdateField,
+  owners = [],
+  ownersLoading = false,
+}) => {
   const [showActions, setShowActions] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const actionsRef = useRef(null);
   const cellPadding = 'px-4 lg:px-6 py-3';
+  
+  // Prepare owner options for relationship editor
+  const ownerOptions = useMemo(() => 
+    owners.map(owner => ({
+      value: owner.recordId,
+      label: owner.name || `${owner.firstName || ''} ${owner.lastName || ''}`.trim() || 'Unknown',
+    })),
+    [owners]
+  );
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -742,33 +882,50 @@ const PetRow = ({ pet, columns, isSelected, onSelect, onDoubleClick, onView, onE
       case 'owner':
         return (
           <td key={column.id} className={cellPadding}>
-            {pet.ownerId ? (
-              <Link
-                to={`/customers/${pet.ownerId}`}
-                className="flex items-center gap-2 hover:text-[color:var(--bb-color-accent)] transition-colors"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold" style={{ backgroundColor: 'var(--bb-color-bg-elevated)', color: 'var(--bb-color-text-muted)' }}>
-                  <User className="h-4 w-4" />
-                </div>
-                <span className="text-[color:var(--bb-color-text-primary)]">{pet.ownerName}</span>
-              </Link>
-            ) : (
-              <span className="text-[color:var(--bb-color-text-muted)]">{pet.ownerName || 'No owner'}</span>
-            )}
+            <InlineEditableCell
+              row={pet}
+              column={column}
+              value={pet.ownerId}
+              displayValue={pet.ownerName}
+              onCommit={(newOwnerId) => onUpdateField(pet.recordId, 'ownerId', newOwnerId)}
+              lookupOptions={ownerOptions}
+              lookupLoading={ownersLoading}
+            >
+              {pet.ownerId ? (
+                <Link
+                  to={`/customers/${pet.ownerId}`}
+                  className="flex items-center gap-2 hover:text-[color:var(--bb-color-accent)] transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold" style={{ backgroundColor: 'var(--bb-color-bg-elevated)', color: 'var(--bb-color-text-muted)' }}>
+                    <User className="h-4 w-4" />
+                  </div>
+                  <span className="text-[color:var(--bb-color-text-primary)]">{pet.ownerName}</span>
+                </Link>
+              ) : (
+                <span className="text-[color:var(--bb-color-text-muted)]">{pet.ownerName || 'No owner'}</span>
+              )}
+            </InlineEditableCell>
           </td>
         );
       case 'status':
         return (
           <td key={column.id} className={cn(cellPadding, 'text-center')}>
-            <span className="inline-flex items-center gap-1.5">
-              <Badge variant={pet.status === 'active' ? 'success' : 'neutral'}>
-                {pet.status === 'active' ? 'Active' : 'Inactive'}
-              </Badge>
-              {pet.inFacility && (
-                <Badge variant="info">In Facility</Badge>
-              )}
-            </span>
+            <InlineEditableCell
+              row={pet}
+              column={column}
+              value={pet.status || 'active'}
+              onCommit={(newStatus) => onUpdateField(pet.recordId, 'status', newStatus)}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <Badge variant={pet.status === 'active' ? 'success' : 'neutral'}>
+                  {pet.status === 'active' ? 'Active' : 'Inactive'}
+                </Badge>
+                {pet.inFacility && (
+                  <Badge variant="info">In Facility</Badge>
+                )}
+              </span>
+            </InlineEditableCell>
           </td>
         );
       case 'vaccinations':
@@ -780,16 +937,30 @@ const PetRow = ({ pet, columns, isSelected, onSelect, onDoubleClick, onView, onE
       case 'species':
         return (
           <td key={column.id} className={cn(cellPadding, 'text-center')}>
-            <span className="inline-flex items-center gap-1.5">
-              <SpeciesIcon className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
-              <span className="text-[color:var(--bb-color-text-primary)] capitalize">{pet.species || 'Dog'}</span>
-            </span>
+            <InlineEditableCell
+              row={pet}
+              column={column}
+              value={pet.species?.toLowerCase() || 'dog'}
+              onCommit={(newSpecies) => onUpdateField(pet.recordId, 'species', newSpecies)}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <SpeciesIcon className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+                <span className="text-[color:var(--bb-color-text-primary)] capitalize">{pet.species || 'Dog'}</span>
+              </span>
+            </InlineEditableCell>
           </td>
         );
       case 'age':
         return (
           <td key={column.id} className={cn(cellPadding, 'text-center')}>
-            {pet.age ? `${pet.age} yr${pet.age !== 1 ? 's' : ''}` : '—'}
+            <InlineEditableCell
+              row={pet}
+              column={column}
+              value={pet.age}
+              onCommit={(newAge) => onUpdateField(pet.recordId, 'age', newAge)}
+            >
+              {pet.age ? `${pet.age} yr${pet.age !== 1 ? 's' : ''}` : '—'}
+            </InlineEditableCell>
           </td>
         );
       case 'actions':
