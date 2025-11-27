@@ -986,6 +986,28 @@ export class ServicesStack extends cdk.Stack {
           { integration: fallbackAuthIntegration }
         );
       });
+
+      // Session management routes
+      registerRoutes(
+        "AuthFallbackSessionsGet",
+        "/api/v1/auth/sessions",
+        [apigwv2.HttpMethod.GET],
+        { integration: fallbackAuthIntegration }
+      );
+
+      registerRoutes(
+        "AuthFallbackSessionsRevokeAll",
+        "/api/v1/auth/sessions/all",
+        [apigwv2.HttpMethod.DELETE],
+        { integration: fallbackAuthIntegration }
+      );
+
+      registerRoutes(
+        "AuthFallbackSessionsRevokeOne",
+        "/api/v1/auth/sessions/{sessionId}",
+        [apigwv2.HttpMethod.DELETE],
+        { integration: fallbackAuthIntegration }
+      );
     }
 
     registerLegacyExport(

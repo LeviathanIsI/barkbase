@@ -120,6 +120,24 @@ export class ApiCoreStack extends cdk.Stack {
       integration: authIntegration,
     });
 
+    httpApi.addRoutes({
+      path: "/api/v1/auth/sessions",
+      methods: [apigw.HttpMethod.GET],
+      integration: authIntegration,
+    });
+
+    httpApi.addRoutes({
+      path: "/api/v1/auth/sessions/all",
+      methods: [apigw.HttpMethod.DELETE],
+      integration: authIntegration,
+    });
+
+    httpApi.addRoutes({
+      path: "/api/v1/auth/sessions/{sessionId}",
+      methods: [apigw.HttpMethod.DELETE],
+      integration: authIntegration,
+    });
+
     // --- End auth wiring ---
 
     // Optional Cognito authorizer – created only when both resources are passed in

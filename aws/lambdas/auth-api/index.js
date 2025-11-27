@@ -1,6 +1,7 @@
 const { getPool } = require("/opt/nodejs");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const {
   CognitoIdentityProviderClient,
   InitiateAuthCommand,
@@ -315,6 +316,18 @@ async function handleAuthEvent(event) {
     console.log("[AuthApiRouter] -> changePassword");
     return await changePassword(event);
   }
+  if (httpMethod === "GET" && path === "/api/v1/auth/sessions") {
+    console.log("[AuthApiRouter] -> getSessions");
+    return await getSessions(event);
+  }
+  if (httpMethod === "DELETE" && path === "/api/v1/auth/sessions/all") {
+    console.log("[AuthApiRouter] -> revokeAllSessions");
+    return await revokeAllSessions(event);
+  }
+  if (httpMethod === "DELETE" && path.startsWith("/api/v1/auth/sessions/")) {
+    console.log("[AuthApiRouter] -> revokeSession");
+    return await revokeSession(event);
+  }
 
   console.warn(`[AuthApiRouter] No route for ${httpMethod} ${path}`);
   return createErrorResponse(404, "NOT_FOUND", "Not Found", event);
@@ -627,6 +640,22 @@ async function login(event) {
       );
     }
 
+    // Generate a session ID for tracking
+    const sessionId = crypto.randomUUID();
+
+    // Create session record in database
+    try {
+      await pool.query(
+        `INSERT INTO auth_session ("sessionId", "userId", "userAgent", "ipAddress", "createdAt", "lastActive", "isRevoked")
+         VALUES ($1, $2, $3, $4, NOW(), NOW(), FALSE)`,
+        [sessionId, user.recordId, metadata.userAgent || null, metadata.ip || null]
+      );
+      console.log(`[AUTH] Created session ${sessionId} for user ${user.recordId}`);
+    } catch (sessionErr) {
+      // Log but don't fail login if session tracking fails
+      console.error("[AUTH] Failed to create session record:", sessionErr.message);
+    }
+
     // Use Cognito tokens if available (RS256), otherwise create custom tokens (HS256)
     let accessToken, refreshToken;
 
@@ -639,12 +668,14 @@ async function login(event) {
       );
     } else {
       // Fallback to custom HS256 tokens for non-Cognito users
+      // Include sessionId in JWT claims for session tracking
       accessToken = jwt.sign(
         {
           sub: user.recordId,
           tenantId: tenant.recordId,
           membershipId: user.membershipId,
           role: user.role,
+          sessionId: sessionId,
         },
         JWT_SECRET_PRIMARY,
         { expiresIn: JWT_ACCESS_TTL }
@@ -655,6 +686,7 @@ async function login(event) {
           sub: user.recordId,
           tenantId: tenant.recordId,
           membershipId: user.membershipId,
+          sessionId: sessionId,
         },
         JWT_SECRET_PRIMARY,
         { expiresIn: JWT_REFRESH_TTL }
@@ -705,9 +737,16 @@ async function login(event) {
           plan: tenant.plan,
         },
         accessToken: accessToken, // Include for API Gateway Authorization header
+        sessionId: sessionId, // Include for session tracking
       },
       event
     );
+
+    // Add sessionId header for session tracking
+    response.headers = {
+      ...response.headers,
+      "x-session-id": sessionId,
+    };
 
     const responseWithCookies = withCookies(response, [
       accessTokenCookie,
@@ -1003,13 +1042,27 @@ async function refresh(event) {
 
     const membership = result.rows[0];
 
-    // Issue new access token
+    // Update session lastActive if sessionId exists in payload
+    const sessionId = payload.sessionId;
+    if (sessionId) {
+      try {
+        await pool.query(
+          `UPDATE auth_session SET "lastActive" = NOW() WHERE "sessionId" = $1 AND "isRevoked" = FALSE`,
+          [sessionId]
+        );
+      } catch (sessionErr) {
+        console.error("[AUTH] Failed to update session lastActive:", sessionErr.message);
+      }
+    }
+
+    // Issue new access token with sessionId preserved
     const accessToken = jwt.sign(
       {
         sub: membership.userId,
         tenantId: payload.tenantId,
         membershipId: membership.recordId,
         role: membership.role,
+        sessionId: sessionId || undefined,
       },
       JWT_SECRET_PRIMARY,
       { expiresIn: JWT_ACCESS_TTL }
@@ -1751,6 +1804,316 @@ async function changePassword(event) {
       {
         error: err,
         context: { action: "changePassword" },
+        event,
+      }
+    );
+  }
+}
+
+/**
+ * Get all active sessions for the current user
+ *
+ * @param {Object} event - Lambda event with JWT token
+ * @returns {Object} Lambda response with sessions array
+ */
+async function getSessions(event) {
+  const metadata = getRequestMetadata(event);
+
+  try {
+    // Extract access token to identify the user
+    const accessToken = extractAccessToken(event);
+
+    if (!accessToken) {
+      return errorResponse(
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "Unauthorized",
+        {},
+        event
+      );
+    }
+
+    // Verify the token and extract user info
+    let payload;
+    try {
+      payload = verifyJWT(accessToken);
+    } catch (tokenError) {
+      return errorResponse(
+        401,
+        ERROR_CODES.INVALID_TOKEN,
+        "Invalid or expired token",
+        {},
+        event
+      );
+    }
+
+    const userId = payload.sub;
+    const currentSessionId = payload.sessionId;
+
+    if (!userId) {
+      return errorResponse(
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "Unauthorized",
+        {},
+        event
+      );
+    }
+
+    const pool = getPool();
+
+    // Get all active sessions for this user
+    const result = await pool.query(
+      `SELECT "sessionId", "userAgent", "ipAddress", "createdAt", "lastActive"
+       FROM auth_session
+       WHERE "userId" = $1 AND "isRevoked" = FALSE
+       ORDER BY "lastActive" DESC`,
+      [userId]
+    );
+
+    const sessions = result.rows.map((row) => ({
+      sessionId: row.sessionId,
+      userAgent: row.userAgent,
+      ipAddress: row.ipAddress,
+      createdAt: row.createdAt,
+      lastActive: row.lastActive,
+      isCurrentSession: row.sessionId === currentSessionId,
+    }));
+
+    console.log(`[AUTH] Retrieved ${sessions.length} sessions for user ${userId}`);
+
+    return createSuccessResponse(200, sessions, event);
+  } catch (err) {
+    console.error("[AUTH] Get sessions error:", err);
+    return errorResponse(
+      500,
+      ERROR_CODES.INTERNAL_ERROR,
+      "Failed to retrieve sessions",
+      {
+        error: err,
+        context: { action: "getSessions" },
+        event,
+      }
+    );
+  }
+}
+
+/**
+ * Revoke a specific session by ID
+ *
+ * @param {Object} event - Lambda event with JWT token and session ID in path
+ * @returns {Object} Lambda response
+ */
+async function revokeSession(event) {
+  const metadata = getRequestMetadata(event);
+
+  try {
+    // Extract session ID from path
+    const path = event.rawPath || event.path;
+    const sessionIdToRevoke = path.split("/").pop();
+
+    if (!sessionIdToRevoke || sessionIdToRevoke === "sessions") {
+      return errorResponse(
+        400,
+        ERROR_CODES.MISSING_FIELDS,
+        "Session ID is required",
+        {},
+        event
+      );
+    }
+
+    // Extract access token to identify the user
+    const accessToken = extractAccessToken(event);
+
+    if (!accessToken) {
+      return errorResponse(
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "Unauthorized",
+        {},
+        event
+      );
+    }
+
+    // Verify the token and extract user info
+    let payload;
+    try {
+      payload = verifyJWT(accessToken);
+    } catch (tokenError) {
+      return errorResponse(
+        401,
+        ERROR_CODES.INVALID_TOKEN,
+        "Invalid or expired token",
+        {},
+        event
+      );
+    }
+
+    const userId = payload.sub;
+    const currentSessionId = payload.sessionId;
+
+    if (!userId) {
+      return errorResponse(
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "Unauthorized",
+        {},
+        event
+      );
+    }
+
+    // Prevent revoking the current session
+    if (sessionIdToRevoke === currentSessionId) {
+      return errorResponse(
+        400,
+        "AUTH_013",
+        "Cannot revoke your current session. Use logout instead.",
+        {},
+        event
+      );
+    }
+
+    const pool = getPool();
+
+    // Verify session belongs to user and revoke it
+    const result = await pool.query(
+      `UPDATE auth_session
+       SET "isRevoked" = TRUE
+       WHERE "sessionId" = $1 AND "userId" = $2 AND "isRevoked" = FALSE
+       RETURNING "sessionId"`,
+      [sessionIdToRevoke, userId]
+    );
+
+    if (result.rowCount === 0) {
+      return errorResponse(
+        404,
+        "AUTH_014",
+        "Session not found or already revoked",
+        {},
+        event
+      );
+    }
+
+    auditLog("SESSION_REVOKED", {
+      userId,
+      revokedSessionId: sessionIdToRevoke,
+      result: "SUCCESS",
+      ...metadata,
+    });
+
+    console.log(`[AUTH] Revoked session ${sessionIdToRevoke} for user ${userId}`);
+
+    return createSuccessResponse(200, { success: true }, event);
+  } catch (err) {
+    console.error("[AUTH] Revoke session error:", err);
+    return errorResponse(
+      500,
+      ERROR_CODES.INTERNAL_ERROR,
+      "Failed to revoke session",
+      {
+        error: err,
+        context: { action: "revokeSession" },
+        event,
+      }
+    );
+  }
+}
+
+/**
+ * Revoke all sessions except the current one
+ *
+ * @param {Object} event - Lambda event with JWT token
+ * @returns {Object} Lambda response
+ */
+async function revokeAllSessions(event) {
+  const metadata = getRequestMetadata(event);
+
+  try {
+    // Extract access token to identify the user
+    const accessToken = extractAccessToken(event);
+
+    if (!accessToken) {
+      return errorResponse(
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "Unauthorized",
+        {},
+        event
+      );
+    }
+
+    // Verify the token and extract user info
+    let payload;
+    try {
+      payload = verifyJWT(accessToken);
+    } catch (tokenError) {
+      return errorResponse(
+        401,
+        ERROR_CODES.INVALID_TOKEN,
+        "Invalid or expired token",
+        {},
+        event
+      );
+    }
+
+    const userId = payload.sub;
+    const currentSessionId = payload.sessionId;
+
+    if (!userId) {
+      return errorResponse(
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "Unauthorized",
+        {},
+        event
+      );
+    }
+
+    const pool = getPool();
+
+    // Revoke all sessions except the current one
+    let result;
+    if (currentSessionId) {
+      result = await pool.query(
+        `UPDATE auth_session
+         SET "isRevoked" = TRUE
+         WHERE "userId" = $1 AND "sessionId" != $2 AND "isRevoked" = FALSE
+         RETURNING "sessionId"`,
+        [userId, currentSessionId]
+      );
+    } else {
+      // If no current session ID, revoke all sessions
+      result = await pool.query(
+        `UPDATE auth_session
+         SET "isRevoked" = TRUE
+         WHERE "userId" = $1 AND "isRevoked" = FALSE
+         RETURNING "sessionId"`,
+        [userId]
+      );
+    }
+
+    const revokedCount = result.rowCount;
+
+    auditLog("ALL_SESSIONS_REVOKED", {
+      userId,
+      revokedCount,
+      currentSessionId,
+      result: "SUCCESS",
+      ...metadata,
+    });
+
+    console.log(`[AUTH] Revoked ${revokedCount} sessions for user ${userId}`);
+
+    return createSuccessResponse(200, { success: true, revokedCount }, event);
+  } catch (err) {
+    console.error("[AUTH] Revoke all sessions error:", err);
+    return errorResponse(
+      500,
+      ERROR_CODES.INTERNAL_ERROR,
+      "Failed to revoke sessions",
+      {
+        error: err,
+        context: { action: "revokeAllSessions" },
         event,
       }
     );

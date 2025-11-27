@@ -19,6 +19,48 @@ import { useUserProfileQuery, useUpdateUserProfileMutation } from '../api-user';
 import { useAuthStore } from '@/stores/auth';
 import { uploadFile } from '@/lib/apiClient';
 
+// Helper function to parse user agent string into readable device name
+const parseUserAgent = (ua) => {
+  if (!ua) return 'Unknown Device';
+  
+  // Detect browser
+  let browser = 'Unknown Browser';
+  if (ua.includes('Chrome') && !ua.includes('Edg')) browser = 'Chrome';
+  else if (ua.includes('Safari') && !ua.includes('Chrome')) browser = 'Safari';
+  else if (ua.includes('Firefox')) browser = 'Firefox';
+  else if (ua.includes('Edg')) browser = 'Edge';
+  else if (ua.includes('Opera') || ua.includes('OPR')) browser = 'Opera';
+  
+  // Detect OS
+  let os = '';
+  if (ua.includes('Windows')) os = 'Windows';
+  else if (ua.includes('Mac OS')) os = 'macOS';
+  else if (ua.includes('Linux')) os = 'Linux';
+  else if (ua.includes('Android')) os = 'Android';
+  else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
+  
+  return os ? `${browser} on ${os}` : browser;
+};
+
+// Helper function to format last active timestamp
+const formatLastActive = (timestamp) => {
+  if (!timestamp) return 'Unknown';
+  
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+  if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+  
+  return date.toLocaleDateString();
+};
+
 const Profile = () => {
   const { data: profile, isLoading, error } = useUserProfileQuery();
   const updateProfile = useUpdateUserProfileMutation();
@@ -84,23 +126,11 @@ const Profile = () => {
     numberFormat: 'us',
   });
 
-  // Active sessions (wire to session API)
-  const [activeSessions] = useState([
-    {
-      id: 1,
-      device: 'Chrome on Windows',
-      location: 'San Francisco, CA',
-      lastActive: 'Just now',
-      current: true,
-    },
-    {
-      id: 2,
-      device: 'Safari on iPhone',
-      location: 'Oakland, CA',
-      lastActive: '2 hours ago',
-      current: false,
-    },
-  ]);
+  // Active sessions state
+  const [activeSessions, setActiveSessions] = useState([]);
+  const [isLoadingSessions, setIsLoadingSessions] = useState(true);
+  const [isRevokingSession, setIsRevokingSession] = useState(null);
+  const [isRevokingAllSessions, setIsRevokingAllSessions] = useState(false);
 
   const [recentActivity] = useState([
     {
@@ -172,6 +202,32 @@ const Profile = () => {
       setAvatarPreview(null);
     }
   }, [profile, user]);
+
+  // Fetch active sessions
+  const fetchSessions = async () => {
+    setIsLoadingSessions(true);
+    try {
+      const response = await fetch('/api/v1/auth/sessions', {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setActiveSessions(data);
+      } else {
+        console.error('Failed to fetch sessions');
+        setActiveSessions([]);
+      }
+    } catch (error) {
+      console.error('Error fetching sessions:', error);
+      setActiveSessions([]);
+    } finally {
+      setIsLoadingSessions(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSessions();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -304,6 +360,9 @@ const Profile = () => {
 
   // Session handlers
   const handleSignOutSession = async (sessionId) => {
+    if (isRevokingSession) return;
+    
+    setIsRevokingSession(sessionId);
     try {
       const response = await fetch(`/api/v1/auth/sessions/${sessionId}`, {
         method: 'DELETE',
@@ -312,16 +371,24 @@ const Profile = () => {
       
       if (response.ok) {
         toast.success('Session signed out successfully');
+        // Refresh session list
+        await fetchSessions();
       } else {
-        throw new Error('Sign out failed');
+        const error = await response.json().catch(() => ({}));
+        toast.error(error.message || 'Failed to sign out session');
       }
     } catch (error) {
       console.error('Session sign out error:', error);
       toast.error('Failed to sign out session');
+    } finally {
+      setIsRevokingSession(null);
     }
   };
 
   const handleSignOutAllSessions = async () => {
+    if (isRevokingAllSessions) return;
+    
+    setIsRevokingAllSessions(true);
     try {
       const response = await fetch('/api/v1/auth/sessions/all', {
         method: 'DELETE',
@@ -330,12 +397,17 @@ const Profile = () => {
       
       if (response.ok) {
         toast.success('Signed out of all other sessions');
+        // Refresh session list
+        await fetchSessions();
       } else {
-        throw new Error('Sign out all failed');
+        const error = await response.json().catch(() => ({}));
+        toast.error(error.message || 'Failed to sign out all sessions');
       }
     } catch (error) {
       console.error('Sign out all sessions error:', error);
       toast.error('Failed to sign out all sessions');
+    } finally {
+      setIsRevokingAllSessions(false);
     }
   };
 
@@ -718,38 +790,59 @@ const Profile = () => {
       {/* Active Sessions */}
       <Card title="Active Sessions" description="View and manage devices where you're logged in">
         <div className="space-y-4">
-          {activeSessions.map((session) => (
-            <div key={session.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-surface-border rounded-lg">
-              <div className="flex items-center gap-3">
-                {session.current ? (
-                  <Monitor className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                ) : (
-                  <Smartphone className="w-5 h-5 text-gray-400 dark:text-text-tertiary" />
-                )}
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-text-primary">{session.device}</p>
-                  <p className="text-sm text-gray-600 dark:text-text-secondary">
-                    Last active: {session.lastActive} • {session.location}
-                    {session.current && ' (current session)'}
-                  </p>
-                </div>
-              </div>
-              {!session.current && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleSignOutSession(session.id)}
-                >
-                  Sign Out
-                </Button>
-              )}
+          {isLoadingSessions ? (
+            <div className="space-y-3">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
             </div>
-          ))}
-          <div className="pt-4 border-t border-gray-200 dark:border-surface-border">
-            <Button variant="outline" onClick={handleSignOutAllSessions}>
-              Sign Out All Other Sessions
-            </Button>
-          </div>
+          ) : activeSessions.length === 0 ? (
+            <p className="text-gray-500 dark:text-text-secondary text-center py-4">No active sessions found</p>
+          ) : (
+            activeSessions.map((session) => (
+              <div key={session.sessionId} className="flex items-center justify-between p-4 border border-gray-200 dark:border-surface-border rounded-lg">
+                <div className="flex items-center gap-3">
+                  {session.isCurrentSession ? (
+                    <Monitor className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  ) : (
+                    <Smartphone className="w-5 h-5 text-gray-400 dark:text-text-tertiary" />
+                  )}
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-text-primary flex items-center gap-2">
+                      {session.userAgent ? parseUserAgent(session.userAgent) : 'Unknown Device'}
+                      {session.isCurrentSession && (
+                        <Badge variant="success" className="text-xs">This Device</Badge>
+                      )}
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-text-secondary">
+                      Last active: {formatLastActive(session.lastActive)}
+                      {session.ipAddress && ` • ${session.ipAddress}`}
+                    </p>
+                  </div>
+                </div>
+                {!session.isCurrentSession && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSignOutSession(session.sessionId)}
+                    disabled={isRevokingSession === session.sessionId}
+                  >
+                    {isRevokingSession === session.sessionId ? 'Signing out...' : 'Sign Out'}
+                  </Button>
+                )}
+              </div>
+            ))
+          )}
+          {activeSessions.length > 1 && (
+            <div className="pt-4 border-t border-gray-200 dark:border-surface-border">
+              <Button 
+                variant="outline" 
+                onClick={handleSignOutAllSessions}
+                disabled={isRevokingAllSessions}
+              >
+                {isRevokingAllSessions ? 'Signing out...' : 'Sign Out All Other Sessions'}
+              </Button>
+            </div>
+          )}
         </div>
       </Card>
 
