@@ -1408,14 +1408,13 @@ const BookingRow = ({ booking, isSelected, onSelect, onClick, isEven }) => {
 
   return (
     <tr
-      className={cn('cursor-pointer transition-colors', isSelected && 'bg-[color:var(--bb-color-accent-soft)]')}
+      className={cn('transition-colors', isSelected && 'bg-[color:var(--bb-color-accent-soft)]')}
       style={{
         borderBottom: '1px solid var(--bb-color-border-subtle)',
         backgroundColor: !isSelected && isEven ? 'var(--bb-color-bg-surface)' : !isSelected ? 'var(--bb-color-bg-body)' : undefined,
       }}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
-      onClick={onClick}
     >
       <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
         <input
@@ -1426,12 +1425,19 @@ const BookingRow = ({ booking, isSelected, onSelect, onClick, isEven }) => {
         />
       </td>
       <td className="px-4 py-3">
-        <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity cursor-pointer"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClick();
+          }}
+        >
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold" style={{ backgroundColor: 'var(--bb-color-accent)', color: 'white' }}>
             <PawPrint className="h-4 w-4" />
           </div>
           <span className="font-medium text-[color:var(--bb-color-text-primary)]">{booking.petName}</span>
-        </div>
+        </button>
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
