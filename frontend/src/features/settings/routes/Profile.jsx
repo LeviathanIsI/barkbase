@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import {
   User, Mail, Phone, Globe, Clock, Save, RotateCcw, AlertTriangle,
-  Camera, Bell, Shield, Key, Monitor, Zap, Users, Activity,
-  Settings, Download, ExternalLink, HelpCircle, Calendar,
-  BarChart3, CreditCard, MessageSquare, BadgeCheck, Eye,
-  Smartphone, BellRing, BellOff, QrCode, MapPin, Trash2,
-  CheckCircle, X, ChevronRight, LogOut, Edit, Star
+  Camera, Shield, Key, Monitor, Activity,
+  Download, ExternalLink, HelpCircle, Calendar,
+  MessageSquare, BarChart3,
+  Smartphone, BellRing, QrCode, Trash2,
+  CheckCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Card } from '@/components/ui/Card';
@@ -17,14 +17,12 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/Alert';
 import PasswordStrength from '@/components/ui/PasswordStrength';
 import { useUserProfileQuery, useUpdateUserProfileMutation } from '../api-user';
 import { useAuthStore } from '@/stores/auth';
-import { useNavigate } from 'react-router-dom';
 import { uploadFile } from '@/lib/apiClient';
 
 const Profile = () => {
   const { data: profile, isLoading, error } = useUserProfileQuery();
   const updateProfile = useUpdateUserProfileMutation();
   const user = useAuthStore((state) => state.user);
-  const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -33,8 +31,9 @@ const Profile = () => {
     language: 'en',
   });
 
-  // Profile photo
-  const [profilePhoto, setProfilePhoto] = useState(null);
+  // Profile photo upload state
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState(null);
 
   // Notification preferences
   const [notificationSettings, setNotificationSettings] = useState({
@@ -165,10 +164,8 @@ const Profile = () => {
         timezone: profile.timezone || '',
         language: profile.language || 'en',
       });
-      // Set avatar from profile if available
-      if (profile.avatarUrl) {
-        setProfilePhoto(profile.avatarUrl);
-      }
+      // Clear preview when profile updates (after successful upload)
+      setAvatarPreview(null);
     }
   }, [profile, user]);
 
@@ -201,24 +198,35 @@ const Profile = () => {
 
   // Profile photo upload
   const handleProfilePhotoUpload = async (file) => {
+    if (!file || isUploadingAvatar) return;
+    
+    setIsUploadingAvatar(true);
+    
     try {
       // Show preview immediately while upload happens in background
       const reader = new FileReader();
       reader.onload = (e) => {
-        setProfilePhoto(e.target.result);
+        setAvatarPreview(e.target.result);
       };
       reader.readAsDataURL(file);
 
       // Upload to S3 using presigned URL
       const { key, publicUrl } = await uploadFile({ file, category: 'avatars' });
 
-      // Save the URL to the user's profile
+      // Save the URL to the user's profile (ONLY avatarUrl, not other fields)
       const avatarUrl = publicUrl || key;
       await updateProfile.mutateAsync({ avatarUrl });
+      
+      // Clear preview - the query will refetch and show the real URL
+      setAvatarPreview(null);
       toast.success('Profile photo updated successfully');
     } catch (error) {
       console.error('Profile photo upload error:', error);
-      toast.error('Failed to upload profile photo');
+      // Clear preview on error
+      setAvatarPreview(null);
+      toast.error(error.message || 'Failed to upload profile photo');
+    } finally {
+      setIsUploadingAvatar(false);
     }
   };
 
@@ -320,54 +328,6 @@ const Profile = () => {
     }
   };
 
-  // Quick actions
-  const quickActions = [
-    {
-      id: 'schedule',
-      label: 'View My Schedule',
-      icon: Calendar,
-      path: '/calendar',
-      color: 'bg-blue-50 dark:bg-surface-primary hover:bg-blue-100 dark:bg-surface-secondary text-blue-700 dark:text-blue-300',
-    },
-    {
-      id: 'reports',
-      label: 'Today\'s Report',
-      icon: BarChart3,
-      path: '/reports',
-      color: 'bg-green-50 dark:bg-surface-primary hover:bg-green-100 dark:bg-surface-secondary text-green-700',
-    },
-    {
-      id: 'business',
-      label: 'Business Settings',
-      icon: Settings,
-      path: '/settings/business',
-      color: 'bg-purple-50 dark:bg-surface-primary hover:bg-purple-100 dark:bg-surface-secondary text-purple-700 dark:text-purple-300',
-    },
-    {
-      id: 'payments',
-      label: 'Recent Payments',
-      icon: CreditCard,
-      path: '/payments',
-      color: 'bg-orange-50 dark:bg-surface-primary hover:bg-orange-100 dark:bg-surface-secondary text-orange-700',
-    },
-    {
-      id: 'messages',
-      label: 'Messages',
-      icon: MessageSquare,
-      path: '/messages',
-      color: 'bg-pink-50 dark:bg-surface-primary hover:bg-pink-100 dark:bg-surface-secondary text-pink-700',
-      badge: '3',
-    },
-    {
-      id: 'notifications',
-      label: 'Notifications',
-      icon: Bell,
-      path: '/notifications',
-      color: 'bg-indigo-50 dark:bg-surface-primary hover:bg-indigo-100 dark:bg-surface-secondary text-indigo-700',
-      badge: '3',
-    },
-  ];
-
   if (error) {
     return (
       <div className="text-center py-12">
@@ -403,41 +363,16 @@ const Profile = () => {
         </Alert>
       )}
 
-      {/* Quick Actions */}
-      <Card title="Quick Actions" description="Fast access to common tasks">
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {quickActions.map((action) => {
-            const Icon = action.icon;
-            return (
-              <button
-                key={action.id}
-                onClick={() => navigate(action.path)}
-                className={`p-4 rounded-lg transition-colors text-left relative ${action.color}`}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon className="w-6 h-6" />
-                  <span className="font-medium">{action.label}</span>
-                </div>
-                {action.badge && (
-                  <Badge variant="primary" className="absolute top-2 right-2 text-xs">
-                    {action.badge}
-                  </Badge>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </Card>
-
       {/* Profile Header with Photo Upload */}
       <div className="bg-white dark:bg-surface-primary rounded-lg border border-gray-200 dark:border-surface-border p-6">
         <div className="flex items-start gap-6">
           <Avatar
             size="xl"
-            src={profilePhoto}
+            src={avatarPreview || profile?.avatarUrl}
             fallback={profile?.name || user?.name}
             uploadable={true}
             onUpload={handleProfilePhotoUpload}
+            isUploading={isUploadingAvatar}
           />
           <div className="flex-1">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-text-primary">{profile?.name || user?.name || 'Your Profile'}</h1>
@@ -445,10 +380,10 @@ const Profile = () => {
             <p className="text-sm text-gray-500 dark:text-text-secondary mt-1">
               Member since {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'January 15, 2024'}
             </p>
-            <button className="text-blue-600 dark:text-blue-400 text-sm mt-2 hover:underline flex items-center gap-1">
+            <p className="text-blue-600 dark:text-blue-400 text-sm mt-2 flex items-center gap-1">
               <Camera className="w-4 h-4" />
-              Change Photo
-            </button>
+              {isUploadingAvatar ? 'Uploading...' : 'Click avatar to change photo'}
+            </p>
           </div>
         </div>
       </div>

@@ -299,6 +299,20 @@ const put = async (path, body) => {
   return { data };
 };
 
+const patch = async (path, body) => {
+  const url = buildUrl(path);
+  const { headers, tenantId } = await buildHeaders(path);
+  logRequest('PATCH', url, tenantId);
+  const res = await fetch(url, { method: 'PATCH', headers, body: JSON.stringify(body), credentials: 'include' });
+  await ensureAuthorized(res);
+  const data = await parseResponse(res);
+  logResponse(res.status, data);
+  if (!res.ok) {
+    throw buildError(res, data);
+  }
+  return { data };
+};
+
 const del = async (path, options = {}) => {
   const url = buildUrl(path, options.params);
   const { headers, tenantId } = await buildHeaders(path);
@@ -331,6 +345,7 @@ const apiClient = {
   get,
   post,
   put,
+  patch,
   delete: del,
 };
 
