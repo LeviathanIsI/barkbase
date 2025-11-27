@@ -329,21 +329,25 @@ const InlineEditableCell = ({
     );
   }
 
-  // View mode - clickable to edit
+  // View mode - clickable to edit with pill-focused hover
   return (
-    <div
+    <button
       ref={cellRef}
+      type="button"
       className={cn(
-        'cursor-pointer rounded px-1 -mx-1 transition-colors',
-        'hover:bg-[var(--bb-color-bg-elevated)]',
+        'group inline-flex cursor-pointer rounded-full transition-all duration-150',
+        'hover:ring-1 hover:ring-[var(--bb-color-accent)]/50 hover:shadow-sm',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)]',
         disabled && 'cursor-not-allowed opacity-50',
         className
       )}
       onClick={handleStartEdit}
       title={disabled ? 'Saving...' : 'Click to edit'}
     >
-      {children}
-    </div>
+      <span className="transition-all duration-150 group-hover:brightness-110">
+        {children}
+      </span>
+    </button>
   );
 };
 

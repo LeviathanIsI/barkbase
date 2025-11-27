@@ -864,15 +864,17 @@ const PetRow = ({
           <td key={column.id} className={cellPadding}>
             <button
               type="button"
-              className="flex items-center gap-3 text-left hover:opacity-80 transition-opacity cursor-pointer"
+              className="group flex items-center gap-3 text-left rounded-xl px-3 py-2 -mx-3 -my-2 cursor-pointer transition-all duration-150 hover:bg-[var(--bb-color-bg-elevated)] hover:ring-1 hover:ring-[var(--bb-color-border-subtle)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)]"
               onClick={(e) => {
                 e.stopPropagation();
                 onView();
               }}
             >
-              <PetAvatar pet={pet} size="md" showStatus={false} />
+              <div className="transition-transform duration-150 group-hover:scale-105">
+                <PetAvatar pet={pet} size="md" showStatus={false} />
+              </div>
               <div className="min-w-0">
-                <p className="font-semibold text-[color:var(--bb-color-text-primary)]">{pet.name}</p>
+                <p className="font-semibold text-[color:var(--bb-color-text-primary)] group-hover:text-[var(--bb-color-accent)] transition-colors duration-150">{pet.name}</p>
                 <p className="text-xs text-[color:var(--bb-color-text-muted)]">
                   {pet.species || 'Dog'} • {pet.breed || 'Unknown breed'}
                 </p>
@@ -1048,12 +1050,14 @@ const MobilePetCard = ({ pet, isSelected, onSelect, onView }) => {
           <div className="flex items-center gap-3 mb-2">
             <button
               type="button"
-              className="flex items-center gap-3 text-left cursor-pointer hover:opacity-80 transition-opacity"
+              className="group flex items-center gap-3 text-left cursor-pointer rounded-lg px-2 py-1 -mx-2 -my-1 transition-all duration-150 hover:bg-[var(--bb-color-bg-elevated)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)]"
               onClick={onView}
             >
-              <PetAvatar pet={pet} size="md" showStatus={false} />
+              <div className="transition-transform duration-150 group-hover:scale-105">
+                <PetAvatar pet={pet} size="md" showStatus={false} />
+              </div>
               <div className="min-w-0 flex-1">
-                <p className="font-semibold text-[color:var(--bb-color-text-primary)] truncate">{pet.name}</p>
+                <p className="font-semibold text-[color:var(--bb-color-text-primary)] truncate group-hover:text-[var(--bb-color-accent)] transition-colors duration-150">{pet.name}</p>
                 <p className="text-xs text-[color:var(--bb-color-text-muted)]">
                   {pet.species || 'Dog'} • {pet.breed || 'Unknown breed'}
                 </p>
