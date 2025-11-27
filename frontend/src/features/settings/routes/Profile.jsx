@@ -165,6 +165,10 @@ const Profile = () => {
         timezone: profile.timezone || '',
         language: profile.language || 'en',
       });
+      // Set avatar from profile if available
+      if (profile.avatarUrl) {
+        setProfilePhoto(profile.avatarUrl);
+      }
     }
   }, [profile, user]);
 

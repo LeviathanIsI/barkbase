@@ -135,7 +135,7 @@ exports.handler = async (event) => {
 
     // Route: PATCH /api/v1/users/profile
     if (method === 'PATCH' && path === '/api/v1/users/profile') {
-      return await updateCurrentUserProfile(currentUserId, tenantId, body);
+      return await updateCurrentUserProfile(event, currentUserId, tenantId, body);
     }
 
     // Route: GET /api/v1/profiles
@@ -425,6 +425,9 @@ async function getCurrentUserProfile(event, userId, tenantId) {
       u."name",
       u."phone",
       u."avatarUrl",
+      u."timezone",
+      u."language",
+      u."emailVerified",
       u."createdAt",
       u."updatedAt",
       m."role" AS "membershipRole",
@@ -447,6 +450,9 @@ async function getCurrentUserProfile(event, userId, tenantId) {
     name: profile.name,
     phone: profile.phone,
     avatarUrl: profile.avatarUrl,
+    timezone: profile.timezone,
+    language: profile.language || 'en',
+    emailVerified: profile.emailVerified || false,
     createdAt: profile.createdAt,
     updatedAt: profile.updatedAt,
     role: profile.membershipRole,
@@ -459,7 +465,7 @@ async function updateCurrentUserProfile(event, userId, tenantId, data = {}) {
     return fail(event, 401, { error: 'Unauthorized' });
   }
 
-  const allowedFields = ['name', 'phone', 'avatarUrl'];
+  const allowedFields = ['name', 'phone', 'avatarUrl', 'timezone', 'language'];
   const updates = [];
   const values = [];
 
