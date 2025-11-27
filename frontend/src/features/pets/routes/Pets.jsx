@@ -103,8 +103,7 @@ const ALL_COLUMNS = [
     align: 'center', 
     sortable: true, 
     sortKey: 'age',
-    // Age is derived from birthdate - would need conversion logic
-    editable: false,
+    editable: true,
     editorType: 'number',
     accessor: (row) => row.age,
   },
@@ -177,7 +176,24 @@ const Pets = () => {
   // Inline update mutation for editable cells
   const inlineUpdateMutation = useMutation({
     mutationFn: async ({ petId, field, value }) => {
-      const response = await apiClient.put(canonicalEndpoints.pets.detail(petId), { [field]: value });
+      // Transform field names/values to match backend API
+      let apiField = field;
+      let apiValue = value;
+      
+      // Age is derived from birthdate - convert age (years) to birthdate
+      if (field === 'age') {
+        apiField = 'birthdate';
+        if (value !== null && value !== undefined && value !== '') {
+          const today = new Date();
+          const birthYear = today.getFullYear() - Number(value);
+          // Set birthdate to Jan 1 of the calculated year
+          apiValue = new Date(birthYear, 0, 1).toISOString().split('T')[0];
+        } else {
+          apiValue = null;
+        }
+      }
+      
+      const response = await apiClient.put(canonicalEndpoints.pets.detail(petId), { [apiField]: apiValue });
       return response.data;
     },
     onMutate: async ({ petId, field, value }) => {
