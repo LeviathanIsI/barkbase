@@ -7,6 +7,7 @@ import {
   GripVertical, Syringe, ShieldAlert, Calendar, Star, Dog, Cat,
   AlertCircle, CheckCircle2, Clock, User,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import EntityToolbar from '@/components/EntityToolbar';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -21,6 +22,7 @@ import { useExpiringVaccinationsQuery } from '../api-vaccinations';
 import { useOwnersQuery } from '@/features/owners/api';
 import { PetFormModal } from '../components';
 import { cn } from '@/lib/cn';
+import { getBirthdateFromAge, getAgeFromBirthdate } from '../utils/pet-date-utils';
 
 // Saved views - persisted in localStorage
 const DEFAULT_VIEWS = [
@@ -105,7 +107,8 @@ const ALL_COLUMNS = [
     sortKey: 'age',
     editable: true,
     editorType: 'number',
-    accessor: (row) => row.age,
+    // Age is derived from birthdate - compute it on access
+    accessor: (row) => getAgeFromBirthdate(row.birthdate),
   },
   { id: 'actions', label: '', minWidth: 100, maxWidth: 100, align: 'right', sortable: false, hideable: false, editable: false },
 ];
@@ -173,22 +176,35 @@ const Pets = () => {
   const { data: ownersResult, isLoading: ownersLoading } = useOwnersQuery();
   const owners = ownersResult?.items ?? ownersResult ?? [];
   
-  // Helper to transform frontend field/value to backend API field/value
+  /**
+   * Transform frontend field/value to backend API field/value.
+   * Handles the age -> birthdate conversion since age is derived from birthdate.
+   */
   const transformFieldForApi = (field, value) => {
     // Age is derived from birthdate - convert age (years) to birthdate
     if (field === 'age') {
-      if (value !== null && value !== undefined && value !== '') {
-        const today = new Date();
-        const birthYear = today.getFullYear() - Number(value);
-        // Set birthdate to Jan 1 of the calculated year
+      // Handle null/empty value - clear the birthdate
+      if (value === null || value === undefined || value === '') {
         return { 
           apiField: 'birthdate', 
-          apiValue: new Date(birthYear, 0, 1).toISOString().split('T')[0],
-          // Also store the age for optimistic cache update
-          cacheUpdates: { age: Number(value), birthdate: new Date(birthYear, 0, 1).toISOString() }
+          apiValue: null, 
+          cacheUpdates: { age: null, birthdate: null } 
         };
       }
-      return { apiField: 'birthdate', apiValue: null, cacheUpdates: { age: null, birthdate: null } };
+
+      // Validate and convert age to birthdate using shared utility
+      const numericAge = Number(value);
+      if (Number.isNaN(numericAge) || numericAge < 0) {
+        throw new Error('Invalid age value');
+      }
+
+      const birthdateIso = getBirthdateFromAge(numericAge);
+      return { 
+        apiField: 'birthdate', 
+        apiValue: birthdateIso,
+        // Also store the age for optimistic cache update
+        cacheUpdates: { age: numericAge, birthdate: birthdateIso }
+      };
     }
     // Default: field name matches API
     return { apiField: field, apiValue: value, cacheUpdates: { [field]: value } };
@@ -229,6 +245,8 @@ const Pets = () => {
       if (context?.previousPets) {
         queryClient.setQueryData(['pets'], context.previousPets);
       }
+      // Show error notification to user
+      toast.error(err?.message || `Failed to update ${variables.field}`);
     },
     onSettled: () => {
       // Refetch to ensure consistency
@@ -280,6 +298,9 @@ const Pets = () => {
       if (hasExpiringVaccinations) vaccinationStatus = 'expiring';
       // Could add logic for 'missing' if no vaccinations recorded
 
+      // Derive age from birthdate (API returns birthdate, not age)
+      const age = getAgeFromBirthdate(pet.birthdate);
+
       return {
         ...pet,
         ownerName,
@@ -288,6 +309,7 @@ const Pets = () => {
         vaccinationStatus,
         inFacility,
         hasExpiringVaccinations,
+        age,
       };
     });
   }, [pets, expiringPetIds]);
