@@ -48,6 +48,9 @@ const SPECIES_OPTIONS = [
 ];
 
 // Column definitions with editable metadata
+// Note: Only fields supported by PUT /api/v1/pets/:id can be inline-edited:
+// name, species, breed, birthdate, photoUrl, medicalNotes, dietaryNotes, 
+// behaviorFlags, status, weight, allergies, lastVetVisit, nextAppointment, documents
 const ALL_COLUMNS = [
   { id: 'select', label: '', minWidth: 48, maxWidth: 48, align: 'center', sortable: false, hideable: false, editable: false },
   { id: 'pet', label: 'Pet', minWidth: 260, flex: 2, align: 'left', sortable: true, sortKey: 'name', primary: true, editable: false },
@@ -59,7 +62,8 @@ const ALL_COLUMNS = [
     align: 'left', 
     sortable: true, 
     sortKey: 'ownerName',
-    editable: true,
+    // Owner assignment requires POST /api/v1/pets/owners - disabled for now
+    editable: false,
     editorType: 'relationship',
     editorOptions: { lookupType: 'owner', placeholder: 'No owner' },
     accessor: (row) => row.ownerId,
@@ -99,7 +103,8 @@ const ALL_COLUMNS = [
     align: 'center', 
     sortable: true, 
     sortKey: 'age',
-    editable: true,
+    // Age is derived from birthdate - would need conversion logic
+    editable: false,
     editorType: 'number',
     accessor: (row) => row.age,
   },
