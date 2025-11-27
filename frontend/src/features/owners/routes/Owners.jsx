@@ -255,10 +255,6 @@ const Owners = () => {
     setActiveView('all');
   }, []);
 
-  const handleRowDoubleClick = useCallback((owner) => {
-    navigate(`/customers/${owner.recordId}`);
-  }, [navigate]);
-
   const hasActiveFilters = searchTerm || Object.keys(customFilters).length > 0 || activeView !== 'all';
 
   if (error) {
@@ -463,7 +459,6 @@ const Owners = () => {
                       columns={orderedColumns}
                       isSelected={selectedRows.has(owner.recordId)}
                       onSelect={() => handleSelectRow(owner.recordId)}
-                      onDoubleClick={() => handleRowDoubleClick(owner)}
                       onView={() => navigate(`/customers/${owner.recordId}`)}
                       isEven={index % 2 === 0}
                     />
@@ -558,7 +553,7 @@ const SortIcon = ({ active, direction }) => {
 };
 
 // Owner Row Component
-const OwnerRow = ({ owner, columns, isSelected, onSelect, onDoubleClick, onView, isEven }) => {
+const OwnerRow = ({ owner, columns, isSelected, onSelect, onView, isEven }) => {
   const [showActions, setShowActions] = useState(false);
   const cellPadding = 'px-4 lg:px-6 py-3';
 
@@ -573,7 +568,14 @@ const OwnerRow = ({ owner, columns, isSelected, onSelect, onDoubleClick, onView,
       case 'owner':
         return (
           <td key={column.id} className={cellPadding}>
-            <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="flex items-center gap-3 text-left hover:opacity-80 transition-opacity cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                onView();
+              }}
+            >
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold" style={{ backgroundColor: 'var(--bb-color-accent)', color: 'var(--bb-color-text-on-accent)' }}>
                 {owner.fullName?.[0]?.toUpperCase() || 'O'}
               </div>
@@ -581,7 +583,7 @@ const OwnerRow = ({ owner, columns, isSelected, onSelect, onDoubleClick, onView,
                 <p className="font-semibold text-[color:var(--bb-color-text-primary)]">{owner.fullName}</p>
                 <p className="text-xs text-[color:var(--bb-color-text-muted)]">{owner.email || 'No email'}</p>
               </div>
-            </div>
+            </button>
           </td>
         );
       case 'contact':
@@ -668,12 +670,10 @@ const OwnerRow = ({ owner, columns, isSelected, onSelect, onDoubleClick, onView,
 
   return (
     <tr
-      className={cn('cursor-pointer transition-colors', isSelected && 'bg-[color:var(--bb-color-accent-soft)]')}
+      className={cn('transition-colors', isSelected && 'bg-[color:var(--bb-color-accent-soft)]')}
       style={{ borderBottom: '1px solid var(--bb-color-border-subtle)', backgroundColor: !isSelected && isEven ? 'var(--bb-color-bg-surface)' : !isSelected ? 'var(--bb-color-bg-body)' : undefined }}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
-      onClick={onView}
-      onDoubleClick={onDoubleClick}
     >
       {columns.map(renderCell)}
     </tr>
