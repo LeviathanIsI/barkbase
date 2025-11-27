@@ -945,7 +945,11 @@ export class ServicesStack extends cdk.Stack {
 
     // Grant Cognito permissions if user pool is configured
     if (props.userPool) {
-      props.userPool.grant(this.authApiFunction, "cognito-idp:InitiateAuth");
+      props.userPool.grant(
+        this.authApiFunction,
+        "cognito-idp:InitiateAuth",
+        "cognito-idp:ResendConfirmationCode"
+      );
     }
 
     // NOTE: The HTTP API has built-in CORS configuration (corsPreflight in ApiCoreStack)
@@ -971,6 +975,7 @@ export class ServicesStack extends cdk.Stack {
         "/api/v1/auth/refresh",
         "/api/v1/auth/logout",
         "/api/v1/auth/register",
+        "/api/v1/auth/resend-verification",
       ].forEach((pathName) => {
         registerRoutes(
           `AuthFallback${pathName.replace(/[^A-Za-z0-9]/g, "")}`,

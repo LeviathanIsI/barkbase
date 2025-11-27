@@ -35,6 +35,9 @@ const Profile = () => {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
 
+  // Email verification resend state
+  const [isResendingVerification, setIsResendingVerification] = useState(false);
+
   // Notification preferences
   const [notificationSettings, setNotificationSettings] = useState({
     email: {
@@ -328,6 +331,34 @@ const Profile = () => {
     }
   };
 
+  // Resend email verification
+  const handleResendVerification = async () => {
+    if (isResendingVerification) return;
+    
+    setIsResendingVerification(true);
+    try {
+      const response = await fetch('/api/v1/auth/resend-verification', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        toast.success('Verification email sent! Please check your inbox.');
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        toast.error(errorData.message || 'Failed to resend verification email');
+      }
+    } catch (error) {
+      console.error('Resend verification error:', error);
+      toast.error('Failed to resend verification email');
+    } finally {
+      setIsResendingVerification(false);
+    }
+  };
+
   if (error) {
     return (
       <div className="text-center py-12">
@@ -356,8 +387,12 @@ const Profile = () => {
           <AlertTitle>Email Not Verified</AlertTitle>
           <AlertDescription>
             Please verify your email to receive important notifications.
-            <button className="text-blue-600 dark:text-blue-400 underline ml-2">
-              Resend Verification Email
+            <button 
+              onClick={handleResendVerification}
+              disabled={isResendingVerification}
+              className="text-blue-600 dark:text-blue-400 underline ml-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isResendingVerification ? 'Sending...' : 'Resend Verification Email'}
             </button>
           </AlertDescription>
         </Alert>

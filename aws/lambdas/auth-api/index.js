@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const {
   CognitoIdentityProviderClient,
   InitiateAuthCommand,
+  ResendConfirmationCodeCommand,
 } = require("@aws-sdk/client-cognito-identity-provider");
 const {
   getSecureHeaders,
@@ -304,6 +305,10 @@ async function handleAuthEvent(event) {
   if (httpMethod === "POST" && path === "/api/v1/auth/register") {
     console.log("[AuthApiRouter] -> register");
     return await register(event);
+  }
+  if (httpMethod === "POST" && path === "/api/v1/auth/resend-verification") {
+    console.log("[AuthApiRouter] -> resendVerification");
+    return await resendVerification(event);
   }
 
   console.warn(`[AuthApiRouter] No route for ${httpMethod} ${path}`);
@@ -1316,6 +1321,167 @@ async function register(event) {
       {
         error: err,
         context: { action: "register" },
+        event,
+      }
+    );
+  }
+}
+
+/**
+ * Resend email verification for the current user
+ * Uses Cognito's ResendConfirmationCode API
+ *
+ * @param {Object} event - Lambda event with JWT token
+ * @returns {Object} Lambda response
+ */
+async function resendVerification(event) {
+  const metadata = getRequestMetadata(event);
+
+  try {
+    // Extract access token to identify the user
+    const token = extractAccessToken(event);
+
+    if (!token) {
+      auditLog("RESEND_VERIFICATION_FAILED", {
+        reason: "missing_token",
+        result: "FAILURE",
+        ...metadata,
+      });
+      return errorResponse(
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "Unauthorized",
+        {},
+        event
+      );
+    }
+
+    // Verify the token and extract user info
+    let payload;
+    try {
+      payload = verifyJWT(token);
+    } catch (tokenError) {
+      auditLog("RESEND_VERIFICATION_FAILED", {
+        reason: "invalid_token",
+        result: "FAILURE",
+        ...metadata,
+      });
+      return errorResponse(
+        401,
+        ERROR_CODES.INVALID_TOKEN,
+        "Invalid or expired token",
+        {},
+        event
+      );
+    }
+
+    const userId = payload.sub;
+
+    if (!userId) {
+      return errorResponse(
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "Unauthorized",
+        {},
+        event
+      );
+    }
+
+    // Get user email from database
+    const pool = getPool();
+    const userResult = await pool.query(
+      `SELECT "email" FROM "User" WHERE "recordId" = $1`,
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      auditLog("RESEND_VERIFICATION_FAILED", {
+        reason: "user_not_found",
+        userId,
+        result: "FAILURE",
+        ...metadata,
+      });
+      return errorResponse(
+        404,
+        ERROR_CODES.INVALID_CREDENTIALS,
+        "User not found",
+        {},
+        event
+      );
+    }
+
+    const userEmail = userResult.rows[0].email;
+
+    // Call Cognito to resend the confirmation code
+    const command = new ResendConfirmationCodeCommand({
+      ClientId: COGNITO_CLIENT_ID,
+      Username: userEmail,
+    });
+
+    await cognitoClient.send(command);
+
+    auditLog("RESEND_VERIFICATION_SUCCESS", {
+      userId,
+      email: userEmail,
+      result: "SUCCESS",
+      ...metadata,
+    });
+
+    console.log(`[AUTH] Resent verification email to ${userEmail}`);
+
+    return createSuccessResponse(
+      200,
+      { success: true },
+      event
+    );
+  } catch (err) {
+    // Handle specific Cognito errors
+    const errorName = err.name || err.code;
+
+    // UserNotFoundException - user doesn't exist in Cognito
+    if (errorName === "UserNotFoundException") {
+      console.log("[AUTH] User not found in Cognito, may be a database-only user");
+      return errorResponse(
+        400,
+        "AUTH_008",
+        "Email verification is not available for this account type",
+        { error: err, context: { action: "resendVerification" } },
+        event
+      );
+    }
+
+    // InvalidParameterException - user might already be confirmed
+    if (errorName === "InvalidParameterException") {
+      console.log("[AUTH] User already confirmed or invalid state");
+      return errorResponse(
+        400,
+        "AUTH_009",
+        "Email is already verified or verification is not required",
+        { error: err, context: { action: "resendVerification" } },
+        event
+      );
+    }
+
+    // LimitExceededException - too many attempts
+    if (errorName === "LimitExceededException") {
+      console.log("[AUTH] Rate limit exceeded for resend verification");
+      return errorResponse(
+        429,
+        "AUTH_010",
+        "Too many attempts. Please try again later.",
+        { error: err, context: { action: "resendVerification" } },
+        event
+      );
+    }
+
+    console.error("[AUTH] Resend verification error:", err);
+    return errorResponse(
+      500,
+      ERROR_CODES.INTERNAL_ERROR,
+      "Failed to resend verification email",
+      {
+        error: err,
+        context: { action: "resendVerification" },
         event,
       }
     );
