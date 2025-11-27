@@ -1316,26 +1316,25 @@ const ListView = ({
                 <th
                   key={col.id}
                   className={cn(
-                    'px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] whitespace-nowrap text-left',
+                    'px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] whitespace-nowrap',
+                    col.id === 'select' ? 'text-center' : 'text-left',
                     col.sortable && 'cursor-pointer hover:text-[color:var(--bb-color-text-primary)]'
                   )}
                   style={{ width: col.width }}
                   onClick={() => col.sortable && onSort(col.sortKey)}
                 >
                   {col.id === 'select' ? (
-                    <div className="flex items-center justify-center">
-                      <input
-                        type="checkbox"
-                        checked={selectedRows.size === bookings.length && bookings.length > 0}
-                        onChange={onSelectAll}
-                        className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]"
-                      />
-                    </div>
+                    <input
+                      type="checkbox"
+                      checked={selectedRows.size === bookings.length && bookings.length > 0}
+                      onChange={onSelectAll}
+                      className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]"
+                    />
                   ) : (
-                    <div className="flex items-center gap-1">
+                    <span className="inline-flex items-center gap-1">
                       {col.label}
                       {col.sortable && <SortIcon active={sortConfig.key === col.sortKey} direction={sortConfig.direction} />}
-                    </div>
+                    </span>
                   )}
                 </th>
               ))}
@@ -1418,15 +1417,13 @@ const BookingRow = ({ booking, isSelected, onSelect, onClick, isEven }) => {
       onMouseLeave={() => setShowActions(false)}
       onClick={onClick}
     >
-      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-center">
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={onSelect}
-            className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]"
-          />
-        </div>
+      <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={onSelect}
+          className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]"
+        />
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">

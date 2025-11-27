@@ -518,35 +518,37 @@ const Pets = () => {
                 <table className="w-full text-sm min-w-[1024px]">
                   <thead>
                     <tr style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderBottom: '2px solid var(--bb-color-border-subtle)' }}>
-                      {orderedColumns.map((column) => (
-                        <th
-                          key={column.id}
-                          className={cn(
-                            'px-4 lg:px-6 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] whitespace-nowrap',
-                            column.sortable && 'cursor-pointer hover:text-[color:var(--bb-color-text-primary)] transition-colors',
-                            column.align === 'center' && 'text-center',
-                            column.align === 'right' && 'text-right'
-                          )}
-                          style={{ minWidth: column.minWidth, maxWidth: column.maxWidth }}
-                          onClick={() => column.sortable && handleSort(column.sortKey)}
-                        >
-                          {column.id === 'select' ? (
-                            <div className="flex items-center justify-center">
+                      {orderedColumns.map((column) => {
+                        const thPadding = 'px-4 lg:px-6 py-3';
+                        const alignClass = column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : 'text-left';
+                        return (
+                          <th
+                            key={column.id}
+                            className={cn(
+                              thPadding,
+                              alignClass,
+                              'text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] whitespace-nowrap',
+                              column.sortable && 'cursor-pointer hover:text-[color:var(--bb-color-text-primary)] transition-colors'
+                            )}
+                            style={{ minWidth: column.minWidth, maxWidth: column.maxWidth }}
+                            onClick={() => column.sortable && handleSort(column.sortKey)}
+                          >
+                            {column.id === 'select' ? (
                               <input
                                 type="checkbox"
                                 checked={selectedRows.size === paginatedPets.length && paginatedPets.length > 0}
                                 onChange={handleSelectAll}
                                 className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]"
                               />
-                            </div>
-                          ) : (
-                            <div className={cn('flex items-center gap-1.5', column.align === 'center' && 'justify-center', column.align === 'right' && 'justify-end')}>
-                              {column.label}
-                              {column.sortable && <SortIcon active={sortConfig.key === column.sortKey} direction={sortConfig.direction} />}
-                            </div>
-                          )}
-                        </th>
-                      ))}
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5">
+                                {column.label}
+                                {column.sortable && <SortIcon active={sortConfig.key === column.sortKey} direction={sortConfig.direction} />}
+                              </span>
+                            )}
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
                   <tbody>
@@ -719,10 +721,8 @@ const PetRow = ({ pet, columns, isSelected, onSelect, onDoubleClick, onView, onE
     switch (column.id) {
       case 'select':
         return (
-          <td key={column.id} className={cn(cellPadding)} onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-center">
-              <input type="checkbox" checked={isSelected} onChange={onSelect} className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]" />
-            </div>
+          <td key={column.id} className={cn(cellPadding, 'text-center')} onClick={(e) => e.stopPropagation()}>
+            <input type="checkbox" checked={isSelected} onChange={onSelect} className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]" />
           </td>
         );
       case 'pet':
@@ -761,14 +761,14 @@ const PetRow = ({ pet, columns, isSelected, onSelect, onDoubleClick, onView, onE
       case 'status':
         return (
           <td key={column.id} className={cn(cellPadding, 'text-center')}>
-            <div className="flex items-center justify-center gap-1.5">
+            <span className="inline-flex items-center gap-1.5">
               <Badge variant={pet.status === 'active' ? 'success' : 'neutral'}>
                 {pet.status === 'active' ? 'Active' : 'Inactive'}
               </Badge>
               {pet.inFacility && (
                 <Badge variant="info">In Facility</Badge>
               )}
-            </div>
+            </span>
           </td>
         );
       case 'vaccinations':
@@ -780,24 +780,22 @@ const PetRow = ({ pet, columns, isSelected, onSelect, onDoubleClick, onView, onE
       case 'species':
         return (
           <td key={column.id} className={cn(cellPadding, 'text-center')}>
-            <div className="flex items-center justify-center gap-1.5">
+            <span className="inline-flex items-center gap-1.5">
               <SpeciesIcon className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
               <span className="text-[color:var(--bb-color-text-primary)] capitalize">{pet.species || 'Dog'}</span>
-            </div>
+            </span>
           </td>
         );
       case 'age':
         return (
           <td key={column.id} className={cn(cellPadding, 'text-center')}>
-            <span className="text-[color:var(--bb-color-text-primary)]">
-              {pet.age ? `${pet.age} yr${pet.age !== 1 ? 's' : ''}` : '—'}
-            </span>
+            {pet.age ? `${pet.age} yr${pet.age !== 1 ? 's' : ''}` : '—'}
           </td>
         );
       case 'actions':
         return (
           <td key={column.id} className={cn(cellPadding, 'text-right')}>
-            <div className={cn('flex items-center justify-end gap-1 transition-opacity', showActions ? 'opacity-100' : 'opacity-0')} ref={actionsRef}>
+            <span className={cn('inline-flex items-center gap-1 transition-opacity', showActions ? 'opacity-100' : 'opacity-0')} ref={actionsRef}>
               <button type="button" onClick={(e) => { e.stopPropagation(); onView(); }} className="p-2 rounded-lg hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] transition-colors" title="View profile">
                 <Eye className="h-4 w-4" />
               </button>
@@ -829,7 +827,7 @@ const PetRow = ({ pet, columns, isSelected, onSelect, onDoubleClick, onView, onE
                   </div>
                 )}
               </div>
-            </div>
+            </span>
           </td>
         );
       default:
