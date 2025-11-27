@@ -173,26 +173,31 @@ const Pets = () => {
   const { data: ownersResult, isLoading: ownersLoading } = useOwnersQuery();
   const owners = ownersResult?.items ?? ownersResult ?? [];
   
+  // Helper to transform frontend field/value to backend API field/value
+  const transformFieldForApi = (field, value) => {
+    // Age is derived from birthdate - convert age (years) to birthdate
+    if (field === 'age') {
+      if (value !== null && value !== undefined && value !== '') {
+        const today = new Date();
+        const birthYear = today.getFullYear() - Number(value);
+        // Set birthdate to Jan 1 of the calculated year
+        return { 
+          apiField: 'birthdate', 
+          apiValue: new Date(birthYear, 0, 1).toISOString().split('T')[0],
+          // Also store the age for optimistic cache update
+          cacheUpdates: { age: Number(value), birthdate: new Date(birthYear, 0, 1).toISOString() }
+        };
+      }
+      return { apiField: 'birthdate', apiValue: null, cacheUpdates: { age: null, birthdate: null } };
+    }
+    // Default: field name matches API
+    return { apiField: field, apiValue: value, cacheUpdates: { [field]: value } };
+  };
+
   // Inline update mutation for editable cells
   const inlineUpdateMutation = useMutation({
     mutationFn: async ({ petId, field, value }) => {
-      // Transform field names/values to match backend API
-      let apiField = field;
-      let apiValue = value;
-      
-      // Age is derived from birthdate - convert age (years) to birthdate
-      if (field === 'age') {
-        apiField = 'birthdate';
-        if (value !== null && value !== undefined && value !== '') {
-          const today = new Date();
-          const birthYear = today.getFullYear() - Number(value);
-          // Set birthdate to Jan 1 of the calculated year
-          apiValue = new Date(birthYear, 0, 1).toISOString().split('T')[0];
-        } else {
-          apiValue = null;
-        }
-      }
-      
+      const { apiField, apiValue } = transformFieldForApi(field, value);
       const response = await apiClient.put(canonicalEndpoints.pets.detail(petId), { [apiField]: apiValue });
       return response.data;
     },
@@ -203,13 +208,16 @@ const Pets = () => {
       // Snapshot previous value
       const previousPets = queryClient.getQueryData(['pets']);
       
-      // Optimistically update the cache
+      // Get the cache updates for this field
+      const { cacheUpdates } = transformFieldForApi(field, value);
+      
+      // Optimistically update the cache with all related fields
       queryClient.setQueryData(['pets'], (old) => {
         if (!old?.pets) return old;
         return {
           ...old,
           pets: old.pets.map((pet) =>
-            pet.recordId === petId ? { ...pet, [field]: value } : pet
+            pet.recordId === petId ? { ...pet, ...cacheUpdates } : pet
           ),
         };
       });
