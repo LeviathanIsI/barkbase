@@ -948,7 +948,8 @@ export class ServicesStack extends cdk.Stack {
       props.userPool.grant(
         this.authApiFunction,
         "cognito-idp:InitiateAuth",
-        "cognito-idp:ResendConfirmationCode"
+        "cognito-idp:ResendConfirmationCode",
+        "cognito-idp:ChangePassword"
       );
     }
 
@@ -976,6 +977,7 @@ export class ServicesStack extends cdk.Stack {
         "/api/v1/auth/logout",
         "/api/v1/auth/register",
         "/api/v1/auth/resend-verification",
+        "/api/v1/auth/change-password",
       ].forEach((pathName) => {
         registerRoutes(
           `AuthFallback${pathName.replace(/[^A-Za-z0-9]/g, "")}`,

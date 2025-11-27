@@ -68,6 +68,7 @@ const Profile = () => {
 
   // Password management
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
     current: '',
     new: '',
@@ -258,30 +259,37 @@ const Profile = () => {
       toast.error('Password must be at least 8 characters');
       return;
     }
+    if (!passwordForm.current) {
+      toast.error('Current password is required');
+      return;
+    }
+
+    setIsChangingPassword(true);
     try {
       const response = await fetch('/api/v1/auth/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          currentPassword: passwordForm.currentPassword,
-          newPassword: passwordForm.newPassword
+          currentPassword: passwordForm.current,
+          newPassword: passwordForm.new
         })
       });
       
       if (response.ok) {
         toast.success('Password updated successfully');
         setShowPasswordModal(false);
-        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        setPasswordForm({ current: '', new: '', confirm: '' });
       } else {
-        const error = await response.json();
+        const error = await response.json().catch(() => ({}));
         toast.error(error.message || 'Failed to update password');
       }
     } catch (error) {
       console.error('Password change error:', error);
       toast.error('An error occurred while updating your password');
+    } finally {
+      setIsChangingPassword(false);
     }
-    setPasswordForm({ current: '', new: '', confirm: '' });
   };
 
   // 2FA handlers
@@ -1095,11 +1103,11 @@ const Profile = () => {
             </div>
 
             <div className="flex justify-end gap-3 mt-6">
-              <Button variant="outline" onClick={() => setShowPasswordModal(false)}>
+              <Button variant="outline" onClick={() => setShowPasswordModal(false)} disabled={isChangingPassword}>
                 Cancel
               </Button>
-              <Button onClick={handlePasswordSubmit}>
-                Update Password
+              <Button onClick={handlePasswordSubmit} disabled={isChangingPassword}>
+                {isChangingPassword ? 'Updating...' : 'Update Password'}
               </Button>
             </div>
           </div>

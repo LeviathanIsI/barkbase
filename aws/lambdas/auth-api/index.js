@@ -5,6 +5,7 @@ const {
   CognitoIdentityProviderClient,
   InitiateAuthCommand,
   ResendConfirmationCodeCommand,
+  ChangePasswordCommand,
 } = require("@aws-sdk/client-cognito-identity-provider");
 const {
   getSecureHeaders,
@@ -309,6 +310,10 @@ async function handleAuthEvent(event) {
   if (httpMethod === "POST" && path === "/api/v1/auth/resend-verification") {
     console.log("[AuthApiRouter] -> resendVerification");
     return await resendVerification(event);
+  }
+  if (httpMethod === "POST" && path === "/api/v1/auth/change-password") {
+    console.log("[AuthApiRouter] -> changePassword");
+    return await changePassword(event);
   }
 
   console.warn(`[AuthApiRouter] No route for ${httpMethod} ${path}`);
@@ -1482,6 +1487,270 @@ async function resendVerification(event) {
       {
         error: err,
         context: { action: "resendVerification" },
+        event,
+      }
+    );
+  }
+}
+
+/**
+ * Change password for the current user
+ * Uses Cognito's ChangePassword API
+ *
+ * @param {Object} event - Lambda event with JWT token
+ * @returns {Object} Lambda response
+ */
+async function changePassword(event) {
+  const metadata = getRequestMetadata(event);
+
+  try {
+    // Parse request body
+    const { currentPassword, newPassword } = JSON.parse(event.body || "{}");
+
+    // Validate required fields
+    if (!currentPassword || !newPassword) {
+      auditLog("CHANGE_PASSWORD_FAILED", {
+        reason: "missing_fields",
+        result: "FAILURE",
+        ...metadata,
+      });
+      return errorResponse(
+        400,
+        ERROR_CODES.MISSING_FIELDS,
+        "Current password and new password are required",
+        {},
+        event
+      );
+    }
+
+    // Validate new password strength
+    if (newPassword.length < 8) {
+      return errorResponse(
+        400,
+        ERROR_CODES.MISSING_FIELDS,
+        "New password must be at least 8 characters",
+        {},
+        event
+      );
+    }
+
+    // Extract access token to identify the user
+    const accessToken = extractAccessToken(event);
+
+    if (!accessToken) {
+      auditLog("CHANGE_PASSWORD_FAILED", {
+        reason: "missing_token",
+        result: "FAILURE",
+        ...metadata,
+      });
+      return errorResponse(
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "Unauthorized",
+        {},
+        event
+      );
+    }
+
+    // Verify the token and extract user info
+    let payload;
+    try {
+      payload = verifyJWT(accessToken);
+    } catch (tokenError) {
+      auditLog("CHANGE_PASSWORD_FAILED", {
+        reason: "invalid_token",
+        result: "FAILURE",
+        ...metadata,
+      });
+      return errorResponse(
+        401,
+        ERROR_CODES.INVALID_TOKEN,
+        "Invalid or expired token",
+        {},
+        event
+      );
+    }
+
+    const userId = payload.sub;
+
+    if (!userId) {
+      return errorResponse(
+        401,
+        ERROR_CODES.UNAUTHORIZED,
+        "Unauthorized",
+        {},
+        event
+      );
+    }
+
+    // Get user from database to check auth type
+    const pool = getPool();
+    const userResult = await pool.query(
+      `SELECT "email", "passwordHash" FROM "User" WHERE "recordId" = $1`,
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      auditLog("CHANGE_PASSWORD_FAILED", {
+        reason: "user_not_found",
+        userId,
+        result: "FAILURE",
+        ...metadata,
+      });
+      return errorResponse(
+        404,
+        ERROR_CODES.INVALID_CREDENTIALS,
+        "User not found",
+        {},
+        event
+      );
+    }
+
+    const user = userResult.rows[0];
+
+    // Check if user is a Cognito user
+    if (user.passwordHash === "COGNITO_AUTH") {
+      // For Cognito users, we need to use Cognito's ChangePassword API
+      // This requires the user's current access token from Cognito
+      // First, authenticate to get a fresh Cognito access token
+      try {
+        const authCommand = new InitiateAuthCommand({
+          ClientId: COGNITO_CLIENT_ID,
+          AuthFlow: "USER_PASSWORD_AUTH",
+          AuthParameters: {
+            USERNAME: user.email,
+            PASSWORD: currentPassword,
+          },
+        });
+
+        const cognitoAuthResponse = await cognitoClient.send(authCommand);
+        const cognitoAccessToken = cognitoAuthResponse.AuthenticationResult?.AccessToken;
+
+        if (!cognitoAccessToken) {
+          throw new Error("Failed to get Cognito access token");
+        }
+
+        // Now change the password using Cognito
+        const changeCommand = new ChangePasswordCommand({
+          AccessToken: cognitoAccessToken,
+          PreviousPassword: currentPassword,
+          ProposedPassword: newPassword,
+        });
+
+        await cognitoClient.send(changeCommand);
+
+        auditLog("CHANGE_PASSWORD_SUCCESS", {
+          userId,
+          email: user.email,
+          authType: "cognito",
+          result: "SUCCESS",
+          ...metadata,
+        });
+
+        console.log(`[AUTH] Password changed successfully for Cognito user ${user.email}`);
+
+        return createSuccessResponse(
+          200,
+          { success: true },
+          event
+        );
+      } catch (cognitoError) {
+        const errorName = cognitoError.name || cognitoError.code;
+
+        // NotAuthorizedException - incorrect current password
+        if (errorName === "NotAuthorizedException") {
+          auditLog("CHANGE_PASSWORD_FAILED", {
+            reason: "incorrect_current_password",
+            userId,
+            result: "FAILURE",
+            ...metadata,
+          });
+          return errorResponse(
+            401,
+            ERROR_CODES.INVALID_CREDENTIALS,
+            "Current password is incorrect",
+            {},
+            event
+          );
+        }
+
+        // InvalidPasswordException - new password doesn't meet requirements
+        if (errorName === "InvalidPasswordException") {
+          return errorResponse(
+            400,
+            "AUTH_011",
+            "New password does not meet requirements",
+            {},
+            event
+          );
+        }
+
+        // LimitExceededException - too many attempts
+        if (errorName === "LimitExceededException") {
+          return errorResponse(
+            429,
+            "AUTH_012",
+            "Too many attempts. Please try again later.",
+            {},
+            event
+          );
+        }
+
+        console.error("[AUTH] Cognito change password error:", cognitoError);
+        throw cognitoError;
+      }
+    } else {
+      // For database users, verify current password and update hash
+      const validCurrentPassword = await bcrypt.compare(currentPassword, user.passwordHash || "");
+
+      if (!validCurrentPassword) {
+        auditLog("CHANGE_PASSWORD_FAILED", {
+          reason: "incorrect_current_password",
+          userId,
+          result: "FAILURE",
+          ...metadata,
+        });
+        return errorResponse(
+          401,
+          ERROR_CODES.INVALID_CREDENTIALS,
+          "Current password is incorrect",
+          {},
+          event
+        );
+      }
+
+      // Hash and store new password
+      const newPasswordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+      await pool.query(
+        `UPDATE "User" SET "passwordHash" = $1, "updatedAt" = NOW() WHERE "recordId" = $2`,
+        [newPasswordHash, userId]
+      );
+
+      auditLog("CHANGE_PASSWORD_SUCCESS", {
+        userId,
+        email: user.email,
+        authType: "database",
+        result: "SUCCESS",
+        ...metadata,
+      });
+
+      console.log(`[AUTH] Password changed successfully for database user ${user.email}`);
+
+      return createSuccessResponse(
+        200,
+        { success: true },
+        event
+      );
+    }
+  } catch (err) {
+    console.error("[AUTH] Change password error:", err);
+    return errorResponse(
+      500,
+      ERROR_CODES.INTERNAL_ERROR,
+      "Failed to change password",
+      {
+        error: err,
+        context: { action: "changePassword" },
         event,
       }
     );
