@@ -389,10 +389,6 @@ const Pets = () => {
     setActiveView('all');
   }, []);
 
-  const handleRowDoubleClick = useCallback((pet) => {
-    navigate(`/pets/${pet.recordId}`);
-  }, [navigate]);
-
   // Inline field update handler
   const handleInlineUpdateField = useCallback(async (petId, fieldName, value) => {
     return inlineUpdateMutation.mutateAsync({ petId, field: fieldName, value });
@@ -674,7 +670,6 @@ const Pets = () => {
                         columns={orderedColumns}
                         isSelected={selectedRows.has(pet.recordId)}
                         onSelect={() => handleSelectRow(pet.recordId)}
-                        onDoubleClick={() => handleRowDoubleClick(pet)}
                         onView={() => navigate(`/pets/${pet.recordId}`)}
                         onEdit={() => navigate(`/pets/${pet.recordId}`)}
                         onDelete={() => deletePetMutation.mutate(pet.recordId)}
@@ -822,7 +817,6 @@ const PetRow = ({
   columns, 
   isSelected, 
   onSelect, 
-  onDoubleClick, 
   onView, 
   onEdit, 
   onDelete, 
@@ -868,7 +862,14 @@ const PetRow = ({
       case 'pet':
         return (
           <td key={column.id} className={cellPadding}>
-            <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="flex items-center gap-3 text-left hover:opacity-80 transition-opacity cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                onView();
+              }}
+            >
               <PetAvatar pet={pet} size="md" showStatus={false} />
               <div className="min-w-0">
                 <p className="font-semibold text-[color:var(--bb-color-text-primary)]">{pet.name}</p>
@@ -876,7 +877,7 @@ const PetRow = ({
                   {pet.species || 'Dog'} • {pet.breed || 'Unknown breed'}
                 </p>
               </div>
-            </div>
+            </button>
           </td>
         );
       case 'owner':
@@ -1008,12 +1009,10 @@ const PetRow = ({
 
   return (
     <tr
-      className={cn('cursor-pointer transition-colors', isSelected && 'bg-[color:var(--bb-color-accent-soft)]')}
+      className={cn('transition-colors', isSelected && 'bg-[color:var(--bb-color-accent-soft)]')}
       style={{ borderBottom: '1px solid var(--bb-color-border-subtle)', backgroundColor: !isSelected && isEven ? 'var(--bb-color-bg-surface)' : !isSelected ? 'var(--bb-color-bg-body)' : undefined }}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => { setShowActions(false); setShowActionsMenu(false); }}
-      onClick={onView}
-      onDoubleClick={onDoubleClick}
     >
       {columns.map(renderCell)}
     </tr>
@@ -1045,15 +1044,21 @@ const MobilePetCard = ({ pet, isSelected, onSelect, onView }) => {
           onClick={(e) => e.stopPropagation()}
         />
 
-        <div className="flex-1 min-w-0" onClick={onView}>
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 mb-2">
-            <PetAvatar pet={pet} size="md" showStatus={false} />
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold text-[color:var(--bb-color-text-primary)] truncate">{pet.name}</p>
-              <p className="text-xs text-[color:var(--bb-color-text-muted)]">
-                {pet.species || 'Dog'} • {pet.breed || 'Unknown breed'}
-              </p>
-            </div>
+            <button
+              type="button"
+              className="flex items-center gap-3 text-left cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={onView}
+            >
+              <PetAvatar pet={pet} size="md" showStatus={false} />
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-[color:var(--bb-color-text-primary)] truncate">{pet.name}</p>
+                <p className="text-xs text-[color:var(--bb-color-text-muted)]">
+                  {pet.species || 'Dog'} • {pet.breed || 'Unknown breed'}
+                </p>
+              </div>
+            </button>
             <Badge variant={pet.status === 'active' ? 'success' : 'neutral'} size="sm">
               {pet.status === 'active' ? 'Active' : 'Inactive'}
             </Badge>
