@@ -646,7 +646,7 @@ async function login(event) {
     // Create session record in database
     try {
       await pool.query(
-        `INSERT INTO auth_session ("sessionId", "userId", "userAgent", "ipAddress", "createdAt", "lastActive", "isRevoked")
+        `INSERT INTO "AuthSession" ("sessionId", "userId", "userAgent", "ipAddress", "createdAt", "lastActive", "isRevoked")
          VALUES ($1, $2, $3, $4, NOW(), NOW(), FALSE)`,
         [sessionId, user.recordId, metadata.userAgent || null, metadata.ip || null]
       );
@@ -1047,7 +1047,7 @@ async function refresh(event) {
     if (sessionId) {
       try {
         await pool.query(
-          `UPDATE auth_session SET "lastActive" = NOW() WHERE "sessionId" = $1 AND "isRevoked" = FALSE`,
+          `UPDATE "AuthSession" SET "lastActive" = NOW() WHERE "sessionId" = $1 AND "isRevoked" = FALSE`,
           [sessionId]
         );
       } catch (sessionErr) {
@@ -1863,22 +1863,30 @@ async function getSessions(event) {
     const pool = getPool();
 
     // Get all active sessions for this user
-    const result = await pool.query(
-      `SELECT "sessionId", "userAgent", "ipAddress", "createdAt", "lastActive"
-       FROM auth_session
-       WHERE "userId" = $1 AND "isRevoked" = FALSE
-       ORDER BY "lastActive" DESC`,
-      [userId]
-    );
+    // Handle case where auth_session table may not exist yet
+    let sessions = [];
+    try {
+      const result = await pool.query(
+        `SELECT "sessionId", "userAgent", "ipAddress", "createdAt", "lastActive"
+         FROM "AuthSession"
+         WHERE "userId" = $1 AND "isRevoked" = FALSE
+         ORDER BY "lastActive" DESC`,
+        [userId]
+      );
 
-    const sessions = result.rows.map((row) => ({
-      sessionId: row.sessionId,
-      userAgent: row.userAgent,
-      ipAddress: row.ipAddress,
-      createdAt: row.createdAt,
-      lastActive: row.lastActive,
-      isCurrentSession: row.sessionId === currentSessionId,
-    }));
+      sessions = result.rows.map((row) => ({
+        sessionId: row.sessionId,
+        userAgent: row.userAgent,
+        ipAddress: row.ipAddress,
+        createdAt: row.createdAt,
+        lastActive: row.lastActive,
+        isCurrentSession: row.sessionId === currentSessionId,
+      }));
+    } catch (queryErr) {
+      // Table may not exist yet - return empty array
+      console.warn("[AUTH] Could not query auth_session table:", queryErr.message);
+      sessions = [];
+    }
 
     console.log(`[AUTH] Retrieved ${sessions.length} sessions for user ${userId}`);
 
@@ -1977,7 +1985,7 @@ async function revokeSession(event) {
 
     // Verify session belongs to user and revoke it
     const result = await pool.query(
-      `UPDATE auth_session
+      `UPDATE "AuthSession"
        SET "isRevoked" = TRUE
        WHERE "sessionId" = $1 AND "userId" = $2 AND "isRevoked" = FALSE
        RETURNING "sessionId"`,
@@ -2075,7 +2083,7 @@ async function revokeAllSessions(event) {
     let result;
     if (currentSessionId) {
       result = await pool.query(
-        `UPDATE auth_session
+        `UPDATE "AuthSession"
          SET "isRevoked" = TRUE
          WHERE "userId" = $1 AND "sessionId" != $2 AND "isRevoked" = FALSE
          RETURNING "sessionId"`,
@@ -2084,7 +2092,7 @@ async function revokeAllSessions(event) {
     } else {
       // If no current session ID, revoke all sessions
       result = await pool.query(
-        `UPDATE auth_session
+        `UPDATE "AuthSession"
          SET "isRevoked" = TRUE
          WHERE "userId" = $1 AND "isRevoked" = FALSE
          RETURNING "sessionId"`,

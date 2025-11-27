@@ -1,5 +1,6 @@
 const express = require('express');
 const analyticsRouter = require('./api/analytics');
+const authRouter = require('./api/auth');
 const configRouter = require('./api/config');
 const operationsRouter = require('./api/operations');
 const profilesRouter = require('./api/profiles');
@@ -29,6 +30,7 @@ function createApp() {
   app.use('/api/v1/owners', ownersRouter);
   app.use('/api/v1/staff', staffRouter);
   app.use('/api/v1', analyticsRouter);
+  app.use('/api/v1', authRouter);
   app.use('/api/v1', configRouter);
   app.use('/api/v1', operationsRouter);
   app.use('/api/v1', usersRouter);
