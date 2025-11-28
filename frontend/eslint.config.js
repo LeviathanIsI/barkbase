@@ -48,6 +48,19 @@ export default defineConfig([
       ],
     },
   },
+  // Prevent raw fetch() calls in feature code - use apiClient instead
+  {
+    files: ['src/features/**/*.{js,jsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'CallExpression[callee.name="fetch"]',
+          message: 'Use apiClient from @/lib/apiClient instead of raw fetch(). For third-party APIs (e.g., S3 uploads), add a comment explaining the exception.',
+        },
+      ],
+    },
+  },
   {
     files: ['vite.config.js', 'postcss.config.js', 'tailwind.config.js', 'eslint.config.js'],
     languageOptions: {

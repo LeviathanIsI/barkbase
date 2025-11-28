@@ -2,83 +2,100 @@ import { Monitor, Smartphone, MapPin, Clock, LogOut, AlertTriangle } from 'lucid
 import toast from 'react-hot-toast';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  useAuthSessionsQuery,
+  useRevokeSessionMutation,
+  useRevokeAllOtherSessionsMutation,
+} from '@/features/auth/api';
+
+// Helper function to parse user agent string into readable device name
+const parseUserAgent = (ua) => {
+  if (!ua) return { device: 'Unknown Device', icon: Monitor };
+  
+  // Detect browser
+  let browser = 'Unknown Browser';
+  if (ua.includes('Chrome') && !ua.includes('Edg')) browser = 'Chrome';
+  else if (ua.includes('Safari') && !ua.includes('Chrome')) browser = 'Safari';
+  else if (ua.includes('Firefox')) browser = 'Firefox';
+  else if (ua.includes('Edg')) browser = 'Edge';
+  else if (ua.includes('Opera') || ua.includes('OPR')) browser = 'Opera';
+  
+  // Detect OS
+  let os = '';
+  if (ua.includes('Windows')) os = 'Windows';
+  else if (ua.includes('Mac OS')) os = 'macOS';
+  else if (ua.includes('Linux')) os = 'Linux';
+  else if (ua.includes('Android')) os = 'Android';
+  else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
+  
+  // Determine icon
+  const isMobile = ua.includes('Android') || ua.includes('iPhone') || ua.includes('iPad');
+  
+  return {
+    device: os ? `${browser} on ${os}` : browser,
+    icon: isMobile ? Smartphone : Monitor,
+  };
+};
+
+// Helper function to format last active timestamp
+const formatLastActive = (timestamp) => {
+  if (!timestamp) return 'Unknown';
+  
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+  if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+  
+  return date.toLocaleDateString();
+};
 
 const ActiveSessions = () => {
-  // Mock session data - TODO: Replace with real session query
-  const sessions = [
-    {
-      id: 1,
-      device: 'Chrome on Windows',
-      browser: 'Chrome',
-      os: 'Windows',
-      location: 'San Francisco, CA',
-      ip: '192.168.1.1',
-      lastActive: 'Just now',
-      signedIn: 'Jan 15, 2025 at 9:00 AM',
-      current: true,
-      icon: Monitor
-    },
-    {
-      id: 2,
-      device: 'Safari on iPhone 14 Pro',
-      browser: 'Safari',
-      os: 'iOS',
-      location: 'Oakland, CA',
-      ip: '10.0.0.45',
-      lastActive: '2 hours ago',
-      signedIn: 'Jan 14, 2025 at 3:30 PM',
-      current: false,
-      icon: Smartphone
-    },
-    {
-      id: 3,
-      device: 'Edge on MacBook',
-      browser: 'Edge',
-      os: 'macOS',
-      location: 'Berkeley, CA',
-      ip: '172.16.0.8',
-      lastActive: 'Yesterday',
-      signedIn: 'Jan 13, 2025 at 8:00 AM',
-      current: false,
-      icon: Monitor
-    }
-  ];
+  const { data: sessions = [], isLoading } = useAuthSessionsQuery();
+  const revokeSession = useRevokeSessionMutation();
+  const revokeAllOtherSessions = useRevokeAllOtherSessionsMutation();
 
   const handleSignOut = async (sessionId) => {
+    if (revokeSession.isPending) return;
+    
     try {
-      const response = await fetch(`/api/v1/auth/sessions/${sessionId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      
-      if (response.ok) {
-        toast.success('Session signed out successfully');
-      } else {
-        throw new Error('Sign out failed');
-      }
+      await revokeSession.mutateAsync(sessionId);
+      toast.success('Session signed out successfully');
     } catch (error) {
       console.error('Session sign out error:', error);
-      toast.error('Failed to sign out session');
+      toast.error(error.message || 'Failed to sign out session');
     }
   };
 
   const handleSignOutAll = async () => {
+    if (revokeAllOtherSessions.isPending) return;
+    
     try {
-      const response = await fetch('/api/v1/auth/sessions/all', {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      
-      if (response.ok) {
-        toast.success('Signed out of all other sessions');
-      } else {
-        throw new Error('Sign out all failed');
-      }
+      await revokeAllOtherSessions.mutateAsync();
+      toast.success('Signed out of all other sessions');
     } catch (error) {
       console.error('Sign out all sessions error:', error);
-      toast.error('Failed to sign out all sessions');
+      toast.error(error.message || 'Failed to sign out all sessions');
     }
   };
+
+  if (isLoading) {
+    return (
+      <Card title="Active Sessions" icon={Monitor}>
+        <div className="space-y-4">
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-20 w-full" />
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card title="Active Sessions" icon={Monitor}>
@@ -87,65 +104,70 @@ const ActiveSessions = () => {
           Manage all devices where you're currently logged in.
         </p>
 
-        <div className="space-y-3">
-          {sessions.map((session) => {
-            const Icon = session.icon;
-            return (
-              <div key={session.id} className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3">
-                    <div className="relative">
-                      <Icon className="w-6 h-6 text-gray-600 dark:text-text-secondary" />
-                      {session.current && (
-                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-50 dark:bg-green-950/20 rounded-full border-2 border-white" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-medium text-gray-900 dark:text-text-primary">
-                          {session.device}
-                        </h4>
-                        {session.current && (
-                          <span className="text-xs bg-blue-100 dark:bg-surface-secondary text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded-full">
-                            Current Session
-                          </span>
+        {sessions.length === 0 ? (
+          <p className="text-gray-500 dark:text-text-secondary text-center py-4">
+            No active sessions found.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {sessions.map((session) => {
+              const { device, icon: Icon } = parseUserAgent(session.userAgent);
+              return (
+                <div key={session.sessionId} className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-3">
+                      <div className="relative">
+                        <Icon className="w-6 h-6 text-gray-600 dark:text-text-secondary" />
+                        {session.isCurrentSession && (
+                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-surface-primary" />
                         )}
                       </div>
-                      <div className="space-y-1 text-sm text-gray-600 dark:text-text-secondary">
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />
-                            <span>{session.location} • IP: {session.ip}</span>
-                          </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-medium text-gray-900 dark:text-text-primary">
+                            {device}
+                          </h4>
+                          {session.isCurrentSession && (
+                            <span className="text-xs bg-blue-100 dark:bg-surface-secondary text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded-full">
+                              Current Session
+                            </span>
+                          )}
                         </div>
-                        <div className="flex items-center gap-4">
+                        <div className="space-y-1 text-sm text-gray-600 dark:text-text-secondary">
+                          {session.ipAddress && (
+                            <div className="flex items-center gap-1">
+                              <MapPin className="w-3 h-3" />
+                              <span>IP: {session.ipAddress}</span>
+                            </div>
+                          )}
                           <div className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            <span>Last active: {session.lastActive}</span>
+                            <span>Last active: {formatLastActive(session.lastActive)}</span>
                           </div>
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-text-secondary">
-                          Signed in: {session.signedIn}
+                          <div className="text-xs text-gray-500 dark:text-text-secondary">
+                            Signed in: {new Date(session.createdAt).toLocaleString()}
+                          </div>
                         </div>
                       </div>
                     </div>
+                    {!session.isCurrentSession && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSignOut(session.sessionId)}
+                        disabled={revokeSession.isPending && revokeSession.variables === session.sessionId}
+                        className="flex items-center gap-1 text-red-600 hover:text-red-700"
+                      >
+                        <LogOut className="w-3 h-3" />
+                        {revokeSession.isPending && revokeSession.variables === session.sessionId ? 'Signing out...' : 'Sign Out'}
+                      </Button>
+                    )}
                   </div>
-                  {!session.current && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleSignOut(session.id)}
-                      className="flex items-center gap-1 text-red-600 hover:text-red-700"
-                    >
-                      <LogOut className="w-3 h-3" />
-                      Sign Out
-                    </Button>
-                  )}
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Session Settings */}
         <div className="border-t border-gray-200 dark:border-surface-border pt-4">
@@ -174,27 +196,30 @@ const ActiveSessions = () => {
         </div>
 
         {/* Sign Out All Warning */}
-        <div className="bg-yellow-50 dark:bg-surface-primary border border-yellow-200 dark:border-yellow-900/30 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <h4 className="font-medium text-yellow-900 mb-1">
-                Don't recognize a device?
-              </h4>
-              <p className="text-sm text-yellow-800 mb-3">
-                Sign out all other sessions to secure your account.
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSignOutAll}
-                className="text-yellow-800 border-yellow-300 hover:bg-yellow-100 dark:bg-surface-secondary"
-              >
-                Sign out all other sessions
-              </Button>
+        {sessions.filter(s => !s.isCurrentSession).length > 0 && (
+          <div className="bg-yellow-50 dark:bg-surface-primary border border-yellow-200 dark:border-yellow-900/30 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h4 className="font-medium text-yellow-900 dark:text-yellow-200 mb-1">
+                  Don't recognize a device?
+                </h4>
+                <p className="text-sm text-yellow-800 dark:text-yellow-300 mb-3">
+                  Sign out all other sessions to secure your account.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSignOutAll}
+                  disabled={revokeAllOtherSessions.isPending}
+                  className="text-yellow-800 border-yellow-300 hover:bg-yellow-100 dark:bg-surface-secondary"
+                >
+                  {revokeAllOtherSessions.isPending ? 'Signing out...' : 'Sign out all other sessions'}
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </Card>
   );

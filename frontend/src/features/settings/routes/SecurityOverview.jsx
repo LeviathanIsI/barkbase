@@ -18,6 +18,7 @@ import PrivacyControls from './components/PrivacyControls';
 import SecurityScore from './components/SecurityScore';
 import TeamSecurityPolicies from './components/TeamSecurityPolicies';
 import SecurityNotifications from './components/SecurityNotifications';
+import { useChangePasswordMutation } from '@/features/auth/api';
 
 const SecurityOverview = () => {
   const [passwordData, setPasswordData] = useState({
@@ -25,6 +26,7 @@ const SecurityOverview = () => {
     newPassword: '',
     confirmPassword: '',
   });
+  const changePassword = useChangePasswordMutation();
 
   const handlePasswordChange = (e) => {
     const { name, value } = e.target;
@@ -45,26 +47,15 @@ const SecurityOverview = () => {
     }
     
     try {
-      const response = await fetch('/api/v1/auth/change-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          currentPassword: passwordData.currentPassword,
-          newPassword: passwordData.newPassword
-        })
+      await changePassword.mutateAsync({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword,
       });
-      
-      if (response.ok) {
-        toast.success('Password updated successfully');
-        setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'Failed to update password');
-      }
+      toast.success('Password updated successfully');
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
     } catch (error) {
       console.error('Password change error:', error);
-      toast.error('An error occurred while updating your password');
+      toast.error(error.message || 'Failed to update password');
     }
   };
 

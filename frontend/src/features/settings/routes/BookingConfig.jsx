@@ -5,6 +5,8 @@ import Switch from '@/components/ui/Switch';
 import Input from '@/components/ui/Input';
 import SettingsPage from '../components/SettingsPage';
 import { Calendar, Clock, DollarSign, Shield, Settings } from 'lucide-react';
+import toast from 'react-hot-toast';
+import apiClient from '@/lib/apiClient';
 
 const BookingConfig = () => {
   const [settings, setSettings] = useState({
@@ -25,21 +27,11 @@ const BookingConfig = () => {
 
   const handleSave = async () => {
     try {
-      const response = await fetch('/api/v1/settings/booking', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(settings)
-      });
-      
-      if (response.ok) {
-        alert('Booking settings saved successfully!');
-      } else {
-        alert('Failed to save settings. Please try again.');
-      }
+      await apiClient.put('/api/v1/settings/booking', settings);
+      toast.success('Booking settings saved successfully!');
     } catch (error) {
       console.error('Error saving booking settings:', error);
-      alert('An error occurred. Please try again.');
+      toast.error(error.message || 'Failed to save settings');
     }
   };
 

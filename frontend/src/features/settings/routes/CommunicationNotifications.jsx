@@ -5,6 +5,8 @@ import Switch from '@/components/ui/Switch';
 import Badge from '@/components/ui/Badge';
 import SettingsPage from '../components/SettingsPage';
 import { Mail, MessageSquare, Bell, Smartphone, Globe, Clock } from 'lucide-react';
+import toast from 'react-hot-toast';
+import apiClient from '@/lib/apiClient';
 
 const CommunicationNotifications = () => {
   const [settings, setSettings] = useState({
@@ -35,21 +37,11 @@ const CommunicationNotifications = () => {
 
   const handleSave = async () => {
     try {
-      const response = await fetch('/api/v1/settings/communication', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(settings)
-      });
-      
-      if (response.ok) {
-        alert('Communication settings saved successfully!');
-      } else {
-        alert('Failed to save settings. Please try again.');
-      }
+      await apiClient.put('/api/v1/settings/communication', settings);
+      toast.success('Communication settings saved successfully!');
     } catch (error) {
       console.error('Error saving communication settings:', error);
-      alert('An error occurred. Please try again.');
+      toast.error(error.message || 'Failed to save settings');
     }
   };
 

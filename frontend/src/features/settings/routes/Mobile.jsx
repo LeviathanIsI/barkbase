@@ -5,6 +5,8 @@ import Switch from '@/components/ui/Switch';
 import Badge from '@/components/ui/Badge';
 import SettingsPage from '../components/SettingsPage';
 import { Smartphone, Download, QrCode, Bell, Shield, Wifi } from 'lucide-react';
+import toast from 'react-hot-toast';
+import apiClient from '@/lib/apiClient';
 
 const Mobile = () => {
   const [settings, setSettings] = useState({
@@ -27,21 +29,11 @@ const Mobile = () => {
 
   const handleSave = async () => {
     try {
-      const response = await fetch('/api/v1/settings/mobile', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(settings)
-      });
-      
-      if (response.ok) {
-        alert('Mobile settings saved successfully!');
-      } else {
-        alert('Failed to save settings. Please try again.');
-      }
+      await apiClient.put('/api/v1/settings/mobile', settings);
+      toast.success('Mobile settings saved successfully!');
     } catch (error) {
       console.error('Error saving mobile settings:', error);
-      alert('An error occurred. Please try again.');
+      toast.error(error.message || 'Failed to save settings');
     }
   };
 

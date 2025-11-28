@@ -378,26 +378,19 @@ export const useMembersQuery = () => {
   return useQuery({
     queryKey: ['members', tenantKey],
     queryFn: async () => {
-      const response = await fetch('/api/v1/memberships');
-      if (!response.ok) throw new Error('Failed to fetch members');
-      return response.json();
+      const res = await apiClient.get('/api/v1/memberships');
+      return res.data;
     },
   });
 };
 
 export const useUpdateMemberRoleMutation = () => {
   const queryClient = useQueryClient();
-  const tenantKey = useTenantKey();
 
   return useMutation({
     mutationFn: async ({ membershipId, role }) => {
-      const response = await fetch(`/api/v1/memberships/${membershipId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role }),
-      });
-      if (!response.ok) throw new Error('Failed to update member role');
-      return response.json();
+      const res = await apiClient.put(`/api/v1/memberships/${membershipId}`, { role });
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['members'] });
@@ -407,15 +400,11 @@ export const useUpdateMemberRoleMutation = () => {
 
 export const useRemoveMemberMutation = () => {
   const queryClient = useQueryClient();
-  const tenantKey = useTenantKey();
 
   return useMutation({
     mutationFn: async (membershipId) => {
-      const response = await fetch(`/api/v1/memberships/${membershipId}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) throw new Error('Failed to remove member');
-      return response.json();
+      const res = await apiClient.delete(`/api/v1/memberships/${membershipId}`);
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['members'] });
@@ -426,19 +415,11 @@ export const useRemoveMemberMutation = () => {
 // Invites API
 export const useInviteMemberMutation = () => {
   const queryClient = useQueryClient();
-  const tenantKey = useTenantKey();
 
   return useMutation({
     mutationFn: async (inviteData) => {
-      const response = await fetch('/api/v1/invites', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(inviteData),
-      });
-      if (!response.ok) {
-        throw new Error('Failed to send invite');
-      }
-      return response.json();
+      const res = await apiClient.post('/api/v1/invites', inviteData);
+      return res.data;
     },
     onSuccess: () => {
       // Invalidate members query to refetch with new invites

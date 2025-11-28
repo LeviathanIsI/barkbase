@@ -95,7 +95,8 @@ const MobileCheckIn = () => {
           }
           const blob = new Blob([arrayBuffer], { type: 'image/jpeg' });
 
-          // Upload to S3 using presigned URL
+          // Upload directly to S3 using presigned URL (intentionally not using BarkBase apiClient - this is a direct S3 upload)
+          // eslint-disable-next-line no-restricted-syntax
           const uploadResponse = await fetch(uploadUrl, {
             method: 'PUT',
             body: blob,

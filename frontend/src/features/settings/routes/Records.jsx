@@ -6,6 +6,8 @@ import Badge from '@/components/ui/Badge';
 import Select from '@/components/ui/Select';
 import SettingsPage from '../components/SettingsPage';
 import { FileText, Lock, Download, Archive, Clock, Shield } from 'lucide-react';
+import toast from 'react-hot-toast';
+import apiClient from '@/lib/apiClient';
 
 const Records = () => {
   const [settings, setSettings] = useState({
@@ -29,21 +31,11 @@ const Records = () => {
 
   const handleSave = async () => {
     try {
-      const response = await fetch('/api/v1/settings/records', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(settings)
-      });
-      
-      if (response.ok) {
-        alert('Records settings saved successfully!');
-      } else {
-        alert('Failed to save settings. Please try again.');
-      }
+      await apiClient.put('/api/v1/settings/records', settings);
+      toast.success('Records settings saved successfully!');
     } catch (error) {
       console.error('Error saving records settings:', error);
-      alert('An error occurred. Please try again.');
+      toast.error(error.message || 'Failed to save settings');
     }
   };
 

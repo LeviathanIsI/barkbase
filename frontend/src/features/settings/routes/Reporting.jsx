@@ -5,6 +5,8 @@ import Switch from '@/components/ui/Switch';
 import Select from '@/components/ui/Select';
 import SettingsPage from '../components/SettingsPage';
 import { Mail, Calendar, FileText, Download, Clock } from 'lucide-react';
+import toast from 'react-hot-toast';
+import apiClient from '@/lib/apiClient';
 
 const Reporting = () => {
   const [settings, setSettings] = useState({
@@ -20,21 +22,11 @@ const Reporting = () => {
 
   const handleSave = async () => {
     try {
-      const response = await fetch('/api/v1/settings/reporting', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(settings)
-      });
-      
-      if (response.ok) {
-        alert('Report settings saved successfully!');
-      } else {
-        alert('Failed to save settings. Please try again.');
-      }
+      await apiClient.put('/api/v1/settings/reporting', settings);
+      toast.success('Report settings saved successfully!');
     } catch (error) {
       console.error('Error saving report settings:', error);
-      alert('An error occurred. Please try again.');
+      toast.error(error.message || 'Failed to save settings');
     }
   };
 

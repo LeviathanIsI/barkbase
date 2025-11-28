@@ -18,6 +18,13 @@ import PasswordStrength from '@/components/ui/PasswordStrength';
 import { useUserProfileQuery, useUpdateUserProfileMutation } from '../api-user';
 import { useAuthStore } from '@/stores/auth';
 import { uploadFile } from '@/lib/apiClient';
+import {
+  useAuthSessionsQuery,
+  useRevokeSessionMutation,
+  useRevokeAllOtherSessionsMutation,
+  useChangePasswordMutation,
+  useResendVerificationMutation,
+} from '@/features/auth/api';
 
 // Helper function to parse user agent string into readable device name
 const parseUserAgent = (ua) => {
@@ -77,8 +84,6 @@ const Profile = () => {
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
 
-  // Email verification resend state
-  const [isResendingVerification, setIsResendingVerification] = useState(false);
 
   // Notification preferences
   const [notificationSettings, setNotificationSettings] = useState({
@@ -110,12 +115,12 @@ const Profile = () => {
 
   // Password management
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
     current: '',
     new: '',
     confirm: '',
   });
+  const changePassword = useChangePasswordMutation();
 
   // Personalization settings
   const [personalization, setPersonalization] = useState({
@@ -126,11 +131,16 @@ const Profile = () => {
     numberFormat: 'us',
   });
 
-  // Active sessions state
-  const [activeSessions, setActiveSessions] = useState([]);
-  const [isLoadingSessions, setIsLoadingSessions] = useState(true);
-  const [isRevokingSession, setIsRevokingSession] = useState(null);
-  const [isRevokingAllSessions, setIsRevokingAllSessions] = useState(false);
+  // Active sessions (via React Query)
+  const {
+    data: activeSessions = [],
+    isLoading: isLoadingSessions,
+  } = useAuthSessionsQuery();
+  const revokeSession = useRevokeSessionMutation();
+  const revokeAllOtherSessions = useRevokeAllOtherSessionsMutation();
+  
+  // Email verification
+  const resendVerification = useResendVerificationMutation();
 
   const [recentActivity] = useState([
     {
@@ -203,31 +213,6 @@ const Profile = () => {
     }
   }, [profile, user]);
 
-  // Fetch active sessions
-  const fetchSessions = async () => {
-    setIsLoadingSessions(true);
-    try {
-      const response = await fetch('/api/v1/auth/sessions', {
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setActiveSessions(data);
-      } else {
-        console.error('Failed to fetch sessions');
-        setActiveSessions([]);
-      }
-    } catch (error) {
-      console.error('Error fetching sessions:', error);
-      setActiveSessions([]);
-    } finally {
-      setIsLoadingSessions(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchSessions();
-  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -320,31 +305,17 @@ const Profile = () => {
       return;
     }
 
-    setIsChangingPassword(true);
     try {
-      const response = await fetch('/api/v1/auth/change-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          currentPassword: passwordForm.current,
-          newPassword: passwordForm.new
-        })
+      await changePassword.mutateAsync({
+        currentPassword: passwordForm.current,
+        newPassword: passwordForm.new,
       });
-      
-      if (response.ok) {
-        toast.success('Password updated successfully');
-        setShowPasswordModal(false);
-        setPasswordForm({ current: '', new: '', confirm: '' });
-      } else {
-        const error = await response.json().catch(() => ({}));
-        toast.error(error.message || 'Failed to update password');
-      }
+      toast.success('Password updated successfully');
+      setShowPasswordModal(false);
+      setPasswordForm({ current: '', new: '', confirm: '' });
     } catch (error) {
       console.error('Password change error:', error);
-      toast.error('An error occurred while updating your password');
-    } finally {
-      setIsChangingPassword(false);
+      toast.error(error.message || 'Failed to update password');
     }
   };
 
@@ -360,82 +331,39 @@ const Profile = () => {
 
   // Session handlers
   const handleSignOutSession = async (sessionId) => {
-    if (isRevokingSession) return;
+    if (revokeSession.isPending) return;
     
-    setIsRevokingSession(sessionId);
     try {
-      const response = await fetch(`/api/v1/auth/sessions/${sessionId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      
-      if (response.ok) {
-        toast.success('Session signed out successfully');
-        // Refresh session list
-        await fetchSessions();
-      } else {
-        const error = await response.json().catch(() => ({}));
-        toast.error(error.message || 'Failed to sign out session');
-      }
+      await revokeSession.mutateAsync(sessionId);
+      toast.success('Session signed out successfully');
     } catch (error) {
       console.error('Session sign out error:', error);
-      toast.error('Failed to sign out session');
-    } finally {
-      setIsRevokingSession(null);
+      toast.error(error.message || 'Failed to sign out session');
     }
   };
 
   const handleSignOutAllSessions = async () => {
-    if (isRevokingAllSessions) return;
+    if (revokeAllOtherSessions.isPending) return;
     
-    setIsRevokingAllSessions(true);
     try {
-      const response = await fetch('/api/v1/auth/sessions/all', {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      
-      if (response.ok) {
-        toast.success('Signed out of all other sessions');
-        // Refresh session list
-        await fetchSessions();
-      } else {
-        const error = await response.json().catch(() => ({}));
-        toast.error(error.message || 'Failed to sign out all sessions');
-      }
+      await revokeAllOtherSessions.mutateAsync();
+      toast.success('Signed out of all other sessions');
     } catch (error) {
       console.error('Sign out all sessions error:', error);
-      toast.error('Failed to sign out all sessions');
-    } finally {
-      setIsRevokingAllSessions(false);
+      toast.error(error.message || 'Failed to sign out all sessions');
     }
   };
 
   // Resend email verification
   const handleResendVerification = async () => {
-    if (isResendingVerification) return;
+    if (resendVerification.isPending) return;
     
-    setIsResendingVerification(true);
     try {
-      const response = await fetch('/api/v1/auth/resend-verification', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (response.ok) {
-        toast.success('Verification email sent! Please check your inbox.');
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        toast.error(errorData.message || 'Failed to resend verification email');
-      }
+      await resendVerification.mutateAsync();
+      toast.success('Verification email sent! Please check your inbox.');
     } catch (error) {
       console.error('Resend verification error:', error);
-      toast.error('Failed to resend verification email');
-    } finally {
-      setIsResendingVerification(false);
+      toast.error(error.message || 'Failed to resend verification email');
     }
   };
 
@@ -469,10 +397,10 @@ const Profile = () => {
             Please verify your email to receive important notifications.
             <button 
               onClick={handleResendVerification}
-              disabled={isResendingVerification}
+              disabled={resendVerification.isPending}
               className="text-blue-600 dark:text-blue-400 underline ml-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isResendingVerification ? 'Sending...' : 'Resend Verification Email'}
+              {resendVerification.isPending ? 'Sending...' : 'Resend Verification Email'}
             </button>
           </AlertDescription>
         </Alert>
@@ -824,9 +752,9 @@ const Profile = () => {
                     variant="outline"
                     size="sm"
                     onClick={() => handleSignOutSession(session.sessionId)}
-                    disabled={isRevokingSession === session.sessionId}
+                    disabled={revokeSession.isPending && revokeSession.variables === session.sessionId}
                   >
-                    {isRevokingSession === session.sessionId ? 'Signing out...' : 'Sign Out'}
+                    {revokeSession.isPending && revokeSession.variables === session.sessionId ? 'Signing out...' : 'Sign Out'}
                   </Button>
                 )}
               </div>
@@ -837,9 +765,9 @@ const Profile = () => {
               <Button 
                 variant="outline" 
                 onClick={handleSignOutAllSessions}
-                disabled={isRevokingAllSessions}
+                disabled={revokeAllOtherSessions.isPending}
               >
-                {isRevokingAllSessions ? 'Signing out...' : 'Sign Out All Other Sessions'}
+                {revokeAllOtherSessions.isPending ? 'Signing out...' : 'Sign Out All Other Sessions'}
               </Button>
             </div>
           )}
@@ -1196,11 +1124,11 @@ const Profile = () => {
             </div>
 
             <div className="flex justify-end gap-3 mt-6">
-              <Button variant="outline" onClick={() => setShowPasswordModal(false)} disabled={isChangingPassword}>
+              <Button variant="outline" onClick={() => setShowPasswordModal(false)} disabled={changePassword.isPending}>
                 Cancel
               </Button>
-              <Button onClick={handlePasswordSubmit} disabled={isChangingPassword}>
-                {isChangingPassword ? 'Updating...' : 'Update Password'}
+              <Button onClick={handlePasswordSubmit} disabled={changePassword.isPending}>
+                {changePassword.isPending ? 'Updating...' : 'Update Password'}
               </Button>
             </div>
           </div>

@@ -12,6 +12,8 @@ import CustomerNotifications from './components/CustomerNotifications';
 import NotificationTesting from './components/NotificationTesting';
 import MobilePush from './components/MobilePush';
 import DoNotDisturb from './components/DoNotDisturb';
+import toast from 'react-hot-toast';
+import apiClient from '@/lib/apiClient';
 
 const NotificationsOverview = () => {
   const [preferences, setPreferences] = useState({
@@ -109,21 +111,11 @@ const NotificationsOverview = () => {
 
   const handleSave = async () => {
     try {
-      // Save preferences to API
-      const response = await fetch('/api/v1/settings/notifications', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(preferences)
-      });
-      
-      if (response.ok) {
-        alert('Notification preferences saved successfully!');
-      } else {
-        alert('Failed to save preferences. Please try again.');
-      }
+      await apiClient.put('/api/v1/settings/notifications', preferences);
+      toast.success('Notification preferences saved successfully!');
     } catch (error) {
       console.error('Error saving preferences:', error);
-      alert('An error occurred. Please try again.');
+      toast.error(error.message || 'Failed to save preferences');
     }
   };
 
