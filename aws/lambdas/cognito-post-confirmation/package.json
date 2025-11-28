@@ -1,9 +1,0 @@
-{
-  "name": "cognito-post-confirmation",
-  "version": "1.0.0",
-  "description": "Cognito Post-Confirmation trigger to create database records",
-  "main": "index.js",
-  "dependencies": {}
-}
-
-

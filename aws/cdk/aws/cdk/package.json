@@ -1,5 +1,0 @@
-{
-  "dependencies": {
-    "barkbase-cdk": "file:../.."
-  }
-}
