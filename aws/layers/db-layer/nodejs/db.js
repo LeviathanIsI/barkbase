@@ -2,273 +2,203 @@
  * =============================================================================
  * BarkBase Database Layer
  * =============================================================================
- *
- * This module provides a singleton PostgreSQL connection pool for BarkBase.
- * It supports two modes:
- *
- * 1. SECRET-BASED (Lambda/Production):
- *    - Set DB_SECRET_NAME env var (e.g., "barkbase/dev/postgres/credentials")
- *    - Fetches credentials from AWS Secrets Manager
- *    - Caches the secret in memory for the Lambda lifecycle
- *
- * 2. DIRECT ENV (Local Development):
- *    - If DB_SECRET_NAME is not set, uses direct env vars:
- *      - DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
- *
- * USAGE:
- * ------
- * const { getPool } = require('/opt/nodejs/db'); // Lambda
- * const { getPool } = require('./db');           // Local
- * const pool = getPool();
- * const result = await pool.query('SELECT NOW()');
- *
+ * 
+ * Provides PostgreSQL connection pooling with AWS Secrets Manager integration.
+ * This module is designed to work in both Lambda and local development.
+ * 
+ * Features:
+ * - Connection pooling with pg
+ * - Automatic credential fetching from Secrets Manager
+ * - Connection reuse across Lambda invocations
+ * - Graceful error handling
+ * 
  * =============================================================================
  */
 
 const { Pool } = require('pg');
+const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
 
-// Singleton pool instance
+// Connection pool (reused across Lambda invocations)
 let pool = null;
-
-// Cached secret (fetched once per Lambda lifecycle)
-let cachedSecret = null;
+let cachedCredentials = null;
+let credentialsFetchTime = null;
+const CREDENTIALS_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
- * Fetch database credentials from AWS Secrets Manager
- * @returns {Promise<Object>} Parsed secret containing host, port, username, password, dbname
+ * Get database credentials from Secrets Manager
  */
-async function fetchSecret() {
-  if (cachedSecret) {
-    return cachedSecret;
+async function getDbCredentials() {
+  const now = Date.now();
+  
+  // Return cached credentials if still valid
+  if (cachedCredentials && credentialsFetchTime && (now - credentialsFetchTime) < CREDENTIALS_TTL_MS) {
+    return cachedCredentials;
   }
 
-  const secretName = process.env.DB_SECRET_NAME;
-  const region = process.env.AWS_REGION || 'us-east-2';
-
-  if (!secretName) {
-    throw new Error('DB_SECRET_NAME environment variable is required for secret-based configuration');
+  const secretArn = process.env.DB_SECRET_ARN;
+  
+  if (!secretArn) {
+    // Fall back to environment variables for local development
+    if (process.env.DB_HOST && process.env.DB_USER && process.env.DB_PASSWORD) {
+      return {
+        host: process.env.DB_HOST,
+        port: parseInt(process.env.DB_PORT || '5432', 10),
+        username: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        dbname: process.env.DB_NAME || 'barkbase',
+      };
+    }
+    throw new Error('DB_SECRET_ARN environment variable is not set and no local DB config found');
   }
-
-  console.log(`[DB-LAYER] Fetching secret: ${secretName} from region: ${region}`);
-
-  // Dynamic import of AWS SDK v3
-  const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
-
-  const client = new SecretsManagerClient({ region });
-  const command = new GetSecretValueCommand({ SecretId: secretName });
 
   try {
+    const client = new SecretsManagerClient({
+      region: process.env.AWS_REGION_DEPLOY || process.env.AWS_REGION || 'us-east-2',
+    });
+
+    const command = new GetSecretValueCommand({ SecretId: secretArn });
     const response = await client.send(command);
     
     if (!response.SecretString) {
-      throw new Error('Secret does not contain a string value');
+      throw new Error('Secret value is empty');
     }
 
-    cachedSecret = JSON.parse(response.SecretString);
-    console.log('[DB-LAYER] Secret fetched and cached successfully');
-    return cachedSecret;
+    const secret = JSON.parse(response.SecretString);
+    
+    cachedCredentials = {
+      host: secret.host,
+      port: parseInt(secret.port || '5432', 10),
+      username: secret.username,
+      password: secret.password,
+      dbname: secret.dbname || process.env.DB_NAME || 'barkbase',
+    };
+    credentialsFetchTime = now;
+    
+    console.log('[DB] Successfully fetched credentials from Secrets Manager');
+    return cachedCredentials;
   } catch (error) {
-    console.error('[DB-LAYER] Failed to fetch secret:', error.message);
+    console.error('[DB] Failed to fetch credentials from Secrets Manager:', error.message);
     throw error;
   }
 }
 
 /**
- * Build pool configuration from environment variables (local dev mode)
- * @returns {Object} pg Pool configuration
+ * Initialize and return the connection pool
  */
-function buildEnvConfig() {
-  const config = {
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432', 10),
-    database: process.env.DB_NAME || 'barkbase',
-    user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || '',
-    max: parseInt(process.env.DB_POOL_MAX || '10', 10),
-    idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT || '30000', 10),
-    connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT || '5000', 10),
-  };
-
-  console.log(`[DB-LAYER] Using direct env config: ${config.host}:${config.port}/${config.database}`);
-  return config;
-}
-
-/**
- * Build pool configuration from Secrets Manager secret
- * @param {Object} secret - Parsed secret from Secrets Manager
- * @returns {Object} pg Pool configuration
- */
-function buildSecretConfig(secret) {
-  const config = {
-    host: secret.host,
-    port: parseInt(secret.port || '5432', 10),
-    database: secret.dbname || secret.database || process.env.DB_NAME || 'barkbase',
-    user: secret.username,
-    password: secret.password,
-    max: parseInt(process.env.DB_POOL_MAX || '10', 10),
-    idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT || '30000', 10),
-    connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT || '5000', 10),
-    // SSL required for RDS
-    ssl: {
-      rejectUnauthorized: false, // RDS uses self-signed certs
-    },
-  };
-
-  console.log(`[DB-LAYER] Using secret-based config: ${config.host}:${config.port}/${config.database}`);
-  return config;
-}
-
-/**
- * Initialize the database pool asynchronously
- * Called internally when pool is first needed
- * @returns {Promise<Pool>}
- */
-async function initializePool() {
+async function initPool() {
   if (pool) {
     return pool;
   }
 
-  let config;
+  const credentials = await getDbCredentials();
 
-  if (process.env.DB_SECRET_NAME) {
-    // Production mode: fetch from Secrets Manager
-    console.log('[DB-LAYER] Initializing pool with Secrets Manager credentials');
-    const secret = await fetchSecret();
-    config = buildSecretConfig(secret);
-  } else {
-    // Local dev mode: use direct env vars
-    console.log('[DB-LAYER] Initializing pool with direct environment variables');
-    config = buildEnvConfig();
-  }
+  pool = new Pool({
+    host: credentials.host,
+    port: credentials.port,
+    user: credentials.username,
+    password: credentials.password,
+    database: credentials.dbname,
+    max: 10, // Maximum number of clients in the pool
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
+    ssl: process.env.DB_SSL === 'false' ? false : {
+      rejectUnauthorized: false, // Required for RDS
+    },
+  });
 
-  pool = new Pool(config);
-
-  // Handle pool errors gracefully
+  // Handle pool errors
   pool.on('error', (err) => {
-    console.error('[DB-LAYER] Unexpected pool error:', err.message);
+    console.error('[DB] Unexpected pool error:', err);
   });
 
   // Test the connection
   try {
     const client = await pool.connect();
-    const result = await client.query('SELECT NOW() as now');
-    console.log(`[DB-LAYER] Pool initialized successfully. Server time: ${result.rows[0].now}`);
+    await client.query('SELECT 1');
     client.release();
+    console.log('[DB] Connection pool initialized successfully');
   } catch (error) {
-    console.error('[DB-LAYER] Failed to verify pool connection:', error.message);
-    // Don't throw - let the actual queries fail with better context
+    console.error('[DB] Failed to initialize connection pool:', error.message);
+    pool = null;
+    throw error;
   }
 
   return pool;
 }
 
 /**
- * Get the database connection pool (singleton)
- * 
- * IMPORTANT: This function is SYNCHRONOUS for backwards compatibility with
- * existing code that calls `const pool = getPool()`. The pool is initialized
- * lazily on first query if not already initialized.
- * 
- * For Lambda cold starts, call initializePool() in your handler init if needed.
- * 
- * @returns {Pool} The pg Pool instance (may not be connected yet)
+ * Get the connection pool (async initialization)
+ * @returns {Promise<Pool>} PostgreSQL connection pool
+ */
+async function getPoolAsync() {
+  return initPool();
+}
+
+/**
+ * Get the connection pool (synchronous - returns existing pool or throws)
+ * @returns {Pool} PostgreSQL connection pool
  */
 function getPool() {
-  if (pool) {
-    return pool;
+  if (!pool) {
+    throw new Error('Database pool not initialized. Call initPool() first or use getPoolAsync()');
   }
-
-  // Create pool synchronously for backwards compatibility
-  // The actual connection happens lazily on first query
-  let config;
-
-  if (process.env.DB_SECRET_NAME) {
-    // For secret-based config in Lambda, we need async initialization
-    // Create a "lazy" pool that initializes on first use
-    console.log('[DB-LAYER] Creating lazy pool (will fetch secret on first query)');
-    
-    // Return a proxy that initializes the real pool on first method call
-    const lazyPool = {
-      _initialized: false,
-      _initPromise: null,
-      
-      async _ensureInitialized() {
-        if (this._initialized) return;
-        if (!this._initPromise) {
-          this._initPromise = initializePool();
-        }
-        await this._initPromise;
-        this._initialized = true;
-      },
-      
-      async query(...args) {
-        await this._ensureInitialized();
-        return pool.query(...args);
-      },
-      
-      async connect(...args) {
-        await this._ensureInitialized();
-        return pool.connect(...args);
-      },
-      
-      async end() {
-        if (pool) {
-          return pool.end();
-        }
-      },
-
-      on(event, handler) {
-        // Queue event handlers for when pool is ready
-        if (pool) {
-          pool.on(event, handler);
-        }
-        return this;
-      }
-    };
-    
-    // Store reference so subsequent calls return same instance
-    pool = lazyPool;
-    return lazyPool;
-  } else {
-    // Local dev: synchronous initialization
-    console.log('[DB-LAYER] Initializing pool synchronously (local dev mode)');
-    config = buildEnvConfig();
-    pool = new Pool(config);
-    
-    pool.on('error', (err) => {
-      console.error('[DB-LAYER] Unexpected pool error:', err.message);
-    });
-    
-    return pool;
-  }
+  return pool;
 }
 
 /**
- * Explicitly initialize the pool (useful for Lambda cold start optimization)
- * @returns {Promise<Pool>}
+ * Execute a query with automatic pool initialization
+ * @param {string} text - SQL query text
+ * @param {any[]} params - Query parameters
+ * @returns {Promise<import('pg').QueryResult>}
  */
-async function warmUp() {
-  return initializePool();
+async function query(text, params = []) {
+  const p = await getPoolAsync();
+  const start = Date.now();
+  
+  try {
+    const result = await p.query(text, params);
+    const duration = Date.now() - start;
+    
+    if (duration > 1000) {
+      console.warn(`[DB] Slow query (${duration}ms):`, text.substring(0, 100));
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('[DB] Query error:', error.message);
+    console.error('[DB] Query:', text.substring(0, 200));
+    throw error;
+  }
 }
 
 /**
- * Close the pool connection (for graceful shutdown)
- * @returns {Promise<void>}
+ * Get a client from the pool for transaction support
+ * @returns {Promise<import('pg').PoolClient>}
+ */
+async function getClient() {
+  const p = await getPoolAsync();
+  return p.connect();
+}
+
+/**
+ * Close the connection pool
  */
 async function closePool() {
   if (pool) {
-    console.log('[DB-LAYER] Closing pool');
-    if (pool.end) {
-      await pool.end();
-    }
+    await pool.end();
     pool = null;
-    cachedSecret = null;
+    cachedCredentials = null;
+    credentialsFetchTime = null;
+    console.log('[DB] Connection pool closed');
   }
 }
 
 module.exports = {
   getPool,
-  warmUp,
+  getPoolAsync,
+  initPool,
+  query,
+  getClient,
   closePool,
 };
 

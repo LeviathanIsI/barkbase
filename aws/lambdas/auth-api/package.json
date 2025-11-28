@@ -1,0 +1,7 @@
+{
+  "name": "barkbase-auth-api",
+  "version": "1.0.0",
+  "description": "BarkBase Authentication API Lambda",
+  "main": "index.js"
+}
+

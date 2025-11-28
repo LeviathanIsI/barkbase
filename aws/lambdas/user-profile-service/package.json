@@ -1,0 +1,7 @@
+{
+  "name": "barkbase-user-profile-service",
+  "version": "1.0.0",
+  "description": "BarkBase User Profile Service Lambda",
+  "main": "index.js"
+}
+
