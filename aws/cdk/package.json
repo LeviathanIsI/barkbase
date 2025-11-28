@@ -11,17 +11,26 @@
     "deploy:dev": "cdk deploy --all -c env=dev --require-approval never",
     "deploy:prod": "cdk deploy --all -c env=prod --require-approval never",
     "diff": "cdk diff",
-    "destroy": "cdk destroy"
+    "diff:dev": "cdk diff --all -c env=dev",
+    "diff:prod": "cdk diff --all -c env=prod",
+    "destroy": "cdk destroy",
+    "destroy:dev": "cdk destroy --all -c env=dev",
+    "generate-env:dev": "npx ts-node scripts/generate-env.ts dev",
+    "generate-env:prod": "npx ts-node scripts/generate-env.ts prod",
+    "bootstrap": "cdk bootstrap",
+    "list": "cdk list -c env=dev"
   },
   "dependencies": {
     "aws-cdk-lib": "^2.170.0",
     "constructs": "^10.4.2",
-    "source-map-support": "^0.5.21"
+    "source-map-support": "^0.5.21",
+    "@aws-sdk/client-cloudformation": "^3.693.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "typescript": "~5.7.2",
-    "aws-cdk": "^2.170.0"
+    "aws-cdk": "^2.170.0",
+    "ts-node": "^10.9.2"
   }
 }
 
