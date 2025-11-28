@@ -2,8 +2,8 @@
 
 This document describes the Lambda functions and service architecture for BarkBase Dev v2.
 
-**Phase:** 3 of BarkBase Dev v2 Rebuild  
-**Last Updated:** Phase 3 implementation
+**Phase:** 7 of BarkBase Dev v2 Rebuild  
+**Last Updated:** Phase 7 - Identity Services Implementation
 
 ---
 
@@ -25,21 +25,27 @@ BarkBase uses a domain-driven microservices architecture where each domain has i
 
 **Purpose:** Authentication, user profile, and role/permission management
 
-| Lambda Function | Logical ID | Source Path |
-|-----------------|------------|-------------|
-| Auth API | `AuthApiFunction` | `aws/lambdas/auth-api/index.ts` |
-| User Profile Service | `UserProfileServiceFunction` | `aws/lambdas/user-profile-service/index.ts` |
-| Roles Config Service | `RolesConfigServiceFunction` | `aws/lambdas/roles-config-service/index.ts` |
+**Status:** ✅ **IMPLEMENTED** (Phase 7)
+
+| Lambda Function | Logical ID | Source Path | Status |
+|-----------------|------------|-------------|--------|
+| Auth API | `AuthApiFunction` | `aws/lambdas/auth-api/index.ts` | ✅ Implemented |
+| User Profile Service | `UserProfileServiceFunction` | `aws/lambdas/user-profile-service/index.ts` | ✅ Implemented |
+| Roles Config Service | `RolesConfigServiceFunction` | `aws/lambdas/roles-config-service/index.ts` | ✅ Read-only |
 
 **API Routes:**
-- `POST /api/v1/auth/login`
-- `POST /api/v1/auth/logout`
-- `POST /api/v1/auth/refresh`
-- `POST /api/v1/auth/signup`
-- `GET /api/v1/users/profile`
-- `POST /api/v1/users/password`
-- `ANY /api/v1/roles`
-- `GET/POST/PATCH /api/v1/user-permissions/*`
+- `POST /api/v1/auth/login` - ✅ User authentication with email/password
+- `POST /api/v1/auth/logout` - ✅ Session revocation
+- `POST /api/v1/auth/refresh` - ✅ Token refresh
+- `POST /api/v1/auth/signup` - ✅ New user and tenant registration
+- `GET /api/v1/users/profile` - ✅ Get current user profile
+- `PATCH /api/v1/users/profile` - ✅ Update user profile
+- `POST /api/v1/users/password` - ✅ Change password
+- `GET /api/v1/roles` - ✅ List roles
+- `GET /api/v1/roles/{roleId}` - ✅ Get specific role
+- `GET /api/v1/user-permissions/{userId}` - ✅ Get user permissions
+- `POST /api/v1/user-permissions/{userId}` - 🔜 Placeholder
+- `PATCH /api/v1/user-permissions/{userId}` - 🔜 Placeholder
 
 ---
 
@@ -260,9 +266,72 @@ This allows them to:
 
 ---
 
+## Auth & Profile Implementation Notes
+
+### Authentication Flow
+
+The Identity services implement database-backed authentication (for `VITE_AUTH_MODE=db`):
+
+1. **Login (`POST /api/v1/auth/login`)**
+   - Accepts `{ email, password }` in JSON body
+   - Looks up user in `User` table by email
+   - Verifies password using `bcrypt.compare()` against `passwordHash`
+   - Gets primary membership from `Membership` table (includes role)
+   - Creates session in `AuthSession` table
+   - Returns `{ user, tenant, accessToken, role }`
+
+2. **Token Format (JWT)**
+   - Algorithm: HS256 (symmetric)
+   - Secret: `JWT_SECRET` env var (or dev fallback)
+   - Access token expiry: 1 hour (configurable via `JWT_EXPIRES_IN`)
+   - Refresh token expiry: 7 days (configurable via `JWT_REFRESH_EXPIRES_IN`)
+   - Payload fields: `sub` (userId), `email`, `tenantId`, `role`, `sessionId`
+
+3. **Authentication Extraction**
+   - Primary: JWT from `Authorization: Bearer <token>` header
+   - Fallback: API Gateway JWT authorizer claims (`requestContext.authorizer.jwt.claims`)
+   - Dev fallback: `X-User-Id`, `X-Tenant-Id`, `X-User-Role` headers
+
+### Database Tables Used
+
+| Table | Purpose |
+|-------|---------|
+| `User` | User records with `recordId`, `email`, `passwordHash`, `name`, etc. |
+| `Tenant` | Tenant/organization records with `recordId`, `name`, `slug`, `plan` |
+| `Membership` | Links users to tenants with `userId`, `tenantId`, `role` |
+| `AuthSession` | Session tracking with `sessionId`, `refreshToken`, `isRevoked` |
+| `PermissionProfile` | Custom roles/profiles (optional, falls back to built-in roles) |
+| `UserProfileAssignment` | Profile-to-user assignments (optional) |
+
+### Shared Utilities
+
+All Identity Lambdas use shared utilities from `aws/lambdas/shared/`:
+
+| Module | Purpose |
+|--------|---------|
+| `types.ts` | TypeScript interfaces for User, Tenant, JWT, etc. |
+| `security.ts` | CORS headers, audit logging, rate limiting, error responses |
+| `db.ts` | PostgreSQL connection pool with Secrets Manager integration |
+| `auth.ts` | JWT generation/validation, password hashing, user extraction |
+
+### Required Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `DB_HOST` | RDS endpoint | Yes |
+| `DB_PORT` | Database port (5432) | Yes |
+| `DB_NAME` | Database name | Yes |
+| `DB_SECRET_ARN` | Secrets Manager ARN for credentials | Yes |
+| `JWT_SECRET` | Secret for signing JWTs | Yes (prod) |
+| `JWT_EXPIRES_IN` | Access token expiry (default: '1h') | No |
+| `JWT_REFRESH_EXPIRES_IN` | Refresh token expiry (default: '7d') | No |
+| `STAGE` | Deployment stage | Yes |
+
+---
+
 ## Handler Placeholder Pattern
 
-All Lambda handlers currently return a 501 response:
+Non-implemented Lambda handlers return a 501 response:
 
 ```typescript
 export const handler = async (event, context) => {
@@ -289,8 +358,6 @@ export const handler = async (event, context) => {
 };
 ```
 
-Real business logic will be implemented in later phases.
-
 ---
 
 ## File Structure
@@ -305,7 +372,7 @@ aws/
 │       │   └── ServiceStackProps.ts       # Shared props interface
 │       ├── NetworkStack.ts
 │       ├── DatabaseStack.ts
-│       ├── IdentityServicesStack.ts       # 3 Lambdas
+│       ├── IdentityServicesStack.ts       # 3 Lambdas ✅
 │       ├── TenantsServicesStack.ts        # 1 Lambda
 │       ├── EntityServicesStack.ts         # 1 Lambda
 │       ├── OperationsServicesStack.ts     # 1 Lambda
@@ -314,19 +381,25 @@ aws/
 │       ├── FinancialServicesStack.ts      # 1 Lambda
 │       ├── AnalyticsServicesStack.ts      # 1 Lambda
 │       ├── PropertiesV2ServicesStack.ts   # 1 Lambda
-│       ├── ApiCoreStack.ts                # TODO: Phase 4
-│       ├── RealtimeStack.ts               # TODO: Phase 4
-│       ├── JobsStack.ts                   # TODO: Phase 4
-│       └── FrontendStack.ts               # TODO: Phase 5
+│       ├── ApiCoreStack.ts                # ✅ Implemented
+│       ├── RealtimeStack.ts               # ✅ Implemented
+│       ├── JobsStack.ts                   # ✅ Implemented
+│       └── FrontendStack.ts               # ✅ Implemented
 └── lambdas/
     ├── package.json
     ├── tsconfig.json
+    ├── shared/                            # ✅ NEW: Shared utilities
+    │   ├── index.ts                       # Re-exports all utilities
+    │   ├── types.ts                       # TypeScript interfaces
+    │   ├── security.ts                    # CORS, headers, audit logging
+    │   ├── db.ts                          # PostgreSQL + Secrets Manager
+    │   └── auth.ts                        # JWT, password hashing
     ├── auth-api/
-    │   └── index.ts
+    │   └── index.ts                       # ✅ Implemented
     ├── user-profile-service/
-    │   └── index.ts
+    │   └── index.ts                       # ✅ Implemented
     ├── roles-config-service/
-    │   └── index.ts
+    │   └── index.ts                       # ✅ Read-only implemented
     ├── tenants-memberships-service/
     │   └── index.ts
     ├── entity-service/
@@ -372,7 +445,7 @@ All stacks are well under the 500-resource limit.
 
 Key facts about BarkBase Dev v2 Lambda architecture:
 
-1. **12 Lambda functions** across 9 service stacks
+1. **12 Lambda functions** across 9 service stacks (+7 realtime/jobs)
 2. **One Lambda per domain** pattern (not function-per-route)
 3. **All Lambdas are VPC-enabled** with private subnet placement
 4. **Node.js 20.x runtime** with esbuild bundling
@@ -380,8 +453,17 @@ Key facts about BarkBase Dev v2 Lambda architecture:
 6. **Secrets Manager** for database credentials (never hardcoded)
 7. **X-Ray tracing enabled** for all Lambdas
 8. **512 MB memory, 15s timeout** as defaults
-9. **Placeholder handlers** return 501 until real logic is added
-10. **~90-110 total resources** across service stacks (well under 500 limit)
-11. **API Gateway not yet wired** - Phase 4
-12. **Source code** in `aws/lambdas/<service-name>/index.ts`
+9. **Identity services IMPLEMENTED** (Phase 7):
+   - `auth-api`: login, logout, refresh, signup with bcrypt + JWT
+   - `user-profile-service`: profile get/update, password change
+   - `roles-config-service`: read-only roles and permissions
+10. **Shared utilities** in `aws/lambdas/shared/`:
+    - `types.ts`: TypeScript interfaces
+    - `security.ts`: CORS, audit logging, rate limiting
+    - `db.ts`: PostgreSQL pool with Secrets Manager
+    - `auth.ts`: JWT generation/validation, bcrypt
+11. **JWT tokens** use HS256, 1h access / 7d refresh expiry
+12. **Database tables**: User, Tenant, Membership, AuthSession
+13. **Source code** in `aws/lambdas/<service-name>/index.ts`
+14. **~90-110 total resources** across service stacks (well under 500 limit)
 
