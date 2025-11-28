@@ -20,10 +20,10 @@
  * 9. FinancialServicesStack - Depends on Network, Database
  * 10. AnalyticsServicesStack - Depends on Network, Database
  * 11. PropertiesV2ServicesStack - Depends on Network, Database
- * 12. RealtimeStack - TODO: Phase 4
- * 13. JobsStack - TODO: Phase 4
- * 14. ApiCoreStack - TODO: Phase 4
- * 15. FrontendStack - TODO: Phase 5
+ * 12. ApiCoreStack - Depends on all service stacks (HTTP API routes)
+ * 13. RealtimeStack - TODO: Later phase (WebSocket)
+ * 14. JobsStack - TODO: Later phase (scheduled tasks)
+ * 15. FrontendStack - TODO: Later phase (S3/CloudFront)
  */
 
 import 'source-map-support/register';
@@ -331,24 +331,53 @@ const jobsStack = new JobsStack(app, `${stackPrefix}-Jobs`, {
 // TODO: Wire dependencies in Phase 4
 
 // =============================================================================
-// Layer 8: API Gateway - TODO: Phase 4
+// Layer 8: API Gateway (Depends on all service stacks)
 // =============================================================================
 
 /**
  * ApiCoreStack - HTTP API Gateway
  * 
- * TODO: Implement in Phase 4
+ * IMPLEMENTED: Phase 4
+ * 
+ * Wires all service Lambda functions to HTTP API routes.
+ * See docs/API_AND_ROUTING_DESIGN.md for route mapping.
  */
 const apiCoreStack = new ApiCoreStack(app, `${stackPrefix}-ApiCore`, {
   env,
-  description: 'BarkBase API Gateway - HTTP API',
+  description: 'BarkBase API Gateway - HTTP API with all routes',
   tags: {
     Project: 'BarkBase',
     Environment: 'Dev',
     Layer: 'API',
+    Stage: stage,
   },
+  // Configuration
+  stage,
+  environment,
+  // Lambda function references from service stacks
+  authApiFunction: identityServicesStack.authApiFunction,
+  userProfileServiceFunction: identityServicesStack.userProfileServiceFunction,
+  rolesConfigServiceFunction: identityServicesStack.rolesConfigServiceFunction,
+  tenantsMembershipsServiceFunction: tenantsServicesStack.tenantsMembershipsServiceFunction,
+  entityServiceFunction: entityServicesStack.entityServiceFunction,
+  operationsServiceFunction: operationsServicesStack.operationsServiceFunction,
+  configServiceFunction: configServicesStack.configServiceFunction,
+  featuresServiceFunction: featuresServicesStack.featuresServiceFunction,
+  financialServiceFunction: financialServicesStack.financialServiceFunction,
+  analyticsServiceFunction: analyticsServicesStack.analyticsServiceFunction,
+  propertiesApiV2Function: propertiesV2ServicesStack.propertiesApiV2Function,
 });
-// TODO: Wire dependencies in Phase 4
+
+// Add dependencies on all service stacks
+apiCoreStack.addDependency(identityServicesStack);
+apiCoreStack.addDependency(tenantsServicesStack);
+apiCoreStack.addDependency(entityServicesStack);
+apiCoreStack.addDependency(operationsServicesStack);
+apiCoreStack.addDependency(configServicesStack);
+apiCoreStack.addDependency(featuresServicesStack);
+apiCoreStack.addDependency(financialServicesStack);
+apiCoreStack.addDependency(analyticsServicesStack);
+apiCoreStack.addDependency(propertiesV2ServicesStack);
 
 // =============================================================================
 // Layer 9: Frontend - TODO: Phase 5
