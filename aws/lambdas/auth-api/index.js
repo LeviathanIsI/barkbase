@@ -17,7 +17,7 @@ const {
   successResponse: createSuccessResponse,
 } = require("./security-utils");
 
-const BUILD_TAG = "auth-api-build-2025-11-25-1";
+const BUILD_TAG = "auth-api-build-2025-11-28-sessions";
 console.log(`[AuthApi] Bootstrapped ${BUILD_TAG}`);
 
 const commonHeaders = {
@@ -316,6 +316,9 @@ async function handleAuthEvent(event) {
     console.log("[AuthApiRouter] -> changePassword");
     return await changePassword(event);
   }
+  // === Session Management Routes ===
+  // Used by Profile → Active Sessions panel in frontend (Settings/Profile page)
+  // These endpoints must remain at /api/v1/auth/sessions for frontend compatibility
   if (httpMethod === "GET" && path === "/api/v1/auth/sessions") {
     console.log("[AuthApiRouter] -> getSessions");
     return await getSessions(event);
@@ -1812,6 +1815,9 @@ async function changePassword(event) {
 
 /**
  * Get all active sessions for the current user
+ * 
+ * Used by: Profile → Active Sessions panel (frontend/src/features/settings/routes/Profile.jsx)
+ * Route: GET /api/v1/auth/sessions
  *
  * @param {Object} event - Lambda event with JWT token
  * @returns {Object} Lambda response with sessions array
