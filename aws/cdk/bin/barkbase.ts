@@ -423,24 +423,41 @@ apiCoreStack.addDependency(analyticsServicesStack);
 apiCoreStack.addDependency(propertiesV2ServicesStack);
 
 // =============================================================================
-// Layer 9: Frontend - TODO: Phase 5
+// Layer 9: Frontend (No dependencies - static hosting)
 // =============================================================================
 
 /**
- * FrontendStack - S3, CloudFront
+ * FrontendStack - S3 + CloudFront for SPA hosting
  * 
- * TODO: Implement in Phase 5
+ * IMPLEMENTED: Phase 6
+ * 
+ * Resources:
+ * - S3 bucket (private, versioned) for static assets
+ * - CloudFront distribution with OAC (Origin Access Control)
+ * - SPA routing (403/404 → index.html)
+ * - Dev-optimized cache (short TTLs)
+ * 
+ * Deployment:
+ * - Build: `cd frontend && npm run build`
+ * - Sync: `aws s3 sync dist/ s3://<bucket-name>/`
+ * - Invalidate: `aws cloudfront create-invalidation --distribution-id <id> --paths "/*"`
+ * 
+ * See docs/FRONTEND_AND_ENV_CONFIG.md for env var mapping.
  */
 const frontendStack = new FrontendStack(app, `${stackPrefix}-Frontend`, {
   env,
-  description: 'BarkBase frontend hosting - S3, CloudFront',
+  description: 'BarkBase frontend hosting - S3 bucket + CloudFront distribution',
   tags: {
     Project: 'BarkBase',
     Environment: 'Dev',
     Layer: 'Frontend',
+    Stage: stage,
   },
+  stage,
+  environment,
 });
-// TODO: Wire dependencies in Phase 5
+// No dependencies - frontend only hosts static files
+// API/WebSocket URLs are injected at build time via VITE_* env vars
 
 // =============================================================================
 // Synthesize
