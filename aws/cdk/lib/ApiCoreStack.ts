@@ -3,82 +3,52 @@
  * BarkBase API Core Stack
  * =============================================================================
  * 
- * Stack Name: Barkbase-ApiCoreStack-{env}
- * 
- * RESPONSIBILITIES:
- * -----------------
- * This stack creates the HTTP API (API Gateway v2) that routes all requests
- * to the unified backend Lambda:
- * 
- * 1. HTTP API:
- *    - Name: barkbase-{env}-http-api
- *    - Protocol: HTTP (API Gateway v2)
- *    - Routes all requests to the unified backend Lambda
- * 
- * 2. Routing:
- *    - $default route catches all paths and methods
- *    - Express backend handles actual routing (/api/v1/*, /health, etc.)
- * 
- * 3. CORS:
- *    - Configured for frontend access
- *    - Allows standard methods and headers
- * 
- * DEPENDENCIES:
- * -------------
- * - BackendServicesStack: Unified backend Lambda function
- * 
- * NOTE: This stack does NOT include Cognito/auth. That will be a future phase.
- * 
- * DEPLOYMENT:
- * -----------
- * cdk deploy Barkbase-ApiCoreStack-dev
+ * Creates HTTP API Gateway with:
+ * - CORS configuration for frontend
+ * - Routes for auth and profile endpoints
+ * - Lambda integrations
  * 
  * =============================================================================
  */
 
 import * as cdk from 'aws-cdk-lib';
-import * as apigw from 'aws-cdk-lib/aws-apigatewayv2';
-import * as integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
+import * as apigatewayv2 from 'aws-cdk-lib/aws-apigatewayv2';
+import * as apigatewayv2Integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Construct } from 'constructs';
-import { BarkBaseEnvironment, resourceName } from './shared/ServiceStackProps';
+import { BarkbaseConfig } from './shared/config';
 
 export interface ApiCoreStackProps extends cdk.StackProps {
-  /** Environment configuration */
-  environment: BarkBaseEnvironment;
-  /** The unified backend Lambda function from BackendServicesStack */
-  backendFunction: lambda.IFunction;
+  readonly config: BarkbaseConfig;
+  readonly authApiFunction: lambda.IFunction;
+  readonly userProfileFunction: lambda.IFunction;
 }
 
 export class ApiCoreStack extends cdk.Stack {
-  /** The HTTP API */
-  public readonly httpApi: apigw.HttpApi;
+  public readonly httpApi: apigatewayv2.IHttpApi;
+  public readonly apiUrl: string;
 
   constructor(scope: Construct, id: string, props: ApiCoreStackProps) {
     super(scope, id, props);
 
-    const { environment, backendFunction } = props;
+    const { config, authApiFunction, userProfileFunction } = props;
 
     // =========================================================================
-    // HTTP API
+    // HTTP API Gateway
     // =========================================================================
-    // Create an HTTP API (API Gateway v2) with CORS configured.
-    // This is more cost-effective and lower-latency than REST API (v1).
-    
-    this.httpApi = new apigw.HttpApi(this, 'HttpApi', {
-      apiName: resourceName(environment, 'http-api'),
-      description: 'BarkBase HTTP API - Routes to unified backend Lambda',
-      
-      // CORS configuration for frontend access
+
+    this.httpApi = new apigatewayv2.HttpApi(this, 'BarkbaseHttpApi', {
+      apiName: `${config.stackPrefix}-api`,
+      description: 'BarkBase HTTP API Gateway',
       corsPreflight: {
-        allowOrigins: this.getAllowedOrigins(environment),
+        allowOrigins: config.corsOrigins,
         allowMethods: [
-          apigw.CorsHttpMethod.GET,
-          apigw.CorsHttpMethod.POST,
-          apigw.CorsHttpMethod.PUT,
-          apigw.CorsHttpMethod.PATCH,
-          apigw.CorsHttpMethod.DELETE,
-          apigw.CorsHttpMethod.OPTIONS,
+          apigatewayv2.CorsHttpMethod.GET,
+          apigatewayv2.CorsHttpMethod.POST,
+          apigatewayv2.CorsHttpMethod.PUT,
+          apigatewayv2.CorsHttpMethod.PATCH,
+          apigatewayv2.CorsHttpMethod.DELETE,
+          apigatewayv2.CorsHttpMethod.OPTIONS,
         ],
         allowHeaders: [
           'Content-Type',
@@ -87,102 +57,83 @@ export class ApiCoreStack extends cdk.Stack {
           'X-Api-Key',
           'X-Amz-Security-Token',
           'X-Tenant-Id',
+          'X-Request-Id',
         ],
         allowCredentials: true,
-        maxAge: cdk.Duration.hours(1),
+        maxAge: cdk.Duration.hours(24),
       },
-      
-      // Disable execute-api endpoint if using custom domain (future)
       disableExecuteApiEndpoint: false,
     });
 
     // =========================================================================
-    // Lambda Integration
+    // Lambda Integrations
     // =========================================================================
-    // Create a Lambda integration that proxies all requests to the backend.
-    
-    const backendIntegration = new integrations.HttpLambdaIntegration(
-      'BackendIntegration',
-      backendFunction,
-      {
-        payloadFormatVersion: apigw.PayloadFormatVersion.VERSION_2_0,
-      }
+
+    const authIntegration = new apigatewayv2Integrations.HttpLambdaIntegration(
+      'AuthIntegration',
+      authApiFunction
+    );
+
+    const profileIntegration = new apigatewayv2Integrations.HttpLambdaIntegration(
+      'ProfileIntegration',
+      userProfileFunction
     );
 
     // =========================================================================
     // Routes
     // =========================================================================
-    // Use $default route to catch ALL requests (any method, any path).
-    // The Express backend will handle actual routing:
-    // - /api/v1/* - API endpoints
-    // - /health - Health check endpoint
-    
+
+    // Auth routes - /api/v1/auth/*
     this.httpApi.addRoutes({
-      path: '/{proxy+}',
-      methods: [apigw.HttpMethod.ANY],
-      integration: backendIntegration,
+      path: '/api/v1/auth',
+      methods: [apigatewayv2.HttpMethod.ANY],
+      integration: authIntegration,
     });
 
-    // Also add a root route for /health or root-level requests
     this.httpApi.addRoutes({
-      path: '/',
-      methods: [apigw.HttpMethod.ANY],
-      integration: backendIntegration,
+      path: '/api/v1/auth/{proxy+}',
+      methods: [apigatewayv2.HttpMethod.ANY],
+      integration: authIntegration,
     });
 
-    // =========================================================================
-    // CloudFormation Outputs
-    // =========================================================================
-    
-    new cdk.CfnOutput(this, 'HttpApiId', {
-      value: this.httpApi.httpApiId,
-      description: 'HTTP API ID',
-      exportName: `${this.stackName}-HttpApiId`,
+    // Profile routes - /api/v1/profile/*
+    this.httpApi.addRoutes({
+      path: '/api/v1/profile',
+      methods: [apigatewayv2.HttpMethod.ANY],
+      integration: profileIntegration,
     });
 
-    new cdk.CfnOutput(this, 'HttpApiUrl', {
-      value: this.httpApi.apiEndpoint,
-      description: 'HTTP API base URL',
-      exportName: `${this.stackName}-HttpApiUrl`,
+    this.httpApi.addRoutes({
+      path: '/api/v1/profile/{proxy+}',
+      methods: [apigatewayv2.HttpMethod.ANY],
+      integration: profileIntegration,
     });
 
-    new cdk.CfnOutput(this, 'HttpApiStage', {
-      value: this.httpApi.defaultStage?.stageName || '$default',
-      description: 'HTTP API default stage name',
-      exportName: `${this.stackName}-HttpApiStage`,
+    // Health check route
+    this.httpApi.addRoutes({
+      path: '/api/v1/health',
+      methods: [apigatewayv2.HttpMethod.GET],
+      integration: authIntegration,
     });
 
-    // =========================================================================
-    // Tags
-    // =========================================================================
-    cdk.Tags.of(this).add('Project', 'BarkBase');
-    cdk.Tags.of(this).add('Environment', environment.envName);
-    cdk.Tags.of(this).add('ManagedBy', 'CDK');
-  }
+    // Store the API URL
+    this.apiUrl = this.httpApi.apiEndpoint;
 
-  /**
-   * Get allowed CORS origins based on environment
-   * Note: Cannot use '*' with allowCredentials=true
-   */
-  private getAllowedOrigins(environment: BarkBaseEnvironment): string[] {
-    if (environment.envName === 'prod') {
-      // TODO: Replace with actual production frontend domain(s)
-      return [
-        'https://app.barkbase.com',
-        'https://www.barkbase.com',
-      ];
-    }
-    
-    // Dev/staging: allow localhost origins
-    // Note: Wildcard (*) is not allowed when credentials are enabled
-    return [
-      'http://localhost:3000',
-      'http://localhost:5173', // Vite default
-      'http://localhost:4173', // Vite preview
-      'http://127.0.0.1:3000',
-      'http://127.0.0.1:5173',
-      'http://127.0.0.1:4173',
-    ];
+    // =========================================================================
+    // Stack Outputs
+    // =========================================================================
+
+    new cdk.CfnOutput(this, 'ApiUrl', {
+      value: this.apiUrl,
+      description: 'HTTP API Gateway URL',
+      exportName: `${config.stackPrefix}-api-url`,
+    });
+
+    new cdk.CfnOutput(this, 'ApiId', {
+      value: this.httpApi.apiId,
+      description: 'HTTP API Gateway ID',
+      exportName: `${config.stackPrefix}-api-id`,
+    });
   }
 }
 

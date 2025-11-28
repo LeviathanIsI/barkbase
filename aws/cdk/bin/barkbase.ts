@@ -4,43 +4,11 @@
  * BarkBase CDK Application Entry Point
  * =============================================================================
  * 
- * This file defines the CDK application and instantiates all stacks.
+ * Orchestrates the deployment of all BarkBase infrastructure stacks.
  * 
- * DEPLOYMENT ORDER:
- * -----------------
- * Phase 1 (Foundation):
- *   1. NetworkStack - VPC, subnets, security groups
- *   2. DatabaseStack - RDS PostgreSQL, Secrets Manager
- * 
- * Phase 2 (Shared Resources):
- *   3. SharedResourcesStack - Lambda layers (DbLayer)
- * 
- * Phase 3 (Backend Services):
- *   4. BackendServicesStack - Unified backend Lambda + DB healthcheck
- * 
- * Phase 4 (API Gateway):
- *   5. ApiCoreStack - HTTP API routing to backend Lambda
- * 
- * Phase 5 (Identity - Future):
- *   6. IdentityStack - Cognito User Pool + API authorizers
- * 
- * USAGE:
- * ------
- * # Deploy all stacks
- * cdk deploy --all
- * 
- * # Deploy specific stack
- * cdk deploy Barkbase-NetworkStack-dev
- * cdk deploy Barkbase-DatabaseStack-dev
- * cdk deploy Barkbase-SharedResourcesStack-dev
- * cdk deploy Barkbase-BackendServicesStack-dev
- * cdk deploy Barkbase-ApiCoreStack-dev
- * 
- * # Diff before deploy
- * cdk diff
- * 
- * # Synthesize CloudFormation templates
- * cdk synth
+ * Usage:
+ *   cdk deploy --all -c env=dev   # Deploy development environment
+ *   cdk deploy --all -c env=prod  # Deploy production environment
  * 
  * =============================================================================
  */
@@ -49,143 +17,114 @@ import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import { NetworkStack } from '../lib/NetworkStack';
 import { DatabaseStack } from '../lib/DatabaseStack';
-import { SharedResourcesStack } from '../lib/SharedResourcesStack';
-import { BackendServicesStack } from '../lib/BackendServicesStack';
+import { AuthStack } from '../lib/AuthStack';
+import { ServicesStack } from '../lib/ServicesStack';
 import { ApiCoreStack } from '../lib/ApiCoreStack';
-import { BarkBaseEnvironment } from '../lib/shared/ServiceStackProps';
+import { getConfig, getCdkEnv } from '../lib/shared/config';
 
-// =============================================================================
-// Configuration
-// =============================================================================
-
-// Get environment from context or default to 'dev'
 const app = new cdk.App();
-const envName = app.node.tryGetContext('env') || 'dev';
+const config = getConfig(app);
+const cdkEnv = getCdkEnv(config);
 
-// AWS account and region - use CDK_DEFAULT_* env vars or specify explicitly
-const account = process.env.CDK_DEFAULT_ACCOUNT || process.env.AWS_ACCOUNT_ID;
-const region = process.env.CDK_DEFAULT_REGION || process.env.AWS_REGION || 'us-east-2';
-
-if (!account) {
-  console.warn('Warning: AWS account not specified. Set CDK_DEFAULT_ACCOUNT or AWS_ACCOUNT_ID.');
-}
-
-// Environment configuration
-const environment: BarkBaseEnvironment = {
-  envName,
-  region,
-  account: account || '',
-};
-
-// CDK environment
-const cdkEnv: cdk.Environment = {
-  account,
-  region,
-};
-
-// Stack naming convention
-const stackPrefix = `Barkbase`;
-const stackSuffix = envName;
+console.log(`\n🚀 Deploying BarkBase infrastructure for: ${config.env.toUpperCase()}`);
+console.log(`📍 Region: ${config.region}`);
+console.log(`📦 Stack Prefix: ${config.stackPrefix}\n`);
 
 // =============================================================================
-// Phase 1 Stacks: Network & Database
+// Stack 1: Network Infrastructure
 // =============================================================================
-
-// Network Stack (no dependencies)
-const networkStack = new NetworkStack(app, `${stackPrefix}-NetworkStack-${stackSuffix}`, {
+const networkStack = new NetworkStack(app, `${config.stackPrefix}-network`, {
+  config,
   env: cdkEnv,
-  environment,
   description: 'BarkBase Network Infrastructure - VPC, Subnets, Security Groups',
-  terminationProtection: envName === 'prod',
+  tags: {
+    Environment: config.env,
+    Project: 'barkbase',
+    ManagedBy: 'cdk',
+  },
 });
 
-// Database Stack (depends on NetworkStack)
-const databaseStack = new DatabaseStack(app, `${stackPrefix}-DatabaseStack-${stackSuffix}`, {
+// =============================================================================
+// Stack 2: Database Infrastructure
+// =============================================================================
+const databaseStack = new DatabaseStack(app, `${config.stackPrefix}-database`, {
+  config,
   env: cdkEnv,
-  environment,
   vpc: networkStack.vpc,
-  databaseSecurityGroup: networkStack.databaseSecurityGroup,
-  description: 'BarkBase Database Infrastructure - RDS PostgreSQL, Secrets Manager',
-  terminationProtection: envName === 'prod',
+  lambdaSecurityGroup: networkStack.lambdaSecurityGroup,
+  bastionSecurityGroup: networkStack.bastionSecurityGroup,
+  description: 'BarkBase Database Infrastructure - PostgreSQL RDS',
+  tags: {
+    Environment: config.env,
+    Project: 'barkbase',
+    ManagedBy: 'cdk',
+  },
 });
 databaseStack.addDependency(networkStack);
 
 // =============================================================================
-// Phase 2 Stacks: Shared Resources (Lambda Layers)
+// Stack 3: Authentication Infrastructure
 // =============================================================================
-
-// Shared Resources Stack (DbLayer, etc.)
-const sharedResourcesStack = new SharedResourcesStack(app, `${stackPrefix}-SharedResourcesStack-${stackSuffix}`, {
+const authStack = new AuthStack(app, `${config.stackPrefix}-auth`, {
+  config,
   env: cdkEnv,
-  environment,
-  description: 'BarkBase Shared Resources - Lambda Layers',
-  terminationProtection: envName === 'prod',
+  description: 'BarkBase Authentication Infrastructure - Cognito User Pool',
+  tags: {
+    Environment: config.env,
+    Project: 'barkbase',
+    ManagedBy: 'cdk',
+  },
 });
-// No explicit dependency - layers can be created independently
 
 // =============================================================================
-// Phase 3 Stacks: Backend Services (Lambdas)
+// Stack 4: Services (Lambda Functions & Layers)
 // =============================================================================
-
-// Backend Services Stack (unified backend + DB healthcheck)
-const backendServicesStack = new BackendServicesStack(app, `${stackPrefix}-BackendServicesStack-${stackSuffix}`, {
+const servicesStack = new ServicesStack(app, `${config.stackPrefix}-services`, {
+  config,
   env: cdkEnv,
-  environment,
-  // Network dependencies (from NetworkStack)
   vpc: networkStack.vpc,
-  appSecurityGroup: networkStack.appSecurityGroup,
-  // Database dependencies (from DatabaseStack)
-  database: databaseStack.database,
-  databaseSecret: databaseStack.databaseSecret,
-  databaseName: databaseStack.databaseName,
-  // Shared resources (from SharedResourcesStack)
-  dbLayer: sharedResourcesStack.dbLayer,
-  description: 'BarkBase Backend Services - Unified Backend Lambda + DB Healthcheck',
-  terminationProtection: envName === 'prod',
+  lambdaSecurityGroup: networkStack.lambdaSecurityGroup,
+  dbSecretArn: databaseStack.dbSecret.secretArn,
+  userPoolId: authStack.userPool.userPoolId,
+  userPoolClientId: authStack.userPoolClient.userPoolClientId,
+  jwksUrl: authStack.jwksUrl,
+  description: 'BarkBase Services - Lambda Functions and Layers',
+  tags: {
+    Environment: config.env,
+    Project: 'barkbase',
+    ManagedBy: 'cdk',
+  },
 });
-backendServicesStack.addDependency(networkStack);
-backendServicesStack.addDependency(databaseStack);
-backendServicesStack.addDependency(sharedResourcesStack);
+servicesStack.addDependency(networkStack);
+servicesStack.addDependency(databaseStack);
+servicesStack.addDependency(authStack);
 
 // =============================================================================
-// Phase 4 Stacks: API Gateway
+// Stack 5: API Gateway
 // =============================================================================
-
-// API Core Stack (HTTP API routing to backend Lambda)
-const apiCoreStack = new ApiCoreStack(app, `${stackPrefix}-ApiCoreStack-${stackSuffix}`, {
+const apiCoreStack = new ApiCoreStack(app, `${config.stackPrefix}-api`, {
+  config,
   env: cdkEnv,
-  environment,
-  // Backend Lambda to route requests to
-  backendFunction: backendServicesStack.backendFunction,
-  description: 'BarkBase HTTP API Gateway - Routes to unified backend',
-  terminationProtection: envName === 'prod',
+  authApiFunction: servicesStack.authApiFunction,
+  userProfileFunction: servicesStack.userProfileFunction,
+  description: 'BarkBase API Gateway - HTTP API with Lambda Integrations',
+  tags: {
+    Environment: config.env,
+    Project: 'barkbase',
+    ManagedBy: 'cdk',
+  },
 });
-apiCoreStack.addDependency(backendServicesStack);
+apiCoreStack.addDependency(servicesStack);
 
 // =============================================================================
-// Future Phase Stacks (commented out until needed)
+// Deployment Summary
 // =============================================================================
+console.log('📋 Stack Deployment Order:');
+console.log(`  1. ${config.stackPrefix}-network`);
+console.log(`  2. ${config.stackPrefix}-database`);
+console.log(`  3. ${config.stackPrefix}-auth`);
+console.log(`  4. ${config.stackPrefix}-services`);
+console.log(`  5. ${config.stackPrefix}-api\n`);
 
-/*
-// Phase 5: Identity (Cognito)
-
-import { IdentityStack } from '../lib/IdentityStack';
-
-const identityStack = new IdentityStack(app, `${stackPrefix}-IdentityStack-${stackSuffix}`, {
-  env: cdkEnv,
-  environment,
-  httpApi: apiCoreStack.httpApi,
-  description: 'BarkBase Identity - Cognito User Pool + API Authorizers',
-});
-*/
-
-// =============================================================================
-// App Tags
-// =============================================================================
-
-cdk.Tags.of(app).add('Application', 'BarkBase');
-cdk.Tags.of(app).add('Environment', envName);
-cdk.Tags.of(app).add('ManagedBy', 'CDK');
-
-// Synthesize the app
 app.synth();
+
