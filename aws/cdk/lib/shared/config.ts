@@ -69,8 +69,15 @@ export function getConfig(app: cdk.App): BarkbaseConfig {
 
 /**
  * Get CDK environment for stack deployment
+ * Returns undefined for environment-agnostic stacks if account is not set
  */
-export function getCdkEnv(config: BarkbaseConfig): cdk.Environment {
+export function getCdkEnv(config: BarkbaseConfig): cdk.Environment | undefined {
+  // If account is not set, return undefined for environment-agnostic deployment
+  // This allows CDK to use the CLI's configured credentials
+  if (!config.account) {
+    return undefined;
+  }
+  
   return {
     account: config.account,
     region: config.region,

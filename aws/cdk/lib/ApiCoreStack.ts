@@ -25,7 +25,7 @@ export interface ApiCoreStackProps extends cdk.StackProps {
 }
 
 export class ApiCoreStack extends cdk.Stack {
-  public readonly httpApi: apigatewayv2.IHttpApi;
+  public readonly httpApi: apigatewayv2.HttpApi;
   public readonly apiUrl: string;
 
   constructor(scope: Construct, id: string, props: ApiCoreStackProps) {
