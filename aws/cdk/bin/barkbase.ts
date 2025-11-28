@@ -21,8 +21,8 @@
  * 10. AnalyticsServicesStack - Depends on Network, Database
  * 11. PropertiesV2ServicesStack - Depends on Network, Database
  * 12. ApiCoreStack - Depends on all service stacks (HTTP API routes)
- * 13. RealtimeStack - TODO: Later phase (WebSocket)
- * 14. JobsStack - TODO: Later phase (scheduled tasks)
+ * 13. RealtimeStack - Depends on Network, Database (WebSocket API)
+ * 14. JobsStack - Depends on Network, Database (scheduled jobs)
  * 15. FrontendStack - TODO: Later phase (S3/CloudFront)
  */
 
@@ -291,33 +291,62 @@ analyticsServicesStack.addDependency(networkStack);
 analyticsServicesStack.addDependency(databaseStack);
 
 // =============================================================================
-// Layer 6: Communication Services - TODO: Phase 4
+// Layer 6: Communication Services (Depends on Network, Database)
 // =============================================================================
 
 /**
- * RealtimeStack - WebSocket, push notifications
+ * RealtimeStack - WebSocket API for real-time updates
  * 
- * TODO: Implement in Phase 4
+ * IMPLEMENTED: Phase 5
+ * 
+ * Lambdas:
+ * - ConnectFunction ($connect)
+ * - DisconnectFunction ($disconnect)
+ * - MessageFunction ($default)
+ * - BroadcastFunction (broadcast route)
+ * 
+ * See docs/REALTIME_AND_JOBS_DESIGN.md for details.
  */
 const realtimeStack = new RealtimeStack(app, `${stackPrefix}-Realtime`, {
   env,
-  description: 'BarkBase real-time communication services',
+  description: 'BarkBase real-time communication services - WebSocket API',
   tags: {
     Project: 'BarkBase',
     Environment: 'Dev',
     Layer: 'Communication',
+    Stage: stage,
   },
+  // Network
+  vpc: networkStack.vpc,
+  lambdaSecurityGroup: networkStack.lambdaSecurityGroup,
+  appSubnets: networkStack.appSubnets,
+  // Database
+  dbSecret: databaseStack.dbSecret,
+  dbHost: databaseStack.hostname,
+  dbPort: databaseStack.port,
+  dbName: databaseStack.dbName,
+  // Stage/Environment
+  stage,
+  environment,
 });
-// TODO: Wire dependencies in Phase 4
+realtimeStack.addDependency(networkStack);
+realtimeStack.addDependency(databaseStack);
 
 // =============================================================================
-// Layer 7: Background Processing - TODO: Phase 4
+// Layer 7: Background Processing (Depends on Network, Database)
 // =============================================================================
 
 /**
- * JobsStack - Scheduled tasks, async processing
+ * JobsStack - Scheduled tasks and background processing
  * 
- * TODO: Implement in Phase 4
+ * IMPLEMENTED: Phase 5
+ * 
+ * Lambdas:
+ * - PropertyArchivalJobFunction (daily at 02:00 UTC)
+ * - PropertyDeletionJobFunction (daily at 03:00 UTC)
+ * - MigrationJobFunction (disabled, manual trigger)
+ * 
+ * See docs/REALTIME_AND_JOBS_DESIGN.md for details.
  */
 const jobsStack = new JobsStack(app, `${stackPrefix}-Jobs`, {
   env,
@@ -326,9 +355,23 @@ const jobsStack = new JobsStack(app, `${stackPrefix}-Jobs`, {
     Project: 'BarkBase',
     Environment: 'Dev',
     Layer: 'Background',
+    Stage: stage,
   },
+  // Network
+  vpc: networkStack.vpc,
+  lambdaSecurityGroup: networkStack.lambdaSecurityGroup,
+  appSubnets: networkStack.appSubnets,
+  // Database
+  dbSecret: databaseStack.dbSecret,
+  dbHost: databaseStack.hostname,
+  dbPort: databaseStack.port,
+  dbName: databaseStack.dbName,
+  // Stage/Environment
+  stage,
+  environment,
 });
-// TODO: Wire dependencies in Phase 4
+jobsStack.addDependency(networkStack);
+jobsStack.addDependency(databaseStack);
 
 // =============================================================================
 // Layer 8: API Gateway (Depends on all service stacks)
