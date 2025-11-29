@@ -1,4 +1,5 @@
 export const queryKeys = {
+  tenantConfig: ['tenantConfig'],
   tenant: (tenantKey) => ['tenant', tenantKey],
   // Base dashboard function for building query keys
   dashboard: (tenantKey) => [tenantKey, 'dashboard'],

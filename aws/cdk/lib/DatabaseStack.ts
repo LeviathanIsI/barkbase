@@ -2,13 +2,14 @@
  * =============================================================================
  * BarkBase Database Stack
  * =============================================================================
- * 
+ *
  * Creates PostgreSQL RDS instance with:
  * - Secrets Manager for credentials
- * - Private subnet placement
- * - Security group allowing Lambda and Bastion access
+ * - Dev: PUBLIC subnet placement with publiclyAccessible=true for direct DBeaver access
+ * - Prod: ISOLATED subnet placement (private, not publicly accessible)
+ * - Security group allowing Lambda access (and dev IP access in dev)
  * - Multi-AZ for production
- * 
+ *
  * =============================================================================
  */
 
@@ -24,6 +25,12 @@ export interface DatabaseStackProps extends cdk.StackProps {
   readonly vpc: ec2.IVpc;
   readonly lambdaSecurityGroup: ec2.ISecurityGroup;
   readonly bastionSecurityGroup: ec2.ISecurityGroup;
+  /**
+   * Optional: Your IP address for direct dev DB access (e.g., "203.0.113.50/32")
+   * Only used when config.env === 'dev' and publiclyAccessible is true.
+   * If not provided, you can add your IP via AWS CLI after deployment.
+   */
+  readonly devAccessCidr?: string;
 }
 
 export class DatabaseStack extends cdk.Stack {
@@ -34,7 +41,10 @@ export class DatabaseStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: DatabaseStackProps) {
     super(scope, id, props);
 
-    const { config, vpc, lambdaSecurityGroup, bastionSecurityGroup } = props;
+    const { config, vpc, lambdaSecurityGroup, bastionSecurityGroup, devAccessCidr } = props;
+
+    // Determine if this is a publicly accessible dev database
+    const isPublicDevDb = config.env === 'dev';
 
     // Create security group for RDS
     this.dbSecurityGroup = new ec2.SecurityGroup(this, 'DbSecurityGroup', {
@@ -51,12 +61,24 @@ export class DatabaseStack extends cdk.Stack {
       'Allow PostgreSQL access from Lambda functions'
     );
 
-    // Allow inbound PostgreSQL from Bastion security group
-    this.dbSecurityGroup.addIngressRule(
-      bastionSecurityGroup,
-      ec2.Port.tcp(5432),
-      'Allow PostgreSQL access from Bastion host'
-    );
+    // Allow inbound PostgreSQL from Bastion security group (prod only - no bastion in dev)
+    if (!isPublicDevDb) {
+      this.dbSecurityGroup.addIngressRule(
+        bastionSecurityGroup,
+        ec2.Port.tcp(5432),
+        'Allow PostgreSQL access from Bastion host'
+      );
+    }
+
+    // DEV ONLY: Allow direct access from specified IP (for DBeaver, etc.)
+    // If devAccessCidr is provided, add it now. Otherwise, add via AWS CLI later.
+    if (isPublicDevDb && devAccessCidr) {
+      this.dbSecurityGroup.addIngressRule(
+        ec2.Peer.ipv4(devAccessCidr),
+        ec2.Port.tcp(5432),
+        'Allow PostgreSQL access from developer IP (dev only)'
+      );
+    }
 
     // Create Secrets Manager secret for DB credentials
     this.dbSecret = new secretsmanager.Secret(this, 'DbSecret', {
@@ -77,6 +99,8 @@ export class DatabaseStack extends cdk.Stack {
     const instanceType = this.getInstanceType(config.dbInstanceClass);
 
     // Create RDS PostgreSQL instance
+    // DEV: Uses PUBLIC subnets with publiclyAccessible=true for direct DBeaver access
+    // PROD: Uses ISOLATED subnets (private, no public access)
     this.dbInstance = new rds.DatabaseInstance(this, 'BarkbaseDb', {
       instanceIdentifier: `${config.stackPrefix}-postgres`,
       engine: rds.DatabaseInstanceEngine.postgres({
@@ -85,7 +109,11 @@ export class DatabaseStack extends cdk.Stack {
       instanceType,
       vpc,
       vpcSubnets: {
-        subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
+        // DEV: PUBLIC subnets for direct internet access
+        // PROD: ISOLATED subnets for maximum security
+        subnetType: isPublicDevDb
+          ? ec2.SubnetType.PUBLIC
+          : ec2.SubnetType.PRIVATE_ISOLATED,
       },
       securityGroups: [this.dbSecurityGroup],
       credentials: rds.Credentials.fromSecret(this.dbSecret),
@@ -100,14 +128,16 @@ export class DatabaseStack extends cdk.Stack {
       preferredBackupWindow: '03:00-04:00',
       preferredMaintenanceWindow: 'sun:04:00-sun:05:00',
       autoMinorVersionUpgrade: true,
-      publiclyAccessible: false,
-      removalPolicy: config.env === 'prod' 
-        ? cdk.RemovalPolicy.RETAIN 
+      // DEV: Make publicly accessible for direct DBeaver connections
+      // PROD: Keep private (access via VPN/bastion only)
+      publiclyAccessible: isPublicDevDb,
+      removalPolicy: config.env === 'prod'
+        ? cdk.RemovalPolicy.RETAIN
         : cdk.RemovalPolicy.DESTROY,
       cloudwatchLogsExports: ['postgresql', 'upgrade'],
       enablePerformanceInsights: config.env === 'prod',
-      performanceInsightRetention: config.env === 'prod' 
-        ? rds.PerformanceInsightRetention.MONTHS_1 
+      performanceInsightRetention: config.env === 'prod'
+        ? rds.PerformanceInsightRetention.MONTHS_1
         : undefined,
       parameterGroup: new rds.ParameterGroup(this, 'DbParameterGroup', {
         engine: rds.DatabaseInstanceEngine.postgres({
@@ -147,6 +177,19 @@ export class DatabaseStack extends cdk.Stack {
       description: 'Database Security Group ID',
       exportName: `${config.stackPrefix}-db-sg-id`,
     });
+
+    // DEV ONLY: Output instructions for adding your IP to the security group
+    if (isPublicDevDb) {
+      new cdk.CfnOutput(this, 'DbPubliclyAccessible', {
+        value: 'true',
+        description: 'Database is publicly accessible (dev only)',
+      });
+
+      new cdk.CfnOutput(this, 'AddYourIpCommand', {
+        value: `aws ec2 authorize-security-group-ingress --group-id ${this.dbSecurityGroup.securityGroupId} --protocol tcp --port 5432 --cidr YOUR_IP/32 --region ${config.region} --profile barkbase-admin`,
+        description: 'Run this command (replace YOUR_IP) to allow your IP access to the database',
+      });
+    }
   }
 
   private getInstanceType(instanceClass: string): ec2.InstanceType {

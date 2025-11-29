@@ -1,34 +1,30 @@
 import { useState } from 'react';
-import { Plus, MoreVertical, CreditCard, MapPin, Shield, Bell } from 'lucide-react';
+import { Plus, MoreVertical, CreditCard, MapPin, Shield, Bell, Loader2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
+import { usePaymentMethodsQuery } from '@/features/settings/api';
 
 export default function PaymentMethodsTab() {
   const [showAddCardModal, setShowAddCardModal] = useState(false);
+  const { data: paymentData, isLoading } = usePaymentMethodsQuery();
 
-  // Payment methods (wire to Stripe API)
-  const paymentMethods = [
-    {
-      id: 1,
-      type: 'visa',
-      last4: '4242',
-      expiry: '12/2026',
-      isPrimary: true,
-      billingEmail: 'joshua.r.bradford1@gmail.com'
-    }
-  ];
+  // Use API data or fallback to empty
+  const paymentMethods = paymentData?.methods || [];
+  const primaryMethod = paymentData?.primaryMethod;
 
+  // Billing address and preferences would come from user profile or tenant settings
+  // For now, using placeholder structure that can be wired later
   const billingAddress = {
-    name: 'Joshua Bradford',
-    email: 'joshua.r.bradford1@gmail.com',
-    phone: '(555) 123-4567',
+    name: '',
+    email: '',
+    phone: '',
     address: {
-      line1: '123 Main Street',
+      line1: '',
       line2: '',
-      city: 'San Francisco',
-      state: 'CA',
-      zip: '94102',
+      city: '',
+      state: '',
+      zip: '',
       country: 'United States'
     }
   };
@@ -40,7 +36,7 @@ export default function PaymentMethodsTab() {
     renewalWarning: true,
     paymentFailureAlert: false,
     monthlySummary: false,
-    invoiceEmail: 'joshua.r.bradford1@gmail.com'
+    invoiceEmail: ''
   };
 
   const getCardTypeIcon = (type) => {
@@ -52,34 +48,50 @@ export default function PaymentMethodsTab() {
     return `•••• •••• •••• ${last4}`;
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+        <span className="ml-2 text-gray-500">Loading payment methods...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Primary Payment Method */}
       <Card title="PRIMARY PAYMENT METHOD">
-        {paymentMethods.filter(pm => pm.isPrimary).map((method) => (
-          <div key={method.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-surface-border rounded-lg">
-            <div className="flex items-center gap-4">
-              {getCardTypeIcon(method.type)}
-              <div>
-                <div className="font-medium text-gray-900 dark:text-text-primary">
-                  {formatCardNumber(method.last4)}
-                </div>
-                <div className="text-sm text-gray-600 dark:text-text-secondary">
-                  Expires {method.expiry} • {method.billingEmail}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="success">Primary</Badge>
-              <div className="relative">
-                <button className="p-2 hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary rounded-full">
-                  <MoreVertical className="w-4 h-4" />
-                </button>
-                {/* Dropdown menu would go here */}
-              </div>
-            </div>
+        {paymentMethods.length === 0 ? (
+          <div className="text-center py-6 text-gray-500 dark:text-text-secondary">
+            <CreditCard className="w-10 h-10 text-gray-300 dark:text-text-tertiary mx-auto mb-3" />
+            <p>No payment method on file.</p>
+            <p className="text-sm">Add a payment method to enable billing features.</p>
           </div>
-        ))}
+        ) : (
+          paymentMethods.filter(pm => pm.isPrimary).map((method) => (
+            <div key={method.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-surface-border rounded-lg">
+              <div className="flex items-center gap-4">
+                {getCardTypeIcon(method.type)}
+                <div>
+                  <div className="font-medium text-gray-900 dark:text-text-primary">
+                    {formatCardNumber(method.last4)}
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-text-secondary">
+                    {method.processor || method.type} {method.lastUsedAt ? `• Last used ${new Date(method.lastUsedAt).toLocaleDateString()}` : ''}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="success">Primary</Badge>
+                <div className="relative">
+                  <button className="p-2 hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary rounded-full">
+                    <MoreVertical className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </Card>
 
       {/* Add Payment Method */}

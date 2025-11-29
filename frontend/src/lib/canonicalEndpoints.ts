@@ -7,112 +7,183 @@ const buildWithSuffix = (template: string, suffix: string): PathBuilder => (id) 
 
 /**
  * Canonical API endpoints grouped by domain.
- * This file intentionally exports strings and lightweight builders only;
- * Phase 1 does not refactor existing fetch calls to use these helpers.
+ *
+ * IMPORTANT: All routes go through service-oriented Lambda functions:
+ * - /api/v1/entity/*     → entity-service (pets, owners, staff, tenants, facilities)
+ * - /api/v1/operations/* → operations-service (bookings, tasks, schedules, notifications)
+ * - /api/v1/analytics/*  → analytics-service (dashboard, reports, metrics)
+ * - /api/v1/config/*     → config-service (settings, features, integrations)
+ * - /api/v1/financial/*  → financial-service (invoices, payments, pricing)
+ * - /api/v1/profile/*    → user-profile-service (user profile management)
+ * - /api/v1/auth/*       → auth-api (login, register, session management)
  */
 export const canonicalEndpoints = {
+  // Entity Service - /api/v1/entity/*
   pets: {
-    list: '/api/v1/pets',
-    detail: build('/api/v1/pets/{id}'),
-    vaccinations: build('/api/v1/pets/{id}/vaccinations'),
-    expiringVaccinations: '/api/v1/pets/vaccinations/expiring',
-    medicalAlerts: '/api/v1/pets/medical-alerts',
-    ownerLink: '/api/v1/pets/owners',
+    list: '/api/v1/entity/pets',
+    detail: build('/api/v1/entity/pets/{id}'),
+    vaccinations: build('/api/v1/entity/pets/{id}/vaccinations'),
+    expiringVaccinations: '/api/v1/entity/pets/vaccinations/expiring',
+    medicalAlerts: '/api/v1/entity/pets/medical-alerts',
+    ownerLink: '/api/v1/entity/pets/owners',
   },
   owners: {
-    list: '/api/v1/owners',
-    detail: build('/api/v1/owners/{id}'),
-    pets: build('/api/v1/owners/{id}/pets'),
+    list: '/api/v1/entity/owners',
+    detail: build('/api/v1/entity/owners/{id}'),
+    pets: build('/api/v1/entity/owners/{id}/pets'),
   },
-  properties: {
-    // Properties domain is fully v2-only. All CRUD and advanced operations use /api/v2/properties.
-    list: '/api/v2/properties',
-    detail: build('/api/v2/properties/{id}'),
-    create: '/api/v2/properties',
-    update: build('/api/v2/properties/{id}'),
-    archive: buildWithSuffix('/api/v2/properties/{id}', 'archive'),
-    restore: buildWithSuffix('/api/v2/properties/{id}', 'restore'),
-    dependencies: buildWithSuffix('/api/v2/properties/{id}', 'dependencies'),
-    impactAnalysis: buildWithSuffix('/api/v2/properties/{id}', 'impact-analysis'),
-    substitute: buildWithSuffix('/api/v2/properties/{id}', 'substitute'),
+  staff: {
+    list: '/api/v1/entity/staff',
+    detail: build('/api/v1/entity/staff/{id}'),
   },
+  facilities: {
+    list: '/api/v1/entity/facilities',
+    detail: build('/api/v1/entity/facilities/{id}'),
+  },
+  tenants: {
+    list: '/api/v1/entity/tenants',
+    detail: build('/api/v1/entity/tenants/{id}'),
+  },
+
+  // Operations Service - /api/v1/operations/*
   bookings: {
-    list: '/api/v1/bookings',
-    detail: build('/api/v1/bookings/{id}'),
-    checkIn: buildWithSuffix('/api/v1/bookings/{id}', 'check-in'),
-    checkOut: buildWithSuffix('/api/v1/bookings/{id}', 'check-out'),
-    status: buildWithSuffix('/api/v1/bookings/{id}', 'status'),
+    list: '/api/v1/operations/bookings',
+    detail: build('/api/v1/operations/bookings/{id}'),
+    checkIn: buildWithSuffix('/api/v1/operations/bookings/{id}', 'checkin'),
+    checkOut: buildWithSuffix('/api/v1/operations/bookings/{id}', 'checkout'),
+    status: buildWithSuffix('/api/v1/operations/bookings/{id}', 'status'),
   },
   schedule: {
-    range: '/api/v1/schedule',
-    capacity: '/api/v1/schedule/capacity',
-  },
-  runs: {
-    list: '/api/v1/runs',
-    detail: build('/api/v1/runs/{id}'),
-    runTemplates: '/api/v1/run-templates',
-    availableSlots: buildWithSuffix('/api/v1/runs/{id}', 'available-slots'),
-    assignments: '/api/v1/runs/assignments',
+    list: '/api/v1/operations/schedules',
+    staff: '/api/v1/operations/schedules/staff',
+    detail: build('/api/v1/operations/schedules/{id}'),
   },
   tasks: {
-    list: '/api/v1/tasks',
-    detail: build('/api/v1/tasks/{id}'),
-    complete: buildWithSuffix('/api/v1/tasks/{id}', 'complete'),
+    list: '/api/v1/operations/tasks',
+    detail: build('/api/v1/operations/tasks/{id}'),
+    complete: buildWithSuffix('/api/v1/operations/tasks/{id}', 'complete'),
   },
+  notifications: {
+    list: '/api/v1/operations/notifications',
+    broadcast: '/api/v1/operations/notifications/broadcast',
+    markRead: buildWithSuffix('/api/v1/operations/notifications/{id}', 'read'),
+  },
+  batch: {
+    import: '/api/v1/operations/batch/import',
+    export: '/api/v1/operations/batch/export',
+    update: '/api/v1/operations/batch/update',
+    delete: '/api/v1/operations/batch/delete',
+  },
+
+  // Analytics Service - /api/v1/analytics/*
   reports: {
-    dashboardStats: '/api/v1/dashboard/stats',
-    dashboardToday: '/api/v1/dashboard/today-pets',
-    arrivals: '/api/v1/reports/arrivals',
-    departures: '/api/v1/reports/departures',
-    revenue: '/api/v1/reports/revenue',
-    occupancy: '/api/v1/reports/occupancy',
+    dashboard: '/api/v1/analytics/dashboard',
+    dashboardSummary: '/api/v1/analytics/dashboard/summary',
+    dashboardKpis: '/api/v1/analytics/dashboard/kpis',
+    revenue: '/api/v1/analytics/revenue',
+    revenueDaily: '/api/v1/analytics/revenue/daily',
+    revenueMonthly: '/api/v1/analytics/revenue/monthly',
+    occupancy: '/api/v1/analytics/occupancy',
+    occupancyCurrent: '/api/v1/analytics/occupancy/current',
+    occupancyForecast: '/api/v1/analytics/occupancy/forecast',
+    customers: '/api/v1/analytics/customers',
+    customerRetention: '/api/v1/analytics/customers/retention',
+    pets: '/api/v1/analytics/pets',
+    petBreeds: '/api/v1/analytics/pets/breeds',
+    petServices: '/api/v1/analytics/pets/services',
+    list: '/api/v1/analytics/reports',
+    detail: build('/api/v1/analytics/reports/{id}'),
+    generate: '/api/v1/analytics/reports/generate',
   },
+
+  // Financial Service - /api/v1/financial/*
   payments: {
-    list: '/api/v1/payments',
-    detail: build('/api/v1/payments/{id}'),
-    invoices: '/api/v1/invoices',
-    invoiceDetail: build('/api/v1/invoices/{id}'),
-    billingMetrics: '/api/v1/billing/metrics',
+    list: '/api/v1/financial/payments',
+    detail: build('/api/v1/financial/payments/{id}'),
+    refund: buildWithSuffix('/api/v1/financial/payments/{id}', 'refund'),
+    capture: buildWithSuffix('/api/v1/financial/payments/{id}', 'capture'),
   },
+  invoices: {
+    list: '/api/v1/financial/invoices',
+    detail: build('/api/v1/financial/invoices/{id}'),
+    send: buildWithSuffix('/api/v1/financial/invoices/{id}', 'send'),
+    void: buildWithSuffix('/api/v1/financial/invoices/{id}', 'void'),
+    pdf: buildWithSuffix('/api/v1/financial/invoices/{id}', 'pdf'),
+  },
+  paymentMethods: {
+    list: '/api/v1/financial/payment-methods',
+    detail: build('/api/v1/financial/payment-methods/{id}'),
+    setDefault: buildWithSuffix('/api/v1/financial/payment-methods/{id}', 'default'),
+  },
+  pricing: {
+    list: '/api/v1/financial/pricing',
+    detail: build('/api/v1/financial/pricing/{id}'),
+    calculate: '/api/v1/financial/pricing/calculate',
+  },
+  billing: {
+    summary: '/api/v1/financial/billing/summary',
+    history: '/api/v1/financial/billing/history',
+    upcoming: '/api/v1/financial/billing/upcoming',
+    charge: '/api/v1/financial/billing/charge',
+  },
+  subscriptions: {
+    list: '/api/v1/financial/subscriptions',
+    detail: build('/api/v1/financial/subscriptions/{id}'),
+    cancel: buildWithSuffix('/api/v1/financial/subscriptions/{id}', 'cancel'),
+    pause: buildWithSuffix('/api/v1/financial/subscriptions/{id}', 'pause'),
+    resume: buildWithSuffix('/api/v1/financial/subscriptions/{id}', 'resume'),
+  },
+
+  // Config Service - /api/v1/config/*
   settings: {
-    tenantBySlug: '/api/v1/tenants',
-    currentTenant: '/api/v1/tenants/current',
-    plan: '/api/v1/tenants/current/plan',
-    onboarding: '/api/v1/tenants/current/onboarding',
-    theme: '/api/v1/tenants/current/theme',
-    accountDefaults: '/api/v1/account-defaults',
-    services: '/api/v1/services',
-    packages: '/api/v1/packages',
-    memberships: '/api/v1/memberships',
-    roles: '/api/v1/roles',
-    userPermissions: '/api/v1/user-permissions',
+    system: '/api/v1/config/system',
+    systemFeatures: '/api/v1/config/system/features',
+    tenant: '/api/v1/config/tenant',
+    tenantTheme: '/api/v1/config/tenant/theme',
+    tenantFeatures: '/api/v1/config/tenant/features',
+    all: '/api/v1/config/settings',
+    category: build('/api/v1/config/settings/{id}'),
+    reset: '/api/v1/config/settings/reset',
   },
-  associations: {
-    list: '/api/v1/associations',
-    detail: build('/api/v1/associations/{id}'),
-    create: '/api/v1/associations',
-    update: build('/api/v1/associations/{id}'),
-    delete: build('/api/v1/associations/{id}'),
-    seed: '/api/v1/associations/seed',
+  features: {
+    list: '/api/v1/config/features',
+    detail: build('/api/v1/config/features/{id}'),
   },
+  integrations: {
+    list: '/api/v1/config/integrations',
+    detail: build('/api/v1/config/integrations/{id}'),
+    test: buildWithSuffix('/api/v1/config/integrations/{id}', 'test'),
+  },
+  plans: {
+    list: '/api/v1/config/plans',
+    detail: build('/api/v1/config/plans/{id}'),
+  },
+  templates: {
+    list: '/api/v1/config/templates',
+    detail: build('/api/v1/config/templates/{id}'),
+    preview: buildWithSuffix('/api/v1/config/templates/{id}', 'preview'),
+  },
+
+  // User Profile Service - /api/v1/profile/*
   userProfile: {
-    self: '/api/v1/users/profile',
-    profiles: '/api/v1/profiles',
-    userProfiles: build('/api/v1/users/{id}/profiles'),
-    effectivePermissions: build('/api/v1/users/{id}/effective-permissions'),
-    calculatePermissions: '/api/v1/permissions/calculate',
-    invalidatePermissionCache: '/api/v1/permissions/invalidate-cache',
+    self: '/api/v1/profile',
+    detail: build('/api/v1/profile/{id}'),
+    preferences: '/api/v1/profile/preferences',
+    notifications: '/api/v1/profile/notifications',
   },
-  operations: {
-    checkIns: '/api/v1/check-ins',
-    checkOuts: '/api/v1/check-outs',
-    kennels: '/api/v1/kennels',
-    kennelOccupancy: '/api/v1/kennels/occupancy',
+
+  // Auth Service - /api/v1/auth/*
+  auth: {
+    login: '/api/v1/auth/login',
+    register: '/api/v1/auth/register',
+    refresh: '/api/v1/auth/refresh',
+    logout: '/api/v1/auth/logout',
+    me: '/api/v1/auth/me',
+    sessions: '/api/v1/auth/sessions',
   },
-  files: {
-    uploadUrl: '/api/v1/upload-url',
-    downloadUrl: '/api/v1/download-url',
-  },
+
+  // Health check
+  health: '/api/v1/health',
 };
 
 export type CanonicalEndpointGroups = typeof canonicalEndpoints;

@@ -754,30 +754,30 @@ const RunAssignment = () => {
     setPendingAssignment(null);
   };
 
+  /**
+   * Handle save button click.
+   *
+   * NOTE: Run assignment persistence is NOT implemented on the backend.
+   * The mutation will reject with an error message. This handler shows
+   * an honest toast message instead of pretending the save worked.
+   *
+   * TODO: Once backend implements POST /api/v1/runs/assignments, this
+   * handler should call the mutation and show success on completion.
+   */
   const handleSaveAssignments = async () => {
-    try {
-      const promises = Object.entries(assignmentState).map(([runId, assignments]) =>
-        assignPetsMutation.mutateAsync({
-          runId,
-          assignedPets: assignments.map(a => ({
-            petId: a.pet.recordId,
-            startTime: a.startTime,
-            endTime: a.endTime
-          })),
-          date: selectedDate
-        })
-      );
+    // Show an honest message about the feature being unavailable
+    toast.error(
+      'Run assignment save is not available yet. ' +
+      'The backend does not support persisting assignments. ' +
+      'Your drag-and-drop changes are local only and will be lost on refresh.',
+      { duration: 6000 }
+    );
 
-      await Promise.all(promises);
-      
-      setInitializedDate(null);
-      await refetchRuns();
-      
-      toast.success('Run assignments saved successfully');
-    } catch (error) {
-      console.error('Failed to save run assignments:', error);
-      toast.error(error?.message || 'Failed to save run assignments');
-    }
+    // Log for debugging
+    console.warn('[RunAssignment] Save attempted but backend persistence is not implemented.', {
+      date: selectedDate,
+      assignmentCount: Object.values(assignmentState).flat().length,
+    });
   };
 
   const handleResetChanges = () => {
@@ -973,16 +973,19 @@ const RunAssignment = () => {
             Print Sheets
           </Button>
 
-          <Button 
-            onClick={handleSaveAssignments} 
-            disabled={assignPetsMutation.isPending || !hasChanges}
+          {/*
+            TODO: Re-enable this button once backend implements run assignment persistence.
+            Currently shows a warning style because save is not implemented.
+          */}
+          <Button
+            onClick={handleSaveAssignments}
+            disabled={!hasChanges}
+            variant="outline"
+            className="border-amber-500 text-amber-600 hover:bg-amber-50 dark:border-amber-400 dark:text-amber-400 dark:hover:bg-amber-900/20"
+            title="Save is not available - backend persistence not implemented"
           >
-            {assignPetsMutation.isPending ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
-            )}
-            Save Assignments
+            <AlertTriangle className="h-4 w-4 mr-2" />
+            Save (Not Available)
           </Button>
         </div>
       </div>
@@ -1054,27 +1057,35 @@ const RunAssignment = () => {
 
       {/* Sticky Action Bar (when changes exist) */}
       {hasChanges && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-surface-primary border-t border-border shadow-lg z-50">
+        <div className="fixed bottom-0 left-0 right-0 bg-amber-50 dark:bg-amber-900/30 border-t border-amber-300 dark:border-amber-700 shadow-lg z-50">
           <div className="max-w-[1600px] mx-auto px-6 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-              <span className="text-sm font-medium text-text">You have unsaved changes</span>
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <div>
+                <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                  Changes are local only
+                </span>
+                <span className="text-xs text-amber-600 dark:text-amber-400 ml-2">
+                  (Backend save not implemented - changes will be lost on refresh)
+                </span>
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <Button variant="outline" onClick={handleResetChanges}>
                 <RotateCcw className="h-4 w-4 mr-2" />
                 Reset Changes
               </Button>
-              <Button 
+              {/*
+                TODO: Re-enable primary save button once backend implements persistence.
+                For now, show a warning-styled button that explains the limitation.
+              */}
+              <Button
                 onClick={handleSaveAssignments}
-                disabled={assignPetsMutation.isPending}
+                variant="outline"
+                className="border-amber-500 text-amber-700 hover:bg-amber-100 dark:border-amber-400 dark:text-amber-300 dark:hover:bg-amber-800/30"
               >
-                {assignPetsMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4 mr-2" />
-                )}
-                Save Assignments
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                Save (Not Available)
               </Button>
             </div>
           </div>

@@ -10,6 +10,7 @@ import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import { useTenantStore } from '@/stores/tenant';
+import { useAuthStore } from '@/stores/auth';
 import { normalizeListResponse } from '@/lib/createApiHooks';
 import { listQueryDefaults, detailQueryDefaults, searchQueryDefaults } from '@/lib/queryConfig';
 
@@ -18,6 +19,16 @@ import { listQueryDefaults, detailQueryDefaults, searchQueryDefaults } from '@/l
 // ============================================================================
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
+
+/**
+ * Check if tenant is ready for API calls
+ * Queries should be disabled until tenantId is available
+ */
+const useTenantReady = () => {
+  const tenantId = useAuthStore((state) => state.tenantId);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  return isAuthenticated && Boolean(tenantId);
+};
 
 // ============================================================================
 // LIST QUERY
@@ -29,9 +40,11 @@ const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'defa
  */
 export const useOwnersQuery = (params = {}) => {
   const tenantKey = useTenantKey();
-  
+  const isTenantReady = useTenantReady();
+
   return useQuery({
     queryKey: queryKeys.owners(tenantKey, params),
+    enabled: isTenantReady,
     queryFn: async () => {
       try {
         const res = await apiClient.get(canonicalEndpoints.owners.list, { params });

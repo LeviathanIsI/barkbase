@@ -109,9 +109,9 @@ const ArrivalRow = ({ booking }) => {
         <p className="truncate text-[var(--bb-font-size-xs,0.75rem)] text-[color:var(--bb-color-text-muted)]">
           {booking.ownerName || booking.owner?.name || 'Owner'}
         </p>
-        {booking.service && (
+        {(booking.service || booking.serviceName) && (
           <p className="mt-0.5 truncate text-[var(--bb-font-size-xs,0.75rem)] text-[color:var(--bb-color-text-subtle)]">
-            {booking.service}
+            {typeof booking.service === 'object' ? booking.service?.name : (booking.service || booking.serviceName)}
           </p>
         )}
       </div>

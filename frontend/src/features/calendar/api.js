@@ -7,23 +7,33 @@ import { useAuthStore } from '@/stores/auth';
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
 /**
+ * Check if tenant is ready for API calls
+ * Queries should be disabled until tenantId is available
+ */
+const useTenantReady = () => {
+  const tenantId = useAuthStore((state) => state.tenantId);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  return isAuthenticated && Boolean(tenantId);
+};
+
+/**
  * Fetch calendar events for a date range
  * Aggregates bookings, runs, and tasks into unified calendar events
  */
 export const useCalendarEventsQuery = ({ start, end, types }) => {
   const tenantKey = useTenantKey();
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
-  
+  const isTenantReady = useTenantReady();
+
   return useQuery({
     queryKey: queryKeys.calendar(tenantKey, { start, end, types }),
     queryFn: async () => {
       const params = { start, end };
       if (types) params.types = types;
-      
+
       const response = await apiClient.get('/api/v1/calendar/events', { params });
       return response.data?.events || [];
     },
-    enabled: Boolean(start && end && isAuthenticated),
+    enabled: Boolean(start && end) && isTenantReady,
     staleTime: 30 * 1000,
   });
 };
@@ -43,8 +53,8 @@ export const useCalendarViewQuery = ({ from, to, start, end }) => {
  */
 export const useOccupancyQuery = ({ from, to, start, end }) => {
   const tenantKey = useTenantKey();
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
-  
+  const isTenantReady = useTenantReady();
+
   const startDate = start || from;
   const endDate = end || to;
 
@@ -56,7 +66,7 @@ export const useOccupancyQuery = ({ from, to, start, end }) => {
       });
       return response.data;
     },
-    enabled: Boolean(startDate && endDate && isAuthenticated),
+    enabled: Boolean(startDate && endDate) && isTenantReady,
     staleTime: 30 * 1000,
   });
 };

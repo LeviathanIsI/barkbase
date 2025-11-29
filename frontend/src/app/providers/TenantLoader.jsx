@@ -4,30 +4,51 @@ import { useAuthStore } from '@/stores/auth';
 import { apiClient } from '@/lib/apiClient';
 import { setTenantSlugCookie } from '@/lib/cookies';
 
+/**
+ * TenantLoader - Bootstrap tenant configuration after login
+ *
+ * This component handles the initial tenant loading when a user is authenticated.
+ * It works alongside useTenantConfig hook:
+ * - TenantLoader: handles initial bootstrap (runs once after login)
+ * - useTenantConfig: provides ongoing access to tenant data via React Query
+ *
+ * Loading priority:
+ * 1. If tenant already loaded in stores (recordId exists), skip
+ * 2. If tenantId exists in auth store, fetch config using it
+ * 3. Otherwise, fetch from /api/v1/config/tenant (uses JWT sub)
+ *
+ * The fetched data is stored in both auth store (tenantId) and tenant store (full data)
+ * so that apiClient can include X-Tenant-Id header in subsequent requests.
+ */
 const TenantLoader = () => {
   const hasInitialized = useRef(false);
-  const loadTenant = useTenantStore((state) => state.loadTenant);
-  const loadTenantById = useTenantStore((state) => state.loadTenantById);
   const setTenant = useTenantStore((state) => state.setTenant);
   const setLoading = useTenantStore((state) => state.setLoading);
-  const tenant = useTenantStore((state) => state.tenant);
-  const user = useAuthStore((state) => state.user);
-  const memberships = useAuthStore((state) => state.memberships);
+  const updateTokens = useAuthStore((state) => state.updateTokens);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
 
   useEffect(() => {
     // Wait a tick to allow Zustand persist to rehydrate from localStorage
     const timer = setTimeout(() => {
-      // Check if tenant was restored from localStorage
+      // Check current state after rehydration
       const currentTenant = useTenantStore.getState().tenant;
-      
-      // If tenant already has recordId (restored from localStorage), skip loading
+      const { tenantId: authTenantId } = useAuthStore.getState();
+      const { isLoading } = useTenantStore.getState();
+
+      // If tenant already has recordId (restored from localStorage or set by Login), skip loading
       if (currentTenant?.recordId) {
+        console.log('[TenantLoader] Tenant already loaded from storage:', currentTenant.recordId);
+        return;
+      }
+
+      // If auth store already has tenantId, we might have partial state - still load full config
+      // But if tenant store has recordId matching, we're good
+      if (authTenantId && currentTenant?.recordId === authTenantId) {
+        console.log('[TenantLoader] Tenant already synced:', authTenantId);
         return;
       }
 
       // Check if tenant is already being loaded
-      const { isLoading } = useTenantStore.getState();
       if (isLoading) {
         return;
       }
@@ -37,6 +58,7 @@ const TenantLoader = () => {
         return;
       }
 
+      // Prevent duplicate initialization
       if (hasInitialized.current) {
         return;
       }
@@ -44,48 +66,63 @@ const TenantLoader = () => {
 
       const initTenant = async () => {
         setLoading(true);
-        
+        console.log('[TenantLoader] Fetching tenant config...');
+
         try {
-          // Path 1: Prefer tenantId from auth store when present (already fetched by Login/AuthLoader)
-          const { tenantId: authTenantId } = useAuthStore.getState();
-          if (authTenantId) {
-            try {
-              await loadTenantById(authTenantId);
-              return;
-            } catch (e) {
-              // Tenant load by ID failed, try other paths
-            }
+          // Fetch tenant config from backend
+          // This endpoint uses JWT sub to look up the user's tenant
+          // It does NOT require X-Tenant-Id header (chicken-and-egg problem)
+          const response = await apiClient.get('/api/v1/config/tenant');
+          const data = response.data;
+
+          if (!data) {
+            throw new Error('No tenant config returned');
           }
 
-          // Path 2: Try to load by slug from memberships
-          const slug = memberships?.[0]?.tenant?.slug ?? user?.memberships?.[0]?.tenant?.slug;
-          if (slug) {
-            try {
-              await loadTenant(slug);
-              setTenantSlugCookie(slug);
-              return;
-            } catch (error) {
-              // Tenant load by slug failed, try fallback
-            }
+          // Extract canonical tenantId
+          const tenantId = data.tenantId || data.recordId || data.id;
+
+          if (!tenantId) {
+            throw new Error('No tenantId in config response');
           }
 
-          // Path 3: Ultimate fallback - fetch from backend using JWT sub
-          const response = await apiClient.get('/api/v1/tenants/current');
-          if (response.data) {
-            setTenant(response.data);
+          console.log('[TenantLoader] Tenant config loaded:', { tenantId, slug: data.slug });
+
+          // Update auth store with tenantId (for API headers)
+          updateTokens({
+            tenantId,
+            role: data.user?.role,
+          });
+
+          // Update tenant store with full tenant data (for UI)
+          setTenant({
+            recordId: tenantId,
+            slug: data.slug,
+            name: data.name,
+            plan: data.plan || 'FREE',
+            settings: data.settings || {},
+            theme: data.theme || {},
+            featureFlags: data.featureFlags || {},
+          });
+
+          // Set cookie for SSR/middleware if needed
+          if (data.slug) {
+            setTenantSlugCookie(data.slug);
           }
-        } catch (apiError) {
-          console.error('[TenantLoader] All tenant loading paths failed:', apiError);
+
+        } catch (error) {
+          console.error('[TenantLoader] Failed to load tenant config:', error.message);
+          // Don't throw - allow app to continue, useTenantConfig hook will retry
         } finally {
           setLoading(false);
         }
       };
 
       initTenant();
-    }, 100); // Wait 100ms for rehydration
+    }, 100); // Wait 100ms for Zustand rehydration
 
     return () => clearTimeout(timer);
-  }, [isAuthenticated, user, memberships]); // Re-run if authentication status or user data changes
+  }, [isAuthenticated, setTenant, setLoading, updateTokens]);
 
   return null;
 };

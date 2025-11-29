@@ -3,6 +3,7 @@ import { Search, Plus, CheckCircle, Bell, Command, X, Calendar } from 'lucide-re
 import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import apiClient from '@/lib/apiClient';
+import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import toast from 'react-hot-toast';
 import { useUnreadNotificationsCount } from '@/features/notifications/api';
 
@@ -40,9 +41,9 @@ const QuickAccessBar = () => {
 
       // Search across pets, owners, and bookings
       const [petsResponse, ownersResponse, bookingsResponse] = await Promise.all([
-        apiClient.get('/api/v1/pets', { params: { search: query, limit: 5 } }).catch(() => ({ data: [] })),
-        apiClient.get('/api/v1/owners', { params: { search: query, limit: 5 } }).catch(() => ({ data: [] })),
-        apiClient.get('/api/v1/bookings', { params: { search: query, limit: 5 } }).catch(() => ({ data: [] }))
+        apiClient.get(canonicalEndpoints.pets.list, { params: { search: query, limit: 5 } }).catch(() => ({ data: [] })),
+        apiClient.get(canonicalEndpoints.owners.list, { params: { search: query, limit: 5 } }).catch(() => ({ data: [] })),
+        apiClient.get(canonicalEndpoints.bookings.list, { params: { search: query, limit: 5 } }).catch(() => ({ data: [] }))
       ]);
 
       setSearchResults({

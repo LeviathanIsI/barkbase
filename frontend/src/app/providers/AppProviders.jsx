@@ -9,6 +9,7 @@ import QueryProvider from "./QueryProvider";
 import TenantLoader from "./TenantLoader";
 import TokenRefresher from "./TokenRefresher";
 import { SlideoutProvider, SlideoutHost } from "@/components/slideout";
+import { realtimeUrl } from "@/config/env";
 
 const RealtimeProvider = ({ children }) => {
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -24,11 +25,11 @@ const RealtimeProvider = ({ children }) => {
   const tenantRecordId = useTenantStore((s) => s.tenant?.recordId);
   const tenantSlug = useTenantStore((s) => s.tenant?.slug);
   const tenantIdentifier = tenantRecordId ?? tenantSlug ?? "default";
-  const [client, setClient] = useState(null);
+  const [, setClient] = useState(null);
   useEffect(() => {
     if (!accessToken || !tenantIdentifier) return;
-    // Use AWS WebSocket URL or disable if not configured
-    const url = import.meta.env.VITE_REALTIME_URL || "disabled";
+    // Use centralized realtime URL config or disable if not configured
+    const url = realtimeUrl || "disabled";
     const identity = userIdentifier ?? accessToken ?? "anonymous";
     const c =
       url === "disabled" ? null : new RealtimeClient(url, identity, tenantIdentifier);

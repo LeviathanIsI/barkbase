@@ -51,14 +51,17 @@ import { usePaymentsQuery, usePaymentSummaryQuery } from '../api';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
 
-// Status configurations
+// Status configurations (normalized to uppercase keys)
 const STATUS_CONFIG = {
   CAPTURED: { label: 'Captured', variant: 'success', icon: CheckCircle },
   SUCCESSFUL: { label: 'Successful', variant: 'success', icon: CheckCircle },
+  COMPLETED: { label: 'Completed', variant: 'success', icon: CheckCircle },
+  SUCCEEDED: { label: 'Succeeded', variant: 'success', icon: CheckCircle },
   PENDING: { label: 'Pending', variant: 'warning', icon: Clock },
   AUTHORIZED: { label: 'Authorized', variant: 'info', icon: CreditCard },
   REFUNDED: { label: 'Refunded', variant: 'neutral', icon: RotateCcw },
   FAILED: { label: 'Failed', variant: 'danger', icon: XCircle },
+  CANCELLED: { label: 'Cancelled', variant: 'neutral', icon: XCircle },
 };
 
 // Method configurations
@@ -358,17 +361,36 @@ const Payments = () => {
   const { data: paymentsData, isLoading, error, refetch } = usePaymentsQuery();
   const { data: summaryData } = usePaymentSummaryQuery();
 
-  // Process payments data
+  // Process payments data - normalize backend response
   const payments = useMemo(() => {
-    return Array.isArray(paymentsData) ? paymentsData : (paymentsData?.data || []);
+    const rawPayments = paymentsData?.payments || paymentsData?.data?.payments || (Array.isArray(paymentsData) ? paymentsData : []);
+
+    // Transform backend fields to frontend expected format
+    return rawPayments.map(p => ({
+      ...p,
+      // Normalize ID fields
+      recordId: p.recordId || p.id,
+      // Normalize amount (backend returns both amount and amountCents)
+      amountCents: p.amountCents || (p.amount ? Math.round(p.amount * 100) : 0),
+      // Parse customer name if combined, otherwise use individual fields
+      ownerFirstName: p.ownerFirstName || (p.customerName ? p.customerName.split(' ')[0] : ''),
+      ownerLastName: p.ownerLastName || (p.customerName ? p.customerName.split(' ').slice(1).join(' ') : ''),
+      // Normalize date fields (backend uses processedAt, frontend expects capturedAt)
+      capturedAt: p.capturedAt || p.processedAt || p.paidAt,
+      createdAt: p.createdAt,
+      // Normalize status to uppercase for STATUS_CONFIG lookup
+      status: (p.status || 'PENDING').toUpperCase(),
+      // Normalize method
+      method: p.method || p.paymentMethod || 'card',
+    }));
   }, [paymentsData]);
 
   // Calculate stats
   const stats = useMemo(() => {
-    const captured = payments.filter(p => p.status === 'CAPTURED' || p.status === 'SUCCESSFUL');
-    const pending = payments.filter(p => p.status === 'PENDING' || p.status === 'AUTHORIZED');
+    const captured = payments.filter(p => ['CAPTURED', 'SUCCESSFUL', 'COMPLETED', 'SUCCEEDED'].includes(p.status));
+    const pending = payments.filter(p => ['PENDING', 'AUTHORIZED'].includes(p.status));
     const refunded = payments.filter(p => p.status === 'REFUNDED');
-    const failed = payments.filter(p => p.status === 'FAILED');
+    const failed = payments.filter(p => ['FAILED', 'CANCELLED'].includes(p.status));
 
     const revenueCollected = captured.reduce((sum, p) => sum + (p.amountCents || 0), 0) / 100;
     const processedAmount = captured.reduce((sum, p) => sum + (p.amountCents || 0), 0) / 100;

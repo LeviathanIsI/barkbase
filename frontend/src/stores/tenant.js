@@ -64,8 +64,8 @@ export const useTenantStore = create(
         const resolvedSlug = slug ?? get().tenant?.slug ?? defaultTenant.slug;
 
         try {
-          // Backend exposes GET /api/v1/tenants?slug=<slug>
-          const res = await apiClient.get('/api/v1/tenants', { params: { slug: resolvedSlug } });
+          // Backend exposes GET /api/v1/entity/tenants?slug=<slug>
+          const res = await apiClient.get('/api/v1/entity/tenants', { params: { slug: resolvedSlug } });
           const payload = res?.data ?? null;
 
           if (!payload) {
@@ -86,8 +86,8 @@ export const useTenantStore = create(
       loadTenantById: async (tenantId) => {
         if (!tenantId) throw new Error('tenantId is required');
         try {
-          // Backend exposes GET /api/v1/tenants/current using JWT claims for tenancy
-          const res = await apiClient.get('/api/v1/tenants/current');
+          // Backend exposes GET /api/v1/config/tenant for current tenant config from JWT claims
+          const res = await apiClient.get('/api/v1/config/tenant');
           const payload = res?.data ?? null;
           if (!payload) throw new Error('Tenant not found');
           get().setTenant(payload);

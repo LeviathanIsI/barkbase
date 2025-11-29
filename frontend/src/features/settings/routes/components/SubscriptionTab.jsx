@@ -1,20 +1,28 @@
-import { CheckCircle, X, Zap, TrendingUp, ArrowRight } from 'lucide-react';
+import { CheckCircle, X, Zap, TrendingUp, ArrowRight, Loader2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
+import { useSubscriptionQuery } from '@/features/settings/api';
 
 export default function SubscriptionTab() {
-  // Subscription data (wire to billing API)
-  const currentPlan = {
-    name: 'FREE',
+  const { data: subscriptionData, isLoading, error } = useSubscriptionQuery();
+
+  // Use API data or fallback to defaults
+  const currentPlan = subscriptionData?.currentPlan || {
+    plan: 'FREE',
+    planName: 'FREE',
     description: 'Community support tier',
     usage: {
       bookings: { used: 0, limit: 150 },
-      activePets: 45,
-      storage: { used: 25, limit: 100 }, // MB
+      activePets: 0,
+      storage: { used: 0, limit: 100 },
       seats: { used: 0, limit: 2 }
     }
   };
+
+  // Normalize plan name for display
+  const planName = currentPlan.planName || currentPlan.plan || 'FREE';
+  const planDescription = currentPlan.description || 'Community support tier';
 
   const includedFeatures = [
     { name: 'Customer portal self-service', included: true },
@@ -58,14 +66,23 @@ export default function SubscriptionTab() {
     return 'bg-red-50 dark:bg-red-950/20';
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+        <span className="ml-2 text-gray-500">Loading subscription...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Current Plan */}
       <Card>
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">{currentPlan.name} PLAN</h2>
-            <p className="text-gray-600 dark:text-text-secondary">{currentPlan.description}</p>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-text-primary">{planName} PLAN</h2>
+            <p className="text-gray-600 dark:text-text-secondary">{planDescription}</p>
           </div>
           <Button>
             <Zap className="w-4 h-4 mr-2" />

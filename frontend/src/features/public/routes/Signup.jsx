@@ -1,3 +1,27 @@
+/**
+ * =============================================================================
+ * BarkBase Signup Page
+ * =============================================================================
+ *
+ * Creates a new BarkBase workspace (tenant) with the first user as OWNER.
+ *
+ * AUTHENTICATION:
+ * ---------------
+ * This page uses Cognito-based authentication (the only supported production mode).
+ *
+ * - AUTH_MODE='embedded' (default/recommended): CognitoPasswordClient creates
+ *   user in Cognito, then calls /api/v1/auth/register to create tenant/user
+ *   records in the database.
+ *
+ * - AUTH_MODE='hosted': LambdaAuthClient redirects to Cognito Hosted UI.
+ *   User creation happens after OAuth callback.
+ *
+ * NOTE: DB auth mode is LEGACY/DEV-ONLY and blocked in production builds.
+ * See aws-client/index.js and aws-client/db-auth-client.js for details.
+ *
+ * =============================================================================
+ */
+
 import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import Card from '@/components/ui/Card';

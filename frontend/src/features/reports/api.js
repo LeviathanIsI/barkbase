@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
+import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import { useTenantStore } from '@/stores/tenant';
 import { useAuthStore } from '@/stores/auth';
 
@@ -8,7 +9,7 @@ const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'defa
 
 /**
  * Fetch main dashboard report metrics
- * Uses /api/v1/reports/dashboard endpoint
+ * Uses analytics service /api/v1/analytics/dashboard endpoint
  */
 export const useReportDashboard = (params = {}, options = {}) => {
   const tenantKey = useTenantKey();
@@ -17,7 +18,7 @@ export const useReportDashboard = (params = {}, options = {}) => {
   return useQuery({
     queryKey: queryKeys.reports.dashboard(tenantKey, params),
     queryFn: async () => {
-      const response = await apiClient.get('/api/v1/reports/dashboard');
+      const response = await apiClient.get(canonicalEndpoints.reports.dashboard);
       return response.data;
     },
     enabled: isAuthenticated,
@@ -39,7 +40,7 @@ export const useRevenueReport = ({ startDate, endDate } = {}, options = {}) => {
       const params = {};
       if (startDate) params.startDate = startDate;
       if (endDate) params.endDate = endDate;
-      const response = await apiClient.get('/api/v1/reports/revenue', { params });
+      const response = await apiClient.get(canonicalEndpoints.reports.revenue, { params });
       return response.data || [];
     },
     enabled: isAuthenticated,
@@ -61,7 +62,7 @@ export const useOccupancyReport = ({ startDate, endDate } = {}, options = {}) =>
       const params = {};
       if (startDate) params.startDate = startDate;
       if (endDate) params.endDate = endDate;
-      const response = await apiClient.get('/api/v1/reports/occupancy', { params });
+      const response = await apiClient.get(canonicalEndpoints.reports.occupancy, { params });
       return response.data || [];
     },
     enabled: isAuthenticated,
@@ -80,8 +81,9 @@ export const useArrivalsReport = (days = 7, options = {}) => {
   return useQuery({
     queryKey: [tenantKey, 'reports', 'arrivals', days],
     queryFn: async () => {
-      const response = await apiClient.get('/api/v1/reports/arrivals', { params: { days } });
-      return response.data?.arrivals || [];
+      // Use bookings list with pending status filter
+      const response = await apiClient.get(canonicalEndpoints.bookings.list, { params: { status: 'PENDING', days } });
+      return response.data?.bookings || response.data || [];
     },
     enabled: isAuthenticated,
     staleTime: 2 * 60 * 1000,
@@ -99,8 +101,9 @@ export const useDeparturesReport = (days = 7, options = {}) => {
   return useQuery({
     queryKey: [tenantKey, 'reports', 'departures', days],
     queryFn: async () => {
-      const response = await apiClient.get('/api/v1/reports/departures', { params: { days } });
-      return response.data?.departures || [];
+      // Use bookings list with checked_in status filter
+      const response = await apiClient.get(canonicalEndpoints.bookings.list, { params: { status: 'CHECKED_IN', days } });
+      return response.data?.bookings || response.data || [];
     },
     enabled: isAuthenticated,
     staleTime: 2 * 60 * 1000,

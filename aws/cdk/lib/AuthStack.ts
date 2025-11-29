@@ -130,6 +130,9 @@ exports.handler = async (event) => {
     this.jwksUrl = `https://cognito-idp.${config.region}.amazonaws.com/${userPool.userPoolId}/.well-known/jwks.json`;
 
     // Define OAuth callback and logout URLs based on environment
+    // NOTE: After deploying frontend, add the CloudFront URL to Cognito via AWS Console or CLI:
+    // aws cognito-idp update-user-pool-client --user-pool-id <id> --client-id <id> \
+    //   --callback-urls "existing-urls" "https://<cloudfront>.cloudfront.net/auth/callback"
     const callbackUrls = config.env === 'dev'
       ? [
           'http://localhost:5173/auth/callback',

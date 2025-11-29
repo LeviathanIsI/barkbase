@@ -1,18 +1,29 @@
+/**
+ * =============================================================================
+ * BarkBase API Client
+ * =============================================================================
+ * 
+ * Centralized API client for all frontend HTTP requests.
+ * 
+ * FEATURES:
+ * ---------
+ * - Automatic Authorization header attachment (Bearer token from auth store)
+ * - Tenant ID header for multi-tenancy
+ * - 401 handling with automatic logout
+ * - CRUD helpers (get, post, put, patch, delete)
+ * 
+ * USAGE:
+ * ------
+ * import apiClient from '@/lib/apiClient';
+ * const { data } = await apiClient.get('/api/v1/pets');
+ * 
+ * =============================================================================
+ */
+
 import { createAWSClient } from './aws-client';
 
-// 1. Initialize the AWS client with configuration from environment variables.
-// The VITE_ prefix is used here, adjust if your framework is different (e.g., NEXT_PUBLIC_, REACT_APP_).
-const awsClient = createAWSClient({
-  region: import.meta.env.VITE_AWS_REGION || 'us-east-1',
-  userPoolId: import.meta.env.VITE_USER_POOL_ID || '',
-  clientId: import.meta.env.VITE_CLIENT_ID || '',
-  // Provide a safe development default so data hooks don't crash when env isn't set
-  apiUrl: import.meta.env.VITE_API_URL || '/api',
-  // Hosted UI (PKCE) config
-  cognitoDomain: import.meta.env.VITE_COGNITO_DOMAIN || '',
-  redirectUri: import.meta.env.VITE_REDIRECT_URI || (typeof window !== 'undefined' ? window.location.origin : ''),
-  logoutUri: import.meta.env.VITE_LOGOUT_URI || (typeof window !== 'undefined' ? window.location.origin : ''),
-});
+// Initialize the AWS client - configuration is read from @/config/env
+const awsClient = createAWSClient();
 
 // Table-style client removed: frontend should use explicit REST endpoints via helpers below.
 
@@ -97,13 +108,22 @@ const triggerAutoLogout = async () => {
   redirectToLogin();
 };
 
+/**
+ * Handle authentication errors (401/403)
+ * - 401 Unauthorized: Token expired or invalid - auto logout
+ * - 403 Forbidden: User lacks permission - don't logout, just report
+ */
 const ensureAuthorized = async (response) => {
-  if (response?.status !== 401) {
-    return;
+  if (response?.status === 401) {
+    await triggerAutoLogout();
+    throw new Error('Session expired. Please log in again.');
   }
 
-  await triggerAutoLogout();
-  throw new Error('Unauthorized');
+  // 403 doesn't trigger logout - user is authenticated but lacks permission
+  if (response?.status === 403) {
+    const data = await parseResponse(response);
+    throw new Error(data?.message || 'You do not have permission to perform this action.');
+  }
 };
 
 const logRequest = (method, url, tenantId) => {
@@ -137,16 +157,42 @@ const parseResponse = async (res) => {
   }
 };
 
+/**
+ * Build a user-friendly error from response
+ *
+ * Backend error response format:
+ * { error: "ErrorType", message: "Human readable message" }
+ */
 const buildError = (res, data) => {
+  // String error response
   if (typeof data === 'string' && data.trim()) {
     return new Error(data);
   }
 
+  // Object error response - extract message
   if (data && typeof data === 'object') {
-    return new Error(data.message || JSON.stringify(data));
+    // Prefer 'message' field, fallback to 'error'
+    const message = data.message || data.error || null;
+    if (message && typeof message === 'string') {
+      return new Error(message);
+    }
+    // Last resort: stringify the object
+    return new Error(JSON.stringify(data));
   }
 
-  return new Error(`Request failed with status ${res.status}`);
+  // Generic status-based error messages
+  const statusMessages = {
+    400: 'Invalid request. Please check your input.',
+    404: 'The requested resource was not found.',
+    409: 'Conflict. This action cannot be completed.',
+    422: 'Validation failed. Please check your input.',
+    429: 'Too many requests. Please try again later.',
+    500: 'An unexpected server error occurred. Please try again.',
+    502: 'Service temporarily unavailable. Please try again.',
+    503: 'Service temporarily unavailable. Please try again.',
+  };
+
+  return new Error(statusMessages[res.status] || `Request failed with status ${res.status}`);
 };
 
 /**
@@ -215,9 +261,8 @@ export const uploadClient = async (endpoint, formData) => {
 };
 
 // Lightweight REST helpers for feature APIs that call concrete endpoints
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL_UNIFIED
-  || import.meta.env.VITE_API_BASE_URL
-  || 'https://ejxp74eyhe.execute-api.us-east-2.amazonaws.com';
+import { apiBaseUrl as configApiBaseUrl } from '@/config/env';
+const API_BASE_URL = configApiBaseUrl;
 
 const buildUrl = (path, params) => {
   const url = new URL(path, API_BASE_URL);
@@ -231,26 +276,53 @@ const buildUrl = (path, params) => {
   return url.toString();
 };
 
-// Build headers with JWT token for API Gateway authentication
+/**
+ * Endpoints that don't require X-Tenant-Id header
+ * These use JWT sub to identify the user/tenant on the backend
+ */
+const TENANT_HEADER_EXEMPT_PATHS = [
+  '/api/v1/config/tenant',  // Bootstrap endpoint - uses JWT sub to find tenant
+  '/config/tenant',         // Alternative path
+  '/tenants/current',       // Legacy path
+  '/tenants?',              // Tenant lookup by slug
+];
+
+/**
+ * Check if a path is exempt from tenant header requirement
+ */
+const isTenantHeaderExempt = (path) => {
+  return TENANT_HEADER_EXEMPT_PATHS.some(exempt => path.includes(exempt));
+};
+
+/**
+ * Build headers with JWT token for API Gateway authentication
+ *
+ * IMPORTANT: tenantId comes from auth store (set during login/bootstrap)
+ * This ensures all tenant-scoped API calls include the X-Tenant-Id header
+ * for multi-tenant isolation on the backend.
+ */
 const buildHeaders = async (path = "") => {
-  const { useTenantStore } = await import("@/stores/tenant");
   const { useAuthStore } = await import("@/stores/auth");
 
-  const tenant = useTenantStore.getState().tenant;
-  const tenantId = tenant?.recordId;
-  const accessToken = useAuthStore.getState().accessToken;
+  const authState = useAuthStore.getState();
+  const accessToken = authState.accessToken;
+  // Get tenantId from auth store - this is THE canonical source
+  const tenantId = authState.tenantId;
 
-  // Skip tenant check for tenant fetch endpoints (chicken-and-egg problem)
-  const isTenantFetchEndpoint = path.includes("/tenants/current") || path.includes("/tenants?");
+  // Check if this endpoint is exempt from tenant header requirement
+  const isExempt = isTenantHeaderExempt(path);
 
-  if (!tenantId && !isTenantFetchEndpoint) {
-    console.warn("⚠️ WARNING: No tenant ID found. Tenant may not be loaded yet.");
+  // Only warn if tenantId is missing for non-exempt endpoints
+  // This prevents spam during bootstrap when tenant isn't loaded yet
+  if (!tenantId && !isExempt) {
+    console.warn("⚠️ WARNING: No tenant ID found. Tenant may not be loaded yet. Path:", path);
   }
 
   return {
     headers: {
       "Content-Type": "application/json",
       ...(accessToken && { "Authorization": `Bearer ${accessToken}` }),
+      // Only include X-Tenant-Id if we have one (exempt endpoints don't need it)
       ...(tenantId && { "X-Tenant-Id": tenantId }),
     },
     tenantId,

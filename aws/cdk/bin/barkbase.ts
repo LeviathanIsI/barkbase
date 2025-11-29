@@ -20,6 +20,8 @@ import { DatabaseStack } from '../lib/DatabaseStack';
 import { AuthStack } from '../lib/AuthStack';
 import { ServicesStack } from '../lib/ServicesStack';
 import { ApiCoreStack } from '../lib/ApiCoreStack';
+import { FrontendStack } from '../lib/FrontendStack';
+import { MonitoringStack } from '../lib/MonitoringStack';
 import { getConfig, getCdkEnv } from '../lib/shared/config';
 
 const app = new cdk.App();
@@ -107,6 +109,13 @@ const apiCoreStack = new ApiCoreStack(app, `${config.stackPrefix}-api`, {
   env: cdkEnv,
   authApiFunction: servicesStack.authApiFunction,
   userProfileFunction: servicesStack.userProfileFunction,
+  entityServiceFunction: servicesStack.entityServiceFunction,
+  analyticsServiceFunction: servicesStack.analyticsServiceFunction,
+  operationsServiceFunction: servicesStack.operationsServiceFunction,
+  configServiceFunction: servicesStack.configServiceFunction,
+  financialServiceFunction: servicesStack.financialServiceFunction,
+  userPool: authStack.userPool,
+  userPoolClient: authStack.userPoolClient,
   description: 'BarkBase API Gateway - HTTP API with Lambda Integrations',
   tags: {
     Environment: config.env,
@@ -117,6 +126,47 @@ const apiCoreStack = new ApiCoreStack(app, `${config.stackPrefix}-api`, {
 apiCoreStack.addDependency(servicesStack);
 
 // =============================================================================
+// Stack 6: Frontend Hosting (S3 + CloudFront)
+// =============================================================================
+const frontendStack = new FrontendStack(app, `${config.stackPrefix}-frontend`, {
+  config,
+  env: cdkEnv,
+  apiUrl: apiCoreStack.apiUrl,
+  description: 'BarkBase Frontend - S3 and CloudFront for React app hosting',
+  tags: {
+    Environment: config.env,
+    Project: 'barkbase',
+    ManagedBy: 'cdk',
+  },
+});
+frontendStack.addDependency(apiCoreStack);
+
+// =============================================================================
+// Stack 7: Monitoring (CloudWatch & X-Ray)
+// =============================================================================
+const monitoringStack = new MonitoringStack(app, `${config.stackPrefix}-monitoring`, {
+  config,
+  env: cdkEnv,
+  httpApi: apiCoreStack.httpApi,
+  authApiFunction: servicesStack.authApiFunction,
+  userProfileFunction: servicesStack.userProfileFunction,
+  entityServiceFunction: servicesStack.entityServiceFunction,
+  analyticsServiceFunction: servicesStack.analyticsServiceFunction,
+  operationsServiceFunction: servicesStack.operationsServiceFunction,
+  configServiceFunction: servicesStack.configServiceFunction,
+  financialServiceFunction: servicesStack.financialServiceFunction,
+  // notificationEmail: 'alerts@barkbase.io', // Uncomment and set email for notifications
+  description: 'BarkBase Monitoring - CloudWatch dashboards, alarms, and X-Ray tracing',
+  tags: {
+    Environment: config.env,
+    Project: 'barkbase',
+    ManagedBy: 'cdk',
+  },
+});
+monitoringStack.addDependency(apiCoreStack);
+monitoringStack.addDependency(servicesStack);
+
+// =============================================================================
 // Deployment Summary
 // =============================================================================
 console.log('📋 Stack Deployment Order:');
@@ -124,7 +174,9 @@ console.log(`  1. ${config.stackPrefix}-network`);
 console.log(`  2. ${config.stackPrefix}-database`);
 console.log(`  3. ${config.stackPrefix}-auth`);
 console.log(`  4. ${config.stackPrefix}-services`);
-console.log(`  5. ${config.stackPrefix}-api\n`);
+console.log(`  5. ${config.stackPrefix}-api`);
+console.log(`  6. ${config.stackPrefix}-frontend`);
+console.log(`  7. ${config.stackPrefix}-monitoring\n`);
 
 app.synth();
 

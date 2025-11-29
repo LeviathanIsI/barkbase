@@ -1,6 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
 import { useTenantStore } from '@/stores/tenant';
+import { useAuthStore } from '@/stores/auth';
+
+const useTenantReady = () => {
+  const tenantId = useAuthStore((state) => state.tenantId);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  return isAuthenticated && Boolean(tenantId);
+};
 
 // Query keys
 const runTemplateKeys = {
@@ -8,16 +15,27 @@ const runTemplateKeys = {
   detail: (tenantKey, id) => ['run-template', tenantKey, id],
 };
 
-// Get all run templates
+/**
+ * Get all run templates
+ *
+ * Backend returns: { data: [...], runTemplates: [...], total: N }
+ * Each template: { id, name, description, capacity, startTime, endTime, daysOfWeek, isActive, status }
+ */
 export const useRunTemplatesQuery = () => {
   const tenantKey = useTenantStore((state) => state.tenant?.slug ?? 'default');
+  const isTenantReady = useTenantReady();
 
   return useQuery({
     queryKey: runTemplateKeys.all(tenantKey),
+    enabled: isTenantReady,
     queryFn: async () => {
       const res = await apiClient.get('/api/v1/run-templates');
-      return res.data;
+      const data = res?.data?.data || res?.data?.runTemplates || (Array.isArray(res?.data) ? res.data : []);
+      console.log('[runTemplates] Fetched templates:', data.length);
+      return data;
     },
+    staleTime: 5 * 60 * 1000,
+    placeholderData: (previousData) => previousData ?? [],
   });
 };
 
@@ -69,19 +87,26 @@ export const useDeleteRunTemplateMutation = () => {
   });
 };
 
-// Get available time slots for a run
+/**
+ * Get available time slots for a run
+ *
+ * Backend returns: { data: [...], slots: [...] }
+ */
 export const useAvailableSlotsQuery = (runId, date) => {
   const tenantKey = useTenantStore((state) => state.tenant?.slug ?? 'default');
+  const isTenantReady = useTenantReady();
 
   return useQuery({
     queryKey: ['run-available-slots', tenantKey, runId, date],
+    enabled: isTenantReady && Boolean(runId && date),
     queryFn: async () => {
       const res = await apiClient.get(`/api/v1/runs/${runId}/available-slots`, {
         params: { date },
       });
-      return res.data;
+      const slots = res.data?.data || res.data?.slots || res.data || [];
+      console.log('[availableSlots] Fetched slots for run', runId, ':', slots.length);
+      return slots;
     },
-    enabled: Boolean(runId && date),
+    placeholderData: (previousData) => previousData ?? [],
   });
 };
-

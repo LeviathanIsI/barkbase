@@ -15,6 +15,7 @@ import SinglePageBookingWizard from '../components/SinglePageBookingWizard';
 import BookingDetailModal from '../components/BookingDetailModal';
 import { useBookingsQuery, useDeleteBookingMutation } from '../api';
 import { useRunTemplatesQuery } from '@/features/daycare/api-templates';
+import { useRunAssignmentsQuery } from '@/features/daycare/api';
 import { cn } from '@/lib/cn';
 import toast from 'react-hot-toast';
 
@@ -143,10 +144,24 @@ const Bookings = () => {
   const { data: runTemplates = [], isLoading: runsLoading, refetch: refetchRuns } = useRunTemplatesQuery();
   const { data: apiBookings = [], isLoading: bookingsLoading, refetch: refetchBookings } = useBookingsQuery(queryDateRange);
 
-  const isLoading = runsLoading || bookingsLoading;
+  // Fetch run assignments for the Run Board view (from RunAssignment table)
+  const { data: runAssignmentsData, isLoading: assignmentsLoading, refetch: refetchAssignments } = useRunAssignmentsQuery(queryDateRange);
 
-  // Transform run templates
+  const isLoading = runsLoading || bookingsLoading || assignmentsLoading;
+
+  // Transform runs - prefer actual Run records from assignments API if available
   const runs = useMemo(() => {
+    const apiRuns = runAssignmentsData?.runs || [];
+    if (apiRuns.length > 0) {
+      return apiRuns.map(run => ({
+        id: run.id,
+        name: run.name,
+        type: run.type || 'Standard',
+        capacity: run.maxCapacity || 1,
+        floor: run.floor || '1',
+      }));
+    }
+    // Fall back to run templates
     return runTemplates.map(template => ({
       id: template.recordId,
       name: template.name,
@@ -154,7 +169,7 @@ const Bookings = () => {
       capacity: template.maxCapacity || 1,
       floor: template.floor || '1',
     }));
-  }, [runTemplates]);
+  }, [runTemplates, runAssignmentsData]);
 
   // Total capacity across all runs
   const totalCapacity = useMemo(() => {
@@ -205,6 +220,31 @@ const Bookings = () => {
       };
     });
   }, [apiBookings]);
+
+  // Process run assignments for the Run Board (from RunAssignment table)
+  const processedAssignments = useMemo(() => {
+    const assignments = runAssignmentsData?.assignments || [];
+    return assignments.map(assignment => {
+      // Parse the date from startAt to get the assignment date
+      const startDate = assignment.startAt ? new Date(assignment.startAt) : null;
+      const dateStr = startDate ? startDate.toISOString().split('T')[0] : null;
+
+      return {
+        id: assignment.id,
+        runId: assignment.runId,
+        petId: assignment.petId,
+        petName: assignment.petName || 'Unknown',
+        ownerName: assignment.ownerName || 'Unknown',
+        bookingId: assignment.bookingId,
+        startAt: assignment.startAt,
+        endAt: assignment.endAt,
+        startTime: assignment.startTime,
+        endTime: assignment.endTime,
+        status: assignment.status,
+        dateStr, // The date this assignment is for
+      };
+    }).filter(a => a.dateStr); // Only include valid assignments with dates
+  }, [runAssignmentsData]);
 
   // Filter bookings
   const filteredBookings = useMemo(() => {
@@ -262,11 +302,14 @@ const Bookings = () => {
   const totalPages = Math.ceil(sortedBookings.length / pageSize);
 
   // Calculate booking data per date (for month view and occupancy)
+  // Uses run assignments for occupancy in Run Board view
   const bookingsByDate = useMemo(() => {
     const map = {};
 
     dateRange.forEach(date => {
       const dateStr = date.toISOString().split('T')[0];
+
+      // Get bookings that span this date (for month calendar view)
       const bookingsOnDate = filteredBookings.filter(b => {
         if (!b.checkInDate || !b.checkOutDate) return false;
         const checkInStr = b.checkInDate.toISOString().split('T')[0];
@@ -274,7 +317,11 @@ const Bookings = () => {
         return dateStr >= checkInStr && dateStr <= checkOutStr;
       });
 
-      const count = bookingsOnDate.length;
+      // Get run assignments for this date (for Run Board utilization)
+      const assignmentsOnDate = processedAssignments.filter(a => a.dateStr === dateStr);
+
+      // Use assignments count for Run Board, bookings for month view
+      const count = assignmentsOnDate.length || bookingsOnDate.length;
       const percent = totalCapacity > 0 ? Math.round((count / totalCapacity) * 100) : 0;
 
       let colorLevel = 'gray';
@@ -286,6 +333,7 @@ const Bookings = () => {
 
       map[dateStr] = {
         bookings: bookingsOnDate,
+        assignments: assignmentsOnDate,
         count,
         total: totalCapacity,
         percent,
@@ -295,7 +343,7 @@ const Bookings = () => {
     });
 
     return map;
-  }, [dateRange, filteredBookings, totalCapacity]);
+  }, [dateRange, filteredBookings, processedAssignments, totalCapacity]);
 
   // Calculate stats
   const stats = useMemo(() => ({
@@ -310,8 +358,9 @@ const Bookings = () => {
   const handleRefresh = useCallback(() => {
     refetchRuns();
     refetchBookings();
+    refetchAssignments();
     toast.success('Refreshed');
-  }, [refetchRuns, refetchBookings]);
+  }, [refetchRuns, refetchBookings, refetchAssignments]);
 
   const navigatePeriod = useCallback((direction) => {
     const newDate = new Date(currentDate);
@@ -635,6 +684,7 @@ const Bookings = () => {
           <RunBoardView
             runs={runs}
             bookings={filteredBookings}
+            assignments={processedAssignments}
             dateRange={dateRange}
             bookingsByDate={bookingsByDate}
             isLoading={isLoading}
@@ -968,6 +1018,7 @@ const MonthCalendarSkeleton = () => (
 const RunBoardView = ({
   runs,
   bookings,
+  assignments = [],
   dateRange,
   bookingsByDate,
   isLoading,
@@ -978,49 +1029,10 @@ const RunBoardView = ({
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Group bookings by run
-  const bookingsByRun = useMemo(() => {
-    const map = {};
-    runs.forEach(run => {
-      map[run.id] = bookings.filter(b => b.runId === run.id);
-    });
-    return map;
-  }, [runs, bookings]);
-
-  // Get booking for a specific run and date
-  const getBookingForCell = (runId, date) => {
+  // Get assignments for a specific run and date (from RunAssignment table)
+  const getAssignmentsForCell = (runId, date) => {
     const dateStr = date.toISOString().split('T')[0];
-    const runBookings = bookingsByRun[runId] || [];
-
-    return runBookings.find(b => {
-      if (!b.checkInDate || !b.checkOutDate) return false;
-      const checkInStr = b.checkInDate.toISOString().split('T')[0];
-      const checkOutStr = b.checkOutDate.toISOString().split('T')[0];
-      return dateStr >= checkInStr && dateStr <= checkOutStr;
-    });
-  };
-
-  // Get booking span info
-  const getBookingSpan = (booking, date, dateRange) => {
-    if (!booking?.checkInDate || !booking?.checkOutDate) return { isStart: false, isEnd: false, span: 0 };
-
-    const dateStr = date.toISOString().split('T')[0];
-    const checkInStr = booking.checkInDate.toISOString().split('T')[0];
-    const checkOutStr = booking.checkOutDate.toISOString().split('T')[0];
-
-    const isStart = dateStr === checkInStr;
-    const isEnd = dateStr === checkOutStr;
-
-    // Calculate span from current date to end (for rendering)
-    let span = 0;
-    const dateIndex = dateRange.findIndex(d => d.toISOString().split('T')[0] === dateStr);
-    for (let i = dateIndex; i < dateRange.length; i++) {
-      const d = dateRange[i].toISOString().split('T')[0];
-      if (d <= checkOutStr) span++;
-      else break;
-    }
-
-    return { isStart, isEnd, span };
+    return assignments.filter(a => a.runId === runId && a.dateStr === dateStr);
   };
 
   if (runs.length === 0 && !isLoading) {
@@ -1145,38 +1157,36 @@ const RunBoardView = ({
 
                 {/* Date Cells */}
                 {dateRange.map((date, dateIdx) => {
-                  const booking = getBookingForCell(run.id, date);
+                  const cellAssignments = getAssignmentsForCell(run.id, date);
                   const isToday = date.toDateString() === today.toDateString();
-                  const { isStart, span } = booking ? getBookingSpan(booking, date, dateRange) : { isStart: false, span: 0 };
-
-                  // Only render booking card on start date
-                  if (booking && !isStart) {
-                    return (
-                      <div
-                        key={dateIdx}
-                        className="h-20"
-                        style={{ backgroundColor: isToday ? 'var(--bb-color-accent-soft)' : 'var(--bb-color-bg-body)' }}
-                      />
-                    );
-                  }
+                  const hasAssignments = cellAssignments.length > 0;
 
                   return (
                     <div
                       key={dateIdx}
                       className={cn(
-                        'h-20 relative transition-colors',
-                        !booking && 'hover:bg-[color:var(--bb-color-bg-elevated)] cursor-pointer'
+                        'min-h-[80px] relative transition-colors',
+                        !hasAssignments && 'hover:bg-[color:var(--bb-color-bg-elevated)] cursor-pointer'
                       )}
                       style={{ backgroundColor: isToday ? 'var(--bb-color-accent-soft)' : 'var(--bb-color-bg-body)' }}
-                      onClick={() => !booking && onEmptyCellClick(run.id, date)}
+                      onClick={() => !hasAssignments && onEmptyCellClick(run.id, date)}
                     >
-                      {booking && isStart && (
-                        <BookingCell
-                          booking={booking}
-                          span={Math.min(span, dateRange.length - dateIdx)}
-                          onClick={() => onBookingClick(booking)}
-                        />
-                      )}
+                      {hasAssignments ? (
+                        <div className="p-1 space-y-0.5 overflow-hidden">
+                          {cellAssignments.slice(0, 3).map((assignment, aIdx) => (
+                            <AssignmentCell
+                              key={assignment.id || aIdx}
+                              assignment={assignment}
+                              onClick={() => onBookingClick(assignment)}
+                            />
+                          ))}
+                          {cellAssignments.length > 3 && (
+                            <p className="text-[9px] text-center text-blue-600 dark:text-blue-300 font-medium">
+                              +{cellAssignments.length - 3} more
+                            </p>
+                          )}
+                        </div>
+                      ) : null}
                     </div>
                   );
                 })}
@@ -1189,7 +1199,7 @@ const RunBoardView = ({
   );
 };
 
-// Booking Cell Component
+// Booking Cell Component (for legacy booking-based rendering)
 const BookingCell = ({ booking, span, onClick }) => {
   const statusConfig = STATUS_CONFIG[booking.displayStatus] || STATUS_CONFIG.PENDING;
 
@@ -1217,6 +1227,39 @@ const BookingCell = ({ booking, span, onClick }) => {
           {statusConfig.label}
         </Badge>
       </div>
+    </div>
+  );
+};
+
+// Assignment Cell Component (for run assignment-based rendering)
+const AssignmentCell = ({ assignment, onClick }) => {
+  // Map assignment status to display config
+  const statusKey = assignment.status?.toUpperCase() || 'PENDING';
+  const statusConfig = STATUS_CONFIG[statusKey] || STATUS_CONFIG.PENDING;
+
+  return (
+    <div
+      className="rounded bg-blue-100 dark:bg-blue-900/40 border-l-2 border-blue-500 px-1.5 py-1 cursor-pointer hover:shadow-sm transition-shadow overflow-hidden"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+    >
+      <p className="text-[11px] font-medium text-blue-800 dark:text-blue-200 truncate">
+        {assignment.petName}
+      </p>
+      {assignment.startTime && (
+        <p className="text-[9px] text-blue-600 dark:text-blue-300 truncate">
+          {typeof assignment.startTime === 'string' && assignment.startTime.includes('T')
+            ? new Date(assignment.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+            : assignment.startTime}
+        </p>
+      )}
+      {assignment.ownerName && (
+        <p className="text-[9px] text-blue-600 dark:text-blue-300 truncate opacity-75">
+          {assignment.ownerName}
+        </p>
+      )}
     </div>
   );
 };

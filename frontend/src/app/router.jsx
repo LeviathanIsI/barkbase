@@ -52,6 +52,7 @@ const TenantSettings = lazy(() =>
 );
 const Staff = lazy(() => import("@/features/staff/routes/Staff"));
 const Login = lazy(() => import("@/features/auth/routes/Login"));
+const AuthCallback = lazy(() => import("@/features/auth/routes/AuthCallback"));
 const SettingsLayout = lazy(() =>
   import("@/features/settings/components/SettingsLayout")
 );
@@ -422,6 +423,10 @@ export const router = createBrowserRouter([
   {
     path: "/login",
     element: <Login />,
+  },
+  {
+    path: "/auth/callback",
+    element: <AuthCallback />,
   },
   { path: "*", element: <NotFound /> },
 ]);

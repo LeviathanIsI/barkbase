@@ -9,8 +9,11 @@ import SegmentForm from './SegmentForm';
 import SegmentMembers from './SegmentMembers';
 
 const SegmentCard = ({ segment, onEdit, onDelete, onViewMembers }) => {
-  const isAutomatic = segment.isAutomatic;
-  
+  const isAutomatic = segment.isAutomatic ?? segment.isDynamic ?? false;
+  const isActive = segment.isActive ?? true;
+  const memberCount = segment._count?.members ?? segment.memberCount ?? 0;
+  const campaignCount = segment._count?.campaigns ?? 0;
+
   return (
     <Card className="hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between mb-3">
@@ -25,7 +28,7 @@ const SegmentCard = ({ segment, onEdit, onDelete, onViewMembers }) => {
             )}
           </div>
         </div>
-        
+
         <div className="flex items-center gap-1">
           {isAutomatic && (
             <Badge variant="blue" size="sm">
@@ -33,19 +36,19 @@ const SegmentCard = ({ segment, onEdit, onDelete, onViewMembers }) => {
               Auto
             </Badge>
           )}
-          {!segment.isActive && (
+          {!isActive && (
             <Badge variant="gray" size="sm">
               Inactive
             </Badge>
           )}
         </div>
       </div>
-      
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4 text-sm text-text-secondary">
-          <span>{segment._count.members} members</span>
-          {segment._count.campaigns > 0 && (
-            <span>{segment._count.campaigns} campaigns</span>
+          <span>{memberCount} members</span>
+          {campaignCount > 0 && (
+            <span>{campaignCount} campaigns</span>
           )}
         </div>
         
@@ -89,7 +92,7 @@ export default function SegmentList() {
 
   const handleDelete = async (segment) => {
     if (window.confirm(`Are you sure you want to delete "${segment.name}"?`)) {
-      await deleteSegment.mutateAsync(segment.recordId);
+      await deleteSegment.mutateAsync(segment.recordId ?? segment.id);
     }
   };
 
@@ -175,7 +178,7 @@ export default function SegmentList() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {segments?.map((segment) => (
             <SegmentCard
-              key={segment.recordId}
+              key={segment.recordId ?? segment.id}
               segment={segment}
               onEdit={(segment) => {
                 setEditingSegment(segment);

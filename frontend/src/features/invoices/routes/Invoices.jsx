@@ -52,7 +52,8 @@ import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import SlidePanel from '@/components/ui/SlidePanel';
-import { useInvoicesQuery, useSendInvoiceEmailMutation, useMarkInvoicePaidMutation } from '../api';
+// Business invoices = tenant billing pet owners (NOT platform billing)
+import { useBusinessInvoicesQuery, useSendInvoiceEmailMutation, useMarkInvoicePaidMutation } from '../api';
 import { formatCurrency } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
@@ -104,9 +105,13 @@ const InvoiceRow = ({ invoice, isSelected, onSelect, onClick }) => {
   const status = STATUS_CONFIG[effectiveStatus] || STATUS_CONFIG.draft;
   const StatusIcon = status.icon;
 
-  const ownerName = invoice.owner
-    ? `${invoice.owner.firstName || ''} ${invoice.owner.lastName || ''}`.trim()
+  // Backend returns 'customer' object, frontend may also use 'owner'
+  const ownerData = invoice.customer || invoice.owner;
+  const ownerName = ownerData
+    ? `${ownerData.firstName || ''} ${ownerData.lastName || ''}`.trim() || 'Unknown'
     : 'Unknown';
+  const ownerEmail = ownerData?.email;
+  const ownerId = invoice.ownerId || invoice.owner_id;
 
   const totalAmount = (invoice.totalCents || 0) / 100;
   const paidAmount = (invoice.paidCents || 0) / 100;
@@ -136,13 +141,13 @@ const InvoiceRow = ({ invoice, isSelected, onSelect, onClick }) => {
         <input
           type="checkbox"
           checked={isSelected}
-          onChange={() => onSelect(invoice.recordId)}
+          onChange={() => onSelect(invoice.id || invoice.recordId)}
           className="rounded border-border"
         />
       </td>
       <td className="px-3 py-3">
         <button className="text-sm font-mono font-medium text-primary hover:underline">
-          {invoice.invoiceNumber || `INV-${invoice.recordId?.slice(0, 6)}`}
+          {invoice.invoiceNumber || `INV-${(invoice.id || invoice.recordId)?.slice(0, 6)}`}
         </button>
       </td>
       <td className="px-3 py-3">
@@ -151,9 +156,19 @@ const InvoiceRow = ({ invoice, isSelected, onSelect, onClick }) => {
             <User className="h-3.5 w-3.5 text-primary" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-text truncate">{ownerName}</p>
-            {invoice.owner?.email && (
-              <p className="text-xs text-muted truncate">{invoice.owner.email}</p>
+            {ownerId ? (
+              <a
+                href={`/owners/${ownerId}`}
+                onClick={(e) => e.stopPropagation()}
+                className="text-sm font-medium text-primary hover:underline truncate block"
+              >
+                {ownerName}
+              </a>
+            ) : (
+              <p className="text-sm font-medium text-text truncate">{ownerName}</p>
+            )}
+            {ownerEmail && (
+              <p className="text-xs text-muted truncate">{ownerEmail}</p>
             )}
           </div>
         </div>
@@ -241,7 +256,7 @@ const InvoiceDrawer = ({ invoice, isOpen, onClose, onSendEmail, onMarkPaid }) =>
   const handleApplyPayment = () => {
     const cents = Math.round(parseFloat(paymentAmount) * 100);
     if (cents > 0 && cents <= balanceDue * 100) {
-      onMarkPaid(invoice.recordId, cents);
+      onMarkPaid(invoice.id || invoice.recordId, cents);
       setShowPaymentInput(false);
       setPaymentAmount('');
     } else {
@@ -253,7 +268,7 @@ const InvoiceDrawer = ({ invoice, isOpen, onClose, onSendEmail, onMarkPaid }) =>
     <SlidePanel
       open={isOpen}
       onClose={onClose}
-      title={`Invoice ${invoice.invoiceNumber || `#${invoice.recordId?.slice(0, 8)}`}`}
+      title={`Invoice ${invoice.invoiceNumber || `#${(invoice.id || invoice.recordId)?.slice(0, 8)}`}`}
       size="md"
     >
       <div className="space-y-6">
@@ -452,7 +467,7 @@ const InvoiceDrawer = ({ invoice, isOpen, onClose, onSendEmail, onMarkPaid }) =>
           {balanceDue > 0 && invoice.status !== 'void' && (
             <Button 
               className="w-full justify-center"
-              onClick={() => onMarkPaid(invoice.recordId, balanceDue * 100)}
+              onClick={() => onMarkPaid(invoice.id || invoice.recordId, balanceDue * 100)}
             >
               <CheckCircle className="h-4 w-4 mr-2" />
               Mark as Paid
@@ -496,14 +511,16 @@ const Invoices = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
 
-  // Data fetching
-  const { data: invoicesData, isLoading, error, refetch } = useInvoicesQuery();
+  // Data fetching - Business invoices (tenant billing pet owners)
+  const { data: invoicesData, isLoading, error, refetch } = useBusinessInvoicesQuery();
   const sendEmailMutation = useSendInvoiceEmailMutation();
   const markPaidMutation = useMarkInvoicePaidMutation();
 
-  // Process invoices data
+  // Process invoices data from normalized response { invoices, total }
   const invoices = useMemo(() => {
-    return Array.isArray(invoicesData) ? invoicesData : (invoicesData?.data || []);
+    const rawInvoices = invoicesData?.invoices ?? [];
+    console.log('[Finance/Invoices] loaded business invoices:', rawInvoices.length);
+    return rawInvoices;
   }, [invoicesData]);
 
   // Calculate stats
@@ -634,7 +651,7 @@ const Invoices = () => {
     if (selectedInvoices.size === paginatedInvoices.length) {
       setSelectedInvoices(new Set());
     } else {
-      setSelectedInvoices(new Set(paginatedInvoices.map(i => i.recordId)));
+      setSelectedInvoices(new Set(paginatedInvoices.map(i => i.id || i.recordId)));
     }
   };
 
@@ -645,7 +662,7 @@ const Invoices = () => {
 
   const handleSendEmail = async (invoice) => {
     try {
-      await sendEmailMutation.mutateAsync(invoice.recordId);
+      await sendEmailMutation.mutateAsync(invoice.id || invoice.recordId);
       toast.success(`Invoice sent to ${invoice.owner?.email}`);
     } catch (error) {
       toast.error('Failed to send invoice');
@@ -665,11 +682,11 @@ const Invoices = () => {
 
   const handleExport = () => {
     const toExport = selectedInvoices.size > 0
-      ? invoices.filter(i => selectedInvoices.has(i.recordId))
+      ? invoices.filter(i => selectedInvoices.has(i.id || i.recordId))
       : filteredInvoices;
 
     const csv = toExport.map(i =>
-      `${i.invoiceNumber || i.recordId},${i.owner?.firstName || ''} ${i.owner?.lastName || ''},${((i.totalCents || 0) / 100).toFixed(2)},${((i.paidCents || 0) / 100).toFixed(2)},${i.status},${i.dueDate || ''}`
+      `${i.invoiceNumber || i.id || i.recordId},${i.owner?.firstName || ''} ${i.owner?.lastName || ''},${((i.totalCents || 0) / 100).toFixed(2)},${((i.paidCents || 0) / 100).toFixed(2)},${i.status},${i.dueDate || ''}`
     ).join('\n');
 
     const blob = new Blob([`Invoice #,Owner,Amount,Paid,Status,Due Date\n${csv}`], { type: 'text/csv' });
@@ -955,9 +972,9 @@ const Invoices = () => {
                 <tbody>
                   {paginatedInvoices.map(invoice => (
                     <InvoiceRow
-                      key={invoice.recordId}
+                      key={invoice.id || invoice.recordId}
                       invoice={invoice}
-                      isSelected={selectedInvoices.has(invoice.recordId)}
+                      isSelected={selectedInvoices.has(invoice.id || invoice.recordId)}
                       onSelect={handleSelectInvoice}
                       onClick={() => handleViewInvoice(invoice)}
                     />

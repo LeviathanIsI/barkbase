@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, AlertTriangle, AlertCircle, Clock, Heart, Shield, DollarSign } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
+import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 
 /**
  * AlertBanner Component
@@ -23,7 +24,7 @@ const AlertBanner = () => {
 
       try {
         // Fetch expiring vaccinations from dedicated endpoint
-        const vaccinationsResponse = await apiClient.get('/api/v1/pets/vaccinations/expiring');
+        const vaccinationsResponse = await apiClient.get(canonicalEndpoints.pets.expiringVaccinations);
         const vaccinations = Array.isArray(vaccinationsResponse) ? vaccinationsResponse : vaccinationsResponse?.data || [];
 
         vaccinations.forEach(vaccination => {
@@ -57,7 +58,7 @@ const AlertBanner = () => {
 
       try {
         // Fetch medical alerts from database
-        const medicalAlertsResponse = await apiClient.get('/api/v1/pets/medical-alerts');
+        const medicalAlertsResponse = await apiClient.get(canonicalEndpoints.pets.medicalAlerts);
         const medicalAlerts = Array.isArray(medicalAlertsResponse) ? medicalAlertsResponse : medicalAlertsResponse?.data || [];
 
         medicalAlerts.forEach(alert => {
@@ -80,7 +81,7 @@ const AlertBanner = () => {
       try {
         // Fetch PENDING payments and filter for overdue ones client-side
         // Note: "overdue" is not a valid PaymentStatus enum - it's calculated from dueDate
-        const paymentsResponse = await apiClient.get('/api/v1/payments?status=PENDING');
+        const paymentsResponse = await apiClient.get(canonicalEndpoints.payments.list, { params: { status: 'PENDING' } });
         const allPendingPayments = Array.isArray(paymentsResponse) ? paymentsResponse : paymentsResponse?.data || [];
 
         // Filter for overdue payments (past due date)

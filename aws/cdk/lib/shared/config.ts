@@ -54,16 +54,27 @@ export function getConfig(app: cdk.App): BarkbaseConfig {
   }
 
   // Dev environment
+  // CloudFront URL can be passed via context after initial deployment:
+  // cdk deploy -c env=dev -c cloudfrontUrl=https://xxx.cloudfront.net
+  const cloudfrontUrl = app.node.tryGetContext('cloudfrontUrl') as string | undefined;
+
+  const devCorsOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:5173',
+  ];
+
+  // Add CloudFront URL if provided
+  if (cloudfrontUrl) {
+    devCorsOrigins.push(cloudfrontUrl);
+  }
+
   return {
     ...baseConfig,
     dbInstanceClass: 't3.micro',
     dbMultiAz: false,
     natGateways: 1,
-    corsOrigins: [
-      'http://localhost:5173',
-      'http://localhost:3000',
-      'http://127.0.0.1:5173',
-    ],
+    corsOrigins: devCorsOrigins,
   };
 }
 

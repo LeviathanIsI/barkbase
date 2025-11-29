@@ -10,6 +10,7 @@ import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import { useTenantStore } from '@/stores/tenant';
+import { useAuthStore } from '@/stores/auth';
 import { normalizeListResponse } from '@/lib/createApiHooks';
 import { listQueryDefaults, detailQueryDefaults } from '@/lib/queryConfig';
 
@@ -18,6 +19,16 @@ import { listQueryDefaults, detailQueryDefaults } from '@/lib/queryConfig';
 // ============================================================================
 
 const useTenantId = () => useTenantStore((state) => state.tenant?.recordId ?? 'unknown');
+
+/**
+ * Check if tenant is ready for API calls
+ * Queries should be disabled until tenantId is available
+ */
+const useTenantReady = () => {
+  const tenantId = useAuthStore((state) => state.tenantId);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  return isAuthenticated && Boolean(tenantId);
+};
 
 // ============================================================================
 // PETS-SPECIFIC NORMALIZERS (for backwards compatibility)
@@ -75,9 +86,11 @@ const shapePetsCache = (data) => {
  */
 export const usePetsQuery = (params = {}) => {
   const tenantId = useTenantId();
-  
+  const isTenantReady = useTenantReady();
+
   return useQuery({
     queryKey: queryKeys.pets(tenantId),
+    enabled: isTenantReady,
     queryFn: async () => {
       try {
         const res = await apiClient.get(canonicalEndpoints.pets.list, { params });

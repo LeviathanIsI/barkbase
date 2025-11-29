@@ -1,0 +1,18 @@
+{
+  "name": "config-service",
+  "version": "1.0.0",
+  "description": "BarkBase Config Service - Configuration, settings, feature flags, tenant customization",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "barkbase",
+    "configuration",
+    "settings",
+    "features"
+  ],
+  "author": "BarkBase",
+  "license": "UNLICENSED",
+  "dependencies": {}
+}

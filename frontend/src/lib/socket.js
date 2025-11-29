@@ -4,6 +4,8 @@
  * Phase 3: Real-time features
  */
 
+import { websocketEnabled, websocketUrl } from '@/config/env';
+
 let socketInstance = null;
 let reconnectAttempts = 0;
 let reconnectTimer = null;
@@ -11,14 +13,11 @@ let eventHandlers = new Map();
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_DELAY = 3000;
 
-// Feature flag - set to false until backend WebSocket is implemented
-const WEBSOCKET_ENABLED = import.meta.env.VITE_WEBSOCKET_ENABLED === 'true' || false;
-
 /**
  * Initialize WebSocket connection
  */
 export const initSocket = (token) => {
-  if (!WEBSOCKET_ENABLED) {
+  if (!websocketEnabled) {
     return null;
   }
 
@@ -27,7 +26,7 @@ export const initSocket = (token) => {
   }
 
   try {
-    const wsUrl = import.meta.env.VITE_WS_URL || `wss://${window.location.host}/ws`;
+    const wsUrl = websocketUrl || `wss://${window.location.host}/ws`;
     socketInstance = new WebSocket(wsUrl);
 
     socketInstance.onopen = () => {

@@ -252,7 +252,7 @@ const Vaccinations = () => {
     if (selectedRows.size === paginatedRecords.length) {
       setSelectedRows(new Set());
     } else {
-      setSelectedRows(new Set(paginatedRecords.map(r => r.recordId)));
+      setSelectedRows(new Set(paginatedRecords.map(r => r.recordId ?? r.id)));
     }
   }, [paginatedRecords, selectedRows.size]);
 
@@ -306,7 +306,7 @@ const Vaccinations = () => {
   };
 
   const handleBulkExport = () => {
-    const selectedRecords = sortedRecords.filter(r => selectedRows.has(r.recordId));
+    const selectedRecords = sortedRecords.filter(r => selectedRows.has(r.recordId ?? r.id));
     const csv = generateCSV(selectedRecords);
     downloadCSV(csv, 'vaccination-records.csv');
     toast.success(`Exported ${selectedRows.size} record(s)`);
@@ -585,13 +585,13 @@ const Vaccinations = () => {
           <EmptyState type="no-results" onClearFilters={clearFilters} />
         ) : (
           <div className={cn('space-y-2', viewMode === 'compact' && 'space-y-1')}>
-            {paginatedRecords.map((record) => (
+            {paginatedRecords.map((record, index) => (
               <VaccinationRow
-                key={record.recordId}
+                key={record.recordId ?? record.id ?? `vacc-${index}`}
                 record={record}
                 viewMode={viewMode}
-                isSelected={selectedRows.has(record.recordId)}
-                onSelect={() => handleSelectRow(record.recordId)}
+                isSelected={selectedRows.has(record.recordId ?? record.id)}
+                onSelect={() => handleSelectRow(record.recordId ?? record.id)}
                 onDelete={() => handleDeleteClick(record)}
               />
             ))}

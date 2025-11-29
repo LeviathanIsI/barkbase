@@ -20,6 +20,7 @@ import CheckInOutDashboard from '@/features/calendar/components/CheckInOutDashbo
 import FilterOptionsPanel from '@/features/calendar/components/FilterOptionsPanel';
 import { useBookingsQuery } from '@/features/bookings/api';
 import { useRunTemplatesQuery } from '@/features/daycare/api-templates';
+import { useRunAssignmentsQuery } from '@/features/daycare/api';
 import { useTodayStats } from '../hooks/useTodayStats';
 import { cn } from '@/lib/cn';
 
@@ -65,21 +66,38 @@ const Schedule = () => {
     endDate: weekEndStr,
   });
 
-  const isLoading = runsLoading || bookingsLoading;
+  // Fetch run assignments for the week (from RunAssignment table)
+  const { data: runAssignmentsData, isLoading: assignmentsLoading, refetch: refetchAssignments } = useRunAssignmentsQuery({
+    startDate: weekStartStr,
+    endDate: weekEndStr,
+  });
 
-  // Transform runs
+  const isLoading = runsLoading || bookingsLoading || assignmentsLoading;
+
+  // Transform runs from templates
   const runs = useMemo(() => {
+    // Prefer runs from assignments API if available (includes actual Run records)
+    const apiRuns = runAssignmentsData?.runs || [];
+    if (apiRuns.length > 0) {
+      return apiRuns.map(run => ({
+        id: run.id,
+        name: run.name,
+        type: run.type || 'Standard',
+        capacity: run.maxCapacity || 1,
+      }));
+    }
+    // Fall back to run templates
     return runTemplates.map(template => ({
       id: template.recordId,
       name: template.name,
       type: template.type || 'Standard',
       capacity: template.maxCapacity || 1,
     }));
-  }, [runTemplates]);
+  }, [runTemplates, runAssignmentsData]);
 
   const totalCapacity = runs.reduce((sum, r) => sum + r.capacity, 0);
 
-  // Process bookings for the week
+  // Process bookings for the week (for stats/compatibility)
   const processedBookings = useMemo(() => {
     return weekBookings.map(booking => ({
       ...booking,
@@ -92,22 +110,43 @@ const Schedule = () => {
     }));
   }, [weekBookings]);
 
-  // Calculate occupancy per day
+  // Process run assignments for the week grid (from RunAssignment table)
+  const processedAssignments = useMemo(() => {
+    const assignments = runAssignmentsData?.assignments || [];
+    return assignments.map(assignment => {
+      // Parse the date from startAt to get the assignment date
+      const startDate = assignment.startAt ? new Date(assignment.startAt) : null;
+      const dateStr = startDate ? startDate.toISOString().split('T')[0] : null;
+
+      return {
+        id: assignment.id,
+        runId: assignment.runId,
+        petId: assignment.petId,
+        petName: assignment.petName || 'Unknown',
+        ownerName: assignment.ownerName || 'Unknown',
+        bookingId: assignment.bookingId,
+        startAt: assignment.startAt,
+        endAt: assignment.endAt,
+        startTime: assignment.startTime,
+        endTime: assignment.endTime,
+        status: assignment.status,
+        dateStr, // The date this assignment is for
+      };
+    }).filter(a => a.dateStr); // Only include valid assignments with dates
+  }, [runAssignmentsData]);
+
+  // Calculate occupancy per day based on run assignments
   const occupancyByDate = useMemo(() => {
     const map = {};
     weekDates.forEach(date => {
       const dateStr = date.toISOString().split('T')[0];
-      const count = processedBookings.filter(b => {
-        if (!b.checkInDate || !b.checkOutDate) return false;
-        const inStr = b.checkInDate.toISOString().split('T')[0];
-        const outStr = b.checkOutDate.toISOString().split('T')[0];
-        return dateStr >= inStr && dateStr <= outStr;
-      }).length;
+      // Count assignments for this date (using RunAssignment data)
+      const count = processedAssignments.filter(a => a.dateStr === dateStr).length;
       const pct = totalCapacity > 0 ? Math.round((count / totalCapacity) * 100) : 0;
       map[dateStr] = { count, pct };
     });
     return map;
-  }, [weekDates, processedBookings, totalCapacity]);
+  }, [weekDates, processedAssignments, totalCapacity]);
 
   // Stats calculations
   const stats = useMemo(() => {
@@ -155,9 +194,10 @@ const Schedule = () => {
   const handleRefresh = useCallback(() => {
     refetchRuns();
     refetchBookings();
+    refetchAssignments();
     queryClient.invalidateQueries({ queryKey: ['dashboard', 'stats'] });
     setLastRefreshed(new Date());
-  }, [refetchRuns, refetchBookings, queryClient]);
+  }, [refetchRuns, refetchBookings, refetchAssignments, queryClient]);
 
   const handleBookingClick = useCallback((booking) => {
     setSelectedBooking(booking);
@@ -274,6 +314,7 @@ const Schedule = () => {
         <WeeklyRunGrid
           runs={runs}
           bookings={processedBookings}
+          assignments={processedAssignments}
           weekDates={weekDates}
           occupancyByDate={occupancyByDate}
           isLoading={isLoading}
@@ -520,20 +561,15 @@ const CapacityAlerts = ({ stats, lastRefreshed }) => {
 };
 
 // Weekly Run Grid
-const WeeklyRunGrid = ({ runs, bookings, weekDates, occupancyByDate, isLoading, onBookingClick, onNewBooking, onNavigateWeek, onGoToToday, currentDate }) => {
+const WeeklyRunGrid = ({ runs, bookings, assignments = [], weekDates, occupancyByDate, isLoading, onBookingClick, onNewBooking, onNavigateWeek, onGoToToday, currentDate }) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const scrollRef = useRef(null);
 
-  // Get booking for cell
-  const getBookingForCell = (runId, date) => {
+  // Get assignments for a specific run and date (from RunAssignment table)
+  const getAssignmentsForCell = (runId, date) => {
     const dateStr = date.toISOString().split('T')[0];
-    return bookings.find(b => {
-      if (b.runId !== runId || !b.checkInDate || !b.checkOutDate) return false;
-      const inStr = b.checkInDate.toISOString().split('T')[0];
-      const outStr = b.checkOutDate.toISOString().split('T')[0];
-      return dateStr >= inStr && dateStr <= outStr;
-    });
+    return assignments.filter(a => a.runId === runId && a.dateStr === dateStr);
   };
 
   const weekLabel = `${format(weekDates[0], 'MMM d')} – ${format(weekDates[6], 'MMM d, yyyy')}`;
@@ -620,26 +656,45 @@ const WeeklyRunGrid = ({ runs, bookings, weekDates, occupancyByDate, isLoading, 
 
                 {/* Day Cells */}
                 {weekDates.map((date, idx) => {
-                  const booking = getBookingForCell(run.id, date);
+                  const cellAssignments = getAssignmentsForCell(run.id, date);
                   const isToday = date.toDateString() === today.toDateString();
+                  const hasAssignments = cellAssignments.length > 0;
 
                   return (
                     <div
                       key={idx}
                       className={cn(
-                        'h-16 border-l relative transition-colors cursor-pointer',
-                        !booking && 'hover:bg-[color:var(--bb-color-bg-elevated)]'
+                        'min-h-[64px] border-l relative transition-colors cursor-pointer',
+                        !hasAssignments && 'hover:bg-[color:var(--bb-color-bg-elevated)]'
                       )}
                       style={{
                         backgroundColor: isToday ? 'var(--bb-color-accent-soft)' : 'var(--bb-color-bg-body)',
                         borderColor: 'var(--bb-color-border-subtle)',
                       }}
-                      onClick={() => booking ? onBookingClick(booking) : onNewBooking(run.id, date)}
+                      onClick={() => hasAssignments ? onBookingClick(cellAssignments[0]) : onNewBooking(run.id, date)}
                     >
-                      {booking ? (
-                        <div className="absolute inset-1 rounded bg-blue-100 dark:bg-blue-900/40 border-l-4 border-blue-500 p-1.5 overflow-hidden">
-                          <p className="text-xs font-medium text-blue-800 dark:text-blue-200 truncate">{booking.petName}</p>
-                          <p className="text-[10px] text-blue-600 dark:text-blue-300 truncate">{booking.ownerName}</p>
+                      {hasAssignments ? (
+                        <div className="p-1 space-y-0.5 overflow-hidden">
+                          {cellAssignments.slice(0, 3).map((assignment, aIdx) => (
+                            <div
+                              key={assignment.id || aIdx}
+                              className="rounded bg-blue-100 dark:bg-blue-900/40 border-l-2 border-blue-500 px-1.5 py-0.5 overflow-hidden"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onBookingClick(assignment);
+                              }}
+                            >
+                              <p className="text-[10px] font-medium text-blue-800 dark:text-blue-200 truncate">{assignment.petName}</p>
+                              {assignment.startTime && (
+                                <p className="text-[9px] text-blue-600 dark:text-blue-300 truncate">{assignment.startTime}</p>
+                              )}
+                            </div>
+                          ))}
+                          {cellAssignments.length > 3 && (
+                            <p className="text-[9px] text-center text-blue-600 dark:text-blue-300 font-medium">
+                              +{cellAssignments.length - 3} more
+                            </p>
+                          )}
                         </div>
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">

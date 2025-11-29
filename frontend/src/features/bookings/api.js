@@ -13,6 +13,7 @@ import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import { useTenantStore } from '@/stores/tenant';
+import { useAuthStore } from '@/stores/auth';
 import { normalizeListResponse } from '@/lib/createApiHooks';
 import { listQueryDefaults, detailQueryDefaults } from '@/lib/queryConfig';
 
@@ -21,6 +22,16 @@ import { listQueryDefaults, detailQueryDefaults } from '@/lib/queryConfig';
 // ============================================================================
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
+
+/**
+ * Check if tenant is ready for API calls
+ * Queries should be disabled until tenantId is available
+ */
+const useTenantReady = () => {
+  const tenantId = useAuthStore((state) => state.tenantId);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  return isAuthenticated && Boolean(tenantId);
+};
 
 // ============================================================================
 // BOOKING STATUS ENUM (consistent with calendar events)
@@ -46,27 +57,51 @@ export const BOOKING_STATUS = {
 /**
  * Normalize a single booking record for consistent shape
  * Ensures fields match what calendar events expect
- * 
+ *
+ * Backend response shape (from operations-service):
+ * {
+ *   id, tenantId, status, startDate, endDate, checkInTime, checkOutTime,
+ *   totalPrice, notes,
+ *   kennel: { id, name },
+ *   service: { id, name },
+ *   owner: { id, firstName, lastName, email, phone },
+ *   pets: [{ id, name, species, breed }],
+ *   createdAt, updatedAt
+ * }
+ *
  * @param {object} booking - Raw booking from API
  * @returns {object} Normalized booking
  */
 const normalizeBooking = (booking) => {
   if (!booking) return null;
-  
+
+  // Get first pet for display purposes (bookings can have multiple pets)
+  const primaryPet = Array.isArray(booking.pets) ? booking.pets[0] : booking.pet;
+
   return {
     ...booking,
     // Ensure status is uppercase for consistency
     status: booking.status?.toUpperCase() || BOOKING_STATUS.PENDING,
-    // Ensure dates are ISO strings
+    // Map backend field names to expected frontend names
     checkIn: booking.checkIn || booking.startDate || null,
     checkOut: booking.checkOut || booking.endDate || null,
+    startDate: booking.startDate || booking.checkIn || null,
+    endDate: booking.endDate || booking.checkOut || null,
+    checkInTime: booking.checkInTime || null,
+    checkOutTime: booking.checkOutTime || null,
     // Normalize service type
-    serviceType: booking.serviceType || booking.service?.type || 'boarding',
-    // Ensure nested objects exist
-    pet: booking.pet || null,
+    serviceType: booking.serviceType || booking.service?.name || booking.service?.type || 'boarding',
+    // Ensure nested objects exist with normalized shapes
+    pet: primaryPet || null,
+    pets: booking.pets || (booking.pet ? [booking.pet] : []),
     owner: booking.owner || null,
+    kennel: booking.kennel || null,
+    service: booking.service || null,
     // Computed fields for calendar compatibility
-    title: booking.title || (booking.pet?.name ? `${booking.pet.name} - ${booking.serviceType || 'Boarding'}` : 'Booking'),
+    title: booking.title ||
+      (primaryPet?.name
+        ? `${primaryPet.name} - ${booking.service?.name || 'Boarding'}`
+        : 'Booking'),
   };
 };
 
@@ -109,9 +144,12 @@ const getBookingInvalidationKeys = (tenantKey) => [
  */
 export const useBookingsQuery = (params = {}) => {
   const tenantKey = useTenantKey();
-  
+  const isTenantReady = useTenantReady();
+
   return useQuery({
     queryKey: queryKeys.bookings(tenantKey, params),
+    // Only fetch when tenant is ready (tenantId available for X-Tenant-Id header)
+    enabled: isTenantReady,
     queryFn: async () => {
       try {
         const res = await apiClient.get(canonicalEndpoints.bookings.list, { params });

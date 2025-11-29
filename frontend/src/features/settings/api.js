@@ -1,3 +1,26 @@
+/**
+ * ============================================================================
+ * SETTINGS API
+ * ============================================================================
+ *
+ * This module handles Settings-related API calls including:
+ * - Properties (custom fields) management
+ * - Permission profiles
+ * - Services configuration
+ * - Staff management
+ * - Reports configuration
+ * - Members and invites
+ * - Billing / Subscriptions (tenant ↔ BarkBase platform billing)
+ * - Platform billing invoices (BarkBase → Tenant)
+ *
+ * NOTE ON INVOICES:
+ * - useTenantBillingInvoicesQuery: Platform billing (BarkBase → Tenant), for Settings
+ * - useBusinessInvoicesQuery: Business invoices (Tenant → Pet Owners), in @/features/invoices/api.js
+ *
+ * These are two completely different invoice concepts - do not mix them!
+ * ============================================================================
+ */
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
 import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
@@ -262,19 +285,9 @@ export const useDeleteServiceMutation = () => {
 */
 
 
-// Staff API (prefer using features/staff/api.js)
-export const useStaffQuery = (options = {}) => {
-  const tenantKey = useTenantKey();
-  return useQuery({
-    queryKey: queryKeys.staff(tenantKey),
-    queryFn: async () => {
-      const res = await apiClient.get('/api/v1/staff');
-      return res.data;
-    },
-    staleTime: 5 * 60 * 1000,
-    ...options,
-  });
-};
+// Staff API - re-export from features/staff/api.js for backwards compatibility
+// Prefer importing directly from '@/features/staff/api' in new code
+export { useStaffQuery } from '@/features/staff/api';
 
 /*
 export const useUpdateStaffStatusMutation = () => {
@@ -425,5 +438,156 @@ export const useInviteMemberMutation = () => {
       // Invalidate members query to refetch with new invites
       queryClient.invalidateQueries({ queryKey: ['members'] });
     },
+  });
+};
+
+// =============================================================================
+// BILLING / SUBSCRIPTIONS API
+// =============================================================================
+
+const useTenantReady = () => {
+  const tenantId = useAuthStore((state) => state.tenantId);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  return isAuthenticated && Boolean(tenantId);
+};
+
+/**
+ * Get current subscription/plan info for the tenant
+ *
+ * Backend response shape (from financial-service /api/v1/financial/subscriptions):
+ * {
+ *   data: { subscriptions: [...], currentPlan: {...} },
+ *   subscriptions: [...],
+ * }
+ *
+ * Each subscription/plan:
+ * {
+ *   id, tenantId, plan, planName, description, status,
+ *   currentPeriodStart, currentPeriodEnd, createdAt,
+ *   usage: { bookings: {used, limit}, activePets, storage: {used, limit}, seats: {used, limit} }
+ * }
+ */
+export const useSubscriptionQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: queryKeys.subscriptions ? queryKeys.subscriptions(tenantKey) : [tenantKey, 'subscriptions'],
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get(canonicalEndpoints.subscriptions.list);
+        const data = res.data;
+
+        // Normalize - backend returns data.currentPlan or data.subscriptions[0]
+        const currentPlan = data?.data?.currentPlan || data?.data?.subscriptions?.[0] || data?.subscriptions?.[0] || null;
+        console.log('[subscription] Fetched plan:', currentPlan?.plan);
+
+        return {
+          currentPlan,
+          subscriptions: data?.data?.subscriptions || data?.subscriptions || [],
+        };
+      } catch (e) {
+        console.warn('[subscription] Error fetching:', e?.message);
+        return { currentPlan: null, subscriptions: [] };
+      }
+    },
+    enabled: isTenantReady,
+    staleTime: 5 * 60 * 1000,
+    placeholderData: (previousData) => previousData ?? { currentPlan: null, subscriptions: [] },
+    ...options,
+  });
+};
+
+/**
+ * Get payment methods for the tenant
+ *
+ * Backend response shape (from financial-service /api/v1/financial/payment-methods):
+ * {
+ *   data: { methods: [...], paymentMethods: [...] },
+ *   methods: [...],
+ * }
+ *
+ * Each method:
+ * {
+ *   id, type, processor, last4, isPrimary, lastUsedAt, usageCount
+ * }
+ */
+export const usePaymentMethodsQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: queryKeys.paymentMethods ? queryKeys.paymentMethods(tenantKey) : [tenantKey, 'payment-methods'],
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get(canonicalEndpoints.paymentMethods.list);
+        const data = res.data;
+
+        // Normalize
+        const methods = data?.data?.methods || data?.data?.paymentMethods || data?.methods || [];
+        console.log('[payment-methods] Fetched:', methods.length);
+
+        return {
+          methods,
+          primaryMethod: methods.find(m => m.isPrimary) || methods[0] || null,
+        };
+      } catch (e) {
+        console.warn('[payment-methods] Error fetching:', e?.message);
+        return { methods: [], primaryMethod: null };
+      }
+    },
+    enabled: isTenantReady,
+    staleTime: 5 * 60 * 1000,
+    placeholderData: (previousData) => previousData ?? { methods: [], primaryMethod: null },
+    ...options,
+  });
+};
+
+// =============================================================================
+// PLATFORM BILLING INVOICES (BarkBase → Tenant)
+// =============================================================================
+//
+// This is for invoices from BarkBase to the tenant (SaaS billing).
+// Does NOT use the core operations Invoice table (booking_id, owner_id, etc).
+//
+// NOTE: This is DIFFERENT from "Business Invoices" which are invoices from
+// the kennel business to their customers (pet owners). Those are handled
+// in @/features/invoices/api.js (useBusinessInvoicesQuery).
+// =============================================================================
+
+/**
+ * Fetch PLATFORM BILLING invoices (BarkBase billing the tenant)
+ *
+ * Used by: Settings → Billing → Invoices tab
+ * NOT for: Finance → Invoices (that's business invoices to pet owners)
+ *
+ * TODO: Wire to Stripe/platform billing endpoint when backend is ready.
+ * For now, returns empty array as placeholder.
+ */
+export const useTenantBillingInvoicesQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: [tenantKey, 'platform-billing-invoices'],
+    queryFn: async () => {
+      // TODO: When platform billing backend is ready, fetch from:
+      // - Stripe API (invoices for this tenant's subscription)
+      // - Or a dedicated BarkBase billing endpoint
+      //
+      // For now, return empty placeholder since we don't have
+      // platform billing invoices implemented yet.
+      console.log('[useTenantBillingInvoicesQuery] Platform billing invoices not yet implemented');
+
+      return {
+        invoices: [],
+        total: 0,
+        message: 'Platform billing invoices coming soon',
+      };
+    },
+    enabled: isTenantReady,
+    staleTime: 5 * 60 * 1000,
+    placeholderData: { invoices: [], total: 0 },
+    ...options,
   });
 };

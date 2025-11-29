@@ -36,6 +36,11 @@ export class ServicesStack extends cdk.Stack {
   public readonly sharedLayer: lambda.ILayerVersion;
   public readonly authApiFunction: lambda.IFunction;
   public readonly userProfileFunction: lambda.IFunction;
+  public readonly entityServiceFunction: lambda.IFunction;
+  public readonly analyticsServiceFunction: lambda.IFunction;
+  public readonly operationsServiceFunction: lambda.IFunction;
+  public readonly configServiceFunction: lambda.IFunction;
+  public readonly financialServiceFunction: lambda.IFunction;
 
   constructor(scope: Construct, id: string, props: ServicesStackProps) {
     super(scope, id, props);
@@ -117,6 +122,7 @@ export class ServicesStack extends cdk.Stack {
       securityGroups: [lambdaSecurityGroup],
       layers: [this.dbLayer, this.sharedLayer],
       environment: commonEnvironment,
+      tracing: lambda.Tracing.ACTIVE, // Enable X-Ray tracing
     };
 
     // =========================================================================
@@ -139,6 +145,51 @@ export class ServicesStack extends cdk.Stack {
       description: 'BarkBase User Profile Service - profile management',
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/user-profile-service')),
+    });
+
+    // Entity Service Function
+    this.entityServiceFunction = new lambda.Function(this, 'EntityServiceFunction', {
+      ...commonLambdaConfig,
+      functionName: `${config.stackPrefix}-entity-service`,
+      description: 'BarkBase Entity Service - CRUD operations for core business entities',
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/entity-service')),
+    });
+
+    // Analytics Service Function
+    this.analyticsServiceFunction = new lambda.Function(this, 'AnalyticsServiceFunction', {
+      ...commonLambdaConfig,
+      functionName: `${config.stackPrefix}-analytics-service`,
+      description: 'BarkBase Analytics Service - reporting and metrics',
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/analytics-service')),
+    });
+
+    // Operations Service Function
+    this.operationsServiceFunction = new lambda.Function(this, 'OperationsServiceFunction', {
+      ...commonLambdaConfig,
+      functionName: `${config.stackPrefix}-operations-service`,
+      description: 'BarkBase Operations Service - bookings, scheduling, tasks, batch operations',
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/operations-service')),
+    });
+
+    // Config Service Function
+    this.configServiceFunction = new lambda.Function(this, 'ConfigServiceFunction', {
+      ...commonLambdaConfig,
+      functionName: `${config.stackPrefix}-config-service`,
+      description: 'BarkBase Config Service - configuration, settings, feature flags',
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/config-service')),
+    });
+
+    // Financial Service Function
+    this.financialServiceFunction = new lambda.Function(this, 'FinancialServiceFunction', {
+      ...commonLambdaConfig,
+      functionName: `${config.stackPrefix}-financial-service`,
+      description: 'BarkBase Financial Service - billing, invoices, payments, pricing',
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/financial-service')),
     });
 
     // =========================================================================
@@ -167,6 +218,36 @@ export class ServicesStack extends cdk.Stack {
       value: this.userProfileFunction.functionArn,
       description: 'User Profile Lambda ARN',
       exportName: `${config.stackPrefix}-user-profile-arn`,
+    });
+
+    new cdk.CfnOutput(this, 'EntityServiceFunctionArn', {
+      value: this.entityServiceFunction.functionArn,
+      description: 'Entity Service Lambda ARN',
+      exportName: `${config.stackPrefix}-entity-service-arn`,
+    });
+
+    new cdk.CfnOutput(this, 'AnalyticsServiceFunctionArn', {
+      value: this.analyticsServiceFunction.functionArn,
+      description: 'Analytics Service Lambda ARN',
+      exportName: `${config.stackPrefix}-analytics-service-arn`,
+    });
+
+    new cdk.CfnOutput(this, 'OperationsServiceFunctionArn', {
+      value: this.operationsServiceFunction.functionArn,
+      description: 'Operations Service Lambda ARN',
+      exportName: `${config.stackPrefix}-operations-service-arn`,
+    });
+
+    new cdk.CfnOutput(this, 'ConfigServiceFunctionArn', {
+      value: this.configServiceFunction.functionArn,
+      description: 'Config Service Lambda ARN',
+      exportName: `${config.stackPrefix}-config-service-arn`,
+    });
+
+    new cdk.CfnOutput(this, 'FinancialServiceFunctionArn', {
+      value: this.financialServiceFunction.functionArn,
+      description: 'Financial Service Lambda ARN',
+      exportName: `${config.stackPrefix}-financial-service-arn`,
     });
   }
 }

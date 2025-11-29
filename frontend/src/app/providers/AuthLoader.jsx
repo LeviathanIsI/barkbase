@@ -36,7 +36,7 @@ const AuthLoader = () => {
               setLoading(true);
               // Fetch tenant from backend using JWT sub
               try {
-                const tenantResponse = await apiClient.get('/api/v1/tenants/current');
+                const tenantResponse = await apiClient.get('/api/v1/config/tenant');
                 if (tenantResponse.data) {
                   updateTokens({ tenantId: tenantResponse.data.recordId });
                   setTenant(tenantResponse.data);
@@ -62,7 +62,7 @@ const AuthLoader = () => {
             setLoading(true);
             try {
               const { apiClient } = await import('@/lib/apiClient');
-              const tenantResponse = await apiClient.get('/api/v1/tenants/current');
+              const tenantResponse = await apiClient.get('/api/v1/config/tenant');
               if (tenantResponse.data) {
                 updateTokens({ tenantId: tenantResponse.data.recordId });
                 setTenant(tenantResponse.data);
@@ -97,7 +97,7 @@ const AuthLoader = () => {
             setLoading(true);
             // Fetch tenant from backend after refresh
             try {
-              const tenantResponse = await apiClient.get('/api/v1/tenants/current');
+              const tenantResponse = await apiClient.get('/api/v1/config/tenant');
               if (tenantResponse.data) {
                 updateTokens({ tenantId: tenantResponse.data.recordId });
                 setTenant(tenantResponse.data);

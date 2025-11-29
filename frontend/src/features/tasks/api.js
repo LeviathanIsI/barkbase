@@ -13,6 +13,7 @@ import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import { useTenantStore } from '@/stores/tenant';
+import { useAuthStore } from '@/stores/auth';
 import { normalizeListResponse } from '@/lib/createApiHooks';
 import { listQueryDefaults, detailQueryDefaults } from '@/lib/queryConfig';
 
@@ -21,6 +22,16 @@ import { listQueryDefaults, detailQueryDefaults } from '@/lib/queryConfig';
 // ============================================================================
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
+
+/**
+ * Check if tenant is ready for API calls
+ * Queries should be disabled until tenantId is available
+ */
+const useTenantReady = () => {
+  const tenantId = useAuthStore((state) => state.tenantId);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  return isAuthenticated && Boolean(tenantId);
+};
 
 // ============================================================================
 // TASK STATUS ENUM (consistent with calendar events)
@@ -60,50 +71,64 @@ export const TASK_TYPE = {
 /**
  * Normalize a single task record for consistent shape
  * Ensures fields match what calendar events expect
- * 
+ *
+ * Backend response shape (from operations-service):
+ * {
+ *   id, tenantId, title, description, status, priority,
+ *   dueDate, completedAt, assignedTo, assigneeName,
+ *   bookingId, petId, petName, createdAt, updatedAt
+ * }
+ *
  * @param {object} task - Raw task from API
  * @returns {object} Normalized task
  */
 const normalizeTask = (task) => {
   if (!task) return null;
-  
+
   // Compute status based on completion and due date
   let computedStatus = task.status?.toUpperCase() || TASK_STATUS.PENDING;
   if (task.completedAt) {
     computedStatus = TASK_STATUS.COMPLETED;
-  } else if (task.scheduledFor && new Date(task.scheduledFor) < new Date() && !task.completedAt) {
+  } else if (task.dueDate && new Date(task.dueDate) < new Date() && !task.completedAt) {
     computedStatus = TASK_STATUS.OVERDUE;
   }
-  
+
   // Normalize type to uppercase
   const taskType = task.type?.toUpperCase() || TASK_TYPE.OTHER;
-  
-  // Build title for calendar display: "TYPE - PetName" or just "TYPE"
+
+  // Get pet name from various sources
   const petName = task.petName || task.pet?.name;
-  const title = petName 
-    ? `${taskType} - ${petName}`
-    : taskType;
-  
+
+  // Build title for calendar display using backend title or fallback
+  const title = task.title ||
+    (petName
+      ? `${taskType} - ${petName}`
+      : taskType);
+
   return {
     ...task,
     // Canonical status
     status: computedStatus,
     // Normalized type
     type: taskType,
-    // Normalized datetime fields
-    scheduledFor: task.scheduledFor || task.dueAt || task.scheduledAt || null,
+    // Normalized datetime fields (map dueDate to scheduledFor for frontend consistency)
+    scheduledFor: task.scheduledFor || task.dueDate || task.dueAt || task.scheduledAt || null,
+    dueDate: task.dueDate || task.scheduledFor || null,
     completedAt: task.completedAt || null,
     // Related entity links (for calendar/detail views)
     petId: task.petId || task.pet?.recordId || null,
     petName: petName || null,
     ownerId: task.ownerId || task.owner?.recordId || null,
-    ownerName: task.ownerName || task.owner?.name || 
+    ownerName: task.ownerName || task.owner?.name ||
       (task.owner ? `${task.owner.firstName || ''} ${task.owner.lastName || ''}`.trim() : null),
     bookingId: task.bookingId || null,
+    // Assignee info from backend
+    assignedTo: task.assignedTo || null,
+    assigneeName: task.assigneeName || null,
     // Computed title for calendar events
     title,
-    // Priority normalization
-    priority: task.priority?.toUpperCase() || 'NORMAL',
+    // Priority normalization (backend uses MEDIUM, LOW, HIGH)
+    priority: task.priority?.toUpperCase() || 'MEDIUM',
   };
 };
 
@@ -144,9 +169,11 @@ const getTaskInvalidationKeys = (tenantKey) => [
  */
 export const useTasksQuery = (filters = {}) => {
   const tenantKey = useTenantKey();
-  
+  const isTenantReady = useTenantReady();
+
   return useQuery({
     queryKey: queryKeys.tasks(tenantKey, filters),
+    enabled: isTenantReady,
     queryFn: async () => {
       try {
         const res = await apiClient.get(canonicalEndpoints.tasks.list, { params: filters });

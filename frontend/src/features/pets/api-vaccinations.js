@@ -1,20 +1,42 @@
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
 import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
+import { useTenantStore } from '@/stores/tenant';
+import { useAuthStore } from '@/stores/auth';
+
+const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
+
+const useTenantReady = () => {
+  const tenantId = useAuthStore((state) => state.tenantId);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  return isAuthenticated && Boolean(tenantId);
+};
 
 /**
  * Get expiring vaccinations
+ *
+ * Backend returns: { data: [...], items: [...], total: N, daysAhead: N }
+ * Each item: { id, petId, petName, ownerName, type, administeredAt, expiresAt, provider, status }
  */
 export const useExpiringVaccinationsQuery = (daysAhead = 30, options = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
   return useQuery({
-    queryKey: ['vaccinations', 'expiring', daysAhead],
+    queryKey: ['vaccinations', 'expiring', tenantKey, daysAhead],
+    enabled: isTenantReady && (options.enabled !== false),
     queryFn: async () => {
       const response = await apiClient.get(canonicalEndpoints.pets.expiringVaccinations, {
         params: { daysAhead }
       });
-      return response.data;
+      const data = response?.data;
+      // Normalize response to array
+      const vaccinations = data?.data || data?.items || (Array.isArray(data) ? data : []);
+      console.log('[expiringVaccinations] Fetched:', vaccinations.length);
+      return vaccinations;
     },
+    staleTime: 5 * 60 * 1000,
+    placeholderData: (previousData) => previousData ?? [],
     ...options,
   });
 };
-

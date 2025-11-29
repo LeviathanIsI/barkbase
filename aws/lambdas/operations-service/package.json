@@ -1,0 +1,18 @@
+{
+  "name": "operations-service",
+  "version": "1.0.0",
+  "description": "BarkBase Operations Service - Bookings, scheduling, tasks, batch operations",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "barkbase",
+    "operations",
+    "scheduling",
+    "bookings"
+  ],
+  "author": "BarkBase",
+  "license": "UNLICENSED",
+  "dependencies": {}
+}

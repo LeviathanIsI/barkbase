@@ -1,48 +1,163 @@
+/**
+ * ============================================================================
+ * BUSINESS INVOICES API
+ * ============================================================================
+ *
+ * This module handles "Business Invoices" - invoices that the kennel business
+ * creates to bill their customers (pet owners).
+ *
+ * Uses the core Invoice table in Postgres:
+ *   - columns: id, tenant_id, booking_id, owner_id, invoice_number, status,
+ *     subtotal_cents, tax_cents, discount_cents, total_cents, paid_cents,
+ *     due_date, issued_at, sent_at, paid_at, notes, line_items, etc.
+ *
+ * Endpoint: /api/v1/financial/invoices
+ *
+ * NOTE: This is DIFFERENT from "Platform Billing Invoices" which are invoices
+ * from BarkBase to the tenant (SaaS billing). Those are handled separately
+ * in @/features/settings/api.js (useTenantBillingInvoicesQuery).
+ * ============================================================================
+ */
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
+import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
+import { useTenantStore } from '@/stores/tenant';
+import { useAuthStore } from '@/stores/auth';
+
+const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
 /**
- * Get all invoices
+ * Check if tenant is ready for API calls
+ * Queries should be disabled until tenantId is available
  */
-export const useInvoicesQuery = (filters = {}) => {
+const useTenantReady = () => {
+  const tenantId = useAuthStore((state) => state.tenantId);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  return isAuthenticated && Boolean(tenantId);
+};
+
+/**
+ * Fetch BUSINESS invoices (tenant billing pet owners)
+ *
+ * Used by: Finance → Invoices page
+ * NOT for: Settings → Billing (that's platform billing)
+ *
+ * Backend response shape (from financial-service /api/v1/financial/invoices):
+ * {
+ *   data: { invoices: [...] },
+ *   invoices: [...],  // Compatibility
+ *   total: number,
+ * }
+ *
+ * Each invoice contains DB fields:
+ *   id, invoiceNumber, status, amount, totalCents, subtotalCents, taxCents,
+ *   discountCents, paidCents, dueDate, issuedAt, sentAt, paidAt, notes,
+ *   lineItems, bookingId, ownerId, owner { firstName, lastName, email },
+ *   createdAt, updatedAt
+ */
+export const useBusinessInvoicesQuery = (filters = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
   return useQuery({
-    queryKey: ['invoices', filters],
+    queryKey: [tenantKey, 'invoices', filters],
     queryFn: async () => {
-      const response = await apiClient.get('/api/v1/invoices', { params: filters });
-      return response.data;
-    }
+      try {
+        const response = await apiClient.get(canonicalEndpoints.invoices.list, { params: filters });
+        const root = response.data;
+
+        // Debug: log raw response structure
+        console.log('[useInvoicesQuery] raw response keys:', Object.keys(root || {}));
+        console.log('[useInvoicesQuery] raw response:', root);
+
+        // Normalize all known shapes into one
+        // Backend returns: { data: { invoices: [...] }, invoices: [...], total: N }
+        const invoices =
+          root?.invoices ??
+          root?.data?.invoices ??
+          (Array.isArray(root?.data) ? root.data : []);
+
+        const total = root?.total ?? invoices.length;
+
+        // Debug log so we can see what the hook actually sees
+        console.log('[useInvoicesQuery] normalized', {
+          invoicesCount: Array.isArray(invoices) ? invoices.length : 'not array',
+          total,
+          firstInvoice: invoices[0] || null,
+        });
+
+        return { invoices, total };
+      } catch (e) {
+        console.error('[useBusinessInvoicesQuery] Error fetching:', e?.message, e);
+        return { invoices: [], total: 0 };
+      }
+    },
+    enabled: isTenantReady,
+    staleTime: 2 * 60 * 1000,
+    placeholderData: (previousData) => previousData ?? { invoices: [], total: 0 },
   });
 };
 
 /**
- * Get single invoice
+ * @deprecated Use useBusinessInvoicesQuery instead.
+ * This alias exists for backward compatibility during migration.
+ */
+export const useInvoicesQuery = useBusinessInvoicesQuery;
+
+/**
+ * Get single business invoice by ID
  */
 export const useInvoiceQuery = (invoiceId) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
   return useQuery({
-    queryKey: ['invoices', invoiceId],
+    queryKey: [tenantKey, 'invoices', invoiceId],
     queryFn: async () => {
-      const response = await apiClient.get(`/api/v1/invoices/${invoiceId}`);
+      const response = await apiClient.get(canonicalEndpoints.invoices.detail(invoiceId));
       return response.data;
     },
-    enabled: !!invoiceId
+    enabled: isTenantReady && !!invoiceId,
   });
 };
 
 /**
- * Generate invoice from booking
+ * Create invoice
  */
-export const useGenerateInvoiceMutation = () => {
+export const useCreateInvoiceMutation = () => {
   const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
 
   return useMutation({
-    mutationFn: async (bookingId) => {
-      const response = await apiClient.post(`/api/v1/invoices/generate/${bookingId}`);
+    mutationFn: async (payload) => {
+      const response = await apiClient.post(canonicalEndpoints.invoices.list, payload);
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['bookings'] });
-    }
+      queryClient.invalidateQueries({ queryKey: [tenantKey, 'invoices'] });
+    },
+  });
+};
+
+/**
+ * Generate invoice from booking (if endpoint exists)
+ * NOTE: This endpoint may need to be added to financial-service
+ */
+export const useGenerateInvoiceMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async (bookingId) => {
+      // Use financial service for invoice generation
+      const response = await apiClient.post(`/api/v1/financial/invoices/generate/${bookingId}`);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [tenantKey, 'invoices'] });
+      queryClient.invalidateQueries({ queryKey: [tenantKey, 'bookings'] });
+    },
   });
 };
 
@@ -50,29 +165,59 @@ export const useGenerateInvoiceMutation = () => {
  * Send invoice email
  */
 export const useSendInvoiceEmailMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
   return useMutation({
     mutationFn: async (invoiceId) => {
-      const response = await apiClient.post(`/api/v1/invoices/${invoiceId}/send-email`);
+      const response = await apiClient.post(canonicalEndpoints.invoices.send(invoiceId));
       return response.data;
-    }
+    },
+    onSuccess: (_, invoiceId) => {
+      queryClient.invalidateQueries({ queryKey: [tenantKey, 'invoices', invoiceId] });
+    },
   });
 };
 
 /**
- * Mark invoice as paid
+ * Void invoice
+ */
+export const useVoidInvoiceMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async (invoiceId) => {
+      const response = await apiClient.post(canonicalEndpoints.invoices.void(invoiceId));
+      return response.data;
+    },
+    onSuccess: (_, invoiceId) => {
+      queryClient.invalidateQueries({ queryKey: [tenantKey, 'invoices'] });
+      queryClient.invalidateQueries({ queryKey: [tenantKey, 'invoices', invoiceId] });
+    },
+  });
+};
+
+/**
+ * Mark invoice as paid (update status)
  */
 export const useMarkInvoicePaidMutation = () => {
   const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
 
   return useMutation({
     mutationFn: async ({ invoiceId, paymentCents }) => {
-      const response = await apiClient.put(`/api/v1/invoices/${invoiceId}/paid`, { paymentCents });
+      // Update invoice status to PAID
+      const response = await apiClient.patch(canonicalEndpoints.invoices.detail(invoiceId), {
+        status: 'PAID',
+        paidAmount: paymentCents ? paymentCents / 100 : undefined,
+      });
       return response.data;
     },
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['invoices', variables.invoiceId] });
-    }
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [tenantKey, 'invoices'] });
+      queryClient.invalidateQueries({ queryKey: [tenantKey, 'invoices', variables.invoiceId] });
+    },
   });
 };
 
