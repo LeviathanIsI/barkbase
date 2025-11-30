@@ -146,6 +146,26 @@ export const canonicalEndpoints = {
     reset: '/api/v1/config/settings/reset',
   },
 
+  // Custom Properties API (v2) - Enterprise custom fields system
+  // Allows tenants to define their own data model per entity type
+  properties: {
+    list: '/api/v2/properties',
+    create: '/api/v2/properties',
+    detail: build('/api/v2/properties/{id}'),
+    update: build('/api/v2/properties/{id}'),
+    delete: build('/api/v2/properties/{id}'),
+    archive: build('/api/v2/properties/{id}/archive'),
+    restore: build('/api/v2/properties/{id}/restore'),
+    dependencies: build('/api/v2/properties/{id}/dependencies'),
+    impactAnalysis: build('/api/v2/properties/{id}/impact-analysis'),
+  },
+
+  // Property Values - Get/set custom field values for entities
+  propertyValues: {
+    get: (entityType: string, entityId: string) => `/api/v2/properties/values/${entityType}/${entityId}`,
+    upsert: (entityType: string, entityId: string) => `/api/v2/properties/values/${entityType}/${entityId}`,
+  },
+
   // Enterprise Memberships API - /api/v1/memberships
   // Staff/team management for current tenant
   memberships: {

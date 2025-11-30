@@ -18,6 +18,17 @@
  * - PUT /api/v1/memberships/:id - Update member role/status
  * - DELETE /api/v1/memberships/:id - Remove member from tenant
  *
+ * Custom Properties API (v2):
+ * - GET /api/v2/properties - List all properties for tenant (filterable by entity_type)
+ * - GET /api/v2/properties/:id - Get single property
+ * - POST /api/v2/properties - Create property
+ * - PUT /api/v2/properties/:id - Update property
+ * - DELETE /api/v2/properties/:id - Soft delete (set is_active=false)
+ * - POST /api/v2/properties/:id/archive - Archive property
+ * - POST /api/v2/properties/:id/restore - Restore archived property
+ * - GET /api/v2/properties/values/:entity_type/:entity_id - Get property values for entity
+ * - PUT /api/v2/properties/values/:entity_type/:entity_id - Bulk upsert property values
+ *
  * =============================================================================
  */
 
@@ -157,6 +168,74 @@ exports.handler = async (event, context) => {
     if (membershipUpdateMatch && method === 'DELETE') {
       const membershipId = membershipUpdateMatch[1];
       return handleDeleteMembership(user, membershipId);
+    }
+
+    // =========================================================================
+    // CUSTOM PROPERTIES API (v2)
+    // =========================================================================
+    // Enterprise custom fields system - like HubSpot's custom properties
+    // Allows tenants to define their own data model per entity type
+    // =========================================================================
+
+    // Property values routes (must be matched before property ID routes)
+    // GET /api/v2/properties/values/:entity_type/:entity_id
+    const propertyValuesMatch = path.match(/^\/api\/v2\/properties\/values\/([a-z_]+)\/([a-f0-9-]+)$/i);
+    if (propertyValuesMatch && method === 'GET') {
+      const [, entityType, entityId] = propertyValuesMatch;
+      return handleGetPropertyValues(user, entityType, entityId);
+    }
+
+    // PUT /api/v2/properties/values/:entity_type/:entity_id - Bulk upsert
+    if (propertyValuesMatch && method === 'PUT') {
+      const [, entityType, entityId] = propertyValuesMatch;
+      return handleUpsertPropertyValues(user, entityType, entityId, parseBody(event));
+    }
+
+    // Archive/Restore routes (must be matched before generic property ID routes)
+    // POST /api/v2/properties/:id/archive
+    const propertyArchiveMatch = path.match(/^\/api\/v2\/properties\/([a-f0-9-]+)\/archive$/i);
+    if (propertyArchiveMatch && method === 'POST') {
+      const propertyId = propertyArchiveMatch[1];
+      return handleArchiveProperty(user, propertyId, parseBody(event));
+    }
+
+    // POST /api/v2/properties/:id/restore
+    const propertyRestoreMatch = path.match(/^\/api\/v2\/properties\/([a-f0-9-]+)\/restore$/i);
+    if (propertyRestoreMatch && method === 'POST') {
+      const propertyId = propertyRestoreMatch[1];
+      return handleRestoreProperty(user, propertyId);
+    }
+
+    // GET /api/v2/properties - List all properties
+    if ((path === '/api/v2/properties' || path === '/api/v2/properties/') && method === 'GET') {
+      const queryParams = event.queryStringParameters || {};
+      return handleListProperties(user, queryParams);
+    }
+
+    // POST /api/v2/properties - Create property
+    if ((path === '/api/v2/properties' || path === '/api/v2/properties/') && method === 'POST') {
+      return handleCreateProperty(user, parseBody(event));
+    }
+
+    // Single property routes
+    const propertyIdMatch = path.match(/^\/api\/v2\/properties\/([a-f0-9-]+)$/i);
+
+    // GET /api/v2/properties/:id
+    if (propertyIdMatch && method === 'GET') {
+      const propertyId = propertyIdMatch[1];
+      return handleGetProperty(user, propertyId);
+    }
+
+    // PUT/PATCH /api/v2/properties/:id
+    if (propertyIdMatch && (method === 'PUT' || method === 'PATCH')) {
+      const propertyId = propertyIdMatch[1];
+      return handleUpdateProperty(user, propertyId, parseBody(event));
+    }
+
+    // DELETE /api/v2/properties/:id (soft delete)
+    if (propertyIdMatch && method === 'DELETE') {
+      const propertyId = propertyIdMatch[1];
+      return handleDeleteProperty(user, propertyId);
     }
 
     // Default response for unmatched routes
@@ -1180,4 +1259,1001 @@ async function handleDeleteMembership(user, membershipId) {
       message: 'Failed to remove team member',
     });
   }
+}
+
+// =============================================================================
+// CUSTOM PROPERTIES API (v2)
+// =============================================================================
+//
+// Enterprise custom fields system that allows tenants to define their own
+// data model. Similar to HubSpot's custom properties or Airtable's fields.
+//
+// Feature Gating:
+// - FREE: 5 custom fields max
+// - PRO: 25 custom fields
+// - ENTERPRISE: unlimited
+//
+// =============================================================================
+
+const VALID_FIELD_TYPES = [
+  'text', 'number', 'date', 'datetime', 'select', 'multiselect',
+  'boolean', 'url', 'email', 'phone', 'currency', 'textarea'
+];
+
+const VALID_ENTITY_TYPES = ['pet', 'owner', 'booking', 'staff', 'service', 'kennel'];
+
+const PLAN_LIMITS = {
+  FREE: 5,
+  PRO: 25,
+  ENTERPRISE: Infinity,
+};
+
+/**
+ * Helper: Get user's tenant info and verify permissions
+ */
+async function getTenantContext(user, requireAdmin = false) {
+  const userResult = await query(
+    `SELECT u.id as user_id, u.role, u.tenant_id, t.plan
+     FROM "User" u
+     LEFT JOIN "Tenant" t ON u.tenant_id = t.id
+     WHERE u.cognito_sub = $1`,
+    [user.id]
+  );
+
+  if (userResult.rows.length === 0) {
+    return { error: 'User not found', status: 404 };
+  }
+
+  const { user_id: userId, role, tenant_id: tenantId, plan } = userResult.rows[0];
+
+  if (!tenantId) {
+    return { error: 'User has no associated tenant', status: 404 };
+  }
+
+  if (requireAdmin && !['OWNER', 'ADMIN'].includes(role)) {
+    return { error: 'You do not have permission to manage properties', status: 403 };
+  }
+
+  return { userId, role, tenantId, plan: plan || 'FREE' };
+}
+
+/**
+ * Helper: Check property count limits based on plan
+ */
+async function checkPropertyLimits(tenantId, plan, entityType) {
+  const countResult = await query(
+    `SELECT COUNT(*) as count FROM "Property"
+     WHERE tenant_id = $1 AND entity_type = $2 AND is_active = true`,
+    [tenantId, entityType]
+  );
+
+  const currentCount = parseInt(countResult.rows[0].count, 10);
+  const limit = PLAN_LIMITS[plan] || PLAN_LIMITS.FREE;
+
+  return {
+    currentCount,
+    limit,
+    canCreate: currentCount < limit,
+    remaining: Math.max(0, limit - currentCount),
+  };
+}
+
+/**
+ * Helper: Convert snake_case to camelCase for response
+ */
+function formatPropertyResponse(row) {
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    name: row.name,
+    label: row.label,
+    description: row.description,
+    fieldType: row.field_type,
+    entityType: row.entity_type,
+    options: row.options || [],
+    required: row.required,
+    defaultValue: row.default_value,
+    validationRules: row.validation_rules || {},
+    sortOrder: row.sort_order,
+    propertyGroup: row.property_group,
+    showInList: row.show_in_list,
+    showInForm: row.show_in_form,
+    isSystem: row.is_system,
+    isActive: row.is_active,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    archivedAt: row.archived_at,
+  };
+}
+
+/**
+ * GET /api/v2/properties
+ * List all properties for tenant (filterable by entity_type)
+ */
+async function handleListProperties(user, queryParams) {
+  console.log('[CONFIG-SERVICE] handleListProperties - start');
+
+  try {
+    await getPoolAsync();
+
+    const ctx = await getTenantContext(user);
+    if (ctx.error) {
+      return createResponse(ctx.status, { error: ctx.error });
+    }
+
+    const { tenantId, plan } = ctx;
+    const {
+      entityType,
+      objectType, // Alias for entityType (frontend uses this)
+      includeArchived = 'false',
+      includeUsage = 'false',
+    } = queryParams;
+
+    const effectiveEntityType = entityType || objectType;
+
+    // Build query
+    let sql = `SELECT * FROM "Property" WHERE tenant_id = $1`;
+    const values = [tenantId];
+    let paramIndex = 2;
+
+    if (effectiveEntityType) {
+      sql += ` AND entity_type = $${paramIndex++}`;
+      values.push(effectiveEntityType);
+    }
+
+    if (includeArchived !== 'true') {
+      sql += ` AND is_active = true`;
+    }
+
+    sql += ` ORDER BY entity_type, sort_order, created_at`;
+
+    const result = await query(sql, values);
+
+    const properties = result.rows.map(formatPropertyResponse);
+
+    // Get usage stats if requested
+    let usageStats = {};
+    if (includeUsage === 'true' && properties.length > 0) {
+      const propertyIds = properties.map(p => p.id);
+      const usageResult = await query(
+        `SELECT property_id, COUNT(*) as usage_count
+         FROM "PropertyValue"
+         WHERE property_id = ANY($1)
+         GROUP BY property_id`,
+        [propertyIds]
+      );
+      usageResult.rows.forEach(row => {
+        usageStats[row.property_id] = parseInt(row.usage_count, 10);
+      });
+    }
+
+    // Add usage to properties
+    const propertiesWithUsage = properties.map(p => ({
+      ...p,
+      usageCount: usageStats[p.id] || 0,
+    }));
+
+    // Get plan limits
+    const limits = effectiveEntityType
+      ? await checkPropertyLimits(tenantId, plan, effectiveEntityType)
+      : { currentCount: properties.length, limit: PLAN_LIMITS[plan], canCreate: true };
+
+    console.log('[CONFIG-SERVICE] handleListProperties - found:', properties.length);
+
+    return createResponse(200, {
+      success: true,
+      properties: propertiesWithUsage,
+      metadata: {
+        total: properties.length,
+        plan,
+        limits,
+      },
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to list properties:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve properties',
+    });
+  }
+}
+
+/**
+ * GET /api/v2/properties/:id
+ * Get single property by ID
+ */
+async function handleGetProperty(user, propertyId) {
+  console.log('[CONFIG-SERVICE] handleGetProperty -', propertyId);
+
+  try {
+    await getPoolAsync();
+
+    const ctx = await getTenantContext(user);
+    if (ctx.error) {
+      return createResponse(ctx.status, { error: ctx.error });
+    }
+
+    const result = await query(
+      `SELECT * FROM "Property" WHERE id = $1 AND tenant_id = $2`,
+      [propertyId, ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Property not found',
+      });
+    }
+
+    const property = formatPropertyResponse(result.rows[0]);
+
+    // Get usage count
+    const usageResult = await query(
+      `SELECT COUNT(*) as count FROM "PropertyValue" WHERE property_id = $1`,
+      [propertyId]
+    );
+    property.usageCount = parseInt(usageResult.rows[0].count, 10);
+
+    return createResponse(200, {
+      success: true,
+      property,
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to get property:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve property',
+    });
+  }
+}
+
+/**
+ * POST /api/v2/properties
+ * Create a new property
+ */
+async function handleCreateProperty(user, body) {
+  console.log('[CONFIG-SERVICE] handleCreateProperty - start');
+
+  try {
+    await getPoolAsync();
+
+    const ctx = await getTenantContext(user, true);
+    if (ctx.error) {
+      return createResponse(ctx.status, { error: ctx.error });
+    }
+
+    const { tenantId, plan } = ctx;
+
+    // Validate required fields
+    const {
+      name,
+      label,
+      fieldType,
+      entityType,
+      description,
+      options,
+      required = false,
+      defaultValue,
+      validationRules,
+      sortOrder,
+      propertyGroup = 'General',
+      showInList = false,
+      showInForm = true,
+    } = body;
+
+    if (!name || !label || !fieldType || !entityType) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'name, label, fieldType, and entityType are required',
+      });
+    }
+
+    // Validate field type
+    if (!VALID_FIELD_TYPES.includes(fieldType)) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: `Invalid fieldType. Must be one of: ${VALID_FIELD_TYPES.join(', ')}`,
+      });
+    }
+
+    // Validate entity type
+    if (!VALID_ENTITY_TYPES.includes(entityType)) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: `Invalid entityType. Must be one of: ${VALID_ENTITY_TYPES.join(', ')}`,
+      });
+    }
+
+    // Validate name format (snake_case, alphanumeric + underscore)
+    if (!/^[a-z][a-z0-9_]*$/.test(name)) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Property name must be lowercase, start with a letter, and contain only letters, numbers, and underscores',
+      });
+    }
+
+    // Validate options for select/multiselect
+    if (['select', 'multiselect'].includes(fieldType)) {
+      if (!options || !Array.isArray(options) || options.length === 0) {
+        return createResponse(400, {
+          error: 'Bad Request',
+          message: 'Select and multiselect fields require at least one option',
+        });
+      }
+      // Validate each option has value and label
+      for (const opt of options) {
+        if (!opt.value || !opt.label) {
+          return createResponse(400, {
+            error: 'Bad Request',
+            message: 'Each option must have a value and label',
+          });
+        }
+      }
+    }
+
+    // Check plan limits
+    const limits = await checkPropertyLimits(tenantId, plan, entityType);
+    if (!limits.canCreate) {
+      return createResponse(403, {
+        error: 'Limit Reached',
+        message: `You have reached the maximum number of custom fields (${limits.limit}) for your ${plan} plan. Upgrade to add more.`,
+        limits,
+      });
+    }
+
+    // Check for duplicate name
+    const duplicateCheck = await query(
+      `SELECT id FROM "Property"
+       WHERE tenant_id = $1 AND entity_type = $2 AND name = $3 AND archived_at IS NULL`,
+      [tenantId, entityType, name]
+    );
+
+    if (duplicateCheck.rows.length > 0) {
+      return createResponse(409, {
+        error: 'Conflict',
+        message: `A property with name "${name}" already exists for ${entityType}`,
+      });
+    }
+
+    // Determine sort order if not provided
+    let finalSortOrder = sortOrder;
+    if (finalSortOrder === undefined) {
+      const maxSortResult = await query(
+        `SELECT COALESCE(MAX(sort_order), 0) + 1 as next_order
+         FROM "Property" WHERE tenant_id = $1 AND entity_type = $2`,
+        [tenantId, entityType]
+      );
+      finalSortOrder = maxSortResult.rows[0].next_order;
+    }
+
+    // Insert property
+    const result = await query(
+      `INSERT INTO "Property" (
+        tenant_id, name, label, description, field_type, entity_type,
+        options, required, default_value, validation_rules,
+        sort_order, property_group, show_in_list, show_in_form
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      RETURNING *`,
+      [
+        tenantId, name, label, description || null, fieldType, entityType,
+        JSON.stringify(options || []), required, defaultValue ? JSON.stringify(defaultValue) : null,
+        JSON.stringify(validationRules || {}), finalSortOrder, propertyGroup, showInList, showInForm
+      ]
+    );
+
+    const property = formatPropertyResponse(result.rows[0]);
+
+    console.log('[CONFIG-SERVICE] handleCreateProperty - created:', property.id);
+
+    return createResponse(201, {
+      success: true,
+      message: 'Property created successfully',
+      property,
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to create property:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to create property',
+    });
+  }
+}
+
+/**
+ * PUT/PATCH /api/v2/properties/:id
+ * Update a property
+ */
+async function handleUpdateProperty(user, propertyId, body) {
+  console.log('[CONFIG-SERVICE] handleUpdateProperty -', propertyId);
+
+  try {
+    await getPoolAsync();
+
+    const ctx = await getTenantContext(user, true);
+    if (ctx.error) {
+      return createResponse(ctx.status, { error: ctx.error });
+    }
+
+    // Get existing property
+    const existingResult = await query(
+      `SELECT * FROM "Property" WHERE id = $1 AND tenant_id = $2`,
+      [propertyId, ctx.tenantId]
+    );
+
+    if (existingResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Property not found',
+      });
+    }
+
+    const existing = existingResult.rows[0];
+
+    // System properties can only have label/description updated
+    if (existing.is_system) {
+      const allowedFields = ['label', 'description', 'sortOrder', 'propertyGroup', 'showInList', 'showInForm'];
+      const attemptedFields = Object.keys(body);
+      const disallowed = attemptedFields.filter(f => !allowedFields.includes(f));
+      if (disallowed.length > 0) {
+        return createResponse(403, {
+          error: 'Forbidden',
+          message: `Cannot modify ${disallowed.join(', ')} on system properties`,
+        });
+      }
+    }
+
+    // Build update query dynamically
+    const updates = [];
+    const values = [propertyId, ctx.tenantId];
+    let paramIndex = 3;
+
+    const fieldMap = {
+      label: 'label',
+      description: 'description',
+      options: 'options',
+      required: 'required',
+      defaultValue: 'default_value',
+      validationRules: 'validation_rules',
+      sortOrder: 'sort_order',
+      propertyGroup: 'property_group',
+      showInList: 'show_in_list',
+      showInForm: 'show_in_form',
+    };
+
+    for (const [jsField, dbField] of Object.entries(fieldMap)) {
+      if (body[jsField] !== undefined) {
+        const value = ['options', 'defaultValue', 'validationRules'].includes(jsField)
+          ? JSON.stringify(body[jsField])
+          : body[jsField];
+        updates.push(`${dbField} = $${paramIndex++}`);
+        values.push(value);
+      }
+    }
+
+    if (updates.length === 0) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'No valid fields to update',
+      });
+    }
+
+    // Validate options if updating select/multiselect
+    if (body.options !== undefined && ['select', 'multiselect'].includes(existing.field_type)) {
+      if (!Array.isArray(body.options) || body.options.length === 0) {
+        return createResponse(400, {
+          error: 'Bad Request',
+          message: 'Select and multiselect fields require at least one option',
+        });
+      }
+    }
+
+    updates.push('updated_at = NOW()');
+
+    const result = await query(
+      `UPDATE "Property" SET ${updates.join(', ')}
+       WHERE id = $1 AND tenant_id = $2
+       RETURNING *`,
+      values
+    );
+
+    const property = formatPropertyResponse(result.rows[0]);
+
+    console.log('[CONFIG-SERVICE] handleUpdateProperty - updated:', property.id);
+
+    return createResponse(200, {
+      success: true,
+      message: 'Property updated successfully',
+      property,
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to update property:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to update property',
+    });
+  }
+}
+
+/**
+ * DELETE /api/v2/properties/:id
+ * Soft delete a property (sets is_active = false)
+ */
+async function handleDeleteProperty(user, propertyId) {
+  console.log('[CONFIG-SERVICE] handleDeleteProperty -', propertyId);
+
+  try {
+    await getPoolAsync();
+
+    const ctx = await getTenantContext(user, true);
+    if (ctx.error) {
+      return createResponse(ctx.status, { error: ctx.error });
+    }
+
+    // Get property and check if it's a system property
+    const existingResult = await query(
+      `SELECT * FROM "Property" WHERE id = $1 AND tenant_id = $2`,
+      [propertyId, ctx.tenantId]
+    );
+
+    if (existingResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Property not found',
+      });
+    }
+
+    const existing = existingResult.rows[0];
+
+    if (existing.is_system) {
+      return createResponse(403, {
+        error: 'Forbidden',
+        message: 'Cannot delete system properties',
+      });
+    }
+
+    // Soft delete
+    await query(
+      `UPDATE "Property"
+       SET is_active = false, archived_at = NOW(), updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2`,
+      [propertyId, ctx.tenantId]
+    );
+
+    console.log('[CONFIG-SERVICE] handleDeleteProperty - deleted:', propertyId);
+
+    return createResponse(200, {
+      success: true,
+      message: 'Property deleted successfully',
+      deletedPropertyId: propertyId,
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to delete property:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to delete property',
+    });
+  }
+}
+
+/**
+ * POST /api/v2/properties/:id/archive
+ * Archive a property with cascade options
+ */
+async function handleArchiveProperty(user, propertyId, body) {
+  console.log('[CONFIG-SERVICE] handleArchiveProperty -', propertyId);
+
+  try {
+    await getPoolAsync();
+
+    const ctx = await getTenantContext(user, true);
+    if (ctx.error) {
+      return createResponse(ctx.status, { error: ctx.error });
+    }
+
+    const { reason, cascadeStrategy = 'keep' } = body;
+
+    // Get property
+    const existingResult = await query(
+      `SELECT * FROM "Property" WHERE id = $1 AND tenant_id = $2`,
+      [propertyId, ctx.tenantId]
+    );
+
+    if (existingResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Property not found',
+      });
+    }
+
+    const existing = existingResult.rows[0];
+
+    if (existing.is_system) {
+      return createResponse(403, {
+        error: 'Forbidden',
+        message: 'Cannot archive system properties',
+      });
+    }
+
+    // Archive the property
+    await query(
+      `UPDATE "Property"
+       SET is_active = false, archived_at = NOW(), updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2`,
+      [propertyId, ctx.tenantId]
+    );
+
+    // Handle cascade strategy for property values
+    let valuesDeleted = 0;
+    if (cascadeStrategy === 'delete') {
+      const deleteResult = await query(
+        `DELETE FROM "PropertyValue" WHERE property_id = $1 RETURNING id`,
+        [propertyId]
+      );
+      valuesDeleted = deleteResult.rowCount;
+    }
+
+    console.log('[CONFIG-SERVICE] handleArchiveProperty - archived:', propertyId);
+
+    return createResponse(200, {
+      success: true,
+      message: 'Property archived successfully',
+      archivedPropertyId: propertyId,
+      reason,
+      cascadeStrategy,
+      valuesDeleted,
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to archive property:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to archive property',
+    });
+  }
+}
+
+/**
+ * POST /api/v2/properties/:id/restore
+ * Restore an archived property
+ */
+async function handleRestoreProperty(user, propertyId) {
+  console.log('[CONFIG-SERVICE] handleRestoreProperty -', propertyId);
+
+  try {
+    await getPoolAsync();
+
+    const ctx = await getTenantContext(user, true);
+    if (ctx.error) {
+      return createResponse(ctx.status, { error: ctx.error });
+    }
+
+    // Get property (including archived)
+    const existingResult = await query(
+      `SELECT * FROM "Property" WHERE id = $1 AND tenant_id = $2`,
+      [propertyId, ctx.tenantId]
+    );
+
+    if (existingResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Property not found',
+      });
+    }
+
+    const existing = existingResult.rows[0];
+
+    if (existing.is_active) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Property is not archived',
+      });
+    }
+
+    // Check plan limits before restoring
+    const limits = await checkPropertyLimits(ctx.tenantId, ctx.plan, existing.entity_type);
+    if (!limits.canCreate) {
+      return createResponse(403, {
+        error: 'Limit Reached',
+        message: `Cannot restore property - you have reached the limit of ${limits.limit} for your ${ctx.plan} plan`,
+        limits,
+      });
+    }
+
+    // Restore the property
+    const result = await query(
+      `UPDATE "Property"
+       SET is_active = true, archived_at = NULL, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2
+       RETURNING *`,
+      [propertyId, ctx.tenantId]
+    );
+
+    const property = formatPropertyResponse(result.rows[0]);
+
+    console.log('[CONFIG-SERVICE] handleRestoreProperty - restored:', propertyId);
+
+    return createResponse(200, {
+      success: true,
+      message: 'Property restored successfully',
+      property,
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to restore property:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to restore property',
+    });
+  }
+}
+
+/**
+ * GET /api/v2/properties/values/:entity_type/:entity_id
+ * Get all property values for an entity
+ */
+async function handleGetPropertyValues(user, entityType, entityId) {
+  console.log('[CONFIG-SERVICE] handleGetPropertyValues -', entityType, entityId);
+
+  try {
+    await getPoolAsync();
+
+    const ctx = await getTenantContext(user);
+    if (ctx.error) {
+      return createResponse(ctx.status, { error: ctx.error });
+    }
+
+    // Validate entity type
+    if (!VALID_ENTITY_TYPES.includes(entityType)) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: `Invalid entityType. Must be one of: ${VALID_ENTITY_TYPES.join(', ')}`,
+      });
+    }
+
+    // Get all properties for this entity type and their values for this entity
+    const result = await query(
+      `SELECT
+         p.id as property_id,
+         p.name,
+         p.label,
+         p.field_type,
+         p.options,
+         p.required,
+         p.default_value,
+         pv.id as value_id,
+         pv.value
+       FROM "Property" p
+       LEFT JOIN "PropertyValue" pv
+         ON p.id = pv.property_id
+         AND pv.entity_id = $3
+       WHERE p.tenant_id = $1
+         AND p.entity_type = $2
+         AND p.is_active = true
+       ORDER BY p.sort_order, p.created_at`,
+      [ctx.tenantId, entityType, entityId]
+    );
+
+    // Format response as a map of property name -> value
+    const values = {};
+    const properties = [];
+
+    result.rows.forEach(row => {
+      properties.push({
+        id: row.property_id,
+        name: row.name,
+        label: row.label,
+        fieldType: row.field_type,
+        options: row.options,
+        required: row.required,
+        defaultValue: row.default_value,
+      });
+
+      // Use value if exists, otherwise use default value
+      values[row.name] = row.value !== null ? row.value : row.default_value;
+    });
+
+    return createResponse(200, {
+      success: true,
+      entityType,
+      entityId,
+      values,
+      properties,
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to get property values:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve property values',
+    });
+  }
+}
+
+/**
+ * PUT /api/v2/properties/values/:entity_type/:entity_id
+ * Bulk upsert property values for an entity
+ */
+async function handleUpsertPropertyValues(user, entityType, entityId, body) {
+  console.log('[CONFIG-SERVICE] handleUpsertPropertyValues -', entityType, entityId);
+
+  try {
+    await getPoolAsync();
+
+    const ctx = await getTenantContext(user);
+    if (ctx.error) {
+      return createResponse(ctx.status, { error: ctx.error });
+    }
+
+    // Validate entity type
+    if (!VALID_ENTITY_TYPES.includes(entityType)) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: `Invalid entityType. Must be one of: ${VALID_ENTITY_TYPES.join(', ')}`,
+      });
+    }
+
+    const { values } = body;
+
+    if (!values || typeof values !== 'object') {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'values object is required',
+      });
+    }
+
+    // Get all properties for this entity type
+    const propertiesResult = await query(
+      `SELECT id, name, field_type, required, options FROM "Property"
+       WHERE tenant_id = $1 AND entity_type = $2 AND is_active = true`,
+      [ctx.tenantId, entityType]
+    );
+
+    const propertyMap = {};
+    propertiesResult.rows.forEach(p => {
+      propertyMap[p.name] = p;
+    });
+
+    // Validate and upsert each value
+    const upserted = [];
+    const errors = [];
+
+    for (const [propertyName, value] of Object.entries(values)) {
+      const property = propertyMap[propertyName];
+
+      if (!property) {
+        errors.push({ propertyName, error: 'Unknown property' });
+        continue;
+      }
+
+      // Validate value type
+      const validation = validatePropertyValue(property, value);
+      if (!validation.valid) {
+        errors.push({ propertyName, error: validation.error });
+        continue;
+      }
+
+      // Upsert the value
+      await query(
+        `INSERT INTO "PropertyValue" (tenant_id, property_id, entity_type, entity_id, value)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (property_id, entity_id)
+         DO UPDATE SET value = $5, updated_at = NOW()`,
+        [ctx.tenantId, property.id, entityType, entityId, JSON.stringify(value)]
+      );
+
+      upserted.push(propertyName);
+    }
+
+    // Check for required properties that are missing
+    for (const [name, property] of Object.entries(propertyMap)) {
+      if (property.required && values[name] === undefined) {
+        // Check if value already exists
+        const existingValue = await query(
+          `SELECT id FROM "PropertyValue" WHERE property_id = $1 AND entity_id = $2`,
+          [property.id, entityId]
+        );
+        if (existingValue.rows.length === 0) {
+          errors.push({ propertyName: name, error: 'Required property is missing' });
+        }
+      }
+    }
+
+    console.log('[CONFIG-SERVICE] handleUpsertPropertyValues - upserted:', upserted.length);
+
+    return createResponse(errors.length > 0 && upserted.length === 0 ? 400 : 200, {
+      success: errors.length === 0 || upserted.length > 0,
+      message: errors.length === 0 ? 'Property values saved successfully' : 'Some values could not be saved',
+      upserted,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to upsert property values:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to save property values',
+    });
+  }
+}
+
+/**
+ * Helper: Validate a property value against its field type
+ */
+function validatePropertyValue(property, value) {
+  const { field_type: fieldType, options } = property;
+
+  // null/undefined is valid for non-required fields (will clear the value)
+  if (value === null || value === undefined) {
+    return { valid: true };
+  }
+
+  switch (fieldType) {
+    case 'text':
+    case 'textarea':
+    case 'url':
+    case 'email':
+    case 'phone':
+      if (typeof value !== 'string') {
+        return { valid: false, error: 'Value must be a string' };
+      }
+      if (fieldType === 'email' && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+        return { valid: false, error: 'Invalid email format' };
+      }
+      if (fieldType === 'url' && value && !/^https?:\/\/.+/.test(value)) {
+        return { valid: false, error: 'Invalid URL format' };
+      }
+      break;
+
+    case 'number':
+    case 'currency':
+      if (typeof value !== 'number' || isNaN(value)) {
+        return { valid: false, error: 'Value must be a number' };
+      }
+      break;
+
+    case 'boolean':
+      if (typeof value !== 'boolean') {
+        return { valid: false, error: 'Value must be a boolean' };
+      }
+      break;
+
+    case 'date':
+    case 'datetime':
+      if (typeof value !== 'string' || isNaN(Date.parse(value))) {
+        return { valid: false, error: 'Value must be a valid date string' };
+      }
+      break;
+
+    case 'select':
+      if (typeof value !== 'string') {
+        return { valid: false, error: 'Value must be a string' };
+      }
+      const validOptions = (options || []).map(o => o.value);
+      if (!validOptions.includes(value)) {
+        return { valid: false, error: `Value must be one of: ${validOptions.join(', ')}` };
+      }
+      break;
+
+    case 'multiselect':
+      if (!Array.isArray(value)) {
+        return { valid: false, error: 'Value must be an array' };
+      }
+      const validMultiOptions = (options || []).map(o => o.value);
+      for (const v of value) {
+        if (!validMultiOptions.includes(v)) {
+          return { valid: false, error: `Invalid option: ${v}` };
+        }
+      }
+      break;
+
+    default:
+      return { valid: false, error: `Unknown field type: ${fieldType}` };
+  }
+
+  return { valid: true };
 }

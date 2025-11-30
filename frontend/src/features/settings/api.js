@@ -207,6 +207,56 @@ export const useImpactAnalysisMutation = () => {
   });
 };
 
+// =============================================================================
+// PROPERTY VALUES API
+// =============================================================================
+// Get and set custom field values for entities (pets, owners, bookings, etc.)
+// =============================================================================
+
+/**
+ * Get all property values for a specific entity
+ * Returns both the property definitions and their values for the entity
+ */
+export const usePropertyValuesQuery = (entityType, entityId, options = {}) => {
+  const tenantKey = useTenantKey();
+
+  return useQuery({
+    queryKey: ['propertyValues', tenantKey, entityType, entityId],
+    queryFn: async () => {
+      const res = await apiClient.get(canonicalEndpoints.propertyValues.get(entityType, entityId));
+      return res.data;
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    enabled: !!entityType && !!entityId,
+    ...options,
+  });
+};
+
+/**
+ * Bulk upsert property values for an entity
+ * Pass an object with property names as keys and values
+ */
+export const useUpsertPropertyValuesMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async ({ entityType, entityId, values }) => {
+      const res = await apiClient.put(
+        canonicalEndpoints.propertyValues.upsert(entityType, entityId),
+        { values }
+      );
+      return res.data;
+    },
+    onSuccess: (_, { entityType, entityId }) => {
+      // Invalidate the property values cache for this entity
+      queryClient.invalidateQueries({
+        queryKey: ['propertyValues', tenantKey, entityType, entityId],
+      });
+    },
+  });
+};
+
 // Get permission profiles
 export const usePermissionProfilesQuery = (options = {}) => {
   const tenantKey = useTenantKey();
