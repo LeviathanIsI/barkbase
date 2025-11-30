@@ -401,6 +401,79 @@ exports.handler = async (event, context) => {
       }
     }
 
+    // ==========================================================================
+    // COMMISSION TRACKING ROUTES
+    // ==========================================================================
+
+    // Commission rates management
+    if (path === '/api/v1/financial/commissions/rates' || path === '/financial/commissions/rates') {
+      if (method === 'GET') {
+        return handleGetCommissionRates(tenantId, queryParams);
+      }
+      if (method === 'POST') {
+        return handleCreateCommissionRate(tenantId, parseBody(event));
+      }
+    }
+
+    // Commission rate by ID
+    const rateMatch = path.match(/\/api\/v1\/financial\/commissions\/rates\/([a-f0-9-]+)$/i);
+    if (rateMatch) {
+      const rateId = rateMatch[1];
+      if (method === 'GET') {
+        return handleGetCommissionRate(tenantId, rateId);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateCommissionRate(tenantId, rateId, parseBody(event));
+      }
+      if (method === 'DELETE') {
+        return handleDeleteCommissionRate(tenantId, rateId);
+      }
+    }
+
+    // Commission ledger/records
+    if (path === '/api/v1/financial/commissions' || path === '/financial/commissions') {
+      if (method === 'GET') {
+        return handleGetCommissions(tenantId, queryParams);
+      }
+    }
+
+    // Commission by ID
+    const commissionMatch = path.match(/\/api\/v1\/financial\/commissions\/([a-f0-9-]+)$/i);
+    if (commissionMatch && !path.includes('/rates/')) {
+      const commissionId = commissionMatch[1];
+      if (method === 'GET') {
+        return handleGetCommission(tenantId, commissionId);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateCommission(tenantId, commissionId, parseBody(event));
+      }
+    }
+
+    // Approve commission
+    const approveMatch = path.match(/\/api\/v1\/financial\/commissions\/([a-f0-9-]+)\/approve$/i);
+    if (approveMatch && method === 'POST') {
+      return handleApproveCommission(tenantId, approveMatch[1], user);
+    }
+
+    // Mark commission as paid
+    const paidMatch = path.match(/\/api\/v1\/financial\/commissions\/([a-f0-9-]+)\/paid$/i);
+    if (paidMatch && method === 'POST') {
+      return handleMarkCommissionPaid(tenantId, paidMatch[1], parseBody(event));
+    }
+
+    // Staff commission summary
+    const staffCommissionMatch = path.match(/\/api\/v1\/financial\/commissions\/staff\/([a-f0-9-]+)$/i);
+    if (staffCommissionMatch && method === 'GET') {
+      return handleGetStaffCommissionSummary(tenantId, staffCommissionMatch[1], queryParams);
+    }
+
+    // Calculate commission for a booking
+    if (path === '/api/v1/financial/commissions/calculate' || path === '/financial/commissions/calculate') {
+      if (method === 'POST') {
+        return handleCalculateCommission(tenantId, parseBody(event));
+      }
+    }
+
     // Default response for unmatched routes
     return createResponse(404, {
       error: 'Not Found',
@@ -3099,6 +3172,799 @@ async function handleGetPackageUsage(tenantId, packageId) {
     return createResponse(500, {
       error: 'Internal Server Error',
       message: 'Failed to retrieve package usage',
+    });
+  }
+}
+
+// =============================================================================
+// COMMISSION TRACKING HANDLERS
+// =============================================================================
+
+/**
+ * Get commission rates
+ */
+async function handleGetCommissionRates(tenantId, queryParams) {
+  const { staffId, serviceId, active = 'true' } = queryParams;
+
+  console.log('[Commission][rates] Get rates for tenant:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    let whereClause = 'cr.tenant_id = $1';
+    const params = [tenantId];
+
+    if (active === 'true') {
+      whereClause += ` AND cr.is_active = true`;
+    }
+    if (staffId) {
+      whereClause += ` AND (cr.staff_id = $${params.length + 1} OR cr.staff_id IS NULL)`;
+      params.push(staffId);
+    }
+    if (serviceId) {
+      whereClause += ` AND (cr.service_id = $${params.length + 1} OR cr.service_id IS NULL)`;
+      params.push(serviceId);
+    }
+
+    const result = await query(
+      `SELECT 
+         cr.*,
+         s.first_name as staff_first_name,
+         s.last_name as staff_last_name,
+         svc.name as service_name
+       FROM "CommissionRate" cr
+       LEFT JOIN "Staff" s ON cr.staff_id = s.id
+       LEFT JOIN "Service" svc ON cr.service_id = svc.id
+       WHERE ${whereClause}
+       ORDER BY cr.created_at DESC`,
+      params
+    );
+
+    const rates = result.rows.map(row => ({
+      id: row.id,
+      recordId: row.id,
+      staffId: row.staff_id,
+      staffName: row.staff_first_name ? `${row.staff_first_name} ${row.staff_last_name}`.trim() : null,
+      serviceId: row.service_id,
+      serviceName: row.service_name,
+      rateType: row.rate_type,
+      rateValue: parseFloat(row.rate_value),
+      minBookingValue: row.min_booking_value ? parseFloat(row.min_booking_value) : null,
+      effectiveFrom: row.effective_from,
+      effectiveTo: row.effective_to,
+      isActive: row.is_active,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
+    return createResponse(200, {
+      data: rates,
+      rates,
+      total: rates.length,
+      message: 'Commission rates retrieved successfully',
+    });
+
+  } catch (error) {
+    if (error.message?.includes('does not exist') || error.code === '42P01') {
+      return createResponse(200, {
+        data: [],
+        rates: [],
+        total: 0,
+        message: 'Commission rates (table not initialized)',
+      });
+    }
+    console.error('[Commission] Get rates failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve commission rates',
+    });
+  }
+}
+
+/**
+ * Create commission rate
+ */
+async function handleCreateCommissionRate(tenantId, body) {
+  const { staffId, serviceId, rateType = 'percentage', rateValue, minBookingValue, effectiveFrom, effectiveTo } = body;
+
+  console.log('[Commission][rates] Create rate:', { tenantId, staffId, rateValue });
+
+  if (rateValue === undefined || rateValue === null || rateValue < 0) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'rateValue is required and must be non-negative',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `INSERT INTO "CommissionRate" (
+         tenant_id, staff_id, service_id, rate_type, rate_value,
+         min_booking_value, effective_from, effective_to, is_active, created_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, NOW())
+       RETURNING *`,
+      [
+        tenantId,
+        staffId || null,
+        serviceId || null,
+        rateType,
+        rateValue,
+        minBookingValue || null,
+        effectiveFrom || new Date().toISOString().split('T')[0],
+        effectiveTo || null,
+      ]
+    );
+
+    const row = result.rows[0];
+
+    return createResponse(201, {
+      success: true,
+      data: {
+        id: row.id,
+        recordId: row.id,
+        rateType: row.rate_type,
+        rateValue: parseFloat(row.rate_value),
+        isActive: row.is_active,
+      },
+      message: 'Commission rate created successfully',
+    });
+
+  } catch (error) {
+    console.error('[Commission] Create rate failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to create commission rate',
+    });
+  }
+}
+
+/**
+ * Get single commission rate
+ */
+async function handleGetCommissionRate(tenantId, rateId) {
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `SELECT cr.*, s.first_name as staff_first_name, s.last_name as staff_last_name, svc.name as service_name
+       FROM "CommissionRate" cr
+       LEFT JOIN "Staff" s ON cr.staff_id = s.id
+       LEFT JOIN "Service" svc ON cr.service_id = svc.id
+       WHERE cr.id = $1 AND cr.tenant_id = $2`,
+      [rateId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Commission rate not found',
+      });
+    }
+
+    const row = result.rows[0];
+
+    return createResponse(200, {
+      data: {
+        id: row.id,
+        staffId: row.staff_id,
+        staffName: row.staff_first_name ? `${row.staff_first_name} ${row.staff_last_name}` : null,
+        serviceId: row.service_id,
+        serviceName: row.service_name,
+        rateType: row.rate_type,
+        rateValue: parseFloat(row.rate_value),
+        minBookingValue: row.min_booking_value ? parseFloat(row.min_booking_value) : null,
+        effectiveFrom: row.effective_from,
+        effectiveTo: row.effective_to,
+        isActive: row.is_active,
+      },
+    });
+
+  } catch (error) {
+    console.error('[Commission] Get rate failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve commission rate',
+    });
+  }
+}
+
+/**
+ * Update commission rate
+ */
+async function handleUpdateCommissionRate(tenantId, rateId, body) {
+  const updates = [];
+  const values = [rateId, tenantId];
+  let paramIndex = 3;
+
+  if (body.rateType !== undefined) {
+    updates.push(`rate_type = $${paramIndex++}`);
+    values.push(body.rateType);
+  }
+  if (body.rateValue !== undefined) {
+    updates.push(`rate_value = $${paramIndex++}`);
+    values.push(body.rateValue);
+  }
+  if (body.minBookingValue !== undefined) {
+    updates.push(`min_booking_value = $${paramIndex++}`);
+    values.push(body.minBookingValue);
+  }
+  if (body.effectiveFrom !== undefined) {
+    updates.push(`effective_from = $${paramIndex++}`);
+    values.push(body.effectiveFrom);
+  }
+  if (body.effectiveTo !== undefined) {
+    updates.push(`effective_to = $${paramIndex++}`);
+    values.push(body.effectiveTo);
+  }
+  if (body.isActive !== undefined) {
+    updates.push(`is_active = $${paramIndex++}`);
+    values.push(body.isActive);
+  }
+
+  if (updates.length === 0) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'No fields to update',
+    });
+  }
+
+  updates.push('updated_at = NOW()');
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "CommissionRate"
+       SET ${updates.join(', ')}
+       WHERE id = $1 AND tenant_id = $2
+       RETURNING *`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Commission rate not found',
+      });
+    }
+
+    return createResponse(200, {
+      success: true,
+      data: result.rows[0],
+      message: 'Commission rate updated successfully',
+    });
+
+  } catch (error) {
+    console.error('[Commission] Update rate failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to update commission rate',
+    });
+  }
+}
+
+/**
+ * Delete (deactivate) commission rate
+ */
+async function handleDeleteCommissionRate(tenantId, rateId) {
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "CommissionRate"
+       SET is_active = false, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2
+       RETURNING id`,
+      [rateId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Commission rate not found',
+      });
+    }
+
+    return createResponse(200, {
+      success: true,
+      message: 'Commission rate deactivated',
+    });
+
+  } catch (error) {
+    console.error('[Commission] Delete rate failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to delete commission rate',
+    });
+  }
+}
+
+/**
+ * Get commission records
+ */
+async function handleGetCommissions(tenantId, queryParams) {
+  const { staffId, status, startDate, endDate, limit = 50 } = queryParams;
+
+  console.log('[Commission][ledger] Get commissions:', { tenantId, staffId, status });
+
+  try {
+    await getPoolAsync();
+
+    let whereClause = 'cl.tenant_id = $1';
+    const params = [tenantId];
+
+    if (staffId) {
+      whereClause += ` AND cl.staff_id = $${params.length + 1}`;
+      params.push(staffId);
+    }
+    if (status) {
+      whereClause += ` AND cl.status = $${params.length + 1}`;
+      params.push(status);
+    }
+    if (startDate) {
+      whereClause += ` AND cl.created_at >= $${params.length + 1}`;
+      params.push(startDate);
+    }
+    if (endDate) {
+      whereClause += ` AND cl.created_at <= $${params.length + 1}`;
+      params.push(endDate);
+    }
+
+    params.push(parseInt(limit));
+
+    const result = await query(
+      `SELECT 
+         cl.*,
+         s.first_name as staff_first_name,
+         s.last_name as staff_last_name,
+         b.start_date as booking_start_date,
+         b.end_date as booking_end_date,
+         svc.name as service_name
+       FROM "CommissionLedger" cl
+       LEFT JOIN "Staff" s ON cl.staff_id = s.id
+       LEFT JOIN "Booking" b ON cl.booking_id = b.id
+       LEFT JOIN "Service" svc ON cl.service_id = svc.id
+       WHERE ${whereClause}
+       ORDER BY cl.created_at DESC
+       LIMIT $${params.length}`,
+      params
+    );
+
+    const commissions = result.rows.map(row => ({
+      id: row.id,
+      recordId: row.id,
+      staffId: row.staff_id,
+      staffName: row.staff_first_name ? `${row.staff_first_name} ${row.staff_last_name}`.trim() : null,
+      bookingId: row.booking_id,
+      bookingStartDate: row.booking_start_date,
+      bookingEndDate: row.booking_end_date,
+      serviceId: row.service_id,
+      serviceName: row.service_name,
+      bookingAmount: parseFloat(row.booking_amount),
+      commissionAmount: parseFloat(row.commission_amount),
+      rateType: row.rate_type,
+      rateValue: parseFloat(row.rate_value),
+      status: row.status,
+      approvedAt: row.approved_at,
+      paidAt: row.paid_at,
+      paymentReference: row.payment_reference,
+      notes: row.notes,
+      createdAt: row.created_at,
+    }));
+
+    return createResponse(200, {
+      data: commissions,
+      commissions,
+      total: commissions.length,
+      message: 'Commissions retrieved successfully',
+    });
+
+  } catch (error) {
+    if (error.message?.includes('does not exist') || error.code === '42P01') {
+      return createResponse(200, {
+        data: [],
+        commissions: [],
+        total: 0,
+        message: 'Commissions (table not initialized)',
+      });
+    }
+    console.error('[Commission] Get ledger failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve commissions',
+    });
+  }
+}
+
+/**
+ * Get single commission record
+ */
+async function handleGetCommission(tenantId, commissionId) {
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `SELECT cl.*, s.first_name as staff_first_name, s.last_name as staff_last_name, svc.name as service_name
+       FROM "CommissionLedger" cl
+       LEFT JOIN "Staff" s ON cl.staff_id = s.id
+       LEFT JOIN "Service" svc ON cl.service_id = svc.id
+       WHERE cl.id = $1 AND cl.tenant_id = $2`,
+      [commissionId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Commission record not found',
+      });
+    }
+
+    const row = result.rows[0];
+
+    return createResponse(200, {
+      data: {
+        id: row.id,
+        staffId: row.staff_id,
+        staffName: row.staff_first_name ? `${row.staff_first_name} ${row.staff_last_name}` : null,
+        bookingId: row.booking_id,
+        serviceId: row.service_id,
+        serviceName: row.service_name,
+        bookingAmount: parseFloat(row.booking_amount),
+        commissionAmount: parseFloat(row.commission_amount),
+        rateType: row.rate_type,
+        rateValue: parseFloat(row.rate_value),
+        status: row.status,
+        approvedAt: row.approved_at,
+        paidAt: row.paid_at,
+        paymentReference: row.payment_reference,
+        notes: row.notes,
+        createdAt: row.created_at,
+      },
+    });
+
+  } catch (error) {
+    console.error('[Commission] Get record failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve commission record',
+    });
+  }
+}
+
+/**
+ * Update commission record
+ */
+async function handleUpdateCommission(tenantId, commissionId, body) {
+  const updates = [];
+  const values = [commissionId, tenantId];
+  let paramIndex = 3;
+
+  if (body.notes !== undefined) {
+    updates.push(`notes = $${paramIndex++}`);
+    values.push(body.notes);
+  }
+  if (body.status !== undefined) {
+    updates.push(`status = $${paramIndex++}`);
+    values.push(body.status);
+  }
+
+  if (updates.length === 0) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'No fields to update',
+    });
+  }
+
+  updates.push('updated_at = NOW()');
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "CommissionLedger"
+       SET ${updates.join(', ')}
+       WHERE id = $1 AND tenant_id = $2
+       RETURNING *`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Commission record not found',
+      });
+    }
+
+    return createResponse(200, {
+      success: true,
+      data: result.rows[0],
+      message: 'Commission updated successfully',
+    });
+
+  } catch (error) {
+    console.error('[Commission] Update failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to update commission',
+    });
+  }
+}
+
+/**
+ * Approve commission
+ */
+async function handleApproveCommission(tenantId, commissionId, user) {
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "CommissionLedger"
+       SET status = 'approved', approved_by = $3, approved_at = NOW(), updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2 AND status = 'pending'
+       RETURNING *`,
+      [commissionId, tenantId, user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Commission not found or not in pending status',
+      });
+    }
+
+    return createResponse(200, {
+      success: true,
+      data: result.rows[0],
+      message: 'Commission approved successfully',
+    });
+
+  } catch (error) {
+    console.error('[Commission] Approve failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to approve commission',
+    });
+  }
+}
+
+/**
+ * Mark commission as paid
+ */
+async function handleMarkCommissionPaid(tenantId, commissionId, body) {
+  const { paymentReference } = body;
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "CommissionLedger"
+       SET status = 'paid', paid_at = NOW(), payment_reference = $3, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2 AND status = 'approved'
+       RETURNING *`,
+      [commissionId, tenantId, paymentReference || null]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Commission not found or not in approved status',
+      });
+    }
+
+    return createResponse(200, {
+      success: true,
+      data: result.rows[0],
+      message: 'Commission marked as paid',
+    });
+
+  } catch (error) {
+    console.error('[Commission] Mark paid failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to mark commission as paid',
+    });
+  }
+}
+
+/**
+ * Get staff commission summary
+ */
+async function handleGetStaffCommissionSummary(tenantId, staffId, queryParams) {
+  const { startDate, endDate } = queryParams;
+
+  console.log('[Commission][summary] Staff:', staffId);
+
+  try {
+    await getPoolAsync();
+
+    let whereClause = 'cl.tenant_id = $1 AND cl.staff_id = $2';
+    const params = [tenantId, staffId];
+
+    if (startDate) {
+      whereClause += ` AND cl.created_at >= $${params.length + 1}`;
+      params.push(startDate);
+    }
+    if (endDate) {
+      whereClause += ` AND cl.created_at <= $${params.length + 1}`;
+      params.push(endDate);
+    }
+
+    const summaryResult = await query(
+      `SELECT
+         COUNT(*) as total_commissions,
+         COALESCE(SUM(commission_amount), 0) as total_amount,
+         COALESCE(SUM(CASE WHEN status = 'pending' THEN commission_amount ELSE 0 END), 0) as pending_amount,
+         COALESCE(SUM(CASE WHEN status = 'approved' THEN commission_amount ELSE 0 END), 0) as approved_amount,
+         COALESCE(SUM(CASE WHEN status = 'paid' THEN commission_amount ELSE 0 END), 0) as paid_amount,
+         COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
+         COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved_count,
+         COUNT(CASE WHEN status = 'paid' THEN 1 END) as paid_count
+       FROM "CommissionLedger" cl
+       WHERE ${whereClause}`,
+      params
+    );
+
+    const summary = summaryResult.rows[0];
+
+    // Get recent commissions
+    const recentResult = await query(
+      `SELECT cl.*, svc.name as service_name
+       FROM "CommissionLedger" cl
+       LEFT JOIN "Service" svc ON cl.service_id = svc.id
+       WHERE cl.tenant_id = $1 AND cl.staff_id = $2
+       ORDER BY cl.created_at DESC
+       LIMIT 10`,
+      [tenantId, staffId]
+    );
+
+    return createResponse(200, {
+      data: {
+        totalCommissions: parseInt(summary.total_commissions),
+        totalAmount: parseFloat(summary.total_amount),
+        pendingAmount: parseFloat(summary.pending_amount),
+        approvedAmount: parseFloat(summary.approved_amount),
+        paidAmount: parseFloat(summary.paid_amount),
+        pendingCount: parseInt(summary.pending_count),
+        approvedCount: parseInt(summary.approved_count),
+        paidCount: parseInt(summary.paid_count),
+        recentCommissions: recentResult.rows.map(row => ({
+          id: row.id,
+          bookingAmount: parseFloat(row.booking_amount),
+          commissionAmount: parseFloat(row.commission_amount),
+          serviceName: row.service_name,
+          status: row.status,
+          createdAt: row.created_at,
+        })),
+      },
+      message: 'Staff commission summary retrieved successfully',
+    });
+
+  } catch (error) {
+    if (error.message?.includes('does not exist') || error.code === '42P01') {
+      return createResponse(200, {
+        data: {
+          totalCommissions: 0,
+          totalAmount: 0,
+          pendingAmount: 0,
+          approvedAmount: 0,
+          paidAmount: 0,
+          recentCommissions: [],
+        },
+        message: 'No commission data available',
+      });
+    }
+    console.error('[Commission] Get summary failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve commission summary',
+    });
+  }
+}
+
+/**
+ * Calculate commission for a booking
+ */
+async function handleCalculateCommission(tenantId, body) {
+  const { bookingId, staffId, bookingAmount, serviceId } = body;
+
+  console.log('[Commission][calculate]', { tenantId, staffId, bookingAmount });
+
+  if (!staffId || bookingAmount === undefined) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'staffId and bookingAmount are required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Find applicable commission rate
+    const rateResult = await query(
+      `SELECT * FROM "CommissionRate"
+       WHERE tenant_id = $1
+       AND is_active = true
+       AND (staff_id = $2 OR staff_id IS NULL)
+       AND (service_id = $3 OR service_id IS NULL)
+       AND effective_from <= CURRENT_DATE
+       AND (effective_to IS NULL OR effective_to >= CURRENT_DATE)
+       AND (min_booking_value IS NULL OR min_booking_value <= $4)
+       ORDER BY 
+         CASE WHEN staff_id IS NOT NULL THEN 0 ELSE 1 END,
+         CASE WHEN service_id IS NOT NULL THEN 0 ELSE 1 END
+       LIMIT 1`,
+      [tenantId, staffId, serviceId || null, bookingAmount]
+    );
+
+    if (rateResult.rows.length === 0) {
+      return createResponse(200, {
+        data: {
+          hasRate: false,
+          commissionAmount: 0,
+          message: 'No applicable commission rate found',
+        },
+      });
+    }
+
+    const rate = rateResult.rows[0];
+    let commissionAmount = 0;
+
+    if (rate.rate_type === 'percentage') {
+      commissionAmount = (bookingAmount * parseFloat(rate.rate_value)) / 100;
+    } else {
+      commissionAmount = parseFloat(rate.rate_value);
+    }
+
+    // Round to 2 decimal places
+    commissionAmount = Math.round(commissionAmount * 100) / 100;
+
+    // If bookingId provided, create the commission record
+    let commissionRecord = null;
+    if (bookingId) {
+      const insertResult = await query(
+        `INSERT INTO "CommissionLedger" (
+           tenant_id, staff_id, booking_id, service_id, commission_rate_id,
+           booking_amount, commission_amount, rate_type, rate_value, status, created_at
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', NOW())
+         RETURNING *`,
+        [
+          tenantId,
+          staffId,
+          bookingId,
+          serviceId || null,
+          rate.id,
+          bookingAmount,
+          commissionAmount,
+          rate.rate_type,
+          rate.rate_value,
+        ]
+      );
+      commissionRecord = insertResult.rows[0];
+    }
+
+    return createResponse(200, {
+      data: {
+        hasRate: true,
+        rateId: rate.id,
+        rateType: rate.rate_type,
+        rateValue: parseFloat(rate.rate_value),
+        bookingAmount,
+        commissionAmount,
+        commissionRecord: commissionRecord ? {
+          id: commissionRecord.id,
+          status: commissionRecord.status,
+        } : null,
+      },
+      message: 'Commission calculated successfully',
+    });
+
+  } catch (error) {
+    console.error('[Commission] Calculate failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to calculate commission',
     });
   }
 }

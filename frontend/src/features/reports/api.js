@@ -110,3 +110,109 @@ export const useDeparturesReport = (days = 7, options = {}) => {
     ...options,
   });
 };
+
+// =============================================================================
+// EXPORT FUNCTIONS
+// =============================================================================
+
+/**
+ * Export report types
+ */
+export const EXPORT_TYPES = {
+  REVENUE: 'revenue',
+  BOOKINGS: 'bookings',
+  CUSTOMERS: 'customers',
+  OCCUPANCY: 'occupancy',
+  PETS: 'pets',
+  VACCINATIONS: 'vaccinations',
+};
+
+/**
+ * Export formats
+ */
+export const EXPORT_FORMATS = {
+  CSV: 'csv',
+  JSON: 'json',
+};
+
+/**
+ * Get export endpoint for a report type
+ */
+const getExportEndpoint = (reportType) => {
+  const endpoints = {
+    [EXPORT_TYPES.REVENUE]: canonicalEndpoints.reports.exportRevenue,
+    [EXPORT_TYPES.BOOKINGS]: canonicalEndpoints.reports.exportBookings,
+    [EXPORT_TYPES.CUSTOMERS]: canonicalEndpoints.reports.exportCustomers,
+    [EXPORT_TYPES.OCCUPANCY]: canonicalEndpoints.reports.exportOccupancy,
+    [EXPORT_TYPES.PETS]: canonicalEndpoints.reports.exportPets,
+    [EXPORT_TYPES.VACCINATIONS]: canonicalEndpoints.reports.exportVaccinations,
+  };
+  return endpoints[reportType] || `/api/v1/analytics/export/${reportType}`;
+};
+
+/**
+ * Download a report export
+ * @param {string} reportType - Type of report (revenue, bookings, etc.)
+ * @param {object} params - Query parameters (startDate, endDate, format, etc.)
+ * @returns {Promise<void>}
+ */
+export const downloadReportExport = async (reportType, params = {}) => {
+  const format = params.format || EXPORT_FORMATS.CSV;
+  const queryString = new URLSearchParams({
+    ...params,
+    format,
+  }).toString();
+  
+  const baseEndpoint = getExportEndpoint(reportType);
+  const endpoint = `${baseEndpoint}?${queryString}`;
+  
+  try {
+    const response = await apiClient.get(endpoint, {
+      responseType: format === 'csv' ? 'blob' : 'json',
+    });
+    
+    // Generate filename
+    const date = new Date().toISOString().split('T')[0];
+    const filename = `${reportType}_report_${date}.${format}`;
+    
+    // Create download link
+    let blob;
+    if (format === 'csv') {
+      blob = new Blob([response.data], { type: 'text/csv' });
+    } else {
+      const jsonString = JSON.stringify(response.data, null, 2);
+      blob = new Blob([jsonString], { type: 'application/json' });
+    }
+    
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    
+    return { success: true, filename };
+  } catch (error) {
+    console.error('[Export] Download failed:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get export preview (JSON format for display)
+ * @param {string} reportType - Type of report
+ * @param {object} params - Query parameters
+ * @returns {Promise<object>}
+ */
+export const getExportPreview = async (reportType, params = {}) => {
+  const queryString = new URLSearchParams({
+    ...params,
+    format: 'json',
+  }).toString();
+  
+  const endpoint = `/api/v1/analytics/export/${reportType}?${queryString}`;
+  const response = await apiClient.get(endpoint);
+  return response.data;
+};

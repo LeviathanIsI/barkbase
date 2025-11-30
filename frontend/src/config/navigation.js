@@ -35,6 +35,7 @@ export const sidebarSections = [
       { path: '/runs', label: 'Runs', icon: 'activity' },
       { path: '/tasks', label: 'Tasks', icon: 'check-square' },
       { path: '/kennels', label: 'Kennels', icon: 'home' },
+      { path: '/incidents', label: 'Incidents', icon: 'alert-triangle' },
       { path: '/operations', label: 'Ops Overview', icon: 'panels-top-left' },
     ],
   },
@@ -55,6 +56,7 @@ export const sidebarSections = [
     items: [
       { path: '/payments', label: 'Payments', icon: 'credit-card' },
       { path: '/invoices', label: 'Invoices', icon: 'file-text' },
+      { path: '/packages', label: 'Packages', icon: 'gift' },
       { path: '/reports', label: 'Reports', icon: 'bar-chart-3' },
     ],
   },
@@ -65,8 +67,10 @@ export const sidebarSections = [
     defaultExpanded: false,
     items: [
       { path: '/staff', label: 'Team', icon: 'user-cog' },
-      { path: '/tenants', label: 'Tenants', icon: 'building-2' },
       { path: '/settings', label: 'Settings', icon: 'settings' },
     ],
   },
 ];
+
+// Alias for backwards compatibility
+export const navSections = sidebarSections;

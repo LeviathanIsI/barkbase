@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Card from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
+import SlideOutDrawer from '@/components/ui/SlideOutDrawer';
 import { Plus, Edit, X, MapPin } from 'lucide-react';
 import { useTenantStore } from '@/stores/tenant';
 
@@ -27,7 +28,7 @@ export default function LocationsTab() {
     ]
   );
 
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showDrawer, setShowDrawer] = useState(false);
   const [editingLocation, setEditingLocation] = useState(null);
   const [locationForm, setLocationForm] = useState({
     name: '',
@@ -44,7 +45,7 @@ export default function LocationsTab() {
       notes: ''
     });
     setEditingLocation(null);
-    setShowAddModal(true);
+    setShowDrawer(true);
   };
 
   const handleEditLocation = (location) => {
@@ -55,7 +56,7 @@ export default function LocationsTab() {
       notes: location.notes || ''
     });
     setEditingLocation(location);
-    setShowAddModal(true);
+    setShowDrawer(true);
   };
 
   const handleDeleteLocation = (id) => {
@@ -101,7 +102,7 @@ export default function LocationsTab() {
       };
       setLocations(prev => [...prev, newLocation]);
     }
-    setShowAddModal(false);
+    setShowDrawer(false);
   };
 
   const getLocationSummary = (location) => {
@@ -167,63 +168,62 @@ export default function LocationsTab() {
         </div>
       </Card>
 
-      {/* Add/Edit Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-surface-primary rounded-lg p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold mb-4">
-              {editingLocation ? 'Edit Location' : 'Add Building/Location'}
-            </h3>
-
-            <div className="space-y-4">
-              <Input
-                label="Name"
-                value={locationForm.name}
-                onChange={(e) => setLocationForm(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="e.g., Building A - Main Building"
-              />
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Type</label>
-                <select
-                  value={locationForm.type}
-                  onChange={(e) => setLocationForm(prev => ({ ...prev, type: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="boarding">Boarding</option>
-                  <option value="daycare">Daycare</option>
-                  <option value="mixed">Mixed</option>
-                  <option value="grooming">Grooming</option>
-                </select>
-              </div>
-
-              <Input
-                label="Number of Accommodations"
-                type="number"
-                value={locationForm.accommodationCount}
-                onChange={(e) => setLocationForm(prev => ({ ...prev, accommodationCount: parseInt(e.target.value) || 1 }))}
-                min="1"
-              />
-
-              <Input
-                label="Notes"
-                value={locationForm.notes}
-                onChange={(e) => setLocationForm(prev => ({ ...prev, notes: e.target.value }))}
-                placeholder="Optional notes about this location"
-              />
-            </div>
-
-            <div className="flex justify-end gap-3 mt-6">
-              <Button variant="outline" onClick={() => setShowAddModal(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSaveLocation}>
-                {editingLocation ? 'Save Changes' : 'Add Location'}
-              </Button>
-            </div>
+      {/* Add/Edit Location Slideout */}
+      <SlideOutDrawer
+        isOpen={showDrawer}
+        onClose={() => setShowDrawer(false)}
+        title={editingLocation ? 'Edit Location' : 'Add Building/Location'}
+        subtitle={editingLocation ? `Editing ${editingLocation.name}` : 'Configure a new building or area'}
+        size="sm"
+        footerContent={
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setShowDrawer(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveLocation}>
+              {editingLocation ? 'Save Changes' : 'Add Location'}
+            </Button>
           </div>
+        }
+      >
+        <div className="p-6 space-y-4">
+          <Input
+            label="Name"
+            value={locationForm.name}
+            onChange={(e) => setLocationForm(prev => ({ ...prev, name: e.target.value }))}
+            placeholder="e.g., Building A - Main Building"
+          />
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Type</label>
+            <select
+              value={locationForm.type}
+              onChange={(e) => setLocationForm(prev => ({ ...prev, type: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-surface-secondary dark:text-text-primary"
+            >
+              <option value="boarding">Boarding</option>
+              <option value="daycare">Daycare</option>
+              <option value="mixed">Mixed</option>
+              <option value="grooming">Grooming</option>
+            </select>
+          </div>
+
+          <Input
+            label="Number of Accommodations"
+            type="number"
+            value={locationForm.accommodationCount}
+            onChange={(e) => setLocationForm(prev => ({ ...prev, accommodationCount: parseInt(e.target.value) || 1 }))}
+            min="1"
+          />
+
+          <Input
+            label="Notes"
+            value={locationForm.notes}
+            onChange={(e) => setLocationForm(prev => ({ ...prev, notes: e.target.value }))}
+            placeholder="Optional notes about this location"
+          />
         </div>
-      )}
+      </SlideOutDrawer>
     </div>
   );
 }

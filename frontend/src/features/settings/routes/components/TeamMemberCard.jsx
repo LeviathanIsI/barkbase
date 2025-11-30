@@ -9,7 +9,7 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 
-const TeamMemberCard = ({ member, isSelected, onSelect, onEdit }) => {
+const TeamMemberCard = ({ member, isSelected, onSelect, onEdit, onDelete }) => {
   const [showMenu, setShowMenu] = useState(false);
 
   const getRoleColor = (role) => {
@@ -45,6 +45,7 @@ const TeamMemberCard = ({ member, isSelected, onSelect, onEdit }) => {
 
   const menuActions = [
     { icon: Edit, label: 'Edit Permissions', action: () => onEdit(member) },
+    { icon: Trash2, label: 'Remove from Team', action: () => onDelete?.(member.id), danger: true },
   ];
 
   return (

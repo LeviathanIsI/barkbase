@@ -77,7 +77,9 @@ exports.handler = async (event, context) => {
 
   try {
     // Authenticate request
+    console.log('[CONFIG-SERVICE] Starting authentication...');
     const authResult = await authenticateRequest(event);
+    console.log('[CONFIG-SERVICE] Auth result:', { authenticated: authResult.authenticated, userId: authResult.user?.id });
     if (!authResult.authenticated) {
       return createResponse(401, {
         error: 'Unauthorized',
@@ -143,6 +145,126 @@ exports.handler = async (event, context) => {
     if (path === '/api/v1/config/settings' || path === '/config/settings') {
       if (method === 'GET') {
         return handleGetSettings(user);
+      }
+    }
+
+    // =========================================================================
+    // ACCOUNT DEFAULTS API
+    // =========================================================================
+    // Business info, operating hours, holidays, regional settings, currency
+    // =========================================================================
+    if (path === '/api/v1/account-defaults' || path === '/account-defaults') {
+      if (method === 'GET') {
+        return handleGetAccountDefaults(user);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateAccountDefaults(user, parseBody(event));
+      }
+    }
+
+    // Logo upload for account defaults
+    if (path === '/api/v1/account-defaults/logo' || path === '/account-defaults/logo') {
+      if (method === 'POST') {
+        return handleUploadLogo(user, event);
+      }
+    }
+
+    // =========================================================================
+    // BRANDING SETTINGS API
+    // =========================================================================
+    if (path === '/api/v1/config/branding' || path === '/config/branding' || path === '/api/v1/branding') {
+      if (method === 'GET') {
+        return handleGetBranding(user);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateBranding(user, parseBody(event));
+      }
+    }
+
+    // =========================================================================
+    // NOTIFICATION SETTINGS API
+    // =========================================================================
+    if (path === '/api/v1/config/notifications' || path === '/config/notifications' || path === '/api/v1/notification-settings') {
+      if (method === 'GET') {
+        return handleGetNotificationSettings(user);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateNotificationSettings(user, parseBody(event));
+      }
+    }
+
+    // =========================================================================
+    // POLICIES API
+    // =========================================================================
+    // Cancellation, deposit, late pickup policies
+    // =========================================================================
+    if (path === '/api/v1/policies' || path === '/policies') {
+      if (method === 'GET') {
+        return handleGetPolicies(user);
+      }
+      if (method === 'POST') {
+        return handleCreatePolicy(user, parseBody(event));
+      }
+    }
+
+    // Policy templates endpoint
+    if (path === '/api/v1/policies/templates' || path === '/policies/templates') {
+      if (method === 'GET') {
+        return handleGetPolicyTemplates();
+      }
+    }
+
+    const policyIdMatch = path.match(/^\/(?:api\/v1\/)?policies\/([a-f0-9-]+)$/i);
+    if (policyIdMatch) {
+      const policyId = policyIdMatch[1];
+      if (method === 'GET') {
+        return handleGetPolicy(user, policyId);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdatePolicy(user, policyId, parseBody(event));
+      }
+      if (method === 'DELETE') {
+        return handleDeletePolicy(user, policyId);
+      }
+    }
+
+    // =========================================================================
+    // REQUIRED VACCINATIONS API
+    // =========================================================================
+    // Facility-level vaccination requirements
+    // =========================================================================
+    if (path === '/api/v1/config/required-vaccinations' || path === '/config/required-vaccinations') {
+      if (method === 'GET') {
+        return handleGetRequiredVaccinations(user);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateRequiredVaccinations(user, parseBody(event));
+      }
+    }
+
+    // =========================================================================
+    // PAYMENT SETTINGS API
+    // =========================================================================
+    if (path === '/api/v1/config/payment-settings' || path === '/config/payment-settings') {
+      if (method === 'GET') {
+        return handleGetPaymentSettings(user);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdatePaymentSettings(user, parseBody(event));
+      }
+    }
+
+    // =========================================================================
+    // PRIVACY SETTINGS API
+    // =========================================================================
+    // Data retention policies, staff visibility, communication defaults
+    // =========================================================================
+    if (path === '/api/v1/config/privacy' || path === '/config/privacy') {
+      if (method === 'GET') {
+        return handleGetPrivacySettings(user);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdatePrivacySettings(user, parseBody(event));
       }
     }
 
@@ -359,15 +481,42 @@ exports.handler = async (event, context) => {
     });
 
   } catch (error) {
-    console.error('[CONFIG-SERVICE] Unhandled error:', error);
+    console.error('[CONFIG-SERVICE] Unhandled error:', error.message, error.stack);
     return createResponse(500, {
       error: 'Internal Server Error',
-      message: process.env.NODE_ENV === 'production'
-        ? 'An unexpected error occurred'
-        : error.message,
+      message: 'An unexpected error occurred',
+      debug: error.message,
+      stack: error.stack?.split('\n').slice(0, 5),
     });
   }
 };
+
+// =============================================================================
+// HELPER FUNCTIONS
+// =============================================================================
+
+/**
+ * Get user's tenant context from database
+ * @param {string} cognitoSub - Cognito sub (user.id from auth)
+ * @returns {Promise<{tenantId: string|null, userId: string|null, role: string|null}>}
+ */
+async function getUserTenantContext(cognitoSub) {
+  const result = await query(
+    `SELECT id, tenant_id, role FROM "User" WHERE cognito_sub = $1 LIMIT 1`,
+    [cognitoSub]
+  );
+
+  if (result.rows.length === 0) {
+    return { tenantId: null, userId: null, role: null };
+  }
+
+  const user = result.rows[0];
+  return {
+    tenantId: user.tenant_id,
+    userId: user.id,
+    role: user.role,
+  };
+}
 
 /**
  * Get tenant configuration - CRITICAL ENDPOINT
@@ -904,12 +1053,21 @@ async function handleGetSettings(user) {
  * Only returns memberships belonging to the authenticated user's tenant.
  */
 async function handleGetMemberships(user) {
-  console.log('[CONFIG-SERVICE] handleGetMemberships - start');
+  console.log('[CONFIG-SERVICE] handleGetMemberships - start', { userId: user?.id });
 
   try {
     await getPoolAsync();
 
+    if (!user || !user.id) {
+      console.error('[CONFIG-SERVICE] handleGetMemberships - no user.id');
+      return createResponse(401, {
+        error: 'Unauthorized',
+        message: 'User not authenticated',
+      });
+    }
+
     // First get the user's tenant
+    console.log('[CONFIG-SERVICE] Querying user with cognito_sub:', user.id);
     const userResult = await query(
       `SELECT tenant_id, role FROM "User" WHERE cognito_sub = $1`,
       [user.id]
@@ -923,6 +1081,7 @@ async function handleGetMemberships(user) {
     }
 
     const { tenant_id: tenantId } = userResult.rows[0];
+    console.log('[CONFIG-SERVICE] User tenant_id:', tenantId);
 
     if (!tenantId) {
       return createResponse(404, {
@@ -932,6 +1091,7 @@ async function handleGetMemberships(user) {
     }
 
     // Get all memberships for this tenant with user details
+    console.log('[CONFIG-SERVICE] Querying memberships for tenant:', tenantId);
     const result = await query(
       `SELECT
          m.id,
@@ -987,10 +1147,11 @@ async function handleGetMemberships(user) {
     });
 
   } catch (error) {
-    console.error('[CONFIG-SERVICE] Failed to get memberships:', error.message);
+    console.error('[CONFIG-SERVICE] Failed to get memberships:', error.message, error.stack);
     return createResponse(500, {
       error: 'Internal Server Error',
       message: 'Failed to retrieve team members',
+      debug: process.env.NODE_ENV !== 'production' ? error.message : undefined,
     });
   }
 }
@@ -3432,5 +3593,1196 @@ async function handleUpdateFormSubmission(user, submissionId, body) {
   } catch (error) {
     console.error('[Forms] Failed to update submission:', error.message);
     return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update submission' });
+  }
+}
+
+// =============================================================================
+// ACCOUNT DEFAULTS HANDLERS
+// =============================================================================
+
+/**
+ * Get account defaults (business info, operating hours, holidays, regional settings)
+ */
+async function handleGetAccountDefaults(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) {
+      return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+    }
+
+    const result = await query(
+      `SELECT
+         name, phone, email, website, notes, address, city, state, zip_code as "postalCode", country,
+         logo_url, logo_filename,
+         operating_hours, holidays,
+         timezone, date_format, time_format, week_starts_on,
+         supported_currencies, default_currency,
+         created_at, updated_at
+       FROM "Tenant"
+       WHERE id = $1`,
+      [ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Tenant not found' });
+    }
+
+    const tenant = result.rows[0];
+
+    // Build response matching frontend schema
+    const response = {
+      businessInfo: {
+        name: tenant.name || '',
+        phone: tenant.phone || '',
+        email: tenant.email || '',
+        website: tenant.website || '',
+        notes: tenant.notes || '',
+        address: {
+          street: tenant.address || '',
+          street2: '',
+          city: tenant.city || '',
+          state: tenant.state || '',
+          postalCode: tenant.postalCode || '',
+          country: tenant.country || 'United States',
+        },
+        logo: tenant.logo_url ? {
+          url: tenant.logo_url,
+          fileName: tenant.logo_filename,
+          uploadedAt: null,
+          size: null,
+        } : null,
+      },
+      operatingHours: tenant.operating_hours || {
+        monday: { isOpen: true, open: '08:00', close: '18:00' },
+        tuesday: { isOpen: true, open: '08:00', close: '18:00' },
+        wednesday: { isOpen: true, open: '08:00', close: '18:00' },
+        thursday: { isOpen: true, open: '08:00', close: '18:00' },
+        friday: { isOpen: true, open: '08:00', close: '18:00' },
+        saturday: { isOpen: true, open: '09:00', close: '17:00' },
+        sunday: { isOpen: true, open: '09:00', close: '17:00' },
+      },
+      holidays: tenant.holidays || [],
+      regionalSettings: {
+        timeZone: tenant.timezone || 'America/New_York',
+        dateFormat: tenant.date_format || 'MM/DD/YYYY',
+        timeFormat: tenant.time_format || '12-hour',
+        weekStartsOn: tenant.week_starts_on || 'Sunday',
+      },
+      currencySettings: {
+        supportedCurrencies: tenant.supported_currencies || ['USD'],
+        defaultCurrency: tenant.default_currency || 'USD',
+      },
+    };
+
+    return createResponse(200, response);
+  } catch (error) {
+    console.error('[AccountDefaults] Failed to get:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to load account defaults' });
+  }
+}
+
+/**
+ * Update account defaults
+ */
+async function handleUpdateAccountDefaults(user, body) {
+  const { businessInfo, operatingHours, holidays, regionalSettings, currencySettings } = body;
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) {
+      return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+    }
+
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
+
+    // Business info
+    if (businessInfo) {
+      if (businessInfo.name !== undefined) { updates.push(`name = $${paramIndex++}`); values.push(businessInfo.name); }
+      if (businessInfo.phone !== undefined) { updates.push(`phone = $${paramIndex++}`); values.push(businessInfo.phone); }
+      if (businessInfo.email !== undefined) { updates.push(`email = $${paramIndex++}`); values.push(businessInfo.email); }
+      if (businessInfo.website !== undefined) { updates.push(`website = $${paramIndex++}`); values.push(businessInfo.website); }
+      if (businessInfo.notes !== undefined) { updates.push(`notes = $${paramIndex++}`); values.push(businessInfo.notes); }
+      if (businessInfo.address) {
+        if (businessInfo.address.street !== undefined) { updates.push(`address = $${paramIndex++}`); values.push(businessInfo.address.street); }
+        if (businessInfo.address.city !== undefined) { updates.push(`city = $${paramIndex++}`); values.push(businessInfo.address.city); }
+        if (businessInfo.address.state !== undefined) { updates.push(`state = $${paramIndex++}`); values.push(businessInfo.address.state); }
+        if (businessInfo.address.postalCode !== undefined) { updates.push(`zip_code = $${paramIndex++}`); values.push(businessInfo.address.postalCode); }
+        if (businessInfo.address.country !== undefined) { updates.push(`country = $${paramIndex++}`); values.push(businessInfo.address.country); }
+      }
+      if (businessInfo.logo) {
+        updates.push(`logo_url = $${paramIndex++}`); values.push(businessInfo.logo.url);
+        updates.push(`logo_filename = $${paramIndex++}`); values.push(businessInfo.logo.fileName);
+      }
+    }
+
+    // Operating hours
+    if (operatingHours !== undefined) {
+      updates.push(`operating_hours = $${paramIndex++}`);
+      values.push(JSON.stringify(operatingHours));
+    }
+
+    // Holidays
+    if (holidays !== undefined) {
+      updates.push(`holidays = $${paramIndex++}`);
+      values.push(JSON.stringify(holidays));
+    }
+
+    // Regional settings
+    if (regionalSettings) {
+      if (regionalSettings.timeZone !== undefined) { updates.push(`timezone = $${paramIndex++}`); values.push(regionalSettings.timeZone); }
+      if (regionalSettings.dateFormat !== undefined) { updates.push(`date_format = $${paramIndex++}`); values.push(regionalSettings.dateFormat); }
+      if (regionalSettings.timeFormat !== undefined) { updates.push(`time_format = $${paramIndex++}`); values.push(regionalSettings.timeFormat); }
+      if (regionalSettings.weekStartsOn !== undefined) { updates.push(`week_starts_on = $${paramIndex++}`); values.push(regionalSettings.weekStartsOn); }
+    }
+
+    // Currency settings
+    if (currencySettings) {
+      if (currencySettings.supportedCurrencies !== undefined) {
+        updates.push(`supported_currencies = $${paramIndex++}`);
+        values.push(currencySettings.supportedCurrencies);
+      }
+      if (currencySettings.defaultCurrency !== undefined) {
+        updates.push(`default_currency = $${paramIndex++}`);
+        values.push(currencySettings.defaultCurrency);
+      }
+    }
+
+    if (updates.length === 0) {
+      return createResponse(400, { error: 'Bad Request', message: 'No fields to update' });
+    }
+
+    updates.push('updated_at = NOW()');
+    values.push(ctx.tenantId);
+
+    await query(
+      `UPDATE "Tenant" SET ${updates.join(', ')} WHERE id = $${paramIndex}`,
+      values
+    );
+
+    // Return updated data
+    return handleGetAccountDefaults(user);
+  } catch (error) {
+    console.error('[AccountDefaults] Failed to update:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update account defaults' });
+  }
+}
+
+/**
+ * Handle logo upload (placeholder - actual upload would use S3)
+ */
+async function handleUploadLogo(user, event) {
+  // For now, return a placeholder response
+  // Real implementation would parse multipart form data and upload to S3
+  return createResponse(200, {
+    logo: {
+      url: 'https://placeholder.com/logo.png',
+      fileName: 'logo.png',
+      uploadedAt: new Date().toISOString(),
+      size: 0,
+    },
+  });
+}
+
+// =============================================================================
+// BRANDING SETTINGS HANDLERS
+// =============================================================================
+
+async function handleGetBranding(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(
+      `SELECT name, logo_url, primary_color, secondary_color, custom_terminology, theme_settings
+       FROM "Tenant" WHERE id = $1`,
+      [ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Tenant not found' });
+    }
+
+    const tenant = result.rows[0];
+    return createResponse(200, {
+      businessName: tenant.name || '',
+      logoUrl: tenant.logo_url || '',
+      primaryColor: tenant.primary_color || '#3B82F6',
+      secondaryColor: tenant.secondary_color || '#10B981',
+      customTerminology: tenant.custom_terminology || {},
+      themeSettings: tenant.theme_settings || {},
+    });
+  } catch (error) {
+    console.error('[Branding] Failed to get:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to load branding settings' });
+  }
+}
+
+async function handleUpdateBranding(user, body) {
+  const { businessName, logoUrl, primaryColor, secondaryColor, customTerminology, themeSettings } = body;
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
+
+    if (businessName !== undefined) { updates.push(`name = $${paramIndex++}`); values.push(businessName); }
+    if (logoUrl !== undefined) { updates.push(`logo_url = $${paramIndex++}`); values.push(logoUrl); }
+    if (primaryColor !== undefined) { updates.push(`primary_color = $${paramIndex++}`); values.push(primaryColor); }
+    if (secondaryColor !== undefined) { updates.push(`secondary_color = $${paramIndex++}`); values.push(secondaryColor); }
+    if (customTerminology !== undefined) { updates.push(`custom_terminology = $${paramIndex++}`); values.push(JSON.stringify(customTerminology)); }
+    if (themeSettings !== undefined) { updates.push(`theme_settings = $${paramIndex++}`); values.push(JSON.stringify(themeSettings)); }
+
+    if (updates.length === 0) return createResponse(400, { error: 'Bad Request', message: 'No fields to update' });
+
+    updates.push('updated_at = NOW()');
+    values.push(ctx.tenantId);
+
+    await query(`UPDATE "Tenant" SET ${updates.join(', ')} WHERE id = $${paramIndex}`, values);
+
+    return handleGetBranding(user);
+  } catch (error) {
+    console.error('[Branding] Failed to update:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update branding' });
+  }
+}
+
+// =============================================================================
+// NOTIFICATION SETTINGS HANDLERS
+// =============================================================================
+
+async function handleGetNotificationSettings(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(
+      `SELECT notification_settings FROM "Tenant" WHERE id = $1`,
+      [ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Tenant not found' });
+    }
+
+    const settings = result.rows[0].notification_settings || {
+      email: {
+        bookingConfirmations: true,
+        bookingReminders: true,
+        bookingCancellations: true,
+        vaccinationExpiry: true,
+        paymentReceipts: true,
+      },
+      sms: {
+        enabled: false,
+        bookingReminders: false,
+        checkInReminders: false,
+      },
+      reminderTiming: {
+        beforeBooking: 24, // hours
+        vaccinationWarning: 30, // days
+      },
+    };
+
+    return createResponse(200, settings);
+  } catch (error) {
+    console.error('[Notifications] Failed to get:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to load notification settings' });
+  }
+}
+
+async function handleUpdateNotificationSettings(user, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    await query(
+      `UPDATE "Tenant" SET notification_settings = $1, updated_at = NOW() WHERE id = $2`,
+      [JSON.stringify(body), ctx.tenantId]
+    );
+
+    return createResponse(200, { success: true, ...body });
+  } catch (error) {
+    console.error('[Notifications] Failed to update:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update notification settings' });
+  }
+}
+
+// =============================================================================
+// POLICIES HANDLERS
+// =============================================================================
+// Terms & Policies for legal documents: liability waivers, ToS, cancellation, etc.
+// =============================================================================
+
+async function handleGetPolicies(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(
+      `SELECT policies FROM "Tenant" WHERE id = $1`,
+      [ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Tenant not found' });
+    }
+
+    // Return empty array if no policies set - user creates from scratch or templates
+    const policies = result.rows[0].policies || [];
+
+    return createResponse(200, { policies });
+  } catch (error) {
+    console.error('[Policies] Failed to get:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to load policies' });
+  }
+}
+
+async function handleCreatePolicy(user, body) {
+  const { 
+    name, 
+    title,
+    type, 
+    content, 
+    status = 'draft',
+    isActive,
+    requireForBooking = false,
+    requireSignature = false,
+    version = 1
+  } = body;
+
+  // Support both 'name' and 'title' for policy title
+  const policyTitle = title || name;
+  
+  if (!policyTitle || !type) {
+    return createResponse(400, { error: 'Bad Request', message: 'Title and type are required' });
+  }
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Get current policies
+    const result = await query(`SELECT policies FROM "Tenant" WHERE id = $1`, [ctx.tenantId]);
+    const policies = result.rows[0]?.policies || [];
+
+    // Generate unique ID
+    const policyId = `policy-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Add new policy with all fields
+    const newPolicy = {
+      id: policyId,
+      name: policyTitle,
+      title: policyTitle,
+      type,
+      content: content || '',
+      status: status || 'draft',
+      isActive: isActive !== undefined ? isActive : (status === 'active'),
+      requireForBooking: Boolean(requireForBooking),
+      requireSignature: Boolean(requireSignature),
+      version: parseInt(version, 10) || 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    policies.push(newPolicy);
+
+    // Save
+    await query(`UPDATE "Tenant" SET policies = $1, updated_at = NOW() WHERE id = $2`, [JSON.stringify(policies), ctx.tenantId]);
+
+    return createResponse(201, { success: true, policy: newPolicy });
+  } catch (error) {
+    console.error('[Policies] Failed to create:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to create policy' });
+  }
+}
+
+async function handleGetPolicy(user, policyId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(`SELECT policies FROM "Tenant" WHERE id = $1`, [ctx.tenantId]);
+    const policies = result.rows[0]?.policies || [];
+    const policy = policies.find(p => p.id === policyId);
+
+    if (!policy) {
+      return createResponse(404, { error: 'Not Found', message: 'Policy not found' });
+    }
+
+    return createResponse(200, policy);
+  } catch (error) {
+    console.error('[Policies] Failed to get:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to load policy' });
+  }
+}
+
+async function handleUpdatePolicy(user, policyId, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(`SELECT policies FROM "Tenant" WHERE id = $1`, [ctx.tenantId]);
+    const policies = result.rows[0]?.policies || [];
+    const index = policies.findIndex(p => p.id === policyId);
+
+    if (index === -1) {
+      return createResponse(404, { error: 'Not Found', message: 'Policy not found' });
+    }
+
+    // Support both 'name' and 'title' for policy title
+    const updateData = { ...body };
+    if (updateData.title && !updateData.name) {
+      updateData.name = updateData.title;
+    }
+    if (updateData.name && !updateData.title) {
+      updateData.title = updateData.name;
+    }
+    
+    // Handle status/isActive sync
+    if (updateData.status !== undefined) {
+      updateData.isActive = updateData.status === 'active';
+    } else if (updateData.isActive !== undefined) {
+      updateData.status = updateData.isActive ? 'active' : 'inactive';
+    }
+
+    // Ensure boolean fields are proper booleans
+    if (updateData.requireForBooking !== undefined) {
+      updateData.requireForBooking = Boolean(updateData.requireForBooking);
+    }
+    if (updateData.requireSignature !== undefined) {
+      updateData.requireSignature = Boolean(updateData.requireSignature);
+    }
+    if (updateData.version !== undefined) {
+      updateData.version = parseInt(updateData.version, 10) || policies[index].version || 1;
+    }
+
+    // Update policy - merge with existing data
+    policies[index] = { 
+      ...policies[index], 
+      ...updateData, 
+      updatedAt: new Date().toISOString() 
+    };
+
+    await query(`UPDATE "Tenant" SET policies = $1, updated_at = NOW() WHERE id = $2`, [JSON.stringify(policies), ctx.tenantId]);
+
+    return createResponse(200, { success: true, policy: policies[index] });
+  } catch (error) {
+    console.error('[Policies] Failed to update:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update policy' });
+  }
+}
+
+async function handleDeletePolicy(user, policyId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(`SELECT policies FROM "Tenant" WHERE id = $1`, [ctx.tenantId]);
+    const policies = result.rows[0]?.policies || [];
+    const filtered = policies.filter(p => p.id !== policyId);
+
+    if (filtered.length === policies.length) {
+      return createResponse(404, { error: 'Not Found', message: 'Policy not found' });
+    }
+
+    await query(`UPDATE "Tenant" SET policies = $1, updated_at = NOW() WHERE id = $2`, [JSON.stringify(filtered), ctx.tenantId]);
+
+    return createResponse(200, { success: true, message: 'Policy deleted' });
+  } catch (error) {
+    console.error('[Policies] Failed to delete:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to delete policy' });
+  }
+}
+
+/**
+ * Get policy templates for kennel businesses
+ * Returns pre-built templates for common legal documents
+ */
+function handleGetPolicyTemplates() {
+  const templates = {
+    liability_waiver: {
+      type: 'liability_waiver',
+      title: 'Liability Waiver & Release',
+      description: 'Releases kennel from liability for injury, illness, or death',
+      requireForBooking: true,
+      requireSignature: true,
+      content: `LIABILITY WAIVER AND RELEASE OF CLAIMS
+
+I, the undersigned pet owner/guardian, in consideration of the services provided by [FACILITY NAME] (hereinafter referred to as "the Facility"), do hereby agree to the following terms and conditions:
+
+1. ASSUMPTION OF RISK
+I understand and acknowledge that there are inherent risks associated with boarding, daycare, grooming, and other pet care services, including but not limited to:
+• Injury from playing with other animals
+• Escape or loss
+• Illness or disease transmission
+• Allergic reactions
+• Stress-related behaviors
+• Property damage
+• Injury or death
+
+I voluntarily assume all such risks, both known and unknown, even if arising from the negligence of the Facility or others, and assume full responsibility for my pet's participation.
+
+2. RELEASE AND WAIVER
+I hereby release, waive, discharge, and covenant not to sue the Facility, its owners, operators, employees, agents, and representatives from any and all liability, claims, demands, actions, or causes of action arising out of or relating to any loss, damage, or injury, including death, that may be sustained by me or my pet while participating in or as a result of the services provided.
+
+3. EMERGENCY MEDICAL AUTHORIZATION
+In the event of a medical emergency, I authorize the Facility to:
+• Seek emergency veterinary care for my pet at my expense
+• Transport my pet to a veterinary clinic of their choosing if my designated veterinarian is unavailable
+• Authorize necessary medical treatment if I cannot be reached
+• I agree to pay all costs associated with emergency veterinary care
+
+4. PRE-EXISTING CONDITIONS
+I certify that my pet is in good health and has not been ill with any communicable disease within the last 30 days. I understand that vaccinations reduce but do not eliminate the risk of disease transmission. I agree to inform the Facility of any pre-existing medical conditions, behavioral issues, or special needs.
+
+5. INDEMNIFICATION
+I agree to indemnify and hold harmless the Facility from any and all claims, actions, suits, procedures, costs, expenses, damages, and liabilities arising out of my pet's stay or my breach of any term of this agreement.
+
+6. PHOTO/VIDEO RELEASE
+I grant permission for the Facility to photograph or video my pet for promotional materials, social media, or other business purposes without compensation to me.
+
+7. ACKNOWLEDGMENT
+I have read this agreement, fully understand its terms, and sign it freely and voluntarily. I understand that this waiver is binding upon my heirs, executors, and assigns.
+
+By signing below, I acknowledge that I have read and agree to all terms and conditions set forth in this Liability Waiver and Release.`
+    },
+    terms_of_service: {
+      type: 'terms_of_service',
+      title: 'Terms of Service Agreement',
+      description: 'General terms of doing business',
+      requireForBooking: true,
+      requireSignature: true,
+      content: `TERMS OF SERVICE AGREEMENT
+
+Welcome to [FACILITY NAME]. By using our services, you agree to the following terms and conditions:
+
+1. SERVICES PROVIDED
+We provide professional pet care services including:
+• Overnight boarding
+• Daycare
+• Grooming
+• Training (if applicable)
+• Additional add-on services as offered
+
+2. RESERVATION & BOOKING
+• Reservations are recommended and may be required during peak seasons
+• A valid credit card is required to hold reservations
+• Same-day bookings are subject to availability
+
+3. CHECK-IN & CHECK-OUT
+• Standard check-in: [TIME] - [TIME]
+• Standard check-out: [TIME] - [TIME]
+• Extended hours may be available for an additional fee
+• Pets not picked up by closing time may incur overnight boarding charges
+
+4. PAYMENT TERMS
+• Payment is due at the time of service
+• We accept cash, credit cards, and debit cards
+• Returned checks will incur a $35 fee
+• Outstanding balances may result in collection action
+
+5. RATES & FEES
+• All rates are subject to change without notice
+• Holiday rates may apply during designated holiday periods
+• Multi-pet discounts may be available
+• See current rate card for complete pricing
+
+6. PET REQUIREMENTS
+• All pets must be current on required vaccinations
+• Pets must be free of fleas, ticks, and other parasites
+• Aggressive pets may not be accepted or may be required to leave
+• Pets showing signs of illness will not be accepted
+
+7. LIABILITY
+• The Facility is not responsible for lost or damaged personal items
+• See our Liability Waiver for complete terms
+• Pet insurance is the owner's responsibility
+
+8. AGREEMENT
+By utilizing our services, you acknowledge that you have read, understood, and agree to these Terms of Service.`
+    },
+    cancellation: {
+      type: 'cancellation',
+      title: 'Cancellation & Refund Policy',
+      description: 'Cancellation windows and refund policies',
+      requireForBooking: false,
+      requireSignature: false,
+      content: `CANCELLATION & REFUND POLICY
+
+We understand that plans change. Please review our cancellation policy carefully:
+
+1. STANDARD CANCELLATION WINDOWS
+
+Cancellation more than 72 hours before reservation:
+• Full refund of any deposits paid
+• No cancellation fee
+
+Cancellation 48-72 hours before reservation:
+• 75% refund of deposits
+• 25% cancellation fee applies
+
+Cancellation 24-48 hours before reservation:
+• 50% refund of deposits
+• 50% cancellation fee applies
+
+Cancellation less than 24 hours before reservation:
+• No refund
+• Full payment required
+
+2. NO-SHOW POLICY
+Failure to arrive for your reservation without notice will result in:
+• Full charge for the first night/day of service
+• Cancellation of remaining reservation
+• Possible impact on future booking privileges
+
+3. EARLY PICKUP
+If you pick up your pet earlier than scheduled:
+• No refund for unused days
+• Full payment for booked services is required
+
+4. HOLIDAY & PEAK SEASON POLICY
+During designated holidays and peak seasons:
+• 7-day advance cancellation required for full refund
+• Cancellations within 7 days forfeit full deposit
+• Holidays include: New Year's, Memorial Day, July 4th, Labor Day, Thanksgiving, Christmas
+
+5. WEATHER & EMERGENCIES
+In the event of weather emergencies or facility closures:
+• Affected bookings will receive full credit
+• Credits can be applied to future bookings
+• Credits expire 12 months from issue date
+
+6. HOW TO CANCEL
+• Phone: Call during business hours
+• Email: Send written cancellation request
+• Online: Use your account portal (if available)
+• Cancellation is confirmed only when you receive confirmation from us
+
+7. REFUND PROCESSING
+• Refunds are processed within 5-7 business days
+• Refunds are credited to the original payment method
+• Cash payments may be refunded by check`
+    },
+    vaccination: {
+      type: 'vaccination',
+      title: 'Vaccination Requirements Policy',
+      description: 'Required vaccines and proof requirements',
+      requireForBooking: false,
+      requireSignature: false,
+      content: `VACCINATION REQUIREMENTS POLICY
+
+The health and safety of all pets in our care is our top priority. All pets must meet the following vaccination requirements:
+
+1. REQUIRED VACCINATIONS FOR DOGS
+
+Rabies
+• Current 1-year or 3-year vaccination required
+• Must be administered by a licensed veterinarian
+• Certificate must show expiration date
+
+DHPP/DAPP (Distemper, Hepatitis, Parainfluenza, Parvovirus)
+• Must be current per veterinarian's schedule
+• Initial series plus annual boosters required
+
+Bordetella (Kennel Cough)
+• Must be administered within the past 12 months
+• Intranasal, oral, or injectable accepted
+• We recommend administration at least 5 days before boarding
+
+Canine Influenza (H3N2 and H3N8)
+• Required for all dogs
+• Both strains (bivalent vaccine) recommended
+• Must be current per manufacturer's schedule
+
+2. PROOF REQUIREMENTS
+
+We accept:
+• Veterinary records with clinic letterhead
+• Rabies certificates
+• Electronic records from your vet's portal
+• Printed vaccination history
+
+We do NOT accept:
+• Handwritten notes
+• Expired records
+• Records without veterinary identification
+
+3. TITERS
+• Titer tests may be accepted in lieu of certain vaccinations
+• Must be accompanied by veterinarian letter
+• Subject to management approval
+• Not accepted for Rabies (legally required)
+
+4. EXPIRED VACCINATIONS
+• Pets with expired vaccinations cannot be accepted
+• No exceptions for same-day appointments
+• Allow time for vaccine effectiveness (especially Bordetella)`
+    },
+    health_behavior: {
+      type: 'health_behavior',
+      title: 'Health & Behavior Requirements',
+      description: 'Health requirements and behavior policies',
+      requireForBooking: false,
+      requireSignature: false,
+      content: `HEALTH & BEHAVIOR REQUIREMENTS
+
+To ensure the safety and well-being of all pets and staff, please review the following requirements:
+
+1. HEALTH REQUIREMENTS
+
+Flea & Tick Prevention
+• All pets must be on current flea and tick prevention
+• Pets found with fleas/ticks will be treated at owner's expense
+
+General Health
+• Pets must be in good health upon arrival
+• Pets showing signs of illness will not be accepted
+• This includes: coughing, sneezing, nasal discharge, lethargy, diarrhea, vomiting
+
+Spay/Neuter Policy
+• Dogs over 6 months of age must be spayed or neutered for daycare participation
+• Intact dogs may board but will have limited group interaction
+• Females in heat cannot be accepted
+
+2. BEHAVIOR REQUIREMENTS
+
+Aggression Policy
+• Aggressive behavior toward people or other animals is not tolerated
+• Pets displaying aggression may be required to leave immediately
+• No refunds for early removal due to behavioral issues
+
+Socialization Assessment
+• All new dogs undergo a temperament evaluation
+• Results determine group play eligibility
+• Some dogs may be suitable for individual care only
+
+3. WHEN TO KEEP YOUR PET HOME
+
+Please do not bring your pet if they are experiencing:
+• Vomiting or diarrhea in the last 24 hours
+• Coughing or sneezing
+• Eye or nasal discharge
+• Lethargy or loss of appetite
+• Fleas or ticks
+• Open wounds or skin conditions
+• Contagious conditions
+
+4. DISCLOSURE REQUIREMENTS
+
+You must inform us of:
+• Any history of aggression
+• Resource guarding behaviors
+• Separation anxiety
+• Fear triggers
+• Medical conditions
+• Current medications
+• Recent surgeries or injuries`
+    },
+    pickup_dropoff: {
+      type: 'pickup_dropoff',
+      title: 'Pickup & Dropoff Policy',
+      description: 'Operating hours and late fees',
+      requireForBooking: false,
+      requireSignature: false,
+      content: `PICKUP & DROPOFF POLICY
+
+Please review our hours and procedures for smooth check-in and check-out experiences:
+
+1. OPERATING HOURS
+
+Monday - Friday: [TIME] AM - [TIME] PM
+Saturday: [TIME] AM - [TIME] PM
+Sunday: [TIME] AM - [TIME] PM
+
+Holidays: Limited hours or closed - see holiday schedule
+
+2. CHECK-IN PROCEDURES
+
+• Arrive within 15 minutes of your scheduled time
+• Complete any outstanding paperwork
+• Provide any medications with clear written instructions
+• Label all personal items with your pet's name
+• Discuss any special needs with staff
+
+3. CHECK-OUT PROCEDURES
+
+• Payment is due at time of pickup
+• You will receive a summary of your pet's stay
+• Collect all personal belongings
+• Ask questions about your pet's experience
+
+4. AUTHORIZED PICKUP PERSONS
+
+• Only authorized individuals may pick up your pet
+• Authorization must be provided in writing or added to your account
+• Valid photo ID required for all pickups
+• We will not release pets to unauthorized individuals
+
+5. LATE PICKUP POLICY
+
+Pickup after closing time:
+• $[AMOUNT] late pickup fee per hour
+• After 2 hours past closing: full overnight boarding charge
+• Repeated late pickups may result in loss of booking privileges
+
+6. EARLY DROPOFF POLICY
+
+• Early dropoff on scheduled boarding day is permitted during regular hours
+• No additional charge unless before regular opening hours
+• For daycare, arrive within your scheduled window`
+    },
+    feeding_medication: {
+      type: 'feeding_medication',
+      title: 'Feeding & Medication Policy',
+      description: 'Food and medication policies',
+      requireForBooking: false,
+      requireSignature: false,
+      content: `FEEDING & MEDICATION POLICY
+
+We want your pet to feel at home. Please review our feeding and medication guidelines:
+
+1. FEEDING GUIDELINES
+
+Bring Your Own Food
+• We strongly recommend bringing your pet's regular food
+• Sudden diet changes can cause digestive upset
+• Provide enough food for the entire stay plus 1 extra day
+• Pre-portioned meals are appreciated but not required
+
+Facility Food (if not providing your own)
+• Premium kibble available for $[AMOUNT] per day
+• We stock [BRAND NAME] adult formula
+• Prescription diets must be provided by owner
+• Notify us of any food allergies
+
+2. FEEDING SCHEDULE
+
+Standard Schedule:
+• Breakfast: [TIME] AM
+• Dinner: [TIME] PM
+
+Special Schedules:
+• Custom feeding times can be accommodated
+• Note requirements on your intake form
+• Additional feedings (puppies/seniors): $[AMOUNT] per feeding
+
+3. MEDICATION ADMINISTRATION
+
+Medication Fee Schedule:
+• Oral medications (pills/liquids): $[AMOUNT] per administration
+• Topical medications: $[AMOUNT] per application
+• Injections (insulin, etc.): $[AMOUNT] per injection
+• Eye/ear drops: $[AMOUNT] per treatment
+
+Medication Requirements:
+• All medications must be in original prescription containers
+• Include clear written instructions
+• Provide enough medication for the entire stay plus 2 extra doses
+• Controlled substances may require special arrangements
+
+4. SPECIAL DIETS
+
+We accommodate:
+• Prescription diets (owner-provided)
+• Raw food diets (with proper handling)
+• Homemade diets
+• Multiple small meals
+• Food puzzles and slow feeders`
+    },
+    emergency: {
+      type: 'emergency',
+      title: 'Emergency Policy & Procedures',
+      description: 'Emergency procedures and authorization',
+      requireForBooking: true,
+      requireSignature: true,
+      content: `EMERGENCY POLICY & PROCEDURES
+
+Your pet's safety is our top priority. Please review our emergency procedures:
+
+1. EMERGENCY VETERINARY AUTHORIZATION
+
+By boarding your pet with us, you authorize [FACILITY NAME] to:
+
+• Seek immediate emergency veterinary care for your pet
+• Transport your pet to the nearest emergency veterinary clinic
+• Authorize necessary life-saving treatment
+• Make medical decisions if you cannot be reached
+
+This authorization is granted when the safety or health of your pet is at immediate risk.
+
+2. OWNER NOTIFICATION
+
+In an emergency, we will:
+1. Stabilize the situation and ensure pet safety
+2. Seek veterinary care if immediately needed
+3. Attempt to contact you via all numbers on file
+4. Contact your emergency contact if you're unavailable
+5. Continue with authorized treatment
+
+3. FINANCIAL RESPONSIBILITY
+
+Emergency Veterinary Care:
+• All emergency veterinary expenses are the pet owner's responsibility
+• You agree to pay all costs associated with emergency care
+• A credit card on file may be charged for emergency expenses
+• Treatment will not be withheld due to inability to reach owner
+
+4. TYPES OF EMERGENCIES
+
+Medical Emergencies:
+• Difficulty breathing
+• Collapse or unconsciousness
+• Seizures
+• Severe injury
+• Bloat (gastric dilation)
+• Allergic reactions
+• Persistent vomiting or diarrhea
+
+Facility Emergencies:
+• Fire
+• Natural disaster
+• Power outage
+• Facility evacuation
+
+5. EVACUATION PROCEDURES
+
+In case of evacuation:
+• Pets will be transported to our secondary location
+• You will be notified immediately via phone and email
+• Instructions for pickup will be provided
+• Pets will receive continued care until reunited with owners
+
+6. LIMITATION OF LIABILITY
+
+[FACILITY NAME] is not liable for:
+• Veterinary expenses (owner's responsibility)
+• Pre-existing conditions that worsen
+• Unforeseeable medical events
+• Injury or illness despite proper care
+
+Your pet's safety is paramount. Please ensure all contact information is current and accurate.`
+    }
+  };
+
+  return createResponse(200, { templates });
+}
+
+// =============================================================================
+// REQUIRED VACCINATIONS HANDLERS
+// =============================================================================
+
+async function handleGetRequiredVaccinations(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(
+      `SELECT required_vaccinations FROM "Tenant" WHERE id = $1`,
+      [ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Tenant not found' });
+    }
+
+    const vaccinations = result.rows[0].required_vaccinations || [
+      { id: 'rabies', name: 'Rabies', required: true, expirationWarningDays: 30, blockBookingIfExpired: true },
+      { id: 'dhpp', name: 'DHPP/DAPP', required: true, expirationWarningDays: 30, blockBookingIfExpired: true },
+      { id: 'bordetella', name: 'Bordetella (Kennel Cough)', required: true, expirationWarningDays: 14, blockBookingIfExpired: true },
+      { id: 'canine-influenza', name: 'Canine Influenza', required: false, expirationWarningDays: 30, blockBookingIfExpired: false },
+      { id: 'leptospirosis', name: 'Leptospirosis', required: false, expirationWarningDays: 30, blockBookingIfExpired: false },
+      { id: 'lyme', name: 'Lyme Disease', required: false, expirationWarningDays: 30, blockBookingIfExpired: false },
+    ];
+
+    return createResponse(200, { vaccinations });
+  } catch (error) {
+    console.error('[RequiredVaccinations] Failed to get:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to load vaccination requirements' });
+  }
+}
+
+async function handleUpdateRequiredVaccinations(user, body) {
+  const { vaccinations } = body;
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    await query(
+      `UPDATE "Tenant" SET required_vaccinations = $1, updated_at = NOW() WHERE id = $2`,
+      [JSON.stringify(vaccinations), ctx.tenantId]
+    );
+
+    return createResponse(200, { success: true, vaccinations });
+  } catch (error) {
+    console.error('[RequiredVaccinations] Failed to update:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update vaccination requirements' });
+  }
+}
+
+// =============================================================================
+// PAYMENT SETTINGS HANDLERS
+// =============================================================================
+
+async function handleGetPaymentSettings(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(
+      `SELECT stripe_account_id, stripe_connected, payment_settings FROM "Tenant" WHERE id = $1`,
+      [ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Tenant not found' });
+    }
+
+    const tenant = result.rows[0];
+    const settings = tenant.payment_settings || {};
+
+    return createResponse(200, {
+      stripeConnected: Boolean(tenant.stripe_connected),
+      stripeAccountId: tenant.stripe_account_id || null,
+      requireCardOnFile: settings.requireCardOnFile ?? false,
+      autoChargeOnCheckout: settings.autoChargeOnCheckout ?? false,
+      acceptedPaymentMethods: settings.acceptedPaymentMethods || ['card'],
+      tipEnabled: settings.tipEnabled ?? false,
+      tipPercentages: settings.tipPercentages || [15, 18, 20, 25],
+    });
+  } catch (error) {
+    console.error('[PaymentSettings] Failed to get:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to load payment settings' });
+  }
+}
+
+async function handleUpdatePaymentSettings(user, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Get current settings and merge
+    const result = await query(`SELECT payment_settings FROM "Tenant" WHERE id = $1`, [ctx.tenantId]);
+    const currentSettings = result.rows[0]?.payment_settings || {};
+    const newSettings = { ...currentSettings, ...body };
+
+    await query(
+      `UPDATE "Tenant" SET payment_settings = $1, updated_at = NOW() WHERE id = $2`,
+      [JSON.stringify(newSettings), ctx.tenantId]
+    );
+
+    return createResponse(200, { success: true, ...newSettings });
+  } catch (error) {
+    console.error('[PaymentSettings] Failed to update:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update payment settings' });
+  }
+}
+
+// =============================================================================
+// PRIVACY SETTINGS HANDLERS
+// =============================================================================
+// Data retention policies, staff visibility, communication defaults
+// =============================================================================
+
+// Default privacy settings
+const DEFAULT_PRIVACY_SETTINGS = {
+  retention: {
+    customerRecords: '3yr',
+    petRecords: '3yr',
+    bookingHistory: '5yr',
+    paymentRecords: '7yr',
+    signedWaivers: '7yr',
+    communicationLogs: '1yr',
+    vaccinationRecords: '3yr',
+  },
+  visibility: {
+    showPhoneToAllStaff: true,
+    showEmailToAllStaff: true,
+    showAddressToAllStaff: false,
+    showPaymentDetailsToAllStaff: false,
+  },
+  communication: {
+    marketingEmailsDefault: 'opt-in',
+    bookingRemindersDefault: true,
+    vaccinationRemindersDefault: true,
+    promotionalSmsDefault: 'opt-in',
+  },
+};
+
+async function handleGetPrivacySettings(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(
+      `SELECT privacy_settings FROM "Tenant" WHERE id = $1`,
+      [ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Tenant not found' });
+    }
+
+    // Merge with defaults in case some settings don't exist
+    const storedSettings = result.rows[0].privacy_settings || {};
+    const settings = {
+      retention: { ...DEFAULT_PRIVACY_SETTINGS.retention, ...(storedSettings.retention || {}) },
+      visibility: { ...DEFAULT_PRIVACY_SETTINGS.visibility, ...(storedSettings.visibility || {}) },
+      communication: { ...DEFAULT_PRIVACY_SETTINGS.communication, ...(storedSettings.communication || {}) },
+    };
+
+    return createResponse(200, settings);
+  } catch (error) {
+    console.error('[PrivacySettings] Failed to get:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to load privacy settings' });
+  }
+}
+
+async function handleUpdatePrivacySettings(user, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Get current settings and merge
+    const result = await query(`SELECT privacy_settings FROM "Tenant" WHERE id = $1`, [ctx.tenantId]);
+    const currentSettings = result.rows[0]?.privacy_settings || {};
+
+    // Deep merge the settings
+    const newSettings = {
+      retention: { ...(currentSettings.retention || {}), ...(body.retention || {}) },
+      visibility: { ...(currentSettings.visibility || {}), ...(body.visibility || {}) },
+      communication: { ...(currentSettings.communication || {}), ...(body.communication || {}) },
+    };
+
+    await query(
+      `UPDATE "Tenant" SET privacy_settings = $1, updated_at = NOW() WHERE id = $2`,
+      [JSON.stringify(newSettings), ctx.tenantId]
+    );
+
+    return createResponse(200, { success: true, ...newSettings });
+  } catch (error) {
+    console.error('[PrivacySettings] Failed to update:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update privacy settings' });
   }
 }

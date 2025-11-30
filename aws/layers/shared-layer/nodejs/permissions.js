@@ -37,6 +37,7 @@ const PERMISSIONS = {
   STAFF_EDIT: 'staff:edit',
   STAFF_DELETE: 'staff:delete',
   STAFF_MANAGE_SCHEDULE: 'staff:manage_schedule',
+  MANAGE_STAFF: 'staff:manage', // Alias for backwards compatibility
 
   // Financial permissions
   FINANCIAL_VIEW: 'financial:view',
@@ -131,7 +132,9 @@ const ROLES = {
       PERMISSIONS.STAFF_VIEW,
       PERMISSIONS.STAFF_CREATE,
       PERMISSIONS.STAFF_EDIT,
+      PERMISSIONS.STAFF_DELETE,
       PERMISSIONS.STAFF_MANAGE_SCHEDULE,
+      PERMISSIONS.MANAGE_STAFF,
       PERMISSIONS.FINANCIAL_VIEW,
       PERMISSIONS.FINANCIAL_CREATE_INVOICE,
       PERMISSIONS.FINANCIAL_PROCESS_PAYMENT,
@@ -143,6 +146,7 @@ const ROLES = {
       PERMISSIONS.TIMECLOCK_VIEW,
       PERMISSIONS.TIMECLOCK_CLOCKIN,
       PERMISSIONS.TIMECLOCK_APPROVE,
+      PERMISSIONS.TIMECLOCK_EDIT,
       PERMISSIONS.SCHEDULE_VIEW,
       PERMISSIONS.SCHEDULE_CREATE,
       PERMISSIONS.SCHEDULE_EDIT,
@@ -372,24 +376,41 @@ function requirePermission(requiredPermissions, options = {}) {
  * Check permission inline (for use within handlers)
  * @param {object} user - User object
  * @param {string|string[]} requiredPermissions - Required permission(s)
- * @param {function} createResponse - Response creator function
- * @returns {object|null} - Error response or null if permitted
+ * @param {function} createResponse - Response creator function (optional)
+ * @returns {object} - { allowed: boolean, message?: string } OR Error response if createResponse provided
  */
 function checkPermission(user, requiredPermissions, createResponse) {
-  if (!userHasPermission(user, requiredPermissions)) {
+  const hasPermission = userHasPermission(user, requiredPermissions);
+
+  if (!hasPermission) {
     console.log('[PERMISSIONS] Inline check failed:', {
       userId: user?.id,
       roles: user?.roles || user?.role,
       required: requiredPermissions,
     });
 
-    return createResponse(403, {
-      error: 'Forbidden',
+    // If createResponse function provided, return HTTP error response
+    if (typeof createResponse === 'function') {
+      return createResponse(403, {
+        error: 'Forbidden',
+        message: 'You do not have permission to perform this action',
+      });
+    }
+
+    // Otherwise return structured result for handler to process
+    return {
+      allowed: false,
       message: 'You do not have permission to perform this action',
-    });
+    };
   }
 
-  return null; // Permission granted
+  // If createResponse was provided, return null (backwards compatible)
+  if (typeof createResponse === 'function') {
+    return null;
+  }
+
+  // Otherwise return structured success result
+  return { allowed: true };
 }
 
 // =============================================================================

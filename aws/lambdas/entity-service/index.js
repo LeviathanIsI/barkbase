@@ -116,6 +116,9 @@ const handlers = {
   'POST /api/v1/entity/owners': createOwner,
   'PUT /api/v1/entity/owners/{id}': updateOwner,
   'DELETE /api/v1/entity/owners/{id}': deleteOwner,
+  // Privacy / Data Request endpoints
+  'GET /api/v1/entity/owners/{id}/export': exportOwnerData,
+  'DELETE /api/v1/entity/owners/{id}/data': deleteOwnerData,
 
   // Staff
   'GET /api/v1/entity/staff': getStaff,
@@ -1148,6 +1151,324 @@ async function deleteOwner(event) {
   } catch (error) {
     console.error('[ENTITY-SERVICE] deleteOwner error:', error);
     return createResponse(500, { error: 'InternalServerError', message: 'Failed to delete owner' });
+  }
+}
+
+/**
+ * Export all data for a customer (GDPR/privacy data export)
+ * Returns all owner data, pets, bookings, payments, communications
+ */
+async function exportOwnerData(event) {
+  const tenantId = resolveTenantId(event);
+  const pathParams = getPathParams(event);
+  const ownerId = pathParams.id || event.path?.split('/')[5]; // /api/v1/entity/owners/{id}/export
+
+  console.log('[ENTITY-SERVICE] Exporting owner data:', ownerId, 'for tenant:', tenantId);
+
+  if (!tenantId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  if (!ownerId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Owner ID is required' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Get owner details
+    const ownerResult = await query(
+      `SELECT * FROM "Owner" WHERE id = $1 AND tenant_id = $2`,
+      [ownerId, tenantId]
+    );
+
+    if (ownerResult.rows.length === 0) {
+      return createResponse(404, { error: 'NotFound', message: 'Owner not found' });
+    }
+
+    const owner = ownerResult.rows[0];
+
+    // Get all pets
+    const petsResult = await query(
+      `SELECT * FROM "Pet" WHERE owner_id = $1 AND tenant_id = $2`,
+      [ownerId, tenantId]
+    );
+
+    // Get all bookings
+    const bookingsResult = await query(
+      `SELECT * FROM "Booking" WHERE owner_id = $1 AND tenant_id = $2`,
+      [ownerId, tenantId]
+    );
+
+    // Get all invoices
+    let invoices = [];
+    try {
+      const invoicesResult = await query(
+        `SELECT * FROM "Invoice" WHERE owner_id = $1 AND tenant_id = $2`,
+        [ownerId, tenantId]
+      );
+      invoices = invoicesResult.rows;
+    } catch (e) {
+      console.log('[ENTITY-SERVICE] Invoice table not found or error:', e.message);
+    }
+
+    // Get all payments
+    let payments = [];
+    try {
+      const paymentsResult = await query(
+        `SELECT * FROM "Payment" WHERE owner_id = $1 AND tenant_id = $2`,
+        [ownerId, tenantId]
+      );
+      payments = paymentsResult.rows;
+    } catch (e) {
+      console.log('[ENTITY-SERVICE] Payment table not found or error:', e.message);
+    }
+
+    // Get vaccinations for all pets
+    const petIds = petsResult.rows.map(p => p.id);
+    let vaccinations = [];
+    if (petIds.length > 0) {
+      try {
+        const vaccinationsResult = await query(
+          `SELECT * FROM "Vaccination" WHERE pet_id = ANY($1) AND tenant_id = $2`,
+          [petIds, tenantId]
+        );
+        vaccinations = vaccinationsResult.rows;
+      } catch (e) {
+        console.log('[ENTITY-SERVICE] Vaccination table not found or error:', e.message);
+      }
+    }
+
+    // Get communications
+    let communications = [];
+    try {
+      const communicationsResult = await query(
+        `SELECT * FROM "Communication" WHERE owner_id = $1 AND tenant_id = $2`,
+        [ownerId, tenantId]
+      );
+      communications = communicationsResult.rows;
+    } catch (e) {
+      console.log('[ENTITY-SERVICE] Communication table not found or error:', e.message);
+    }
+
+    // Get policy agreements
+    let policyAgreements = [];
+    try {
+      const agreementsResult = await query(
+        `SELECT pa.*, p.title as policy_title, p.type as policy_type
+         FROM "PolicyAgreement" pa
+         LEFT JOIN "Policy" p ON pa.policy_id = p.id
+         WHERE pa.owner_id = $1 AND pa.tenant_id = $2`,
+        [ownerId, tenantId]
+      );
+      policyAgreements = agreementsResult.rows;
+    } catch (e) {
+      console.log('[ENTITY-SERVICE] PolicyAgreement table not found or error:', e.message);
+    }
+
+    // Build the export object
+    const exportData = {
+      exportDate: new Date().toISOString(),
+      exportVersion: '1.0',
+      owner: {
+        ...owner,
+        // Remove sensitive internal fields
+        tenant_id: undefined,
+        deleted_at: undefined,
+      },
+      pets: petsResult.rows.map(pet => ({
+        ...pet,
+        tenant_id: undefined,
+        deleted_at: undefined,
+      })),
+      bookings: bookingsResult.rows.map(booking => ({
+        ...booking,
+        tenant_id: undefined,
+      })),
+      invoices: invoices.map(inv => ({
+        ...inv,
+        tenant_id: undefined,
+      })),
+      payments: payments.map(payment => ({
+        ...payment,
+        tenant_id: undefined,
+        // Remove sensitive payment details
+        stripe_payment_intent_id: undefined,
+        stripe_customer_id: undefined,
+      })),
+      vaccinations: vaccinations.map(vax => ({
+        ...vax,
+        tenant_id: undefined,
+      })),
+      communications: communications.map(comm => ({
+        ...comm,
+        tenant_id: undefined,
+      })),
+      policyAgreements: policyAgreements.map(pa => ({
+        ...pa,
+        tenant_id: undefined,
+      })),
+    };
+
+    console.log('[ENTITY-SERVICE] Exported data for owner:', ownerId, {
+      pets: exportData.pets.length,
+      bookings: exportData.bookings.length,
+      invoices: exportData.invoices.length,
+      payments: exportData.payments.length,
+    });
+
+    return createResponse(200, exportData);
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] exportOwnerData error:', error);
+    return createResponse(500, { error: 'InternalServerError', message: 'Failed to export owner data' });
+  }
+}
+
+/**
+ * Delete all data for a customer (GDPR/privacy right to be forgotten)
+ * This is a hard delete of all related records
+ */
+async function deleteOwnerData(event) {
+  const tenantId = resolveTenantId(event);
+  const pathParams = getPathParams(event);
+  const ownerId = pathParams.id || event.path?.split('/')[5]; // /api/v1/entity/owners/{id}/data
+
+  console.log('[ENTITY-SERVICE] Deleting all owner data:', ownerId, 'for tenant:', tenantId);
+
+  if (!tenantId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  if (!ownerId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Owner ID is required' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Verify owner exists
+    const ownerResult = await query(
+      `SELECT id, first_name, last_name FROM "Owner" WHERE id = $1 AND tenant_id = $2`,
+      [ownerId, tenantId]
+    );
+
+    if (ownerResult.rows.length === 0) {
+      return createResponse(404, { error: 'NotFound', message: 'Owner not found' });
+    }
+
+    const owner = ownerResult.rows[0];
+
+    // Get all pet IDs for this owner
+    const petsResult = await query(
+      `SELECT id FROM "Pet" WHERE owner_id = $1 AND tenant_id = $2`,
+      [ownerId, tenantId]
+    );
+    const petIds = petsResult.rows.map(p => p.id);
+
+    // Begin transaction-like deletion (in order of dependencies)
+    const deletionSummary = {
+      vaccinations: 0,
+      communications: 0,
+      policyAgreements: 0,
+      payments: 0,
+      invoices: 0,
+      bookings: 0,
+      pets: 0,
+      owner: 0,
+    };
+
+    // Delete vaccinations for all pets
+    if (petIds.length > 0) {
+      try {
+        const result = await query(
+          `DELETE FROM "Vaccination" WHERE pet_id = ANY($1) AND tenant_id = $2`,
+          [petIds, tenantId]
+        );
+        deletionSummary.vaccinations = result.rowCount || 0;
+      } catch (e) {
+        console.log('[ENTITY-SERVICE] Vaccination delete skipped:', e.message);
+      }
+    }
+
+    // Delete communications
+    try {
+      const result = await query(
+        `DELETE FROM "Communication" WHERE owner_id = $1 AND tenant_id = $2`,
+        [ownerId, tenantId]
+      );
+      deletionSummary.communications = result.rowCount || 0;
+    } catch (e) {
+      console.log('[ENTITY-SERVICE] Communication delete skipped:', e.message);
+    }
+
+    // Delete policy agreements
+    try {
+      const result = await query(
+        `DELETE FROM "PolicyAgreement" WHERE owner_id = $1 AND tenant_id = $2`,
+        [ownerId, tenantId]
+      );
+      deletionSummary.policyAgreements = result.rowCount || 0;
+    } catch (e) {
+      console.log('[ENTITY-SERVICE] PolicyAgreement delete skipped:', e.message);
+    }
+
+    // Delete payments
+    try {
+      const result = await query(
+        `DELETE FROM "Payment" WHERE owner_id = $1 AND tenant_id = $2`,
+        [ownerId, tenantId]
+      );
+      deletionSummary.payments = result.rowCount || 0;
+    } catch (e) {
+      console.log('[ENTITY-SERVICE] Payment delete skipped:', e.message);
+    }
+
+    // Delete invoices
+    try {
+      const result = await query(
+        `DELETE FROM "Invoice" WHERE owner_id = $1 AND tenant_id = $2`,
+        [ownerId, tenantId]
+      );
+      deletionSummary.invoices = result.rowCount || 0;
+    } catch (e) {
+      console.log('[ENTITY-SERVICE] Invoice delete skipped:', e.message);
+    }
+
+    // Delete bookings
+    try {
+      const result = await query(
+        `DELETE FROM "Booking" WHERE owner_id = $1 AND tenant_id = $2`,
+        [ownerId, tenantId]
+      );
+      deletionSummary.bookings = result.rowCount || 0;
+    } catch (e) {
+      console.log('[ENTITY-SERVICE] Booking delete skipped:', e.message);
+    }
+
+    // Delete pets
+    const petsDeleteResult = await query(
+      `DELETE FROM "Pet" WHERE owner_id = $1 AND tenant_id = $2`,
+      [ownerId, tenantId]
+    );
+    deletionSummary.pets = petsDeleteResult.rowCount || 0;
+
+    // Finally, delete the owner
+    const ownerDeleteResult = await query(
+      `DELETE FROM "Owner" WHERE id = $1 AND tenant_id = $2`,
+      [ownerId, tenantId]
+    );
+    deletionSummary.owner = ownerDeleteResult.rowCount || 0;
+
+    console.log('[ENTITY-SERVICE] Deleted all data for owner:', ownerId, deletionSummary);
+
+    return createResponse(200, {
+      success: true,
+      message: `All data for ${owner.first_name} ${owner.last_name} has been permanently deleted`,
+      summary: deletionSummary,
+    });
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] deleteOwnerData error:', error);
+    return createResponse(500, { error: 'InternalServerError', message: 'Failed to delete owner data' });
   }
 }
 

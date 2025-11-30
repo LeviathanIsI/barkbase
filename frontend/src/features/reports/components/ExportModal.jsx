@@ -1,154 +1,190 @@
-import { Download } from 'lucide-react';
+import { useState } from 'react';
+import { Download, Loader2, CheckCircle, AlertCircle, FileText, FileSpreadsheet } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
+import { downloadReportExport, EXPORT_TYPES, EXPORT_FORMATS } from '../api';
 
 const ExportModal = ({ report, data, isOpen, onClose }) => {
-  if (!report || !data) return null;
+  const [format, setFormat] = useState('csv');
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportResult, setExportResult] = useState(null);
+  const [error, setError] = useState(null);
+
+  if (!report && !data) return null;
+
+  // Map report types to API export types
+  const reportTypeMapping = {
+    revenue: EXPORT_TYPES.REVENUE,
+    bookings: EXPORT_TYPES.BOOKINGS,
+    customers: EXPORT_TYPES.CUSTOMERS,
+    occupancy: EXPORT_TYPES.OCCUPANCY,
+    pets: EXPORT_TYPES.PETS,
+    vaccinations: EXPORT_TYPES.VACCINATIONS,
+  };
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    setError(null);
+    setExportResult(null);
+
+    try {
+      const reportType = reportTypeMapping[report?.type || report?.id] || report?.type || 'revenue';
+      const params = {
+        format,
+        startDate: data?.startDate || report?.startDate,
+        endDate: data?.endDate || report?.endDate,
+      };
+
+      const result = await downloadReportExport(reportType, params);
+      setExportResult(result);
+      
+      // Close modal after short delay on success
+      setTimeout(() => {
+        onClose();
+        setExportResult(null);
+      }, 1500);
+    } catch (err) {
+      console.error('[ExportModal] Export failed:', err);
+      setError(err.message || 'Failed to export report. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleClose = () => {
+    if (!isExporting) {
+      setExportResult(null);
+      setError(null);
+      onClose();
+    }
+  };
 
   const footer = (
     <>
-      <Button variant="outline" onClick={onClose}>
+      <Button variant="outline" onClick={handleClose} disabled={isExporting}>
         Cancel
       </Button>
-      <Button>
-        <Download className="w-4 h-4 mr-2" />
-        Export Report
+      <Button onClick={handleExport} disabled={isExporting}>
+        {isExporting ? (
+          <>
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            Exporting...
+          </>
+        ) : exportResult ? (
+          <>
+            <CheckCircle className="w-4 h-4 mr-2" />
+            Downloaded!
+          </>
+        ) : (
+          <>
+            <Download className="w-4 h-4 mr-2" />
+            Export Report
+          </>
+        )}
       </Button>
     </>
   );
 
+  const reportTitle = data?.title || report?.name || report?.title || 'Report';
+  const reportPeriod = data?.period || 
+    (report?.startDate && report?.endDate ? `${report.startDate} - ${report.endDate}` : 'All Time');
+
   return (
     <Modal
       open={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title="Export Report"
-      description={`${data.title} - ${data.period}`}
+      description={`${reportTitle} - ${reportPeriod}`}
       size="lg"
       footer={footer}
     >
       <div className="space-y-6">
-          {/* Format Selection */}
-          <div>
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-text-primary mb-3">FORMAT</h4>
-            <div className="space-y-2">
-              <label className="flex items-center gap-3">
-                <input type="radio" name="format" defaultChecked className="text-blue-600 dark:text-blue-400" />
-                <span className="text-sm">PDF (for printing/sharing)</span>
-              </label>
-              <label className="flex items-center gap-3">
-                <input type="radio" name="format" className="text-blue-600 dark:text-blue-400" />
-                <span className="text-sm">Excel (.xlsx) - Editable spreadsheet</span>
-              </label>
-              <label className="flex items-center gap-3">
-                <input type="radio" name="format" className="text-blue-600 dark:text-blue-400" />
-                <span className="text-sm">CSV (.csv) - Import into other systems</span>
-              </label>
-              <label className="flex items-center gap-3">
-                <input type="radio" name="format" className="text-blue-600 dark:text-blue-400" />
-                <span className="text-sm">Google Sheets - Direct export to Google Drive</span>
-              </label>
+        {/* Success Message */}
+        {exportResult && (
+          <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+            <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-green-800 dark:text-green-300">Export successful!</p>
+              <p className="text-sm text-green-600 dark:text-green-400">{exportResult.filename}</p>
             </div>
           </div>
+        )}
 
-          {/* Include Options */}
-          <div>
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-text-primary mb-3">INCLUDE</h4>
-            <div className="grid gap-2 md:grid-cols-2">
-              <label className="flex items-center gap-3">
-                <input type="checkbox" defaultChecked className="text-blue-600 dark:text-blue-400" />
-                <span className="text-sm">Summary page</span>
-              </label>
-              <label className="flex items-center gap-3">
-                <input type="checkbox" defaultChecked className="text-blue-600 dark:text-blue-400" />
-                <span className="text-sm">Charts and graphs</span>
-              </label>
-              <label className="flex items-center gap-3">
-                <input type="checkbox" defaultChecked className="text-blue-600 dark:text-blue-400" />
-                <span className="text-sm">Detailed transaction list</span>
-              </label>
-              <label className="flex items-center gap-3">
-                <input type="checkbox" defaultChecked className="text-blue-600 dark:text-blue-400" />
-                <span className="text-sm">Customer breakdown</span>
-              </label>
-              <label className="flex items-center gap-3">
-                <input type="checkbox" className="text-blue-600 dark:text-blue-400" />
-                <span className="text-sm">Raw data (all fields)</span>
-              </label>
+        {/* Error Message */}
+        {error && (
+          <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-red-800 dark:text-red-300">Export failed</p>
+              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
             </div>
           </div>
+        )}
 
-          {/* Delivery Method */}
-          <div>
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-text-primary mb-3">DELIVERY METHOD</h4>
-            <div className="space-y-3">
-              <label className="flex items-center gap-3">
-                <input type="radio" name="delivery" defaultChecked className="text-blue-600 dark:text-blue-400" />
-                <span className="text-sm">Download now</span>
-              </label>
-
-              <div className="ml-6 space-y-2">
-                <label className="flex items-center gap-3">
-                  <input type="radio" name="delivery" className="text-blue-600 dark:text-blue-400" />
-                  <span className="text-sm">Email to:</span>
-                </label>
-                <input
-                  type="email"
-                  placeholder="owner@happypaws.com"
-                  className="ml-6 w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm"
-                />
-                <Button variant="link" size="sm" className="ml-6">
-                  + Add recipient
-                </Button>
+        {/* Format Selection */}
+        <div>
+          <h4 className="text-sm font-semibold text-gray-900 dark:text-text-primary mb-3">FORMAT</h4>
+          <div className="space-y-2">
+            <label className="flex items-center gap-3 p-3 border border-gray-200 dark:border-surface-border rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-surface-secondary transition-colors">
+              <input 
+                type="radio" 
+                name="format" 
+                value="csv"
+                checked={format === 'csv'}
+                onChange={(e) => setFormat(e.target.value)}
+                className="text-blue-600 dark:text-blue-400" 
+              />
+              <FileSpreadsheet className="w-5 h-5 text-green-600" />
+              <div className="flex-1">
+                <span className="text-sm font-medium">CSV (.csv)</span>
+                <p className="text-xs text-gray-500 dark:text-text-secondary">Import into Excel, Google Sheets, or other systems</p>
               </div>
-
-              <label className="flex items-center gap-3">
-                <input type="radio" name="delivery" className="text-blue-600 dark:text-blue-400" />
-                <span className="text-sm">Save to Google Drive</span>
-              </label>
-              <div className="ml-6">
-                <span className="text-sm text-gray-600 dark:text-text-secondary">Folder: /Reports/Revenue/</span>
-                <Button variant="link" size="sm" className="ml-2">
-                  Select Folder
-                </Button>
+            </label>
+            <label className="flex items-center gap-3 p-3 border border-gray-200 dark:border-surface-border rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-surface-secondary transition-colors">
+              <input 
+                type="radio" 
+                name="format" 
+                value="json"
+                checked={format === 'json'}
+                onChange={(e) => setFormat(e.target.value)}
+                className="text-blue-600 dark:text-blue-400" 
+              />
+              <FileText className="w-5 h-5 text-blue-600" />
+              <div className="flex-1">
+                <span className="text-sm font-medium">JSON (.json)</span>
+                <p className="text-xs text-gray-500 dark:text-text-secondary">Includes summary statistics, ideal for developers</p>
               </div>
-            </div>
-          </div>
-
-          {/* Advanced Options */}
-          <div>
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-text-primary mb-3">ADVANCED OPTIONS</h4>
-            <div className="space-y-3">
-              <label className="flex items-center gap-3">
-                <input type="checkbox" className="text-blue-600 dark:text-blue-400" />
-                <span className="text-sm">Password protect PDF</span>
-              </label>
-              <div className="ml-6">
-                <input
-                  type="password"
-                  placeholder="Enter password"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm"
-                  disabled
-                />
-              </div>
-
-              <label className="flex items-center gap-3">
-                <input type="checkbox" className="text-blue-600 dark:text-blue-400" />
-                <span className="text-sm">Include comparison to previous period</span>
-              </label>
-
-              <label className="flex items-center gap-3">
-                <input type="checkbox" className="text-blue-600 dark:text-blue-400" />
-                <span className="text-sm">Add facility branding (logo, colors)</span>
-              </label>
-
-              <label className="flex items-center gap-3">
-                <input type="checkbox" className="text-blue-600 dark:text-blue-400" />
-                <span className="text-sm">Anonymize customer names (for sharing)</span>
-              </label>
-            </div>
+            </label>
           </div>
         </div>
 
+        {/* Available Report Types */}
+        <div>
+          <h4 className="text-sm font-semibold text-gray-900 dark:text-text-primary mb-3">AVAILABLE EXPORT TYPES</h4>
+          <div className="grid gap-2 md:grid-cols-2">
+            {Object.entries({
+              revenue: 'Revenue by date with totals',
+              bookings: 'All bookings with customer details',
+              customers: 'Customer list with lifetime value',
+              occupancy: 'Daily occupancy rates',
+              pets: 'Pet database with owner info',
+              vaccinations: 'Vaccination records & expiration status',
+            }).map(([type, description]) => (
+              <div key={type} className="p-2 text-sm border border-gray-100 dark:border-surface-border rounded">
+                <span className="font-medium capitalize">{type}</span>
+                <p className="text-xs text-gray-500 dark:text-text-secondary">{description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Export Info */}
+        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <p className="text-sm text-blue-800 dark:text-blue-300">
+            <strong>Note:</strong> Exports include all data for the selected date range and report type. 
+            Large exports may take a few moments to generate.
+          </p>
+        </div>
       </div>
     </Modal>
   );

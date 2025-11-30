@@ -47,8 +47,9 @@ const Payments = lazy(() => import("@/features/payments/routes/Payments"));
 const Vaccinations = lazy(() => import("@/features/vaccinations/routes/Vaccinations"));
 const Reports = lazy(() => import("@/features/reports/routes/Reports"));
 const Admin = lazy(() => import("@/features/admin/routes/Admin"));
-const TenantSettings = lazy(() =>
-  import("@/features/tenants/routes/TenantSettings")
+// TenantSettings removed - consolidated into Settings
+const SettingsFeatureToggles = lazy(() =>
+  import("@/features/settings/routes/FeatureToggles")
 );
 const Staff = lazy(() => import("@/features/staff/routes/Staff"));
 const Incidents = lazy(() => import("@/features/incidents/routes/Incidents"));
@@ -63,9 +64,7 @@ const SettingsAccountDefaults = lazy(() =>
 const SettingsProfile = lazy(() =>
   import("@/features/settings/routes/Profile")
 );
-const SettingsGeneral = lazy(() =>
-  import("@/features/settings/routes/General")
-);
+// SettingsGeneral removed - consolidated into Business settings
 const SettingsNotifications = lazy(() =>
   import("@/features/settings/routes/Notifications")
 );
@@ -231,6 +230,7 @@ const RoleEditor = lazy(() => import("@/features/roles/routes/RoleEditor"));
 
 // Mobile Views
 const MobileCheckIn = lazy(() => import("@/features/mobile/MobileCheckIn"));
+const CustomerPortal = lazy(() => import("@/features/customer-portal/routes/CustomerPortal"));
 
 export const router = createBrowserRouter([
   {
@@ -274,6 +274,8 @@ export const router = createBrowserRouter([
               { path: "operations", element: <Operations /> },
               { path: "mobile/tasks", element: <MobileTasks /> },
               { path: "mobile/check-in", element: <MobileCheckIn /> },
+              // Customer Portal
+              { path: "customer-portal", element: <CustomerPortal /> },
               // Records
               { path: "facilities", element: <Facilities /> },
               { path: "services", element: <Services /> },
@@ -285,7 +287,8 @@ export const router = createBrowserRouter([
               // Admin/Staff
               { path: "staff", element: <Staff /> },
               { path: "incidents", element: <Incidents /> },
-              { path: "tenants", element: <TenantSettings /> },
+              // Tenants consolidated into Settings - redirect for backwards compatibility
+              { path: "tenants", element: <Navigate to="/settings" replace /> },
 
               // Legacy redirects for old /properties and /objects/* URLs
               { path: "properties", element: <Navigate to="/settings/properties" replace /> },
@@ -322,6 +325,7 @@ export const router = createBrowserRouter([
                   { path: "team/roles", element: <Roles /> },
                   { path: "team/roles/new", element: <RoleEditor /> },
                   { path: "team/roles/:roleId", element: <RoleEditor /> },
+                  { path: "feature-toggles", element: <SettingsFeatureToggles /> },
                   {
                     path: "account-security",
                     element: <SettingsAccountSecurity />,

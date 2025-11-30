@@ -128,9 +128,9 @@ exports.handler = async (event, context) => {
     }
 
     // ==========================================================================
-    // Recurring Booking routes - /api/v1/recurring-bookings/*
+    // Recurring Booking routes - /api/v1/recurring/* AND /api/v1/recurring-bookings/*
     // ==========================================================================
-    if (path === '/api/v1/recurring-bookings' || path === '/recurring-bookings') {
+    if (path === '/api/v1/recurring' || path === '/api/v1/recurring-bookings' || path === '/recurring-bookings' || path === '/recurring') {
       if (method === 'GET') {
         return handleGetRecurringBookings(tenantId, event.queryStringParameters || {});
       }
@@ -139,8 +139,8 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // Recurring booking by ID
-    const recurringMatch = path.match(/\/api\/v1\/recurring-bookings\/([a-f0-9-]+)(\/.*)?$/i);
+    // Recurring booking by ID - supports both /api/v1/recurring/:id and /api/v1/recurring-bookings/:id
+    const recurringMatch = path.match(/\/api\/v1\/recurring(?:-bookings)?\/([a-f0-9-]+)(\/.*)?$/i);
     if (recurringMatch) {
       const recurringId = recurringMatch[1];
       const subPath = recurringMatch[2] || '';
@@ -245,14 +245,42 @@ exports.handler = async (event, context) => {
     }
 
     // ==========================================================================
-    // Time Clock routes - /api/v1/staff/timeclock/*
+    // STAFF MANAGEMENT routes - /api/v1/staff/*
     // ==========================================================================
-    if (path === '/api/v1/staff/clock-in' || path === '/staff/clock-in') {
+    if (path === '/api/v1/staff' || path === '/staff') {
+      if (method === 'GET') {
+        return handleGetStaffMembers(tenantId, event.queryStringParameters || {});
+      }
+      if (method === 'POST') {
+        return handleCreateStaffMember(tenantId, user, parseBody(event));
+      }
+    }
+
+    // Staff by ID routes
+    const staffMatch = path.match(/^\/api\/v1\/staff\/([a-f0-9-]+)$/i);
+    if (staffMatch) {
+      const staffId = staffMatch[1];
+      if (method === 'GET') {
+        return handleGetStaffMember(tenantId, staffId);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateStaffMember(tenantId, user, staffId, parseBody(event));
+      }
+      if (method === 'DELETE') {
+        return handleDeleteStaffMember(tenantId, user, staffId);
+      }
+    }
+
+    // ==========================================================================
+    // Time Clock routes - /api/v1/time-entries/* AND /api/v1/staff/timeclock/*
+    // ==========================================================================
+    // Clock in/out via /api/v1/time-entries/clock-in (CDK route) or /api/v1/staff/clock-in (legacy)
+    if (path === '/api/v1/time-entries/clock-in' || path === '/api/v1/staff/clock-in' || path === '/staff/clock-in') {
       if (method === 'POST') {
         return handleClockIn(tenantId, user, parseBody(event));
       }
     }
-    if (path === '/api/v1/staff/clock-out' || path === '/staff/clock-out') {
+    if (path === '/api/v1/time-entries/clock-out' || path === '/api/v1/staff/clock-out' || path === '/staff/clock-out') {
       if (method === 'POST') {
         return handleClockOut(tenantId, user, parseBody(event));
       }
@@ -267,18 +295,20 @@ exports.handler = async (event, context) => {
         return handleEndBreak(tenantId, user, parseBody(event));
       }
     }
-    if (path === '/api/v1/staff/time-entries' || path === '/staff/time-entries') {
+    // Time entries list - supports both /api/v1/time-entries and /api/v1/staff/time-entries
+    if (path === '/api/v1/time-entries' || path === '/api/v1/staff/time-entries' || path === '/staff/time-entries') {
       if (method === 'GET') {
         return handleGetTimeEntries(tenantId, event.queryStringParameters || {});
       }
     }
-    if (path === '/api/v1/staff/time-status' || path === '/staff/time-status') {
+    // Get current active clock-in
+    if (path === '/api/v1/time-entries/current' || path === '/api/v1/staff/time-status' || path === '/staff/time-status') {
       if (method === 'GET') {
         return handleGetTimeStatus(tenantId, user, event.queryStringParameters || {});
       }
     }
-    // Time entry by ID routes
-    const timeEntryMatch = path.match(/\/api\/v1\/staff\/time-entries\/([a-f0-9-]+)(\/.*)?$/i);
+    // Time entry by ID routes - supports both /api/v1/time-entries/:id and /api/v1/staff/time-entries/:id
+    const timeEntryMatch = path.match(/\/api\/v1\/(?:staff\/)?time-entries\/([a-f0-9-]+)(\/.*)?$/i);
     if (timeEntryMatch) {
       const entryId = timeEntryMatch[1];
       const subPath = timeEntryMatch[2] || '';
@@ -440,6 +470,45 @@ exports.handler = async (event, context) => {
     }
 
     // ==========================================================================
+    // SMS Notification routes - /api/v1/notifications/sms/*
+    // ==========================================================================
+    if (path === '/api/v1/notifications/sms' || path === '/notifications/sms') {
+      if (method === 'POST') {
+        return handleSendSMS(tenantId, user, parseBody(event));
+      }
+    }
+
+    if (path === '/api/v1/notifications/sms/booking-confirmation' || path === '/notifications/sms/booking-confirmation') {
+      if (method === 'POST') {
+        return handleSendBookingConfirmationSMS(tenantId, user, parseBody(event));
+      }
+    }
+
+    if (path === '/api/v1/notifications/sms/booking-reminder' || path === '/notifications/sms/booking-reminder') {
+      if (method === 'POST') {
+        return handleSendBookingReminderSMS(tenantId, user, parseBody(event));
+      }
+    }
+
+    if (path === '/api/v1/notifications/sms/check-in' || path === '/notifications/sms/check-in') {
+      if (method === 'POST') {
+        return handleSendCheckInSMS(tenantId, user, parseBody(event));
+      }
+    }
+
+    if (path === '/api/v1/notifications/sms/check-out' || path === '/notifications/sms/check-out') {
+      if (method === 'POST') {
+        return handleSendCheckOutSMS(tenantId, user, parseBody(event));
+      }
+    }
+
+    if (path === '/api/v1/notifications/sms/config' || path === '/notifications/sms/config') {
+      if (method === 'GET') {
+        return handleGetSMSConfig(tenantId);
+      }
+    }
+
+    // ==========================================================================
     // Calendar routes - /api/v1/calendar/*
     // ==========================================================================
     if (path === '/api/v1/calendar/events' || path === '/calendar/events') {
@@ -521,6 +590,63 @@ exports.handler = async (event, context) => {
         if (method === 'DELETE') {
           return handleDeleteRun(tenantId, runId);
         }
+      }
+    }
+
+    // ==========================================================================
+    // CUSTOMER SELF-SERVICE BOOKING ROUTES
+    // ==========================================================================
+
+    // Customer booking portal - check availability
+    if (path === '/api/v1/customer/availability' || path === '/customer/availability') {
+      if (method === 'GET') {
+        return handleCustomerCheckAvailability(tenantId, event.queryStringParameters || {});
+      }
+    }
+
+    // Customer booking portal - get services and pricing
+    if (path === '/api/v1/customer/services' || path === '/customer/services') {
+      if (method === 'GET') {
+        return handleCustomerGetServices(tenantId);
+      }
+    }
+
+    // Customer booking portal - get customer's own pets
+    if (path === '/api/v1/customer/pets' || path === '/customer/pets') {
+      if (method === 'GET') {
+        return handleCustomerGetPets(tenantId, user);
+      }
+    }
+
+    // Customer booking portal - get customer's own bookings
+    if (path === '/api/v1/customer/bookings' || path === '/customer/bookings') {
+      if (method === 'GET') {
+        return handleCustomerGetBookings(tenantId, user, event.queryStringParameters || {});
+      }
+      if (method === 'POST') {
+        return handleCustomerCreateBooking(tenantId, user, parseBody(event));
+      }
+    }
+
+    // Customer booking by ID
+    const customerBookingMatch = path.match(/\/api\/v1\/customer\/bookings\/([a-f0-9-]+)$/i);
+    if (customerBookingMatch) {
+      const bookingId = customerBookingMatch[1];
+      if (method === 'GET') {
+        return handleCustomerGetBooking(tenantId, user, bookingId);
+      }
+      if (method === 'DELETE') {
+        return handleCustomerCancelBooking(tenantId, user, bookingId);
+      }
+    }
+
+    // Customer profile (for self-service portal)
+    if (path === '/api/v1/customer/profile' || path === '/customer/profile') {
+      if (method === 'GET') {
+        return handleCustomerGetProfile(tenantId, user);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleCustomerUpdateProfile(tenantId, user, parseBody(event));
       }
     }
 
@@ -4467,6 +4593,449 @@ async function handleSendCheckOutConfirmation(tenantId, user, body) {
 }
 
 // =============================================================================
+// SMS NOTIFICATION HANDLERS (Twilio)
+// =============================================================================
+
+// Import SMS utils from shared layer
+let smsUtils;
+try {
+  smsUtils = require('/opt/nodejs/sms-utils');
+} catch (e) {
+  // Local development fallback
+  try {
+    smsUtils = require('../../layers/shared-layer/nodejs/sms-utils');
+  } catch (e2) {
+    console.warn('[SMS] SMS utils not available');
+    smsUtils = null;
+  }
+}
+
+/**
+ * Send a generic SMS
+ */
+async function handleSendSMS(tenantId, user, body) {
+  const { to, message } = body;
+
+  console.log('[SMS] handleSendSMS:', { tenantId, to: to?.substring(0, 6) + '...' });
+
+  if (!to || !message) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Phone number and message are required',
+    });
+  }
+
+  if (!smsUtils || !smsUtils.isSMSConfigured()) {
+    return createResponse(503, {
+      error: 'Service Unavailable',
+      message: 'SMS service is not configured',
+    });
+  }
+
+  try {
+    const result = await smsUtils.sendSMS(to, message);
+
+    // Log to Communication table
+    await logSMSToCommunication(tenantId, {
+      recipientPhone: to,
+      content: message,
+      status: 'sent',
+      messageSid: result.sid,
+      userId: user?.id,
+    });
+
+    return createResponse(200, {
+      success: true,
+      messageSid: result.sid,
+      message: 'SMS sent successfully',
+    });
+
+  } catch (error) {
+    console.error('[SMS] Failed to send:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to send SMS',
+    });
+  }
+}
+
+/**
+ * Send booking confirmation SMS
+ */
+async function handleSendBookingConfirmationSMS(tenantId, user, body) {
+  const { bookingId, phoneNumber } = body;
+
+  console.log('[SMS] handleSendBookingConfirmationSMS:', { tenantId, bookingId });
+
+  if (!bookingId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'bookingId is required',
+    });
+  }
+
+  if (!smsUtils || !smsUtils.isSMSConfigured()) {
+    return createResponse(503, {
+      error: 'Service Unavailable',
+      message: 'SMS service is not configured',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Get booking with owner info
+    const bookingResult = await query(
+      `SELECT b.*, o.phone as owner_phone, o.first_name as owner_first_name
+       FROM "Booking" b
+       LEFT JOIN "Owner" o ON b.owner_id = o.id
+       WHERE b.id = $1 AND b.tenant_id = $2`,
+      [bookingId, tenantId]
+    );
+
+    if (bookingResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Booking not found',
+      });
+    }
+
+    const booking = bookingResult.rows[0];
+    const phone = phoneNumber || booking.owner_phone;
+
+    if (!phone) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'No phone number available for owner',
+      });
+    }
+
+    // Get pet names
+    const petsResult = await query(
+      `SELECT p.name FROM "Pet" p WHERE p.id = ANY($1::uuid[])`,
+      [booking.pet_ids || []]
+    );
+    const petNames = petsResult.rows.map(r => r.name).join(', ') || 'your pet';
+
+    const result = await smsUtils.sendBookingConfirmationSMS(phone, {
+      petNames,
+      startDate: new Date(booking.start_date).toLocaleDateString(),
+    });
+
+    await logSMSToCommunication(tenantId, {
+      recipientPhone: phone,
+      content: 'Booking confirmation SMS',
+      status: 'sent',
+      messageSid: result.sid,
+      templateUsed: 'bookingConfirmation',
+      userId: user?.id,
+    });
+
+    return createResponse(200, {
+      success: true,
+      messageSid: result.sid,
+      message: 'Booking confirmation SMS sent',
+    });
+
+  } catch (error) {
+    console.error('[SMS] Failed to send booking confirmation:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to send booking confirmation SMS',
+    });
+  }
+}
+
+/**
+ * Send booking reminder SMS
+ */
+async function handleSendBookingReminderSMS(tenantId, user, body) {
+  const { bookingId, phoneNumber } = body;
+
+  console.log('[SMS] handleSendBookingReminderSMS:', { tenantId, bookingId });
+
+  if (!bookingId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'bookingId is required',
+    });
+  }
+
+  if (!smsUtils || !smsUtils.isSMSConfigured()) {
+    return createResponse(503, {
+      error: 'Service Unavailable',
+      message: 'SMS service is not configured',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const bookingResult = await query(
+      `SELECT b.*, o.phone as owner_phone
+       FROM "Booking" b
+       LEFT JOIN "Owner" o ON b.owner_id = o.id
+       WHERE b.id = $1 AND b.tenant_id = $2`,
+      [bookingId, tenantId]
+    );
+
+    if (bookingResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Booking not found',
+      });
+    }
+
+    const booking = bookingResult.rows[0];
+    const phone = phoneNumber || booking.owner_phone;
+
+    if (!phone) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'No phone number available for owner',
+      });
+    }
+
+    // Get pet names
+    const petsResult = await query(
+      `SELECT p.name FROM "Pet" p WHERE p.id = ANY($1::uuid[])`,
+      [booking.pet_ids || []]
+    );
+    const petNames = petsResult.rows.map(r => r.name).join(', ') || 'Your pet';
+
+    const result = await smsUtils.sendBookingReminderSMS(phone, {
+      petNames,
+      startDate: new Date(booking.start_date).toLocaleDateString(),
+      checkInTime: '9:00 AM',
+    });
+
+    await logSMSToCommunication(tenantId, {
+      recipientPhone: phone,
+      content: 'Booking reminder SMS',
+      status: 'sent',
+      messageSid: result.sid,
+      templateUsed: 'bookingReminder',
+      userId: user?.id,
+    });
+
+    return createResponse(200, {
+      success: true,
+      messageSid: result.sid,
+      message: 'Booking reminder SMS sent',
+    });
+
+  } catch (error) {
+    console.error('[SMS] Failed to send booking reminder:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to send booking reminder SMS',
+    });
+  }
+}
+
+/**
+ * Send check-in confirmation SMS
+ */
+async function handleSendCheckInSMS(tenantId, user, body) {
+  const { bookingId, phoneNumber } = body;
+
+  console.log('[SMS] handleSendCheckInSMS:', { tenantId, bookingId });
+
+  if (!bookingId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'bookingId is required',
+    });
+  }
+
+  if (!smsUtils || !smsUtils.isSMSConfigured()) {
+    return createResponse(503, {
+      error: 'Service Unavailable',
+      message: 'SMS service is not configured',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const bookingResult = await query(
+      `SELECT b.*, o.phone as owner_phone
+       FROM "Booking" b
+       LEFT JOIN "Owner" o ON b.owner_id = o.id
+       WHERE b.id = $1 AND b.tenant_id = $2`,
+      [bookingId, tenantId]
+    );
+
+    if (bookingResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Booking not found',
+      });
+    }
+
+    const booking = bookingResult.rows[0];
+    const phone = phoneNumber || booking.owner_phone;
+
+    if (!phone) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'No phone number available for owner',
+      });
+    }
+
+    // Get pet names
+    const petsResult = await query(
+      `SELECT p.name FROM "Pet" p WHERE p.id = ANY($1::uuid[])`,
+      [booking.pet_ids || []]
+    );
+    const petNames = petsResult.rows.map(r => r.name).join(', ') || 'Your pet';
+
+    const result = await smsUtils.sendCheckInConfirmationSMS(phone, {
+      petNames,
+      endDate: new Date(booking.end_date).toLocaleDateString(),
+    });
+
+    await logSMSToCommunication(tenantId, {
+      recipientPhone: phone,
+      content: 'Check-in confirmation SMS',
+      status: 'sent',
+      messageSid: result.sid,
+      templateUsed: 'checkInConfirmation',
+      userId: user?.id,
+    });
+
+    return createResponse(200, {
+      success: true,
+      messageSid: result.sid,
+      message: 'Check-in confirmation SMS sent',
+    });
+
+  } catch (error) {
+    console.error('[SMS] Failed to send check-in confirmation:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to send check-in confirmation SMS',
+    });
+  }
+}
+
+/**
+ * Send check-out confirmation SMS
+ */
+async function handleSendCheckOutSMS(tenantId, user, body) {
+  const { bookingId, phoneNumber } = body;
+
+  console.log('[SMS] handleSendCheckOutSMS:', { tenantId, bookingId });
+
+  if (!bookingId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'bookingId is required',
+    });
+  }
+
+  if (!smsUtils || !smsUtils.isSMSConfigured()) {
+    return createResponse(503, {
+      error: 'Service Unavailable',
+      message: 'SMS service is not configured',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const bookingResult = await query(
+      `SELECT b.*, o.phone as owner_phone
+       FROM "Booking" b
+       LEFT JOIN "Owner" o ON b.owner_id = o.id
+       WHERE b.id = $1 AND b.tenant_id = $2`,
+      [bookingId, tenantId]
+    );
+
+    if (bookingResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Booking not found',
+      });
+    }
+
+    const booking = bookingResult.rows[0];
+    const phone = phoneNumber || booking.owner_phone;
+
+    if (!phone) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'No phone number available for owner',
+      });
+    }
+
+    // Get pet names
+    const petsResult = await query(
+      `SELECT p.name FROM "Pet" p WHERE p.id = ANY($1::uuid[])`,
+      [booking.pet_ids || []]
+    );
+    const petNames = petsResult.rows.map(r => r.name).join(', ') || 'Your pet';
+
+    const result = await smsUtils.sendCheckOutConfirmationSMS(phone, {
+      petNames,
+    });
+
+    await logSMSToCommunication(tenantId, {
+      recipientPhone: phone,
+      content: 'Check-out confirmation SMS',
+      status: 'sent',
+      messageSid: result.sid,
+      templateUsed: 'checkOutConfirmation',
+      userId: user?.id,
+    });
+
+    return createResponse(200, {
+      success: true,
+      messageSid: result.sid,
+      message: 'Check-out confirmation SMS sent',
+    });
+
+  } catch (error) {
+    console.error('[SMS] Failed to send check-out confirmation:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to send check-out confirmation SMS',
+    });
+  }
+}
+
+/**
+ * Get SMS configuration status
+ */
+async function handleGetSMSConfig(tenantId) {
+  const isConfigured = smsUtils && smsUtils.isSMSConfigured();
+
+  return createResponse(200, {
+    configured: isConfigured,
+    provider: isConfigured ? 'twilio' : null,
+    message: isConfigured ? 'SMS service is configured' : 'SMS service is not configured',
+  });
+}
+
+/**
+ * Log SMS to Communication table
+ */
+async function logSMSToCommunication(tenantId, { recipientPhone, content, status, messageSid, templateUsed, userId }) {
+  try {
+    await query(
+      `INSERT INTO "Communication" (
+         tenant_id, type, recipient_phone, content, status,
+         external_id, template_used, sent_by, created_at
+       ) VALUES ($1, 'sms', $2, $3, $4, $5, $6, $7, NOW())`,
+      [tenantId, recipientPhone, content, status, messageSid || null, templateUsed || null, userId || null]
+    );
+  } catch (error) {
+    // Log error but don't fail the operation
+    console.warn('[SMS] Failed to log communication:', error.message);
+  }
+}
+
+// =============================================================================
 // INCIDENT HANDLERS
 // =============================================================================
 
@@ -7004,4 +7573,1228 @@ function getNextOccurrenceDate(fromDate, frequency, daysOfWeek, dayOfMonth) {
   }
 
   return date;
+}
+
+// =============================================================================
+// CUSTOMER SELF-SERVICE BOOKING HANDLERS
+// =============================================================================
+
+/**
+ * Customer: Check availability for a date range
+ * Public-facing availability checker
+ */
+async function handleCustomerCheckAvailability(tenantId, queryParams) {
+  const { startDate, endDate, serviceId, petCount = 1 } = queryParams;
+
+  if (!startDate || !endDate) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Start date and end date are required',
+    });
+  }
+
+  console.log('[Customer][availability] Check:', { tenantId, startDate, endDate, serviceId, petCount });
+
+  try {
+    await getPoolAsync();
+
+    // Get total kennel capacity
+    const capacityResult = await query(
+      `SELECT 
+         COALESCE(SUM(capacity), 0) as total_capacity,
+         COUNT(*) as kennel_count
+       FROM "Kennel" 
+       WHERE tenant_id = $1 AND is_active = true AND deleted_at IS NULL`,
+      [tenantId]
+    );
+
+    const totalCapacity = parseInt(capacityResult.rows[0]?.total_capacity || 0);
+    const kennelCount = parseInt(capacityResult.rows[0]?.kennel_count || 0);
+
+    // Get current bookings in the date range
+    const occupancyResult = await query(
+      `SELECT 
+         COUNT(DISTINCT b.id) as active_bookings,
+         COALESCE(SUM(array_length(b.pet_ids, 1)), 0) as pets_booked
+       FROM "Booking" b
+       WHERE b.tenant_id = $1
+       AND b.status IN ('CONFIRMED', 'CHECKED_IN')
+       AND b.start_date <= $3
+       AND b.end_date >= $2
+       AND b.deleted_at IS NULL`,
+      [tenantId, startDate, endDate]
+    );
+
+    const petsBooked = parseInt(occupancyResult.rows[0]?.pets_booked || 0);
+    const availableSlots = totalCapacity - petsBooked;
+
+    // Get available kennels
+    const availableKennelsResult = await query(
+      `SELECT k.id, k.name, k.capacity, k.kennel_type, k.daily_rate
+       FROM "Kennel" k
+       WHERE k.tenant_id = $1 
+       AND k.is_active = true 
+       AND k.deleted_at IS NULL
+       AND k.id NOT IN (
+         SELECT DISTINCT b.kennel_id 
+         FROM "Booking" b 
+         WHERE b.tenant_id = $1
+         AND b.status IN ('CONFIRMED', 'CHECKED_IN')
+         AND b.start_date <= $3
+         AND b.end_date >= $2
+         AND b.kennel_id IS NOT NULL
+         AND b.deleted_at IS NULL
+       )
+       ORDER BY k.name`,
+      [tenantId, startDate, endDate]
+    );
+
+    const isAvailable = availableSlots >= parseInt(petCount);
+
+    return createResponse(200, {
+      available: isAvailable,
+      totalCapacity,
+      currentOccupancy: petsBooked,
+      availableSlots,
+      requestedSlots: parseInt(petCount),
+      availableKennels: availableKennelsResult.rows.map(k => ({
+        id: k.id,
+        name: k.name,
+        capacity: k.capacity,
+        type: k.kennel_type,
+        dailyRate: parseFloat(k.daily_rate || 0),
+      })),
+      period: { startDate, endDate },
+      message: isAvailable 
+        ? 'Dates are available for booking'
+        : 'Requested dates are not available',
+    });
+
+  } catch (error) {
+    console.error('[Customer][availability] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to check availability',
+    });
+  }
+}
+
+/**
+ * Customer: Get available services and pricing
+ */
+async function handleCustomerGetServices(tenantId) {
+  console.log('[Customer][services] Get services for tenant:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `SELECT 
+         s.id,
+         s.name,
+         s.description,
+         s.service_type,
+         s.duration_minutes,
+         s.price,
+         s.is_active,
+         s.requires_vaccination,
+         s.max_pets_per_session
+       FROM "Service" s
+       WHERE s.tenant_id = $1 
+       AND s.is_active = true 
+       AND s.deleted_at IS NULL
+       ORDER BY s.name`,
+      [tenantId]
+    );
+
+    const services = result.rows.map(row => ({
+      id: row.id,
+      recordId: row.id,
+      name: row.name,
+      description: row.description,
+      serviceType: row.service_type,
+      durationMinutes: row.duration_minutes,
+      price: parseFloat(row.price || 0),
+      requiresVaccination: row.requires_vaccination,
+      maxPetsPerSession: row.max_pets_per_session,
+    }));
+
+    return createResponse(200, {
+      data: services,
+      services,
+      total: services.length,
+      message: 'Services retrieved successfully',
+    });
+
+  } catch (error) {
+    console.error('[Customer][services] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve services',
+    });
+  }
+}
+
+/**
+ * Customer: Get their own pets
+ */
+async function handleCustomerGetPets(tenantId, user) {
+  console.log('[Customer][pets] Get pets for user:', user.id);
+
+  try {
+    await getPoolAsync();
+
+    // Find owner record for this user
+    const ownerResult = await query(
+      `SELECT id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [user.id, tenantId]
+    );
+
+    if (ownerResult.rows.length === 0) {
+      return createResponse(200, {
+        data: [],
+        pets: [],
+        total: 0,
+        message: 'No pets found for this customer',
+      });
+    }
+
+    const ownerId = ownerResult.rows[0].id;
+
+    const result = await query(
+      `SELECT 
+         p.id,
+         p.name,
+         p.breed,
+         p.species,
+         p.weight,
+         p.birth_date,
+         p.gender,
+         p.color,
+         p.special_needs,
+         p.dietary_requirements,
+         p.is_neutered,
+         p.created_at
+       FROM "Pet" p
+       WHERE p.owner_id = $1 AND p.tenant_id = $2 AND p.deleted_at IS NULL
+       ORDER BY p.name`,
+      [ownerId, tenantId]
+    );
+
+    const pets = result.rows.map(row => ({
+      id: row.id,
+      recordId: row.id,
+      name: row.name,
+      breed: row.breed,
+      species: row.species || 'dog',
+      weight: row.weight,
+      birthDate: row.birth_date,
+      gender: row.gender,
+      color: row.color,
+      specialNeeds: row.special_needs,
+      dietaryRequirements: row.dietary_requirements,
+      isNeutered: row.is_neutered,
+      createdAt: row.created_at,
+    }));
+
+    return createResponse(200, {
+      data: pets,
+      pets,
+      total: pets.length,
+      message: 'Pets retrieved successfully',
+    });
+
+  } catch (error) {
+    console.error('[Customer][pets] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve pets',
+    });
+  }
+}
+
+/**
+ * Customer: Get their own bookings
+ */
+async function handleCustomerGetBookings(tenantId, user, queryParams) {
+  const { status, upcoming = 'true' } = queryParams;
+
+  console.log('[Customer][bookings] Get bookings for user:', user.id);
+
+  try {
+    await getPoolAsync();
+
+    // Find owner record for this user
+    const ownerResult = await query(
+      `SELECT id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [user.id, tenantId]
+    );
+
+    if (ownerResult.rows.length === 0) {
+      return createResponse(200, {
+        data: [],
+        bookings: [],
+        total: 0,
+        message: 'No bookings found for this customer',
+      });
+    }
+
+    const ownerId = ownerResult.rows[0].id;
+
+    let whereClause = 'b.owner_id = $1 AND b.tenant_id = $2 AND b.deleted_at IS NULL';
+    const params = [ownerId, tenantId];
+
+    if (status) {
+      whereClause += ` AND b.status = $${params.length + 1}`;
+      params.push(status);
+    }
+
+    if (upcoming === 'true') {
+      whereClause += ` AND b.end_date >= CURRENT_DATE`;
+    }
+
+    const result = await query(
+      `SELECT 
+         b.id,
+         b.start_date,
+         b.end_date,
+         b.status,
+         b.total_price,
+         b.notes,
+         b.created_at,
+         b.checked_in_at,
+         b.checked_out_at,
+         s.name as service_name,
+         s.service_type,
+         k.name as kennel_name,
+         array_agg(p.name) as pet_names
+       FROM "Booking" b
+       LEFT JOIN "Service" s ON b.service_id = s.id
+       LEFT JOIN "Kennel" k ON b.kennel_id = k.id
+       LEFT JOIN "Pet" p ON p.id = ANY(b.pet_ids)
+       WHERE ${whereClause}
+       GROUP BY b.id, s.id, k.id
+       ORDER BY b.start_date DESC`,
+      params
+    );
+
+    const bookings = result.rows.map(row => ({
+      id: row.id,
+      recordId: row.id,
+      startDate: row.start_date,
+      endDate: row.end_date,
+      status: row.status,
+      totalPrice: parseFloat(row.total_price || 0),
+      notes: row.notes,
+      createdAt: row.created_at,
+      checkedInAt: row.checked_in_at,
+      checkedOutAt: row.checked_out_at,
+      serviceName: row.service_name,
+      serviceType: row.service_type,
+      kennelName: row.kennel_name,
+      petNames: row.pet_names?.filter(Boolean) || [],
+    }));
+
+    return createResponse(200, {
+      data: bookings,
+      bookings,
+      total: bookings.length,
+      message: 'Bookings retrieved successfully',
+    });
+
+  } catch (error) {
+    console.error('[Customer][bookings] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve bookings',
+    });
+  }
+}
+
+/**
+ * Customer: Create a booking request
+ */
+async function handleCustomerCreateBooking(tenantId, user, body) {
+  const { petIds, serviceId, startDate, endDate, kennelId, notes } = body;
+
+  console.log('[Customer][createBooking] Creating booking:', { tenantId, userId: user.id, petIds, startDate, endDate });
+
+  // Validation
+  if (!petIds || petIds.length === 0) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'At least one pet is required',
+    });
+  }
+
+  if (!startDate || !endDate) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Start date and end date are required',
+    });
+  }
+
+  if (new Date(startDate) >= new Date(endDate)) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'End date must be after start date',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Find owner record for this user
+    const ownerResult = await query(
+      `SELECT id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [user.id, tenantId]
+    );
+
+    if (ownerResult.rows.length === 0) {
+      return createResponse(403, {
+        error: 'Forbidden',
+        message: 'Customer profile not found. Please contact the facility.',
+      });
+    }
+
+    const ownerId = ownerResult.rows[0].id;
+
+    // Verify pets belong to this owner
+    const petsResult = await query(
+      `SELECT id FROM "Pet" WHERE id = ANY($1::uuid[]) AND owner_id = $2 AND tenant_id = $3 AND deleted_at IS NULL`,
+      [petIds, ownerId, tenantId]
+    );
+
+    if (petsResult.rows.length !== petIds.length) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'One or more pets not found or do not belong to you',
+      });
+    }
+
+    // Check availability
+    const availabilityCheck = await handleCustomerCheckAvailability(tenantId, {
+      startDate,
+      endDate,
+      petCount: petIds.length.toString(),
+    });
+
+    const availability = JSON.parse(availabilityCheck.body);
+    if (!availability.available) {
+      return createResponse(409, {
+        error: 'Conflict',
+        message: 'Selected dates are not available for the requested number of pets',
+      });
+    }
+
+    // Calculate price if service is specified
+    let totalPrice = 0;
+    if (serviceId) {
+      const serviceResult = await query(
+        `SELECT price FROM "Service" WHERE id = $1 AND tenant_id = $2 AND is_active = true`,
+        [serviceId, tenantId]
+      );
+
+      if (serviceResult.rows.length > 0) {
+        const pricePerDay = parseFloat(serviceResult.rows[0].price || 0);
+        const days = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) || 1;
+        totalPrice = pricePerDay * days * petIds.length;
+      }
+    }
+
+    // Create booking with PENDING status (requires staff approval)
+    const bookingResult = await query(
+      `INSERT INTO "Booking" (
+         tenant_id, owner_id, pet_ids, service_id, kennel_id,
+         start_date, end_date, status, total_price, notes,
+         booking_source, created_at, updated_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING', $8, $9, 'customer_portal', NOW(), NOW())
+       RETURNING *`,
+      [
+        tenantId,
+        ownerId,
+        petIds,
+        serviceId || null,
+        kennelId || null,
+        startDate,
+        endDate,
+        totalPrice,
+        notes || null,
+      ]
+    );
+
+    const booking = bookingResult.rows[0];
+
+    // Send confirmation email to customer
+    try {
+      const emailUtils = require('/opt/nodejs/email-utils');
+      await emailUtils.sendBookingConfirmation(
+        tenantId,
+        booking.id,
+        user.email,
+        {
+          firstName: user.firstName || user.first_name,
+          startDate,
+          endDate,
+          status: 'PENDING',
+        }
+      );
+    } catch (emailErr) {
+      console.warn('[Customer][createBooking] Email failed:', emailErr.message);
+    }
+
+    console.log('[Customer][createBooking] Created booking:', booking.id);
+
+    return createResponse(201, {
+      success: true,
+      data: {
+        id: booking.id,
+        recordId: booking.id,
+        startDate: booking.start_date,
+        endDate: booking.end_date,
+        status: booking.status,
+        totalPrice: parseFloat(booking.total_price || 0),
+        notes: booking.notes,
+        createdAt: booking.created_at,
+      },
+      message: 'Booking request submitted successfully. You will receive a confirmation once approved.',
+    });
+
+  } catch (error) {
+    console.error('[Customer][createBooking] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to create booking',
+    });
+  }
+}
+
+/**
+ * Customer: Get a specific booking
+ */
+async function handleCustomerGetBooking(tenantId, user, bookingId) {
+  console.log('[Customer][getBooking]', { tenantId, userId: user.id, bookingId });
+
+  try {
+    await getPoolAsync();
+
+    // Find owner record for this user
+    const ownerResult = await query(
+      `SELECT id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [user.id, tenantId]
+    );
+
+    if (ownerResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Booking not found',
+      });
+    }
+
+    const ownerId = ownerResult.rows[0].id;
+
+    const result = await query(
+      `SELECT 
+         b.id,
+         b.start_date,
+         b.end_date,
+         b.status,
+         b.total_price,
+         b.notes,
+         b.created_at,
+         b.checked_in_at,
+         b.checked_out_at,
+         s.name as service_name,
+         s.service_type,
+         s.description as service_description,
+         k.name as kennel_name,
+         array_agg(json_build_object('id', p.id, 'name', p.name, 'breed', p.breed)) as pets
+       FROM "Booking" b
+       LEFT JOIN "Service" s ON b.service_id = s.id
+       LEFT JOIN "Kennel" k ON b.kennel_id = k.id
+       LEFT JOIN "Pet" p ON p.id = ANY(b.pet_ids)
+       WHERE b.id = $1 AND b.owner_id = $2 AND b.tenant_id = $3 AND b.deleted_at IS NULL
+       GROUP BY b.id, s.id, k.id`,
+      [bookingId, ownerId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Booking not found',
+      });
+    }
+
+    const row = result.rows[0];
+
+    return createResponse(200, {
+      data: {
+        id: row.id,
+        recordId: row.id,
+        startDate: row.start_date,
+        endDate: row.end_date,
+        status: row.status,
+        totalPrice: parseFloat(row.total_price || 0),
+        notes: row.notes,
+        createdAt: row.created_at,
+        checkedInAt: row.checked_in_at,
+        checkedOutAt: row.checked_out_at,
+        service: {
+          name: row.service_name,
+          type: row.service_type,
+          description: row.service_description,
+        },
+        kennelName: row.kennel_name,
+        pets: row.pets?.filter(Boolean) || [],
+      },
+      message: 'Booking retrieved successfully',
+    });
+
+  } catch (error) {
+    console.error('[Customer][getBooking] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve booking',
+    });
+  }
+}
+
+/**
+ * Customer: Cancel their own booking
+ */
+async function handleCustomerCancelBooking(tenantId, user, bookingId) {
+  console.log('[Customer][cancelBooking]', { tenantId, userId: user.id, bookingId });
+
+  try {
+    await getPoolAsync();
+
+    // Find owner record for this user
+    const ownerResult = await query(
+      `SELECT id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [user.id, tenantId]
+    );
+
+    if (ownerResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Booking not found',
+      });
+    }
+
+    const ownerId = ownerResult.rows[0].id;
+
+    // Verify booking exists and belongs to this owner
+    const bookingResult = await query(
+      `SELECT id, status, start_date FROM "Booking" 
+       WHERE id = $1 AND owner_id = $2 AND tenant_id = $3 AND deleted_at IS NULL`,
+      [bookingId, ownerId, tenantId]
+    );
+
+    if (bookingResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Booking not found',
+      });
+    }
+
+    const booking = bookingResult.rows[0];
+
+    // Only allow cancellation of PENDING or CONFIRMED bookings
+    if (!['PENDING', 'CONFIRMED'].includes(booking.status)) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: `Cannot cancel booking with status: ${booking.status}`,
+      });
+    }
+
+    // Check cancellation policy (e.g., must be at least 24 hours before start)
+    const hoursUntilStart = (new Date(booking.start_date) - new Date()) / (1000 * 60 * 60);
+    if (hoursUntilStart < 24 && hoursUntilStart > 0) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Bookings cannot be cancelled less than 24 hours before the start date. Please contact the facility.',
+      });
+    }
+
+    // Cancel the booking
+    const result = await query(
+      `UPDATE "Booking"
+       SET status = 'CANCELLED', cancelled_at = NOW(), updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [bookingId]
+    );
+
+    // Send cancellation notification
+    try {
+      const emailUtils = require('/opt/nodejs/email-utils');
+      await emailUtils.sendBookingCancellation(
+        tenantId,
+        bookingId,
+        user.email,
+        {
+          firstName: user.firstName || user.first_name,
+          startDate: booking.start_date,
+        }
+      );
+    } catch (emailErr) {
+      console.warn('[Customer][cancelBooking] Email failed:', emailErr.message);
+    }
+
+    return createResponse(200, {
+      success: true,
+      data: {
+        id: result.rows[0].id,
+        status: result.rows[0].status,
+        cancelledAt: result.rows[0].cancelled_at,
+      },
+      message: 'Booking cancelled successfully',
+    });
+
+  } catch (error) {
+    console.error('[Customer][cancelBooking] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to cancel booking',
+    });
+  }
+}
+
+/**
+ * Customer: Get their profile
+ */
+async function handleCustomerGetProfile(tenantId, user) {
+  console.log('[Customer][getProfile]', { tenantId, userId: user.id });
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `SELECT 
+         o.id,
+         o.first_name,
+         o.last_name,
+         o.email,
+         o.phone,
+         o.address,
+         o.city,
+         o.state,
+         o.zip_code,
+         o.emergency_contact_name,
+         o.emergency_contact_phone,
+         o.notes,
+         o.created_at,
+         u.email as account_email
+       FROM "Owner" o
+       LEFT JOIN "User" u ON o.user_id = u.id
+       WHERE o.user_id = $1 AND o.tenant_id = $2 AND o.deleted_at IS NULL`,
+      [user.id, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Customer profile not found',
+      });
+    }
+
+    const row = result.rows[0];
+
+    return createResponse(200, {
+      data: {
+        id: row.id,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        email: row.email || row.account_email,
+        phone: row.phone,
+        address: row.address,
+        city: row.city,
+        state: row.state,
+        zipCode: row.zip_code,
+        emergencyContactName: row.emergency_contact_name,
+        emergencyContactPhone: row.emergency_contact_phone,
+        notes: row.notes,
+        createdAt: row.created_at,
+      },
+      message: 'Profile retrieved successfully',
+    });
+
+  } catch (error) {
+    console.error('[Customer][getProfile] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve profile',
+    });
+  }
+}
+
+/**
+ * Customer: Update their profile
+ */
+async function handleCustomerUpdateProfile(tenantId, user, body) {
+  const { phone, address, city, state, zipCode, emergencyContactName, emergencyContactPhone } = body;
+
+  console.log('[Customer][updateProfile]', { tenantId, userId: user.id });
+
+  try {
+    await getPoolAsync();
+
+    // Build update query dynamically
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
+
+    if (phone !== undefined) {
+      updates.push(`phone = $${paramIndex++}`);
+      values.push(phone);
+    }
+    if (address !== undefined) {
+      updates.push(`address = $${paramIndex++}`);
+      values.push(address);
+    }
+    if (city !== undefined) {
+      updates.push(`city = $${paramIndex++}`);
+      values.push(city);
+    }
+    if (state !== undefined) {
+      updates.push(`state = $${paramIndex++}`);
+      values.push(state);
+    }
+    if (zipCode !== undefined) {
+      updates.push(`zip_code = $${paramIndex++}`);
+      values.push(zipCode);
+    }
+    if (emergencyContactName !== undefined) {
+      updates.push(`emergency_contact_name = $${paramIndex++}`);
+      values.push(emergencyContactName);
+    }
+    if (emergencyContactPhone !== undefined) {
+      updates.push(`emergency_contact_phone = $${paramIndex++}`);
+      values.push(emergencyContactPhone);
+    }
+
+    if (updates.length === 0) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'No fields to update',
+      });
+    }
+
+    updates.push('updated_at = NOW()');
+    values.push(user.id, tenantId);
+
+    const result = await query(
+      `UPDATE "Owner"
+       SET ${updates.join(', ')}
+       WHERE user_id = $${paramIndex++} AND tenant_id = $${paramIndex} AND deleted_at IS NULL
+       RETURNING *`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Customer profile not found',
+      });
+    }
+
+    const row = result.rows[0];
+
+    return createResponse(200, {
+      success: true,
+      data: {
+        id: row.id,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        email: row.email,
+        phone: row.phone,
+        address: row.address,
+        city: row.city,
+        state: row.state,
+        zipCode: row.zip_code,
+        emergencyContactName: row.emergency_contact_name,
+        emergencyContactPhone: row.emergency_contact_phone,
+      },
+      message: 'Profile updated successfully',
+    });
+
+  } catch (error) {
+    console.error('[Customer][updateProfile] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to update profile',
+    });
+  }
+}
+
+// =============================================================================
+// STAFF MANAGEMENT HANDLERS
+// =============================================================================
+
+/**
+ * Get all staff members for tenant
+ */
+async function handleGetStaffMembers(tenantId, queryParams) {
+  const { isActive, role, limit = 50, offset = 0 } = queryParams;
+
+  console.log('[Staff][list] tenantId:', tenantId, queryParams);
+
+  try {
+    await getPoolAsync();
+
+    let whereClause = 's.tenant_id = $1 AND s.deleted_at IS NULL';
+    const params = [tenantId];
+    let paramIndex = 2;
+
+    if (isActive !== undefined) {
+      whereClause += ` AND s.is_active = $${paramIndex++}`;
+      params.push(isActive === 'true' || isActive === true);
+    }
+    if (role) {
+      whereClause += ` AND s.role = $${paramIndex++}`;
+      params.push(role);
+    }
+
+    const result = await query(
+      `SELECT
+         s.id,
+         s.tenant_id,
+         s.user_id,
+         s.title,
+         s.role,
+         s.hourly_rate,
+         s.is_active,
+         s.hire_date,
+         s.created_at,
+         s.updated_at,
+         u.first_name,
+         u.last_name,
+         u.email,
+         u.phone
+       FROM "Staff" s
+       LEFT JOIN "User" u ON s.user_id = u.id
+       WHERE ${whereClause}
+       ORDER BY u.last_name ASC, u.first_name ASC
+       LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
+      [...params, parseInt(limit), parseInt(offset)]
+    );
+
+    const staff = result.rows.map(row => ({
+      id: row.id,
+      tenantId: row.tenant_id,
+      userId: row.user_id,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      email: row.email,
+      phone: row.phone,
+      title: row.title,
+      role: row.role,
+      hourlyRate: row.hourly_rate,
+      isActive: row.is_active,
+      hireDate: row.hire_date,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
+    console.log('[Staff][list] Found:', staff.length);
+
+    return createResponse(200, {
+      data: staff,
+      staff: staff,
+      total: staff.length,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+    });
+
+  } catch (error) {
+    console.error('[Staff] Failed to get staff members:', error.message);
+
+    if (error.message?.includes('does not exist')) {
+      return createResponse(200, {
+        data: [],
+        staff: [],
+        total: 0,
+        message: 'Staff table not initialized',
+      });
+    }
+
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve staff members',
+    });
+  }
+}
+
+/**
+ * Get single staff member
+ */
+async function handleGetStaffMember(tenantId, staffId) {
+  console.log('[Staff][get] id:', staffId, 'tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `SELECT
+         s.*,
+         u.first_name,
+         u.last_name,
+         u.email,
+         u.phone
+       FROM "Staff" s
+       LEFT JOIN "User" u ON s.user_id = u.id
+       WHERE s.id = $1 AND s.tenant_id = $2 AND s.deleted_at IS NULL`,
+      [staffId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Staff member not found',
+      });
+    }
+
+    const row = result.rows[0];
+
+    return createResponse(200, {
+      id: row.id,
+      tenantId: row.tenant_id,
+      userId: row.user_id,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      email: row.email,
+      phone: row.phone,
+      title: row.title,
+      role: row.role,
+      hourlyRate: row.hourly_rate,
+      isActive: row.is_active,
+      hireDate: row.hire_date,
+      emergencyContact: row.emergency_contact,
+      emergencyPhone: row.emergency_phone,
+      notes: row.notes,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    });
+
+  } catch (error) {
+    console.error('[Staff] Failed to get staff member:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve staff member',
+    });
+  }
+}
+
+/**
+ * Create staff member
+ */
+async function handleCreateStaffMember(tenantId, user, body) {
+  const { userId, firstName, lastName, email, phone, title, role, hourlyRate, hireDate, notes } = body;
+
+  console.log('[Staff][create] tenantId:', tenantId, body);
+
+  // Permission check - require ADMIN or OWNER role
+  const permCheck = checkPermission(user, PERMISSIONS.MANAGE_STAFF);
+  if (!permCheck.allowed) {
+    return createResponse(403, {
+      error: 'Forbidden',
+      message: permCheck.message || 'You do not have permission to create staff members',
+    });
+  }
+
+  if (!userId && (!firstName || !lastName)) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Either userId or firstName and lastName are required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `INSERT INTO "Staff" (tenant_id, user_id, title, role, hourly_rate, hire_date, notes, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+       RETURNING *`,
+      [tenantId, userId || null, title || null, role || 'STAFF', hourlyRate || null, hireDate || null, notes || null]
+    );
+
+    const staff = result.rows[0];
+
+    console.log('[Staff][create] Created:', staff.id);
+
+    return createResponse(201, {
+      success: true,
+      id: staff.id,
+      tenantId: staff.tenant_id,
+      userId: staff.user_id,
+      title: staff.title,
+      role: staff.role,
+      hourlyRate: staff.hourly_rate,
+      isActive: staff.is_active,
+      hireDate: staff.hire_date,
+      message: 'Staff member created successfully',
+    });
+
+  } catch (error) {
+    console.error('[Staff] Failed to create staff member:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to create staff member',
+    });
+  }
+}
+
+/**
+ * Update staff member
+ */
+async function handleUpdateStaffMember(tenantId, user, staffId, body) {
+  const { title, role, hourlyRate, isActive, hireDate, notes, emergencyContact, emergencyPhone } = body;
+
+  console.log('[Staff][update] id:', staffId, 'tenantId:', tenantId, body);
+
+  // Permission check - require ADMIN or OWNER role
+  const permCheck = checkPermission(user, PERMISSIONS.MANAGE_STAFF);
+  if (!permCheck.allowed) {
+    return createResponse(403, {
+      error: 'Forbidden',
+      message: permCheck.message || 'You do not have permission to update staff members',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
+
+    if (title !== undefined) {
+      updates.push(`title = $${paramIndex++}`);
+      values.push(title);
+    }
+    if (role !== undefined) {
+      updates.push(`role = $${paramIndex++}`);
+      values.push(role);
+    }
+    if (hourlyRate !== undefined) {
+      updates.push(`hourly_rate = $${paramIndex++}`);
+      values.push(hourlyRate);
+    }
+    if (isActive !== undefined) {
+      updates.push(`is_active = $${paramIndex++}`);
+      values.push(isActive);
+    }
+    if (hireDate !== undefined) {
+      updates.push(`hire_date = $${paramIndex++}`);
+      values.push(hireDate);
+    }
+    if (notes !== undefined) {
+      updates.push(`notes = $${paramIndex++}`);
+      values.push(notes);
+    }
+    if (emergencyContact !== undefined) {
+      updates.push(`emergency_contact = $${paramIndex++}`);
+      values.push(emergencyContact);
+    }
+    if (emergencyPhone !== undefined) {
+      updates.push(`emergency_phone = $${paramIndex++}`);
+      values.push(emergencyPhone);
+    }
+
+    if (updates.length === 0) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'No fields to update',
+      });
+    }
+
+    updates.push('updated_at = NOW()');
+    values.push(staffId, tenantId);
+
+    const result = await query(
+      `UPDATE "Staff"
+       SET ${updates.join(', ')}
+       WHERE id = $${paramIndex++} AND tenant_id = $${paramIndex} AND deleted_at IS NULL
+       RETURNING *`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Staff member not found',
+      });
+    }
+
+    const staff = result.rows[0];
+
+    console.log('[Staff][update] Updated:', staff.id);
+
+    return createResponse(200, {
+      success: true,
+      id: staff.id,
+      title: staff.title,
+      role: staff.role,
+      hourlyRate: staff.hourly_rate,
+      isActive: staff.is_active,
+      message: 'Staff member updated successfully',
+    });
+
+  } catch (error) {
+    console.error('[Staff] Failed to update staff member:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to update staff member',
+    });
+  }
+}
+
+/**
+ * Delete staff member (soft delete)
+ */
+async function handleDeleteStaffMember(tenantId, user, staffId) {
+  console.log('[Staff][delete] id:', staffId, 'tenantId:', tenantId);
+
+  // Permission check - require ADMIN or OWNER role
+  const permCheck = checkPermission(user, PERMISSIONS.MANAGE_STAFF);
+  if (!permCheck.allowed) {
+    return createResponse(403, {
+      error: 'Forbidden',
+      message: permCheck.message || 'You do not have permission to delete staff members',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "Staff"
+       SET deleted_at = NOW(), is_active = false, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING id`,
+      [staffId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Staff member not found',
+      });
+    }
+
+    console.log('[Staff][delete] Soft deleted:', staffId);
+
+    return createResponse(200, {
+      success: true,
+      message: 'Staff member deleted successfully',
+    });
+
+  } catch (error) {
+    console.error('[Staff] Failed to delete staff member:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to delete staff member',
+    });
+  }
 }

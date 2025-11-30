@@ -58,7 +58,7 @@ const TabsTrigger = React.forwardRef(({ className, value, children, ...props }, 
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2',
         'disabled:pointer-events-none disabled:opacity-50',
         isSelected
-          ? 'border-primary-600 text-primary-600 dark:border-primary-500 dark:text-primary-400'
+          ? 'border-gray-900 text-gray-900 dark:border-white dark:text-white'
           : 'border-transparent text-gray-600 dark:text-dark-text-secondary hover:text-gray-900 dark:hover:text-dark-text-primary hover:border-gray-300 dark:hover:border-dark-border',
         className
       )}

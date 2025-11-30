@@ -22,8 +22,9 @@ import Badge from '@/components/ui/Badge';
 import Dialog from '@/components/ui/Dialog';
 import Calendar from '@/components/ui/Calendar';
 import Select from '@/components/ui/Select';
-// Replaced with LoadingState (mascot) for page-level loading
 import LoadingState from '@/components/ui/LoadingState';
+import SettingsPage from '../components/SettingsPage';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import { apiClient, uploadClient } from '@/lib/apiClient';
 import { useTenantStore } from '@/stores/tenant';
 
@@ -107,6 +108,11 @@ const businessInfoSchema = z.object({
     .trim()
     .min(1, 'Business name is required')
     .max(100, 'Business name must be 100 characters or fewer'),
+  taxId: z
+    .string()
+    .trim()
+    .max(50, 'Tax ID must be 50 characters or fewer')
+    .optional(),
   phone: z
     .string()
     .trim()
@@ -259,6 +265,7 @@ const generateId = () => {
 const createDefaultValues = (tenantName) => ({
   businessInfo: {
     name: tenantName ?? '',
+    taxId: '',
     phone: '',
     email: '',
     website: '',
@@ -342,6 +349,7 @@ const normalizeResponse = (payload, tenantName, plan) => {
   const businessInfo = {
     ...defaults.businessInfo,
     ...(payload.businessInfo ?? {}),
+    taxId: payload.businessInfo?.taxId ?? '',
     phone: payload.businessInfo?.phone ?? '',
     email: payload.businessInfo?.email ?? '',
     website: payload.businessInfo?.website ?? '',
@@ -410,30 +418,8 @@ const formatHolidayRange = (start, end) => {
 
 const Subheading = ({ title, description }) => (
   <div className="space-y-1">
-    <h3 className="text-sm font-semibold uppercase tracking-wide text-muted">{title}</h3>
-    {description ? <p className="text-sm text-muted">{description}</p> : null}
-  </div>
-);
-
-const TabNav = ({ active, onSelect }) => (
-  <div className="mb-8 flex flex-wrap gap-2 border-b border-border/70">
-    {TAB_ITEMS.map((tab) => {
-      const isActive = active === tab.recordId;
-      return (
-        <button
-          key={tab.recordId}
-          type="button"
-          onClick={() => onSelect(tab.recordId)}
-          className={`rounded-t-lg px-4 py-2 text-sm font-medium transition-colors ${
-            isActive
-              ? 'border border-border border-b-0 bg-surface text-primary shadow-sm'
-              : 'text-muted hover:text-primary'
-          }`}
-        >
-          {tab.title}
-        </button>
-      );
-    })}
+    <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{title}</h3>
+    {description ? <p className="text-sm text-gray-600 dark:text-text-secondary">{description}</p> : null}
   </div>
 );
 
@@ -450,16 +436,24 @@ const BusinessSection = ({
     <Card
       title="Brand Identity"
       description="Update the details that appear on invoices, booking emails, and the customer portal."
-      className="border-border/80 shadow-sm"
     >
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-4">
-          <Input
-            label="Business Name"
-            placeholder="Pine Ridge Kennels"
-            error={errors.businessInfo?.name?.message}
-            {...register('businessInfo.name')}
-          />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              label="Business Name"
+              placeholder="Pine Ridge Kennels"
+              error={errors.businessInfo?.name?.message}
+              {...register('businessInfo.name')}
+            />
+            <Input
+              label="Tax ID / EIN"
+              placeholder="12-3456789"
+              helper="For invoices and legal documents"
+              error={errors.businessInfo?.taxId?.message}
+              {...register('businessInfo.taxId')}
+            />
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Controller
               name="businessInfo.phone"
@@ -495,14 +489,14 @@ const BusinessSection = ({
             {...register('businessInfo.notes')}
           />
         </div>
-        <div className="rounded-lg border border-border/60 bg-surface/70 p-4">
+        <div className="rounded-lg border border-gray-200 dark:border-surface-border bg-gray-50 dark:bg-surface-secondary p-4">
           <Subheading title="Logo" description="Square images work best. We crop and optimize for email and PDF output." />
           <div className="mt-4 flex flex-col items-center gap-3">
-            <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-lg border border-border/70 bg-surface">
+            <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-lg border border-gray-200 dark:border-surface-border bg-white dark:bg-surface-primary">
               {businessInfo?.logo?.url ? (
                 <img src={businessInfo.logo.url} alt="Business logo" className="h-full w-full object-cover" />
               ) : (
-                <ImageUp className="h-8 w-8 text-muted" />
+                <ImageUp className="h-8 w-8 text-gray-400 dark:text-text-tertiary" />
               )}
             </div>
             <label className="w-full">
@@ -532,7 +526,7 @@ const BusinessSection = ({
                 )}
               </Button>
             </label>
-            <p className="text-xs text-muted">PNG, JPG, or WebP - max 5 MB</p>
+            <p className="text-xs text-gray-500 dark:text-text-secondary">PNG, JPG, or WebP - max 5 MB</p>
           </div>
         </div>
       </div>
@@ -541,7 +535,6 @@ const BusinessSection = ({
     <Card
       title="Location & Mailing Address"
       description="Used on invoices, legal notices, and outbound communications."
-      className="border-border/80 shadow-sm"
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <Input label="Street" placeholder="123 Bark Lane" {...register('businessInfo.address.street')} />
@@ -570,31 +563,30 @@ const SchedulingSection = ({
     <Card
       title="Weekly Operating Hours"
       description="These hours drive booking availability and appear on customer confirmations."
-      className="border-border/80 shadow-sm"
     >
-      <div className="overflow-x-auto rounded-lg border border-border/60">
-        <table className="min-w-full divide-y divide-border/70 text-sm">
-          <thead className="bg-surface/80 text-xs uppercase tracking-wide text-muted">
+      <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-surface-border">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-surface-border text-sm">
+          <thead className="bg-gray-50 dark:bg-surface-secondary text-xs uppercase tracking-wide text-gray-500 dark:text-text-secondary">
             <tr>
               <th className="px-4 py-3 text-left font-medium">Day</th>
               <th className="px-4 py-3 text-left font-medium">Status</th>
               <th className="px-4 py-3 text-left font-medium">Hours</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border/60">
+          <tbody className="divide-y divide-gray-200 dark:divide-surface-border">
             {DAY_ORDER.map((day) => {
               const dayHours = operatingHours?.[day];
               const dayErrors = errors.operatingHours?.[day];
               return (
-                <tr key={day} className="bg-background/40">
-                  <td className="px-4 py-3 font-medium text-text">{DAY_LABEL[day]}</td>
+                <tr key={day} className="bg-white dark:bg-surface-primary">
+                  <td className="px-4 py-3 font-medium text-gray-900 dark:text-text-primary">{DAY_LABEL[day]}</td>
                   <td className="px-4 py-3">
-                    <label className="inline-flex items-center gap-2 text-sm text-text">
+                    <label className="inline-flex items-center gap-2 text-sm text-gray-900 dark:text-text-primary">
                       <input
                         type="checkbox"
                         checked={Boolean(dayHours?.isOpen)}
                         onChange={(event) => onSetHours(day, 'isOpen', event.target.checked)}
-                        className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                        className="h-4 w-4 rounded border-gray-300 dark:border-surface-border"
                       />
                       {dayHours?.isOpen ? 'Open' : 'Closed'}
                     </label>
@@ -615,7 +607,7 @@ const SchedulingSection = ({
                             />
                           )}
                         />
-                        <span className="text-muted">to</span>
+                        <span className="text-gray-500 dark:text-text-secondary">to</span>
                         <Controller
                           name={`operatingHours.${day}.close`}
                           control={control}
@@ -631,7 +623,7 @@ const SchedulingSection = ({
                         />
                       </div>
                     ) : (
-                      <span className="text-muted">Closed</span>
+                      <span className="text-gray-500 dark:text-text-secondary">Closed</span>
                     )}
                   </td>
                 </tr>
@@ -645,10 +637,9 @@ const SchedulingSection = ({
     <Card
       title="Holiday Schedule"
       description="Closed dates immediately block new bookings and remind staff to plan workloads."
-      className="border-border/80 shadow-sm"
       footer={
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-sm text-muted">
+          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-text-secondary">
             <CalendarDays className="h-4 w-4" />
             {holidayUsageLabel}
           </div>
@@ -660,7 +651,7 @@ const SchedulingSection = ({
       }
     >
       {holidays.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border/60 bg-surface/70 px-4 py-6 text-sm text-muted">
+        <div className="rounded-lg border border-dashed border-gray-300 dark:border-surface-border bg-gray-50 dark:bg-surface-secondary px-4 py-6 text-sm text-gray-500 dark:text-text-secondary">
           You haven't scheduled any closed dates yet.
         </div>
       ) : (
@@ -668,11 +659,11 @@ const SchedulingSection = ({
           {holidays.map((holiday) => (
             <div
               key={holiday.recordId}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/70 bg-surface/70 px-4 py-3"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 dark:border-surface-border bg-gray-50 dark:bg-surface-secondary px-4 py-3"
             >
               <div>
-                <p className="text-sm font-medium text-text">{holiday.name}</p>
-                <p className="text-xs text-muted">{formatHolidayRange(holiday.startDate, holiday.endDate)}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-text-primary">{holiday.name}</p>
+                <p className="text-xs text-gray-500 dark:text-text-secondary">{formatHolidayRange(holiday.startDate, holiday.endDate)}</p>
                 {holiday.recurring ? <Badge variant="success">Repeats each year</Badge> : null}
               </div>
               <Button type="button" variant="ghost" size="sm" onClick={() => onRemoveHoliday(holiday.recordId)}>
@@ -684,10 +675,90 @@ const SchedulingSection = ({
         </div>
       )}
       {isFreePlan && !canAddHoliday ? (
-        <div className="mt-[var(--bb-space-3)] rounded-lg border border-[var(--bb-color-alert-warning-border)] bg-[var(--bb-color-alert-warning-bg)] px-[var(--bb-space-4)] py-[var(--bb-space-3)] text-[var(--bb-font-size-xs)] text-[var(--bb-color-alert-warning-text)]">
+        <div className="mt-3 rounded-lg border border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20 px-4 py-3 text-xs text-yellow-800 dark:text-yellow-200">
           Free plans can store up to 12 closures. Upgrade for unlimited holiday scheduling.
         </div>
       ) : null}
+    </Card>
+  </div>
+);
+
+const BillingSection = ({
+  control,
+  errors,
+  currencySettings,
+  setValue,
+  isFreePlan,
+}) => (
+  <div className="space-y-6">
+    <Card
+      title="Supported Currencies"
+      description="Select which currencies you accept for payments."
+    >
+      {isFreePlan ? (
+        <div className="rounded-lg border border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20 px-4 py-3 text-sm text-yellow-800 dark:text-yellow-200">
+          Free plans are limited to USD only. Upgrade to accept multiple currencies.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {CURRENCY_OPTIONS.map((currency) => {
+              const isSelected = currencySettings?.supportedCurrencies?.includes(currency.value);
+              return (
+                <label
+                  key={currency.value}
+                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                    isSelected
+                      ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                      : 'border-gray-200 dark:border-surface-border hover:border-gray-300 dark:hover:border-gray-600'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={(e) => {
+                      const current = currencySettings?.supportedCurrencies || [];
+                      const updated = e.target.checked
+                        ? [...current, currency.value]
+                        : current.filter((c) => c !== currency.value);
+                      setValue('currencySettings.supportedCurrencies', updated, { shouldDirty: true });
+                    }}
+                    className="h-4 w-4 rounded border-gray-300 dark:border-surface-border"
+                  />
+                  <span className="text-sm text-gray-900 dark:text-text-primary">{currency.label}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </Card>
+
+    <Card
+      title="Default Currency"
+      description="The primary currency used for new invoices and pricing."
+    >
+      <Controller
+        name="currencySettings.defaultCurrency"
+        control={control}
+        render={({ field }) => (
+          <Select
+            label="Default Currency"
+            value={field.value}
+            onChange={(event) => field.onChange(event.target.value)}
+            error={errors.currencySettings?.defaultCurrency?.message}
+            disabled={isFreePlan}
+          >
+            {(isFreePlan ? [{ value: 'USD', label: 'USD - United States Dollar' }] : CURRENCY_OPTIONS)
+              .filter((c) => currencySettings?.supportedCurrencies?.includes(c.value))
+              .map((currency) => (
+                <option key={currency.value} value={currency.value}>
+                  {currency.label}
+                </option>
+              ))}
+          </Select>
+        )}
+      />
     </Card>
   </div>
 );
@@ -700,7 +771,6 @@ const LocaleSection = ({
     <Card
       title="Primary Time Zone"
       description="All bookings, reminders, and staff calendars will use this time zone as the source of truth."
-      className="border-border/80 shadow-sm"
     >
       <Controller
         name="regionalSettings.timeZone"
@@ -725,7 +795,6 @@ const LocaleSection = ({
     <Card
       title="Formatting Preferences"
       description="Set how we display dates and times to staff and pet owners."
-      className="border-border/80 shadow-sm"
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <Controller
@@ -780,13 +849,11 @@ const AccountDefaults = () => {
   const [activeTab, setActiveTab] = useState('business');
   const [isLogoUploading, setIsLogoUploading] = useState(false);
   const [holidayDialogOpen, setHolidayDialogOpen] = useState(false);
-  const [holidayDraft, setHolidayDraft] = useState(
-    {
-      name: '',
-      dates: { from: undefined, to: undefined },
-      recurring: false,
-    },
-  );
+  const [holidayDraft, setHolidayDraft] = useState({
+    name: '',
+    dates: { from: undefined, to: undefined },
+    recurring: false,
+  });
 
   const accountDefaultsQuery = useQuery({
     queryKey: ['account-defaults'],
@@ -950,90 +1017,91 @@ const AccountDefaults = () => {
 
   if (accountDefaultsQuery.isError) {
     return (
-      <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-lg border border-border bg-surface/70 p-6 text-center text-sm text-muted">
-        <AlertCircle className="h-6 w-6 text-danger" />
+      <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-lg border border-gray-200 dark:border-surface-border bg-gray-50 dark:bg-surface-secondary p-6 text-center text-sm text-gray-500 dark:text-text-secondary">
+        <AlertCircle className="h-6 w-6 text-red-500" />
         <p>We couldn't load your account defaults. Refresh to try again.</p>
       </div>
     );
   }
 
   return (
-    <div className="relative mx-auto w-full max-w-[1600px] pb-32">
-      <header className="mb-8 flex flex-col gap-2">
-        <div className="flex items-center gap-3 text-xs text-muted">
-          <span>Settings</span>
-          <span>-</span>
-          <span>Account Management</span>
+    <SettingsPage
+      title="Account Defaults"
+      description="Keep your kennel's fundamentals aligned—branding, hours, locale, and billing defaults power every booking."
+      actions={
+        <div className="flex items-center gap-2">
+          <Badge variant="neutral">Plan: {plan}</Badge>
+          <Badge variant="neutral">{tenant?.slug ?? 'default'}</Badge>
         </div>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-semibold text-text">Account Defaults</h1>
-            <p className="mt-1 text-sm text-muted">
-              Keep your kennel's fundamentals aligned-branding, hours, locale, and billing defaults power every booking.
-            </p>
+      }
+    >
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="mb-6">
+          {TAB_ITEMS.map((tab) => (
+            <TabsTrigger key={tab.recordId} value={tab.recordId}>
+              {tab.title}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <TabsContent value="business">
+            <BusinessSection
+              register={register}
+              control={control}
+              errors={errors}
+              businessInfo={businessInfo}
+              onLogoUpload={handleLogoUpload}
+              isLogoUploading={isLogoUploading}
+            />
+          </TabsContent>
+
+          <TabsContent value="scheduling">
+            <SchedulingSection
+              control={control}
+              errors={errors}
+              operatingHours={operatingHours}
+              onSetHours={setOperatingHourValue}
+              holidays={holidays}
+              onRemoveHoliday={handleHolidayRemove}
+              onAddHoliday={handleHolidayCreate}
+              canAddHoliday={!isFreePlan || holidays.length < FREE_TIER_HOLIDAY_LIMIT}
+              isFreePlan={isFreePlan}
+              holidayUsageLabel={holidayUsageLabel}
+            />
+          </TabsContent>
+
+          <TabsContent value="regional">
+            <LocaleSection control={control} errors={errors} />
+          </TabsContent>
+
+          <TabsContent value="billing">
+            <BillingSection
+              control={control}
+              errors={errors}
+              currencySettings={currencySettings}
+              setValue={setValue}
+              isFreePlan={isFreePlan}
+            />
+          </TabsContent>
+
+          <div className="flex items-center justify-between pt-6 border-t border-gray-200 dark:border-surface-border">
+            <div className="text-sm text-gray-500 dark:text-text-secondary">
+              {isDirty ? 'You have unsaved changes' : 'All changes saved'}
+            </div>
+            <Button type="submit" disabled={!isDirty || saveMutation.isPending}>
+              {saveMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
+            </Button>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="neutral">Plan: {plan}</Badge>
-            <Badge variant="neutral">{tenant?.slug ?? 'default'}</Badge>
-          </div>
-        </div>
-      </header>
-
-      <TabNav active={activeTab} onSelect={setActiveTab} />
-      <p className="mb-6 text-sm text-muted">
-        {TAB_ITEMS.find((tab) => tab.recordId === activeTab)?.description}
-      </p>
-
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-10">
-        {activeTab === 'business' ? null : null}
-
-        {activeTab === 'scheduling' ? (
-          <SchedulingSection
-            control={control}
-            errors={errors}
-            operatingHours={operatingHours}
-            onSetHours={setOperatingHourValue}
-            holidays={holidays}
-            onRemoveHoliday={handleHolidayRemove}
-            onAddHoliday={handleHolidayCreate}
-            canAddHoliday={!isFreePlan || holidays.length < FREE_TIER_HOLIDAY_LIMIT}
-            isFreePlan={isFreePlan}
-            holidayUsageLabel={holidayUsageLabel}
-          />
-        ) : null}
-
-        {activeTab === 'regional' ? (
-          <LocaleSection control={control} errors={errors} />
-        ) : null}
-
-        {activeTab === 'billing' ? (
-          <BillingSection
-            control={control}
-            errors={errors}
-            currencySettings={currencySettings}
-            setValue={setValue}
-            isFreePlan={isFreePlan}
-          />
-        ) : null}
-      </form>
-
-      <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-surface/95 px-4 py-4 shadow-[0_-6px_18px_rgba(15,23,42,0.08)] backdrop-blur">
-        <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center justify-between gap-3 px-2 lg:px-6">
-          <div className="text-sm text-muted">
-            {isDirty ? 'You have unsaved changes' : 'All changes saved'}
-          </div>
-          <Button type="submit" form={form.formId} disabled={!isDirty || saveMutation.isPending}>
-            {saveMutation.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              'Save Changes'
-            )}
-          </Button>
-        </div>
-      </div>
+        </form>
+      </Tabs>
 
       <Dialog
         open={holidayDialogOpen}
@@ -1057,7 +1125,7 @@ const AccountDefaults = () => {
             onChange={(event) => setHolidayDraft((draft) => ({ ...draft, name: event.target.value }))}
           />
           <div>
-            <p className="mb-2 text-sm font-medium text-text">Dates</p>
+            <p className="mb-2 text-sm font-medium text-gray-900 dark:text-text-primary">Dates</p>
             <Calendar
               mode="range"
               selected={holidayDraft.dates}
@@ -1070,18 +1138,18 @@ const AccountDefaults = () => {
               numberOfMonths={2}
             />
           </div>
-          <label className="flex items-center gap-2 text-sm text-text">
+          <label className="flex items-center gap-2 text-sm text-gray-900 dark:text-text-primary">
             <input
               type="checkbox"
               checked={holidayDraft.recurring}
               onChange={(event) => setHolidayDraft((draft) => ({ ...draft, recurring: event.target.checked }))}
-              className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+              className="h-4 w-4 rounded border-gray-300 dark:border-surface-border"
             />
             Repeat every year
           </label>
         </div>
       </Dialog>
-    </div>
+    </SettingsPage>
   );
 };
 

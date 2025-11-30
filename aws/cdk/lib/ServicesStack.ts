@@ -125,6 +125,19 @@ export class ServicesStack extends cdk.Stack {
       COGNITO_ISSUER_URL: `https://cognito-idp.${config.region}.amazonaws.com/${userPoolId}`,
       // SES configuration - email must be verified in SES
       SES_FROM_EMAIL: process.env.SES_FROM_EMAIL || 'noreply@barkbase.app',
+      // Twilio SMS configuration - set via AWS Console or CI/CD secrets
+      // TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID || '',
+      // TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN || '',
+      // TWILIO_PHONE_NUMBER: process.env.TWILIO_PHONE_NUMBER || '',
+      // Square POS configuration - set via AWS Console or CI/CD secrets
+      // SQUARE_ACCESS_TOKEN: process.env.SQUARE_ACCESS_TOKEN || '',
+      // SQUARE_ENVIRONMENT: process.env.SQUARE_ENVIRONMENT || 'sandbox',
+      // SQUARE_LOCATION_ID: process.env.SQUARE_LOCATION_ID || '',
+      // QuickBooks Online configuration - set via AWS Console or CI/CD secrets
+      // QUICKBOOKS_CLIENT_ID: process.env.QUICKBOOKS_CLIENT_ID || '',
+      // QUICKBOOKS_CLIENT_SECRET: process.env.QUICKBOOKS_CLIENT_SECRET || '',
+      // QUICKBOOKS_REDIRECT_URI: process.env.QUICKBOOKS_REDIRECT_URI || '',
+      // QUICKBOOKS_ENVIRONMENT: process.env.QUICKBOOKS_ENVIRONMENT || 'sandbox',
     };
 
     // Common Lambda configuration

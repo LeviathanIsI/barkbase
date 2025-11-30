@@ -17,6 +17,7 @@ import * as apigatewayv2Authorizers from 'aws-cdk-lib/aws-apigatewayv2-authorize
 import * as apigatewayv2Integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 import { BarkbaseConfig } from './shared/config';
 
@@ -139,522 +140,311 @@ export class ApiCoreStack extends cdk.Stack {
     );
 
     // =========================================================================
-    // Routes
+    // Routes - CONSOLIDATED to avoid Lambda policy size limit
+    // =========================================================================
+    //
+    // IMPORTANT: We use minimal route definitions to avoid exceeding the 20KB
+    // Lambda resource-based policy limit. Each route/method combo adds a
+    // permission statement. With 54+ routes, we hit the limit.
+    //
+    // Strategy: Use {proxy+} catch-all patterns and let Lambdas route internally.
+    // This reduces from ~54 route blocks to ~14.
+    //
+    // CORS: We use explicit HTTP methods (not ANY) so API Gateway handles OPTIONS.
     // =========================================================================
 
-    // IMPORTANT: We use explicit HTTP methods (GET, POST, PUT, PATCH, DELETE) instead of ANY.
-    // This allows the HttpApi's built-in corsPreflight to handle OPTIONS requests automatically
-    // without requiring JWT authorization. Using ANY would match OPTIONS and apply the authorizer,
-    // causing CORS preflight to fail with 401.
+    const allMethods = [
+      apigatewayv2.HttpMethod.GET,
+      apigatewayv2.HttpMethod.POST,
+      apigatewayv2.HttpMethod.PUT,
+      apigatewayv2.HttpMethod.PATCH,
+      apigatewayv2.HttpMethod.DELETE,
+    ];
 
-    // Auth routes - /api/v1/auth/* (PUBLIC - no authorization required)
-    this.httpApi.addRoutes({
-      path: '/api/v1/auth',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
-      integration: authIntegration,
-      // No authorizer - public endpoints for login/register
-    });
-
+    // -------------------------------------------------------------------------
+    // AUTH SERVICE - Public routes (no authorizer)
+    // Handles: /api/v1/auth/*, /api/v1/health
+    // -------------------------------------------------------------------------
     this.httpApi.addRoutes({
       path: '/api/v1/auth/{proxy+}',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
+      methods: allMethods,
       integration: authIntegration,
-      // No authorizer - public endpoints for login/register
     });
 
-    // Profile routes - /api/v1/profile/* (PROTECTED)
-    this.httpApi.addRoutes({
-      path: '/api/v1/profile',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
-      integration: profileIntegration,
-      authorizer, // JWT authorization required
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/profile/{proxy+}',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
-      integration: profileIntegration,
-      authorizer, // JWT authorization required
-    });
-
-    // User profile compatibility routes - /api/v1/users/profile (PROTECTED)
-    // Some frontend code uses /api/v1/users/profile instead of /api/v1/profile
-    this.httpApi.addRoutes({
-      path: '/api/v1/users/profile',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
-      integration: profileIntegration,
-      authorizer, // JWT authorization required
-    });
-
-    // Health check route (PUBLIC)
     this.httpApi.addRoutes({
       path: '/api/v1/health',
       methods: [apigatewayv2.HttpMethod.GET],
       integration: authIntegration,
-      // No authorizer - health check should be public
     });
 
-    // Entity service routes - /api/v1/entity/* (PROTECTED)
+    // -------------------------------------------------------------------------
+    // PROFILE SERVICE - Protected routes
+    // Handles: /api/v1/profile/*, /api/v1/users/*
+    // -------------------------------------------------------------------------
     this.httpApi.addRoutes({
-      path: '/api/v1/entity',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
-      integration: entityIntegration,
-      authorizer, // JWT authorization required
+      path: '/api/v1/profile/{proxy+}',
+      methods: allMethods,
+      integration: profileIntegration,
+      authorizer,
     });
 
+    this.httpApi.addRoutes({
+      path: '/api/v1/users/{proxy+}',
+      methods: allMethods,
+      integration: profileIntegration,
+      authorizer,
+    });
+
+    // -------------------------------------------------------------------------
+    // ENTITY SERVICE - Protected routes
+    // Handles: /api/v1/entity/*
+    // -------------------------------------------------------------------------
     this.httpApi.addRoutes({
       path: '/api/v1/entity/{proxy+}',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
+      methods: allMethods,
       integration: entityIntegration,
-      authorizer, // JWT authorization required
+      authorizer,
     });
 
-    // Analytics service routes - /api/v1/analytics/* (PROTECTED)
-    this.httpApi.addRoutes({
-      path: '/api/v1/analytics',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
-      integration: analyticsIntegration,
-      authorizer, // JWT authorization required
-    });
-
+    // -------------------------------------------------------------------------
+    // ANALYTICS SERVICE - Protected routes
+    // Handles: /api/v1/analytics/*, /api/v1/segments/*, /api/v1/messages/*,
+    //          /api/v1/reports/*, /api/v1/compliance/*
+    // -------------------------------------------------------------------------
     this.httpApi.addRoutes({
       path: '/api/v1/analytics/{proxy+}',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
+      methods: allMethods,
       integration: analyticsIntegration,
-      authorizer, // JWT authorization required
-    });
-
-    // Operations service routes - /api/v1/operations/* (PROTECTED)
-    this.httpApi.addRoutes({
-      path: '/api/v1/operations',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
-      integration: operationsIntegration,
-      authorizer, // JWT authorization required
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/operations/{proxy+}',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
-      integration: operationsIntegration,
-      authorizer, // JWT authorization required
-    });
-
-    // Incident routes - /api/v1/incidents/* (PROTECTED)
-    this.httpApi.addRoutes({
-      path: '/api/v1/incidents',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
-      integration: operationsIntegration,
-      authorizer, // JWT authorization required
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/incidents/{proxy+}',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
-      integration: operationsIntegration,
-      authorizer, // JWT authorization required
-    });
-
-    // Config service routes - /api/v1/config/* (PROTECTED)
-    this.httpApi.addRoutes({
-      path: '/api/v1/config',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
-      integration: configIntegration,
-      authorizer, // JWT authorization required
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/config/{proxy+}',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
-      integration: configIntegration,
-      authorizer, // JWT authorization required
-    });
-
-    // Financial service routes - /api/v1/financial/* (PROTECTED)
-    this.httpApi.addRoutes({
-      path: '/api/v1/financial',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
-      integration: financialIntegration,
-      authorizer, // JWT authorization required
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/financial/{proxy+}',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
-      integration: financialIntegration,
-      authorizer, // JWT authorization required
-    });
-
-    // Stripe webhook route - /api/v1/financial/stripe/webhook (PUBLIC - verified via Stripe signature)
-    // Must be PUBLIC because Stripe sends webhooks directly without JWT token
-    this.httpApi.addRoutes({
-      path: '/api/v1/financial/stripe/webhook',
-      methods: [apigatewayv2.HttpMethod.POST],
-      integration: financialIntegration,
-      // NO authorizer - webhook verification happens in Lambda via stripe-signature header
-    });
-
-    // Segments routes - /api/v1/segments/* (PROTECTED)
-    // Routes to analytics service for customer segmentation
-    this.httpApi.addRoutes({
-      path: '/api/v1/segments',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
-      integration: analyticsIntegration,
-      authorizer, // JWT authorization required
+      authorizer,
     });
 
     this.httpApi.addRoutes({
       path: '/api/v1/segments/{proxy+}',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
+      methods: allMethods,
       integration: analyticsIntegration,
-      authorizer, // JWT authorization required
-    });
-
-    // Messages/Conversations routes - /api/v1/messages/* (PROTECTED)
-    // Routes to analytics service for messaging functionality
-    this.httpApi.addRoutes({
-      path: '/api/v1/messages',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
-      integration: analyticsIntegration,
-      authorizer, // JWT authorization required
+      authorizer,
     });
 
     this.httpApi.addRoutes({
       path: '/api/v1/messages/{proxy+}',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
+      methods: allMethods,
       integration: analyticsIntegration,
-      authorizer, // JWT authorization required
+      authorizer,
     });
 
-    // Run templates routes - /api/v1/run-templates/* (PROTECTED)
-    // Routes to operations service for daycare run management
     this.httpApi.addRoutes({
-      path: '/api/v1/run-templates',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
+      path: '/api/v1/reports/{proxy+}',
+      methods: allMethods,
+      integration: analyticsIntegration,
+      authorizer,
+    });
+
+    this.httpApi.addRoutes({
+      path: '/api/v1/compliance/{proxy+}',
+      methods: allMethods,
+      integration: analyticsIntegration,
+      authorizer,
+    });
+
+    // Audit logs (Settings > Audit Log)
+    this.httpApi.addRoutes({
+      path: '/api/v1/audit-logs',
+      methods: allMethods,
+      integration: analyticsIntegration,
+      authorizer,
+    });
+
+    this.httpApi.addRoutes({
+      path: '/api/v1/audit-logs/{proxy+}',
+      methods: allMethods,
+      integration: analyticsIntegration,
+      authorizer,
+    });
+
+    // -------------------------------------------------------------------------
+    // OPERATIONS SERVICE - Protected routes
+    // Handles: /api/v1/operations/*, /api/v1/incidents/*, /api/v1/customer/*,
+    //          /api/v1/run-templates/*, /api/v1/runs/*, /api/v1/calendar/*,
+    //          /api/v1/notifications/*, /api/v1/staff/*, /api/v1/time-entries/*,
+    //          /api/v1/shifts/*, /api/v1/recurring/*
+    // -------------------------------------------------------------------------
+    this.httpApi.addRoutes({
+      path: '/api/v1/operations/{proxy+}',
+      methods: allMethods,
       integration: operationsIntegration,
-      authorizer, // JWT authorization required
+      authorizer,
+    });
+
+    this.httpApi.addRoutes({
+      path: '/api/v1/incidents/{proxy+}',
+      methods: allMethods,
+      integration: operationsIntegration,
+      authorizer,
+    });
+
+    this.httpApi.addRoutes({
+      path: '/api/v1/customer/{proxy+}',
+      methods: allMethods,
+      integration: operationsIntegration,
+      authorizer,
     });
 
     this.httpApi.addRoutes({
       path: '/api/v1/run-templates/{proxy+}',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
+      methods: allMethods,
       integration: operationsIntegration,
-      authorizer, // JWT authorization required
-    });
-
-    // Runs routes - /api/v1/runs/* (PROTECTED)
-    // Routes to operations service for daycare runs
-    this.httpApi.addRoutes({
-      path: '/api/v1/runs',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
-      integration: operationsIntegration,
-      authorizer, // JWT authorization required
+      authorizer,
     });
 
     this.httpApi.addRoutes({
       path: '/api/v1/runs/{proxy+}',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
+      methods: allMethods,
       integration: operationsIntegration,
-      authorizer, // JWT authorization required
-    });
-
-    // =========================================================================
-    // CALENDAR API
-    // =========================================================================
-    // Calendar endpoints for unified event view (bookings, tasks, runs)
-    // Routes to operations-service
-    // /api/v1/calendar/* (PROTECTED)
-    // =========================================================================
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/calendar/events',
-      methods: [apigatewayv2.HttpMethod.GET],
-      integration: operationsIntegration,
-      authorizer, // JWT authorization required
+      authorizer,
     });
 
     this.httpApi.addRoutes({
-      path: '/api/v1/calendar/occupancy',
-      methods: [apigatewayv2.HttpMethod.GET],
+      path: '/api/v1/calendar/{proxy+}',
+      methods: allMethods,
       integration: operationsIntegration,
-      authorizer, // JWT authorization required
-    });
-
-    // =========================================================================
-    // NOTIFICATIONS API
-    // =========================================================================
-    // Email notification endpoints for booking confirmations, reminders, etc.
-    // Routes to operations-service
-    // /api/v1/notifications/* (PROTECTED)
-    // =========================================================================
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/notifications',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-      ],
-      integration: operationsIntegration,
-      authorizer, // JWT authorization required
+      authorizer,
     });
 
     this.httpApi.addRoutes({
       path: '/api/v1/notifications/{proxy+}',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
+      methods: allMethods,
       integration: operationsIntegration,
-      authorizer, // JWT authorization required
-    });
-
-    // =========================================================================
-    // CUSTOM PROPERTIES API (v2)
-    // =========================================================================
-    // Enterprise custom fields system - routes to config service
-    // /api/v2/properties/* (PROTECTED)
-    // =========================================================================
-
-    this.httpApi.addRoutes({
-      path: '/api/v2/properties',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
-      integration: configIntegration,
-      authorizer, // JWT authorization required
+      authorizer,
     });
 
     this.httpApi.addRoutes({
-      path: '/api/v2/properties/{proxy+}',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
-      integration: configIntegration,
-      authorizer, // JWT authorization required
-    });
-
-    // =========================================================================
-    // ENTITY DEFINITIONS API (v2) - Custom Objects
-    // =========================================================================
-    // Allows tenants to define custom entity types (objects) beyond built-in ones
-    // /api/v2/entities/* (PROTECTED)
-    // =========================================================================
-
-    this.httpApi.addRoutes({
-      path: '/api/v2/entities',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
-      integration: configIntegration,
-      authorizer, // JWT authorization required
+      path: '/api/v1/staff/{proxy+}',
+      methods: allMethods,
+      integration: operationsIntegration,
+      authorizer,
     });
 
     this.httpApi.addRoutes({
-      path: '/api/v2/entities/{proxy+}',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
-      integration: configIntegration,
-      authorizer, // JWT authorization required
+      path: '/api/v1/time-entries/{proxy+}',
+      methods: allMethods,
+      integration: operationsIntegration,
+      authorizer,
     });
 
-    // =========================================================================
-    // FORMS & WAIVERS API
-    // =========================================================================
-    // Form templates and submissions for intake forms, waivers, and agreements
-    // Routes to config-service
-    // /api/v1/forms/* (PROTECTED)
-    // =========================================================================
+    this.httpApi.addRoutes({
+      path: '/api/v1/shifts/{proxy+}',
+      methods: allMethods,
+      integration: operationsIntegration,
+      authorizer,
+    });
+
+    this.httpApi.addRoutes({
+      path: '/api/v1/recurring/{proxy+}',
+      methods: allMethods,
+      integration: operationsIntegration,
+      authorizer,
+    });
+
+    // -------------------------------------------------------------------------
+    // CONFIG SERVICE - Protected routes
+    // Handles: /api/v1/config/*, /api/v1/account-defaults/*, /api/v1/policies/*,
+    //          /api/v1/memberships/*, /api/v1/forms/*, /api/v2/properties/*,
+    //          /api/v2/entities/*
+    // Note: Base paths added for endpoints that need direct GET/POST access
+    // -------------------------------------------------------------------------
+    this.httpApi.addRoutes({
+      path: '/api/v1/config/{proxy+}',
+      methods: allMethods,
+      integration: configIntegration,
+      authorizer,
+    });
+
+    this.httpApi.addRoutes({
+      path: '/api/v1/account-defaults',
+      methods: allMethods,
+      integration: configIntegration,
+      authorizer,
+    });
+
+    this.httpApi.addRoutes({
+      path: '/api/v1/account-defaults/{proxy+}',
+      methods: allMethods,
+      integration: configIntegration,
+      authorizer,
+    });
+
+    this.httpApi.addRoutes({
+      path: '/api/v1/policies',
+      methods: allMethods,
+      integration: configIntegration,
+      authorizer,
+    });
+
+    this.httpApi.addRoutes({
+      path: '/api/v1/policies/{proxy+}',
+      methods: allMethods,
+      integration: configIntegration,
+      authorizer,
+    });
+
+    this.httpApi.addRoutes({
+      path: '/api/v1/memberships',
+      methods: allMethods,
+      integration: configIntegration,
+      authorizer,
+    });
+
+    this.httpApi.addRoutes({
+      path: '/api/v1/memberships/{proxy+}',
+      methods: allMethods,
+      integration: configIntegration,
+      authorizer,
+    });
 
     this.httpApi.addRoutes({
       path: '/api/v1/forms',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-      ],
+      methods: allMethods,
       integration: configIntegration,
-      authorizer, // JWT authorization required
+      authorizer,
     });
 
     this.httpApi.addRoutes({
       path: '/api/v1/forms/{proxy+}',
-      methods: [
-        apigatewayv2.HttpMethod.GET,
-        apigatewayv2.HttpMethod.POST,
-        apigatewayv2.HttpMethod.PUT,
-        apigatewayv2.HttpMethod.PATCH,
-        apigatewayv2.HttpMethod.DELETE,
-      ],
+      methods: allMethods,
       integration: configIntegration,
-      authorizer, // JWT authorization required
+      authorizer,
+    });
+
+    this.httpApi.addRoutes({
+      path: '/api/v2/properties/{proxy+}',
+      methods: allMethods,
+      integration: configIntegration,
+      authorizer,
+    });
+
+    this.httpApi.addRoutes({
+      path: '/api/v2/entities/{proxy+}',
+      methods: allMethods,
+      integration: configIntegration,
+      authorizer,
+    });
+
+    // -------------------------------------------------------------------------
+    // FINANCIAL SERVICE - Protected routes + public webhook
+    // Handles: /api/v1/financial/*
+    // -------------------------------------------------------------------------
+    this.httpApi.addRoutes({
+      path: '/api/v1/financial/{proxy+}',
+      methods: allMethods,
+      integration: financialIntegration,
+      authorizer,
+    });
+
+    // Stripe webhook - PUBLIC (no authorizer, verified via Stripe signature)
+    this.httpApi.addRoutes({
+      path: '/api/v1/webhooks/stripe',
+      methods: [apigatewayv2.HttpMethod.POST],
+      integration: financialIntegration,
     });
 
     // Store the API URL

@@ -103,6 +103,13 @@ export const canonicalEndpoints = {
     list: '/api/v1/analytics/reports',
     detail: build('/api/v1/analytics/reports/{id}'),
     generate: '/api/v1/analytics/reports/generate',
+    // Export endpoints
+    exportRevenue: '/api/v1/analytics/export/revenue',
+    exportBookings: '/api/v1/analytics/export/bookings',
+    exportCustomers: '/api/v1/analytics/export/customers',
+    exportOccupancy: '/api/v1/analytics/export/occupancy',
+    exportPets: '/api/v1/analytics/export/pets',
+    exportVaccinations: '/api/v1/analytics/export/vaccinations',
   },
 
   // Financial Service - /api/v1/financial/*
@@ -252,6 +259,28 @@ export const canonicalEndpoints = {
     logout: '/api/v1/auth/logout',
     me: '/api/v1/auth/me',
     sessions: '/api/v1/auth/sessions',
+  },
+
+  // Customer Self-Service Portal - /api/v1/customer/*
+  customer: {
+    availability: '/api/v1/customer/availability',
+    services: '/api/v1/customer/services',
+    pets: '/api/v1/customer/pets',
+    bookings: '/api/v1/customer/bookings',
+    bookingDetail: build('/api/v1/customer/bookings/{id}'),
+    profile: '/api/v1/customer/profile',
+  },
+
+  // Commission Tracking - /api/v1/financial/commissions/*
+  commissions: {
+    list: '/api/v1/financial/commissions',
+    detail: build('/api/v1/financial/commissions/{id}'),
+    approve: build('/api/v1/financial/commissions/{id}/approve'),
+    markPaid: build('/api/v1/financial/commissions/{id}/paid'),
+    rates: '/api/v1/financial/commissions/rates',
+    rateDetail: build('/api/v1/financial/commissions/rates/{id}'),
+    staffSummary: build('/api/v1/financial/commissions/staff/{id}'),
+    calculate: '/api/v1/financial/commissions/calculate',
   },
 
   // Health check

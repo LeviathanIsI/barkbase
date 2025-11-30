@@ -1,27 +1,36 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import {
   Users, UserPlus, Search, Filter, MoreVertical, Upload,
   Clock, TrendingUp, AlertTriangle, CheckCircle,
   User, Mail, Phone, MessageSquare, Calendar,
-  Activity, Star, DollarSign
+  Activity, Star, DollarSign, Loader2
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Avatar from '@/components/ui/Avatar';
 import { Card } from '@/components/ui/Card';
+import Input from '@/components/ui/Input';
+import Select from '@/components/ui/Select';
+import Dialog from '@/components/ui/Dialog';
 import TeamMemberCard from './components/TeamMemberCard';
 import TeamFilters from './components/TeamFilters';
 import BulkActions from './components/BulkActions';
 import PermissionMatrixModal from './components/PermissionMatrixModal';
 import ShiftCoveragePlanner from './components/ShiftCoveragePlanner';
+import { apiClient } from '@/lib/apiClient';
 
 const TeamOverview = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [showShiftPlanner, setShowShiftPlanner] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteForm, setInviteForm] = useState({ email: '', firstName: '', lastName: '', role: 'STAFF' });
   const [filters, setFilters] = useState({
     search: '',
     role: 'all',
@@ -30,91 +39,112 @@ const TeamOverview = () => {
     sortBy: 'name'
   });
 
-  // Mock team data - replace with API calls
-  const teamStats = {
-    activeStaff: 5,
-    pendingInvites: 2,
-    onlineNow: 3,
-    avgHoursToday: 6.2,
-    currentCoverage: 'adequate',
-    tomorrowCoverage: 'low'
-  };
+  // Fetch team members from API
+  const { data: membersData, isLoading, error } = useQuery({
+    queryKey: ['team-members'],
+    queryFn: async () => {
+      const { data } = await apiClient.get('/api/v1/memberships');
+      return data;
+    },
+  });
 
-  const teamMembers = [
-    {
-      id: 1,
-      name: 'Sarah Johnson',
-      email: 'sarah.j@example.com',
-      role: 'Manager',
-      status: 'active',
-      lastActive: '2 hours ago',
-      isOnline: false,
-      avatar: null,
-      joinedAt: '2024-01-15',
-      permissions: {
-        checkInOut: true,
-        bookings: true,
-        reports: true,
-        billing: false,
-        settings: false,
-        staffSchedule: true
-      },
-      schedule: 'Mon-Fri, 9AM-5PM',
-      location: 'Building A',
-      hourlyRate: 22,
-      performance: {
-        checkInsProcessed: 47,
-        bookingsCreated: 23,
-        satisfaction: 4.8,
-        onTimeClockIns: 95,
-        avgResponseTime: 12
-      }
+  // Invite member mutation
+  const inviteMutation = useMutation({
+    mutationFn: async (formData) => {
+      const { data } = await apiClient.post('/api/v1/memberships', { data: formData });
+      return data;
     },
-    {
-      id: 2,
-      name: 'Mike Chen',
-      email: 'mike.chen@example.com',
-      role: 'Staff',
-      status: 'active',
-      lastActive: 'Just now',
-      isOnline: true,
-      avatar: null,
-      joinedAt: '2024-02-03',
-      permissions: {
-        checkInOut: true,
-        bookings: false,
-        reports: false,
-        billing: false,
-        settings: false,
-        staffSchedule: true
-      },
-      schedule: 'Tue-Sat, 10AM-6PM',
-      location: 'Building B',
-      hourlyRate: 18,
-      performance: {
-        checkInsProcessed: 32,
-        bookingsCreated: 8,
-        satisfaction: 4.6,
-        onTimeClockIns: 88,
-        avgResponseTime: 18
-      }
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team-members'] });
+      setShowInviteModal(false);
+      setInviteForm({ email: '', firstName: '', lastName: '', role: 'STAFF' });
+      toast.success('Team member invited successfully');
     },
-    {
-      id: 3,
-      name: 'Jessica Williams',
-      email: 'jessica.williams@example.com',
-      role: 'Staff',
-      status: 'pending',
-      lastActive: 'Invited 2 days ago',
-      isOnline: false,
-      avatar: null,
-      joinedAt: null,
-      permissions: {},
-      schedule: 'Mon-Wed-Fri, 9AM-3PM',
-      location: 'Building A',
-      hourlyRate: 16
-    }
-  ];
+    onError: (err) => {
+      toast.error(err.message || 'Failed to invite team member');
+    },
+  });
+
+  // Update member mutation
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, ...formData }) => {
+      const { data } = await apiClient.put(`/api/v1/memberships/${id}`, { data: formData });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team-members'] });
+      setShowPermissionModal(false);
+      setEditingMember(null);
+      toast.success('Team member updated');
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to update team member');
+    },
+  });
+
+  // Delete member mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id) => {
+      const { data } = await apiClient.delete(`/api/v1/memberships/${id}`);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team-members'] });
+      toast.success('Team member removed');
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to remove team member');
+    },
+  });
+
+  // Resend invite mutation
+  const resendInviteMutation = useMutation({
+    mutationFn: async (id) => {
+      const { data } = await apiClient.post(`/api/v1/memberships/${id}/resend-invite`);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success('Invite resent');
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to resend invite');
+    },
+  });
+
+  // Transform API data to component format
+  const teamMembers = (membersData?.members || []).map(member => ({
+    id: member.id,
+    name: member.name || member.email,
+    email: member.email,
+    firstName: member.firstName,
+    lastName: member.lastName,
+    role: member.role,
+    status: member.status || 'active',
+    lastActive: member.joinedAt ? `Joined ${new Date(member.joinedAt).toLocaleDateString()}` : 'Pending',
+    isOnline: false, // Would need real-time status
+    avatar: null,
+    joinedAt: member.joinedAt,
+    invitedAt: member.invitedAt,
+    isCurrentUser: member.isCurrentUser,
+    permissions: {
+      checkInOut: ['OWNER', 'ADMIN', 'STAFF'].includes(member.role),
+      bookings: ['OWNER', 'ADMIN'].includes(member.role),
+      reports: ['OWNER', 'ADMIN'].includes(member.role),
+      billing: ['OWNER'].includes(member.role),
+      settings: ['OWNER', 'ADMIN'].includes(member.role),
+      staffSchedule: ['OWNER', 'ADMIN'].includes(member.role),
+    },
+  }));
+
+  // Calculate stats from real data
+  const teamStats = {
+    activeStaff: teamMembers.filter(m => m.status === 'active').length,
+    pendingInvites: teamMembers.filter(m => m.status === 'pending').length,
+    onlineNow: teamMembers.filter(m => m.isOnline).length,
+    avgHoursToday: 0, // Would need time clock integration
+    currentCoverage: 'adequate',
+    tomorrowCoverage: 'adequate'
+  };
 
   const pendingInvites = teamMembers.filter(member => member.status === 'pending');
   const activeMembers = teamMembers.filter(member => member.status === 'active');
@@ -133,7 +163,33 @@ const TeamOverview = () => {
   };
 
   const handleBulkAction = (action) => {
-    // Implement bulk actions
+    if (action === 'delete') {
+      if (!confirm(`Are you sure you want to remove ${selectedMembers.length} team member(s)?`)) return;
+      selectedMembers.forEach(id => deleteMutation.mutate(id));
+      setSelectedMembers([]);
+    }
+  };
+
+  const handleInvite = () => {
+    if (!inviteForm.email) {
+      toast.error('Email is required');
+      return;
+    }
+    inviteMutation.mutate(inviteForm);
+  };
+
+  const handleDeleteMember = (id) => {
+    if (!confirm('Are you sure you want to remove this team member?')) return;
+    deleteMutation.mutate(id);
+  };
+
+  const handleResendInvite = (id) => {
+    resendInviteMutation.mutate(id);
+  };
+
+  const handleCancelInvite = (id) => {
+    if (!confirm('Are you sure you want to cancel this invite?')) return;
+    deleteMutation.mutate(id);
   };
 
   const getCoverageStatus = (status) => {
@@ -152,6 +208,30 @@ const TeamOverview = () => {
   const currentCoverage = getCoverageStatus(teamStats.currentCoverage);
   const tomorrowCoverage = getCoverageStatus(teamStats.tomorrowCoverage);
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+        <span className="ml-3 text-muted-foreground">Loading team members...</span>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-foreground">Failed to load team</h3>
+        <p className="text-muted-foreground mt-1">{error.message || 'An error occurred'}</p>
+        <Button variant="secondary" className="mt-4" onClick={() => queryClient.invalidateQueries({ queryKey: ['team-members'] })}>
+          Try Again
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header with Actions */}
@@ -161,7 +241,7 @@ const TeamOverview = () => {
           <p className="text-gray-600 dark:text-text-secondary">Manage staff and permissions</p>
         </div>
         <div className="flex gap-3">
-          <Button onClick={() => navigate('/settings/team/invite')}>
+          <Button onClick={() => setShowInviteModal(true)}>
             <UserPlus className="w-4 h-4 mr-2" />
             Invite Team Member
           </Button>
@@ -287,6 +367,7 @@ const TeamOverview = () => {
               isSelected={selectedMembers.includes(member.id)}
               onSelect={handleMemberSelect}
               onEdit={handleEditMember}
+              onDelete={handleDeleteMember}
             />
           ))}
         </div>
@@ -311,10 +392,21 @@ const TeamOverview = () => {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
-                    Resend Invite
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleResendInvite(invite.id)}
+                    disabled={resendInviteMutation.isPending}
+                  >
+                    {resendInviteMutation.isPending ? 'Sending...' : 'Resend Invite'}
                   </Button>
-                  <Button variant="outline" size="sm" className="text-red-600">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-red-600"
+                    onClick={() => handleCancelInvite(invite.id)}
+                    disabled={deleteMutation.isPending}
+                  >
                     Cancel
                   </Button>
                 </div>
@@ -324,7 +416,73 @@ const TeamOverview = () => {
         </div>
       )}
 
-      {/* Modals */}
+      {/* Invite Modal */}
+      {showInviteModal && (
+        <Dialog open={showInviteModal} onOpenChange={setShowInviteModal}>
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-surface-primary rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+              <h2 className="text-xl font-semibold text-foreground mb-4">Invite Team Member</h2>
+
+              <div className="space-y-4">
+                <Input
+                  label="Email Address"
+                  type="email"
+                  value={inviteForm.email}
+                  onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                  placeholder="colleague@example.com"
+                  required
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <Input
+                    label="First Name"
+                    value={inviteForm.firstName}
+                    onChange={(e) => setInviteForm({ ...inviteForm, firstName: e.target.value })}
+                    placeholder="John"
+                  />
+                  <Input
+                    label="Last Name"
+                    value={inviteForm.lastName}
+                    onChange={(e) => setInviteForm({ ...inviteForm, lastName: e.target.value })}
+                    placeholder="Doe"
+                  />
+                </div>
+                <Select
+                  label="Role"
+                  value={inviteForm.role}
+                  onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value })}
+                  options={[
+                    { value: 'OWNER', label: 'Owner - Full access to everything' },
+                    { value: 'ADMIN', label: 'Admin - Manage staff and settings' },
+                    { value: 'STAFF', label: 'Staff - Day-to-day operations' },
+                    { value: 'READONLY', label: 'Read Only - View only access' },
+                  ]}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <Button variant="ghost" onClick={() => setShowInviteModal(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleInvite}
+                  disabled={inviteMutation.isPending || !inviteForm.email}
+                >
+                  {inviteMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    'Send Invite'
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Dialog>
+      )}
+
+      {/* Permission Modal */}
       {showPermissionModal && editingMember && (
         <PermissionMatrixModal
           member={editingMember}
@@ -333,8 +491,7 @@ const TeamOverview = () => {
             setEditingMember(null);
           }}
           onSave={(updatedMember) => {
-            setShowPermissionModal(false);
-            setEditingMember(null);
+            updateMutation.mutate({ id: editingMember.id, role: updatedMember.role });
           }}
         />
       )}

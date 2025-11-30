@@ -133,9 +133,10 @@ const Profile = () => {
 
   // Active sessions (via React Query)
   const {
-    data: activeSessions = [],
+    data: activeSessionsData,
     isLoading: isLoadingSessions,
   } = useAuthSessionsQuery();
+  const activeSessions = Array.isArray(activeSessionsData) ? activeSessionsData : [];
   const revokeSession = useRevokeSessionMutation();
   const revokeAllOtherSessions = useRevokeAllOtherSessionsMutation();
   

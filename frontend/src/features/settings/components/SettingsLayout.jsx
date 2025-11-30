@@ -1,44 +1,88 @@
 import { useState } from "react";
 import { Outlet, useLocation, useNavigate, NavLink } from "react-router-dom";
-import { 
+import {
   User, Building, Database, Bell, CreditCard, Users, Shield, Tag, Plug,
-  ChevronRight, ChevronDown, ArrowLeft, Menu, X
+  ChevronRight, ChevronDown, ArrowLeft, Menu, X, Calendar, Mail, FileText,
+  Settings, Palette, Globe, ToggleLeft, ClipboardList
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import Badge from "@/components/ui/Badge";
 
 const NAV_SECTIONS = [
   {
     id: "personal",
-    title: "Personal",
+    title: "Your Preferences",
     items: [
-      { id: 'profile', label: 'Profile', icon: User, path: '/settings/profile', description: 'Manage your personal account and preferences' },
+      { id: 'profile', label: 'Profile', icon: User, path: '/settings/profile', description: 'Manage your personal account' },
+      { id: 'notifications', label: 'Notifications', icon: Bell, path: '/settings/notifications', description: 'Email and alert preferences' },
+      { id: 'security', label: 'Security', icon: Shield, path: '/settings/security', description: 'Password and login settings' },
     ],
   },
   {
-    id: "business",
-    title: "Business",
+    id: "account",
+    title: "Account Management",
     items: [
-      { id: 'business', label: 'Business', icon: Building, path: '/settings/business', description: 'Company information and branding' },
-      { id: 'team', label: 'Team', icon: Users, path: '/settings/team', description: 'Manage staff and permissions' },
-      { id: 'facility', label: 'Facility', icon: Building, path: '/settings/facility', description: 'Kennels, locations, and inventory' },
+      { id: 'account', label: 'Account Defaults', icon: Settings, path: '/settings/account', description: 'Business info and operating hours' },
+      { id: 'team', label: 'Users & Teams', icon: Users, path: '/settings/team', description: 'Manage staff and permissions' },
+      { id: 'integrations', label: 'Integrations', icon: Plug, path: '/settings/integrations', description: 'Third-party connections' },
+      { id: 'branding', label: 'Branding', icon: Palette, path: '/settings/branding', description: 'Logo and brand colors' },
+      { id: 'domain', label: 'Domain & SSL', icon: Globe, path: '/settings/domain', description: 'Custom domain settings' },
+      { id: 'features', label: 'Feature Toggles', icon: ToggleLeft, path: '/settings/feature-toggles', description: 'Enable or disable features' },
     ],
   },
   {
-    id: "operations",
-    title: "Operations",
+    id: "facility",
+    title: "Facility & Services",
     items: [
-      { id: 'services', label: 'Services & Pricing', icon: Tag, path: '/settings/services', description: 'Manage services, pricing, and packages' },
-      { id: 'billing', label: 'Billing', icon: CreditCard, path: '/settings/billing', description: 'Subscription and payment settings' },
+      { id: 'facility', label: 'Facility Setup', icon: Building, path: '/settings/facility', description: 'Locations and accommodations' },
+      { id: 'services', label: 'Services & Pricing', icon: Tag, path: '/settings/services', description: 'Service offerings and rates' },
+      { id: 'online-booking', label: 'Online Booking', icon: Calendar, path: '/settings/online-booking', description: 'Customer booking portal' },
     ],
   },
   {
-    id: "system",
-    title: "System",
+    id: "scheduling",
+    title: "Scheduling",
     items: [
-      { id: 'data', label: 'Data', icon: Database, path: '/settings/properties', description: 'Custom fields and data management' },
-      { id: 'notifications', label: 'Notifications', icon: Bell, path: '/settings/notifications', description: 'Email and communication preferences' },
-      { id: 'security', label: 'Security', icon: Shield, path: '/settings/security', description: 'Security and access controls' },
-      { id: 'integrations', label: 'Integrations', icon: Plug, path: '/settings/integrations', description: 'Connect third-party apps and services' },
+      { id: 'calendar', label: 'Calendar Settings', icon: Calendar, path: '/settings/calendar-settings', description: 'Calendar display options' },
+      { id: 'booking-rules', label: 'Booking Rules', icon: ClipboardList, path: '/settings/booking-config', description: 'Booking policies and limits' },
+    ],
+  },
+  {
+    id: "billing",
+    title: "Billing & Payments",
+    items: [
+      { id: 'subscription', label: 'Subscription', icon: CreditCard, path: '/settings/billing', description: 'Your plan and usage' },
+      { id: 'payment-processing', label: 'Payment Processing', icon: CreditCard, path: '/settings/payment-processing', description: 'Payment gateway settings' },
+      { id: 'invoicing', label: 'Invoicing', icon: FileText, path: '/settings/invoicing', description: 'Invoice templates and settings' },
+      { id: 'products', label: 'Products & Packages', icon: Tag, path: '/settings/products-services', description: 'Packages and add-ons' },
+    ],
+  },
+  {
+    id: "communication",
+    title: "Communication",
+    items: [
+      { id: 'email', label: 'Email Templates', icon: Mail, path: '/settings/email', description: 'Customize email content' },
+      { id: 'sms', label: 'SMS Settings', icon: Bell, path: '/settings/sms', description: 'Text message configuration' },
+      { id: 'triggers', label: 'Notification Triggers', icon: Bell, path: '/settings/communication-notifications', description: 'Automated alerts' },
+    ],
+  },
+  {
+    id: "data",
+    title: "Data Management",
+    items: [
+      { id: 'properties', label: 'Properties', icon: Database, path: '/settings/properties', description: 'Custom fields and attributes' },
+      { id: 'forms', label: 'Forms', icon: FileText, path: '/settings/forms', description: 'Intake and custom forms' },
+      { id: 'documents', label: 'Documents', icon: FileText, path: '/settings/documents', description: 'File templates and storage' },
+      { id: 'import-export', label: 'Import & Export', icon: Database, path: '/settings/import-export', description: 'Data migration tools' },
+    ],
+  },
+  {
+    id: "compliance",
+    title: "Compliance",
+    items: [
+      { id: 'audit', label: 'Audit Log', icon: FileText, path: '/settings/audit-log', description: 'Activity history' },
+      { id: 'privacy', label: 'Privacy Settings', icon: Shield, path: '/settings/privacy', description: 'Data privacy controls' },
+      { id: 'terms', label: 'Terms & Policies', icon: FileText, path: '/settings/terms-policies', description: 'Legal documents' },
     ],
   },
 ];
@@ -50,21 +94,39 @@ export default function SettingsLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState({});
+
+  const toggleSection = (sectionId) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [sectionId]: !prev[sectionId]
+    }));
+  };
 
   const getActiveItem = () => {
     const currentPath = location.pathname;
 
-    // Handle special cases
+    // Handle special cases - redirect paths
     if (currentPath === '/settings/members') {
       return ALL_ITEMS.find(item => item.id === 'team');
     }
+    if (currentPath === '/settings/business') {
+      return ALL_ITEMS.find(item => item.id === 'account');
+    }
 
-    // Handle facility sub-routes
+    // Handle sub-routes
     if (currentPath.startsWith('/settings/facility')) {
       return ALL_ITEMS.find(item => item.id === 'facility');
     }
+    if (currentPath.startsWith('/settings/team')) {
+      return ALL_ITEMS.find(item => item.id === 'team');
+    }
+    if (currentPath.startsWith('/settings/objects')) {
+      return ALL_ITEMS.find(item => item.id === 'properties');
+    }
 
-    const activeItem = ALL_ITEMS.find(item => currentPath.startsWith(item.path));
+    // Find exact or prefix match
+    const activeItem = ALL_ITEMS.find(item => currentPath === item.path || currentPath.startsWith(item.path + '/'));
     return activeItem || ALL_ITEMS[0];
   };
 
@@ -94,46 +156,64 @@ export default function SettingsLayout() {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 pb-4">
-        <div className="space-y-6">
-          {NAV_SECTIONS.map((section) => (
-            <div key={section.id}>
-              <div className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-                {section.title}
+        <div className="space-y-1">
+          {NAV_SECTIONS.map((section) => {
+            const isCollapsed = collapsedSections[section.id];
+            const hasActiveItem = section.items.some(item => activeItem?.id === item.id);
+
+            return (
+              <div key={section.id}>
+                {/* Collapsible Section Header */}
+                <button
+                  type="button"
+                  onClick={() => toggleSection(section.id)}
+                  className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 hover:text-muted-foreground transition-colors"
+                >
+                  <span>{section.title}</span>
+                  <ChevronDown className={cn(
+                    "h-3 w-3 transition-transform",
+                    isCollapsed && "-rotate-90"
+                  )} />
+                </button>
+
+                {/* Section Items */}
+                {!isCollapsed && (
+                  <div className="space-y-0.5 mb-3">
+                    {section.items.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = activeItem?.id === item.id;
+
+                      return (
+                        <NavLink
+                          key={item.id}
+                          to={item.path}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={cn(
+                            "group flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                            isActive
+                              ? "text-primary-500 bg-transparent"
+                              : "text-white hover:text-primary-400"
+                          )}
+                        >
+                          <span className="flex items-center gap-2.5">
+                            <Icon className={cn(
+                              "h-4 w-4 flex-shrink-0",
+                              isActive ? "text-primary-500" : "text-white/70 group-hover:text-primary-400"
+                            )} />
+                            <span>{item.label}</span>
+                          </span>
+                          <ChevronRight className={cn(
+                            "h-3.5 w-3.5 transition-opacity",
+                            isActive ? "opacity-100 text-primary-500" : "opacity-0 group-hover:opacity-60"
+                          )} />
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-              <div className="space-y-0.5">
-                {section.items.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = activeItem?.id === item.id;
-                  
-                  return (
-                    <NavLink
-                      key={item.id}
-                      to={item.path}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={cn(
-                        "group flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                        isActive
-                          ? "bg-primary/10 text-primary border border-primary/20"
-                          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground border border-transparent"
-                      )}
-                    >
-                      <span className="flex items-center gap-2.5">
-                        <Icon className={cn(
-                          "h-4 w-4 flex-shrink-0",
-                          isActive ? "text-primary" : "text-muted-foreground/70"
-                        )} />
-                        <span>{item.label}</span>
-                      </span>
-                      <ChevronRight className={cn(
-                        "h-3.5 w-3.5 opacity-0 transition-opacity",
-                        isActive ? "opacity-100" : "group-hover:opacity-60"
-                      )} />
-                    </NavLink>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </nav>
     </div>
@@ -171,14 +251,14 @@ export default function SettingsLayout() {
         <button
           type="button"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="mt-2 w-full flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 text-sm"
+          className="mt-2 w-full flex items-center justify-between rounded-md bg-primary-600 px-3 py-2 text-sm"
         >
-          <span className="flex items-center gap-2">
-            {activeItem && <activeItem.icon className="h-4 w-4 text-primary" />}
+          <span className="flex items-center gap-2 text-white">
+            {activeItem && <activeItem.icon className="h-4 w-4 text-white" />}
             <span className="font-medium">{activeItem?.label}</span>
           </span>
           <ChevronDown className={cn(
-            "h-4 w-4 text-muted-foreground transition-transform",
+            "h-4 w-4 text-white/70 transition-transform",
             mobileMenuOpen && "rotate-180"
           )} />
         </button>

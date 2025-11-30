@@ -211,6 +211,119 @@ exports.handler = async (event, context) => {
       return handleGetReport(tenantId, reportMatch[1]);
     }
 
+    // Export routes
+    if (path === '/api/v1/analytics/export/revenue' || path === '/analytics/export/revenue') {
+      if (method === 'GET') {
+        return handleExportRevenue(tenantId, queryParams);
+      }
+    }
+    if (path === '/api/v1/analytics/export/bookings' || path === '/analytics/export/bookings') {
+      if (method === 'GET') {
+        return handleExportBookings(tenantId, queryParams);
+      }
+    }
+    if (path === '/api/v1/analytics/export/customers' || path === '/analytics/export/customers') {
+      if (method === 'GET') {
+        return handleExportCustomers(tenantId, queryParams);
+      }
+    }
+    if (path === '/api/v1/analytics/export/occupancy' || path === '/analytics/export/occupancy') {
+      if (method === 'GET') {
+        return handleExportOccupancy(tenantId, queryParams);
+      }
+    }
+    if (path === '/api/v1/analytics/export/pets' || path === '/analytics/export/pets') {
+      if (method === 'GET') {
+        return handleExportPets(tenantId, queryParams);
+      }
+    }
+    if (path === '/api/v1/analytics/export/vaccinations' || path === '/analytics/export/vaccinations') {
+      if (method === 'GET') {
+        return handleExportVaccinations(tenantId, queryParams);
+      }
+    }
+
+    // ==========================================================================
+    // COMPLIANCE / USDA FORMS routes - /api/v1/compliance/*
+    // ==========================================================================
+    // Available forms list
+    if (path === '/api/v1/compliance' || path === '/compliance') {
+      if (method === 'GET') {
+        return handleGetComplianceForms(tenantId);
+      }
+    }
+
+    // USDA Form 7001 - Animals on Hand
+    if (path === '/api/v1/compliance/usda/7001' || path === '/compliance/usda/7001') {
+      if (method === 'GET') {
+        return handleGetUSDAForm7001(tenantId, queryParams);
+      }
+    }
+    if (path === '/api/v1/compliance/usda/7001/pdf' || path === '/compliance/usda/7001/pdf') {
+      if (method === 'GET') {
+        return handleGetUSDAForm7001PDF(tenantId, queryParams);
+      }
+    }
+
+    // USDA Form 7002 - Acquisition/Disposition
+    if (path === '/api/v1/compliance/usda/7002' || path === '/compliance/usda/7002') {
+      if (method === 'GET') {
+        return handleGetUSDAForm7002(tenantId, queryParams);
+      }
+    }
+    if (path === '/api/v1/compliance/usda/7002/pdf' || path === '/compliance/usda/7002/pdf') {
+      if (method === 'GET') {
+        return handleGetUSDAForm7002PDF(tenantId, queryParams);
+      }
+    }
+
+    // USDA Form 7005 - Veterinary Care
+    if (path === '/api/v1/compliance/usda/7005' || path === '/compliance/usda/7005') {
+      if (method === 'GET') {
+        return handleGetUSDAForm7005(tenantId, queryParams);
+      }
+    }
+    if (path === '/api/v1/compliance/usda/7005/pdf' || path === '/compliance/usda/7005/pdf') {
+      if (method === 'GET') {
+        return handleGetUSDAForm7005PDF(tenantId, queryParams);
+      }
+    }
+
+    // Vaccination compliance report
+    if (path === '/api/v1/compliance/vaccinations' || path === '/compliance/vaccinations') {
+      if (method === 'GET') {
+        return handleGetVaccinationCompliance(tenantId);
+      }
+    }
+
+    // Inspection checklist
+    if (path === '/api/v1/compliance/inspection-checklist' || path === '/compliance/inspection-checklist') {
+      if (method === 'GET') {
+        return handleGetInspectionChecklist(tenantId);
+      }
+    }
+
+    // ==========================================================================
+    // AUDIT LOG routes - /api/v1/audit-logs/*
+    // ==========================================================================
+    if (path === '/api/v1/audit-logs' || path === '/audit-logs') {
+      if (method === 'GET') {
+        return handleGetAuditLogs(tenantId, queryParams);
+      }
+    }
+
+    if (path === '/api/v1/audit-logs/summary' || path === '/audit-logs/summary') {
+      if (method === 'GET') {
+        return handleGetAuditLogSummary(tenantId, queryParams);
+      }
+    }
+
+    if (path === '/api/v1/audit-logs/export' || path === '/audit-logs/export') {
+      if (method === 'GET') {
+        return handleExportAuditLogs(tenantId, queryParams);
+      }
+    }
+
     // Default response for unmatched routes
     return createResponse(404, {
       error: 'Not Found',
@@ -837,6 +950,608 @@ async function handleGenerateReport(tenantId, body) {
 }
 
 // =============================================================================
+// EXPORT HANDLERS
+// =============================================================================
+
+/**
+ * Helper: Convert rows to CSV format
+ */
+function toCSV(rows, columns) {
+  if (!rows || rows.length === 0) {
+    return columns.join(',') + '\n';
+  }
+  
+  const escapeCSV = (value) => {
+    if (value === null || value === undefined) return '';
+    const str = String(value);
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+  
+  const header = columns.join(',');
+  const body = rows.map(row => 
+    columns.map(col => escapeCSV(row[col])).join(',')
+  ).join('\n');
+  
+  return header + '\n' + body;
+}
+
+/**
+ * Helper: Create export response with proper headers
+ */
+function createExportResponse(data, filename, format = 'csv') {
+  const contentType = format === 'csv' ? 'text/csv' : 'application/json';
+  const body = format === 'csv' ? data : JSON.stringify(data, null, 2);
+  
+  return {
+    statusCode: 200,
+    headers: {
+      'Content-Type': contentType,
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': '*',
+      'Access-Control-Allow-Methods': '*',
+    },
+    body,
+  };
+}
+
+/**
+ * Export revenue report
+ */
+async function handleExportRevenue(tenantId, queryParams) {
+  const { startDate, endDate, format = 'csv' } = queryParams;
+  
+  console.log('[Export][revenue] tenantId:', tenantId, 'period:', startDate, '-', endDate);
+  
+  try {
+    await getPoolAsync();
+    
+    let whereClause = 'tenant_id = $1';
+    const params = [tenantId];
+    
+    if (startDate) {
+      whereClause += ` AND created_at >= $${params.length + 1}`;
+      params.push(startDate);
+    }
+    if (endDate) {
+      whereClause += ` AND created_at <= $${params.length + 1}`;
+      params.push(endDate);
+    }
+    
+    const result = await query(
+      `SELECT
+         DATE(created_at) as date,
+         COUNT(*) as booking_count,
+         COALESCE(SUM(total_price), 0) as revenue,
+         COALESCE(AVG(total_price), 0) as avg_booking_value,
+         status
+       FROM "Booking"
+       WHERE ${whereClause} AND status IN ('CHECKED_IN', 'COMPLETED')
+       GROUP BY DATE(created_at), status
+       ORDER BY date DESC`,
+      params
+    );
+    
+    const columns = ['date', 'booking_count', 'revenue', 'avg_booking_value', 'status'];
+    const rows = result.rows.map(row => ({
+      date: row.date,
+      booking_count: parseInt(row.booking_count),
+      revenue: parseFloat(row.revenue).toFixed(2),
+      avg_booking_value: parseFloat(row.avg_booking_value).toFixed(2),
+      status: row.status,
+    }));
+    
+    const filename = `revenue_report_${startDate || 'all'}_${endDate || 'all'}.${format}`;
+    
+    if (format === 'json') {
+      return createExportResponse({
+        report: 'Revenue Report',
+        period: { startDate, endDate },
+        generatedAt: new Date().toISOString(),
+        data: rows,
+        summary: {
+          totalRevenue: rows.reduce((sum, r) => sum + parseFloat(r.revenue), 0).toFixed(2),
+          totalBookings: rows.reduce((sum, r) => sum + r.booking_count, 0),
+        }
+      }, filename, 'json');
+    }
+    
+    return createExportResponse(toCSV(rows, columns), filename, 'csv');
+    
+  } catch (error) {
+    console.error('[Export][revenue] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to export revenue report',
+    });
+  }
+}
+
+/**
+ * Export bookings report
+ */
+async function handleExportBookings(tenantId, queryParams) {
+  const { startDate, endDate, status, format = 'csv' } = queryParams;
+  
+  console.log('[Export][bookings] tenantId:', tenantId, 'period:', startDate, '-', endDate);
+  
+  try {
+    await getPoolAsync();
+    
+    let whereClause = 'b.tenant_id = $1';
+    const params = [tenantId];
+    
+    if (startDate) {
+      whereClause += ` AND b.start_date >= $${params.length + 1}`;
+      params.push(startDate);
+    }
+    if (endDate) {
+      whereClause += ` AND b.end_date <= $${params.length + 1}`;
+      params.push(endDate);
+    }
+    if (status) {
+      whereClause += ` AND b.status = $${params.length + 1}`;
+      params.push(status);
+    }
+    
+    const result = await query(
+      `SELECT
+         b.id as booking_id,
+         b.start_date,
+         b.end_date,
+         b.status,
+         b.total_price,
+         b.notes,
+         b.created_at,
+         o.first_name as owner_first_name,
+         o.last_name as owner_last_name,
+         o.email as owner_email,
+         o.phone as owner_phone,
+         p.name as pet_name,
+         p.breed as pet_breed,
+         k.name as kennel_name
+       FROM "Booking" b
+       LEFT JOIN "Owner" o ON b.owner_id = o.id
+       LEFT JOIN "Pet" p ON p.id = ANY(b.pet_ids)
+       LEFT JOIN "Kennel" k ON b.kennel_id = k.id
+       WHERE ${whereClause}
+       ORDER BY b.start_date DESC`,
+      params
+    );
+    
+    const columns = [
+      'booking_id', 'start_date', 'end_date', 'status', 'total_price',
+      'owner_first_name', 'owner_last_name', 'owner_email', 'owner_phone',
+      'pet_name', 'pet_breed', 'kennel_name', 'notes', 'created_at'
+    ];
+    
+    const rows = result.rows.map(row => ({
+      booking_id: row.booking_id,
+      start_date: row.start_date?.toISOString().split('T')[0] || '',
+      end_date: row.end_date?.toISOString().split('T')[0] || '',
+      status: row.status,
+      total_price: parseFloat(row.total_price || 0).toFixed(2),
+      owner_first_name: row.owner_first_name || '',
+      owner_last_name: row.owner_last_name || '',
+      owner_email: row.owner_email || '',
+      owner_phone: row.owner_phone || '',
+      pet_name: row.pet_name || '',
+      pet_breed: row.pet_breed || '',
+      kennel_name: row.kennel_name || '',
+      notes: row.notes || '',
+      created_at: row.created_at?.toISOString() || '',
+    }));
+    
+    const filename = `bookings_report_${startDate || 'all'}_${endDate || 'all'}.${format}`;
+    
+    if (format === 'json') {
+      return createExportResponse({
+        report: 'Bookings Report',
+        period: { startDate, endDate },
+        filters: { status },
+        generatedAt: new Date().toISOString(),
+        data: rows,
+        summary: {
+          totalBookings: rows.length,
+          totalRevenue: rows.reduce((sum, r) => sum + parseFloat(r.total_price), 0).toFixed(2),
+        }
+      }, filename, 'json');
+    }
+    
+    return createExportResponse(toCSV(rows, columns), filename, 'csv');
+    
+  } catch (error) {
+    console.error('[Export][bookings] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to export bookings report',
+    });
+  }
+}
+
+/**
+ * Export customers report
+ */
+async function handleExportCustomers(tenantId, queryParams) {
+  const { format = 'csv' } = queryParams;
+  
+  console.log('[Export][customers] tenantId:', tenantId);
+  
+  try {
+    await getPoolAsync();
+    
+    const result = await query(
+      `SELECT
+         o.id as owner_id,
+         o.first_name,
+         o.last_name,
+         o.email,
+         o.phone,
+         o.address,
+         o.city,
+         o.state,
+         o.zip_code,
+         o.emergency_contact_name,
+         o.emergency_contact_phone,
+         o.created_at,
+         COUNT(DISTINCT b.id) as total_bookings,
+         COALESCE(SUM(b.total_price), 0) as lifetime_value,
+         MAX(b.created_at) as last_booking_date,
+         COUNT(DISTINCT p.id) as pet_count
+       FROM "Owner" o
+       LEFT JOIN "Booking" b ON o.id = b.owner_id AND b.status IN ('CHECKED_IN', 'COMPLETED')
+       LEFT JOIN "Pet" p ON o.id = p.owner_id
+       WHERE o.tenant_id = $1 AND o.deleted_at IS NULL
+       GROUP BY o.id
+       ORDER BY o.last_name, o.first_name`,
+      [tenantId]
+    );
+    
+    const columns = [
+      'owner_id', 'first_name', 'last_name', 'email', 'phone',
+      'address', 'city', 'state', 'zip_code',
+      'emergency_contact_name', 'emergency_contact_phone',
+      'total_bookings', 'lifetime_value', 'last_booking_date', 'pet_count', 'created_at'
+    ];
+    
+    const rows = result.rows.map(row => ({
+      owner_id: row.owner_id,
+      first_name: row.first_name || '',
+      last_name: row.last_name || '',
+      email: row.email || '',
+      phone: row.phone || '',
+      address: row.address || '',
+      city: row.city || '',
+      state: row.state || '',
+      zip_code: row.zip_code || '',
+      emergency_contact_name: row.emergency_contact_name || '',
+      emergency_contact_phone: row.emergency_contact_phone || '',
+      total_bookings: parseInt(row.total_bookings || 0),
+      lifetime_value: parseFloat(row.lifetime_value || 0).toFixed(2),
+      last_booking_date: row.last_booking_date?.toISOString().split('T')[0] || '',
+      pet_count: parseInt(row.pet_count || 0),
+      created_at: row.created_at?.toISOString() || '',
+    }));
+    
+    const filename = `customers_report_${new Date().toISOString().split('T')[0]}.${format}`;
+    
+    if (format === 'json') {
+      return createExportResponse({
+        report: 'Customers Report',
+        generatedAt: new Date().toISOString(),
+        data: rows,
+        summary: {
+          totalCustomers: rows.length,
+          totalLifetimeValue: rows.reduce((sum, r) => sum + parseFloat(r.lifetime_value), 0).toFixed(2),
+          avgBookingsPerCustomer: (rows.reduce((sum, r) => sum + r.total_bookings, 0) / (rows.length || 1)).toFixed(2),
+        }
+      }, filename, 'json');
+    }
+    
+    return createExportResponse(toCSV(rows, columns), filename, 'csv');
+    
+  } catch (error) {
+    console.error('[Export][customers] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to export customers report',
+    });
+  }
+}
+
+/**
+ * Export occupancy report
+ */
+async function handleExportOccupancy(tenantId, queryParams) {
+  const { startDate, endDate, format = 'csv' } = queryParams;
+  
+  console.log('[Export][occupancy] tenantId:', tenantId, 'period:', startDate, '-', endDate);
+  
+  try {
+    await getPoolAsync();
+    
+    // Default to last 30 days if no date range provided
+    const end = endDate || new Date().toISOString().split('T')[0];
+    const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    // Get total kennel capacity
+    const capacityResult = await query(
+      `SELECT COALESCE(SUM(capacity), 0) as total_capacity FROM "Kennel" WHERE tenant_id = $1`,
+      [tenantId]
+    );
+    const totalCapacity = parseInt(capacityResult.rows[0]?.total_capacity || 0);
+    
+    // Get daily occupancy for the date range
+    const result = await query(
+      `SELECT
+         d::date as date,
+         COUNT(DISTINCT b.id) as bookings,
+         COALESCE(SUM(array_length(b.pet_ids, 1)), 0) as pets_boarded
+       FROM generate_series($2::date, $3::date, '1 day'::interval) d
+       LEFT JOIN "Booking" b ON b.tenant_id = $1
+         AND b.start_date <= d::date
+         AND b.end_date > d::date
+         AND b.status IN ('CONFIRMED', 'CHECKED_IN')
+       GROUP BY d::date
+       ORDER BY d::date`,
+      [tenantId, start, end]
+    );
+    
+    const columns = ['date', 'bookings', 'pets_boarded', 'total_capacity', 'occupancy_rate'];
+    
+    const rows = result.rows.map(row => ({
+      date: row.date?.toISOString().split('T')[0] || '',
+      bookings: parseInt(row.bookings || 0),
+      pets_boarded: parseInt(row.pets_boarded || 0),
+      total_capacity: totalCapacity,
+      occupancy_rate: totalCapacity > 0 
+        ? ((parseInt(row.pets_boarded || 0) / totalCapacity) * 100).toFixed(1) + '%'
+        : '0%',
+    }));
+    
+    const filename = `occupancy_report_${start}_${end}.${format}`;
+    
+    if (format === 'json') {
+      const avgOccupancy = totalCapacity > 0
+        ? (rows.reduce((sum, r) => sum + parseInt(r.pets_boarded), 0) / (rows.length * totalCapacity) * 100).toFixed(1)
+        : 0;
+        
+      return createExportResponse({
+        report: 'Occupancy Report',
+        period: { startDate: start, endDate: end },
+        generatedAt: new Date().toISOString(),
+        data: rows,
+        summary: {
+          totalCapacity,
+          avgOccupancyRate: avgOccupancy + '%',
+          peakOccupancy: Math.max(...rows.map(r => parseInt(r.pets_boarded))),
+          totalDays: rows.length,
+        }
+      }, filename, 'json');
+    }
+    
+    return createExportResponse(toCSV(rows, columns), filename, 'csv');
+    
+  } catch (error) {
+    console.error('[Export][occupancy] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to export occupancy report',
+    });
+  }
+}
+
+/**
+ * Export pets report
+ */
+async function handleExportPets(tenantId, queryParams) {
+  const { format = 'csv' } = queryParams;
+  
+  console.log('[Export][pets] tenantId:', tenantId);
+  
+  try {
+    await getPoolAsync();
+    
+    const result = await query(
+      `SELECT
+         p.id as pet_id,
+         p.name,
+         p.breed,
+         p.species,
+         p.weight,
+         p.birth_date,
+         p.gender,
+         p.color,
+         p.microchip_number,
+         p.special_needs,
+         p.dietary_requirements,
+         p.vet_name,
+         p.vet_phone,
+         p.vet_clinic,
+         p.created_at,
+         o.first_name as owner_first_name,
+         o.last_name as owner_last_name,
+         o.email as owner_email,
+         o.phone as owner_phone,
+         COUNT(DISTINCT b.id) as booking_count,
+         MAX(b.created_at) as last_visit
+       FROM "Pet" p
+       LEFT JOIN "Owner" o ON p.owner_id = o.id
+       LEFT JOIN "Booking" b ON p.id = ANY(b.pet_ids)
+       WHERE p.tenant_id = $1 AND p.deleted_at IS NULL
+       GROUP BY p.id, o.id
+       ORDER BY p.name`,
+      [tenantId]
+    );
+    
+    const columns = [
+      'pet_id', 'name', 'breed', 'species', 'weight', 'birth_date', 'gender', 'color',
+      'microchip_number', 'special_needs', 'dietary_requirements',
+      'vet_name', 'vet_phone', 'vet_clinic',
+      'owner_first_name', 'owner_last_name', 'owner_email', 'owner_phone',
+      'booking_count', 'last_visit', 'created_at'
+    ];
+    
+    const rows = result.rows.map(row => ({
+      pet_id: row.pet_id,
+      name: row.name || '',
+      breed: row.breed || '',
+      species: row.species || '',
+      weight: row.weight || '',
+      birth_date: row.birth_date?.toISOString().split('T')[0] || '',
+      gender: row.gender || '',
+      color: row.color || '',
+      microchip_number: row.microchip_number || '',
+      special_needs: row.special_needs || '',
+      dietary_requirements: row.dietary_requirements || '',
+      vet_name: row.vet_name || '',
+      vet_phone: row.vet_phone || '',
+      vet_clinic: row.vet_clinic || '',
+      owner_first_name: row.owner_first_name || '',
+      owner_last_name: row.owner_last_name || '',
+      owner_email: row.owner_email || '',
+      owner_phone: row.owner_phone || '',
+      booking_count: parseInt(row.booking_count || 0),
+      last_visit: row.last_visit?.toISOString().split('T')[0] || '',
+      created_at: row.created_at?.toISOString() || '',
+    }));
+    
+    const filename = `pets_report_${new Date().toISOString().split('T')[0]}.${format}`;
+    
+    if (format === 'json') {
+      const breedCounts = {};
+      rows.forEach(r => {
+        breedCounts[r.breed || 'Unknown'] = (breedCounts[r.breed || 'Unknown'] || 0) + 1;
+      });
+      
+      return createExportResponse({
+        report: 'Pets Report',
+        generatedAt: new Date().toISOString(),
+        data: rows,
+        summary: {
+          totalPets: rows.length,
+          breedDistribution: breedCounts,
+          avgBookingsPerPet: (rows.reduce((sum, r) => sum + r.booking_count, 0) / (rows.length || 1)).toFixed(2),
+        }
+      }, filename, 'json');
+    }
+    
+    return createExportResponse(toCSV(rows, columns), filename, 'csv');
+    
+  } catch (error) {
+    console.error('[Export][pets] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to export pets report',
+    });
+  }
+}
+
+/**
+ * Export vaccinations report
+ */
+async function handleExportVaccinations(tenantId, queryParams) {
+  const { expiring = 'false', days = '30', format = 'csv' } = queryParams;
+  
+  console.log('[Export][vaccinations] tenantId:', tenantId, 'expiring:', expiring, 'days:', days);
+  
+  try {
+    await getPoolAsync();
+    
+    let whereClause = 'v.tenant_id = $1';
+    const params = [tenantId];
+    
+    if (expiring === 'true') {
+      const expirationDate = new Date();
+      expirationDate.setDate(expirationDate.getDate() + parseInt(days));
+      whereClause += ` AND v.expiration_date <= $${params.length + 1} AND v.expiration_date >= NOW()`;
+      params.push(expirationDate.toISOString());
+    }
+    
+    const result = await query(
+      `SELECT
+         v.id as vaccination_id,
+         v.vaccine_name,
+         v.vaccination_date,
+         v.expiration_date,
+         v.administered_by,
+         v.lot_number,
+         v.notes,
+         p.name as pet_name,
+         p.breed as pet_breed,
+         o.first_name as owner_first_name,
+         o.last_name as owner_last_name,
+         o.email as owner_email,
+         o.phone as owner_phone,
+         CASE 
+           WHEN v.expiration_date < NOW() THEN 'Expired'
+           WHEN v.expiration_date <= NOW() + INTERVAL '30 days' THEN 'Expiring Soon'
+           ELSE 'Valid'
+         END as status
+       FROM "Vaccination" v
+       LEFT JOIN "Pet" p ON v.pet_id = p.id
+       LEFT JOIN "Owner" o ON p.owner_id = o.id
+       WHERE ${whereClause}
+       ORDER BY v.expiration_date ASC`,
+      params
+    );
+    
+    const columns = [
+      'vaccination_id', 'vaccine_name', 'vaccination_date', 'expiration_date', 'status',
+      'administered_by', 'lot_number', 'notes',
+      'pet_name', 'pet_breed', 'owner_first_name', 'owner_last_name', 'owner_email', 'owner_phone'
+    ];
+    
+    const rows = result.rows.map(row => ({
+      vaccination_id: row.vaccination_id,
+      vaccine_name: row.vaccine_name || '',
+      vaccination_date: row.vaccination_date?.toISOString().split('T')[0] || '',
+      expiration_date: row.expiration_date?.toISOString().split('T')[0] || '',
+      status: row.status,
+      administered_by: row.administered_by || '',
+      lot_number: row.lot_number || '',
+      notes: row.notes || '',
+      pet_name: row.pet_name || '',
+      pet_breed: row.pet_breed || '',
+      owner_first_name: row.owner_first_name || '',
+      owner_last_name: row.owner_last_name || '',
+      owner_email: row.owner_email || '',
+      owner_phone: row.owner_phone || '',
+    }));
+    
+    const filename = `vaccinations_report_${new Date().toISOString().split('T')[0]}.${format}`;
+    
+    if (format === 'json') {
+      const statusCounts = { Expired: 0, 'Expiring Soon': 0, Valid: 0 };
+      rows.forEach(r => statusCounts[r.status]++);
+      
+      return createExportResponse({
+        report: 'Vaccinations Report',
+        generatedAt: new Date().toISOString(),
+        filters: { expiring: expiring === 'true', days: parseInt(days) },
+        data: rows,
+        summary: {
+          totalVaccinations: rows.length,
+          statusCounts,
+        }
+      }, filename, 'json');
+    }
+    
+    return createExportResponse(toCSV(rows, columns), filename, 'csv');
+    
+  } catch (error) {
+    console.error('[Export][vaccinations] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to export vaccinations report',
+    });
+  }
+}
+
+// =============================================================================
 // SEGMENTS HANDLERS
 // =============================================================================
 
@@ -1183,4 +1898,1265 @@ async function handleGetUnreadCount(tenantId) {
       message: 'Failed to retrieve unread count',
     });
   }
+}
+
+// =============================================================================
+// COMPLIANCE / USDA FORM HANDLERS
+// =============================================================================
+
+// Import USDA forms utility
+let usdaForms;
+try {
+  usdaForms = require('/opt/nodejs/usda-forms');
+} catch (e) {
+  usdaForms = require('../../layers/shared-layer/nodejs/usda-forms');
+}
+
+/**
+ * Get list of available compliance forms
+ */
+async function handleGetComplianceForms(tenantId) {
+  return createResponse(200, {
+    forms: [
+      {
+        id: '7001',
+        name: 'APHIS Form 7001 - Report of Animals on Hand',
+        description: 'Annual report of all animals currently in facility',
+        endpoints: {
+          json: '/api/v1/compliance/usda/7001',
+          pdf: '/api/v1/compliance/usda/7001/pdf',
+        },
+      },
+      {
+        id: '7002',
+        name: 'APHIS Form 7002 - Record of Acquisition and Disposition',
+        description: 'Record of check-ins and check-outs',
+        endpoints: {
+          json: '/api/v1/compliance/usda/7002',
+          pdf: '/api/v1/compliance/usda/7002/pdf',
+        },
+      },
+      {
+        id: '7005',
+        name: 'APHIS Form 7005 - Record of Veterinary Care',
+        description: 'Veterinary treatment records',
+        endpoints: {
+          json: '/api/v1/compliance/usda/7005',
+          pdf: '/api/v1/compliance/usda/7005/pdf',
+        },
+      },
+    ],
+    reports: [
+      {
+        id: 'vaccination-compliance',
+        name: 'Vaccination Compliance Report',
+        endpoint: '/api/v1/compliance/vaccinations',
+      },
+      {
+        id: 'inspection-checklist',
+        name: 'Inspection Preparation Checklist',
+        endpoint: '/api/v1/compliance/inspection-checklist',
+      },
+    ],
+  });
+}
+
+/**
+ * Get facility data for forms
+ */
+async function getFacilityData(tenantId) {
+  const result = await query(
+    `SELECT name, address, city, state, zip_code, phone, email,
+            license_number, vet_name, vet_phone, vet_license, vet_address
+     FROM "Tenant" WHERE id = $1`,
+    [tenantId]
+  );
+  const row = result.rows[0] || {};
+  return {
+    name: row.name,
+    address: row.address,
+    city: row.city,
+    state: row.state,
+    zipCode: row.zip_code,
+    phone: row.phone,
+    email: row.email,
+    licenseNumber: row.license_number,
+    vetName: row.vet_name,
+    vetPhone: row.vet_phone,
+    vetLicense: row.vet_license,
+    vetAddress: row.vet_address,
+  };
+}
+
+/**
+ * Get USDA Form 7001 - Animals on Hand (JSON)
+ */
+async function handleGetUSDAForm7001(tenantId, queryParams) {
+  const { reportDate } = queryParams;
+
+  console.log('[Compliance][7001] tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    const facilityData = await getFacilityData(tenantId);
+
+    // Get all pets currently checked in (active bookings)
+    const animalsResult = await query(
+      `SELECT DISTINCT ON (p.id)
+         p.id, p.name, p.species, p.breed, p.birth_date, p.gender,
+         p.microchip_number,
+         o.first_name || ' ' || o.last_name as owner_name,
+         b.check_in as date_received
+       FROM "Pet" p
+       JOIN "Booking" b ON p.id = ANY(b.pet_ids)
+       JOIN "Owner" o ON p.owner_id = o.id
+       WHERE b.tenant_id = $1
+         AND b.status = 'CHECKED_IN'
+         AND b.deleted_at IS NULL
+         AND p.deleted_at IS NULL
+       ORDER BY p.id, b.check_in DESC`,
+      [tenantId]
+    );
+
+    const form = usdaForms.generateForm7001(facilityData, animalsResult.rows, reportDate);
+
+    return createResponse(200, form);
+
+  } catch (error) {
+    console.error('[Compliance][7001] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to generate Form 7001',
+    });
+  }
+}
+
+/**
+ * Get USDA Form 7001 - Animals on Hand (PDF)
+ */
+async function handleGetUSDAForm7001PDF(tenantId, queryParams) {
+  const { reportDate } = queryParams;
+
+  console.log('[Compliance][7001/PDF] tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    const facilityData = await getFacilityData(tenantId);
+
+    const animalsResult = await query(
+      `SELECT DISTINCT ON (p.id)
+         p.id, p.name, p.species, p.breed, p.birth_date, p.gender,
+         p.microchip_number,
+         o.first_name || ' ' || o.last_name as owner_name,
+         b.check_in as date_received
+       FROM "Pet" p
+       JOIN "Booking" b ON p.id = ANY(b.pet_ids)
+       JOIN "Owner" o ON p.owner_id = o.id
+       WHERE b.tenant_id = $1
+         AND b.status = 'CHECKED_IN'
+         AND b.deleted_at IS NULL
+         AND p.deleted_at IS NULL
+       ORDER BY p.id, b.check_in DESC`,
+      [tenantId]
+    );
+
+    const pdfBuffer = await usdaForms.generateForm7001PDF(facilityData, animalsResult.rows, reportDate);
+
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="USDA-Form-7001-${new Date().toISOString().split('T')[0]}.pdf"`,
+        'Access-Control-Allow-Origin': '*',
+      },
+      body: pdfBuffer.toString('base64'),
+      isBase64Encoded: true,
+    };
+
+  } catch (error) {
+    console.error('[Compliance][7001/PDF] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to generate Form 7001 PDF',
+    });
+  }
+}
+
+/**
+ * Get USDA Form 7002 - Acquisition/Disposition (JSON)
+ */
+async function handleGetUSDAForm7002(tenantId, queryParams) {
+  const { startDate, endDate } = queryParams;
+
+  console.log('[Compliance][7002] tenantId:', tenantId);
+
+  const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const end = endDate || new Date().toISOString().split('T')[0];
+
+  try {
+    await getPoolAsync();
+
+    const facilityData = await getFacilityData(tenantId);
+
+    // Get check-ins and check-outs in date range
+    const transactionsResult = await query(
+      `SELECT
+         b.id as booking_id,
+         p.id as pet_id,
+         p.name as pet_name,
+         p.species,
+         p.breed,
+         p.gender,
+         o.first_name || ' ' || o.last_name as owner_name,
+         o.address as owner_address,
+         b.check_in,
+         b.check_out,
+         b.actual_check_in,
+         b.actual_check_out,
+         b.status
+       FROM "Booking" b
+       JOIN "Owner" o ON b.owner_id = o.id
+       CROSS JOIN LATERAL unnest(b.pet_ids) AS pid
+       JOIN "Pet" p ON p.id = pid
+       WHERE b.tenant_id = $1
+         AND b.deleted_at IS NULL
+         AND (
+           (DATE(COALESCE(b.actual_check_in, b.check_in)) BETWEEN $2 AND $3)
+           OR (DATE(COALESCE(b.actual_check_out, b.check_out)) BETWEEN $2 AND $3)
+         )
+       ORDER BY COALESCE(b.actual_check_in, b.check_in) DESC`,
+      [tenantId, start, end]
+    );
+
+    // Transform to transactions
+    const transactions = [];
+    for (const row of transactionsResult.rows) {
+      const checkInDate = row.actual_check_in || row.check_in;
+      const checkOutDate = row.actual_check_out || row.check_out;
+
+      if (checkInDate && new Date(checkInDate) >= new Date(start) && new Date(checkInDate) <= new Date(end)) {
+        transactions.push({
+          type: 'checkin',
+          date: new Date(checkInDate).toISOString().split('T')[0],
+          petId: row.pet_id,
+          petName: row.pet_name,
+          species: row.species,
+          breed: row.breed,
+          gender: row.gender,
+          ownerName: row.owner_name,
+          ownerAddress: row.owner_address,
+          bookingId: row.booking_id,
+        });
+      }
+
+      if (checkOutDate && new Date(checkOutDate) >= new Date(start) && new Date(checkOutDate) <= new Date(end)) {
+        transactions.push({
+          type: 'checkout',
+          date: new Date(checkOutDate).toISOString().split('T')[0],
+          petId: row.pet_id,
+          petName: row.pet_name,
+          species: row.species,
+          breed: row.breed,
+          gender: row.gender,
+          ownerName: row.owner_name,
+          ownerAddress: row.owner_address,
+          bookingId: row.booking_id,
+        });
+      }
+    }
+
+    const form = usdaForms.generateForm7002(facilityData, transactions, start, end);
+
+    return createResponse(200, form);
+
+  } catch (error) {
+    console.error('[Compliance][7002] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to generate Form 7002',
+    });
+  }
+}
+
+/**
+ * Get USDA Form 7002 - Acquisition/Disposition (PDF)
+ */
+async function handleGetUSDAForm7002PDF(tenantId, queryParams) {
+  const { startDate, endDate } = queryParams;
+
+  console.log('[Compliance][7002/PDF] tenantId:', tenantId);
+
+  const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const end = endDate || new Date().toISOString().split('T')[0];
+
+  try {
+    await getPoolAsync();
+
+    const facilityData = await getFacilityData(tenantId);
+
+    const transactionsResult = await query(
+      `SELECT
+         b.id as booking_id, p.id as pet_id, p.name as pet_name,
+         p.species, p.breed, p.gender,
+         o.first_name || ' ' || o.last_name as owner_name,
+         o.address as owner_address,
+         b.actual_check_in, b.actual_check_out, b.check_in, b.check_out
+       FROM "Booking" b
+       JOIN "Owner" o ON b.owner_id = o.id
+       CROSS JOIN LATERAL unnest(b.pet_ids) AS pid
+       JOIN "Pet" p ON p.id = pid
+       WHERE b.tenant_id = $1 AND b.deleted_at IS NULL
+         AND ((DATE(COALESCE(b.actual_check_in, b.check_in)) BETWEEN $2 AND $3)
+           OR (DATE(COALESCE(b.actual_check_out, b.check_out)) BETWEEN $2 AND $3))`,
+      [tenantId, start, end]
+    );
+
+    const transactions = [];
+    for (const row of transactionsResult.rows) {
+      const checkInDate = row.actual_check_in || row.check_in;
+      const checkOutDate = row.actual_check_out || row.check_out;
+
+      if (checkInDate && new Date(checkInDate) >= new Date(start) && new Date(checkInDate) <= new Date(end)) {
+        transactions.push({ type: 'checkin', date: new Date(checkInDate).toISOString().split('T')[0], ...row });
+      }
+      if (checkOutDate && new Date(checkOutDate) >= new Date(start) && new Date(checkOutDate) <= new Date(end)) {
+        transactions.push({ type: 'checkout', date: new Date(checkOutDate).toISOString().split('T')[0], ...row });
+      }
+    }
+
+    const pdfBuffer = await usdaForms.generateForm7002PDF(facilityData, transactions, start, end);
+
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="USDA-Form-7002-${start}-to-${end}.pdf"`,
+        'Access-Control-Allow-Origin': '*',
+      },
+      body: pdfBuffer.toString('base64'),
+      isBase64Encoded: true,
+    };
+
+  } catch (error) {
+    console.error('[Compliance][7002/PDF] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to generate Form 7002 PDF',
+    });
+  }
+}
+
+/**
+ * Get USDA Form 7005 - Veterinary Care (JSON)
+ */
+async function handleGetUSDAForm7005(tenantId, queryParams) {
+  const { startDate, endDate } = queryParams;
+
+  console.log('[Compliance][7005] tenantId:', tenantId);
+
+  const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const end = endDate || new Date().toISOString().split('T')[0];
+
+  try {
+    await getPoolAsync();
+
+    const facilityData = await getFacilityData(tenantId);
+
+    // Get veterinary records (from incidents and vaccinations)
+    const vetRecordsResult = await query(
+      `SELECT
+         i.id, i.incident_date as date,
+         p.id as pet_id, p.name as pet_name, p.species, p.breed,
+         'treatment' as type,
+         i.title as description,
+         i.medical_treatment as medication,
+         i.vet_recommendations as notes
+       FROM "Incident" i
+       JOIN "Pet" p ON i.pet_id = p.id
+       WHERE i.tenant_id = $1
+         AND i.vet_contacted = true
+         AND DATE(i.incident_date) BETWEEN $2 AND $3
+         AND i.deleted_at IS NULL
+       UNION ALL
+       SELECT
+         v.id, v.administered_date as date,
+         p.id as pet_id, p.name as pet_name, p.species, p.breed,
+         'vaccination' as type,
+         v.vaccine_name as description,
+         NULL as medication,
+         v.notes
+       FROM "Vaccination" v
+       JOIN "Pet" p ON v.pet_id = p.id
+       WHERE v.tenant_id = $1
+         AND DATE(v.administered_date) BETWEEN $2 AND $3
+         AND v.deleted_at IS NULL
+       ORDER BY date DESC`,
+      [tenantId, start, end]
+    );
+
+    const form = usdaForms.generateForm7005(facilityData, vetRecordsResult.rows, start, end);
+
+    return createResponse(200, form);
+
+  } catch (error) {
+    console.error('[Compliance][7005] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to generate Form 7005',
+    });
+  }
+}
+
+/**
+ * Get USDA Form 7005 - Veterinary Care (PDF)
+ */
+async function handleGetUSDAForm7005PDF(tenantId, queryParams) {
+  const { startDate, endDate } = queryParams;
+
+  console.log('[Compliance][7005/PDF] tenantId:', tenantId);
+
+  const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const end = endDate || new Date().toISOString().split('T')[0];
+
+  try {
+    await getPoolAsync();
+
+    const facilityData = await getFacilityData(tenantId);
+
+    const vetRecordsResult = await query(
+      `SELECT i.id, i.incident_date as date, p.id as pet_id, p.name as pet_name,
+              p.species, p.breed, 'treatment' as type, i.title as description,
+              i.medical_treatment as medication, i.vet_recommendations as notes
+       FROM "Incident" i JOIN "Pet" p ON i.pet_id = p.id
+       WHERE i.tenant_id = $1 AND i.vet_contacted = true
+         AND DATE(i.incident_date) BETWEEN $2 AND $3 AND i.deleted_at IS NULL
+       UNION ALL
+       SELECT v.id, v.administered_date as date, p.id as pet_id, p.name as pet_name,
+              p.species, p.breed, 'vaccination' as type, v.vaccine_name as description,
+              NULL as medication, v.notes
+       FROM "Vaccination" v JOIN "Pet" p ON v.pet_id = p.id
+       WHERE v.tenant_id = $1 AND DATE(v.administered_date) BETWEEN $2 AND $3 AND v.deleted_at IS NULL
+       ORDER BY date DESC`,
+      [tenantId, start, end]
+    );
+
+    const pdfBuffer = await usdaForms.generateForm7005PDF(facilityData, vetRecordsResult.rows, start, end);
+
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="USDA-Form-7005-${start}-to-${end}.pdf"`,
+        'Access-Control-Allow-Origin': '*',
+      },
+      body: pdfBuffer.toString('base64'),
+      isBase64Encoded: true,
+    };
+
+  } catch (error) {
+    console.error('[Compliance][7005/PDF] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to generate Form 7005 PDF',
+    });
+  }
+}
+
+/**
+ * Get vaccination compliance report
+ */
+async function handleGetVaccinationCompliance(tenantId) {
+  console.log('[Compliance][vaccinations] tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    const facilityData = await getFacilityData(tenantId);
+
+    // Get all pets with their vaccinations
+    const petsResult = await query(
+      `SELECT p.id, p.name, p.species, p.breed,
+              o.first_name || ' ' || o.last_name as owner_name
+       FROM "Pet" p
+       JOIN "Owner" o ON p.owner_id = o.id
+       WHERE p.tenant_id = $1 AND p.deleted_at IS NULL`,
+      [tenantId]
+    );
+
+    const vaccinationsResult = await query(
+      `SELECT pet_id, vaccine_name, administered_date, expiration_date
+       FROM "Vaccination"
+       WHERE tenant_id = $1 AND deleted_at IS NULL`,
+      [tenantId]
+    );
+
+    const report = usdaForms.generateVaccinationComplianceReport(
+      facilityData,
+      petsResult.rows,
+      vaccinationsResult.rows.map(v => ({
+        petId: v.pet_id,
+        vaccineName: v.vaccine_name,
+        vaccinationDate: v.administered_date,
+        expirationDate: v.expiration_date,
+      }))
+    );
+
+    return createResponse(200, report);
+
+  } catch (error) {
+    console.error('[Compliance][vaccinations] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to generate vaccination compliance report',
+    });
+  }
+}
+
+/**
+ * Get inspection checklist
+ */
+async function handleGetInspectionChecklist(tenantId) {
+  console.log('[Compliance][checklist] tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    const facilityData = await getFacilityData(tenantId);
+    const checklist = usdaForms.generateInspectionChecklist(facilityData);
+
+    return createResponse(200, checklist);
+
+  } catch (error) {
+    console.error('[Compliance][checklist] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to generate inspection checklist',
+    });
+  }
+}
+
+// =============================================================================
+// AUDIT LOG HANDLERS
+// =============================================================================
+
+// Action metadata for display - maps database actions to frontend format
+const AUDIT_ACTION_META = {
+  // Authentication actions
+  'login': { label: 'Successful login', group: 'Security', variant: 'neutral', severity: null },
+  'login_failed': { label: 'Failed login attempt', group: 'Security', variant: 'danger', severity: 'high' },
+  'logout': { label: 'Logged out', group: 'Security', variant: 'neutral', severity: null },
+  'password_change': { label: 'Password changed', group: 'Security', variant: 'warning', severity: null },
+  'password_reset': { label: 'Password reset', group: 'Security', variant: 'warning', severity: null },
+  'mfa_enabled': { label: 'MFA enabled', group: 'Security', variant: 'success', severity: null },
+  'mfa_disabled': { label: 'MFA disabled', group: 'Security', variant: 'danger', severity: 'high' },
+  
+  // CRUD operations
+  'create': { label: 'Created', group: 'Data', variant: 'info', severity: null },
+  'update': { label: 'Updated', group: 'Data', variant: 'info', severity: null },
+  'delete': { label: 'Deleted', group: 'Data', variant: 'warning', severity: null },
+  'read': { label: 'Viewed', group: 'Data', variant: 'neutral', severity: null },
+  
+  // Booking actions
+  'booking.created': { label: 'Booking created', group: 'Bookings', variant: 'info', severity: null },
+  'booking.updated': { label: 'Booking updated', group: 'Bookings', variant: 'info', severity: null },
+  'booking.cancelled': { label: 'Booking cancelled', group: 'Bookings', variant: 'warning', severity: null },
+  'check_in': { label: 'Pet checked in', group: 'Bookings', variant: 'success', severity: null },
+  'check_out': { label: 'Pet checked out', group: 'Bookings', variant: 'success', severity: null },
+  
+  // Team actions
+  'team.invite.sent': { label: 'Team invite sent', group: 'Team', variant: 'info', severity: null },
+  'team.role.updated': { label: 'Role updated', group: 'Team', variant: 'warning', severity: null },
+  'permission_change': { label: 'Permissions changed', group: 'Team', variant: 'warning', severity: null },
+  
+  // Financial actions
+  'payment': { label: 'Payment processed', group: 'Financial', variant: 'success', severity: null },
+  'refund': { label: 'Refund issued', group: 'Financial', variant: 'warning', severity: null },
+  
+  // Data operations
+  'export': { label: 'Data exported', group: 'Compliance', variant: 'info', severity: null },
+  'import': { label: 'Data imported', group: 'Compliance', variant: 'info', severity: null },
+  'settings.audit.exported': { label: 'Audit log exported', group: 'Compliance', variant: 'info', severity: null },
+  'data.export.generated': { label: 'Workspace export generated', group: 'Compliance', variant: 'info', severity: null },
+  
+  // Config changes
+  'config_change': { label: 'Settings changed', group: 'Settings', variant: 'warning', severity: null },
+};
+
+const FALLBACK_META = { label: 'Activity', group: 'Misc', variant: 'neutral', severity: null };
+
+/**
+ * Get audit logs for a tenant with filtering
+ */
+async function handleGetAuditLogs(tenantId, queryParams) {
+  const { 
+    group, // category filter: Security, Bookings, Team, Compliance, etc.
+    timeframe = '30d', // 24h, 7d, 30d, 90d, all
+    search, // search query
+    limit = 100,
+    offset = 0,
+  } = queryParams;
+
+  console.log('[AuditLog][list] tenantId:', tenantId, 'filters:', { group, timeframe, search });
+
+  try {
+    await getPoolAsync();
+
+    // Calculate date window
+    let startDate = null;
+    const now = new Date();
+    switch (timeframe) {
+      case '24h':
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case '7d':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30d':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case '90d':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      // 'all' or unrecognized - no date filter
+    }
+
+    // Check if audit tables exist first
+    const tableCheckResult = await query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'AuditLog'
+      ) as audit_exists,
+      EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'AuthAuditLog'
+      ) as auth_audit_exists
+    `);
+    
+    const { audit_exists, auth_audit_exists } = tableCheckResult.rows[0] || {};
+    
+    // If neither table exists, return empty results gracefully
+    if (!audit_exists && !auth_audit_exists) {
+      console.log('[AuditLog] No audit tables found, returning empty result');
+      return createResponse(200, {
+        events: [],
+        total: 0,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        hasMore: false,
+        _empty: true,
+        _message: 'Audit logging is not yet configured. Events will appear here once audit tables are created.',
+      });
+    }
+
+    // Build queries based on which tables exist
+    const queries = [];
+    const params = [tenantId];
+    let paramIndex = 2;
+    
+    const dateFilterAudit = startDate ? ` AND a.created_at >= $${paramIndex}` : '';
+    const dateFilterAuth = startDate ? ` AND aa.created_at >= $${paramIndex}` : '';
+    
+    if (startDate) {
+      params.push(startDate.toISOString());
+      paramIndex++;
+    }
+
+    if (audit_exists) {
+      queries.push(`
+        SELECT 
+          a.id,
+          a.id as "recordId",
+          a.action,
+          a.entity_type as "entityType",
+          a.entity_id as "entityId",
+          COALESCE(a.new_values->>'name', a.entity_type || ' ' || COALESCE(a.entity_id::text, '')) as "entityName",
+          a.old_values as "oldValues",
+          a.new_values as "newValues",
+          a.changes,
+          a.ip_address as "ipAddress",
+          a.user_agent as "userAgent",
+          a.metadata,
+          a.created_at as timestamp,
+          u.id as "actorId",
+          u.first_name as "actorFirstName",
+          u.last_name as "actorLastName",
+          u.email as "actorEmail",
+          'general' as source_type
+        FROM "AuditLog" a
+        LEFT JOIN "User" u ON a.user_id = u.id
+        WHERE a.tenant_id = $1${dateFilterAudit}
+      `);
+    }
+
+    if (auth_audit_exists) {
+      queries.push(`
+        SELECT 
+          aa.id,
+          aa.id as "recordId",
+          aa.action,
+          'session' as "entityType",
+          NULL::uuid as "entityId",
+          CASE 
+            WHEN aa.action = 'login' THEN 'App login'
+            WHEN aa.action = 'login_failed' THEN 'Portal login'
+            WHEN aa.action = 'logout' THEN 'Session ended'
+            WHEN aa.action = 'mfa_enabled' THEN 'MFA status changed'
+            WHEN aa.action = 'mfa_disabled' THEN 'MFA status changed'
+            ELSE 'Auth event'
+          END as "entityName",
+          NULL::jsonb as "oldValues",
+          NULL::jsonb as "newValues",
+          NULL::jsonb as changes,
+          aa.ip_address::text as "ipAddress",
+          aa.user_agent as "userAgent",
+          jsonb_build_object(
+            'status', aa.status,
+            'failureReason', aa.failure_reason,
+            'location', aa.location
+          ) as metadata,
+          aa.created_at as timestamp,
+          u.id as "actorId",
+          u.first_name as "actorFirstName",
+          u.last_name as "actorLastName",
+          u.email as "actorEmail",
+          'auth' as source_type
+        FROM "AuthAuditLog" aa
+        LEFT JOIN "User" u ON aa.user_id = u.id
+        WHERE (aa.tenant_id = $1 OR aa.tenant_id IS NULL)${dateFilterAuth}
+      `);
+    }
+
+    // Combine queries with UNION ALL
+    const combinedQuery = `
+      WITH combined AS (
+        ${queries.join(' UNION ALL ')}
+      )
+      SELECT * FROM combined
+      ORDER BY timestamp DESC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+    params.push(parseInt(limit), parseInt(offset));
+
+    const result = await query(combinedQuery, params);
+
+    // Transform results to frontend format
+    const events = result.rows.map(row => {
+      const actionMeta = AUDIT_ACTION_META[row.action] || FALLBACK_META;
+      
+      // Apply group filter if specified
+      if (group && group !== 'all' && actionMeta.group !== group) {
+        return null;
+      }
+
+      // Apply search filter
+      if (search) {
+        const searchLower = search.toLowerCase();
+        const searchableText = [
+          row.entityName,
+          row.entityType,
+          row.actorFirstName,
+          row.actorLastName,
+          row.actorEmail,
+          actionMeta.label,
+          row.action,
+        ].filter(Boolean).join(' ').toLowerCase();
+        
+        if (!searchableText.includes(searchLower)) {
+          return null;
+        }
+      }
+
+      return {
+        recordId: row.recordId,
+        action: row.action,
+        entityType: row.entityType,
+        entityName: row.entityName || row.entityType,
+        entityId: row.entityId,
+        timestamp: row.timestamp,
+        actor: {
+          id: row.actorId,
+          name: row.actorFirstName && row.actorLastName 
+            ? `${row.actorFirstName} ${row.actorLastName}`
+            : (row.actorEmail || 'System'),
+          email: row.actorEmail || null,
+        },
+        source: row.source_type === 'auth' ? 'Auth System' : 'Dashboard',
+        ipAddress: row.ipAddress,
+        userAgent: row.userAgent,
+        location: row.metadata?.location?.city 
+          ? `${row.metadata.location.city}, ${row.metadata.location.region || ''}`
+          : null,
+        metadata: row.metadata || {},
+        diff: row.changes,
+        // Frontend-specific fields
+        _meta: {
+          label: actionMeta.label,
+          group: actionMeta.group,
+          variant: actionMeta.variant,
+          severity: actionMeta.severity,
+        },
+      };
+    }).filter(Boolean);
+
+    // Get count for pagination - build count query based on which tables exist
+    let countQuery = 'SELECT ';
+    const countParts = [];
+    if (audit_exists) {
+      countParts.push(`(SELECT COUNT(*) FROM "AuditLog" WHERE tenant_id = $1 ${startDate ? `AND created_at >= $2` : ''})`);
+    }
+    if (auth_audit_exists) {
+      countParts.push(`(SELECT COUNT(*) FROM "AuthAuditLog" WHERE (tenant_id = $1 OR tenant_id IS NULL) ${startDate ? `AND created_at >= $2` : ''})`);
+    }
+    countQuery += countParts.length > 1 ? countParts.join(' + ') : (countParts[0] || '0');
+    countQuery += ' as total';
+    
+    const countParams = startDate ? [tenantId, startDate.toISOString()] : [tenantId];
+    const countResult = await query(countQuery, countParams);
+    const total = parseInt(countResult.rows[0]?.total || 0);
+
+    console.log('[AuditLog][list] Found:', events.length, 'events, total:', total);
+
+    return createResponse(200, {
+      events,
+      total,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+      hasMore: parseInt(offset) + events.length < total,
+    });
+
+  } catch (error) {
+    // Handle missing tables gracefully (fallback for any edge cases)
+    if (error.message?.includes('does not exist') || error.code === '42P01') {
+      console.log('[AuditLog] Tables not found, returning empty result');
+      return createResponse(200, {
+        events: [],
+        total: 0,
+        limit: parseInt(limit || 100),
+        offset: parseInt(offset || 0),
+        hasMore: false,
+        _empty: true,
+      });
+    }
+    
+    console.error('[AuditLog][list] Error:', error.message, error.stack);
+    // Return empty results instead of error for better UX
+    return createResponse(200, {
+      events: [],
+      total: 0,
+      limit: parseInt(limit || 100),
+      offset: parseInt(offset || 0),
+      hasMore: false,
+      _error: true,
+      _message: 'Unable to load audit logs at this time.',
+    });
+  }
+}
+
+/**
+ * Get audit log summary stats
+ */
+async function handleGetAuditLogSummary(tenantId, queryParams) {
+  const { timeframe = '30d' } = queryParams;
+
+  console.log('[AuditLog][summary] tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    // Check if audit tables exist first
+    const tableCheckResult = await query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'AuditLog'
+      ) as audit_exists,
+      EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'AuthAuditLog'
+      ) as auth_audit_exists
+    `);
+    
+    const { audit_exists, auth_audit_exists } = tableCheckResult.rows[0] || {};
+    
+    // If neither table exists, return empty summary
+    if (!audit_exists && !auth_audit_exists) {
+      return createResponse(200, {
+        totalEvents: 0,
+        uniqueActors: 0,
+        highRiskCount: 0,
+        byAction: [],
+        timeframe,
+        _empty: true,
+      });
+    }
+
+    // Calculate date window
+    let startDate = null;
+    const now = new Date();
+    switch (timeframe) {
+      case '24h':
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case '7d':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30d':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case '90d':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+    }
+
+    const dateFilter = startDate ? `AND created_at >= '${startDate.toISOString()}'` : '';
+
+    // Build queries based on which tables exist
+    let totalEvents = 0;
+    let uniqueActors = 0;
+    let highRiskCount = 0;
+    let byAction = [];
+
+    // Get total events
+    const totalParts = [];
+    if (audit_exists) totalParts.push(`(SELECT COUNT(*) FROM "AuditLog" WHERE tenant_id = $1 ${dateFilter})`);
+    if (auth_audit_exists) totalParts.push(`(SELECT COUNT(*) FROM "AuthAuditLog" WHERE (tenant_id = $1 OR tenant_id IS NULL) ${dateFilter})`);
+    
+    if (totalParts.length > 0) {
+      const totalResult = await query(`SELECT ${totalParts.join(' + ')} as total`, [tenantId]);
+      totalEvents = parseInt(totalResult.rows[0]?.total || 0);
+    }
+
+    // Get unique actors
+    const actorParts = [];
+    if (audit_exists) actorParts.push(`SELECT user_id FROM "AuditLog" WHERE tenant_id = $1 ${dateFilter}`);
+    if (auth_audit_exists) actorParts.push(`SELECT user_id FROM "AuthAuditLog" WHERE (tenant_id = $1 OR tenant_id IS NULL) ${dateFilter}`);
+    
+    if (actorParts.length > 0) {
+      const actorsResult = await query(`SELECT COUNT(DISTINCT user_id) as count FROM (${actorParts.join(' UNION ')}) as actors`, [tenantId]);
+      uniqueActors = parseInt(actorsResult.rows[0]?.count || 0);
+    }
+
+    // Get high-risk events (failed logins, MFA disabled)
+    if (auth_audit_exists) {
+      const highRiskResult = await query(`
+        SELECT COUNT(*) as count FROM "AuthAuditLog" 
+        WHERE (tenant_id = $1 OR tenant_id IS NULL) 
+        AND action IN ('login_failed', 'mfa_disabled') ${dateFilter}
+      `, [tenantId]);
+      highRiskCount = parseInt(highRiskResult.rows[0]?.count || 0);
+    }
+
+    // Get events by category
+    const actionParts = [];
+    if (audit_exists) actionParts.push(`SELECT action FROM "AuditLog" WHERE tenant_id = $1 ${dateFilter}`);
+    if (auth_audit_exists) actionParts.push(`SELECT action FROM "AuthAuditLog" WHERE (tenant_id = $1 OR tenant_id IS NULL) ${dateFilter}`);
+    
+    if (actionParts.length > 0) {
+      const byActionResult = await query(`
+        SELECT action, COUNT(*) as count FROM (${actionParts.join(' UNION ALL ')}) as actions
+        GROUP BY action ORDER BY count DESC
+      `, [tenantId]);
+      byAction = byActionResult.rows.map(r => ({
+        action: r.action,
+        count: parseInt(r.count),
+        meta: AUDIT_ACTION_META[r.action] || FALLBACK_META,
+      }));
+    }
+
+    return createResponse(200, {
+      totalEvents,
+      uniqueActors,
+      highRiskCount,
+      byAction,
+      timeframe,
+    });
+
+  } catch (error) {
+    console.error('[AuditLog][summary] Error:', error.message);
+    // Return empty summary on error for graceful degradation
+    return createResponse(200, {
+      totalEvents: 0,
+      uniqueActors: 0,
+      highRiskCount: 0,
+      byAction: [],
+      timeframe,
+      _error: true,
+    });
+  }
+}
+
+/**
+ * Export audit logs as CSV
+ */
+async function handleExportAuditLogs(tenantId, queryParams) {
+  const { 
+    timeframe = '30d',
+    format = 'csv',
+  } = queryParams;
+
+  console.log('[AuditLog][export] tenantId:', tenantId, 'format:', format);
+
+  try {
+    await getPoolAsync();
+
+    // Check if audit tables exist first
+    const tableCheckResult = await query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'AuditLog'
+      ) as audit_exists,
+      EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'AuthAuditLog'
+      ) as auth_audit_exists
+    `);
+    
+    const { audit_exists, auth_audit_exists } = tableCheckResult.rows[0] || {};
+    
+    // If neither table exists, return empty export
+    if (!audit_exists && !auth_audit_exists) {
+      const columns = ['timestamp', 'action', 'entity_type', 'entity_name', 'actor_name', 'actor_email', 'ip_address', 'source'];
+      const filename = `audit_log_empty_${new Date().toISOString().split('T')[0]}.${format}`;
+      
+      if (format === 'json') {
+        return createExportResponse({
+          report: 'Audit Log Export',
+          timeframe,
+          generatedAt: new Date().toISOString(),
+          totalEvents: 0,
+          data: [],
+          _message: 'No audit logs available - audit tables not yet configured',
+        }, filename, 'json');
+      }
+      
+      return createExportResponse(toCSV([], columns), filename, 'csv');
+    }
+
+    // Calculate date window
+    let startDate = null;
+    const now = new Date();
+    switch (timeframe) {
+      case '24h':
+        startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case '7d':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30d':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case '90d':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+    }
+
+    const dateFilter = startDate ? `AND a.created_at >= '${startDate.toISOString()}'` : '';
+    const authDateFilter = startDate ? `AND aa.created_at >= '${startDate.toISOString()}'` : '';
+
+    // Build query based on which tables exist
+    const queries = [];
+    
+    if (audit_exists) {
+      queries.push(`
+        SELECT 
+          a.id,
+          a.created_at as timestamp,
+          a.action,
+          a.entity_type,
+          COALESCE(a.new_values->>'name', a.entity_type) as entity_name,
+          a.ip_address,
+          u.first_name || ' ' || u.last_name as actor_name,
+          u.email as actor_email,
+          'Dashboard' as source
+        FROM "AuditLog" a
+        LEFT JOIN "User" u ON a.user_id = u.id
+        WHERE a.tenant_id = $1 ${dateFilter}
+      `);
+    }
+
+    if (auth_audit_exists) {
+      queries.push(`
+        SELECT 
+          aa.id,
+          aa.created_at as timestamp,
+          aa.action,
+          'session' as entity_type,
+          CASE WHEN aa.action = 'login_failed' THEN 'Failed login' ELSE 'Auth event' END as entity_name,
+          aa.ip_address::text,
+          u.first_name || ' ' || u.last_name as actor_name,
+          u.email as actor_email,
+          'Auth System' as source
+        FROM "AuthAuditLog" aa
+        LEFT JOIN "User" u ON aa.user_id = u.id
+        WHERE (aa.tenant_id = $1 OR aa.tenant_id IS NULL) ${authDateFilter}
+      `);
+    }
+
+    const result = await query(`${queries.join(' UNION ALL ')} ORDER BY timestamp DESC`, [tenantId]);
+
+    const columns = ['timestamp', 'action', 'entity_type', 'entity_name', 'actor_name', 'actor_email', 'ip_address', 'source'];
+    
+    const rows = result.rows.map(row => ({
+      timestamp: row.timestamp?.toISOString() || '',
+      action: row.action,
+      entity_type: row.entity_type,
+      entity_name: row.entity_name || '',
+      actor_name: row.actor_name || 'System',
+      actor_email: row.actor_email || '',
+      ip_address: row.ip_address || '',
+      source: row.source,
+    }));
+
+    const filename = `audit_log_${timeframe}_${new Date().toISOString().split('T')[0]}.${format}`;
+
+    if (format === 'json') {
+      return createExportResponse({
+        report: 'Audit Log Export',
+        timeframe,
+        generatedAt: new Date().toISOString(),
+        totalEvents: rows.length,
+        data: rows,
+      }, filename, 'json');
+    }
+
+    return createExportResponse(toCSV(rows, columns), filename, 'csv');
+
+  } catch (error) {
+    console.error('[AuditLog][export] Error:', error.message);
+    
+    // Return empty export on error
+    const columns = ['timestamp', 'action', 'entity_type', 'entity_name', 'actor_name', 'actor_email', 'ip_address', 'source'];
+    const filename = `audit_log_error_${new Date().toISOString().split('T')[0]}.csv`;
+    return createExportResponse(toCSV([], columns), filename, 'csv');
+  }
+}
+
+/**
+ * Get demo audit events when tables don't exist yet
+ */
+function getDemoAuditEvents() {
+  const now = new Date();
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  
+  return [
+    {
+      recordId: 'demo_log_1007',
+      action: 'login_failed',
+      entityType: 'session',
+      entityName: 'Portal login',
+      timestamp: new Date(now.getTime() - 0.2 * DAY_MS).toISOString(),
+      actor: { name: 'Unknown user', email: null },
+      source: 'Web portal',
+      ipAddress: '198.51.100.12',
+      location: 'Seattle, WA',
+      metadata: { reason: 'Invalid password' },
+      _meta: { label: 'Failed login attempt', group: 'Security', variant: 'danger', severity: 'high' },
+    },
+    {
+      recordId: 'demo_log_1001',
+      action: 'booking.created',
+      entityType: 'booking',
+      entityName: 'Overnight stay for Luna',
+      timestamp: new Date(now.getTime() - 0.8 * DAY_MS).toISOString(),
+      actor: { name: 'Danielle Boyd', email: 'danielle@example.com' },
+      source: 'Dashboard',
+      ipAddress: '172.16.0.16',
+      location: 'Portland, OR',
+      metadata: { status: 'confirmed', deposit: 75 },
+      _meta: { label: 'Booking created', group: 'Bookings', variant: 'info', severity: null },
+    },
+    {
+      recordId: 'demo_log_1002',
+      action: 'booking.cancelled',
+      entityType: 'booking',
+      entityName: 'Daycare for Clover',
+      timestamp: new Date(now.getTime() - 1.6 * DAY_MS).toISOString(),
+      actor: { name: 'Maxwell Grant', email: 'max@example.com' },
+      source: 'Dashboard',
+      ipAddress: '172.16.0.32',
+      location: 'Portland, OR',
+      metadata: { reason: 'Owner request', refund: 'Pending' },
+      _meta: { label: 'Booking cancelled', group: 'Bookings', variant: 'warning', severity: null },
+    },
+    {
+      recordId: 'demo_log_1003',
+      action: 'team.invite.sent',
+      entityType: 'membership',
+      entityName: 'Invite: julia@resortpaws.com',
+      timestamp: new Date(now.getTime() - 2.2 * DAY_MS).toISOString(),
+      actor: { name: 'Olivia Hart', email: 'olivia@example.com' },
+      source: 'Dashboard',
+      ipAddress: '172.16.0.8',
+      location: 'Portland, OR',
+      metadata: { role: 'Staff' },
+      _meta: { label: 'Team invite sent', group: 'Team', variant: 'info', severity: null },
+    },
+    {
+      recordId: 'demo_log_1004',
+      action: 'settings.audit.exported',
+      entityType: 'audit-log',
+      entityName: 'Audit CSV download',
+      timestamp: new Date(now.getTime() - 3.1 * DAY_MS).toISOString(),
+      actor: { name: 'Olivia Hart', email: 'olivia@example.com' },
+      source: 'Dashboard',
+      ipAddress: '172.16.0.8',
+      location: 'Portland, OR',
+      metadata: { format: 'csv' },
+      _meta: { label: 'Audit log exported', group: 'Compliance', variant: 'info', severity: null },
+    },
+    {
+      recordId: 'demo_log_1005',
+      action: 'team.role.updated',
+      entityType: 'membership',
+      entityName: 'Role change: jose@example.com',
+      timestamp: new Date(now.getTime() - 5.7 * DAY_MS).toISOString(),
+      actor: { name: 'Danielle Boyd', email: 'danielle@example.com' },
+      source: 'Dashboard',
+      ipAddress: '172.16.0.16',
+      location: 'Portland, OR',
+      metadata: { previousRole: 'Staff', nextRole: 'Manager' },
+      diff: { role: ['Staff', 'Manager'] },
+      _meta: { label: 'Role updated', group: 'Team', variant: 'warning', severity: null },
+    },
+    {
+      recordId: 'demo_log_1006',
+      action: 'login',
+      entityType: 'session',
+      entityName: 'App login',
+      timestamp: new Date(now.getTime() - 9.5 * DAY_MS).toISOString(),
+      actor: { name: 'Josephine Kemp', email: 'jo@example.com' },
+      source: 'Mobile',
+      ipAddress: '203.0.113.55',
+      location: 'Boise, ID',
+      metadata: { device: 'iPhone 15 Pro', mfa: true },
+      _meta: { label: 'Successful login', group: 'Security', variant: 'neutral', severity: null },
+    },
+    {
+      recordId: 'demo_log_1008',
+      action: 'mfa_disabled',
+      entityType: 'security',
+      entityName: 'MFA status changed',
+      timestamp: new Date(now.getTime() - 14 * DAY_MS).toISOString(),
+      actor: { name: 'System Administrator', email: 'admin@barkbase.com' },
+      source: 'Admin API',
+      ipAddress: '10.0.1.5',
+      location: 'Austin, TX',
+      metadata: { user: 'guest@example.com', reason: 'Device reset' },
+      _meta: { label: 'MFA disabled', group: 'Security', variant: 'danger', severity: 'high' },
+    },
+    {
+      recordId: 'demo_log_1009',
+      action: 'data.export.generated',
+      entityType: 'export',
+      entityName: 'Workspace export archive',
+      timestamp: new Date(now.getTime() - 21 * DAY_MS).toISOString(),
+      actor: { name: 'Josephine Kemp', email: 'jo@example.com' },
+      source: 'Dashboard',
+      ipAddress: '203.0.113.55',
+      location: 'Boise, ID',
+      metadata: { size: '12.4 MB', format: 'zip' },
+      _meta: { label: 'Workspace export generated', group: 'Compliance', variant: 'info', severity: null },
+    },
+  ];
 }
