@@ -258,6 +258,64 @@ exports.handler = async (event, context) => {
     }
 
     // ==========================================================================
+    // Shift/Schedule routes - /api/v1/shifts/*
+    // ==========================================================================
+    if (path === '/api/v1/shifts' || path === '/shifts') {
+      if (method === 'GET') {
+        return handleGetShifts(tenantId, event.queryStringParameters || {});
+      }
+      if (method === 'POST') {
+        return handleCreateShift(tenantId, user, parseBody(event));
+      }
+    }
+
+    // Shift templates
+    if (path === '/api/v1/shifts/templates' || path === '/shifts/templates') {
+      if (method === 'GET') {
+        return handleGetShiftTemplates(tenantId);
+      }
+      if (method === 'POST') {
+        return handleCreateShiftTemplate(tenantId, user, parseBody(event));
+      }
+    }
+
+    // Bulk shift operations
+    if (path === '/api/v1/shifts/bulk' || path === '/shifts/bulk') {
+      if (method === 'POST') {
+        return handleBulkCreateShifts(tenantId, user, parseBody(event));
+      }
+    }
+
+    // Weekly schedule view
+    if (path === '/api/v1/shifts/week' || path === '/shifts/week') {
+      if (method === 'GET') {
+        return handleGetWeeklySchedule(tenantId, event.queryStringParameters || {});
+      }
+    }
+
+    // Shift by ID routes
+    const shiftMatch = path.match(/\/api\/v1\/shifts\/([a-f0-9-]+)(\/.*)?$/i);
+    if (shiftMatch) {
+      const shiftId = shiftMatch[1];
+      const subPath = shiftMatch[2] || '';
+
+      if (subPath === '/confirm' && method === 'POST') {
+        return handleConfirmShift(tenantId, user, shiftId);
+      }
+      if (!subPath || subPath === '') {
+        if (method === 'GET') {
+          return handleGetShift(tenantId, shiftId);
+        }
+        if (method === 'PUT' || method === 'PATCH') {
+          return handleUpdateShift(tenantId, user, shiftId, parseBody(event));
+        }
+        if (method === 'DELETE') {
+          return handleDeleteShift(tenantId, shiftId);
+        }
+      }
+    }
+
+    // ==========================================================================
     // Incident routes - /api/v1/incidents/*
     // ==========================================================================
     if (path === '/api/v1/incidents' || path === '/incidents') {
@@ -5669,6 +5727,609 @@ async function handleApproveTimeEntry(tenantId, user, entryId, body) {
     return createResponse(500, {
       error: 'Internal Server Error',
       message: 'Failed to approve time entry',
+    });
+  }
+}
+
+// =============================================================================
+// SHIFT/SCHEDULE HANDLERS
+// =============================================================================
+
+/**
+ * Get shifts
+ */
+async function handleGetShifts(tenantId, queryParams) {
+  const { staffId, startDate, endDate, status, role, limit = 100, offset = 0 } = queryParams;
+
+  console.log('[Shifts][list] tenantId:', tenantId, queryParams);
+
+  try {
+    await getPoolAsync();
+
+    let whereClause = 'sh.tenant_id = $1 AND sh.deleted_at IS NULL';
+    const params = [tenantId];
+    let paramIndex = 2;
+
+    if (staffId) {
+      whereClause += ` AND sh.staff_id = $${paramIndex++}`;
+      params.push(staffId);
+    }
+    if (status) {
+      whereClause += ` AND sh.status = $${paramIndex++}`;
+      params.push(status.toUpperCase());
+    }
+    if (role) {
+      whereClause += ` AND sh.role = $${paramIndex++}`;
+      params.push(role);
+    }
+    if (startDate && endDate) {
+      whereClause += ` AND sh.start_time >= $${paramIndex} AND sh.start_time < $${paramIndex + 1}::date + interval '1 day'`;
+      params.push(startDate, endDate);
+      paramIndex += 2;
+    }
+
+    const result = await query(
+      `SELECT
+         sh.*,
+         s.first_name, s.last_name, s.email as staff_email, s.role as staff_role
+       FROM "Shift" sh
+       JOIN "Staff" s ON sh.staff_id = s.id
+       WHERE ${whereClause}
+       ORDER BY sh.start_time ASC
+       LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
+      [...params, parseInt(limit), parseInt(offset)]
+    );
+
+    const shifts = result.rows.map(row => ({
+      id: row.id,
+      tenantId: row.tenant_id,
+      staffId: row.staff_id,
+      staffName: `${row.first_name} ${row.last_name}`.trim(),
+      staffEmail: row.staff_email,
+      staffRole: row.staff_role,
+      startTime: row.start_time,
+      endTime: row.end_time,
+      role: row.role,
+      department: row.department,
+      location: row.location,
+      status: row.status,
+      notes: row.notes,
+      isRecurring: row.is_recurring,
+      recurrencePattern: row.recurrence_pattern,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
+    console.log('[Shifts][list] Found:', shifts.length);
+
+    return createResponse(200, {
+      data: shifts,
+      shifts: shifts,
+      total: shifts.length,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+    });
+
+  } catch (error) {
+    console.error('[Shifts] Get shifts failed:', error.message);
+
+    if (error.message?.includes('does not exist')) {
+      return createResponse(200, {
+        data: [],
+        shifts: [],
+        total: 0,
+        message: 'Shift table not initialized',
+      });
+    }
+
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve shifts',
+    });
+  }
+}
+
+/**
+ * Get single shift
+ */
+async function handleGetShift(tenantId, shiftId) {
+  console.log('[Shifts][get] id:', shiftId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `SELECT
+         sh.*,
+         s.first_name, s.last_name, s.email as staff_email
+       FROM "Shift" sh
+       JOIN "Staff" s ON sh.staff_id = s.id
+       WHERE sh.id = $1 AND sh.tenant_id = $2 AND sh.deleted_at IS NULL`,
+      [shiftId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Shift not found',
+      });
+    }
+
+    const row = result.rows[0];
+
+    return createResponse(200, {
+      id: row.id,
+      staffId: row.staff_id,
+      staffName: `${row.first_name} ${row.last_name}`.trim(),
+      startTime: row.start_time,
+      endTime: row.end_time,
+      role: row.role,
+      department: row.department,
+      location: row.location,
+      status: row.status,
+      notes: row.notes,
+      isRecurring: row.is_recurring,
+      recurrencePattern: row.recurrence_pattern,
+      createdAt: row.created_at,
+    });
+
+  } catch (error) {
+    console.error('[Shifts] Get shift failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve shift',
+    });
+  }
+}
+
+/**
+ * Create shift
+ */
+async function handleCreateShift(tenantId, user, body) {
+  const { staffId, startTime, endTime, role, department, location, notes, isRecurring, recurrencePattern, recurrenceEndDate } = body;
+
+  console.log('[Shifts][create] tenantId:', tenantId);
+
+  if (!staffId || !startTime || !endTime) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'staffId, startTime, and endTime are required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `INSERT INTO "Shift" (
+         tenant_id, staff_id, start_time, end_time, role, department, location,
+         notes, is_recurring, recurrence_pattern, recurrence_end_date,
+         status, created_by
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'SCHEDULED', $12)
+       RETURNING *`,
+      [
+        tenantId, staffId, startTime, endTime,
+        role || null, department || null, location || null,
+        notes || null, isRecurring || false, recurrencePattern || null,
+        recurrenceEndDate || null, user?.id
+      ]
+    );
+
+    const shift = result.rows[0];
+    console.log('[Shifts][create] Created:', shift.id);
+
+    return createResponse(201, {
+      success: true,
+      id: shift.id,
+      startTime: shift.start_time,
+      endTime: shift.end_time,
+      message: 'Shift created successfully',
+    });
+
+  } catch (error) {
+    console.error('[Shifts] Create failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to create shift',
+    });
+  }
+}
+
+/**
+ * Update shift
+ */
+async function handleUpdateShift(tenantId, user, shiftId, body) {
+  const { staffId, startTime, endTime, role, department, location, notes, status } = body;
+
+  console.log('[Shifts][update] id:', shiftId);
+
+  try {
+    await getPoolAsync();
+
+    const updates = [];
+    const values = [shiftId, tenantId];
+    let paramIndex = 3;
+
+    if (staffId !== undefined) { updates.push(`staff_id = $${paramIndex++}`); values.push(staffId); }
+    if (startTime !== undefined) { updates.push(`start_time = $${paramIndex++}`); values.push(startTime); }
+    if (endTime !== undefined) { updates.push(`end_time = $${paramIndex++}`); values.push(endTime); }
+    if (role !== undefined) { updates.push(`role = $${paramIndex++}`); values.push(role); }
+    if (department !== undefined) { updates.push(`department = $${paramIndex++}`); values.push(department); }
+    if (location !== undefined) { updates.push(`location = $${paramIndex++}`); values.push(location); }
+    if (notes !== undefined) { updates.push(`notes = $${paramIndex++}`); values.push(notes); }
+    if (status !== undefined) { updates.push(`status = $${paramIndex++}`); values.push(status.toUpperCase()); }
+
+    if (updates.length === 0) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'No fields to update',
+      });
+    }
+
+    updates.push(`updated_by = $${paramIndex++}`);
+    values.push(user?.id);
+    updates.push('updated_at = NOW()');
+
+    const result = await query(
+      `UPDATE "Shift" SET ${updates.join(', ')} WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL RETURNING *`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Shift not found',
+      });
+    }
+
+    return createResponse(200, {
+      success: true,
+      id: result.rows[0].id,
+      message: 'Shift updated',
+    });
+
+  } catch (error) {
+    console.error('[Shifts] Update failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to update shift',
+    });
+  }
+}
+
+/**
+ * Delete shift
+ */
+async function handleDeleteShift(tenantId, shiftId) {
+  console.log('[Shifts][delete] id:', shiftId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "Shift" SET deleted_at = NOW(), updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING id`,
+      [shiftId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Shift not found',
+      });
+    }
+
+    return createResponse(200, {
+      success: true,
+      message: 'Shift deleted',
+    });
+
+  } catch (error) {
+    console.error('[Shifts] Delete failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to delete shift',
+    });
+  }
+}
+
+/**
+ * Confirm shift
+ */
+async function handleConfirmShift(tenantId, user, shiftId) {
+  console.log('[Shifts][confirm] id:', shiftId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "Shift"
+       SET status = 'CONFIRMED', updated_by = $3, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING *`,
+      [shiftId, tenantId, user?.id]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Shift not found',
+      });
+    }
+
+    return createResponse(200, {
+      success: true,
+      id: result.rows[0].id,
+      status: 'CONFIRMED',
+      message: 'Shift confirmed',
+    });
+
+  } catch (error) {
+    console.error('[Shifts] Confirm failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to confirm shift',
+    });
+  }
+}
+
+/**
+ * Bulk create shifts
+ */
+async function handleBulkCreateShifts(tenantId, user, body) {
+  const { shifts } = body;
+
+  console.log('[Shifts][bulk] tenantId:', tenantId, 'count:', shifts?.length);
+
+  if (!shifts || !Array.isArray(shifts) || shifts.length === 0) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'shifts array is required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const createdIds = [];
+    const errors = [];
+
+    for (const shift of shifts) {
+      if (!shift.staffId || !shift.startTime || !shift.endTime) {
+        errors.push({ shift, error: 'Missing required fields' });
+        continue;
+      }
+
+      try {
+        const result = await query(
+          `INSERT INTO "Shift" (tenant_id, staff_id, start_time, end_time, role, notes, status, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, 'SCHEDULED', $7)
+           RETURNING id`,
+          [tenantId, shift.staffId, shift.startTime, shift.endTime, shift.role || null, shift.notes || null, user?.id]
+        );
+        createdIds.push(result.rows[0].id);
+      } catch (err) {
+        errors.push({ shift, error: err.message });
+      }
+    }
+
+    console.log('[Shifts][bulk] Created:', createdIds.length, 'Errors:', errors.length);
+
+    return createResponse(201, {
+      success: true,
+      createdCount: createdIds.length,
+      createdIds: createdIds,
+      errorCount: errors.length,
+      errors: errors.length > 0 ? errors : undefined,
+      message: `Created ${createdIds.length} shifts`,
+    });
+
+  } catch (error) {
+    console.error('[Shifts] Bulk create failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to create shifts',
+    });
+  }
+}
+
+/**
+ * Get weekly schedule
+ */
+async function handleGetWeeklySchedule(tenantId, queryParams) {
+  const { weekStart } = queryParams;
+
+  console.log('[Shifts][week] tenantId:', tenantId, 'weekStart:', weekStart);
+
+  // Calculate week start/end
+  const startDate = weekStart ? new Date(weekStart) : new Date();
+  startDate.setHours(0, 0, 0, 0);
+  
+  // If not Monday, go back to previous Monday
+  const dayOfWeek = startDate.getDay();
+  const diff = (dayOfWeek === 0 ? -6 : 1) - dayOfWeek;
+  startDate.setDate(startDate.getDate() + diff);
+
+  const endDate = new Date(startDate);
+  endDate.setDate(endDate.getDate() + 7);
+
+  try {
+    await getPoolAsync();
+
+    // Get all shifts for the week
+    const shiftsResult = await query(
+      `SELECT
+         sh.*,
+         s.id as staff_id,
+         s.first_name,
+         s.last_name,
+         s.role as staff_role
+       FROM "Shift" sh
+       JOIN "Staff" s ON sh.staff_id = s.id
+       WHERE sh.tenant_id = $1
+         AND sh.start_time >= $2
+         AND sh.start_time < $3
+         AND sh.deleted_at IS NULL
+       ORDER BY s.first_name, s.last_name, sh.start_time`,
+      [tenantId, startDate.toISOString(), endDate.toISOString()]
+    );
+
+    // Get all staff for the tenant
+    const staffResult = await query(
+      `SELECT id, first_name, last_name, role, email
+       FROM "Staff"
+       WHERE tenant_id = $1 AND deleted_at IS NULL AND is_active = true
+       ORDER BY first_name, last_name`,
+      [tenantId]
+    );
+
+    // Organize shifts by staff and day
+    const staffMap = new Map();
+    for (const staff of staffResult.rows) {
+      staffMap.set(staff.id, {
+        id: staff.id,
+        name: `${staff.first_name} ${staff.last_name}`.trim(),
+        role: staff.role,
+        email: staff.email,
+        shifts: { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] },
+      });
+    }
+
+    for (const row of shiftsResult.rows) {
+      const staffData = staffMap.get(row.staff_id);
+      if (staffData) {
+        const shiftDate = new Date(row.start_time);
+        const dayIndex = shiftDate.getDay();
+        staffData.shifts[dayIndex].push({
+          id: row.id,
+          startTime: row.start_time,
+          endTime: row.end_time,
+          role: row.role,
+          status: row.status,
+          notes: row.notes,
+        });
+      }
+    }
+
+    const weeklySchedule = Array.from(staffMap.values());
+
+    return createResponse(200, {
+      weekStart: startDate.toISOString().split('T')[0],
+      weekEnd: endDate.toISOString().split('T')[0],
+      staff: weeklySchedule,
+      totalShifts: shiftsResult.rows.length,
+    });
+
+  } catch (error) {
+    console.error('[Shifts] Get weekly schedule failed:', error.message);
+
+    if (error.message?.includes('does not exist')) {
+      return createResponse(200, {
+        weekStart: startDate.toISOString().split('T')[0],
+        weekEnd: endDate.toISOString().split('T')[0],
+        staff: [],
+        totalShifts: 0,
+        message: 'Shift table not initialized',
+      });
+    }
+
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve weekly schedule',
+    });
+  }
+}
+
+/**
+ * Get shift templates
+ */
+async function handleGetShiftTemplates(tenantId) {
+  console.log('[Shifts][templates] tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `SELECT * FROM "ShiftTemplate"
+       WHERE tenant_id = $1 AND is_active = true
+       ORDER BY name`,
+      [tenantId]
+    );
+
+    const templates = result.rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      startTime: row.start_time,
+      endTime: row.end_time,
+      role: row.role,
+      department: row.department,
+      daysOfWeek: row.days_of_week,
+    }));
+
+    return createResponse(200, {
+      data: templates,
+      templates: templates,
+      total: templates.length,
+    });
+
+  } catch (error) {
+    console.error('[Shifts] Get templates failed:', error.message);
+
+    if (error.message?.includes('does not exist')) {
+      return createResponse(200, {
+        data: [],
+        templates: [],
+        total: 0,
+      });
+    }
+
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve shift templates',
+    });
+  }
+}
+
+/**
+ * Create shift template
+ */
+async function handleCreateShiftTemplate(tenantId, user, body) {
+  const { name, description, startTime, endTime, role, department, daysOfWeek } = body;
+
+  console.log('[Shifts][createTemplate] tenantId:', tenantId);
+
+  if (!name || !startTime || !endTime) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'name, startTime, and endTime are required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `INSERT INTO "ShiftTemplate" (tenant_id, name, description, start_time, end_time, role, department, days_of_week)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [tenantId, name, description || null, startTime, endTime, role || null, department || null, daysOfWeek || null]
+    );
+
+    return createResponse(201, {
+      success: true,
+      id: result.rows[0].id,
+      name: result.rows[0].name,
+      message: 'Shift template created',
+    });
+
+  } catch (error) {
+    console.error('[Shifts] Create template failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to create shift template',
     });
   }
 }

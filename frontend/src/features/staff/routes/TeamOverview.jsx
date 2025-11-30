@@ -388,20 +388,95 @@ const OverviewTab = ({ staff, stats, onViewProfile, onAddStaff }) => {
 
 const ScheduleTab = ({ staff }) => {
   const [selectedWeek, setSelectedWeek] = useState(startOfWeek(new Date(), { weekStartsOn: 0 }));
+  const [weeklyData, setWeeklyData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [showAddShiftModal, setShowAddShiftModal] = useState(false);
+  const [selectedCell, setSelectedCell] = useState(null);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(selectedWeek, i));
+  const weekStartStr = format(weekDays[0], 'yyyy-MM-dd');
 
-  // Mock shift data
-  const shifts = staff.slice(0, 4).map((s, i) => ({
-    staffId: s.id || s.recordId,
-    staffName: s.name || s.email,
-    shifts: weekDays.map((day, di) => ({
-      date: day,
-      start: di < 5 ? '08:00' : (di === 5 ? '09:00' : null),
-      end: di < 5 ? '17:00' : (di === 5 ? '14:00' : null),
-      type: di === 6 ? 'off' : (i === 2 && di === 3 ? 'pto' : 'scheduled'),
-    })),
-  }));
+  // Fetch weekly schedule from API
+  useEffect(() => {
+    const fetchSchedule = async () => {
+      try {
+        setLoading(true);
+        const { getWeeklySchedule } = await import('../api-timeclock');
+        // Use shifts API module
+        const shiftsApi = await import('@/features/schedule/api/shifts');
+        const response = await shiftsApi.getWeeklySchedule(weekStartStr);
+        setWeeklyData(response);
+      } catch (error) {
+        console.error('Failed to fetch weekly schedule:', error);
+        // Fall back to showing staff without shifts
+        setWeeklyData(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSchedule();
+  }, [weekStartStr]);
+
+  // Transform API data or use staff list with empty shifts
+  const shifts = useMemo(() => {
+    if (weeklyData?.staff) {
+      return weeklyData.staff.map((s) => ({
+        staffId: s.id,
+        staffName: s.name,
+        shifts: weekDays.map((day) => {
+          const dayIndex = day.getDay();
+          const dayShifts = s.shifts?.[dayIndex] || [];
+          if (dayShifts.length === 0) {
+            return { date: day, start: null, end: null, type: 'off' };
+          }
+          const shift = dayShifts[0]; // Take first shift
+          return {
+            date: day,
+            start: shift.startTime ? format(new Date(shift.startTime), 'HH:mm') : null,
+            end: shift.endTime ? format(new Date(shift.endTime), 'HH:mm') : null,
+            type: shift.status === 'CONFIRMED' ? 'confirmed' : 'scheduled',
+            shiftId: shift.id,
+          };
+        }),
+      }));
+    }
+    // Fallback to staff list with no shifts
+    return staff.slice(0, 10).map((s) => ({
+      staffId: s.id || s.recordId,
+      staffName: s.name || `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.email,
+      shifts: weekDays.map((day) => ({
+        date: day,
+        start: null,
+        end: null,
+        type: 'off',
+      })),
+    }));
+  }, [weeklyData, staff, weekDays]);
+
+  const handleAddShift = (staffId, date) => {
+    setSelectedCell({ staffId, date });
+    setShowAddShiftModal(true);
+  };
+
+  const handleCreateShift = async (data) => {
+    try {
+      const shiftsApi = await import('@/features/schedule/api/shifts');
+      await shiftsApi.createShift({
+        staffId: selectedCell.staffId,
+        startTime: `${format(selectedCell.date, 'yyyy-MM-dd')}T${data.startTime}:00`,
+        endTime: `${format(selectedCell.date, 'yyyy-MM-dd')}T${data.endTime}:00`,
+        role: data.role,
+        notes: data.notes,
+      });
+      setShowAddShiftModal(false);
+      // Refetch
+      const response = await shiftsApi.getWeeklySchedule(weekStartStr);
+      setWeeklyData(response);
+    } catch (error) {
+      console.error('Failed to create shift:', error);
+      alert('Failed to create shift');
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -459,8 +534,14 @@ const ScheduleTab = ({ staff }) => {
                   </td>
                   {row.shifts.map((shift, si) => (
                     <td key={si} className="px-2 py-2">
-                      {shift.type === 'off' ? (
-                        <div className="text-center text-xs text-muted">Off</div>
+                      {shift.type === 'off' || !shift.start ? (
+                        <div 
+                          className="text-center text-xs text-muted cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded py-2 transition-colors"
+                          onClick={() => handleAddShift(row.staffId, shift.date)}
+                        >
+                          <Plus className="h-3 w-3 mx-auto opacity-0 group-hover:opacity-100" />
+                          <span className="group-hover:hidden">Off</span>
+                        </div>
                       ) : shift.type === 'pto' ? (
                         <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded px-2 py-1.5 text-xs text-center">
                           PTO
