@@ -457,6 +457,15 @@ const Pets = () => {
     );
   }
 
+  // Show full-page loading state on initial load
+  if (showSkeleton) {
+    return (
+      <div className="flex flex-col flex-grow w-full min-h-[calc(100vh-180px)] items-center justify-center">
+        <LoadingState label="Loading pets…" variant="mascot" />
+      </div>
+    );
+  }
+
   return (
     <>
       {/* Main content container - stretches to fill available space in app shell */}
@@ -669,9 +678,7 @@ const Pets = () => {
 
         {/* Table Section - Uses full available width in content area */}
         <div className="flex-1 flex flex-col mt-4">
-          {showSkeleton ? (
-            <LoadingState label="Loading pets…" variant="mascot" />
-          ) : sortedPets.length === 0 ? (
+          {sortedPets.length === 0 ? (
             <div className="py-8">
               <EmptyState hasFilters={hasActiveFilters} onClearFilters={clearFilters} onAddPet={() => setPetFormModalOpen(true)} />
             </div>
@@ -752,7 +759,7 @@ const Pets = () => {
           )}
 
           {/* Pagination */}
-          {sortedPets.length > 0 && !showSkeleton && (
+          {sortedPets.length > 0 && (
             <div
               className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4 px-4 border-t rounded-b-lg"
               style={{ borderColor: 'var(--bb-color-border-subtle)', backgroundColor: 'var(--bb-color-bg-surface)' }}

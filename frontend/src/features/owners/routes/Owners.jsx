@@ -267,6 +267,15 @@ const Owners = () => {
     );
   }
 
+  // Show full-page loading state on initial load
+  if (showSkeleton) {
+    return (
+      <div className="flex flex-col flex-grow w-full min-h-[calc(100vh-180px)] items-center justify-center">
+        <LoadingState label="Loading owners…" variant="mascot" />
+      </div>
+    );
+  }
+
   return (
     <>
       {/* Main content container - stretches to fill available space in app shell */}
@@ -409,9 +418,7 @@ const Owners = () => {
 
         {/* Table Section - Uses full available width in content area */}
         <div className="flex-1 flex flex-col mt-4">
-          {showSkeleton ? (
-            <LoadingState label="Loading owners…" variant="mascot" />
-          ) : sortedOwners.length === 0 ? (
+          {sortedOwners.length === 0 ? (
             <div className="py-8">
               <EmptyState hasFilters={hasActiveFilters} onClearFilters={clearFilters} onAddOwner={() => setFormModalOpen(true)} />
             </div>
@@ -471,7 +478,7 @@ const Owners = () => {
           )}
 
           {/* Pagination */}
-          {sortedOwners.length > 0 && !showSkeleton && (
+          {sortedOwners.length > 0 && (
             <div 
               className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4 px-4 border-t rounded-b-lg"
               style={{ borderColor: 'var(--bb-color-border-subtle)', backgroundColor: 'var(--bb-color-bg-surface)' }}
