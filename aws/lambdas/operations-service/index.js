@@ -37,6 +37,8 @@ const {
   authenticateRequest,
   createResponse,
   parseBody,
+  checkPermission,
+  PERMISSIONS,
 } = sharedLayer;
 
 /**
@@ -310,7 +312,7 @@ exports.handler = async (event, context) => {
           return handleUpdateShift(tenantId, user, shiftId, parseBody(event));
         }
         if (method === 'DELETE') {
-          return handleDeleteShift(tenantId, shiftId);
+          return handleDeleteShift(tenantId, user, shiftId);
         }
       }
     }
@@ -347,7 +349,7 @@ exports.handler = async (event, context) => {
           return handleUpdateIncident(tenantId, user, incidentId, parseBody(event));
         }
         if (method === 'DELETE') {
-          return handleDeleteIncident(tenantId, incidentId);
+          return handleDeleteIncident(tenantId, user, incidentId);
         }
       }
     }
@@ -4850,8 +4852,12 @@ async function handleUpdateIncident(tenantId, user, incidentId, body) {
 /**
  * Delete incident (soft delete)
  */
-async function handleDeleteIncident(tenantId, incidentId) {
+async function handleDeleteIncident(tenantId, user, incidentId) {
   console.log('[Incidents][delete] id:', incidentId, 'tenantId:', tenantId);
+
+  // Check permission
+  const permError = checkPermission(user, PERMISSIONS?.INCIDENTS_DELETE || 'incidents:delete', createResponse);
+  if (permError) return permError;
 
   try {
     await getPoolAsync();
@@ -6001,8 +6007,12 @@ async function handleUpdateShift(tenantId, user, shiftId, body) {
 /**
  * Delete shift
  */
-async function handleDeleteShift(tenantId, shiftId) {
+async function handleDeleteShift(tenantId, user, shiftId) {
   console.log('[Shifts][delete] id:', shiftId);
+
+  // Check permission
+  const permError = checkPermission(user, PERMISSIONS?.SCHEDULE_DELETE || 'schedule:delete', createResponse);
+  if (permError) return permError;
 
   try {
     await getPoolAsync();

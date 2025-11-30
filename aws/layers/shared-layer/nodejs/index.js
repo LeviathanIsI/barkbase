@@ -12,6 +12,7 @@ const authHandler = require('./auth-handler');
 const jwtValidator = require('./jwt-validator');
 const securityUtils = require('./security-utils');
 const emailUtils = require('./email-utils');
+const permissions = require('./permissions');
 
 module.exports = {
   // Auth handler exports
@@ -50,4 +51,13 @@ module.exports = {
   emailTemplates: emailUtils.emailTemplates,
   formatDate: emailUtils.formatDate,
   formatDateTime: emailUtils.formatDateTime,
+
+  // Permission exports
+  PERMISSIONS: permissions.PERMISSIONS,
+  ROLES: permissions.ROLES,
+  roleHasPermission: permissions.roleHasPermission,
+  userHasPermission: permissions.userHasPermission,
+  getUserPermissions: permissions.getUserPermissions,
+  requirePermission: permissions.requirePermission,
+  checkPermission: permissions.checkPermission,
 };
