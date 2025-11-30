@@ -221,6 +221,19 @@ export const canonicalEndpoints = {
     preview: buildWithSuffix('/api/v1/config/templates/{id}', 'preview'),
   },
 
+  // Forms & Waivers API - /api/v1/forms/*
+  // Routed through config-service
+  forms: {
+    list: '/api/v1/forms',
+    create: '/api/v1/forms',
+    detail: build('/api/v1/forms/{id}'),
+    update: build('/api/v1/forms/{id}'),
+    delete: build('/api/v1/forms/{id}'),
+    submissions: build('/api/v1/forms/{id}/submissions'),
+    submissionsList: '/api/v1/forms/submissions',
+    submissionDetail: build('/api/v1/forms/submissions/{id}'),
+  },
+
   // User Profile Service - /api/v1/profile/*
   userProfile: {
     self: '/api/v1/profile',

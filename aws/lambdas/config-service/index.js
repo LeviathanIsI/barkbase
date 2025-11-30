@@ -285,6 +285,73 @@ exports.handler = async (event, context) => {
       return handleDeleteEntityDefinition(user, entityId);
     }
 
+    // =========================================================================
+    // FORMS & WAIVERS API
+    // =========================================================================
+    // Form templates and submissions for intake forms, waivers, and agreements
+    // /api/v1/forms/* - Form templates
+    // /api/v1/forms/submissions/* - Form submissions
+    // =========================================================================
+
+    // GET /api/v1/forms - List form templates
+    if ((path === '/api/v1/forms' || path === '/forms') && method === 'GET') {
+      const queryParams = event.queryStringParameters || {};
+      return handleListFormTemplates(user, queryParams);
+    }
+
+    // POST /api/v1/forms - Create form template
+    if ((path === '/api/v1/forms' || path === '/forms') && method === 'POST') {
+      return handleCreateFormTemplate(user, parseBody(event));
+    }
+
+    // Form submissions list
+    if ((path === '/api/v1/forms/submissions' || path === '/forms/submissions') && method === 'GET') {
+      const queryParams = event.queryStringParameters || {};
+      return handleListFormSubmissions(user, queryParams);
+    }
+
+    // Single form template routes
+    const formIdMatch = path.match(/^\/(?:api\/v1\/)?forms\/([a-f0-9-]+)$/i);
+    if (formIdMatch) {
+      const formId = formIdMatch[1];
+
+      if (method === 'GET') {
+        return handleGetFormTemplate(user, formId);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateFormTemplate(user, formId, parseBody(event));
+      }
+      if (method === 'DELETE') {
+        return handleDeleteFormTemplate(user, formId);
+      }
+    }
+
+    // Form submissions by template
+    const formSubmissionsMatch = path.match(/^\/(?:api\/v1\/)?forms\/([a-f0-9-]+)\/submissions$/i);
+    if (formSubmissionsMatch && method === 'GET') {
+      const formId = formSubmissionsMatch[1];
+      const queryParams = event.queryStringParameters || {};
+      return handleListFormSubmissions(user, { ...queryParams, templateId: formId });
+    }
+
+    // Create submission for a form
+    if (formSubmissionsMatch && method === 'POST') {
+      const formId = formSubmissionsMatch[1];
+      return handleCreateFormSubmission(user, formId, parseBody(event));
+    }
+
+    // Single submission routes
+    const submissionIdMatch = path.match(/^\/(?:api\/v1\/)?forms\/submissions\/([a-f0-9-]+)$/i);
+    if (submissionIdMatch) {
+      const submissionId = submissionIdMatch[1];
+
+      if (method === 'GET') {
+        return handleGetFormSubmission(user, submissionId);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateFormSubmission(user, submissionId, parseBody(event));
+      }
+    }
     // Default response for unmatched routes
     return createResponse(404, {
       error: 'Not Found',
@@ -2863,5 +2930,507 @@ async function handleDeleteEntityDefinition(user, entityId) {
       error: 'Internal Server Error',
       message: 'Failed to delete entity definition',
     });
+  }
+}
+
+// =============================================================================
+// FORMS & WAIVERS HANDLERS
+// =============================================================================
+
+/**
+ * List form templates for tenant
+ */
+async function handleListFormTemplates(user, queryParams) {
+  const { type, isActive, isRequired } = queryParams;
+
+  console.log('[Forms][list] Starting for user:', user.id);
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+
+    if (!ctx.tenantId) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'No tenant context found',
+      });
+    }
+
+    let whereClause = 'tenant_id = $1 AND deleted_at IS NULL';
+    const params = [ctx.tenantId];
+    let paramIndex = 2;
+
+    if (type) {
+      whereClause += ` AND type = $${paramIndex++}`;
+      params.push(type);
+    }
+
+    if (isActive !== undefined) {
+      whereClause += ` AND is_active = $${paramIndex++}`;
+      params.push(isActive === 'true' || isActive === true);
+    }
+
+    if (isRequired !== undefined) {
+      whereClause += ` AND is_required = $${paramIndex++}`;
+      params.push(isRequired === 'true' || isRequired === true);
+    }
+
+    const result = await query(
+      `SELECT
+         id, name, slug, description, type, fields, settings,
+         is_active, is_required, require_signature, expiration_days,
+         sort_order, category, created_at, updated_at,
+         (SELECT COUNT(*) FROM "FormSubmission" fs WHERE fs.template_id = "FormTemplate".id) as submission_count
+       FROM "FormTemplate"
+       WHERE ${whereClause}
+       ORDER BY sort_order ASC, name ASC`,
+      params
+    );
+
+    console.log('[Forms][list] Found:', result.rows.length, 'templates');
+
+    const templates = result.rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      description: row.description,
+      type: row.type,
+      fields: row.fields || [],
+      fieldCount: (row.fields || []).length,
+      settings: row.settings || {},
+      isActive: row.is_active,
+      isRequired: row.is_required,
+      requireSignature: row.require_signature,
+      expirationDays: row.expiration_days,
+      sortOrder: row.sort_order,
+      category: row.category,
+      submissionCount: parseInt(row.submission_count || 0),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
+    return createResponse(200, {
+      data: templates,
+      forms: templates,
+      total: templates.length,
+      message: 'Form templates retrieved successfully',
+    });
+
+  } catch (error) {
+    console.error('[Forms] Failed to list templates:', error.message, error.stack);
+
+    if (error.message?.includes('does not exist') || error.code === '42P01') {
+      return createResponse(200, {
+        data: [],
+        forms: [],
+        total: 0,
+        message: 'Form templates (table not initialized)',
+      });
+    }
+
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve form templates',
+    });
+  }
+}
+
+/**
+ * Get single form template
+ */
+async function handleGetFormTemplate(user, formId) {
+  console.log('[Forms][get] formId:', formId);
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+
+    if (!ctx.tenantId) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'No tenant context found',
+      });
+    }
+
+    const result = await query(
+      `SELECT
+         id, name, slug, description, type, fields, settings,
+         is_active, is_required, require_signature, expiration_days,
+         sort_order, category, created_by, updated_by, created_at, updated_at
+       FROM "FormTemplate"
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [formId, ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Form template not found',
+      });
+    }
+
+    const row = result.rows[0];
+
+    return createResponse(200, {
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      description: row.description,
+      type: row.type,
+      fields: row.fields || [],
+      settings: row.settings || {},
+      isActive: row.is_active,
+      isRequired: row.is_required,
+      requireSignature: row.require_signature,
+      expirationDays: row.expiration_days,
+      sortOrder: row.sort_order,
+      category: row.category,
+      createdBy: row.created_by,
+      updatedBy: row.updated_by,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    });
+
+  } catch (error) {
+    console.error('[Forms] Failed to get template:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve form template',
+    });
+  }
+}
+
+/**
+ * Create form template
+ */
+async function handleCreateFormTemplate(user, body) {
+  const {
+    name, slug, description, type, fields, settings,
+    isRequired, requireSignature, expirationDays, sortOrder, category
+  } = body;
+
+  console.log('[Forms][create] name:', name, 'type:', type);
+
+  if (!name) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Name is required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+
+    if (!ctx.tenantId) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'No tenant context found',
+      });
+    }
+
+    const formSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+    const existing = await query(
+      `SELECT id FROM "FormTemplate" WHERE tenant_id = $1 AND slug = $2 AND deleted_at IS NULL`,
+      [ctx.tenantId, formSlug]
+    );
+
+    if (existing.rows.length > 0) {
+      return createResponse(409, {
+        error: 'Conflict',
+        message: 'A form with this slug already exists',
+      });
+    }
+
+    const result = await query(
+      `INSERT INTO "FormTemplate" (
+         tenant_id, name, slug, description, type, fields, settings,
+         is_required, require_signature, expiration_days, sort_order, category,
+         created_by, updated_by, created_at, updated_at
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13, NOW(), NOW())
+       RETURNING *`,
+      [
+        ctx.tenantId, name, formSlug, description || null, type || 'custom',
+        JSON.stringify(fields || []), JSON.stringify(settings || {}),
+        isRequired || false, requireSignature || false, expirationDays || null,
+        sortOrder || 0, category || null, ctx.userId
+      ]
+    );
+
+    const row = result.rows[0];
+    console.log('[Forms][create] Created template:', row.id);
+
+    return createResponse(201, {
+      success: true,
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      type: row.type,
+      message: 'Form template created successfully',
+    });
+
+  } catch (error) {
+    console.error('[Forms] Failed to create template:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to create form template',
+    });
+  }
+}
+
+/**
+ * Update form template
+ */
+async function handleUpdateFormTemplate(user, formId, body) {
+  const {
+    name, description, type, fields, settings,
+    isActive, isRequired, requireSignature, expirationDays, sortOrder, category
+  } = body;
+
+  console.log('[Forms][update] formId:', formId);
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+
+    if (!ctx.tenantId) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'No tenant context found',
+      });
+    }
+
+    const updates = [];
+    const values = [formId, ctx.tenantId];
+    let paramIndex = 3;
+
+    if (name !== undefined) { updates.push(`name = $${paramIndex++}`); values.push(name); }
+    if (description !== undefined) { updates.push(`description = $${paramIndex++}`); values.push(description); }
+    if (type !== undefined) { updates.push(`type = $${paramIndex++}`); values.push(type); }
+    if (fields !== undefined) { updates.push(`fields = $${paramIndex++}`); values.push(JSON.stringify(fields)); }
+    if (settings !== undefined) { updates.push(`settings = $${paramIndex++}`); values.push(JSON.stringify(settings)); }
+    if (isActive !== undefined) { updates.push(`is_active = $${paramIndex++}`); values.push(isActive); }
+    if (isRequired !== undefined) { updates.push(`is_required = $${paramIndex++}`); values.push(isRequired); }
+    if (requireSignature !== undefined) { updates.push(`require_signature = $${paramIndex++}`); values.push(requireSignature); }
+    if (expirationDays !== undefined) { updates.push(`expiration_days = $${paramIndex++}`); values.push(expirationDays); }
+    if (sortOrder !== undefined) { updates.push(`sort_order = $${paramIndex++}`); values.push(sortOrder); }
+    if (category !== undefined) { updates.push(`category = $${paramIndex++}`); values.push(category); }
+
+    if (updates.length === 0) {
+      return createResponse(400, { error: 'Bad Request', message: 'No valid fields to update' });
+    }
+
+    updates.push(`updated_by = $${paramIndex++}`);
+    values.push(ctx.userId);
+    updates.push('updated_at = NOW()');
+
+    const result = await query(
+      `UPDATE "FormTemplate" SET ${updates.join(', ')} WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL RETURNING *`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Form template not found' });
+    }
+
+    return createResponse(200, { success: true, id: result.rows[0].id, name: result.rows[0].name, message: 'Form template updated successfully' });
+
+  } catch (error) {
+    console.error('[Forms] Failed to update template:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update form template' });
+  }
+}
+
+/**
+ * Delete form template (soft delete)
+ */
+async function handleDeleteFormTemplate(user, formId) {
+  console.log('[Forms][delete] formId:', formId);
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+
+    if (!ctx.tenantId) {
+      return createResponse(400, { error: 'Bad Request', message: 'No tenant context found' });
+    }
+
+    const result = await query(
+      `UPDATE "FormTemplate" SET deleted_at = NOW(), updated_by = $3, updated_at = NOW() WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL RETURNING id`,
+      [formId, ctx.tenantId, ctx.userId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Form template not found' });
+    }
+
+    return createResponse(200, { success: true, message: 'Form template deleted successfully' });
+
+  } catch (error) {
+    console.error('[Forms] Failed to delete template:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to delete form template' });
+  }
+}
+
+/**
+ * List form submissions
+ */
+async function handleListFormSubmissions(user, queryParams) {
+  const { templateId, ownerId, petId, bookingId, status, limit = 50, offset = 0 } = queryParams;
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+
+    if (!ctx.tenantId) {
+      return createResponse(400, { error: 'Bad Request', message: 'No tenant context found' });
+    }
+
+    let whereClause = 'fs.tenant_id = $1';
+    const params = [ctx.tenantId];
+    let paramIndex = 2;
+
+    if (templateId) { whereClause += ` AND fs.template_id = $${paramIndex++}`; params.push(templateId); }
+    if (ownerId) { whereClause += ` AND fs.owner_id = $${paramIndex++}`; params.push(ownerId); }
+    if (petId) { whereClause += ` AND fs.pet_id = $${paramIndex++}`; params.push(petId); }
+    if (bookingId) { whereClause += ` AND fs.booking_id = $${paramIndex++}`; params.push(bookingId); }
+    if (status) { whereClause += ` AND fs.status = $${paramIndex++}`; params.push(status); }
+
+    const result = await query(
+      `SELECT fs.*, ft.name as template_name, ft.type as template_type, o.first_name as owner_first_name, o.last_name as owner_last_name, p.name as pet_name
+       FROM "FormSubmission" fs JOIN "FormTemplate" ft ON fs.template_id = ft.id LEFT JOIN "Owner" o ON fs.owner_id = o.id LEFT JOIN "Pet" p ON fs.pet_id = p.id
+       WHERE ${whereClause} ORDER BY fs.created_at DESC LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
+      [...params, parseInt(limit), parseInt(offset)]
+    );
+
+    const submissions = result.rows.map(row => ({
+      id: row.id, templateId: row.template_id, templateName: row.template_name, templateType: row.template_type,
+      ownerId: row.owner_id, ownerName: row.owner_first_name ? `${row.owner_first_name} ${row.owner_last_name || ''}`.trim() : null,
+      petId: row.pet_id, petName: row.pet_name, bookingId: row.booking_id, data: row.data || {},
+      signatureName: row.signature_name, signedAt: row.signed_at, status: row.status,
+      createdAt: row.created_at, updatedAt: row.updated_at,
+    }));
+
+    return createResponse(200, { data: submissions, submissions, total: submissions.length, message: 'Form submissions retrieved' });
+
+  } catch (error) {
+    console.error('[Forms] Failed to list submissions:', error.message);
+    if (error.code === '42P01') return createResponse(200, { data: [], submissions: [], total: 0, message: 'Table not initialized' });
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to retrieve submissions' });
+  }
+}
+
+/**
+ * Get single form submission
+ */
+async function handleGetFormSubmission(user, submissionId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(
+      `SELECT fs.*, ft.name as template_name, ft.type as template_type, ft.fields as template_fields,
+              o.first_name as owner_first_name, o.last_name as owner_last_name, o.email as owner_email, p.name as pet_name
+       FROM "FormSubmission" fs JOIN "FormTemplate" ft ON fs.template_id = ft.id
+       LEFT JOIN "Owner" o ON fs.owner_id = o.id LEFT JOIN "Pet" p ON fs.pet_id = p.id
+       WHERE fs.id = $1 AND fs.tenant_id = $2`,
+      [submissionId, ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) return createResponse(404, { error: 'Not Found', message: 'Submission not found' });
+    const row = result.rows[0];
+
+    return createResponse(200, {
+      id: row.id, templateId: row.template_id, templateName: row.template_name, templateFields: row.template_fields,
+      ownerId: row.owner_id, ownerName: row.owner_first_name ? `${row.owner_first_name} ${row.owner_last_name}`.trim() : null,
+      ownerEmail: row.owner_email, petId: row.pet_id, petName: row.pet_name, bookingId: row.booking_id,
+      data: row.data, signatureData: row.signature_data, signatureName: row.signature_name, signedAt: row.signed_at,
+      status: row.status, reviewNotes: row.review_notes, createdAt: row.created_at, updatedAt: row.updated_at,
+    });
+  } catch (error) {
+    console.error('[Forms] Failed to get submission:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to get submission' });
+  }
+}
+
+/**
+ * Create form submission
+ */
+async function handleCreateFormSubmission(user, templateId, body) {
+  const { ownerId, petId, bookingId, data, signatureData, signatureName, signerIp } = body;
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const templateResult = await query(
+      `SELECT id, require_signature FROM "FormTemplate" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL AND is_active = true`,
+      [templateId, ctx.tenantId]
+    );
+    if (templateResult.rows.length === 0) return createResponse(404, { error: 'Not Found', message: 'Template not found' });
+
+    const template = templateResult.rows[0];
+    if (template.require_signature && !signatureData && !signatureName) {
+      return createResponse(400, { error: 'Bad Request', message: 'Signature required' });
+    }
+
+    const result = await query(
+      `INSERT INTO "FormSubmission" (tenant_id, template_id, owner_id, pet_id, booking_id, data, signature_data, signature_name, signed_at, signer_ip, submitted_by_user_id, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'submitted') RETURNING *`,
+      [ctx.tenantId, templateId, ownerId, petId, bookingId, JSON.stringify(data || {}), signatureData, signatureName,
+       signatureData || signatureName ? new Date() : null, signerIp, ctx.userId]
+    );
+
+    return createResponse(201, { success: true, id: result.rows[0].id, status: 'submitted', message: 'Form submitted' });
+  } catch (error) {
+    console.error('[Forms] Failed to create submission:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to submit form' });
+  }
+}
+
+/**
+ * Update form submission (review/approve)
+ */
+async function handleUpdateFormSubmission(user, submissionId, body) {
+  const { status, reviewNotes } = body;
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const validStatuses = ['submitted', 'approved', 'rejected', 'expired'];
+    if (status && !validStatuses.includes(status)) {
+      return createResponse(400, { error: 'Bad Request', message: 'Invalid status' });
+    }
+
+    const updates = [];
+    const values = [submissionId, ctx.tenantId];
+    let paramIndex = 3;
+
+    if (status) {
+      updates.push(`status = $${paramIndex++}`);
+      values.push(status);
+      if (status === 'approved' || status === 'rejected') {
+        updates.push(`reviewed_by = $${paramIndex++}`);
+        values.push(ctx.userId);
+        updates.push('reviewed_at = NOW()');
+      }
+    }
+    if (reviewNotes !== undefined) { updates.push(`review_notes = $${paramIndex++}`); values.push(reviewNotes); }
+    if (updates.length === 0) return createResponse(400, { error: 'Bad Request', message: 'No fields to update' });
+
+    updates.push('updated_at = NOW()');
+    const result = await query(`UPDATE "FormSubmission" SET ${updates.join(', ')} WHERE id = $1 AND tenant_id = $2 RETURNING *`, values);
+    if (result.rows.length === 0) return createResponse(404, { error: 'Not Found', message: 'Submission not found' });
+
+    return createResponse(200, { success: true, id: result.rows[0].id, status: result.rows[0].status, message: 'Submission updated' });
+  } catch (error) {
+    console.error('[Forms] Failed to update submission:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update submission' });
   }
 }
