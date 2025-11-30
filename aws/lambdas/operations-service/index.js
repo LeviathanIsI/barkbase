@@ -203,6 +203,61 @@ exports.handler = async (event, context) => {
     }
 
     // ==========================================================================
+    // Time Clock routes - /api/v1/staff/timeclock/*
+    // ==========================================================================
+    if (path === '/api/v1/staff/clock-in' || path === '/staff/clock-in') {
+      if (method === 'POST') {
+        return handleClockIn(tenantId, user, parseBody(event));
+      }
+    }
+    if (path === '/api/v1/staff/clock-out' || path === '/staff/clock-out') {
+      if (method === 'POST') {
+        return handleClockOut(tenantId, user, parseBody(event));
+      }
+    }
+    if (path === '/api/v1/staff/break/start' || path === '/staff/break/start') {
+      if (method === 'POST') {
+        return handleStartBreak(tenantId, user, parseBody(event));
+      }
+    }
+    if (path === '/api/v1/staff/break/end' || path === '/staff/break/end') {
+      if (method === 'POST') {
+        return handleEndBreak(tenantId, user, parseBody(event));
+      }
+    }
+    if (path === '/api/v1/staff/time-entries' || path === '/staff/time-entries') {
+      if (method === 'GET') {
+        return handleGetTimeEntries(tenantId, event.queryStringParameters || {});
+      }
+    }
+    if (path === '/api/v1/staff/time-status' || path === '/staff/time-status') {
+      if (method === 'GET') {
+        return handleGetTimeStatus(tenantId, user, event.queryStringParameters || {});
+      }
+    }
+    // Time entry by ID routes
+    const timeEntryMatch = path.match(/\/api\/v1\/staff\/time-entries\/([a-f0-9-]+)(\/.*)?$/i);
+    if (timeEntryMatch) {
+      const entryId = timeEntryMatch[1];
+      const subPath = timeEntryMatch[2] || '';
+
+      if (subPath === '/approve' && method === 'POST') {
+        return handleApproveTimeEntry(tenantId, user, entryId, parseBody(event));
+      }
+      if (!subPath || subPath === '') {
+        if (method === 'GET') {
+          return handleGetTimeEntry(tenantId, entryId);
+        }
+        if (method === 'PUT' || method === 'PATCH') {
+          return handleUpdateTimeEntry(tenantId, user, entryId, parseBody(event));
+        }
+        if (method === 'DELETE') {
+          return handleDeleteTimeEntry(tenantId, entryId);
+        }
+      }
+    }
+
+    // ==========================================================================
     // Incident routes - /api/v1/incidents/*
     // ==========================================================================
     if (path === '/api/v1/incidents' || path === '/incidents') {
@@ -4911,6 +4966,709 @@ async function handleNotifyOwnerOfIncident(tenantId, user, incidentId, body) {
     return createResponse(500, {
       error: 'Internal Server Error',
       message: 'Failed to notify owner',
+    });
+  }
+}
+
+// =============================================================================
+// TIME CLOCK HANDLERS
+// =============================================================================
+
+/**
+ * Get staff ID for current user
+ */
+async function getStaffIdForUser(tenantId, userId) {
+  if (!userId) return null;
+  
+  try {
+    const result = await query(
+      `SELECT s.id FROM "Staff" s
+       JOIN "User" u ON s.user_id = u.id OR s.email = u.email
+       WHERE s.tenant_id = $1 AND u.id = $2 AND s.deleted_at IS NULL
+       LIMIT 1`,
+      [tenantId, userId]
+    );
+    return result.rows[0]?.id || null;
+  } catch (error) {
+    console.error('[TimeClock] Failed to get staff ID:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Clock in - Start a time entry
+ */
+async function handleClockIn(tenantId, user, body) {
+  const { staffId: bodyStaffId, notes, location } = body;
+
+  console.log('[TimeClock][clockIn] tenantId:', tenantId, 'user:', user?.id);
+
+  try {
+    await getPoolAsync();
+
+    // Get staff ID - from body or lookup from user
+    const staffId = bodyStaffId || await getStaffIdForUser(tenantId, user?.id);
+
+    if (!staffId) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Staff ID is required or user is not linked to a staff record',
+      });
+    }
+
+    // Check if already clocked in (has active entry without clock_out)
+    const activeResult = await query(
+      `SELECT id, clock_in FROM "TimeEntry"
+       WHERE tenant_id = $1 AND staff_id = $2 AND clock_out IS NULL AND deleted_at IS NULL
+       LIMIT 1`,
+      [tenantId, staffId]
+    );
+
+    if (activeResult.rows.length > 0) {
+      const active = activeResult.rows[0];
+      return createResponse(409, {
+        error: 'Conflict',
+        message: 'Already clocked in',
+        activeEntry: {
+          id: active.id,
+          clockIn: active.clock_in,
+        },
+      });
+    }
+
+    // Create new time entry
+    const result = await query(
+      `INSERT INTO "TimeEntry" (tenant_id, staff_id, clock_in, notes, location, status)
+       VALUES ($1, $2, NOW(), $3, $4, 'ACTIVE')
+       RETURNING *`,
+      [tenantId, staffId, notes || null, location || null]
+    );
+
+    const entry = result.rows[0];
+    console.log('[TimeClock][clockIn] Created entry:', entry.id);
+
+    return createResponse(201, {
+      success: true,
+      id: entry.id,
+      staffId: entry.staff_id,
+      clockIn: entry.clock_in,
+      status: entry.status,
+      message: 'Clocked in successfully',
+    });
+
+  } catch (error) {
+    console.error('[TimeClock] Clock in failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to clock in',
+    });
+  }
+}
+
+/**
+ * Clock out - End a time entry
+ */
+async function handleClockOut(tenantId, user, body) {
+  const { staffId: bodyStaffId, entryId, notes } = body;
+
+  console.log('[TimeClock][clockOut] tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    const staffId = bodyStaffId || await getStaffIdForUser(tenantId, user?.id);
+
+    if (!staffId && !entryId) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Staff ID or entry ID is required',
+      });
+    }
+
+    // Find active entry
+    let activeResult;
+    if (entryId) {
+      activeResult = await query(
+        `SELECT * FROM "TimeEntry"
+         WHERE id = $1 AND tenant_id = $2 AND clock_out IS NULL AND deleted_at IS NULL`,
+        [entryId, tenantId]
+      );
+    } else {
+      activeResult = await query(
+        `SELECT * FROM "TimeEntry"
+         WHERE tenant_id = $1 AND staff_id = $2 AND clock_out IS NULL AND deleted_at IS NULL
+         ORDER BY clock_in DESC LIMIT 1`,
+        [tenantId, staffId]
+      );
+    }
+
+    if (activeResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'No active time entry found',
+      });
+    }
+
+    const active = activeResult.rows[0];
+
+    // End any active break
+    let totalBreakMinutes = active.break_minutes || 0;
+    if (active.is_on_break && active.break_start) {
+      const breakDuration = Math.floor((new Date() - new Date(active.break_start)) / 60000);
+      totalBreakMinutes += breakDuration;
+    }
+
+    // Update entry with clock out
+    const result = await query(
+      `UPDATE "TimeEntry"
+       SET clock_out = NOW(),
+           status = 'COMPLETED',
+           notes = COALESCE($3, notes),
+           break_minutes = $4,
+           is_on_break = false,
+           break_start = NULL,
+           updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2
+       RETURNING *`,
+      [active.id, tenantId, notes, totalBreakMinutes]
+    );
+
+    const entry = result.rows[0];
+    const workedMinutes = Math.floor((new Date(entry.clock_out) - new Date(entry.clock_in)) / 60000) - totalBreakMinutes;
+
+    console.log('[TimeClock][clockOut] Updated entry:', entry.id);
+
+    return createResponse(200, {
+      success: true,
+      id: entry.id,
+      clockIn: entry.clock_in,
+      clockOut: entry.clock_out,
+      breakMinutes: totalBreakMinutes,
+      workedMinutes: workedMinutes,
+      workedHours: (workedMinutes / 60).toFixed(2),
+      status: entry.status,
+      message: 'Clocked out successfully',
+    });
+
+  } catch (error) {
+    console.error('[TimeClock] Clock out failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to clock out',
+    });
+  }
+}
+
+/**
+ * Start break
+ */
+async function handleStartBreak(tenantId, user, body) {
+  const { staffId: bodyStaffId, entryId } = body;
+
+  console.log('[TimeClock][startBreak] tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    const staffId = bodyStaffId || await getStaffIdForUser(tenantId, user?.id);
+
+    // Find active entry
+    let whereClause = 'tenant_id = $1 AND clock_out IS NULL AND deleted_at IS NULL';
+    const params = [tenantId];
+
+    if (entryId) {
+      whereClause += ' AND id = $2';
+      params.push(entryId);
+    } else if (staffId) {
+      whereClause += ' AND staff_id = $2';
+      params.push(staffId);
+    }
+
+    const activeResult = await query(
+      `SELECT * FROM "TimeEntry" WHERE ${whereClause} LIMIT 1`,
+      params
+    );
+
+    if (activeResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'No active time entry found',
+      });
+    }
+
+    const active = activeResult.rows[0];
+
+    if (active.is_on_break) {
+      return createResponse(409, {
+        error: 'Conflict',
+        message: 'Already on break',
+        breakStart: active.break_start,
+      });
+    }
+
+    const result = await query(
+      `UPDATE "TimeEntry"
+       SET is_on_break = true, break_start = NOW(), updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2
+       RETURNING *`,
+      [active.id, tenantId]
+    );
+
+    return createResponse(200, {
+      success: true,
+      id: result.rows[0].id,
+      breakStart: result.rows[0].break_start,
+      message: 'Break started',
+    });
+
+  } catch (error) {
+    console.error('[TimeClock] Start break failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to start break',
+    });
+  }
+}
+
+/**
+ * End break
+ */
+async function handleEndBreak(tenantId, user, body) {
+  const { staffId: bodyStaffId, entryId } = body;
+
+  console.log('[TimeClock][endBreak] tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    const staffId = bodyStaffId || await getStaffIdForUser(tenantId, user?.id);
+
+    // Find active entry on break
+    let whereClause = 'tenant_id = $1 AND clock_out IS NULL AND is_on_break = true AND deleted_at IS NULL';
+    const params = [tenantId];
+
+    if (entryId) {
+      whereClause += ' AND id = $2';
+      params.push(entryId);
+    } else if (staffId) {
+      whereClause += ' AND staff_id = $2';
+      params.push(staffId);
+    }
+
+    const activeResult = await query(
+      `SELECT * FROM "TimeEntry" WHERE ${whereClause} LIMIT 1`,
+      params
+    );
+
+    if (activeResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'No active break found',
+      });
+    }
+
+    const active = activeResult.rows[0];
+    const breakDuration = Math.floor((new Date() - new Date(active.break_start)) / 60000);
+    const totalBreakMinutes = (active.break_minutes || 0) + breakDuration;
+
+    const result = await query(
+      `UPDATE "TimeEntry"
+       SET is_on_break = false, break_start = NULL, break_minutes = $3, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2
+       RETURNING *`,
+      [active.id, tenantId, totalBreakMinutes]
+    );
+
+    return createResponse(200, {
+      success: true,
+      id: result.rows[0].id,
+      breakDurationMinutes: breakDuration,
+      totalBreakMinutes: totalBreakMinutes,
+      message: 'Break ended',
+    });
+
+  } catch (error) {
+    console.error('[TimeClock] End break failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to end break',
+    });
+  }
+}
+
+/**
+ * Get current time status for staff
+ */
+async function handleGetTimeStatus(tenantId, user, queryParams) {
+  const { staffId: queryStaffId } = queryParams;
+
+  console.log('[TimeClock][getStatus] tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    const staffId = queryStaffId || await getStaffIdForUser(tenantId, user?.id);
+
+    if (!staffId) {
+      return createResponse(200, {
+        isClockedIn: false,
+        isOnBreak: false,
+        message: 'No staff record found',
+      });
+    }
+
+    // Get active entry
+    const activeResult = await query(
+      `SELECT te.*, s.first_name, s.last_name
+       FROM "TimeEntry" te
+       JOIN "Staff" s ON te.staff_id = s.id
+       WHERE te.tenant_id = $1 AND te.staff_id = $2 AND te.clock_out IS NULL AND te.deleted_at IS NULL
+       LIMIT 1`,
+      [tenantId, staffId]
+    );
+
+    if (activeResult.rows.length === 0) {
+      return createResponse(200, {
+        isClockedIn: false,
+        isOnBreak: false,
+        staffId: staffId,
+      });
+    }
+
+    const entry = activeResult.rows[0];
+    const now = new Date();
+    const clockInTime = new Date(entry.clock_in);
+    const elapsedMinutes = Math.floor((now - clockInTime) / 60000);
+
+    let currentBreakMinutes = entry.break_minutes || 0;
+    if (entry.is_on_break && entry.break_start) {
+      currentBreakMinutes += Math.floor((now - new Date(entry.break_start)) / 60000);
+    }
+
+    return createResponse(200, {
+      isClockedIn: true,
+      isOnBreak: entry.is_on_break,
+      entryId: entry.id,
+      staffId: staffId,
+      staffName: `${entry.first_name} ${entry.last_name}`.trim(),
+      clockIn: entry.clock_in,
+      breakStart: entry.break_start,
+      elapsedMinutes: elapsedMinutes,
+      breakMinutes: currentBreakMinutes,
+      workedMinutes: elapsedMinutes - currentBreakMinutes,
+      workedHours: ((elapsedMinutes - currentBreakMinutes) / 60).toFixed(2),
+    });
+
+  } catch (error) {
+    console.error('[TimeClock] Get status failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to get time status',
+    });
+  }
+}
+
+/**
+ * Get time entries
+ */
+async function handleGetTimeEntries(tenantId, queryParams) {
+  const { staffId, startDate, endDate, status, limit = 50, offset = 0 } = queryParams;
+
+  console.log('[TimeClock][list] tenantId:', tenantId, queryParams);
+
+  try {
+    await getPoolAsync();
+
+    let whereClause = 'te.tenant_id = $1 AND te.deleted_at IS NULL';
+    const params = [tenantId];
+    let paramIndex = 2;
+
+    if (staffId) {
+      whereClause += ` AND te.staff_id = $${paramIndex++}`;
+      params.push(staffId);
+    }
+    if (status) {
+      whereClause += ` AND te.status = $${paramIndex++}`;
+      params.push(status.toUpperCase());
+    }
+    if (startDate && endDate) {
+      whereClause += ` AND DATE(te.clock_in) BETWEEN $${paramIndex} AND $${paramIndex + 1}`;
+      params.push(startDate, endDate);
+      paramIndex += 2;
+    }
+
+    const result = await query(
+      `SELECT
+         te.*,
+         s.first_name, s.last_name, s.email as staff_email,
+         u.first_name as approved_by_first, u.last_name as approved_by_last
+       FROM "TimeEntry" te
+       JOIN "Staff" s ON te.staff_id = s.id
+       LEFT JOIN "User" u ON te.approved_by = u.id
+       WHERE ${whereClause}
+       ORDER BY te.clock_in DESC
+       LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
+      [...params, parseInt(limit), parseInt(offset)]
+    );
+
+    const entries = result.rows.map(row => ({
+      id: row.id,
+      staffId: row.staff_id,
+      staffName: `${row.first_name} ${row.last_name}`.trim(),
+      staffEmail: row.staff_email,
+      clockIn: row.clock_in,
+      clockOut: row.clock_out,
+      breakMinutes: row.break_minutes,
+      totalMinutes: row.total_minutes,
+      totalHours: row.total_minutes ? (row.total_minutes / 60).toFixed(2) : null,
+      status: row.status,
+      notes: row.notes,
+      location: row.location,
+      isOnBreak: row.is_on_break,
+      approvedBy: row.approved_by,
+      approvedByName: row.approved_by_first ? `${row.approved_by_first} ${row.approved_by_last}`.trim() : null,
+      approvedAt: row.approved_at,
+      createdAt: row.created_at,
+    }));
+
+    console.log('[TimeClock][list] Found:', entries.length);
+
+    return createResponse(200, {
+      data: entries,
+      entries: entries,
+      total: entries.length,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+    });
+
+  } catch (error) {
+    console.error('[TimeClock] Get entries failed:', error.message);
+
+    if (error.message?.includes('does not exist')) {
+      return createResponse(200, {
+        data: [],
+        entries: [],
+        total: 0,
+        message: 'TimeEntry table not initialized',
+      });
+    }
+
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve time entries',
+    });
+  }
+}
+
+/**
+ * Get single time entry
+ */
+async function handleGetTimeEntry(tenantId, entryId) {
+  console.log('[TimeClock][get] id:', entryId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `SELECT
+         te.*,
+         s.first_name, s.last_name, s.email as staff_email
+       FROM "TimeEntry" te
+       JOIN "Staff" s ON te.staff_id = s.id
+       WHERE te.id = $1 AND te.tenant_id = $2 AND te.deleted_at IS NULL`,
+      [entryId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Time entry not found',
+      });
+    }
+
+    const row = result.rows[0];
+
+    return createResponse(200, {
+      id: row.id,
+      staffId: row.staff_id,
+      staffName: `${row.first_name} ${row.last_name}`.trim(),
+      clockIn: row.clock_in,
+      clockOut: row.clock_out,
+      breakMinutes: row.break_minutes,
+      totalMinutes: row.total_minutes,
+      status: row.status,
+      notes: row.notes,
+      location: row.location,
+      approvedBy: row.approved_by,
+      approvedAt: row.approved_at,
+      editedBy: row.edited_by,
+      editedAt: row.edited_at,
+      editReason: row.edit_reason,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    });
+
+  } catch (error) {
+    console.error('[TimeClock] Get entry failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve time entry',
+    });
+  }
+}
+
+/**
+ * Update time entry (admin edit)
+ */
+async function handleUpdateTimeEntry(tenantId, user, entryId, body) {
+  const { clockIn, clockOut, breakMinutes, notes, editReason } = body;
+
+  console.log('[TimeClock][update] id:', entryId);
+
+  try {
+    await getPoolAsync();
+
+    // Get current entry
+    const currentResult = await query(
+      `SELECT * FROM "TimeEntry" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [entryId, tenantId]
+    );
+
+    if (currentResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Time entry not found',
+      });
+    }
+
+    const current = currentResult.rows[0];
+
+    const updates = ['status = \'EDITED\'', 'edited_by = $3', 'edited_at = NOW()', 'updated_at = NOW()'];
+    const values = [entryId, tenantId, user?.id];
+    let paramIndex = 4;
+
+    // Store original values on first edit
+    if (!current.original_clock_in) {
+      updates.push(`original_clock_in = clock_in`);
+      updates.push(`original_clock_out = clock_out`);
+    }
+
+    if (clockIn !== undefined) {
+      updates.push(`clock_in = $${paramIndex++}`);
+      values.push(clockIn);
+    }
+    if (clockOut !== undefined) {
+      updates.push(`clock_out = $${paramIndex++}`);
+      values.push(clockOut);
+    }
+    if (breakMinutes !== undefined) {
+      updates.push(`break_minutes = $${paramIndex++}`);
+      values.push(breakMinutes);
+    }
+    if (notes !== undefined) {
+      updates.push(`notes = $${paramIndex++}`);
+      values.push(notes);
+    }
+    if (editReason !== undefined) {
+      updates.push(`edit_reason = $${paramIndex++}`);
+      values.push(editReason);
+    }
+
+    const result = await query(
+      `UPDATE "TimeEntry" SET ${updates.join(', ')} WHERE id = $1 AND tenant_id = $2 RETURNING *`,
+      values
+    );
+
+    return createResponse(200, {
+      success: true,
+      id: result.rows[0].id,
+      message: 'Time entry updated',
+    });
+
+  } catch (error) {
+    console.error('[TimeClock] Update failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to update time entry',
+    });
+  }
+}
+
+/**
+ * Delete time entry
+ */
+async function handleDeleteTimeEntry(tenantId, entryId) {
+  console.log('[TimeClock][delete] id:', entryId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "TimeEntry" SET deleted_at = NOW(), updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING id`,
+      [entryId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Time entry not found',
+      });
+    }
+
+    return createResponse(200, {
+      success: true,
+      message: 'Time entry deleted',
+    });
+
+  } catch (error) {
+    console.error('[TimeClock] Delete failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to delete time entry',
+    });
+  }
+}
+
+/**
+ * Approve time entry
+ */
+async function handleApproveTimeEntry(tenantId, user, entryId, body) {
+  const { approvalNotes } = body;
+
+  console.log('[TimeClock][approve] id:', entryId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "TimeEntry"
+       SET approved_by = $3, approved_at = NOW(), approval_notes = $4, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING *`,
+      [entryId, tenantId, user?.id, approvalNotes || null]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Time entry not found',
+      });
+    }
+
+    return createResponse(200, {
+      success: true,
+      id: result.rows[0].id,
+      approvedAt: result.rows[0].approved_at,
+      message: 'Time entry approved',
+    });
+
+  } catch (error) {
+    console.error('[TimeClock] Approve failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to approve time entry',
     });
   }
 }
