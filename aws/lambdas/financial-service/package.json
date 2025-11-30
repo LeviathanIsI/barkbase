@@ -14,5 +14,7 @@
   ],
   "author": "BarkBase",
   "license": "UNLICENSED",
-  "dependencies": {}
+  "dependencies": {
+    "stripe": "^14.10.0"
+  }
 }

@@ -184,12 +184,20 @@ export class ServicesStack extends cdk.Stack {
     });
 
     // Financial Service Function
+    // Includes Stripe environment variables for payment processing
     this.financialServiceFunction = new lambda.Function(this, 'FinancialServiceFunction', {
       ...commonLambdaConfig,
       functionName: `${config.stackPrefix}-financial-service`,
-      description: 'BarkBase Financial Service - billing, invoices, payments, pricing',
+      description: 'BarkBase Financial Service - billing, invoices, payments, pricing, Stripe integration',
       handler: 'index.handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/financial-service')),
+      environment: {
+        ...commonEnvironment,
+        // Stripe configuration - values should be set via AWS Console or CI/CD secrets
+        // STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || '', // Set via AWS Console
+        // STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || '', // Set via AWS Console
+        STRIPE_API_VERSION: '2023-10-16',
+      },
     });
 
     // =========================================================================

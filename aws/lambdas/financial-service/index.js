@@ -8,6 +8,7 @@
  * - GET/POST /api/v1/financial/payments - Payment management
  * - GET/POST /api/v1/financial/pricing - Pricing management
  * - GET /api/v1/financial/billing/* - Billing info
+ * - POST /api/v1/financial/stripe/* - Stripe payment processing
  *
  * =============================================================================
  */
@@ -30,6 +31,35 @@ const {
   createResponse,
   parseBody,
 } = sharedLayer;
+
+// =============================================================================
+// STRIPE INITIALIZATION
+// =============================================================================
+
+let stripe = null;
+
+/**
+ * Get Stripe instance (lazy initialization)
+ * Uses STRIPE_SECRET_KEY environment variable
+ */
+function getStripe() {
+  if (!stripe) {
+    const secretKey = process.env.STRIPE_SECRET_KEY;
+    if (!secretKey) {
+      console.warn('[FINANCIAL-SERVICE] STRIPE_SECRET_KEY not configured');
+      return null;
+    }
+    const Stripe = require('stripe');
+    stripe = new Stripe(secretKey, {
+      apiVersion: '2023-10-16',
+      appInfo: {
+        name: 'BarkBase',
+        version: '1.0.0',
+      },
+    });
+  }
+  return stripe;
+}
 
 /**
  * Resolve tenant ID with fallback precedence:
@@ -66,6 +96,11 @@ exports.handler = async (event, context) => {
   // Handle CORS preflight requests
   if (method === 'OPTIONS') {
     return createResponse(200, { message: 'OK' });
+  }
+
+  // Handle Stripe webhook BEFORE authentication (Stripe sends directly, no JWT)
+  if ((path === '/api/v1/financial/stripe/webhook' || path === '/financial/stripe/webhook') && method === 'POST') {
+    return handleStripeWebhook(event);
   }
 
   try {
@@ -159,6 +194,60 @@ exports.handler = async (event, context) => {
           return handleGetPayment(tenantId, paymentId);
         }
       }
+    }
+
+    // ==========================================================================
+    // STRIPE ROUTES - Payment processing with Stripe
+    // ==========================================================================
+
+    // Create payment intent (for card payments via Stripe Elements)
+    if ((path === '/api/v1/financial/stripe/payment-intent' || path === '/financial/stripe/payment-intent') && method === 'POST') {
+      return handleCreatePaymentIntent(tenantId, parseBody(event));
+    }
+
+    // Confirm payment (after frontend confirms with Stripe.js)
+    if ((path === '/api/v1/financial/stripe/confirm' || path === '/financial/stripe/confirm') && method === 'POST') {
+      return handleConfirmPayment(tenantId, parseBody(event));
+    }
+
+    // Create Stripe customer for card-on-file
+    if ((path === '/api/v1/financial/stripe/customers' || path === '/financial/stripe/customers') && method === 'POST') {
+      return handleCreateStripeCustomer(tenantId, parseBody(event));
+    }
+
+    // Stripe customer by owner ID
+    const stripeCustomerMatch = path.match(/\/api\/v1\/financial\/stripe\/customers\/([a-f0-9-]+)$/i);
+    if (stripeCustomerMatch && method === 'GET') {
+      return handleGetStripeCustomer(tenantId, stripeCustomerMatch[1]);
+    }
+
+    // Attach payment method to customer
+    if ((path === '/api/v1/financial/stripe/payment-methods' || path === '/financial/stripe/payment-methods') && method === 'POST') {
+      return handleAttachPaymentMethod(tenantId, parseBody(event));
+    }
+
+    // List saved payment methods for a customer
+    const stripePmListMatch = path.match(/\/api\/v1\/financial\/stripe\/payment-methods\/owner\/([a-f0-9-]+)$/i);
+    if (stripePmListMatch && method === 'GET') {
+      return handleListStripePaymentMethods(tenantId, stripePmListMatch[1]);
+    }
+
+    // Delete a saved payment method
+    const stripePmDeleteMatch = path.match(/\/api\/v1\/financial\/stripe\/payment-methods\/([a-zA-Z0-9_]+)$/i);
+    if (stripePmDeleteMatch && method === 'DELETE') {
+      return handleDetachPaymentMethod(tenantId, stripePmDeleteMatch[1]);
+    }
+
+    // Create setup intent (for saving cards without immediate payment)
+    if ((path === '/api/v1/financial/stripe/setup-intent' || path === '/financial/stripe/setup-intent') && method === 'POST') {
+      return handleCreateSetupIntent(tenantId, parseBody(event));
+    }
+
+    // ==========================================================================
+    // STRIPE WEBHOOK ROUTE - Unauthenticated (verified via signature)
+    // ==========================================================================
+    if ((path === '/api/v1/financial/stripe/webhook' || path === '/financial/stripe/webhook') && method === 'POST') {
+      return handleStripeWebhook(event);
     }
 
     // Payment methods routes
@@ -1694,4 +1783,841 @@ async function handleResumeSubscription(tenantId, subId) {
     success: true,
     message: 'Subscription resumed (feature pending implementation)',
   });
+}
+
+// =============================================================================
+// STRIPE PAYMENT HANDLERS
+// =============================================================================
+
+/**
+ * Create a Stripe PaymentIntent for a one-time payment
+ * Frontend uses this with Stripe Elements to collect card details
+ *
+ * @param {string} tenantId - Tenant ID
+ * @param {object} body - { amount, currency, ownerId, invoiceId, description, metadata }
+ */
+async function handleCreatePaymentIntent(tenantId, body) {
+  const stripeClient = getStripe();
+  if (!stripeClient) {
+    return createResponse(503, {
+      error: 'Service Unavailable',
+      message: 'Payment processing is not configured. Please contact support.',
+    });
+  }
+
+  const { amount, currency = 'usd', ownerId, invoiceId, description, metadata = {} } = body;
+
+  if (!amount || amount <= 0) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Amount must be a positive number (in cents)',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Get owner details for Stripe metadata
+    let ownerEmail = null;
+    let stripeCustomerId = null;
+    if (ownerId) {
+      const ownerResult = await query(
+        `SELECT email, stripe_customer_id FROM "Owner" WHERE id = $1 AND tenant_id = $2`,
+        [ownerId, tenantId]
+      );
+      if (ownerResult.rows[0]) {
+        ownerEmail = ownerResult.rows[0].email;
+        stripeCustomerId = ownerResult.rows[0].stripe_customer_id;
+      }
+    }
+
+    const paymentIntentParams = {
+      amount: Math.round(amount), // Ensure integer cents
+      currency: currency.toLowerCase(),
+      automatic_payment_methods: { enabled: true },
+      metadata: {
+        tenant_id: tenantId,
+        owner_id: ownerId || '',
+        invoice_id: invoiceId || '',
+        ...metadata,
+      },
+    };
+
+    // Add description if provided
+    if (description) {
+      paymentIntentParams.description = description;
+    }
+
+    // Add receipt email if owner has email
+    if (ownerEmail) {
+      paymentIntentParams.receipt_email = ownerEmail;
+    }
+
+    // Attach to existing Stripe customer if they have one
+    if (stripeCustomerId) {
+      paymentIntentParams.customer = stripeCustomerId;
+    }
+
+    console.log('[Stripe] Creating PaymentIntent:', { amount, currency, ownerId, invoiceId });
+
+    const paymentIntent = await stripeClient.paymentIntents.create(paymentIntentParams);
+
+    console.log('[Stripe] PaymentIntent created:', paymentIntent.id);
+
+    return createResponse(200, {
+      success: true,
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+      amount: paymentIntent.amount,
+      currency: paymentIntent.currency,
+    });
+
+  } catch (error) {
+    console.error('[Stripe] Failed to create PaymentIntent:', error.message);
+
+    // Return Stripe-specific error info if available
+    if (error.type === 'StripeCardError') {
+      return createResponse(400, {
+        error: 'Payment Error',
+        message: error.message,
+        code: error.code,
+      });
+    }
+
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to create payment intent',
+    });
+  }
+}
+
+/**
+ * Confirm a payment after frontend processes with Stripe.js
+ * Records the payment in our database
+ *
+ * @param {string} tenantId - Tenant ID
+ * @param {object} body - { paymentIntentId, ownerId, invoiceId }
+ */
+async function handleConfirmPayment(tenantId, body) {
+  const stripeClient = getStripe();
+  if (!stripeClient) {
+    return createResponse(503, {
+      error: 'Service Unavailable',
+      message: 'Payment processing is not configured.',
+    });
+  }
+
+  const { paymentIntentId, ownerId, invoiceId } = body;
+
+  if (!paymentIntentId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'paymentIntentId is required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Retrieve the PaymentIntent from Stripe to get status
+    const paymentIntent = await stripeClient.paymentIntents.retrieve(paymentIntentId);
+
+    console.log('[Stripe] PaymentIntent status:', paymentIntent.status);
+
+    if (paymentIntent.status !== 'succeeded') {
+      return createResponse(400, {
+        error: 'Payment Not Complete',
+        message: `Payment status is ${paymentIntent.status}. Expected 'succeeded'.`,
+        status: paymentIntent.status,
+      });
+    }
+
+    // Check if we already recorded this payment (idempotency)
+    const existingPayment = await query(
+      `SELECT id FROM "Payment" WHERE stripe_payment_intent_id = $1 AND tenant_id = $2`,
+      [paymentIntentId, tenantId]
+    );
+
+    if (existingPayment.rows.length > 0) {
+      console.log('[Stripe] Payment already recorded:', existingPayment.rows[0].id);
+      return createResponse(200, {
+        success: true,
+        paymentId: existingPayment.rows[0].id,
+        message: 'Payment already recorded',
+      });
+    }
+
+    // Record the payment in our database
+    const result = await query(
+      `INSERT INTO "Payment" (
+        tenant_id, owner_id, invoice_id, amount_cents, method, processor,
+        processor_transaction_id, stripe_payment_intent_id, status, processed_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+      RETURNING *`,
+      [
+        tenantId,
+        ownerId || paymentIntent.metadata?.owner_id || null,
+        invoiceId || paymentIntent.metadata?.invoice_id || null,
+        paymentIntent.amount,
+        paymentIntent.payment_method_types?.[0] || 'card',
+        'stripe',
+        paymentIntent.latest_charge || paymentIntentId,
+        paymentIntentId,
+        'completed',
+      ]
+    );
+
+    const payment = result.rows[0];
+
+    // If linked to an invoice, update the invoice paid amount
+    const linkedInvoiceId = invoiceId || paymentIntent.metadata?.invoice_id;
+    if (linkedInvoiceId) {
+      await query(
+        `UPDATE "Invoice"
+         SET paid_cents = COALESCE(paid_cents, 0) + $1,
+             status = CASE
+               WHEN COALESCE(paid_cents, 0) + $1 >= total_cents THEN 'PAID'
+               WHEN COALESCE(paid_cents, 0) + $1 > 0 THEN 'PARTIAL'
+               ELSE status
+             END,
+             paid_at = CASE
+               WHEN COALESCE(paid_cents, 0) + $1 >= total_cents THEN NOW()
+               ELSE paid_at
+             END,
+             updated_at = NOW()
+         WHERE id = $2 AND tenant_id = $3`,
+        [paymentIntent.amount, linkedInvoiceId, tenantId]
+      );
+    }
+
+    console.log('[Stripe] Payment recorded:', payment.id);
+
+    return createResponse(200, {
+      success: true,
+      paymentId: payment.id,
+      amount: payment.amount_cents / 100,
+      status: payment.status,
+      message: 'Payment confirmed and recorded',
+    });
+
+  } catch (error) {
+    console.error('[Stripe] Failed to confirm payment:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to confirm payment',
+    });
+  }
+}
+
+/**
+ * Create a Stripe Customer for an owner (for card-on-file)
+ *
+ * @param {string} tenantId - Tenant ID
+ * @param {object} body - { ownerId }
+ */
+async function handleCreateStripeCustomer(tenantId, body) {
+  const stripeClient = getStripe();
+  if (!stripeClient) {
+    return createResponse(503, {
+      error: 'Service Unavailable',
+      message: 'Payment processing is not configured.',
+    });
+  }
+
+  const { ownerId } = body;
+
+  if (!ownerId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'ownerId is required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Get owner details
+    const ownerResult = await query(
+      `SELECT id, first_name, last_name, email, phone, stripe_customer_id
+       FROM "Owner" WHERE id = $1 AND tenant_id = $2`,
+      [ownerId, tenantId]
+    );
+
+    if (ownerResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Owner not found',
+      });
+    }
+
+    const owner = ownerResult.rows[0];
+
+    // If owner already has a Stripe customer, return it
+    if (owner.stripe_customer_id) {
+      console.log('[Stripe] Owner already has customer:', owner.stripe_customer_id);
+      return createResponse(200, {
+        success: true,
+        customerId: owner.stripe_customer_id,
+        message: 'Stripe customer already exists',
+      });
+    }
+
+    // Create Stripe customer
+    const customer = await stripeClient.customers.create({
+      email: owner.email,
+      name: `${owner.first_name || ''} ${owner.last_name || ''}`.trim() || undefined,
+      phone: owner.phone,
+      metadata: {
+        tenant_id: tenantId,
+        owner_id: ownerId,
+        barkbase_owner: 'true',
+      },
+    });
+
+    console.log('[Stripe] Customer created:', customer.id);
+
+    // Save Stripe customer ID to owner record
+    await query(
+      `UPDATE "Owner" SET stripe_customer_id = $1, updated_at = NOW() WHERE id = $2 AND tenant_id = $3`,
+      [customer.id, ownerId, tenantId]
+    );
+
+    return createResponse(201, {
+      success: true,
+      customerId: customer.id,
+      message: 'Stripe customer created',
+    });
+
+  } catch (error) {
+    console.error('[Stripe] Failed to create customer:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to create Stripe customer',
+    });
+  }
+}
+
+/**
+ * Get Stripe customer for an owner
+ */
+async function handleGetStripeCustomer(tenantId, ownerId) {
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `SELECT id, stripe_customer_id, first_name, last_name, email
+       FROM "Owner" WHERE id = $1 AND tenant_id = $2`,
+      [ownerId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Owner not found',
+      });
+    }
+
+    const owner = result.rows[0];
+
+    return createResponse(200, {
+      ownerId: owner.id,
+      customerId: owner.stripe_customer_id,
+      hasStripeCustomer: !!owner.stripe_customer_id,
+      ownerName: `${owner.first_name || ''} ${owner.last_name || ''}`.trim(),
+      email: owner.email,
+    });
+
+  } catch (error) {
+    console.error('[Stripe] Failed to get customer:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to get Stripe customer',
+    });
+  }
+}
+
+/**
+ * Attach a payment method to a Stripe customer and save to database
+ *
+ * @param {string} tenantId - Tenant ID
+ * @param {object} body - { paymentMethodId, ownerId, setAsDefault }
+ */
+async function handleAttachPaymentMethod(tenantId, body) {
+  const stripeClient = getStripe();
+  if (!stripeClient) {
+    return createResponse(503, {
+      error: 'Service Unavailable',
+      message: 'Payment processing is not configured.',
+    });
+  }
+
+  const { paymentMethodId, ownerId, setAsDefault = true } = body;
+
+  if (!paymentMethodId || !ownerId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'paymentMethodId and ownerId are required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Get owner with Stripe customer ID
+    const ownerResult = await query(
+      `SELECT id, stripe_customer_id FROM "Owner" WHERE id = $1 AND tenant_id = $2`,
+      [ownerId, tenantId]
+    );
+
+    if (ownerResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Owner not found',
+      });
+    }
+
+    let stripeCustomerId = ownerResult.rows[0].stripe_customer_id;
+
+    // Create Stripe customer if doesn't exist
+    if (!stripeCustomerId) {
+      const customerResult = await handleCreateStripeCustomer(tenantId, { ownerId });
+      const customerData = JSON.parse(customerResult.body);
+      if (!customerData.success) {
+        return customerResult;
+      }
+      stripeCustomerId = customerData.customerId;
+    }
+
+    // Attach payment method to customer in Stripe
+    const paymentMethod = await stripeClient.paymentMethods.attach(paymentMethodId, {
+      customer: stripeCustomerId,
+    });
+
+    console.log('[Stripe] Payment method attached:', paymentMethodId);
+
+    // Set as default if requested
+    if (setAsDefault) {
+      await stripeClient.customers.update(stripeCustomerId, {
+        invoice_settings: { default_payment_method: paymentMethodId },
+      });
+    }
+
+    // Save payment method to our database
+    const card = paymentMethod.card;
+    const insertResult = await query(
+      `INSERT INTO "PaymentMethod" (
+        tenant_id, owner_id, stripe_payment_method_id, type,
+        card_brand, card_last4, card_exp_month, card_exp_year,
+        is_default, billing_name, billing_email
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      ON CONFLICT (stripe_payment_method_id) DO UPDATE SET
+        is_default = EXCLUDED.is_default,
+        updated_at = NOW()
+      RETURNING *`,
+      [
+        tenantId,
+        ownerId,
+        paymentMethodId,
+        paymentMethod.type,
+        card?.brand,
+        card?.last4,
+        card?.exp_month,
+        card?.exp_year,
+        setAsDefault,
+        paymentMethod.billing_details?.name,
+        paymentMethod.billing_details?.email,
+      ]
+    );
+
+    const savedMethod = insertResult.rows[0];
+
+    return createResponse(200, {
+      success: true,
+      paymentMethod: {
+        id: savedMethod.id,
+        stripePaymentMethodId: savedMethod.stripe_payment_method_id,
+        type: savedMethod.type,
+        brand: savedMethod.card_brand,
+        last4: savedMethod.card_last4,
+        expMonth: savedMethod.card_exp_month,
+        expYear: savedMethod.card_exp_year,
+        isDefault: savedMethod.is_default,
+      },
+      message: 'Payment method saved successfully',
+    });
+
+  } catch (error) {
+    console.error('[Stripe] Failed to attach payment method:', error.message);
+
+    if (error.code === 'resource_already_exists') {
+      return createResponse(400, {
+        error: 'Already Attached',
+        message: 'This payment method is already attached to a customer',
+      });
+    }
+
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to attach payment method',
+    });
+  }
+}
+
+/**
+ * List saved payment methods for an owner
+ */
+async function handleListStripePaymentMethods(tenantId, ownerId) {
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `SELECT
+        pm.id,
+        pm.stripe_payment_method_id,
+        pm.type,
+        pm.card_brand,
+        pm.card_last4,
+        pm.card_exp_month,
+        pm.card_exp_year,
+        pm.is_default,
+        pm.billing_name,
+        pm.created_at
+       FROM "PaymentMethod" pm
+       WHERE pm.owner_id = $1 AND pm.tenant_id = $2
+       ORDER BY pm.is_default DESC, pm.created_at DESC`,
+      [ownerId, tenantId]
+    );
+
+    const methods = result.rows.map(row => ({
+      id: row.id,
+      stripePaymentMethodId: row.stripe_payment_method_id,
+      type: row.type,
+      brand: row.card_brand,
+      last4: row.card_last4,
+      expMonth: row.card_exp_month,
+      expYear: row.card_exp_year,
+      isDefault: row.is_default,
+      billingName: row.billing_name,
+      createdAt: row.created_at,
+    }));
+
+    return createResponse(200, {
+      paymentMethods: methods,
+      total: methods.length,
+    });
+
+  } catch (error) {
+    // Handle missing table gracefully
+    if (error.code === '42P01') {
+      return createResponse(200, {
+        paymentMethods: [],
+        total: 0,
+        message: 'PaymentMethod table not yet created',
+      });
+    }
+
+    console.error('[Stripe] Failed to list payment methods:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to list payment methods',
+    });
+  }
+}
+
+/**
+ * Detach (remove) a payment method from Stripe and our database
+ */
+async function handleDetachPaymentMethod(tenantId, stripePaymentMethodId) {
+  const stripeClient = getStripe();
+  if (!stripeClient) {
+    return createResponse(503, {
+      error: 'Service Unavailable',
+      message: 'Payment processing is not configured.',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Verify the payment method belongs to this tenant
+    const pmResult = await query(
+      `SELECT id, owner_id FROM "PaymentMethod"
+       WHERE stripe_payment_method_id = $1 AND tenant_id = $2`,
+      [stripePaymentMethodId, tenantId]
+    );
+
+    if (pmResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Payment method not found',
+      });
+    }
+
+    // Detach from Stripe
+    await stripeClient.paymentMethods.detach(stripePaymentMethodId);
+
+    console.log('[Stripe] Payment method detached:', stripePaymentMethodId);
+
+    // Remove from our database
+    await query(
+      `DELETE FROM "PaymentMethod" WHERE stripe_payment_method_id = $1 AND tenant_id = $2`,
+      [stripePaymentMethodId, tenantId]
+    );
+
+    return createResponse(200, {
+      success: true,
+      message: 'Payment method removed successfully',
+    });
+
+  } catch (error) {
+    console.error('[Stripe] Failed to detach payment method:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to remove payment method',
+    });
+  }
+}
+
+/**
+ * Create a SetupIntent for saving a card without immediate payment
+ * Used for adding cards to customer's saved payment methods
+ */
+async function handleCreateSetupIntent(tenantId, body) {
+  const stripeClient = getStripe();
+  if (!stripeClient) {
+    return createResponse(503, {
+      error: 'Service Unavailable',
+      message: 'Payment processing is not configured.',
+    });
+  }
+
+  const { ownerId } = body;
+
+  if (!ownerId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'ownerId is required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Get or create Stripe customer
+    const ownerResult = await query(
+      `SELECT stripe_customer_id FROM "Owner" WHERE id = $1 AND tenant_id = $2`,
+      [ownerId, tenantId]
+    );
+
+    if (ownerResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Owner not found',
+      });
+    }
+
+    let stripeCustomerId = ownerResult.rows[0].stripe_customer_id;
+
+    if (!stripeCustomerId) {
+      const customerResult = await handleCreateStripeCustomer(tenantId, { ownerId });
+      const customerData = JSON.parse(customerResult.body);
+      if (!customerData.success) {
+        return customerResult;
+      }
+      stripeCustomerId = customerData.customerId;
+    }
+
+    // Create SetupIntent
+    const setupIntent = await stripeClient.setupIntents.create({
+      customer: stripeCustomerId,
+      automatic_payment_methods: { enabled: true },
+      metadata: {
+        tenant_id: tenantId,
+        owner_id: ownerId,
+      },
+    });
+
+    console.log('[Stripe] SetupIntent created:', setupIntent.id);
+
+    return createResponse(200, {
+      success: true,
+      clientSecret: setupIntent.client_secret,
+      setupIntentId: setupIntent.id,
+      customerId: stripeCustomerId,
+    });
+
+  } catch (error) {
+    console.error('[Stripe] Failed to create SetupIntent:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to create setup intent',
+    });
+  }
+}
+
+/**
+ * Handle Stripe webhook events
+ * Verifies webhook signature and processes events
+ */
+async function handleStripeWebhook(event) {
+  const stripeClient = getStripe();
+  if (!stripeClient) {
+    console.error('[Stripe Webhook] Stripe not configured');
+    return createResponse(503, { error: 'Service unavailable' });
+  }
+
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.error('[Stripe Webhook] STRIPE_WEBHOOK_SECRET not configured');
+    return createResponse(500, { error: 'Webhook not configured' });
+  }
+
+  const signature = event.headers['stripe-signature'] || event.headers['Stripe-Signature'];
+  if (!signature) {
+    console.error('[Stripe Webhook] Missing stripe-signature header');
+    return createResponse(400, { error: 'Missing signature' });
+  }
+
+  let stripeEvent;
+  try {
+    // Use raw body for signature verification
+    const rawBody = event.isBase64Encoded
+      ? Buffer.from(event.body, 'base64').toString('utf8')
+      : event.body;
+
+    stripeEvent = stripeClient.webhooks.constructEvent(rawBody, signature, webhookSecret);
+  } catch (err) {
+    console.error('[Stripe Webhook] Signature verification failed:', err.message);
+    return createResponse(400, { error: 'Invalid signature' });
+  }
+
+  console.log('[Stripe Webhook] Received event:', stripeEvent.type, stripeEvent.id);
+
+  try {
+    await getPoolAsync();
+
+    switch (stripeEvent.type) {
+      case 'payment_intent.succeeded': {
+        const paymentIntent = stripeEvent.data.object;
+        console.log('[Stripe Webhook] Payment succeeded:', paymentIntent.id);
+
+        const tenantId = paymentIntent.metadata?.tenant_id;
+        if (!tenantId) {
+          console.warn('[Stripe Webhook] No tenant_id in metadata');
+          break;
+        }
+
+        // Check if payment already recorded
+        const existing = await query(
+          `SELECT id FROM "Payment" WHERE stripe_payment_intent_id = $1`,
+          [paymentIntent.id]
+        );
+
+        if (existing.rows.length === 0) {
+          // Record the payment
+          await query(
+            `INSERT INTO "Payment" (
+              tenant_id, owner_id, invoice_id, amount_cents, method, processor,
+              processor_transaction_id, stripe_payment_intent_id, status, processed_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`,
+            [
+              tenantId,
+              paymentIntent.metadata?.owner_id || null,
+              paymentIntent.metadata?.invoice_id || null,
+              paymentIntent.amount,
+              'card',
+              'stripe',
+              paymentIntent.latest_charge,
+              paymentIntent.id,
+              'completed',
+            ]
+          );
+          console.log('[Stripe Webhook] Payment recorded via webhook');
+        }
+        break;
+      }
+
+      case 'payment_intent.payment_failed': {
+        const paymentIntent = stripeEvent.data.object;
+        console.log('[Stripe Webhook] Payment failed:', paymentIntent.id);
+
+        const tenantId = paymentIntent.metadata?.tenant_id;
+        if (!tenantId) break;
+
+        // Record the failed payment attempt
+        await query(
+          `INSERT INTO "Payment" (
+            tenant_id, owner_id, invoice_id, amount_cents, method, processor,
+            stripe_payment_intent_id, status, failure_code, failure_message, processed_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+          ON CONFLICT (stripe_payment_intent_id) WHERE stripe_payment_intent_id IS NOT NULL
+          DO UPDATE SET
+            status = 'failed',
+            failure_code = EXCLUDED.failure_code,
+            failure_message = EXCLUDED.failure_message,
+            updated_at = NOW()`,
+          [
+            tenantId,
+            paymentIntent.metadata?.owner_id || null,
+            paymentIntent.metadata?.invoice_id || null,
+            paymentIntent.amount,
+            'card',
+            'stripe',
+            paymentIntent.id,
+            'failed',
+            paymentIntent.last_payment_error?.code,
+            paymentIntent.last_payment_error?.message,
+          ]
+        );
+        break;
+      }
+
+      case 'charge.refunded': {
+        const charge = stripeEvent.data.object;
+        console.log('[Stripe Webhook] Charge refunded:', charge.id);
+
+        // Update payment record with refund info
+        await query(
+          `UPDATE "Payment"
+           SET status = 'refunded',
+               refund_amount_cents = $1,
+               refunded_at = NOW(),
+               updated_at = NOW()
+           WHERE stripe_charge_id = $2 OR processor_transaction_id = $2`,
+          [charge.amount_refunded, charge.id]
+        );
+        break;
+      }
+
+      case 'customer.deleted': {
+        const customer = stripeEvent.data.object;
+        console.log('[Stripe Webhook] Customer deleted:', customer.id);
+
+        // Clear Stripe customer ID from owner
+        await query(
+          `UPDATE "Owner" SET stripe_customer_id = NULL, updated_at = NOW()
+           WHERE stripe_customer_id = $1`,
+          [customer.id]
+        );
+
+        // Remove associated payment methods
+        await query(
+          `DELETE FROM "PaymentMethod"
+           WHERE owner_id IN (SELECT id FROM "Owner" WHERE stripe_customer_id = $1)`,
+          [customer.id]
+        );
+        break;
+      }
+
+      default:
+        console.log('[Stripe Webhook] Unhandled event type:', stripeEvent.type);
+    }
+
+    return createResponse(200, { received: true });
+
+  } catch (error) {
+    console.error('[Stripe Webhook] Processing error:', error.message);
+    // Return 200 to prevent Stripe from retrying (we logged the error)
+    return createResponse(200, { received: true, error: 'Processing error logged' });
+  }
 }

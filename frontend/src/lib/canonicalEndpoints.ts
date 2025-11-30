@@ -133,6 +133,17 @@ export const canonicalEndpoints = {
     pause: buildWithSuffix('/api/v1/financial/subscriptions/{id}', 'pause'),
     resume: buildWithSuffix('/api/v1/financial/subscriptions/{id}', 'resume'),
   },
+  // Stripe Payment Processing
+  stripe: {
+    createPaymentIntent: '/api/v1/financial/stripe/payment-intent',
+    confirmPayment: '/api/v1/financial/stripe/confirm',
+    createCustomer: '/api/v1/financial/stripe/customers',
+    getCustomer: build('/api/v1/financial/stripe/customers/{id}'),
+    attachPaymentMethod: '/api/v1/financial/stripe/payment-methods',
+    listPaymentMethods: build('/api/v1/financial/stripe/payment-methods/owner/{id}'),
+    detachPaymentMethod: build('/api/v1/financial/stripe/payment-methods/{id}'),
+    createSetupIntent: '/api/v1/financial/stripe/setup-intent',
+  },
 
   // Config Service - /api/v1/config/*
   settings: {

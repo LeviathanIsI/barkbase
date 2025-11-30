@@ -359,6 +359,15 @@ export class ApiCoreStack extends cdk.Stack {
       authorizer, // JWT authorization required
     });
 
+    // Stripe webhook route - /api/v1/financial/stripe/webhook (PUBLIC - verified via Stripe signature)
+    // Must be PUBLIC because Stripe sends webhooks directly without JWT token
+    this.httpApi.addRoutes({
+      path: '/api/v1/financial/stripe/webhook',
+      methods: [apigatewayv2.HttpMethod.POST],
+      integration: financialIntegration,
+      // NO authorizer - webhook verification happens in Lambda via stripe-signature header
+    });
+
     // Segments routes - /api/v1/segments/* (PROTECTED)
     // Routes to analytics service for customer segmentation
     this.httpApi.addRoutes({
