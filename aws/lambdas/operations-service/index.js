@@ -118,6 +118,13 @@ exports.handler = async (event, context) => {
       }
     }
 
+    // Availability check endpoint - check capacity without creating booking
+    if (path === '/api/v1/operations/bookings/availability' || path === '/operations/bookings/availability') {
+      if (method === 'GET' || method === 'POST') {
+        return handleCheckAvailability(tenantId, method === 'POST' ? parseBody(event) : event.queryStringParameters || {});
+      }
+    }
+
     // Booking by ID routes
     const bookingMatch = path.match(/\/api\/v1\/operations\/bookings\/([a-f0-9-]+)(\/.*)?$/i);
     if (bookingMatch) {
@@ -710,7 +717,7 @@ async function handleGetBooking(tenantId, bookingId) {
  * Create booking
  */
 async function handleCreateBooking(tenantId, user, body) {
-  const { petIds, petId, ownerId, kennelId, serviceId, startDate, endDate, notes, totalPrice, totalPriceInCents, specialInstructions, serviceType, roomNumber, sendConfirmation = true } = body;
+  const { petIds, petId, ownerId, kennelId, serviceId, startDate, endDate, notes, totalPrice, totalPriceInCents, specialInstructions, serviceType, roomNumber, sendConfirmation = true, skipCapacityCheck = false } = body;
 
   console.log('[Bookings][create] tenantId:', tenantId, body);
 
@@ -723,6 +730,30 @@ async function handleCreateBooking(tenantId, user, body) {
 
   try {
     await getPoolAsync();
+
+    // ==========================================================================
+    // CAPACITY ENFORCEMENT
+    // Check if there's available capacity before creating the booking
+    // ==========================================================================
+    if (!skipCapacityCheck) {
+      const capacityCheck = await checkBookingCapacity(tenantId, kennelId, startDate, endDate);
+      
+      if (!capacityCheck.hasCapacity) {
+        console.log('[Bookings][create] Capacity exceeded:', capacityCheck);
+        return createResponse(409, {
+          error: 'Conflict',
+          message: capacityCheck.message || 'No available capacity for the selected dates',
+          details: {
+            totalCapacity: capacityCheck.totalCapacity,
+            currentOccupancy: capacityCheck.currentOccupancy,
+            availableSlots: capacityCheck.availableSlots,
+            requestedKennel: kennelId,
+          },
+        });
+      }
+      
+      console.log('[Bookings][create] Capacity check passed:', capacityCheck);
+    }
 
     // Calculate price in cents
     const priceInCents = totalPriceInCents || (totalPrice ? totalPrice * 100 : 0);
@@ -776,6 +807,174 @@ async function handleCreateBooking(tenantId, user, body) {
       error: 'Internal Server Error',
       message: 'Failed to create booking',
     });
+  }
+}
+
+/**
+ * Handle availability check request
+ * GET/POST /api/v1/operations/bookings/availability
+ */
+async function handleCheckAvailability(tenantId, params) {
+  const { startDate, endDate, kennelId } = params;
+
+  console.log('[Bookings][availability] Checking:', { tenantId, startDate, endDate, kennelId });
+
+  if (!startDate || !endDate) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'startDate and endDate are required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const result = await checkBookingCapacity(tenantId, kennelId, startDate, endDate);
+
+    return createResponse(200, {
+      available: result.hasCapacity,
+      ...result,
+    });
+
+  } catch (error) {
+    console.error('[Bookings][availability] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to check availability',
+    });
+  }
+}
+
+/**
+ * Helper: Check booking capacity for a date range
+ * Returns { hasCapacity, totalCapacity, currentOccupancy, availableSlots, message }
+ */
+async function checkBookingCapacity(tenantId, kennelId, startDate, endDate) {
+  try {
+    // If a specific kennel is requested, check that kennel's availability
+    if (kennelId) {
+      // Check if the specific kennel is available for the date range
+      const kennelResult = await query(
+        `SELECT k.id, k.name, k.capacity
+         FROM "Kennel" k
+         WHERE k.id = $1 AND k.tenant_id = $2 AND k.is_active = true AND k.deleted_at IS NULL`,
+        [kennelId, tenantId]
+      );
+
+      if (kennelResult.rows.length === 0) {
+        return {
+          hasCapacity: false,
+          message: 'Selected kennel not found or inactive',
+          totalCapacity: 0,
+          currentOccupancy: 0,
+          availableSlots: 0,
+        };
+      }
+
+      const kennel = kennelResult.rows[0];
+      const kennelCapacity = kennel.capacity || 1;
+
+      // Count overlapping bookings for this specific kennel
+      const overlappingResult = await query(
+        `SELECT COUNT(*) as count
+         FROM "Booking" b
+         WHERE b.tenant_id = $1
+           AND b.kennel_id = $2
+           AND b.deleted_at IS NULL
+           AND b.status NOT IN ('CANCELLED', 'NO_SHOW', 'CHECKED_OUT')
+           AND b.check_in < $4::timestamptz
+           AND b.check_out > $3::timestamptz`,
+        [tenantId, kennelId, startDate, endDate]
+      );
+
+      const currentOccupancy = parseInt(overlappingResult.rows[0]?.count || 0);
+      const availableSlots = kennelCapacity - currentOccupancy;
+
+      return {
+        hasCapacity: availableSlots > 0,
+        totalCapacity: kennelCapacity,
+        currentOccupancy,
+        availableSlots: Math.max(0, availableSlots),
+        kennelName: kennel.name,
+        message: availableSlots <= 0 
+          ? `Kennel "${kennel.name}" is fully booked for the selected dates`
+          : null,
+      };
+    }
+
+    // No specific kennel - check overall facility capacity
+    // Get total capacity from all active kennels
+    const capacityResult = await query(
+      `SELECT 
+         COALESCE(SUM(k.capacity), 0) as total_capacity,
+         COUNT(k.id) as kennel_count
+       FROM "Kennel" k
+       WHERE k.tenant_id = $1 AND k.is_active = true AND k.deleted_at IS NULL`,
+      [tenantId]
+    );
+
+    const totalCapacity = parseInt(capacityResult.rows[0]?.total_capacity || 0);
+    const kennelCount = parseInt(capacityResult.rows[0]?.kennel_count || 0);
+
+    // If no kennels configured, check FacilitySettings for total_capacity
+    let effectiveCapacity = totalCapacity;
+    if (effectiveCapacity === 0) {
+      const facilityResult = await query(
+        `SELECT total_capacity FROM "FacilitySettings" WHERE tenant_id = $1`,
+        [tenantId]
+      );
+      effectiveCapacity = parseInt(facilityResult.rows[0]?.total_capacity || 0);
+    }
+
+    // If still no capacity configured, allow booking (no restrictions)
+    if (effectiveCapacity === 0) {
+      console.log('[Bookings][capacity] No capacity configured, allowing booking');
+      return {
+        hasCapacity: true,
+        totalCapacity: 0,
+        currentOccupancy: 0,
+        availableSlots: -1, // -1 indicates unlimited
+        message: 'No capacity limits configured',
+      };
+    }
+
+    // Count overlapping bookings across all kennels
+    const overlappingResult = await query(
+      `SELECT COUNT(*) as count
+       FROM "Booking" b
+       WHERE b.tenant_id = $1
+         AND b.deleted_at IS NULL
+         AND b.status NOT IN ('CANCELLED', 'NO_SHOW', 'CHECKED_OUT')
+         AND b.check_in < $3::timestamptz
+         AND b.check_out > $2::timestamptz`,
+      [tenantId, startDate, endDate]
+    );
+
+    const currentOccupancy = parseInt(overlappingResult.rows[0]?.count || 0);
+    const availableSlots = effectiveCapacity - currentOccupancy;
+
+    return {
+      hasCapacity: availableSlots > 0,
+      totalCapacity: effectiveCapacity,
+      currentOccupancy,
+      availableSlots: Math.max(0, availableSlots),
+      kennelCount,
+      message: availableSlots <= 0
+        ? `Facility is at full capacity (${currentOccupancy}/${effectiveCapacity}) for the selected dates`
+        : null,
+    };
+
+  } catch (error) {
+    console.error('[Bookings][capacity] Error checking capacity:', error.message);
+    // On error, allow booking but log the issue
+    return {
+      hasCapacity: true,
+      totalCapacity: 0,
+      currentOccupancy: 0,
+      availableSlots: -1,
+      message: 'Capacity check failed, allowing booking',
+      error: error.message,
+    };
   }
 }
 
