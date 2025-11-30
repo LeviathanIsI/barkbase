@@ -105,6 +105,10 @@ const handlers = {
 
   // Pet Vaccinations
   'GET /api/v1/entity/pets/vaccinations/expiring': getExpiringVaccinations,
+  'GET /api/v1/entity/pets/{id}/vaccinations': getPetVaccinations,
+  'POST /api/v1/entity/pets/{id}/vaccinations': createPetVaccination,
+  'PUT /api/v1/entity/pets/{petId}/vaccinations/{id}': updatePetVaccination,
+  'DELETE /api/v1/entity/pets/{petId}/vaccinations/{id}': deletePetVaccination,
 
   // Owners
   'GET /api/v1/entity/owners': getOwners,
@@ -148,15 +152,50 @@ exports.handler = async (event, context) => {
     // Attach user to event
     event.user = authResult.user;
 
-    // Extract route key - handle both /api/v1/entity/owners and /api/v1/entity/owners/{id}
-    const pathWithoutId = path.replace(/\/[a-f0-9-]{36}$/i, '/{id}');
-    const routeKey = `${method} ${pathWithoutId}`;
+    // Extract route key - handle various path patterns
+    // Pattern 1: /api/v1/entity/pets/{petId}/vaccinations/{id} -> with {petId} and {id}
+    // Pattern 2: /api/v1/entity/pets/{id}/vaccinations -> with single {id}
+    // Pattern 3: /api/v1/entity/owners/{id} -> simple {id}
+    let normalizedPath = path;
+    const pathSegments = path.split('/');
+    const uuidPattern = /^[a-f0-9-]{36}$/i;
+
+    // Find and replace UUIDs with placeholders
+    // For nested resources like pets/{id}/vaccinations/{id}
+    let foundFirstId = false;
+    const normalizedSegments = pathSegments.map((segment, idx) => {
+      if (uuidPattern.test(segment)) {
+        // Check if this is a nested resource pattern
+        const prevSegment = pathSegments[idx - 1];
+        const nextSegment = pathSegments[idx + 1];
+
+        // If there's a next segment (nested resource), use {petId} for parent
+        if (nextSegment && !foundFirstId) {
+          foundFirstId = true;
+          event.pathParameters = event.pathParameters || {};
+          event.pathParameters.petId = segment;
+          return '{petId}';
+        } else {
+          // Otherwise use {id}
+          event.pathParameters = event.pathParameters || {};
+          event.pathParameters.id = segment;
+          return '{id}';
+        }
+      }
+      return segment;
+    });
+
+    normalizedPath = normalizedSegments.join('/');
+    const routeKey = `${method} ${normalizedPath}`;
     const exactRouteKey = `${method} ${path}`;
 
-    const handler = handlers[exactRouteKey] || handlers[routeKey];
+    // Also try simple replacement for backward compatibility
+    const simpleRouteKey = `${method} ${path.replace(/\/[a-f0-9-]{36}$/i, '/{id}')}`;
+
+    const handler = handlers[exactRouteKey] || handlers[routeKey] || handlers[simpleRouteKey];
 
     if (!handler) {
-      console.log('[ENTITY-SERVICE] No handler found for:', routeKey, 'or', exactRouteKey);
+      console.log('[ENTITY-SERVICE] No handler found for:', routeKey, 'or', simpleRouteKey);
       return createResponse(404, {
         error: 'Not Found',
         message: `Route ${method} ${path} not found`,
@@ -1439,6 +1478,375 @@ async function getExpiringVaccinations(event) {
     return createResponse(500, {
       error: 'Internal Server Error',
       message: 'Failed to retrieve expiring vaccinations',
+    });
+  }
+}
+
+// =============================================================================
+// PET VACCINATION CRUD HANDLERS
+// =============================================================================
+
+/**
+ * Get all vaccinations for a pet
+ */
+async function getPetVaccinations(event) {
+  const tenantId = resolveTenantId(event);
+  const petId = event.pathParameters?.id;
+
+  console.log('[ENTITY-SERVICE] Getting vaccinations for pet:', petId, 'tenant:', tenantId);
+
+  if (!tenantId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Missing tenant context',
+    });
+  }
+
+  if (!petId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Pet ID is required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Verify pet belongs to tenant
+    const petResult = await query(
+      `SELECT id FROM "Pet" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [petId, tenantId]
+    );
+
+    if (petResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Pet not found',
+      });
+    }
+
+    const result = await query(
+      `SELECT
+         v.id, v.pet_id, v.vaccine_name, v.vaccine_type,
+         v.administered_date, v.expiration_date, v.next_due_date,
+         v.lot_number, v.manufacturer, v.administered_by,
+         v.vet_clinic, v.vet_name, v.notes, v.is_required,
+         v.document_url, v.verified, v.verified_by, v.verified_at,
+         v.created_at, v.updated_at
+       FROM "Vaccination" v
+       WHERE v.pet_id = $1 AND v.tenant_id = $2 AND v.deleted_at IS NULL
+       ORDER BY v.expiration_date ASC NULLS LAST, v.administered_date DESC`,
+      [petId, tenantId]
+    );
+
+    const vaccinations = result.rows.map(row => ({
+      id: row.id,
+      petId: row.pet_id,
+      vaccineName: row.vaccine_name,
+      vaccineType: row.vaccine_type,
+      administeredDate: row.administered_date,
+      expirationDate: row.expiration_date,
+      nextDueDate: row.next_due_date,
+      lotNumber: row.lot_number,
+      manufacturer: row.manufacturer,
+      administeredBy: row.administered_by,
+      vetClinic: row.vet_clinic,
+      vetName: row.vet_name,
+      notes: row.notes,
+      isRequired: row.is_required,
+      documentUrl: row.document_url,
+      verified: row.verified,
+      verifiedBy: row.verified_by,
+      verifiedAt: row.verified_at,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      isExpired: row.expiration_date ? new Date(row.expiration_date) < new Date() : false,
+      isExpiringSoon: row.expiration_date ? (new Date(row.expiration_date) - new Date()) / (1000 * 60 * 60 * 24) <= 30 : false,
+    }));
+
+    console.log('[ENTITY-SERVICE] Found', vaccinations.length, 'vaccinations for pet');
+
+    return createResponse(200, {
+      data: vaccinations,
+      vaccinations: vaccinations,
+      total: vaccinations.length,
+      petId: petId,
+      message: 'Vaccinations retrieved successfully',
+    });
+
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] Failed to get pet vaccinations:', error.message);
+
+    if (error.code === '42P01') {
+      return createResponse(200, {
+        data: [],
+        vaccinations: [],
+        total: 0,
+        petId: petId,
+        message: 'Vaccinations (table not initialized)',
+      });
+    }
+
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve vaccinations',
+    });
+  }
+}
+
+/**
+ * Create a vaccination record for a pet
+ */
+async function createPetVaccination(event) {
+  const tenantId = resolveTenantId(event);
+  const petId = event.pathParameters?.id;
+  const body = parseBody(event);
+
+  console.log('[ENTITY-SERVICE] Creating vaccination for pet:', petId);
+
+  if (!tenantId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Missing tenant context',
+    });
+  }
+
+  if (!petId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Pet ID is required',
+    });
+  }
+
+  const {
+    vaccineName, vaccineType, administeredDate, expirationDate, nextDueDate,
+    lotNumber, manufacturer, administeredBy, vetClinic, vetName,
+    notes, isRequired, documentUrl
+  } = body;
+
+  if (!vaccineName) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Vaccine name is required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Verify pet belongs to tenant
+    const petResult = await query(
+      `SELECT id, name FROM "Pet" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [petId, tenantId]
+    );
+
+    if (petResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Pet not found',
+      });
+    }
+
+    const result = await query(
+      `INSERT INTO "Vaccination" (
+         tenant_id, pet_id, vaccine_name, vaccine_type,
+         administered_date, expiration_date, next_due_date,
+         lot_number, manufacturer, administered_by,
+         vet_clinic, vet_name, notes, is_required, document_url,
+         created_at, updated_at
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
+       RETURNING *`,
+      [
+        tenantId, petId, vaccineName, vaccineType || null,
+        administeredDate || null, expirationDate || null, nextDueDate || null,
+        lotNumber || null, manufacturer || null, administeredBy || null,
+        vetClinic || null, vetName || null, notes || null,
+        isRequired || false, documentUrl || null
+      ]
+    );
+
+    const row = result.rows[0];
+
+    console.log('[ENTITY-SERVICE] Created vaccination:', row.id, 'for pet:', petId);
+
+    return createResponse(201, {
+      success: true,
+      id: row.id,
+      vaccineName: row.vaccine_name,
+      petId: row.pet_id,
+      message: 'Vaccination record created successfully',
+    });
+
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] Failed to create vaccination:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to create vaccination record',
+    });
+  }
+}
+
+/**
+ * Update a vaccination record
+ */
+async function updatePetVaccination(event) {
+  const tenantId = resolveTenantId(event);
+  const petId = event.pathParameters?.petId;
+  const vaccinationId = event.pathParameters?.id;
+  const body = parseBody(event);
+
+  console.log('[ENTITY-SERVICE] Updating vaccination:', vaccinationId, 'for pet:', petId);
+
+  if (!tenantId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Missing tenant context',
+    });
+  }
+
+  if (!vaccinationId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Vaccination ID is required',
+    });
+  }
+
+  const {
+    vaccineName, vaccineType, administeredDate, expirationDate, nextDueDate,
+    lotNumber, manufacturer, administeredBy, vetClinic, vetName,
+    notes, isRequired, documentUrl, verified
+  } = body;
+
+  try {
+    await getPoolAsync();
+
+    const updates = [];
+    const values = [vaccinationId, tenantId];
+    let paramIndex = 3;
+
+    if (vaccineName !== undefined) { updates.push(`vaccine_name = $${paramIndex++}`); values.push(vaccineName); }
+    if (vaccineType !== undefined) { updates.push(`vaccine_type = $${paramIndex++}`); values.push(vaccineType); }
+    if (administeredDate !== undefined) { updates.push(`administered_date = $${paramIndex++}`); values.push(administeredDate); }
+    if (expirationDate !== undefined) { updates.push(`expiration_date = $${paramIndex++}`); values.push(expirationDate); }
+    if (nextDueDate !== undefined) { updates.push(`next_due_date = $${paramIndex++}`); values.push(nextDueDate); }
+    if (lotNumber !== undefined) { updates.push(`lot_number = $${paramIndex++}`); values.push(lotNumber); }
+    if (manufacturer !== undefined) { updates.push(`manufacturer = $${paramIndex++}`); values.push(manufacturer); }
+    if (administeredBy !== undefined) { updates.push(`administered_by = $${paramIndex++}`); values.push(administeredBy); }
+    if (vetClinic !== undefined) { updates.push(`vet_clinic = $${paramIndex++}`); values.push(vetClinic); }
+    if (vetName !== undefined) { updates.push(`vet_name = $${paramIndex++}`); values.push(vetName); }
+    if (notes !== undefined) { updates.push(`notes = $${paramIndex++}`); values.push(notes); }
+    if (isRequired !== undefined) { updates.push(`is_required = $${paramIndex++}`); values.push(isRequired); }
+    if (documentUrl !== undefined) { updates.push(`document_url = $${paramIndex++}`); values.push(documentUrl); }
+    if (verified !== undefined) {
+      updates.push(`verified = $${paramIndex++}`);
+      values.push(verified);
+      if (verified && event.user?.id) {
+        updates.push(`verified_by = $${paramIndex++}`);
+        values.push(event.user.id);
+        updates.push(`verified_at = NOW()`);
+      }
+    }
+
+    if (updates.length === 0) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'No valid fields to update',
+      });
+    }
+
+    updates.push('updated_at = NOW()');
+
+    const result = await query(
+      `UPDATE "Vaccination"
+       SET ${updates.join(', ')}
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING *`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Vaccination record not found',
+      });
+    }
+
+    const row = result.rows[0];
+
+    console.log('[ENTITY-SERVICE] Updated vaccination:', row.id);
+
+    return createResponse(200, {
+      success: true,
+      id: row.id,
+      vaccineName: row.vaccine_name,
+      message: 'Vaccination record updated successfully',
+    });
+
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] Failed to update vaccination:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to update vaccination record',
+    });
+  }
+}
+
+/**
+ * Delete a vaccination record (soft delete)
+ */
+async function deletePetVaccination(event) {
+  const tenantId = resolveTenantId(event);
+  const petId = event.pathParameters?.petId;
+  const vaccinationId = event.pathParameters?.id;
+
+  console.log('[ENTITY-SERVICE] Deleting vaccination:', vaccinationId);
+
+  if (!tenantId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Missing tenant context',
+    });
+  }
+
+  if (!vaccinationId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Vaccination ID is required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "Vaccination"
+       SET deleted_at = NOW(), updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING id, vaccine_name`,
+      [vaccinationId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Vaccination record not found',
+      });
+    }
+
+    console.log('[ENTITY-SERVICE] Deleted vaccination:', vaccinationId);
+
+    return createResponse(200, {
+      success: true,
+      id: vaccinationId,
+      message: 'Vaccination record deleted successfully',
+    });
+
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] Failed to delete vaccination:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to delete vaccination record',
     });
   }
 }
