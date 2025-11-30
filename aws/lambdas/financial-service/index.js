@@ -362,6 +362,45 @@ exports.handler = async (event, context) => {
       }
     }
 
+    // ==========================================================================
+    // PACKAGE/CREDIT ROUTES
+    // ==========================================================================
+    
+    // List packages for owner
+    if (path === '/api/v1/financial/packages' || path === '/financial/packages') {
+      if (method === 'GET') {
+        return handleGetPackages(tenantId, queryParams);
+      }
+      if (method === 'POST') {
+        return handleCreatePackage(tenantId, parseBody(event));
+      }
+    }
+
+    // Package by ID routes
+    const packageMatch = path.match(/\/api\/v1\/financial\/packages\/([a-f0-9-]+)(\/.*)?$/i);
+    if (packageMatch) {
+      const packageId = packageMatch[1];
+      const subPath = packageMatch[2] || '';
+
+      if (subPath === '/use' && method === 'POST') {
+        return handleUsePackageCredits(tenantId, packageId, parseBody(event));
+      }
+      if (subPath === '/usage' && method === 'GET') {
+        return handleGetPackageUsage(tenantId, packageId);
+      }
+      if (!subPath || subPath === '') {
+        if (method === 'GET') {
+          return handleGetPackage(tenantId, packageId);
+        }
+        if (method === 'PUT' || method === 'PATCH') {
+          return handleUpdatePackage(tenantId, packageId, parseBody(event));
+        }
+        if (method === 'DELETE') {
+          return handleDeletePackage(tenantId, packageId);
+        }
+      }
+    }
+
     // Default response for unmatched routes
     return createResponse(404, {
       error: 'Not Found',
@@ -2619,5 +2658,447 @@ async function handleStripeWebhook(event) {
     console.error('[Stripe Webhook] Processing error:', error.message);
     // Return 200 to prevent Stripe from retrying (we logged the error)
     return createResponse(200, { received: true, error: 'Processing error logged' });
+  }
+}
+
+// =============================================================================
+// PACKAGE/CREDIT HANDLERS
+// =============================================================================
+
+/**
+ * Get packages for tenant/owner
+ */
+async function handleGetPackages(tenantId, queryParams) {
+  const { ownerId, status, includeExpired = false, limit = 50, offset = 0 } = queryParams;
+
+  console.log('[Packages][list] tenantId:', tenantId, queryParams);
+
+  try {
+    await getPoolAsync();
+
+    let whereClause = 'p.tenant_id = $1';
+    const params = [tenantId];
+    let paramIndex = 2;
+
+    if (ownerId) {
+      whereClause += ` AND p.owner_id = $${paramIndex++}`;
+      params.push(ownerId);
+    }
+    if (status === 'active') {
+      whereClause += ` AND p.is_active = true AND (p.expires_at IS NULL OR p.expires_at > NOW())`;
+    }
+    if (!includeExpired || includeExpired === 'false') {
+      whereClause += ` AND (p.expires_at IS NULL OR p.expires_at > NOW())`;
+    }
+
+    const result = await query(
+      `SELECT
+         p.*,
+         o.first_name as owner_first_name,
+         o.last_name as owner_last_name,
+         o.email as owner_email,
+         (p.total_credits - COALESCE(p.used_credits, 0)) as remaining_credits
+       FROM "Package" p
+       LEFT JOIN "Owner" o ON p.owner_id = o.id
+       WHERE ${whereClause}
+       ORDER BY p.purchased_at DESC
+       LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
+      [...params, parseInt(limit), parseInt(offset)]
+    );
+
+    const packages = result.rows.map(row => ({
+      id: row.id,
+      tenantId: row.tenant_id,
+      ownerId: row.owner_id,
+      ownerName: row.owner_first_name ? `${row.owner_first_name} ${row.owner_last_name || ''}`.trim() : null,
+      ownerEmail: row.owner_email,
+      name: row.name,
+      description: row.description,
+      totalCredits: row.total_credits,
+      usedCredits: row.used_credits || 0,
+      remainingCredits: row.remaining_credits,
+      priceInCents: row.price_in_cents,
+      purchasedAt: row.purchased_at,
+      expiresAt: row.expires_at,
+      isActive: row.is_active,
+      isExpired: row.expires_at ? new Date(row.expires_at) < new Date() : false,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
+    console.log('[Packages][list] Found:', packages.length);
+
+    return createResponse(200, {
+      data: packages,
+      packages: packages,
+      total: packages.length,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+    });
+
+  } catch (error) {
+    console.error('[Packages] Get packages failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve packages',
+    });
+  }
+}
+
+/**
+ * Get single package
+ */
+async function handleGetPackage(tenantId, packageId) {
+  console.log('[Packages][get] id:', packageId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `SELECT
+         p.*,
+         o.first_name as owner_first_name,
+         o.last_name as owner_last_name,
+         o.email as owner_email,
+         (p.total_credits - COALESCE(p.used_credits, 0)) as remaining_credits
+       FROM "Package" p
+       LEFT JOIN "Owner" o ON p.owner_id = o.id
+       WHERE p.id = $1 AND p.tenant_id = $2`,
+      [packageId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Package not found',
+      });
+    }
+
+    const row = result.rows[0];
+
+    return createResponse(200, {
+      id: row.id,
+      tenantId: row.tenant_id,
+      ownerId: row.owner_id,
+      ownerName: row.owner_first_name ? `${row.owner_first_name} ${row.owner_last_name || ''}`.trim() : null,
+      ownerEmail: row.owner_email,
+      name: row.name,
+      description: row.description,
+      totalCredits: row.total_credits,
+      usedCredits: row.used_credits || 0,
+      remainingCredits: row.remaining_credits,
+      priceInCents: row.price_in_cents,
+      purchasedAt: row.purchased_at,
+      expiresAt: row.expires_at,
+      isActive: row.is_active,
+      createdAt: row.created_at,
+    });
+
+  } catch (error) {
+    console.error('[Packages] Get package failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve package',
+    });
+  }
+}
+
+/**
+ * Create/purchase a package
+ */
+async function handleCreatePackage(tenantId, body) {
+  const { ownerId, name, description, totalCredits, priceInCents, expiresAt } = body;
+
+  console.log('[Packages][create] tenantId:', tenantId);
+
+  if (!ownerId || !name || !totalCredits) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'ownerId, name, and totalCredits are required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `INSERT INTO "Package" (
+         tenant_id, owner_id, name, description, total_credits, used_credits,
+         price_in_cents, purchased_at, expires_at, is_active
+       )
+       VALUES ($1, $2, $3, $4, $5, 0, $6, NOW(), $7, true)
+       RETURNING *`,
+      [tenantId, ownerId, name, description || null, totalCredits, priceInCents || 0, expiresAt || null]
+    );
+
+    const pkg = result.rows[0];
+    console.log('[Packages][create] Created:', pkg.id);
+
+    return createResponse(201, {
+      success: true,
+      id: pkg.id,
+      name: pkg.name,
+      totalCredits: pkg.total_credits,
+      remainingCredits: pkg.total_credits,
+      message: 'Package created successfully',
+    });
+
+  } catch (error) {
+    console.error('[Packages] Create failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to create package',
+    });
+  }
+}
+
+/**
+ * Update package
+ */
+async function handleUpdatePackage(tenantId, packageId, body) {
+  const { name, description, totalCredits, expiresAt, isActive } = body;
+
+  console.log('[Packages][update] id:', packageId);
+
+  try {
+    await getPoolAsync();
+
+    const updates = [];
+    const values = [packageId, tenantId];
+    let paramIndex = 3;
+
+    if (name !== undefined) { updates.push(`name = $${paramIndex++}`); values.push(name); }
+    if (description !== undefined) { updates.push(`description = $${paramIndex++}`); values.push(description); }
+    if (totalCredits !== undefined) { updates.push(`total_credits = $${paramIndex++}`); values.push(totalCredits); }
+    if (expiresAt !== undefined) { updates.push(`expires_at = $${paramIndex++}`); values.push(expiresAt); }
+    if (isActive !== undefined) { updates.push(`is_active = $${paramIndex++}`); values.push(isActive); }
+
+    if (updates.length === 0) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'No fields to update',
+      });
+    }
+
+    updates.push('updated_at = NOW()');
+
+    const result = await query(
+      `UPDATE "Package" SET ${updates.join(', ')} WHERE id = $1 AND tenant_id = $2 RETURNING *`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Package not found',
+      });
+    }
+
+    return createResponse(200, {
+      success: true,
+      id: result.rows[0].id,
+      message: 'Package updated',
+    });
+
+  } catch (error) {
+    console.error('[Packages] Update failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to update package',
+    });
+  }
+}
+
+/**
+ * Delete package
+ */
+async function handleDeletePackage(tenantId, packageId) {
+  console.log('[Packages][delete] id:', packageId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `DELETE FROM "Package" WHERE id = $1 AND tenant_id = $2 RETURNING id`,
+      [packageId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Package not found',
+      });
+    }
+
+    return createResponse(200, {
+      success: true,
+      message: 'Package deleted',
+    });
+
+  } catch (error) {
+    console.error('[Packages] Delete failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to delete package',
+    });
+  }
+}
+
+/**
+ * Use credits from a package
+ */
+async function handleUsePackageCredits(tenantId, packageId, body) {
+  const { creditsUsed, bookingId, notes } = body;
+
+  console.log('[Packages][use] id:', packageId, 'credits:', creditsUsed);
+
+  if (!creditsUsed || creditsUsed <= 0) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'creditsUsed must be a positive number',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Get current package
+    const pkgResult = await query(
+      `SELECT * FROM "Package" WHERE id = $1 AND tenant_id = $2`,
+      [packageId, tenantId]
+    );
+
+    if (pkgResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Package not found',
+      });
+    }
+
+    const pkg = pkgResult.rows[0];
+
+    // Check if package is active
+    if (!pkg.is_active) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Package is not active',
+      });
+    }
+
+    // Check if expired
+    if (pkg.expires_at && new Date(pkg.expires_at) < new Date()) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Package has expired',
+      });
+    }
+
+    // Check available credits
+    const availableCredits = pkg.total_credits - (pkg.used_credits || 0);
+    if (creditsUsed > availableCredits) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: `Insufficient credits. Available: ${availableCredits}, Requested: ${creditsUsed}`,
+        availableCredits,
+      });
+    }
+
+    // Update package credits
+    await query(
+      `UPDATE "Package" SET used_credits = used_credits + $1, updated_at = NOW() WHERE id = $2`,
+      [creditsUsed, packageId]
+    );
+
+    // Record usage
+    const usageResult = await query(
+      `INSERT INTO "PackageUsage" (package_id, booking_id, credits_used, used_at, notes)
+       VALUES ($1, $2, $3, NOW(), $4)
+       RETURNING *`,
+      [packageId, bookingId || null, creditsUsed, notes || null]
+    );
+
+    const newAvailable = availableCredits - creditsUsed;
+
+    console.log('[Packages][use] Used', creditsUsed, 'credits, remaining:', newAvailable);
+
+    return createResponse(200, {
+      success: true,
+      usageId: usageResult.rows[0].id,
+      creditsUsed,
+      previousBalance: availableCredits,
+      newBalance: newAvailable,
+      message: `${creditsUsed} credits used successfully`,
+    });
+
+  } catch (error) {
+    console.error('[Packages] Use credits failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to use package credits',
+    });
+  }
+}
+
+/**
+ * Get package usage history
+ */
+async function handleGetPackageUsage(tenantId, packageId) {
+  console.log('[Packages][usage] id:', packageId);
+
+  try {
+    await getPoolAsync();
+
+    // Verify package belongs to tenant
+    const pkgResult = await query(
+      `SELECT id FROM "Package" WHERE id = $1 AND tenant_id = $2`,
+      [packageId, tenantId]
+    );
+
+    if (pkgResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Package not found',
+      });
+    }
+
+    // Get usage history
+    const result = await query(
+      `SELECT
+         pu.*,
+         b.check_in as booking_check_in,
+         b.check_out as booking_check_out,
+         p.name as pet_name
+       FROM "PackageUsage" pu
+       LEFT JOIN "Booking" b ON pu.booking_id = b.id
+       LEFT JOIN "Pet" p ON b.pet_id = p.id
+       WHERE pu.package_id = $1
+       ORDER BY pu.used_at DESC`,
+      [packageId]
+    );
+
+    const usage = result.rows.map(row => ({
+      id: row.id,
+      packageId: row.package_id,
+      bookingId: row.booking_id,
+      bookingCheckIn: row.booking_check_in,
+      bookingCheckOut: row.booking_check_out,
+      petName: row.pet_name,
+      creditsUsed: row.credits_used,
+      usedAt: row.used_at,
+      notes: row.notes,
+    }));
+
+    return createResponse(200, {
+      data: usage,
+      usage: usage,
+      total: usage.length,
+    });
+
+  } catch (error) {
+    console.error('[Packages] Get usage failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve package usage',
+    });
   }
 }

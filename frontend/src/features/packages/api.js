@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import apiClient from '@/lib/apiClient';
+import { apiClient } from '@/lib/api/client';
+
+const BASE_URL = '/api/v1/financial/packages';
 
 /**
  * Get packages for an owner
@@ -8,8 +10,8 @@ export const useOwnerPackagesQuery = (ownerId) => {
   return useQuery({
     queryKey: ['packages', 'owner', ownerId],
     queryFn: async () => {
-      const response = await apiClient.get(`/api/v1/packages/owner/${ownerId}`);
-      return response.data;
+      const response = await apiClient.get(`${BASE_URL}?ownerId=${ownerId}`);
+      return response.data || response.packages || [];
     },
     enabled: !!ownerId
   });
@@ -22,9 +24,31 @@ export const usePackagesQuery = (filters = {}) => {
   return useQuery({
     queryKey: ['packages', filters],
     queryFn: async () => {
-      const response = await apiClient.get('/api/v1/packages', { params: filters });
-      return response.data;
+      const params = new URLSearchParams();
+      if (filters.ownerId) params.append('ownerId', filters.ownerId);
+      if (filters.status) params.append('status', filters.status);
+      if (filters.includeExpired) params.append('includeExpired', filters.includeExpired);
+      if (filters.limit) params.append('limit', filters.limit);
+      if (filters.offset) params.append('offset', filters.offset);
+      
+      const queryString = params.toString();
+      const response = await apiClient.get(`${BASE_URL}${queryString ? `?${queryString}` : ''}`);
+      return response.data || response.packages || [];
     }
+  });
+};
+
+/**
+ * Get single package
+ */
+export const usePackageQuery = (packageId) => {
+  return useQuery({
+    queryKey: ['packages', packageId],
+    queryFn: async () => {
+      const response = await apiClient.get(`${BASE_URL}/${packageId}`);
+      return response;
+    },
+    enabled: !!packageId
   });
 };
 
@@ -36,8 +60,8 @@ export const useCreatePackageMutation = () => {
 
   return useMutation({
     mutationFn: async (packageData) => {
-      const response = await apiClient.post('/api/v1/packages', packageData);
-      return response.data;
+      const response = await apiClient.post(BASE_URL, packageData);
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['packages'] });
@@ -46,25 +70,78 @@ export const useCreatePackageMutation = () => {
 };
 
 /**
- * Apply package to booking
+ * Update a package
  */
-export const useApplyPackageMutation = () => {
+export const useUpdatePackageMutation = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ packageId, bookingId, creditsUsed }) => {
-      const response = await apiClient.post(
-        `/api/v1/packages/${packageId}/apply/${bookingId}`,
-        { creditsUsed }
-      );
-      return response.data;
+    mutationFn: async ({ packageId, data }) => {
+      const response = await apiClient.put(`${BASE_URL}/${packageId}`, data);
+      return response;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['packages'] });
-      queryClient.invalidateQueries({ queryKey: ['packages', 'owner'] });
-      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['packages', variables.packageId] });
     }
   });
+};
+
+/**
+ * Delete a package
+ */
+export const useDeletePackageMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (packageId) => {
+      const response = await apiClient.delete(`${BASE_URL}/${packageId}`);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['packages'] });
+    }
+  });
+};
+
+/**
+ * Use credits from a package
+ */
+export const useUsePackageCreditsMutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ packageId, creditsUsed, bookingId, notes }) => {
+      const response = await apiClient.post(`${BASE_URL}/${packageId}/use`, {
+        creditsUsed,
+        bookingId,
+        notes,
+      });
+      return response;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['packages'] });
+      queryClient.invalidateQueries({ queryKey: ['packages', variables.packageId] });
+      queryClient.invalidateQueries({ queryKey: ['packages', variables.packageId, 'usage'] });
+      if (variables.bookingId) {
+        queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      }
+    }
+  });
+};
+
+/**
+ * Legacy alias for backward compatibility
+ */
+export const useApplyPackageMutation = () => {
+  const mutation = useUsePackageCreditsMutation();
+  
+  return {
+    ...mutation,
+    mutationFn: async ({ packageId, bookingId, creditsUsed }) => {
+      return mutation.mutateAsync({ packageId, bookingId, creditsUsed });
+    }
+  };
 };
 
 /**
@@ -74,10 +151,54 @@ export const usePackageUsageQuery = (packageId) => {
   return useQuery({
     queryKey: ['packages', packageId, 'usage'],
     queryFn: async () => {
-      const response = await apiClient.get(`/api/v1/packages/${packageId}/usage-history`);
-      return response.data;
+      const response = await apiClient.get(`${BASE_URL}/${packageId}/usage`);
+      return response.data || response.usage || [];
     },
     enabled: !!packageId
   });
 };
 
+// Direct API functions (non-hook)
+export async function getPackages(params = {}) {
+  const searchParams = new URLSearchParams();
+  if (params.ownerId) searchParams.append('ownerId', params.ownerId);
+  if (params.status) searchParams.append('status', params.status);
+  if (params.includeExpired) searchParams.append('includeExpired', params.includeExpired);
+  
+  const queryString = searchParams.toString();
+  return apiClient.get(`${BASE_URL}${queryString ? `?${queryString}` : ''}`);
+}
+
+export async function getPackage(packageId) {
+  return apiClient.get(`${BASE_URL}/${packageId}`);
+}
+
+export async function createPackage(data) {
+  return apiClient.post(BASE_URL, data);
+}
+
+export async function updatePackage(packageId, data) {
+  return apiClient.put(`${BASE_URL}/${packageId}`, data);
+}
+
+export async function deletePackage(packageId) {
+  return apiClient.delete(`${BASE_URL}/${packageId}`);
+}
+
+export async function usePackageCredits(packageId, data) {
+  return apiClient.post(`${BASE_URL}/${packageId}/use`, data);
+}
+
+export async function getPackageUsage(packageId) {
+  return apiClient.get(`${BASE_URL}/${packageId}/usage`);
+}
+
+export default {
+  getPackages,
+  getPackage,
+  createPackage,
+  updatePackage,
+  deletePackage,
+  usePackageCredits,
+  getPackageUsage,
+};
