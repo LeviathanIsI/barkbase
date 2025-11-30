@@ -166,6 +166,16 @@ export const canonicalEndpoints = {
     upsert: (entityType: string, entityId: string) => `/api/v2/properties/values/${entityType}/${entityId}`,
   },
 
+  // Entity Definitions API (v2) - Custom Objects
+  // Allows tenants to define custom entity types beyond built-in ones
+  entityDefinitions: {
+    list: '/api/v2/entities',
+    create: '/api/v2/entities',
+    detail: build('/api/v2/entities/{id}'),
+    update: build('/api/v2/entities/{id}'),
+    delete: build('/api/v2/entities/{id}'),
+  },
+
   // Enterprise Memberships API - /api/v1/memberships
   // Staff/team management for current tenant
   memberships: {

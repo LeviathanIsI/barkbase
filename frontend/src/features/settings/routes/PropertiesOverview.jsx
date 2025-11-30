@@ -11,34 +11,23 @@ import PropertyDeletionWizard from '../components/PropertyDeletionWizard';
 import ConditionalLogicTab from './components/ConditionalLogicTab';
 import GroupsTab from './components/GroupsTab';
 import ArchivedTab from './components/ArchivedTab';
-import { 
-  usePropertiesV2Query, 
-  useArchivePropertyMutation, 
+import {
+  usePropertiesV2Query,
+  useArchivePropertyMutation,
   useRestorePropertyMutation,
   useDependencyGraphQuery,
   useImpactAnalysisMutation,
+  useEntityDefinitionsQuery,
 } from '../api';
 
-const OBJECT_TYPES = [
-  { recordId: 'pets', label: 'Pet properties' },
-  { recordId: 'owners', label: 'Owner properties' },
-  { recordId: 'bookings', label: 'Booking properties' },
-  { recordId: 'kennels', label: 'Kennel properties' },
-  { recordId: 'services', label: 'Service properties' },
+// Fallback entity types for loading state or API failure
+const FALLBACK_ENTITY_TYPES = [
+  { recordId: 'pet', label: 'Pet properties' },
+  { recordId: 'owner', label: 'Owner properties' },
+  { recordId: 'booking', label: 'Booking properties' },
+  { recordId: 'kennel', label: 'Kennel properties' },
+  { recordId: 'service', label: 'Service properties' },
   { recordId: 'staff', label: 'Staff properties' },
-  { recordId: 'invoices', label: 'Invoice properties' },
-  { recordId: 'payments', label: 'Payment properties' },
-  { recordId: 'vaccinations', label: 'Vaccination properties' },
-  { recordId: 'check_ins', label: 'Check-in properties' },
-  { recordId: 'check_outs', label: 'Check-out properties' },
-  { recordId: 'incidents', label: 'Incident properties' },
-  { recordId: 'communications', label: 'Communication properties' },
-  { recordId: 'notes', label: 'Note properties' },
-  { recordId: 'tasks', label: 'Task properties' },
-  { recordId: 'runs', label: 'Run properties' },
-  { recordId: 'run_templates', label: 'Run template properties' },
-  { recordId: 'users', label: 'User properties' },
-  { recordId: 'tenants', label: 'Tenant properties' },
 ];
 
 const FIELD_TYPES = [
@@ -73,7 +62,7 @@ const ACCESS_LEVELS = [
 ];
 
 const PropertiesOverview = () => {
-  const [selectedObject, setSelectedObject] = useState('pets');
+  const [selectedObject, setSelectedObject] = useState('pet');
   const [selectedTab, setSelectedTab] = useState('properties');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGroup, setSelectedGroup] = useState('all');
@@ -88,18 +77,38 @@ const PropertiesOverview = () => {
   const [impactAnalysisData, setImpactAnalysisData] = useState(null);
   const [showImpactModal, setShowImpactModal] = useState(false);
 
+  // Fetch entity definitions from API (v2)
+  const { data: entityDefinitionsData, isLoading: entitiesLoading } = useEntityDefinitionsQuery();
+
+  // Derive entity types from API data with fallback
+  const entityTypes = useMemo(() => {
+    if (entityDefinitionsData?.entityDefinitions?.length > 0) {
+      return entityDefinitionsData.entityDefinitions
+        .filter((ed) => ed.isActive)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((ed) => ({
+          recordId: ed.internalName,
+          label: `${ed.singularName} properties`,
+          isSystem: ed.isSystem,
+          icon: ed.icon,
+          color: ed.color,
+        }));
+    }
+    return FALLBACK_ENTITY_TYPES;
+  }, [entityDefinitionsData]);
+
   // Enterprise API v2 - full switch
   const { data: propertiesDataV2, isLoading: propertiesLoading } = usePropertiesV2Query(
-    selectedObject, 
+    selectedObject,
     { includeUsage: true, includeDependencies: false }
   );
   const { data: archivedData } = usePropertiesV2Query(selectedObject, { includeArchived: true, enabled: selectedTab === 'archived' });
-  
+
   // Mutations
   const archiveMutation = useArchivePropertyMutation();
   const restoreMutation = useRestorePropertyMutation();
   const impactMutation = useImpactAnalysisMutation();
-  
+
   // Dependency graph query (only when property selected)
   const { data: dependencyGraph } = useDependencyGraphQuery(selectedPropertyForGraph?.propertyId, {
     enabled: !!selectedPropertyForGraph,
@@ -172,7 +181,7 @@ const PropertiesOverview = () => {
     };
   }, [propertiesData, propertiesLoading, searchQuery, selectedGroup, selectedType, selectedAccess]);
 
-  const currentObjectLabel = OBJECT_TYPES.find(t => t.recordId === selectedObject)?.label || 'Properties';
+  const currentObjectLabel = entityTypes.find(t => t.recordId === selectedObject)?.label || 'Properties';
   const archivedCount = archivedData?.length || 0;
 
   return (
@@ -201,9 +210,10 @@ const PropertiesOverview = () => {
               setSelectedObject(e.target.value);
               setSelectedProperties([]);
             }}
-            className="appearance-none rounded-lg border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary pl-4 pr-10 py-2.5 text-sm font-medium focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[250px]"
+            disabled={entitiesLoading}
+            className="appearance-none rounded-lg border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary pl-4 pr-10 py-2.5 text-sm font-medium focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 min-w-[250px] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {OBJECT_TYPES.map((type) => (
+            {entityTypes.map((type) => (
               <option key={type.recordId} value={type.recordId}>
                 {type.label}
               </option>
@@ -211,6 +221,9 @@ const PropertiesOverview = () => {
           </select>
           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-text-tertiary pointer-events-none" />
         </div>
+        {entitiesLoading && (
+          <span className="text-sm text-gray-500 dark:text-text-secondary">Loading entity types...</span>
+        )}
       </div>
 
       {/* Tabs */}

@@ -29,6 +29,13 @@
  * - GET /api/v2/properties/values/:entity_type/:entity_id - Get property values for entity
  * - PUT /api/v2/properties/values/:entity_type/:entity_id - Bulk upsert property values
  *
+ * Entity Definitions API (v2) - Custom Objects:
+ * - GET /api/v2/entities - List all entity definitions for tenant
+ * - GET /api/v2/entities/:id - Get single entity definition
+ * - POST /api/v2/entities - Create custom entity definition
+ * - PUT /api/v2/entities/:id - Update entity definition
+ * - DELETE /api/v2/entities/:id - Soft delete (blocked for system entities)
+ *
  * =============================================================================
  */
 
@@ -236,6 +243,46 @@ exports.handler = async (event, context) => {
     if (propertyIdMatch && method === 'DELETE') {
       const propertyId = propertyIdMatch[1];
       return handleDeleteProperty(user, propertyId);
+    }
+
+    // =========================================================================
+    // ENTITY DEFINITIONS API (v2) - Custom Objects
+    // =========================================================================
+    // Allows tenants to define custom entity types beyond built-in ones.
+    // System entities (pet, owner, booking, etc.) cannot be deleted.
+    // Feature gating: FREE: 0, PRO: 3, ENTERPRISE: unlimited custom objects
+    // =========================================================================
+
+    // GET /api/v2/entities - List all entity definitions
+    if ((path === '/api/v2/entities' || path === '/api/v2/entities/') && method === 'GET') {
+      const queryParams = event.queryStringParameters || {};
+      return handleListEntityDefinitions(user, queryParams);
+    }
+
+    // POST /api/v2/entities - Create custom entity definition
+    if ((path === '/api/v2/entities' || path === '/api/v2/entities/') && method === 'POST') {
+      return handleCreateEntityDefinition(user, parseBody(event));
+    }
+
+    // Single entity definition routes
+    const entityIdMatch = path.match(/^\/api\/v2\/entities\/([a-f0-9-]+)$/i);
+
+    // GET /api/v2/entities/:id
+    if (entityIdMatch && method === 'GET') {
+      const entityId = entityIdMatch[1];
+      return handleGetEntityDefinition(user, entityId);
+    }
+
+    // PUT/PATCH /api/v2/entities/:id
+    if (entityIdMatch && (method === 'PUT' || method === 'PATCH')) {
+      const entityId = entityIdMatch[1];
+      return handleUpdateEntityDefinition(user, entityId, parseBody(event));
+    }
+
+    // DELETE /api/v2/entities/:id (soft delete - blocked for system entities)
+    if (entityIdMatch && method === 'DELETE') {
+      const entityId = entityIdMatch[1];
+      return handleDeleteEntityDefinition(user, entityId);
     }
 
     // Default response for unmatched routes
@@ -2256,4 +2303,565 @@ function validatePropertyValue(property, value) {
   }
 
   return { valid: true };
+}
+
+// =============================================================================
+// ENTITY DEFINITIONS API (v2) - Custom Objects
+// =============================================================================
+//
+// Entity definitions allow tenants to create custom object types beyond the
+// built-in system entities (pet, owner, booking, staff, service, kennel).
+//
+// Feature Gating:
+// - FREE: 0 custom objects (system entities only)
+// - PRO: 3 custom objects
+// - ENTERPRISE: unlimited custom objects
+//
+// =============================================================================
+
+const SYSTEM_ENTITY_TYPES = ['pet', 'owner', 'booking', 'staff', 'service', 'kennel'];
+
+const CUSTOM_OBJECT_LIMITS = {
+  FREE: 0,
+  PRO: 3,
+  ENTERPRISE: Infinity,
+};
+
+/**
+ * Helper: Format entity definition for response
+ */
+function formatEntityDefinitionResponse(row) {
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    internalName: row.internal_name,
+    singularName: row.singular_name,
+    pluralName: row.plural_name,
+    description: row.description,
+    primaryDisplayPropertyId: row.primary_display_property_id,
+    secondaryDisplayPropertyIds: row.secondary_display_property_ids || [],
+    icon: row.icon,
+    color: row.color,
+    isSystem: row.is_system,
+    isActive: row.is_active,
+    sortOrder: row.sort_order,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    createdBy: row.created_by,
+    updatedBy: row.updated_by,
+    // Computed fields
+    propertyCount: row.property_count !== undefined ? parseInt(row.property_count, 10) : undefined,
+  };
+}
+
+/**
+ * Helper: Check custom object limits based on plan
+ */
+async function checkCustomObjectLimits(tenantId, plan) {
+  const countResult = await query(
+    `SELECT COUNT(*) as count FROM "EntityDefinition"
+     WHERE tenant_id = $1 AND is_system = false AND is_active = true`,
+    [tenantId]
+  );
+
+  const currentCount = parseInt(countResult.rows[0].count, 10);
+  const limit = CUSTOM_OBJECT_LIMITS[plan] || CUSTOM_OBJECT_LIMITS.FREE;
+
+  return {
+    currentCount,
+    limit,
+    canCreate: currentCount < limit,
+    remaining: Math.max(0, limit - currentCount),
+  };
+}
+
+/**
+ * GET /api/v2/entities
+ * List all entity definitions for tenant
+ */
+async function handleListEntityDefinitions(user, queryParams) {
+  console.log('[CONFIG-SERVICE] handleListEntityDefinitions - start');
+
+  try {
+    await getPoolAsync();
+
+    const ctx = await getTenantContext(user);
+    if (ctx.error) {
+      return createResponse(ctx.status, { error: ctx.error });
+    }
+
+    const { tenantId, plan } = ctx;
+    const {
+      includeInactive = 'false',
+      includePropertyCount = 'true',
+      systemOnly = 'false',
+      customOnly = 'false',
+    } = queryParams;
+
+    // Build query
+    let sql = `
+      SELECT ed.*
+      ${includePropertyCount === 'true' ? ', COALESCE(pc.property_count, 0) as property_count' : ''}
+      FROM "EntityDefinition" ed
+      ${includePropertyCount === 'true' ? `
+        LEFT JOIN (
+          SELECT entity_definition_id, COUNT(*) as property_count
+          FROM "Property"
+          WHERE is_active = true
+          GROUP BY entity_definition_id
+        ) pc ON ed.id = pc.entity_definition_id
+      ` : ''}
+      WHERE ed.tenant_id = $1
+    `;
+    const values = [tenantId];
+    let paramIndex = 2;
+
+    if (includeInactive !== 'true') {
+      sql += ` AND ed.is_active = true`;
+    }
+
+    if (systemOnly === 'true') {
+      sql += ` AND ed.is_system = true`;
+    } else if (customOnly === 'true') {
+      sql += ` AND ed.is_system = false`;
+    }
+
+    sql += ` ORDER BY ed.sort_order, ed.created_at`;
+
+    const result = await query(sql, values);
+    const entities = result.rows.map(formatEntityDefinitionResponse);
+
+    // Get custom object limits
+    const limits = await checkCustomObjectLimits(tenantId, plan);
+
+    console.log('[CONFIG-SERVICE] handleListEntityDefinitions - found:', entities.length);
+
+    return createResponse(200, {
+      success: true,
+      entities,
+      metadata: {
+        total: entities.length,
+        systemCount: entities.filter(e => e.isSystem).length,
+        customCount: entities.filter(e => !e.isSystem).length,
+        plan,
+        customObjectLimits: limits,
+      },
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to list entity definitions:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve entity definitions',
+    });
+  }
+}
+
+/**
+ * GET /api/v2/entities/:id
+ * Get single entity definition
+ */
+async function handleGetEntityDefinition(user, entityId) {
+  console.log('[CONFIG-SERVICE] handleGetEntityDefinition -', entityId);
+
+  try {
+    await getPoolAsync();
+
+    const ctx = await getTenantContext(user);
+    if (ctx.error) {
+      return createResponse(ctx.status, { error: ctx.error });
+    }
+
+    const result = await query(
+      `SELECT ed.*,
+        COALESCE(pc.property_count, 0) as property_count
+       FROM "EntityDefinition" ed
+       LEFT JOIN (
+         SELECT entity_definition_id, COUNT(*) as property_count
+         FROM "Property"
+         WHERE is_active = true
+         GROUP BY entity_definition_id
+       ) pc ON ed.id = pc.entity_definition_id
+       WHERE ed.id = $1 AND ed.tenant_id = $2`,
+      [entityId, ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Entity definition not found',
+      });
+    }
+
+    const entity = formatEntityDefinitionResponse(result.rows[0]);
+
+    return createResponse(200, {
+      success: true,
+      entity,
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to get entity definition:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve entity definition',
+    });
+  }
+}
+
+/**
+ * POST /api/v2/entities
+ * Create a new custom entity definition
+ */
+async function handleCreateEntityDefinition(user, body) {
+  console.log('[CONFIG-SERVICE] handleCreateEntityDefinition - start');
+
+  try {
+    await getPoolAsync();
+
+    const ctx = await getTenantContext(user, true);
+    if (ctx.error) {
+      return createResponse(ctx.status, { error: ctx.error });
+    }
+
+    const { tenantId, userId, plan } = ctx;
+
+    // Validate required fields
+    const {
+      internalName,
+      singularName,
+      pluralName,
+      description,
+      icon,
+      color,
+      sortOrder,
+    } = body;
+
+    if (!internalName || !singularName || !pluralName) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'internalName, singularName, and pluralName are required',
+      });
+    }
+
+    // Validate internal name format (lowercase, alphanumeric + underscore)
+    if (!/^[a-z][a-z0-9_]*$/.test(internalName)) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Internal name must be lowercase, start with a letter, and contain only letters, numbers, and underscores',
+      });
+    }
+
+    // Prevent creating entities with system entity names
+    if (SYSTEM_ENTITY_TYPES.includes(internalName)) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: `Cannot create entity with reserved name: ${internalName}`,
+      });
+    }
+
+    // Check plan limits for custom objects
+    const limits = await checkCustomObjectLimits(tenantId, plan);
+    if (!limits.canCreate) {
+      return createResponse(403, {
+        error: 'Limit Reached',
+        message: `You have reached the maximum number of custom objects (${limits.limit}) for your ${plan} plan. Upgrade to add more.`,
+        limits,
+      });
+    }
+
+    // Check for duplicate internal name
+    const duplicateCheck = await query(
+      `SELECT id FROM "EntityDefinition"
+       WHERE tenant_id = $1 AND internal_name = $2 AND is_active = true`,
+      [tenantId, internalName]
+    );
+
+    if (duplicateCheck.rows.length > 0) {
+      return createResponse(409, {
+        error: 'Conflict',
+        message: `An entity with internal name "${internalName}" already exists`,
+      });
+    }
+
+    // Validate color format if provided
+    if (color && !/^#[0-9A-Fa-f]{6}$/.test(color)) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Color must be a valid hex color (e.g., #FF5733)',
+      });
+    }
+
+    // Determine sort order if not provided
+    let finalSortOrder = sortOrder;
+    if (finalSortOrder === undefined) {
+      const maxSortResult = await query(
+        `SELECT COALESCE(MAX(sort_order), 0) + 1 as next_order
+         FROM "EntityDefinition" WHERE tenant_id = $1`,
+        [tenantId]
+      );
+      finalSortOrder = maxSortResult.rows[0].next_order;
+    }
+
+    // Insert entity definition
+    const result = await query(
+      `INSERT INTO "EntityDefinition" (
+        tenant_id, internal_name, singular_name, plural_name, description,
+        icon, color, is_system, sort_order, created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, false, $8, $9)
+      RETURNING *`,
+      [
+        tenantId, internalName, singularName, pluralName, description || null,
+        icon || null, color || null, finalSortOrder, userId
+      ]
+    );
+
+    const entity = formatEntityDefinitionResponse(result.rows[0]);
+
+    console.log('[CONFIG-SERVICE] handleCreateEntityDefinition - created:', entity.id);
+
+    return createResponse(201, {
+      success: true,
+      message: 'Entity definition created successfully',
+      entity,
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to create entity definition:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to create entity definition',
+    });
+  }
+}
+
+/**
+ * PUT/PATCH /api/v2/entities/:id
+ * Update an entity definition
+ */
+async function handleUpdateEntityDefinition(user, entityId, body) {
+  console.log('[CONFIG-SERVICE] handleUpdateEntityDefinition -', entityId);
+
+  try {
+    await getPoolAsync();
+
+    const ctx = await getTenantContext(user, true);
+    if (ctx.error) {
+      return createResponse(ctx.status, { error: ctx.error });
+    }
+
+    // Get existing entity definition
+    const existingResult = await query(
+      `SELECT * FROM "EntityDefinition" WHERE id = $1 AND tenant_id = $2`,
+      [entityId, ctx.tenantId]
+    );
+
+    if (existingResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Entity definition not found',
+      });
+    }
+
+    const existing = existingResult.rows[0];
+
+    // System entities have restrictions on what can be updated
+    if (existing.is_system) {
+      // For system entities, only allow updating display names and visual settings
+      const allowedFields = ['singularName', 'pluralName', 'description', 'icon', 'color', 'sortOrder', 'primaryDisplayPropertyId', 'secondaryDisplayPropertyIds'];
+      const attemptedFields = Object.keys(body);
+      const disallowed = attemptedFields.filter(f => !allowedFields.includes(f));
+
+      // Block attempts to change internal_name for system entities
+      if (body.internalName && body.internalName !== existing.internal_name) {
+        return createResponse(403, {
+          error: 'Forbidden',
+          message: 'Cannot change internal name of system entities',
+        });
+      }
+
+      if (disallowed.length > 0) {
+        return createResponse(403, {
+          error: 'Forbidden',
+          message: `Cannot modify ${disallowed.join(', ')} on system entities`,
+        });
+      }
+    }
+
+    // Build update query dynamically
+    const updates = [];
+    const values = [entityId, ctx.tenantId];
+    let paramIndex = 3;
+
+    const fieldMap = {
+      singularName: 'singular_name',
+      pluralName: 'plural_name',
+      description: 'description',
+      icon: 'icon',
+      color: 'color',
+      sortOrder: 'sort_order',
+      primaryDisplayPropertyId: 'primary_display_property_id',
+      secondaryDisplayPropertyIds: 'secondary_display_property_ids',
+    };
+
+    // For non-system entities, also allow updating internal_name
+    if (!existing.is_system) {
+      fieldMap.internalName = 'internal_name';
+    }
+
+    for (const [jsField, dbField] of Object.entries(fieldMap)) {
+      if (body[jsField] !== undefined) {
+        updates.push(`${dbField} = $${paramIndex++}`);
+        values.push(body[jsField]);
+      }
+    }
+
+    if (updates.length === 0) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'No valid fields to update',
+      });
+    }
+
+    // Validate color if being updated
+    if (body.color && !/^#[0-9A-Fa-f]{6}$/.test(body.color)) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Color must be a valid hex color (e.g., #FF5733)',
+      });
+    }
+
+    // Validate internal_name if being updated (non-system only)
+    if (body.internalName && !existing.is_system) {
+      if (!/^[a-z][a-z0-9_]*$/.test(body.internalName)) {
+        return createResponse(400, {
+          error: 'Bad Request',
+          message: 'Internal name must be lowercase, start with a letter, and contain only letters, numbers, and underscores',
+        });
+      }
+
+      // Check for duplicate
+      if (body.internalName !== existing.internal_name) {
+        const duplicateCheck = await query(
+          `SELECT id FROM "EntityDefinition"
+           WHERE tenant_id = $1 AND internal_name = $2 AND is_active = true AND id != $3`,
+          [ctx.tenantId, body.internalName, entityId]
+        );
+
+        if (duplicateCheck.rows.length > 0) {
+          return createResponse(409, {
+            error: 'Conflict',
+            message: `An entity with internal name "${body.internalName}" already exists`,
+          });
+        }
+      }
+    }
+
+    updates.push('updated_at = NOW()');
+    updates.push(`updated_by = $${paramIndex++}`);
+    values.push(ctx.userId);
+
+    const result = await query(
+      `UPDATE "EntityDefinition" SET ${updates.join(', ')}
+       WHERE id = $1 AND tenant_id = $2
+       RETURNING *`,
+      values
+    );
+
+    const entity = formatEntityDefinitionResponse(result.rows[0]);
+
+    console.log('[CONFIG-SERVICE] handleUpdateEntityDefinition - updated:', entity.id);
+
+    return createResponse(200, {
+      success: true,
+      message: 'Entity definition updated successfully',
+      entity,
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to update entity definition:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to update entity definition',
+    });
+  }
+}
+
+/**
+ * DELETE /api/v2/entities/:id
+ * Soft delete an entity definition (blocked for system entities)
+ */
+async function handleDeleteEntityDefinition(user, entityId) {
+  console.log('[CONFIG-SERVICE] handleDeleteEntityDefinition -', entityId);
+
+  try {
+    await getPoolAsync();
+
+    const ctx = await getTenantContext(user, true);
+    if (ctx.error) {
+      return createResponse(ctx.status, { error: ctx.error });
+    }
+
+    // Get entity definition
+    const existingResult = await query(
+      `SELECT * FROM "EntityDefinition" WHERE id = $1 AND tenant_id = $2`,
+      [entityId, ctx.tenantId]
+    );
+
+    if (existingResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Entity definition not found',
+      });
+    }
+
+    const existing = existingResult.rows[0];
+
+    // Block deletion of system entities
+    if (existing.is_system) {
+      return createResponse(403, {
+        error: 'Forbidden',
+        message: 'Cannot delete system entities. System entities are required for core functionality.',
+      });
+    }
+
+    // Check if entity has properties
+    const propertyCheck = await query(
+      `SELECT COUNT(*) as count FROM "Property"
+       WHERE entity_definition_id = $1 AND is_active = true`,
+      [entityId]
+    );
+
+    const propertyCount = parseInt(propertyCheck.rows[0].count, 10);
+    if (propertyCount > 0) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: `Cannot delete entity with ${propertyCount} active properties. Archive or delete the properties first.`,
+        propertyCount,
+      });
+    }
+
+    // Soft delete
+    await query(
+      `UPDATE "EntityDefinition"
+       SET is_active = false, updated_at = NOW(), updated_by = $3
+       WHERE id = $1 AND tenant_id = $2`,
+      [entityId, ctx.tenantId, ctx.userId]
+    );
+
+    console.log('[CONFIG-SERVICE] handleDeleteEntityDefinition - deleted:', entityId);
+
+    return createResponse(200, {
+      success: true,
+      message: 'Entity definition deleted successfully',
+      deletedEntityId: entityId,
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to delete entity definition:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to delete entity definition',
+    });
+  }
 }

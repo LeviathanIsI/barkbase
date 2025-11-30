@@ -257,6 +257,115 @@ export const useUpsertPropertyValuesMutation = () => {
   });
 };
 
+// =============================================================================
+// ENTITY DEFINITIONS API (Custom Objects)
+// =============================================================================
+// List, create, update, delete entity definitions (object types)
+// System entities (pet, owner, booking, etc.) cannot be deleted
+// =============================================================================
+
+/**
+ * List all entity definitions for the current tenant
+ * Returns both system and custom entity types
+ */
+export const useEntityDefinitionsQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const {
+    includeInactive = false,
+    includePropertyCount = true,
+    systemOnly = false,
+    customOnly = false,
+  } = options;
+
+  return useQuery({
+    queryKey: ['entityDefinitions', tenantKey, { includeInactive, includePropertyCount, systemOnly, customOnly }],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        includeInactive: includeInactive.toString(),
+        includePropertyCount: includePropertyCount.toString(),
+        systemOnly: systemOnly.toString(),
+        customOnly: customOnly.toString(),
+      });
+      const res = await apiClient.get(`${canonicalEndpoints.entityDefinitions.list}?${params.toString()}`);
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    ...options,
+  });
+};
+
+/**
+ * Get a single entity definition by ID
+ */
+export const useEntityDefinitionQuery = (entityId, options = {}) => {
+  const tenantKey = useTenantKey();
+
+  return useQuery({
+    queryKey: ['entityDefinitions', tenantKey, entityId],
+    queryFn: async () => {
+      const res = await apiClient.get(canonicalEndpoints.entityDefinitions.detail(entityId));
+      return res.data;
+    },
+    enabled: !!entityId,
+    ...options,
+  });
+};
+
+/**
+ * Create a new custom entity definition
+ */
+export const useCreateEntityDefinitionMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async (entityData) => {
+      const res = await apiClient.post(canonicalEndpoints.entityDefinitions.create, entityData);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['entityDefinitions', tenantKey] });
+    },
+  });
+};
+
+/**
+ * Update an entity definition
+ */
+export const useUpdateEntityDefinitionMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async ({ entityId, ...entityData }) => {
+      const res = await apiClient.patch(canonicalEndpoints.entityDefinitions.update(entityId), entityData);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['entityDefinitions', tenantKey] });
+    },
+  });
+};
+
+/**
+ * Delete a custom entity definition (soft delete)
+ * Will fail for system entities
+ */
+export const useDeleteEntityDefinitionMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async (entityId) => {
+      const res = await apiClient.delete(canonicalEndpoints.entityDefinitions.delete(entityId));
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['entityDefinitions', tenantKey] });
+    },
+  });
+};
+
 // Get permission profiles
 export const usePermissionProfilesQuery = (options = {}) => {
   const tenantKey = useTenantKey();

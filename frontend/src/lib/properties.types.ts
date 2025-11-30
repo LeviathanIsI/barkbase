@@ -315,3 +315,117 @@ export const ENTITY_TYPE_LABELS: Record<PropertyEntityType, string> = {
   service: 'Service',
   kennel: 'Kennel',
 };
+
+// =============================================================================
+// Entity Definitions (Custom Objects)
+// =============================================================================
+
+/**
+ * EntityDefinition represents a tenant-specific entity type.
+ * System entities (pet, owner, booking, etc.) are auto-seeded.
+ * Custom entities can be created by PRO/ENTERPRISE tenants.
+ */
+export interface EntityDefinition {
+  id: string;
+  tenantId: string;
+  internalName: string;
+  singularName: string;
+  pluralName: string;
+  description?: string;
+  primaryDisplayPropertyId?: string;
+  secondaryDisplayPropertyIds?: string[];
+  icon?: string;
+  color?: string;
+  isSystem: boolean;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+  updatedBy?: string;
+}
+
+// API request/response types for Entity Definitions
+
+export interface CreateEntityDefinitionRequest {
+  internalName: string;
+  singularName: string;
+  pluralName: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+}
+
+export interface UpdateEntityDefinitionRequest {
+  singularName?: string;
+  pluralName?: string;
+  description?: string;
+  primaryDisplayPropertyId?: string;
+  secondaryDisplayPropertyIds?: string[];
+  icon?: string;
+  color?: string;
+  sortOrder?: number;
+}
+
+export interface EntityDefinitionLimits {
+  currentCount: number;
+  customCount: number;
+  systemCount: number;
+  limit: number;
+  canCreate: boolean;
+  remaining: number;
+}
+
+export interface ListEntityDefinitionsResponse {
+  success: boolean;
+  entityDefinitions: EntityDefinition[];
+  metadata: {
+    total: number;
+    customCount: number;
+    systemCount: number;
+    plan: 'FREE' | 'PRO' | 'ENTERPRISE';
+    limits: EntityDefinitionLimits;
+  };
+}
+
+export interface GetEntityDefinitionResponse {
+  success: boolean;
+  entityDefinition: EntityDefinition;
+}
+
+export interface CreateEntityDefinitionResponse {
+  success: boolean;
+  message: string;
+  entityDefinition: EntityDefinition;
+}
+
+export interface UpdateEntityDefinitionResponse {
+  success: boolean;
+  message: string;
+  entityDefinition: EntityDefinition;
+}
+
+export interface DeleteEntityDefinitionResponse {
+  success: boolean;
+  message: string;
+  deletedEntityDefinitionId: string;
+}
+
+// Plan limits for custom objects
+export const CUSTOM_OBJECT_PLAN_LIMITS: Record<string, number> = {
+  FREE: 0,
+  PRO: 3,
+  ENTERPRISE: Infinity,
+};
+
+// System entity types that are auto-seeded for every tenant
+export const SYSTEM_ENTITY_TYPES = [
+  'pet',
+  'owner',
+  'booking',
+  'staff',
+  'service',
+  'kennel',
+] as const;
+
+export type SystemEntityType = typeof SYSTEM_ENTITY_TYPES[number];

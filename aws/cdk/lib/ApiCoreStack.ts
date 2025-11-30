@@ -504,6 +504,39 @@ export class ApiCoreStack extends cdk.Stack {
       authorizer, // JWT authorization required
     });
 
+    // =========================================================================
+    // ENTITY DEFINITIONS API (v2) - Custom Objects
+    // =========================================================================
+    // Allows tenants to define custom entity types (objects) beyond built-in ones
+    // /api/v2/entities/* (PROTECTED)
+    // =========================================================================
+
+    this.httpApi.addRoutes({
+      path: '/api/v2/entities',
+      methods: [
+        apigatewayv2.HttpMethod.GET,
+        apigatewayv2.HttpMethod.POST,
+        apigatewayv2.HttpMethod.PUT,
+        apigatewayv2.HttpMethod.PATCH,
+        apigatewayv2.HttpMethod.DELETE,
+      ],
+      integration: configIntegration,
+      authorizer, // JWT authorization required
+    });
+
+    this.httpApi.addRoutes({
+      path: '/api/v2/entities/{proxy+}',
+      methods: [
+        apigatewayv2.HttpMethod.GET,
+        apigatewayv2.HttpMethod.POST,
+        apigatewayv2.HttpMethod.PUT,
+        apigatewayv2.HttpMethod.PATCH,
+        apigatewayv2.HttpMethod.DELETE,
+      ],
+      integration: configIntegration,
+      authorizer, // JWT authorization required
+    });
+
     // Store the API URL
     this.apiUrl = this.httpApi.apiEndpoint;
 
