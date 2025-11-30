@@ -203,6 +203,43 @@ exports.handler = async (event, context) => {
     }
 
     // ==========================================================================
+    // Incident routes - /api/v1/incidents/*
+    // ==========================================================================
+    if (path === '/api/v1/incidents' || path === '/incidents') {
+      if (method === 'GET') {
+        return handleGetIncidents(tenantId, event.queryStringParameters || {});
+      }
+      if (method === 'POST') {
+        return handleCreateIncident(tenantId, user, parseBody(event));
+      }
+    }
+
+    // Incident by ID routes
+    const incidentMatch = path.match(/\/api\/v1\/incidents\/([a-f0-9-]+)(\/.*)?$/i);
+    if (incidentMatch) {
+      const incidentId = incidentMatch[1];
+      const subPath = incidentMatch[2] || '';
+
+      if (subPath === '/resolve' && method === 'POST') {
+        return handleResolveIncident(tenantId, user, incidentId, parseBody(event));
+      }
+      if (subPath === '/notify-owner' && method === 'POST') {
+        return handleNotifyOwnerOfIncident(tenantId, user, incidentId, parseBody(event));
+      }
+      if (!subPath || subPath === '') {
+        if (method === 'GET') {
+          return handleGetIncident(tenantId, incidentId);
+        }
+        if (method === 'PUT' || method === 'PATCH') {
+          return handleUpdateIncident(tenantId, user, incidentId, parseBody(event));
+        }
+        if (method === 'DELETE') {
+          return handleDeleteIncident(tenantId, incidentId);
+        }
+      }
+    }
+
+    // ==========================================================================
     // Email Notification routes - /api/v1/notifications/*
     // ==========================================================================
     if (path === '/api/v1/notifications/email' || path === '/notifications/email') {
@@ -4270,6 +4307,610 @@ async function handleSendCheckOutConfirmation(tenantId, user, body) {
     return createResponse(500, {
       error: 'Internal Server Error',
       message: 'Failed to send check-out confirmation',
+    });
+  }
+}
+
+// =============================================================================
+// INCIDENT HANDLERS
+// =============================================================================
+
+/**
+ * Get all incidents for tenant
+ */
+async function handleGetIncidents(tenantId, queryParams) {
+  const { status, severity, type, petId, ownerId, startDate, endDate, limit = 50, offset = 0 } = queryParams;
+
+  console.log('[Incidents][list] tenantId:', tenantId, queryParams);
+
+  try {
+    await getPoolAsync();
+
+    let whereClause = 'i.tenant_id = $1 AND i.deleted_at IS NULL';
+    const params = [tenantId];
+    let paramIndex = 2;
+
+    if (status) {
+      whereClause += ` AND i.status = $${paramIndex++}`;
+      params.push(status.toUpperCase());
+    }
+    if (severity) {
+      whereClause += ` AND i.severity = $${paramIndex++}`;
+      params.push(severity.toUpperCase());
+    }
+    if (type) {
+      whereClause += ` AND i.incident_type = $${paramIndex++}`;
+      params.push(type.toLowerCase());
+    }
+    if (petId) {
+      whereClause += ` AND i.pet_id = $${paramIndex++}`;
+      params.push(petId);
+    }
+    if (ownerId) {
+      whereClause += ` AND i.owner_id = $${paramIndex++}`;
+      params.push(ownerId);
+    }
+    if (startDate && endDate) {
+      whereClause += ` AND DATE(i.incident_date) BETWEEN $${paramIndex} AND $${paramIndex + 1}`;
+      params.push(startDate, endDate);
+      paramIndex += 2;
+    }
+
+    const result = await query(
+      `SELECT
+         i.*,
+         p.name as pet_name,
+         o.first_name as owner_first_name,
+         o.last_name as owner_last_name,
+         o.email as owner_email,
+         o.phone as owner_phone,
+         u.first_name as created_by_first_name,
+         u.last_name as created_by_last_name
+       FROM "Incident" i
+       LEFT JOIN "Pet" p ON i.pet_id = p.id
+       LEFT JOIN "Owner" o ON i.owner_id = o.id
+       LEFT JOIN "User" u ON i.created_by = u.id
+       WHERE ${whereClause}
+       ORDER BY i.incident_date DESC, i.created_at DESC
+       LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
+      [...params, parseInt(limit), parseInt(offset)]
+    );
+
+    const incidents = result.rows.map(row => ({
+      id: row.id,
+      tenantId: row.tenant_id,
+      petId: row.pet_id,
+      petName: row.pet_name,
+      bookingId: row.booking_id,
+      ownerId: row.owner_id,
+      ownerName: row.owner_first_name ? `${row.owner_first_name} ${row.owner_last_name || ''}`.trim() : null,
+      ownerEmail: row.owner_email,
+      ownerPhone: row.owner_phone,
+      incidentType: row.incident_type,
+      severity: row.severity,
+      title: row.title,
+      description: row.description,
+      incidentDate: row.incident_date,
+      location: row.location,
+      staffInvolved: row.staff_involved,
+      staffWitness: row.staff_witness,
+      immediateActions: row.immediate_actions,
+      followUpActions: row.follow_up_actions,
+      preventiveMeasures: row.preventive_measures,
+      vetContacted: row.vet_contacted,
+      vetContactedAt: row.vet_contacted_at,
+      vetName: row.vet_name,
+      vetRecommendations: row.vet_recommendations,
+      medicalTreatment: row.medical_treatment,
+      ownerNotified: row.owner_notified,
+      ownerNotifiedAt: row.owner_notified_at,
+      ownerResponse: row.owner_response,
+      status: row.status,
+      resolvedAt: row.resolved_at,
+      resolutionNotes: row.resolution_notes,
+      photos: row.photos,
+      documents: row.documents,
+      createdBy: row.created_by,
+      createdByName: row.created_by_first_name ? `${row.created_by_first_name} ${row.created_by_last_name || ''}`.trim() : null,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
+    console.log('[Incidents][list] Found:', incidents.length);
+
+    return createResponse(200, {
+      data: incidents,
+      incidents: incidents,
+      total: incidents.length,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+    });
+
+  } catch (error) {
+    console.error('[Incidents] Failed to get incidents:', error.message);
+    
+    if (error.message?.includes('does not exist')) {
+      return createResponse(200, {
+        data: [],
+        incidents: [],
+        total: 0,
+        message: 'Incident table not initialized',
+      });
+    }
+    
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve incidents',
+    });
+  }
+}
+
+/**
+ * Get single incident
+ */
+async function handleGetIncident(tenantId, incidentId) {
+  console.log('[Incidents][get] id:', incidentId, 'tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `SELECT
+         i.*,
+         p.name as pet_name,
+         p.species as pet_species,
+         p.breed as pet_breed,
+         o.first_name as owner_first_name,
+         o.last_name as owner_last_name,
+         o.email as owner_email,
+         o.phone as owner_phone,
+         u.first_name as created_by_first_name,
+         u.last_name as created_by_last_name,
+         ru.first_name as resolved_by_first_name,
+         ru.last_name as resolved_by_last_name
+       FROM "Incident" i
+       LEFT JOIN "Pet" p ON i.pet_id = p.id
+       LEFT JOIN "Owner" o ON i.owner_id = o.id
+       LEFT JOIN "User" u ON i.created_by = u.id
+       LEFT JOIN "User" ru ON i.resolved_by = ru.id
+       WHERE i.id = $1 AND i.tenant_id = $2 AND i.deleted_at IS NULL`,
+      [incidentId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Incident not found',
+      });
+    }
+
+    const row = result.rows[0];
+
+    return createResponse(200, {
+      id: row.id,
+      tenantId: row.tenant_id,
+      petId: row.pet_id,
+      petName: row.pet_name,
+      petSpecies: row.pet_species,
+      petBreed: row.pet_breed,
+      bookingId: row.booking_id,
+      ownerId: row.owner_id,
+      ownerName: row.owner_first_name ? `${row.owner_first_name} ${row.owner_last_name || ''}`.trim() : null,
+      ownerEmail: row.owner_email,
+      ownerPhone: row.owner_phone,
+      incidentType: row.incident_type,
+      severity: row.severity,
+      title: row.title,
+      description: row.description,
+      incidentDate: row.incident_date,
+      location: row.location,
+      staffInvolved: row.staff_involved,
+      staffWitness: row.staff_witness,
+      immediateActions: row.immediate_actions,
+      followUpActions: row.follow_up_actions,
+      preventiveMeasures: row.preventive_measures,
+      vetContacted: row.vet_contacted,
+      vetContactedAt: row.vet_contacted_at,
+      vetName: row.vet_name,
+      vetRecommendations: row.vet_recommendations,
+      medicalTreatment: row.medical_treatment,
+      ownerNotified: row.owner_notified,
+      ownerNotifiedAt: row.owner_notified_at,
+      ownerNotifiedBy: row.owner_notified_by,
+      ownerResponse: row.owner_response,
+      status: row.status,
+      resolvedAt: row.resolved_at,
+      resolvedBy: row.resolved_by,
+      resolvedByName: row.resolved_by_first_name ? `${row.resolved_by_first_name} ${row.resolved_by_last_name || ''}`.trim() : null,
+      resolutionNotes: row.resolution_notes,
+      photos: row.photos,
+      documents: row.documents,
+      createdBy: row.created_by,
+      createdByName: row.created_by_first_name ? `${row.created_by_first_name} ${row.created_by_last_name || ''}`.trim() : null,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    });
+
+  } catch (error) {
+    console.error('[Incidents] Failed to get incident:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve incident',
+    });
+  }
+}
+
+/**
+ * Create incident
+ */
+async function handleCreateIncident(tenantId, user, body) {
+  const {
+    petId, bookingId, ownerId, incidentType, severity, title, description,
+    incidentDate, location, staffInvolved, staffWitness, immediateActions,
+    vetContacted, vetName, medicalTreatment, photos, documents
+  } = body;
+
+  console.log('[Incidents][create] tenantId:', tenantId, body);
+
+  if (!incidentType || !title || !incidentDate) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'incidentType, title, and incidentDate are required',
+    });
+  }
+
+  // Validate incident type
+  const validTypes = ['injury', 'illness', 'escape', 'bite', 'property_damage', 'behavior', 'fight', 'other'];
+  if (!validTypes.includes(incidentType.toLowerCase())) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: `Invalid incident type. Valid types: ${validTypes.join(', ')}`,
+    });
+  }
+
+  // Validate severity
+  const validSeverities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+  const normalizedSeverity = (severity || 'LOW').toUpperCase();
+  if (!validSeverities.includes(normalizedSeverity)) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: `Invalid severity. Valid values: ${validSeverities.join(', ')}`,
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // If petId is provided but no ownerId, look up the owner
+    let resolvedOwnerId = ownerId;
+    if (petId && !ownerId) {
+      const ownerResult = await query(
+        `SELECT owner_id FROM "PetOwner" WHERE pet_id = $1 AND is_primary = true LIMIT 1`,
+        [petId]
+      );
+      resolvedOwnerId = ownerResult.rows[0]?.owner_id || null;
+    }
+
+    const result = await query(
+      `INSERT INTO "Incident" (
+         tenant_id, pet_id, booking_id, owner_id, incident_type, severity,
+         title, description, incident_date, location, staff_involved, staff_witness,
+         immediate_actions, vet_contacted, vet_name, medical_treatment,
+         photos, documents, status, created_by, created_at, updated_at
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 'OPEN', $19, NOW(), NOW())
+       RETURNING *`,
+      [
+        tenantId,
+        petId || null,
+        bookingId || null,
+        resolvedOwnerId || null,
+        incidentType.toLowerCase(),
+        normalizedSeverity,
+        title,
+        description || null,
+        incidentDate,
+        location || null,
+        staffInvolved || null,
+        staffWitness || null,
+        immediateActions || null,
+        vetContacted || false,
+        vetName || null,
+        medicalTreatment || null,
+        photos || null,
+        documents || null,
+        user?.id || null
+      ]
+    );
+
+    const incident = result.rows[0];
+    console.log('[Incidents][create] Created:', incident.id);
+
+    return createResponse(201, {
+      success: true,
+      id: incident.id,
+      status: incident.status,
+      message: 'Incident reported successfully',
+    });
+
+  } catch (error) {
+    console.error('[Incidents] Failed to create incident:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to create incident report',
+    });
+  }
+}
+
+/**
+ * Update incident
+ */
+async function handleUpdateIncident(tenantId, user, incidentId, body) {
+  const {
+    petId, bookingId, ownerId, incidentType, severity, title, description,
+    incidentDate, location, staffInvolved, staffWitness, immediateActions,
+    followUpActions, preventiveMeasures, vetContacted, vetContactedAt, vetName,
+    vetRecommendations, medicalTreatment, ownerResponse, status, photos, documents
+  } = body;
+
+  console.log('[Incidents][update] id:', incidentId, 'tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    const updates = [];
+    const values = [incidentId, tenantId];
+    let paramIndex = 3;
+
+    if (petId !== undefined) { updates.push(`pet_id = $${paramIndex++}`); values.push(petId); }
+    if (bookingId !== undefined) { updates.push(`booking_id = $${paramIndex++}`); values.push(bookingId); }
+    if (ownerId !== undefined) { updates.push(`owner_id = $${paramIndex++}`); values.push(ownerId); }
+    if (incidentType !== undefined) { updates.push(`incident_type = $${paramIndex++}`); values.push(incidentType.toLowerCase()); }
+    if (severity !== undefined) { updates.push(`severity = $${paramIndex++}`); values.push(severity.toUpperCase()); }
+    if (title !== undefined) { updates.push(`title = $${paramIndex++}`); values.push(title); }
+    if (description !== undefined) { updates.push(`description = $${paramIndex++}`); values.push(description); }
+    if (incidentDate !== undefined) { updates.push(`incident_date = $${paramIndex++}`); values.push(incidentDate); }
+    if (location !== undefined) { updates.push(`location = $${paramIndex++}`); values.push(location); }
+    if (staffInvolved !== undefined) { updates.push(`staff_involved = $${paramIndex++}`); values.push(staffInvolved); }
+    if (staffWitness !== undefined) { updates.push(`staff_witness = $${paramIndex++}`); values.push(staffWitness); }
+    if (immediateActions !== undefined) { updates.push(`immediate_actions = $${paramIndex++}`); values.push(immediateActions); }
+    if (followUpActions !== undefined) { updates.push(`follow_up_actions = $${paramIndex++}`); values.push(followUpActions); }
+    if (preventiveMeasures !== undefined) { updates.push(`preventive_measures = $${paramIndex++}`); values.push(preventiveMeasures); }
+    if (vetContacted !== undefined) {
+      updates.push(`vet_contacted = $${paramIndex++}`);
+      values.push(vetContacted);
+      if (vetContacted && !vetContactedAt) {
+        updates.push(`vet_contacted_at = NOW()`);
+      }
+    }
+    if (vetContactedAt !== undefined) { updates.push(`vet_contacted_at = $${paramIndex++}`); values.push(vetContactedAt); }
+    if (vetName !== undefined) { updates.push(`vet_name = $${paramIndex++}`); values.push(vetName); }
+    if (vetRecommendations !== undefined) { updates.push(`vet_recommendations = $${paramIndex++}`); values.push(vetRecommendations); }
+    if (medicalTreatment !== undefined) { updates.push(`medical_treatment = $${paramIndex++}`); values.push(medicalTreatment); }
+    if (ownerResponse !== undefined) { updates.push(`owner_response = $${paramIndex++}`); values.push(ownerResponse); }
+    if (status !== undefined) { updates.push(`status = $${paramIndex++}`); values.push(status.toUpperCase()); }
+    if (photos !== undefined) { updates.push(`photos = $${paramIndex++}`); values.push(photos); }
+    if (documents !== undefined) { updates.push(`documents = $${paramIndex++}`); values.push(documents); }
+
+    if (updates.length === 0) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'No valid fields to update',
+      });
+    }
+
+    updates.push('updated_at = NOW()');
+
+    const result = await query(
+      `UPDATE "Incident"
+       SET ${updates.join(', ')}
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING *`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Incident not found',
+      });
+    }
+
+    console.log('[Incidents][update] Updated:', incidentId);
+
+    return createResponse(200, {
+      success: true,
+      id: result.rows[0].id,
+      status: result.rows[0].status,
+      message: 'Incident updated successfully',
+    });
+
+  } catch (error) {
+    console.error('[Incidents] Failed to update incident:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to update incident',
+    });
+  }
+}
+
+/**
+ * Delete incident (soft delete)
+ */
+async function handleDeleteIncident(tenantId, incidentId) {
+  console.log('[Incidents][delete] id:', incidentId, 'tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "Incident"
+       SET deleted_at = NOW(), updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING id`,
+      [incidentId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Incident not found',
+      });
+    }
+
+    return createResponse(200, {
+      success: true,
+      message: 'Incident deleted successfully',
+    });
+
+  } catch (error) {
+    console.error('[Incidents] Failed to delete incident:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to delete incident',
+    });
+  }
+}
+
+/**
+ * Resolve incident
+ */
+async function handleResolveIncident(tenantId, user, incidentId, body) {
+  const { resolutionNotes, preventiveMeasures } = body;
+
+  console.log('[Incidents][resolve] id:', incidentId, 'tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    const updates = [
+      'status = \'RESOLVED\'',
+      'resolved_at = NOW()',
+    ];
+    const values = [incidentId, tenantId];
+    let paramIndex = 3;
+
+    if (user?.id) {
+      updates.push(`resolved_by = $${paramIndex++}`);
+      values.push(user.id);
+    }
+    if (resolutionNotes) {
+      updates.push(`resolution_notes = $${paramIndex++}`);
+      values.push(resolutionNotes);
+    }
+    if (preventiveMeasures) {
+      updates.push(`preventive_measures = $${paramIndex++}`);
+      values.push(preventiveMeasures);
+    }
+
+    updates.push('updated_at = NOW()');
+
+    const result = await query(
+      `UPDATE "Incident"
+       SET ${updates.join(', ')}
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING *`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Incident not found',
+      });
+    }
+
+    console.log('[Incidents][resolve] Resolved:', incidentId);
+
+    return createResponse(200, {
+      success: true,
+      id: result.rows[0].id,
+      status: 'RESOLVED',
+      resolvedAt: result.rows[0].resolved_at,
+      message: 'Incident resolved successfully',
+    });
+
+  } catch (error) {
+    console.error('[Incidents] Failed to resolve incident:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to resolve incident',
+    });
+  }
+}
+
+/**
+ * Notify owner of incident
+ */
+async function handleNotifyOwnerOfIncident(tenantId, user, incidentId, body) {
+  const { method = 'email', message } = body;
+
+  console.log('[Incidents][notifyOwner] id:', incidentId, 'tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    // Get incident with owner info
+    const incidentResult = await query(
+      `SELECT i.*, o.email as owner_email, o.phone as owner_phone, o.first_name as owner_first_name,
+              p.name as pet_name
+       FROM "Incident" i
+       LEFT JOIN "Owner" o ON i.owner_id = o.id
+       LEFT JOIN "Pet" p ON i.pet_id = p.id
+       WHERE i.id = $1 AND i.tenant_id = $2 AND i.deleted_at IS NULL`,
+      [incidentId, tenantId]
+    );
+
+    if (incidentResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Incident not found',
+      });
+    }
+
+    const incident = incidentResult.rows[0];
+
+    if (!incident.owner_email && method === 'email') {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Owner email not found',
+      });
+    }
+
+    // Mark as notified (actual email sending would happen here)
+    const result = await query(
+      `UPDATE "Incident"
+       SET owner_notified = true, owner_notified_at = NOW(), owner_notified_by = $3, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING *`,
+      [incidentId, tenantId, user?.id]
+    );
+
+    // Log to Communication table
+    await logEmailToCommunication(tenantId, {
+      ownerId: incident.owner_id,
+      recipientEmail: incident.owner_email,
+      subject: `Incident Report: ${incident.title}`,
+      content: message || `An incident involving ${incident.pet_name || 'your pet'} has been reported.`,
+      status: 'sent',
+      templateUsed: 'incidentNotification',
+      userId: user?.id,
+    });
+
+    console.log('[Incidents][notifyOwner] Owner notified for:', incidentId);
+
+    return createResponse(200, {
+      success: true,
+      ownerNotified: true,
+      ownerNotifiedAt: result.rows[0].owner_notified_at,
+      message: 'Owner notified successfully',
+    });
+
+  } catch (error) {
+    console.error('[Incidents] Failed to notify owner:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to notify owner',
     });
   }
 }

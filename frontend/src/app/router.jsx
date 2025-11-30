@@ -51,6 +51,7 @@ const TenantSettings = lazy(() =>
   import("@/features/tenants/routes/TenantSettings")
 );
 const Staff = lazy(() => import("@/features/staff/routes/Staff"));
+const Incidents = lazy(() => import("@/features/incidents/routes/Incidents"));
 const Login = lazy(() => import("@/features/auth/routes/Login"));
 const AuthCallback = lazy(() => import("@/features/auth/routes/AuthCallback"));
 const SettingsLayout = lazy(() =>
@@ -283,6 +284,7 @@ export const router = createBrowserRouter([
               { path: "messages", element: <Messages /> },
               // Admin/Staff
               { path: "staff", element: <Staff /> },
+              { path: "incidents", element: <Incidents /> },
               { path: "tenants", element: <TenantSettings /> },
 
               // Legacy redirects for old /properties and /objects/* URLs

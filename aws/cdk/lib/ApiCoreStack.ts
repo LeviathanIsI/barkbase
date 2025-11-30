@@ -305,6 +305,33 @@ export class ApiCoreStack extends cdk.Stack {
       authorizer, // JWT authorization required
     });
 
+    // Incident routes - /api/v1/incidents/* (PROTECTED)
+    this.httpApi.addRoutes({
+      path: '/api/v1/incidents',
+      methods: [
+        apigatewayv2.HttpMethod.GET,
+        apigatewayv2.HttpMethod.POST,
+        apigatewayv2.HttpMethod.PUT,
+        apigatewayv2.HttpMethod.PATCH,
+        apigatewayv2.HttpMethod.DELETE,
+      ],
+      integration: operationsIntegration,
+      authorizer, // JWT authorization required
+    });
+
+    this.httpApi.addRoutes({
+      path: '/api/v1/incidents/{proxy+}',
+      methods: [
+        apigatewayv2.HttpMethod.GET,
+        apigatewayv2.HttpMethod.POST,
+        apigatewayv2.HttpMethod.PUT,
+        apigatewayv2.HttpMethod.PATCH,
+        apigatewayv2.HttpMethod.DELETE,
+      ],
+      integration: operationsIntegration,
+      authorizer, // JWT authorization required
+    });
+
     // Config service routes - /api/v1/config/* (PROTECTED)
     this.httpApi.addRoutes({
       path: '/api/v1/config',
