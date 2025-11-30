@@ -127,6 +127,46 @@ exports.handler = async (event, context) => {
       }
     }
 
+    // ==========================================================================
+    // Recurring Booking routes - /api/v1/recurring-bookings/*
+    // ==========================================================================
+    if (path === '/api/v1/recurring-bookings' || path === '/recurring-bookings') {
+      if (method === 'GET') {
+        return handleGetRecurringBookings(tenantId, event.queryStringParameters || {});
+      }
+      if (method === 'POST') {
+        return handleCreateRecurringBooking(tenantId, user, parseBody(event));
+      }
+    }
+
+    // Recurring booking by ID
+    const recurringMatch = path.match(/\/api\/v1\/recurring-bookings\/([a-f0-9-]+)(\/.*)?$/i);
+    if (recurringMatch) {
+      const recurringId = recurringMatch[1];
+      const subPath = recurringMatch[2] || '';
+
+      if (subPath === '/pause' && method === 'POST') {
+        return handlePauseRecurringBooking(tenantId, recurringId, parseBody(event));
+      }
+      if (subPath === '/resume' && method === 'POST') {
+        return handleResumeRecurringBooking(tenantId, recurringId);
+      }
+      if (subPath === '/generate' && method === 'POST') {
+        return handleGenerateRecurringInstances(tenantId, recurringId, parseBody(event));
+      }
+      if (!subPath || subPath === '') {
+        if (method === 'GET') {
+          return handleGetRecurringBooking(tenantId, recurringId);
+        }
+        if (method === 'PUT' || method === 'PATCH') {
+          return handleUpdateRecurringBooking(tenantId, user, recurringId, parseBody(event));
+        }
+        if (method === 'DELETE') {
+          return handleDeleteRecurringBooking(tenantId, recurringId);
+        }
+      }
+    }
+
     // Booking by ID routes
     const bookingMatch = path.match(/\/api\/v1\/operations\/bookings\/([a-f0-9-]+)(\/.*)?$/i);
     if (bookingMatch) {
@@ -6342,4 +6382,626 @@ async function handleCreateShiftTemplate(tenantId, user, body) {
       message: 'Failed to create shift template',
     });
   }
+}
+
+// =============================================================================
+// RECURRING BOOKING HANDLERS
+// =============================================================================
+
+/**
+ * Get recurring bookings
+ */
+async function handleGetRecurringBookings(tenantId, queryParams) {
+  const { ownerId, isActive, limit = 50, offset = 0 } = queryParams;
+
+  console.log('[RecurringBookings][list] tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    let whereClause = 'rb.tenant_id = $1 AND rb.deleted_at IS NULL';
+    const params = [tenantId];
+    let paramIndex = 2;
+
+    if (ownerId) {
+      whereClause += ` AND rb.owner_id = $${paramIndex++}`;
+      params.push(ownerId);
+    }
+    if (isActive !== undefined) {
+      whereClause += ` AND rb.is_active = $${paramIndex++}`;
+      params.push(isActive === 'true' || isActive === true);
+    }
+
+    const result = await query(
+      `SELECT
+         rb.*,
+         o.first_name as owner_first_name,
+         o.last_name as owner_last_name,
+         o.email as owner_email
+       FROM "RecurringBooking" rb
+       LEFT JOIN "Owner" o ON rb.owner_id = o.id
+       WHERE ${whereClause}
+       ORDER BY rb.created_at DESC
+       LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
+      [...params, parseInt(limit), parseInt(offset)]
+    );
+
+    const recurring = result.rows.map(row => ({
+      id: row.id,
+      tenantId: row.tenant_id,
+      ownerId: row.owner_id,
+      ownerName: row.owner_first_name ? `${row.owner_first_name} ${row.owner_last_name || ''}`.trim() : null,
+      ownerEmail: row.owner_email,
+      petIds: row.pet_ids,
+      serviceId: row.service_id,
+      serviceType: row.service_type,
+      frequency: row.frequency,
+      daysOfWeek: row.days_of_week,
+      dayOfMonth: row.day_of_month,
+      startTime: row.start_time,
+      endTime: row.end_time,
+      durationDays: row.duration_days,
+      startDate: row.start_date,
+      endDate: row.end_date,
+      notes: row.notes,
+      isActive: row.is_active,
+      nextOccurrenceDate: row.next_occurrence_date,
+      totalOccurrences: row.total_occurrences,
+      createdAt: row.created_at,
+    }));
+
+    console.log('[RecurringBookings][list] Found:', recurring.length);
+
+    return createResponse(200, {
+      data: recurring,
+      recurringBookings: recurring,
+      total: recurring.length,
+    });
+
+  } catch (error) {
+    console.error('[RecurringBookings] Get failed:', error.message);
+
+    if (error.message?.includes('does not exist')) {
+      return createResponse(200, {
+        data: [],
+        recurringBookings: [],
+        total: 0,
+        message: 'RecurringBooking table not initialized',
+      });
+    }
+
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve recurring bookings',
+    });
+  }
+}
+
+/**
+ * Get single recurring booking
+ */
+async function handleGetRecurringBooking(tenantId, recurringId) {
+  console.log('[RecurringBookings][get] id:', recurringId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `SELECT rb.*, o.first_name as owner_first_name, o.last_name as owner_last_name
+       FROM "RecurringBooking" rb
+       LEFT JOIN "Owner" o ON rb.owner_id = o.id
+       WHERE rb.id = $1 AND rb.tenant_id = $2 AND rb.deleted_at IS NULL`,
+      [recurringId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Recurring booking not found',
+      });
+    }
+
+    const row = result.rows[0];
+
+    return createResponse(200, {
+      id: row.id,
+      ownerId: row.owner_id,
+      ownerName: row.owner_first_name ? `${row.owner_first_name} ${row.owner_last_name || ''}`.trim() : null,
+      petIds: row.pet_ids,
+      serviceId: row.service_id,
+      serviceType: row.service_type,
+      frequency: row.frequency,
+      daysOfWeek: row.days_of_week,
+      dayOfMonth: row.day_of_month,
+      startTime: row.start_time,
+      endTime: row.end_time,
+      durationDays: row.duration_days,
+      startDate: row.start_date,
+      endDate: row.end_date,
+      preferredKennelId: row.preferred_kennel_id,
+      notes: row.notes,
+      specialInstructions: row.special_instructions,
+      pricePerOccurrenceCents: row.price_per_occurrence_cents,
+      usePackageCredits: row.use_package_credits,
+      packageId: row.package_id,
+      isActive: row.is_active,
+      pausedAt: row.paused_at,
+      pauseReason: row.pause_reason,
+      lastGeneratedDate: row.last_generated_date,
+      nextOccurrenceDate: row.next_occurrence_date,
+      totalOccurrences: row.total_occurrences,
+      createdAt: row.created_at,
+    });
+
+  } catch (error) {
+    console.error('[RecurringBookings] Get failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve recurring booking',
+    });
+  }
+}
+
+/**
+ * Create recurring booking
+ */
+async function handleCreateRecurringBooking(tenantId, user, body) {
+  const {
+    ownerId, petIds, serviceId, serviceType, frequency, daysOfWeek, dayOfMonth,
+    startTime, endTime, durationDays, startDate, endDate, preferredKennelId,
+    notes, specialInstructions, pricePerOccurrenceCents
+  } = body;
+
+  console.log('[RecurringBookings][create] tenantId:', tenantId);
+
+  if (!ownerId || !petIds || !Array.isArray(petIds) || petIds.length === 0 || !frequency || !startDate) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'ownerId, petIds (array), frequency, and startDate are required',
+    });
+  }
+
+  // Validate frequency
+  const validFrequencies = ['daily', 'weekly', 'biweekly', 'monthly'];
+  if (!validFrequencies.includes(frequency.toLowerCase())) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: `Invalid frequency. Valid values: ${validFrequencies.join(', ')}`,
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Calculate next occurrence
+    const nextOccurrence = calculateNextOccurrence(startDate, frequency, daysOfWeek, dayOfMonth);
+
+    const result = await query(
+      `INSERT INTO "RecurringBooking" (
+         tenant_id, owner_id, pet_ids, service_id, service_type, frequency,
+         days_of_week, day_of_month, start_time, end_time, duration_days,
+         start_date, end_date, preferred_kennel_id, notes, special_instructions,
+         price_per_occurrence_cents, is_active, next_occurrence_date, created_by
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, true, $18, $19)
+       RETURNING *`,
+      [
+        tenantId, ownerId, petIds, serviceId || null, serviceType || 'boarding',
+        frequency.toLowerCase(), daysOfWeek || null, dayOfMonth || null,
+        startTime || null, endTime || null, durationDays || 1,
+        startDate, endDate || null, preferredKennelId || null,
+        notes || null, specialInstructions || null, pricePerOccurrenceCents || null,
+        nextOccurrence, user?.id
+      ]
+    );
+
+    const recurring = result.rows[0];
+    console.log('[RecurringBookings][create] Created:', recurring.id);
+
+    return createResponse(201, {
+      success: true,
+      id: recurring.id,
+      nextOccurrenceDate: recurring.next_occurrence_date,
+      message: 'Recurring booking created successfully',
+    });
+
+  } catch (error) {
+    console.error('[RecurringBookings] Create failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to create recurring booking',
+    });
+  }
+}
+
+/**
+ * Update recurring booking
+ */
+async function handleUpdateRecurringBooking(tenantId, user, recurringId, body) {
+  const { petIds, serviceId, serviceType, frequency, daysOfWeek, dayOfMonth,
+    startTime, endTime, durationDays, endDate, preferredKennelId,
+    notes, specialInstructions, pricePerOccurrenceCents } = body;
+
+  console.log('[RecurringBookings][update] id:', recurringId);
+
+  try {
+    await getPoolAsync();
+
+    const updates = [];
+    const values = [recurringId, tenantId];
+    let paramIndex = 3;
+
+    if (petIds !== undefined) { updates.push(`pet_ids = $${paramIndex++}`); values.push(petIds); }
+    if (serviceId !== undefined) { updates.push(`service_id = $${paramIndex++}`); values.push(serviceId); }
+    if (serviceType !== undefined) { updates.push(`service_type = $${paramIndex++}`); values.push(serviceType); }
+    if (frequency !== undefined) { updates.push(`frequency = $${paramIndex++}`); values.push(frequency.toLowerCase()); }
+    if (daysOfWeek !== undefined) { updates.push(`days_of_week = $${paramIndex++}`); values.push(daysOfWeek); }
+    if (dayOfMonth !== undefined) { updates.push(`day_of_month = $${paramIndex++}`); values.push(dayOfMonth); }
+    if (startTime !== undefined) { updates.push(`start_time = $${paramIndex++}`); values.push(startTime); }
+    if (endTime !== undefined) { updates.push(`end_time = $${paramIndex++}`); values.push(endTime); }
+    if (durationDays !== undefined) { updates.push(`duration_days = $${paramIndex++}`); values.push(durationDays); }
+    if (endDate !== undefined) { updates.push(`end_date = $${paramIndex++}`); values.push(endDate); }
+    if (preferredKennelId !== undefined) { updates.push(`preferred_kennel_id = $${paramIndex++}`); values.push(preferredKennelId); }
+    if (notes !== undefined) { updates.push(`notes = $${paramIndex++}`); values.push(notes); }
+    if (specialInstructions !== undefined) { updates.push(`special_instructions = $${paramIndex++}`); values.push(specialInstructions); }
+    if (pricePerOccurrenceCents !== undefined) { updates.push(`price_per_occurrence_cents = $${paramIndex++}`); values.push(pricePerOccurrenceCents); }
+
+    if (updates.length === 0) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'No fields to update',
+      });
+    }
+
+    updates.push('updated_at = NOW()');
+
+    const result = await query(
+      `UPDATE "RecurringBooking" SET ${updates.join(', ')}
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING *`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Recurring booking not found',
+      });
+    }
+
+    return createResponse(200, {
+      success: true,
+      id: result.rows[0].id,
+      message: 'Recurring booking updated',
+    });
+
+  } catch (error) {
+    console.error('[RecurringBookings] Update failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to update recurring booking',
+    });
+  }
+}
+
+/**
+ * Delete recurring booking
+ */
+async function handleDeleteRecurringBooking(tenantId, recurringId) {
+  console.log('[RecurringBookings][delete] id:', recurringId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "RecurringBooking" SET deleted_at = NOW(), is_active = false, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING id`,
+      [recurringId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Recurring booking not found',
+      });
+    }
+
+    return createResponse(200, {
+      success: true,
+      message: 'Recurring booking deleted',
+    });
+
+  } catch (error) {
+    console.error('[RecurringBookings] Delete failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to delete recurring booking',
+    });
+  }
+}
+
+/**
+ * Pause recurring booking
+ */
+async function handlePauseRecurringBooking(tenantId, recurringId, body) {
+  const { reason } = body;
+
+  console.log('[RecurringBookings][pause] id:', recurringId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "RecurringBooking"
+       SET is_active = false, paused_at = NOW(), pause_reason = $3, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING *`,
+      [recurringId, tenantId, reason || null]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Recurring booking not found',
+      });
+    }
+
+    return createResponse(200, {
+      success: true,
+      id: result.rows[0].id,
+      pausedAt: result.rows[0].paused_at,
+      message: 'Recurring booking paused',
+    });
+
+  } catch (error) {
+    console.error('[RecurringBookings] Pause failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to pause recurring booking',
+    });
+  }
+}
+
+/**
+ * Resume recurring booking
+ */
+async function handleResumeRecurringBooking(tenantId, recurringId) {
+  console.log('[RecurringBookings][resume] id:', recurringId);
+
+  try {
+    await getPoolAsync();
+
+    // Get current recurring booking to recalculate next occurrence
+    const current = await query(
+      `SELECT * FROM "RecurringBooking" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [recurringId, tenantId]
+    );
+
+    if (current.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Recurring booking not found',
+      });
+    }
+
+    const rb = current.rows[0];
+    const today = new Date().toISOString().split('T')[0];
+    const nextOccurrence = calculateNextOccurrence(today, rb.frequency, rb.days_of_week, rb.day_of_month);
+
+    const result = await query(
+      `UPDATE "RecurringBooking"
+       SET is_active = true, paused_at = NULL, pause_reason = NULL,
+           next_occurrence_date = $3, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2
+       RETURNING *`,
+      [recurringId, tenantId, nextOccurrence]
+    );
+
+    return createResponse(200, {
+      success: true,
+      id: result.rows[0].id,
+      nextOccurrenceDate: result.rows[0].next_occurrence_date,
+      message: 'Recurring booking resumed',
+    });
+
+  } catch (error) {
+    console.error('[RecurringBookings] Resume failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to resume recurring booking',
+    });
+  }
+}
+
+/**
+ * Generate booking instances from recurring booking
+ */
+async function handleGenerateRecurringInstances(tenantId, recurringId, body) {
+  const { daysAhead = 30 } = body;
+
+  console.log('[RecurringBookings][generate] id:', recurringId, 'daysAhead:', daysAhead);
+
+  try {
+    await getPoolAsync();
+
+    // Get recurring booking
+    const rbResult = await query(
+      `SELECT * FROM "RecurringBooking"
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL AND is_active = true`,
+      [recurringId, tenantId]
+    );
+
+    if (rbResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Active recurring booking not found',
+      });
+    }
+
+    const rb = rbResult.rows[0];
+    const generatedBookings = [];
+    const errors = [];
+
+    // Generate bookings for the specified period
+    const endGenDate = new Date();
+    endGenDate.setDate(endGenDate.getDate() + daysAhead);
+
+    let currentDate = rb.next_occurrence_date ? new Date(rb.next_occurrence_date) : new Date(rb.start_date);
+
+    while (currentDate <= endGenDate) {
+      // Check if we've passed the end date
+      if (rb.end_date && currentDate > new Date(rb.end_date)) break;
+
+      const occurrenceDateStr = currentDate.toISOString().split('T')[0];
+
+      // Check if already generated for this date
+      const existingCheck = await query(
+        `SELECT id FROM "RecurringBookingInstance"
+         WHERE recurring_booking_id = $1 AND occurrence_date = $2`,
+        [recurringId, occurrenceDateStr]
+      );
+
+      if (existingCheck.rows.length === 0) {
+        // Create booking for each pet
+        for (const petId of rb.pet_ids) {
+          try {
+            const checkIn = rb.start_time
+              ? `${occurrenceDateStr}T${rb.start_time}`
+              : occurrenceDateStr;
+            
+            let checkOut;
+            if (rb.service_type === 'daycare' && rb.end_time) {
+              checkOut = `${occurrenceDateStr}T${rb.end_time}`;
+            } else {
+              const coDate = new Date(currentDate);
+              coDate.setDate(coDate.getDate() + (rb.duration_days || 1));
+              checkOut = coDate.toISOString().split('T')[0];
+            }
+
+            const bookingResult = await query(
+              `INSERT INTO "Booking" (
+                 tenant_id, pet_id, owner_id, kennel_id, service_id, check_in, check_out,
+                 notes, special_instructions, total_price_in_cents, service_type, status
+               )
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'PENDING')
+               RETURNING id`,
+              [
+                tenantId, petId, rb.owner_id, rb.preferred_kennel_id,
+                rb.service_id, checkIn, checkOut, rb.notes,
+                rb.special_instructions, rb.price_per_occurrence_cents,
+                rb.service_type || 'boarding'
+              ]
+            );
+
+            // Record instance
+            await query(
+              `INSERT INTO "RecurringBookingInstance" (recurring_booking_id, booking_id, occurrence_date)
+               VALUES ($1, $2, $3)`,
+              [recurringId, bookingResult.rows[0].id, occurrenceDateStr]
+            );
+
+            generatedBookings.push({
+              bookingId: bookingResult.rows[0].id,
+              petId,
+              occurrenceDate: occurrenceDateStr,
+            });
+
+          } catch (err) {
+            errors.push({ petId, date: occurrenceDateStr, error: err.message });
+          }
+        }
+      }
+
+      // Move to next occurrence
+      currentDate = getNextOccurrenceDate(currentDate, rb.frequency, rb.days_of_week, rb.day_of_month);
+    }
+
+    // Update recurring booking
+    await query(
+      `UPDATE "RecurringBooking"
+       SET last_generated_date = $2,
+           next_occurrence_date = $3,
+           total_occurrences = total_occurrences + $4,
+           updated_at = NOW()
+       WHERE id = $1`,
+      [
+        recurringId,
+        new Date().toISOString().split('T')[0],
+        currentDate.toISOString().split('T')[0],
+        generatedBookings.length
+      ]
+    );
+
+    console.log('[RecurringBookings][generate] Generated:', generatedBookings.length, 'Errors:', errors.length);
+
+    return createResponse(200, {
+      success: true,
+      generatedCount: generatedBookings.length,
+      bookings: generatedBookings,
+      errorCount: errors.length,
+      errors: errors.length > 0 ? errors : undefined,
+      message: `Generated ${generatedBookings.length} bookings`,
+    });
+
+  } catch (error) {
+    console.error('[RecurringBookings] Generate failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to generate recurring instances',
+    });
+  }
+}
+
+/**
+ * Helper: Calculate next occurrence date
+ */
+function calculateNextOccurrence(startDate, frequency, daysOfWeek, dayOfMonth) {
+  const start = new Date(startDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let next = start >= today ? start : today;
+
+  return getNextOccurrenceDate(next, frequency, daysOfWeek, dayOfMonth).toISOString().split('T')[0];
+}
+
+/**
+ * Helper: Get next occurrence date from a given date
+ */
+function getNextOccurrenceDate(fromDate, frequency, daysOfWeek, dayOfMonth) {
+  const date = new Date(fromDate);
+
+  switch (frequency) {
+    case 'daily':
+      date.setDate(date.getDate() + 1);
+      break;
+
+    case 'weekly':
+      if (daysOfWeek && daysOfWeek.length > 0) {
+        // Find next matching day of week
+        do {
+          date.setDate(date.getDate() + 1);
+        } while (!daysOfWeek.includes(date.getDay()));
+      } else {
+        date.setDate(date.getDate() + 7);
+      }
+      break;
+
+    case 'biweekly':
+      date.setDate(date.getDate() + 14);
+      break;
+
+    case 'monthly':
+      date.setMonth(date.getMonth() + 1);
+      if (dayOfMonth) {
+        date.setDate(Math.min(dayOfMonth, new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()));
+      }
+      break;
+
+    default:
+      date.setDate(date.getDate() + 1);
+  }
+
+  return date;
 }
