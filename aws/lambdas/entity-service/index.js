@@ -624,12 +624,14 @@ async function getPets(event) {
     await getPoolAsync();
     // Schema: id, tenant_id, name, species, breed, gender, color, weight, date_of_birth,
     //         microchip_number, last_vet_visit, medical_notes, behavior_notes, dietary_notes,
-    //         notes, description, documents, behavior_flags, status, photo_url, is_active
+    //         notes, description, documents, behavior_flags, status, photo_url, is_active,
+    //         vet_name, vet_phone, vet_clinic, vet_address, vet_email, vet_notes
     const result = await query(
       `SELECT p.id, p.tenant_id, p.name, p.species, p.breed, p.gender, p.color,
               p.weight, p.date_of_birth, p.microchip_number, p.last_vet_visit,
               p.medical_notes, p.behavior_notes, p.dietary_notes, p.notes, p.description,
               p.documents, p.behavior_flags, p.status, p.photo_url, p.is_active,
+              p.vet_name, p.vet_phone, p.vet_clinic, p.vet_address, p.vet_email, p.vet_notes,
               p.created_at, p.updated_at
        FROM "Pet" p
        WHERE p.tenant_id = $1 AND p.deleted_at IS NULL
@@ -662,6 +664,7 @@ async function getPet(event) {
               p.weight, p.date_of_birth, p.microchip_number, p.last_vet_visit,
               p.medical_notes, p.behavior_notes, p.dietary_notes, p.notes, p.description,
               p.documents, p.behavior_flags, p.status, p.photo_url, p.is_active,
+              p.vet_name, p.vet_phone, p.vet_clinic, p.vet_address, p.vet_email, p.vet_notes,
               p.created_at, p.updated_at
        FROM "Pet" p
        WHERE p.id = $1 AND p.tenant_id = $2 AND p.deleted_at IS NULL`,
@@ -696,8 +699,10 @@ async function createPet(event) {
     const result = await query(
       `INSERT INTO "Pet" (tenant_id, name, species, breed, gender, color, weight, date_of_birth,
                          microchip_number, medical_notes, behavior_notes, dietary_notes, notes,
-                         description, status, photo_url, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+                         description, status, photo_url, is_active,
+                         vet_name, vet_phone, vet_clinic, vet_address, vet_email, vet_notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
+               $18, $19, $20, $21, $22, $23)
        RETURNING *`,
       [
         tenantId,
@@ -716,7 +721,14 @@ async function createPet(event) {
         body.description || null,
         body.status || 'ACTIVE',
         body.photoUrl || body.photo_url || null,
-        body.isActive !== false
+        body.isActive !== false,
+        // Veterinarian info fields
+        body.vetName || body.vet_name || null,
+        body.vetPhone || body.vet_phone || null,
+        body.vetClinic || body.vet_clinic || null,
+        body.vetAddress || body.vet_address || null,
+        body.vetEmail || body.vet_email || null,
+        body.vetNotes || body.vet_notes || null
       ]
     );
 
@@ -797,6 +809,31 @@ async function updatePet(event) {
     if (body.isActive !== undefined || body.is_active !== undefined) {
       updates.push(`is_active = $${paramIndex++}`);
       values.push(body.isActive ?? body.is_active);
+    }
+    // Veterinarian info fields
+    if (body.vetName !== undefined || body.vet_name !== undefined) {
+      updates.push(`vet_name = $${paramIndex++}`);
+      values.push(body.vetName || body.vet_name);
+    }
+    if (body.vetPhone !== undefined || body.vet_phone !== undefined) {
+      updates.push(`vet_phone = $${paramIndex++}`);
+      values.push(body.vetPhone || body.vet_phone);
+    }
+    if (body.vetClinic !== undefined || body.vet_clinic !== undefined) {
+      updates.push(`vet_clinic = $${paramIndex++}`);
+      values.push(body.vetClinic || body.vet_clinic);
+    }
+    if (body.vetAddress !== undefined || body.vet_address !== undefined) {
+      updates.push(`vet_address = $${paramIndex++}`);
+      values.push(body.vetAddress || body.vet_address);
+    }
+    if (body.vetEmail !== undefined || body.vet_email !== undefined) {
+      updates.push(`vet_email = $${paramIndex++}`);
+      values.push(body.vetEmail || body.vet_email);
+    }
+    if (body.vetNotes !== undefined || body.vet_notes !== undefined) {
+      updates.push(`vet_notes = $${paramIndex++}`);
+      values.push(body.vetNotes || body.vet_notes);
     }
 
     if (updates.length === 0) {

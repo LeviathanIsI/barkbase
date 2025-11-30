@@ -40,6 +40,13 @@ const PetFormModal = ({
       nextAppointment: '',
       behaviorFlags: [],
       photoUrl: '',
+      // Veterinarian info
+      vetName: '',
+      vetPhone: '',
+      vetClinic: '',
+      vetAddress: '',
+      vetEmail: '',
+      vetNotes: '',
     },
   });
 
@@ -51,15 +58,22 @@ const PetFormModal = ({
         species: pet.species || '',
         breed: pet.breed || '',
         status: pet.status || 'active',
-        medicalNotes: pet.medicalNotes || '',
-        dietaryNotes: pet.dietaryNotes || '',
-        birthdate: pet.birthdate ? new Date(pet.birthdate).toISOString().split('T')[0] : '',
+        medicalNotes: pet.medicalNotes || pet.medical_notes || '',
+        dietaryNotes: pet.dietaryNotes || pet.dietary_notes || '',
+        birthdate: pet.birthdate || pet.date_of_birth ? new Date(pet.birthdate || pet.date_of_birth).toISOString().split('T')[0] : '',
         weight: pet.weight || '',
         allergies: pet.allergies || '',
-        lastVetVisit: pet.lastVetVisit ? new Date(pet.lastVetVisit).toISOString().split('T')[0] : '',
+        lastVetVisit: pet.lastVetVisit || pet.last_vet_visit ? new Date(pet.lastVetVisit || pet.last_vet_visit).toISOString().split('T')[0] : '',
         nextAppointment: pet.nextAppointment ? new Date(pet.nextAppointment).toISOString().split('T')[0] : '',
-        behaviorFlags: pet.behaviorFlags || [],
-        photoUrl: pet.photoUrl || '',
+        behaviorFlags: pet.behaviorFlags || pet.behavior_flags || [],
+        photoUrl: pet.photoUrl || pet.photo_url || '',
+        // Veterinarian info
+        vetName: pet.vetName || pet.vet_name || '',
+        vetPhone: pet.vetPhone || pet.vet_phone || '',
+        vetClinic: pet.vetClinic || pet.vet_clinic || '',
+        vetAddress: pet.vetAddress || pet.vet_address || '',
+        vetEmail: pet.vetEmail || pet.vet_email || '',
+        vetNotes: pet.vetNotes || pet.vet_notes || '',
       });
     } else if (open) {
       reset({
@@ -76,6 +90,12 @@ const PetFormModal = ({
         nextAppointment: '',
         behaviorFlags: [],
         photoUrl: '',
+        vetName: '',
+        vetPhone: '',
+        vetClinic: '',
+        vetAddress: '',
+        vetEmail: '',
+        vetNotes: '',
       });
     }
   }, [pet, open, reset]);
@@ -325,6 +345,109 @@ const PetFormModal = ({
               className={cn(inputClass, 'min-h-[6rem] resize-y')}
               style={inputStyles}
               placeholder="Food preferences, restrictions, or feeding schedule..."
+            />
+          </div>
+        </FormSection>
+
+        {/* Veterinarian Information */}
+        <FormSection title="Veterinarian Information">
+          <FormGrid cols={2}>
+            <div className="space-y-[var(--bb-space-2,0.5rem)]">
+              <label
+                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                Veterinarian Name
+              </label>
+              <input
+                type="text"
+                {...register('vetName')}
+                className={inputClass}
+                style={inputStyles}
+                placeholder="Dr. Smith"
+              />
+            </div>
+
+            <div className="space-y-[var(--bb-space-2,0.5rem)]">
+              <label
+                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                Vet Phone
+              </label>
+              <input
+                type="tel"
+                {...register('vetPhone')}
+                className={inputClass}
+                style={inputStyles}
+                placeholder="(555) 123-4567"
+              />
+            </div>
+          </FormGrid>
+
+          <FormGrid cols={2}>
+            <div className="space-y-[var(--bb-space-2,0.5rem)]">
+              <label
+                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                Clinic/Hospital Name
+              </label>
+              <input
+                type="text"
+                {...register('vetClinic')}
+                className={inputClass}
+                style={inputStyles}
+                placeholder="Happy Paws Veterinary Clinic"
+              />
+            </div>
+
+            <div className="space-y-[var(--bb-space-2,0.5rem)]">
+              <label
+                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                Vet Email
+              </label>
+              <input
+                type="email"
+                {...register('vetEmail')}
+                className={inputClass}
+                style={inputStyles}
+                placeholder="vet@clinic.com"
+              />
+            </div>
+          </FormGrid>
+
+          <div className="space-y-[var(--bb-space-2,0.5rem)]">
+            <label
+              className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+              style={{ color: 'var(--bb-color-text-primary)' }}
+            >
+              Clinic Address
+            </label>
+            <input
+              type="text"
+              {...register('vetAddress')}
+              className={inputClass}
+              style={inputStyles}
+              placeholder="123 Main St, City, State 12345"
+            />
+          </div>
+
+          <div className="space-y-[var(--bb-space-2,0.5rem)]">
+            <label
+              className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+              style={{ color: 'var(--bb-color-text-primary)' }}
+            >
+              Vet Notes
+            </label>
+            <textarea
+              {...register('vetNotes')}
+              rows={2}
+              className={cn(inputClass, 'min-h-[4rem] resize-y')}
+              style={inputStyles}
+              placeholder="Special instructions, preferred vet, emergency contacts..."
             />
           </div>
         </FormSection>
