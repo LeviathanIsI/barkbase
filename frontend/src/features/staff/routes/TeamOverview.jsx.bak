@@ -63,8 +63,6 @@ import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import SlidePanel from '@/components/ui/SlidePanel';
 import Modal from '@/components/ui/Modal';
-// Unified loader: replaced inline loading with LoadingState
-import LoadingState from '@/components/ui/LoadingState';
 import { useStaffQuery } from '../../settings/api';
 import { cn } from '@/lib/cn';
 
@@ -1360,7 +1358,9 @@ const TeamOverview = () => {
 
       {/* Tab Content */}
       {isLoading ? (
-        <LoadingState label="Loading team…" variant="skeleton" />
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted" />
+        </div>
       ) : (
         renderTab()
       )}

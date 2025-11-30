@@ -12,8 +12,6 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/skeleton';
-// Unified loader: replaced inline loading with LoadingState
-import LoadingState from '@/components/ui/LoadingState';
 import SlidePanel from '@/components/ui/SlidePanel';
 import NewBookingModal from '@/features/bookings/components/NewBookingModal';
 import BookingDetailModal from '@/features/calendar/components/BookingDetailModal';
@@ -634,7 +632,7 @@ const WeeklyRunGrid = ({ runs, bookings, assignments = [], weekDates, occupancyB
           {/* Run Rows */}
           {isLoading ? (
             <div className="p-8 text-center">
-              <LoadingState variant="skeleton" />
+              <Loader2 className="h-6 w-6 animate-spin text-[color:var(--bb-color-text-muted)] mx-auto" />
             </div>
           ) : runs.length === 0 ? (
             <div className="p-8 text-center">

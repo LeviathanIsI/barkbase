@@ -47,8 +47,6 @@ import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import SlidePanel from '@/components/ui/SlidePanel';
-// Unified loader: replaced inline loading with LoadingState
-import LoadingState from '@/components/ui/LoadingState';
 import { usePaymentsQuery, usePaymentSummaryQuery } from '../api';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
@@ -847,7 +845,8 @@ const Payments = () => {
       <div className="bg-white dark:bg-surface-primary border border-border rounded-lg overflow-hidden">
         {isLoading ? (
           <div className="p-8 text-center">
-            <LoadingState label="Loading payments…" variant="spinner" />
+            <Loader2 className="h-8 w-8 animate-spin text-muted mx-auto mb-3" />
+            <p className="text-sm text-muted">Loading transactions...</p>
           </div>
         ) : error ? (
           <div className="p-8 text-center">

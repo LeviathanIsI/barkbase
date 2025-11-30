@@ -1,6 +1,5 @@
 import { usePermissions } from '@/hooks/usePermissions';
-// Unified loader: replaced inline loading with LoadingState
-import LoadingState from '@/components/ui/LoadingState';
+import { Loader2 } from 'lucide-react';
 
 /**
  * Component to conditionally render children based on permissions
@@ -26,7 +25,7 @@ export const PermissionGuard = ({
   if (loading && showLoader) {
     return (
       <div className="flex items-center justify-center p-4">
-        <LoadingState label="Checking permissions…" variant="spinner" />
+        <Loader2 className="h-6 w-6 animate-spin text-muted" />
       </div>
     );
   }

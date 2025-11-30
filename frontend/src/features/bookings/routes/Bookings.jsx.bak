@@ -11,8 +11,6 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/skeleton';
-// Unified loader: replaced inline loading with LoadingState
-import LoadingState from '@/components/ui/LoadingState';
 import SinglePageBookingWizard from '../components/SinglePageBookingWizard';
 import BookingDetailModal from '../components/BookingDetailModal';
 import { useBookingsQuery, useDeleteBookingMutation } from '../api';
@@ -1133,7 +1131,7 @@ const RunBoardView = ({
           {/* Loading State */}
           {isLoading ? (
             <div className="p-8 text-center">
-              <LoadingState label="Loading bookings…" variant="skeleton" />
+              <Loader2 className="h-8 w-8 animate-spin text-[color:var(--bb-color-text-muted)] mx-auto" />
             </div>
           ) : (
             /* Run Rows */
