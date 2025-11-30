@@ -17,6 +17,8 @@ import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
+import * as events from 'aws-cdk-lib/aws-events';
+import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as path from 'path';
 import { Construct } from 'constructs';
 import { BarkbaseConfig } from './shared/config';
@@ -41,6 +43,7 @@ export class ServicesStack extends cdk.Stack {
   public readonly operationsServiceFunction: lambda.IFunction;
   public readonly configServiceFunction: lambda.IFunction;
   public readonly financialServiceFunction: lambda.IFunction;
+  public readonly reminderServiceFunction: lambda.IFunction;
 
   constructor(scope: Construct, id: string, props: ServicesStackProps) {
     super(scope, id, props);
@@ -99,6 +102,17 @@ export class ServicesStack extends cdk.Stack {
       resources: [dbSecretArn],
     }));
 
+    // Grant SES permissions for sending emails
+    lambdaRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'ses:SendEmail',
+        'ses:SendRawEmail',
+        'ses:SendTemplatedEmail',
+      ],
+      resources: ['*'], // SES doesn't support resource-level permissions well
+    }));
+
     // Common environment variables for all Lambda functions
     const commonEnvironment: Record<string, string> = {
       NODE_ENV: config.env === 'prod' ? 'production' : 'development',
@@ -109,6 +123,8 @@ export class ServicesStack extends cdk.Stack {
       COGNITO_CLIENT_ID: userPoolClientId,
       COGNITO_JWKS_URL: jwksUrl,
       COGNITO_ISSUER_URL: `https://cognito-idp.${config.region}.amazonaws.com/${userPoolId}`,
+      // SES configuration - email must be verified in SES
+      SES_FROM_EMAIL: process.env.SES_FROM_EMAIL || 'noreply@barkbase.app',
     };
 
     // Common Lambda configuration
@@ -200,6 +216,35 @@ export class ServicesStack extends cdk.Stack {
       },
     });
 
+    // Reminder Service Function (Scheduled)
+    // Sends booking reminders and vaccination expiry notifications
+    this.reminderServiceFunction = new lambda.Function(this, 'ReminderServiceFunction', {
+      ...commonLambdaConfig,
+      functionName: `${config.stackPrefix}-reminder-service`,
+      description: 'BarkBase Reminder Service - Scheduled email reminders for bookings and vaccinations',
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambdas/reminder-service')),
+      timeout: cdk.Duration.minutes(5), // Allow more time for processing all tenants
+    });
+
+    // EventBridge rule to trigger reminder service daily at 8am UTC
+    const reminderScheduleRule = new events.Rule(this, 'ReminderScheduleRule', {
+      ruleName: `${config.stackPrefix}-daily-reminders`,
+      description: 'Triggers reminder service daily at 8am UTC',
+      schedule: events.Schedule.cron({
+        minute: '0',
+        hour: '8',
+        day: '*',
+        month: '*',
+        year: '*',
+      }),
+    });
+
+    // Add Lambda as target for the EventBridge rule
+    reminderScheduleRule.addTarget(new targets.LambdaFunction(this.reminderServiceFunction, {
+      retryAttempts: 2,
+    }));
+
     // =========================================================================
     // Stack Outputs
     // =========================================================================
@@ -256,6 +301,12 @@ export class ServicesStack extends cdk.Stack {
       value: this.financialServiceFunction.functionArn,
       description: 'Financial Service Lambda ARN',
       exportName: `${config.stackPrefix}-financial-service-arn`,
+    });
+
+    new cdk.CfnOutput(this, 'ReminderServiceFunctionArn', {
+      value: this.reminderServiceFunction.functionArn,
+      description: 'Reminder Service Lambda ARN',
+      exportName: `${config.stackPrefix}-reminder-service-arn`,
     });
   }
 }

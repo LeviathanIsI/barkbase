@@ -196,6 +196,51 @@ exports.handler = async (event, context) => {
     }
 
     // ==========================================================================
+    // Email Notification routes - /api/v1/notifications/*
+    // ==========================================================================
+    if (path === '/api/v1/notifications/email' || path === '/notifications/email') {
+      if (method === 'POST') {
+        return handleSendEmail(tenantId, user, parseBody(event));
+      }
+    }
+
+    if (path === '/api/v1/notifications/booking-confirmation' || path === '/notifications/booking-confirmation') {
+      if (method === 'POST') {
+        return handleSendBookingConfirmation(tenantId, user, parseBody(event));
+      }
+    }
+
+    if (path === '/api/v1/notifications/booking-reminder' || path === '/notifications/booking-reminder') {
+      if (method === 'POST') {
+        return handleSendBookingReminder(tenantId, user, parseBody(event));
+      }
+    }
+
+    if (path === '/api/v1/notifications/vaccination-reminder' || path === '/notifications/vaccination-reminder') {
+      if (method === 'POST') {
+        return handleSendVaccinationReminder(tenantId, user, parseBody(event));
+      }
+    }
+
+    if (path === '/api/v1/notifications/vaccination-reminders/bulk' || path === '/notifications/vaccination-reminders/bulk') {
+      if (method === 'POST') {
+        return handleBulkVaccinationReminders(tenantId, user, parseBody(event));
+      }
+    }
+
+    if (path === '/api/v1/notifications/check-in' || path === '/notifications/check-in') {
+      if (method === 'POST') {
+        return handleSendCheckInConfirmation(tenantId, user, parseBody(event));
+      }
+    }
+
+    if (path === '/api/v1/notifications/check-out' || path === '/notifications/check-out') {
+      if (method === 'POST') {
+        return handleSendCheckOutConfirmation(tenantId, user, parseBody(event));
+      }
+    }
+
+    // ==========================================================================
     // Calendar routes - /api/v1/calendar/*
     // ==========================================================================
     if (path === '/api/v1/calendar/events' || path === '/calendar/events') {
@@ -665,7 +710,7 @@ async function handleGetBooking(tenantId, bookingId) {
  * Create booking
  */
 async function handleCreateBooking(tenantId, user, body) {
-  const { petIds, petId, ownerId, kennelId, serviceId, startDate, endDate, notes, totalPrice, totalPriceInCents, specialInstructions, serviceType, roomNumber } = body;
+  const { petIds, petId, ownerId, kennelId, serviceId, startDate, endDate, notes, totalPrice, totalPriceInCents, specialInstructions, serviceType, roomNumber, sendConfirmation = true } = body;
 
   console.log('[Bookings][create] tenantId:', tenantId, body);
 
@@ -696,22 +741,22 @@ async function handleCreateBooking(tenantId, user, body) {
     const booking = result.rows[0];
 
     // Link pets to booking via BookingPet
-    if (petIds && petIds.length > 0) {
-      for (const pid of petIds) {
-        await query(
-          `INSERT INTO "BookingPet" (booking_id, pet_id) VALUES ($1, $2)`,
-          [booking.id, pid]
-        );
-      }
-    } else if (petId) {
-      // Also add the single petId to BookingPet for consistency
+    const petsToLink = petIds && petIds.length > 0 ? petIds : (petId ? [petId] : []);
+    for (const pid of petsToLink) {
       await query(
         `INSERT INTO "BookingPet" (booking_id, pet_id) VALUES ($1, $2)`,
-        [booking.id, petId]
+        [booking.id, pid]
       );
     }
 
     console.log('[Bookings][create] created:', booking.id);
+
+    // Send confirmation email asynchronously (don't block response)
+    if (sendConfirmation && ownerId) {
+      sendBookingConfirmationEmail(tenantId, booking.id, user?.id).catch(err => {
+        console.error('[Bookings][create] Failed to send confirmation email:', err.message);
+      });
+    }
 
     return createResponse(201, {
       success: true,
@@ -731,6 +776,83 @@ async function handleCreateBooking(tenantId, user, body) {
       error: 'Internal Server Error',
       message: 'Failed to create booking',
     });
+  }
+}
+
+/**
+ * Helper: Send booking confirmation email
+ */
+async function sendBookingConfirmationEmail(tenantId, bookingId, userId) {
+  try {
+    // Get booking with owner and pet info
+    const bookingResult = await query(
+      `SELECT
+         b.*,
+         o.id as owner_id,
+         o.first_name as owner_first_name,
+         o.last_name as owner_last_name,
+         o.email as owner_email,
+         s.name as service_name
+       FROM "Booking" b
+       LEFT JOIN "Owner" o ON b.owner_id = o.id
+       LEFT JOIN "Service" s ON b.service_id = s.id
+       WHERE b.id = $1 AND b.tenant_id = $2`,
+      [bookingId, tenantId]
+    );
+
+    if (bookingResult.rows.length === 0 || !bookingResult.rows[0].owner_email) {
+      console.log('[EMAIL] No booking or owner email found, skipping confirmation');
+      return;
+    }
+
+    const booking = bookingResult.rows[0];
+
+    // Get pets for booking
+    const petsResult = await query(
+      `SELECT p.name FROM "BookingPet" bp
+       JOIN "Pet" p ON bp.pet_id = p.id
+       WHERE bp.booking_id = $1`,
+      [bookingId]
+    );
+    const petNames = petsResult.rows.map(p => p.name).join(', ') || 'Your pet';
+
+    // Get tenant info
+    const tenantResult = await query(
+      `SELECT name FROM "Tenant" WHERE id = $1`,
+      [tenantId]
+    );
+    const tenant = tenantResult.rows[0];
+
+    // Send email
+    const { sendBookingConfirmation } = sharedLayer;
+    await sendBookingConfirmation(
+      {
+        check_in: booking.check_in,
+        check_out: booking.check_out,
+        service_name: booking.service_name || booking.service_type || 'Boarding',
+      },
+      {
+        first_name: booking.owner_first_name,
+        email: booking.owner_email,
+      },
+      { name: petNames },
+      tenant
+    );
+
+    // Log to Communication table
+    await logEmailToCommunication(tenantId, {
+      ownerId: booking.owner_id,
+      recipientEmail: booking.owner_email,
+      subject: `Booking Confirmed - ${petNames}`,
+      content: `Automated booking confirmation for ${booking.check_in}`,
+      status: 'sent',
+      templateUsed: 'bookingConfirmation',
+      userId,
+    });
+
+    console.log('[EMAIL] Booking confirmation sent to', booking.owner_email);
+  } catch (error) {
+    console.error('[EMAIL] Failed to send booking confirmation:', error.message);
   }
 }
 
@@ -848,7 +970,7 @@ async function handleCancelBooking(tenantId, bookingId) {
 
     const result = await query(
       `UPDATE "Booking"
-       SET status = 'CANCELLED', updated_at = NOW()
+       SET status = 'CANCELLED', cancelled_at = NOW(), updated_at = NOW()
        WHERE id = $1 AND tenant_id = $2
        RETURNING *`,
       [bookingId, tenantId]
@@ -860,6 +982,11 @@ async function handleCancelBooking(tenantId, bookingId) {
         message: 'Booking not found',
       });
     }
+
+    // Send cancellation email asynchronously
+    sendBookingCancellationEmail(tenantId, bookingId).catch(err => {
+      console.error('[Bookings][cancel] Failed to send cancellation email:', err.message);
+    });
 
     return createResponse(200, {
       success: true,
@@ -876,10 +1003,80 @@ async function handleCancelBooking(tenantId, bookingId) {
 }
 
 /**
+ * Helper: Send booking cancellation email
+ */
+async function sendBookingCancellationEmail(tenantId, bookingId) {
+  try {
+    // Get booking with owner info
+    const bookingResult = await query(
+      `SELECT
+         b.*,
+         o.id as owner_id,
+         o.first_name as owner_first_name,
+         o.email as owner_email,
+         s.name as service_name
+       FROM "Booking" b
+       LEFT JOIN "Owner" o ON b.owner_id = o.id
+       LEFT JOIN "Service" s ON b.service_id = s.id
+       WHERE b.id = $1 AND b.tenant_id = $2`,
+      [bookingId, tenantId]
+    );
+
+    if (bookingResult.rows.length === 0 || !bookingResult.rows[0].owner_email) {
+      console.log('[EMAIL] No booking or owner email found, skipping cancellation email');
+      return;
+    }
+
+    const booking = bookingResult.rows[0];
+
+    // Get pets for booking
+    const petsResult = await query(
+      `SELECT p.name FROM "BookingPet" bp
+       JOIN "Pet" p ON bp.pet_id = p.id
+       WHERE bp.booking_id = $1`,
+      [bookingId]
+    );
+    const petNames = petsResult.rows.map(p => p.name).join(', ') || 'Your pet';
+
+    // Send email
+    const { sendBookingCancellation } = sharedLayer;
+    await sendBookingCancellation(
+      {
+        check_in: booking.check_in,
+        check_out: booking.check_out,
+        service_name: booking.service_name || booking.service_type || 'Boarding',
+      },
+      {
+        first_name: booking.owner_first_name,
+        email: booking.owner_email,
+      },
+      { name: petNames },
+      booking.cancellation_reason
+    );
+
+    // Log to Communication table
+    await logEmailToCommunication(tenantId, {
+      ownerId: booking.owner_id,
+      recipientEmail: booking.owner_email,
+      subject: `Booking Cancelled - ${petNames}`,
+      content: `Booking cancellation notification`,
+      status: 'sent',
+      templateUsed: 'bookingCancellation',
+    });
+
+    console.log('[EMAIL] Booking cancellation sent to', booking.owner_email);
+  } catch (error) {
+    console.error('[EMAIL] Failed to send booking cancellation:', error.message);
+  }
+}
+
+/**
  * Check in for booking
  * Schema column: checked_in_at (not check_in_time)
  */
 async function handleCheckIn(tenantId, bookingId, body) {
+  const { sendConfirmation = true } = body || {};
+  
   try {
     await getPoolAsync();
 
@@ -895,6 +1092,13 @@ async function handleCheckIn(tenantId, bookingId, body) {
       return createResponse(404, {
         error: 'Not Found',
         message: 'Booking not found',
+      });
+    }
+
+    // Send check-in confirmation email asynchronously
+    if (sendConfirmation) {
+      sendCheckInEmail(tenantId, bookingId).catch(err => {
+        console.error('[Bookings][checkin] Failed to send confirmation email:', err.message);
       });
     }
 
@@ -914,10 +1118,70 @@ async function handleCheckIn(tenantId, bookingId, body) {
 }
 
 /**
+ * Helper: Send check-in confirmation email
+ */
+async function sendCheckInEmail(tenantId, bookingId) {
+  try {
+    const bookingResult = await query(
+      `SELECT
+         b.*,
+         o.id as owner_id,
+         o.first_name as owner_first_name,
+         o.email as owner_email,
+         s.name as service_name
+       FROM "Booking" b
+       LEFT JOIN "Owner" o ON b.owner_id = o.id
+       LEFT JOIN "Service" s ON b.service_id = s.id
+       WHERE b.id = $1 AND b.tenant_id = $2`,
+      [bookingId, tenantId]
+    );
+
+    if (bookingResult.rows.length === 0 || !bookingResult.rows[0].owner_email) {
+      return;
+    }
+
+    const booking = bookingResult.rows[0];
+
+    const petsResult = await query(
+      `SELECT p.name FROM "BookingPet" bp
+       JOIN "Pet" p ON bp.pet_id = p.id
+       WHERE bp.booking_id = $1`,
+      [bookingId]
+    );
+    const petNames = petsResult.rows.map(p => p.name).join(', ') || 'Your pet';
+
+    const { sendCheckInConfirmation } = sharedLayer;
+    await sendCheckInConfirmation(
+      {
+        check_out: booking.check_out,
+        service_name: booking.service_name || booking.service_type,
+      },
+      { first_name: booking.owner_first_name, email: booking.owner_email },
+      { name: petNames }
+    );
+
+    await logEmailToCommunication(tenantId, {
+      ownerId: booking.owner_id,
+      recipientEmail: booking.owner_email,
+      subject: `${petNames} Has Been Checked In`,
+      content: `Automated check-in confirmation`,
+      status: 'sent',
+      templateUsed: 'checkInConfirmation',
+    });
+
+    console.log('[EMAIL] Check-in confirmation sent to', booking.owner_email);
+  } catch (error) {
+    console.error('[EMAIL] Failed to send check-in confirmation:', error.message);
+  }
+}
+
+/**
  * Check out for booking
  * Schema column: checked_out_at (not check_out_time)
  */
 async function handleCheckOut(tenantId, bookingId, body) {
+  const { sendConfirmation = true } = body || {};
+  
   try {
     await getPoolAsync();
 
@@ -936,6 +1200,15 @@ async function handleCheckOut(tenantId, bookingId, body) {
       });
     }
 
+    const booking = result.rows[0];
+
+    // Send check-out confirmation email asynchronously
+    if (sendConfirmation) {
+      sendCheckOutEmail(tenantId, bookingId, booking.total_price_in_cents).catch(err => {
+        console.error('[Bookings][checkout] Failed to send confirmation email:', err.message);
+      });
+    }
+
     return createResponse(200, {
       success: true,
       message: 'Check-out successful',
@@ -948,6 +1221,60 @@ async function handleCheckOut(tenantId, bookingId, body) {
       error: 'Internal Server Error',
       message: 'Failed to check out',
     });
+  }
+}
+
+/**
+ * Helper: Send check-out confirmation email
+ */
+async function sendCheckOutEmail(tenantId, bookingId, totalPriceInCents) {
+  try {
+    const bookingResult = await query(
+      `SELECT
+         b.*,
+         o.id as owner_id,
+         o.first_name as owner_first_name,
+         o.email as owner_email
+       FROM "Booking" b
+       LEFT JOIN "Owner" o ON b.owner_id = o.id
+       WHERE b.id = $1 AND b.tenant_id = $2`,
+      [bookingId, tenantId]
+    );
+
+    if (bookingResult.rows.length === 0 || !bookingResult.rows[0].owner_email) {
+      return;
+    }
+
+    const booking = bookingResult.rows[0];
+
+    const petsResult = await query(
+      `SELECT p.name FROM "BookingPet" bp
+       JOIN "Pet" p ON bp.pet_id = p.id
+       WHERE bp.booking_id = $1`,
+      [bookingId]
+    );
+    const petNames = petsResult.rows.map(p => p.name).join(', ') || 'Your pet';
+
+    const { sendCheckOutConfirmation } = sharedLayer;
+    await sendCheckOutConfirmation(
+      booking,
+      { first_name: booking.owner_first_name, email: booking.owner_email },
+      { name: petNames },
+      totalPriceInCents
+    );
+
+    await logEmailToCommunication(tenantId, {
+      ownerId: booking.owner_id,
+      recipientEmail: booking.owner_email,
+      subject: `${petNames} is Ready for Pick-Up`,
+      content: `Automated check-out confirmation`,
+      status: 'sent',
+      templateUsed: 'checkOutConfirmation',
+    });
+
+    console.log('[EMAIL] Check-out confirmation sent to', booking.owner_email);
+  } catch (error) {
+    console.error('[EMAIL] Failed to send check-out confirmation:', error.message);
   }
 }
 
@@ -2987,4 +3314,763 @@ function getTaskColor(priority, status) {
     'LOW': '#6B7280',     // Gray
   };
   return priorityColors[priority?.toUpperCase()] || '#3B82F6';
+}
+
+// =============================================================================
+// EMAIL NOTIFICATION HANDLERS
+// =============================================================================
+
+/**
+ * Log email to Communication table
+ */
+async function logEmailToCommunication(tenantId, params) {
+  const { ownerId, type, subject, content, status, templateUsed, recipientEmail, userId } = params;
+  
+  try {
+    await getPoolAsync();
+    
+    await query(
+      `INSERT INTO "Communication" (tenant_id, owner_id, type, subject, content, direction, status, sent_at, created_by, metadata)
+       VALUES ($1, $2, 'EMAIL', $3, $4, 'outbound', $5, NOW(), $6, $7)`,
+      [
+        tenantId,
+        ownerId || null,
+        subject,
+        content,
+        status || 'sent',
+        userId || null,
+        JSON.stringify({
+          template: templateUsed || null,
+          recipientEmail: recipientEmail || null,
+        }),
+      ]
+    );
+    
+    console.log('[EMAIL] Logged to Communication table:', { subject, status });
+  } catch (error) {
+    console.error('[EMAIL] Failed to log to Communication table:', error.message);
+    // Don't fail the email operation if logging fails
+  }
+}
+
+/**
+ * Send a generic email
+ */
+async function handleSendEmail(tenantId, user, body) {
+  const { to, subject, html, text, templateName, variables } = body;
+
+  console.log('[EMAIL] handleSendEmail:', { tenantId, to, subject, templateName });
+
+  if (!to) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Recipient email address is required',
+    });
+  }
+
+  if (!subject && !templateName) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Subject or template name is required',
+    });
+  }
+
+  try {
+    const { sendEmail, sendTemplatedEmail } = sharedLayer;
+    let result;
+
+    if (templateName) {
+      result = await sendTemplatedEmail(templateName, to, variables || {});
+    } else {
+      result = await sendEmail({ to, subject, html, text });
+    }
+
+    // Log to Communication table
+    await logEmailToCommunication(tenantId, {
+      recipientEmail: to,
+      subject: subject || templateName,
+      content: text || html || `Template: ${templateName}`,
+      status: 'sent',
+      templateUsed: templateName,
+      userId: user?.id,
+    });
+
+    return createResponse(200, {
+      success: true,
+      messageId: result.messageId,
+      message: 'Email sent successfully',
+    });
+
+  } catch (error) {
+    console.error('[EMAIL] Failed to send:', error.message);
+
+    // Log failed email attempt
+    await logEmailToCommunication(tenantId, {
+      recipientEmail: to,
+      subject: subject || templateName,
+      content: `Failed: ${error.message}`,
+      status: 'failed',
+      templateUsed: templateName,
+      userId: user?.id,
+    });
+
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to send email',
+      details: error.message,
+    });
+  }
+}
+
+/**
+ * Send booking confirmation email
+ */
+async function handleSendBookingConfirmation(tenantId, user, body) {
+  const { bookingId, ownerId, ownerEmail } = body;
+
+  console.log('[EMAIL] handleSendBookingConfirmation:', { tenantId, bookingId, ownerId });
+
+  if (!bookingId && !ownerEmail) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'bookingId or ownerEmail is required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Get booking details with owner and pet info
+    let booking, owner, pets;
+
+    if (bookingId) {
+      const bookingResult = await query(
+        `SELECT
+           b.*,
+           o.id as owner_id,
+           o.first_name as owner_first_name,
+           o.last_name as owner_last_name,
+           o.email as owner_email,
+           s.name as service_name
+         FROM "Booking" b
+         LEFT JOIN "Owner" o ON b.owner_id = o.id
+         LEFT JOIN "Service" s ON b.service_id = s.id
+         WHERE b.id = $1 AND b.tenant_id = $2`,
+        [bookingId, tenantId]
+      );
+
+      if (bookingResult.rows.length === 0) {
+        return createResponse(404, {
+          error: 'Not Found',
+          message: 'Booking not found',
+        });
+      }
+
+      booking = bookingResult.rows[0];
+      owner = {
+        id: booking.owner_id,
+        first_name: booking.owner_first_name,
+        last_name: booking.owner_last_name,
+        email: booking.owner_email,
+      };
+
+      // Get pets for booking
+      const petsResult = await query(
+        `SELECT p.name FROM "BookingPet" bp
+         JOIN "Pet" p ON bp.pet_id = p.id
+         WHERE bp.booking_id = $1`,
+        [bookingId]
+      );
+      pets = petsResult.rows.map(p => p.name);
+    } else {
+      // If no bookingId, use the provided info
+      owner = { email: ownerEmail };
+      booking = body;
+      pets = body.petNames || [];
+    }
+
+    if (!owner.email) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Owner email not found',
+      });
+    }
+
+    // Get tenant info for branding
+    const tenantResult = await query(
+      `SELECT name, settings FROM "Tenant" WHERE id = $1`,
+      [tenantId]
+    );
+    const tenant = tenantResult.rows[0];
+
+    // Send email using shared layer
+    const { sendBookingConfirmation } = sharedLayer;
+    const result = await sendBookingConfirmation(
+      {
+        check_in: booking.check_in,
+        check_out: booking.check_out,
+        service_name: booking.service_name || booking.service_type || 'Boarding',
+        service_type: booking.service_type,
+      },
+      owner,
+      { name: pets.join(', ') || 'Your pet' },
+      tenant
+    );
+
+    // Log to Communication table
+    await logEmailToCommunication(tenantId, {
+      ownerId: owner.id,
+      recipientEmail: owner.email,
+      subject: `Booking Confirmed - ${pets.join(', ') || 'Your pet'}`,
+      content: `Booking confirmation for ${booking.check_in} to ${booking.check_out}`,
+      status: 'sent',
+      templateUsed: 'bookingConfirmation',
+      userId: user?.id,
+    });
+
+    return createResponse(200, {
+      success: true,
+      messageId: result.messageId,
+      message: 'Booking confirmation email sent',
+    });
+
+  } catch (error) {
+    console.error('[EMAIL] Failed to send booking confirmation:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to send booking confirmation',
+    });
+  }
+}
+
+/**
+ * Send booking reminder email
+ */
+async function handleSendBookingReminder(tenantId, user, body) {
+  const { bookingId } = body;
+
+  console.log('[EMAIL] handleSendBookingReminder:', { tenantId, bookingId });
+
+  if (!bookingId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'bookingId is required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Get booking with owner and pet info
+    const bookingResult = await query(
+      `SELECT
+         b.*,
+         o.id as owner_id,
+         o.first_name as owner_first_name,
+         o.email as owner_email,
+         s.name as service_name
+       FROM "Booking" b
+       LEFT JOIN "Owner" o ON b.owner_id = o.id
+       LEFT JOIN "Service" s ON b.service_id = s.id
+       WHERE b.id = $1 AND b.tenant_id = $2`,
+      [bookingId, tenantId]
+    );
+
+    if (bookingResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Booking not found',
+      });
+    }
+
+    const booking = bookingResult.rows[0];
+    const owner = {
+      id: booking.owner_id,
+      first_name: booking.owner_first_name,
+      email: booking.owner_email,
+    };
+
+    if (!owner.email) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Owner email not found',
+      });
+    }
+
+    // Get pets for booking
+    const petsResult = await query(
+      `SELECT p.name FROM "BookingPet" bp
+       JOIN "Pet" p ON bp.pet_id = p.id
+       WHERE bp.booking_id = $1`,
+      [bookingId]
+    );
+    const petNames = petsResult.rows.map(p => p.name).join(', ') || 'Your pet';
+
+    // Send email
+    const { sendBookingReminder } = sharedLayer;
+    const result = await sendBookingReminder(
+      {
+        check_in: booking.check_in,
+        check_out: booking.check_out,
+        service_name: booking.service_name || booking.service_type,
+      },
+      owner,
+      { name: petNames }
+    );
+
+    // Log to Communication table
+    await logEmailToCommunication(tenantId, {
+      ownerId: owner.id,
+      recipientEmail: owner.email,
+      subject: `Reminder: Upcoming Booking for ${petNames}`,
+      content: `Booking reminder for ${booking.check_in}`,
+      status: 'sent',
+      templateUsed: 'bookingReminder',
+      userId: user?.id,
+    });
+
+    return createResponse(200, {
+      success: true,
+      messageId: result.messageId,
+      message: 'Booking reminder email sent',
+    });
+
+  } catch (error) {
+    console.error('[EMAIL] Failed to send booking reminder:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to send booking reminder',
+    });
+  }
+}
+
+/**
+ * Send vaccination reminder email
+ */
+async function handleSendVaccinationReminder(tenantId, user, body) {
+  const { vaccinationId, petId, ownerId } = body;
+
+  console.log('[EMAIL] handleSendVaccinationReminder:', { tenantId, vaccinationId, petId, ownerId });
+
+  if (!vaccinationId && !petId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'vaccinationId or petId is required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Get vaccination with pet and owner info
+    let vaccQuery;
+    let params;
+
+    if (vaccinationId) {
+      vaccQuery = `
+        SELECT
+          v.*,
+          p.name as pet_name,
+          p.id as pet_id,
+          o.id as owner_id,
+          o.first_name as owner_first_name,
+          o.email as owner_email
+        FROM "Vaccination" v
+        JOIN "Pet" p ON v.pet_id = p.id
+        LEFT JOIN "PetOwner" po ON po.pet_id = p.id AND po.is_primary = true
+        LEFT JOIN "Owner" o ON po.owner_id = o.id
+        WHERE v.id = $1 AND v.tenant_id = $2`;
+      params = [vaccinationId, tenantId];
+    } else {
+      vaccQuery = `
+        SELECT
+          v.*,
+          p.name as pet_name,
+          p.id as pet_id,
+          o.id as owner_id,
+          o.first_name as owner_first_name,
+          o.email as owner_email
+        FROM "Vaccination" v
+        JOIN "Pet" p ON v.pet_id = p.id
+        LEFT JOIN "PetOwner" po ON po.pet_id = p.id AND po.is_primary = true
+        LEFT JOIN "Owner" o ON po.owner_id = o.id
+        WHERE v.pet_id = $1 AND v.tenant_id = $2
+        AND v.expires_at <= NOW() + INTERVAL '30 days'
+        ORDER BY v.expires_at ASC
+        LIMIT 1`;
+      params = [petId, tenantId];
+    }
+
+    const vaccResult = await query(vaccQuery, params);
+
+    if (vaccResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Vaccination record not found or no expiring vaccinations',
+      });
+    }
+
+    const vacc = vaccResult.rows[0];
+    const owner = {
+      id: vacc.owner_id,
+      first_name: vacc.owner_first_name,
+      email: vacc.owner_email,
+    };
+
+    if (!owner.email) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Owner email not found',
+      });
+    }
+
+    // Send email
+    const { sendVaccinationReminder } = sharedLayer;
+    const result = await sendVaccinationReminder(
+      {
+        vaccine_name: vacc.type,
+        expiration_date: vacc.expires_at,
+      },
+      owner,
+      { name: vacc.pet_name }
+    );
+
+    // Log to Communication table
+    await logEmailToCommunication(tenantId, {
+      ownerId: owner.id,
+      recipientEmail: owner.email,
+      subject: `Vaccination Reminder for ${vacc.pet_name}`,
+      content: `${vacc.type} expires on ${vacc.expires_at}`,
+      status: 'sent',
+      templateUsed: 'vaccinationReminder',
+      userId: user?.id,
+    });
+
+    return createResponse(200, {
+      success: true,
+      messageId: result.messageId,
+      message: 'Vaccination reminder email sent',
+    });
+
+  } catch (error) {
+    console.error('[EMAIL] Failed to send vaccination reminder:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to send vaccination reminder',
+    });
+  }
+}
+
+/**
+ * Send bulk vaccination reminders
+ * This is typically called by a scheduled Lambda
+ */
+async function handleBulkVaccinationReminders(tenantId, user, body) {
+  const { daysUntilExpiry = [30, 14, 7], dryRun = false } = body;
+
+  console.log('[EMAIL] handleBulkVaccinationReminders:', { tenantId, daysUntilExpiry, dryRun });
+
+  try {
+    await getPoolAsync();
+
+    // Find all vaccinations expiring within the specified windows
+    const vaccResult = await query(
+      `SELECT DISTINCT ON (v.id)
+         v.id as vaccination_id,
+         v.type as vaccine_type,
+         v.expires_at,
+         p.id as pet_id,
+         p.name as pet_name,
+         o.id as owner_id,
+         o.first_name as owner_first_name,
+         o.email as owner_email,
+         EXTRACT(DAY FROM v.expires_at - NOW())::integer as days_until_expiry
+       FROM "Vaccination" v
+       JOIN "Pet" p ON v.pet_id = p.id
+       LEFT JOIN "PetOwner" po ON po.pet_id = p.id AND po.is_primary = true
+       LEFT JOIN "Owner" o ON po.owner_id = o.id
+       WHERE v.tenant_id = $1
+         AND v.deleted_at IS NULL
+         AND o.email IS NOT NULL
+         AND (
+           DATE(v.expires_at) = CURRENT_DATE + INTERVAL '30 days'
+           OR DATE(v.expires_at) = CURRENT_DATE + INTERVAL '14 days'
+           OR DATE(v.expires_at) = CURRENT_DATE + INTERVAL '7 days'
+           OR v.expires_at < NOW()
+         )
+       ORDER BY v.id, v.expires_at ASC`,
+      [tenantId]
+    );
+
+    const reminders = vaccResult.rows;
+    console.log('[EMAIL] Found', reminders.length, 'vaccination reminders to send');
+
+    if (dryRun) {
+      return createResponse(200, {
+        success: true,
+        dryRun: true,
+        count: reminders.length,
+        reminders: reminders.map(r => ({
+          petName: r.pet_name,
+          vaccineType: r.vaccine_type,
+          expiresAt: r.expires_at,
+          daysUntilExpiry: r.days_until_expiry,
+          ownerEmail: r.owner_email,
+        })),
+        message: 'Dry run - no emails sent',
+      });
+    }
+
+    // Send emails
+    const { sendVaccinationReminder } = sharedLayer;
+    const results = { sent: 0, failed: 0, errors: [] };
+
+    for (const reminder of reminders) {
+      try {
+        await sendVaccinationReminder(
+          {
+            vaccine_name: reminder.vaccine_type,
+            expiration_date: reminder.expires_at,
+          },
+          {
+            first_name: reminder.owner_first_name,
+            email: reminder.owner_email,
+          },
+          { name: reminder.pet_name }
+        );
+
+        // Log to Communication table
+        await logEmailToCommunication(tenantId, {
+          ownerId: reminder.owner_id,
+          recipientEmail: reminder.owner_email,
+          subject: `Vaccination Reminder for ${reminder.pet_name}`,
+          content: `${reminder.vaccine_type} ${reminder.days_until_expiry < 0 ? 'expired' : 'expires'} on ${reminder.expires_at}`,
+          status: 'sent',
+          templateUsed: 'vaccinationReminder',
+        });
+
+        results.sent++;
+      } catch (error) {
+        console.error('[EMAIL] Failed to send vaccination reminder to', reminder.owner_email, ':', error.message);
+        results.failed++;
+        results.errors.push({
+          petName: reminder.pet_name,
+          ownerEmail: reminder.owner_email,
+          error: error.message,
+        });
+      }
+    }
+
+    return createResponse(200, {
+      success: true,
+      sent: results.sent,
+      failed: results.failed,
+      total: reminders.length,
+      errors: results.errors.length > 0 ? results.errors : undefined,
+      message: `Sent ${results.sent} vaccination reminder emails`,
+    });
+
+  } catch (error) {
+    console.error('[EMAIL] Failed to process bulk vaccination reminders:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to process vaccination reminders',
+    });
+  }
+}
+
+/**
+ * Send check-in confirmation email
+ */
+async function handleSendCheckInConfirmation(tenantId, user, body) {
+  const { bookingId } = body;
+
+  console.log('[EMAIL] handleSendCheckInConfirmation:', { tenantId, bookingId });
+
+  if (!bookingId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'bookingId is required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Get booking with owner and pet info
+    const bookingResult = await query(
+      `SELECT
+         b.*,
+         o.id as owner_id,
+         o.first_name as owner_first_name,
+         o.email as owner_email,
+         s.name as service_name
+       FROM "Booking" b
+       LEFT JOIN "Owner" o ON b.owner_id = o.id
+       LEFT JOIN "Service" s ON b.service_id = s.id
+       WHERE b.id = $1 AND b.tenant_id = $2`,
+      [bookingId, tenantId]
+    );
+
+    if (bookingResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Booking not found',
+      });
+    }
+
+    const booking = bookingResult.rows[0];
+    const owner = {
+      id: booking.owner_id,
+      first_name: booking.owner_first_name,
+      email: booking.owner_email,
+    };
+
+    if (!owner.email) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Owner email not found',
+      });
+    }
+
+    // Get pets for booking
+    const petsResult = await query(
+      `SELECT p.name FROM "BookingPet" bp
+       JOIN "Pet" p ON bp.pet_id = p.id
+       WHERE bp.booking_id = $1`,
+      [bookingId]
+    );
+    const petNames = petsResult.rows.map(p => p.name).join(', ') || 'Your pet';
+
+    // Send email
+    const { sendCheckInConfirmation } = sharedLayer;
+    const result = await sendCheckInConfirmation(
+      {
+        check_out: booking.check_out,
+        service_name: booking.service_name || booking.service_type,
+      },
+      owner,
+      { name: petNames }
+    );
+
+    // Log to Communication table
+    await logEmailToCommunication(tenantId, {
+      ownerId: owner.id,
+      recipientEmail: owner.email,
+      subject: `${petNames} Has Been Checked In`,
+      content: `Check-in confirmation for booking`,
+      status: 'sent',
+      templateUsed: 'checkInConfirmation',
+      userId: user?.id,
+    });
+
+    return createResponse(200, {
+      success: true,
+      messageId: result.messageId,
+      message: 'Check-in confirmation email sent',
+    });
+
+  } catch (error) {
+    console.error('[EMAIL] Failed to send check-in confirmation:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to send check-in confirmation',
+    });
+  }
+}
+
+/**
+ * Send check-out confirmation email
+ */
+async function handleSendCheckOutConfirmation(tenantId, user, body) {
+  const { bookingId } = body;
+
+  console.log('[EMAIL] handleSendCheckOutConfirmation:', { tenantId, bookingId });
+
+  if (!bookingId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'bookingId is required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Get booking with owner and pet info
+    const bookingResult = await query(
+      `SELECT
+         b.*,
+         o.id as owner_id,
+         o.first_name as owner_first_name,
+         o.email as owner_email
+       FROM "Booking" b
+       LEFT JOIN "Owner" o ON b.owner_id = o.id
+       WHERE b.id = $1 AND b.tenant_id = $2`,
+      [bookingId, tenantId]
+    );
+
+    if (bookingResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Booking not found',
+      });
+    }
+
+    const booking = bookingResult.rows[0];
+    const owner = {
+      id: booking.owner_id,
+      first_name: booking.owner_first_name,
+      email: booking.owner_email,
+    };
+
+    if (!owner.email) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Owner email not found',
+      });
+    }
+
+    // Get pets for booking
+    const petsResult = await query(
+      `SELECT p.name FROM "BookingPet" bp
+       JOIN "Pet" p ON bp.pet_id = p.id
+       WHERE bp.booking_id = $1`,
+      [bookingId]
+    );
+    const petNames = petsResult.rows.map(p => p.name).join(', ') || 'Your pet';
+
+    // Send email
+    const { sendCheckOutConfirmation } = sharedLayer;
+    const result = await sendCheckOutConfirmation(
+      booking,
+      owner,
+      { name: petNames },
+      booking.total_price_in_cents
+    );
+
+    // Log to Communication table
+    await logEmailToCommunication(tenantId, {
+      ownerId: owner.id,
+      recipientEmail: owner.email,
+      subject: `${petNames} is Ready for Pick-Up`,
+      content: `Check-out confirmation for booking`,
+      status: 'sent',
+      templateUsed: 'checkOutConfirmation',
+      userId: user?.id,
+    });
+
+    return createResponse(200, {
+      success: true,
+      messageId: result.messageId,
+      message: 'Check-out confirmation email sent',
+    });
+
+  } catch (error) {
+    console.error('[EMAIL] Failed to send check-out confirmation:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to send check-out confirmation',
+    });
+  }
 }

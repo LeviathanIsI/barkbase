@@ -503,6 +503,37 @@ export class ApiCoreStack extends cdk.Stack {
     });
 
     // =========================================================================
+    // NOTIFICATIONS API
+    // =========================================================================
+    // Email notification endpoints for booking confirmations, reminders, etc.
+    // Routes to operations-service
+    // /api/v1/notifications/* (PROTECTED)
+    // =========================================================================
+
+    this.httpApi.addRoutes({
+      path: '/api/v1/notifications',
+      methods: [
+        apigatewayv2.HttpMethod.GET,
+        apigatewayv2.HttpMethod.POST,
+      ],
+      integration: operationsIntegration,
+      authorizer, // JWT authorization required
+    });
+
+    this.httpApi.addRoutes({
+      path: '/api/v1/notifications/{proxy+}',
+      methods: [
+        apigatewayv2.HttpMethod.GET,
+        apigatewayv2.HttpMethod.POST,
+        apigatewayv2.HttpMethod.PUT,
+        apigatewayv2.HttpMethod.PATCH,
+        apigatewayv2.HttpMethod.DELETE,
+      ],
+      integration: operationsIntegration,
+      authorizer, // JWT authorization required
+    });
+
+    // =========================================================================
     // CUSTOM PROPERTIES API (v2)
     // =========================================================================
     // Enterprise custom fields system - routes to config service

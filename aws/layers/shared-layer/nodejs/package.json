@@ -1,11 +1,11 @@
 {
   "name": "barkbase-shared-layer",
   "version": "1.0.0",
-  "description": "BarkBase Shared Layer - Auth handler, security utils, JWT validation",
+  "description": "BarkBase Shared Layer - Auth handler, security utils, JWT validation, email",
   "dependencies": {
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.1.0",
-    "bcryptjs": "^2.4.3"
+    "bcryptjs": "^2.4.3",
+    "@aws-sdk/client-ses": "^3.658.0"
   }
 }
-

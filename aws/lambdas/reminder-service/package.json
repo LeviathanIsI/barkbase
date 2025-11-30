@@ -1,0 +1,11 @@
+{
+  "name": "barkbase-reminder-service",
+  "version": "1.0.0",
+  "description": "BarkBase Reminder Service - Scheduled email reminders for bookings and vaccinations",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"No tests yet\""
+  },
+  "dependencies": {}
+}
+
