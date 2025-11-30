@@ -23,8 +23,6 @@ import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import { Switch } from '@/components/ui/Switch';
 import Badge from '@/components/ui/Badge';
-// Replaced with LoadingState (mascot) for page-level loading
-import LoadingState from '@/components/ui/LoadingState';
 import {
   Card,
   CardContent,
@@ -160,7 +158,11 @@ export default function RoleEditor() {
   };
 
   if (isLoading && !isNew) {
-    return <LoadingState label="Loading role…" variant="mascot" />;
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted" />
+      </div>
+    );
   }
 
   if (!isNew && !isLoading && !role) {
@@ -182,7 +184,14 @@ export default function RoleEditor() {
   }
 
   if (!isNew && isLoading) {
-    return <LoadingState label="Loading role…" variant="mascot" />;
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted">Loading role...</p>
+        </div>
+      </div>
+    );
   }
 
   const isSystemRole = role?.isSystem;

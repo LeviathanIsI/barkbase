@@ -1,5 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+// Replaced with LoadingState (mascot) for page-level loading
+import LoadingState from '@/components/ui/LoadingState';
 import {
   CheckCircle,
   Circle,
@@ -484,23 +486,7 @@ const Tasks = () => {
 
   // Loading state
   if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <Skeleton className="h-4 w-32 mb-2" />
-            <Skeleton className="h-7 w-48 mb-1" />
-            <Skeleton className="h-4 w-64" />
-          </div>
-          <div className="flex gap-2">
-            <Skeleton className="h-10 w-32" />
-            <Skeleton className="h-10 w-28" />
-          </div>
-        </div>
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-96 w-full" />
-      </div>
-    );
+    return <LoadingState label="Loading tasks…" variant="mascot" />;
   }
 
   // Staff list for filters

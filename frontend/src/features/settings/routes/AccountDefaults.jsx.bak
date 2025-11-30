@@ -22,8 +22,6 @@ import Badge from '@/components/ui/Badge';
 import Dialog from '@/components/ui/Dialog';
 import Calendar from '@/components/ui/Calendar';
 import Select from '@/components/ui/Select';
-// Replaced with LoadingState (mascot) for page-level loading
-import LoadingState from '@/components/ui/LoadingState';
 import { apiClient, uploadClient } from '@/lib/apiClient';
 import { useTenantStore } from '@/stores/tenant';
 
@@ -437,7 +435,11 @@ const TabNav = ({ active, onSelect }) => (
   </div>
 );
 
-// Local LoadingState removed - using shared @/components/ui/LoadingState
+const LoadingState = () => (
+  <div className="flex h-64 items-center justify-center">
+    <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
+  </div>
+);
 const BusinessSection = ({
   register,
   control,
@@ -945,7 +947,7 @@ const AccountDefaults = () => {
   );
 
   if (accountDefaultsQuery.isLoading) {
-    return <LoadingState label="Loading account defaults…" variant="mascot" />;
+    return <LoadingState />;
   }
 
   if (accountDefaultsQuery.isError) {

@@ -1,6 +1,19 @@
 /**
- * Members - Phase 8 Enterprise Table System
- * Token-based styling for consistent theming.
+ * Members - Enterprise Staff/Team Management
+ *
+ * Displays and manages workspace memberships (staff/team for the tenant).
+ * Uses the Enterprise Memberships API via config-service.
+ *
+ * API Response Shape (from useMembersQuery):
+ * {
+ *   members: [{
+ *     id, membershipId, tenantId, userId, role, status,
+ *     email, firstName, lastName, name,
+ *     invitedAt, joinedAt, createdAt, updatedAt,
+ *     isCurrentUser: boolean
+ *   }],
+ *   total: number
+ * }
  */
 
 import { useState } from 'react';
@@ -57,7 +70,9 @@ const Members = () => {
   const canManageRoles = role === 'OWNER' || role === 'ADMIN';
 
   const members = membersQuery.data?.members ?? [];
-  const invites = membersQuery.data?.invites ?? [];
+  // Filter invited members from active members
+  const activeMembers = members.filter(m => m.status !== 'invited');
+  const invites = members.filter(m => m.status === 'invited');
 
   const handleRoleChange = async (membershipId, nextRole) => {
     try {
@@ -95,7 +110,14 @@ const Members = () => {
                 <Skeleton key={index} className="h-12 w-full" />
               ))}
             </div>
-          ) : members.length === 0 ? (
+          ) : membersQuery.isError ? (
+            <p
+              className="text-[var(--bb-font-size-sm,0.875rem)]"
+              style={{ color: 'var(--bb-color-text-error, #dc2626)' }}
+            >
+              Failed to load team members. Please try again.
+            </p>
+          ) : activeMembers.length === 0 ? (
             <p
               className="text-[var(--bb-font-size-sm,0.875rem)]"
               style={{ color: 'var(--bb-color-text-muted)' }}
@@ -107,26 +129,38 @@ const Members = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>Legacy Role</TableHead>
-                    <TableHead>Roles</TableHead>
+                    <TableHead>Role</TableHead>
                     <TableHead>Status</TableHead>
                     {canManage ? <TableHead className="text-right">Actions</TableHead> : null}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {members.map((member) => (
-                    <TableRow key={member.recordId}>
+                  {activeMembers.map((member) => (
+                    <TableRow key={member.id}>
                       <TableCell>
-                        <span style={{ color: 'var(--bb-color-text-primary)' }}>
-                          {member.user?.email ?? '—'}
+                        <div className="flex items-center gap-2">
+                          <span style={{ color: 'var(--bb-color-text-primary)' }}>
+                            {member.name || '—'}
+                          </span>
+                          {member.isCurrentUser && (
+                            <Badge variant="outline" className="text-[var(--bb-font-size-xs,0.75rem)]">
+                              You
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span style={{ color: 'var(--bb-color-text-muted)' }}>
+                          {member.email || '—'}
                         </span>
                       </TableCell>
                       <TableCell>
-                        {canManage ? (
+                        {canManage && !member.isCurrentUser ? (
                           <select
                             value={member.role}
-                            onChange={(event) => handleRoleChange(member.recordId, event.target.value)}
+                            onChange={(event) => handleRoleChange(member.id, event.target.value)}
                             className="rounded-lg border px-[var(--bb-space-2,0.5rem)] py-[var(--bb-space-1,0.25rem)] text-[var(--bb-font-size-sm,0.875rem)]"
                             style={{
                               borderColor: 'var(--bb-color-border-subtle)',
@@ -146,50 +180,24 @@ const Members = () => {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
-                          {member.user?.roles?.length > 0 ? (
-                            member.user.roles.map(role => (
-                              <Badge key={role.recordId} variant="outline" className="text-[var(--bb-font-size-xs,0.75rem)]">
-                                {role.name}
-                              </Badge>
-                            ))
-                          ) : (
-                            <span
-                              className="text-[var(--bb-font-size-xs,0.75rem)]"
-                              style={{ color: 'var(--bb-color-text-muted)' }}
-                            >
-                              No roles assigned
-                            </span>
-                          )}
-                          {canManageRoles && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => setManagingRoles(member.user)}
-                              className="h-6 w-6"
-                            >
-                              <Shield className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {member.user?.isActive ? (
+                        {member.status === 'active' ? (
                           <Badge variant="success">Active</Badge>
                         ) : (
-                          <Badge variant="neutral">Inactive</Badge>
+                          <Badge variant="neutral">{member.status || 'Active'}</Badge>
                         )}
                       </TableCell>
                       {canManage ? (
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemove(member.recordId)}
-                            disabled={removeMember.isPending}
-                          >
-                            Remove
-                          </Button>
+                          {!member.isCurrentUser && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemove(member.id)}
+                              disabled={removeMember.isPending}
+                            >
+                              Remove
+                            </Button>
+                          )}
                         </TableCell>
                       ) : null}
                     </TableRow>
@@ -199,7 +207,7 @@ const Members = () => {
             </div>
           )}
         </Card>
-        <Card title="Pending Invites" description="Invitations expire automatically after seven days.">
+        <Card title="Pending Invites" description="Invited members who haven't joined yet.">
           {invites.length === 0 ? (
             <p
               className="text-[var(--bb-font-size-sm,0.875rem)]"
@@ -211,7 +219,7 @@ const Members = () => {
             <ul className="space-y-[var(--bb-space-3,0.75rem)]">
               {invites.map((invite) => (
                 <li
-                  key={invite.recordId}
+                  key={invite.id}
                   className="rounded-lg border p-[var(--bb-space-3,0.75rem)]"
                   style={{
                     borderColor: 'var(--bb-color-border-subtle)',
@@ -233,9 +241,19 @@ const Members = () => {
                         Role: {invite.role}
                       </p>
                     </div>
-                    <Badge variant="neutral">
-                      Expires {new Date(invite.expiresAt).toLocaleDateString()}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="warning">Pending</Badge>
+                      {canManage && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemove(invite.id)}
+                          disabled={removeMember.isPending}
+                        >
+                          Cancel
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </li>
               ))}

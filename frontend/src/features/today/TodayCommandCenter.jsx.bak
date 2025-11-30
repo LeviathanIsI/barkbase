@@ -12,8 +12,7 @@ import TodayBatchCheckInModal from '@/features/today/components/TodayBatchCheckI
 import TodayBatchCheckOutModal from '@/features/today/components/TodayBatchCheckOutModal';
 import useTodayBookingsSnapshot, { getTodayBookingsSnapshotKey } from '@/features/today/hooks/useTodayBookingsSnapshot';
 import SinglePageBookingWizard from '@/features/bookings/components/SinglePageBookingWizard';
-// Replaced with LoadingState (mascot) for page-level loading
-import LoadingState from '@/components/ui/LoadingState';
+import { PageLoader } from '@/components/PageLoader';
 import TodayCard from '@/features/today/components/TodayCard';
 import TodaySection from '@/features/today/components/TodaySection';
 import Badge from '@/components/ui/Badge';
@@ -142,7 +141,7 @@ const TodayCommandCenter = () => {
   // ============================================================================
 
   if (loadingSnapshot) {
-    return <LoadingState label="Loading today's schedule…" variant="mascot" />;
+    return <PageLoader label="Loading today's schedule…" />;
   }
 
   // Show booking wizard in full-page mode

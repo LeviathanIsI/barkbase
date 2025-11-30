@@ -385,58 +385,135 @@ export const useBookingsInsightsQuery = (options = {}) => {
   });
 };
 
-// Members API
-export const useMembersQuery = () => {
+// =============================================================================
+// ENTERPRISE MEMBERSHIPS API
+// =============================================================================
+//
+// Memberships represent staff/team members for the current tenant.
+// This is the canonical interface for org management in BarkBase.
+//
+// Routes handled by config-service Lambda:
+// - GET /api/v1/memberships - List all team members
+// - POST /api/v1/memberships - Invite/create new member
+// - PUT /api/v1/memberships/:id - Update member role/status
+// - DELETE /api/v1/memberships/:id - Remove member from team
+// =============================================================================
+
+/**
+ * Fetch all team members (memberships) for the current tenant.
+ *
+ * Response shape from config-service:
+ * {
+ *   success: true,
+ *   data: [...],   // Array of membership objects
+ *   members: [...], // Same array (for compatibility)
+ *   total: number
+ * }
+ *
+ * Each member object:
+ * {
+ *   id, membershipId, tenantId, userId, role, status,
+ *   email, firstName, lastName, name,
+ *   invitedAt, joinedAt, createdAt, updatedAt,
+ *   isCurrentUser: boolean
+ * }
+ */
+export const useMembersQuery = (options = {}) => {
   const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
   return useQuery({
     queryKey: ['members', tenantKey],
     queryFn: async () => {
-      const res = await apiClient.get('/api/v1/memberships');
-      return res.data;
+      const res = await apiClient.get(canonicalEndpoints.memberships.list);
+      const data = res.data;
+
+      // Normalize response - backend returns both `data` and `members`
+      const members = data?.data || data?.members || [];
+
+      return {
+        members,
+        total: data?.total || members.length,
+      };
     },
+    enabled: isTenantReady,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    ...options,
   });
 };
 
+/**
+ * Update a team member's role or status.
+ *
+ * Requires OWNER or ADMIN role. Only OWNER can modify OWNER/ADMIN memberships.
+ */
 export const useUpdateMemberRoleMutation = () => {
   const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
 
   return useMutation({
-    mutationFn: async ({ membershipId, role }) => {
-      const res = await apiClient.put(`/api/v1/memberships/${membershipId}`, { role });
+    mutationFn: async ({ membershipId, role, status }) => {
+      const res = await apiClient.put(
+        canonicalEndpoints.memberships.update(membershipId),
+        { role, status }
+      );
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['members'] });
+      queryClient.invalidateQueries({ queryKey: ['members', tenantKey] });
     },
   });
 };
 
+/**
+ * Remove a team member from the tenant.
+ *
+ * Requires OWNER or ADMIN role. Only OWNER can remove OWNER/ADMIN members.
+ * Users cannot remove themselves.
+ */
 export const useRemoveMemberMutation = () => {
   const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
 
   return useMutation({
     mutationFn: async (membershipId) => {
-      const res = await apiClient.delete(`/api/v1/memberships/${membershipId}`);
+      const res = await apiClient.delete(
+        canonicalEndpoints.memberships.delete(membershipId)
+      );
       return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['members'] });
+      queryClient.invalidateQueries({ queryKey: ['members', tenantKey] });
     },
   });
 };
 
-// Invites API
+/**
+ * Invite a new team member to the tenant.
+ *
+ * Creates a new user (if not exists) and membership record.
+ * Requires OWNER or ADMIN role. Only OWNER can assign OWNER/ADMIN roles.
+ *
+ * Payload:
+ * {
+ *   email: string (required),
+ *   role: 'OWNER' | 'ADMIN' | 'STAFF' | 'READONLY' (default: 'STAFF'),
+ *   firstName?: string,
+ *   lastName?: string
+ * }
+ */
 export const useInviteMemberMutation = () => {
   const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
 
   return useMutation({
     mutationFn: async (inviteData) => {
-      const res = await apiClient.post('/api/v1/invites', inviteData);
+      const res = await apiClient.post(canonicalEndpoints.memberships.create, inviteData);
       return res.data;
     },
     onSuccess: () => {
-      // Invalidate members query to refetch with new invites
-      queryClient.invalidateQueries({ queryKey: ['members'] });
+      // Invalidate members query to refetch with new member
+      queryClient.invalidateQueries({ queryKey: ['members', tenantKey] });
     },
   });
 };

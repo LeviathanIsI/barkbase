@@ -9,9 +9,7 @@ import {
 import EntityToolbar from '@/components/EntityToolbar';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-// Replaced with LoadingState (mascot) for page-level loading
-import LoadingState from '@/components/ui/LoadingState';
-import { UpdateChip } from '@/components/PageLoader';
+import { PageLoader, UpdateChip } from '@/components/PageLoader';
 import { useOwnersQuery, useCreateOwnerMutation } from '../api';
 import OwnerFormModal from '../components/OwnerFormModal';
 import { formatCurrency } from '@/lib/utils';
@@ -410,7 +408,7 @@ const Owners = () => {
         {/* Table Section - Uses full available width in content area */}
         <div className="flex-1 flex flex-col mt-4">
           {showSkeleton ? (
-            <LoadingState label="Loading owners…" variant="mascot" />
+            <PageLoader label="Loading owners…" />
           ) : sortedOwners.length === 0 ? (
             <div className="py-8">
               <EmptyState hasFilters={hasActiveFilters} onClearFilters={clearFilters} onAddOwner={() => setFormModalOpen(true)} />

@@ -12,6 +12,12 @@
  * - GET /api/v1/config/system - Get system configuration
  * - GET /api/v1/config/settings - Get all settings
  *
+ * Enterprise Memberships API:
+ * - GET /api/v1/memberships - List staff members for current tenant
+ * - POST /api/v1/memberships - Create/invite new staff member
+ * - PUT /api/v1/memberships/:id - Update member role/status
+ * - DELETE /api/v1/memberships/:id - Remove member from tenant
+ *
  * =============================================================================
  */
 
@@ -120,6 +126,37 @@ exports.handler = async (event, context) => {
       if (method === 'GET') {
         return handleGetSettings(user);
       }
+    }
+
+    // =========================================================================
+    // ENTERPRISE MEMBERSHIPS API
+    // =========================================================================
+    // Memberships represent the link between Users and Tenants (staff/team).
+    // This is the canonical staff/org management interface for BarkBase.
+    // All membership operations are tenant-scoped via the authenticated user.
+    // =========================================================================
+
+    // GET /api/v1/memberships - List all members for current tenant
+    if ((path === '/api/v1/memberships' || path === '/memberships') && method === 'GET') {
+      return handleGetMemberships(user);
+    }
+
+    // POST /api/v1/memberships - Create/invite new member
+    if ((path === '/api/v1/memberships' || path === '/memberships') && method === 'POST') {
+      return handleCreateMembership(user, parseBody(event));
+    }
+
+    // PUT/PATCH /api/v1/memberships/:id - Update member role/status
+    const membershipUpdateMatch = path.match(/^\/(?:api\/v1\/)?memberships\/([a-f0-9-]+)$/i);
+    if (membershipUpdateMatch && (method === 'PUT' || method === 'PATCH')) {
+      const membershipId = membershipUpdateMatch[1];
+      return handleUpdateMembership(user, membershipId, parseBody(event));
+    }
+
+    // DELETE /api/v1/memberships/:id - Remove member from tenant
+    if (membershipUpdateMatch && method === 'DELETE') {
+      const membershipId = membershipUpdateMatch[1];
+      return handleDeleteMembership(user, membershipId);
     }
 
     // Default response for unmatched routes
@@ -648,6 +685,499 @@ async function handleGetSettings(user) {
     return createResponse(500, {
       error: 'Internal Server Error',
       message: 'Failed to retrieve settings',
+    });
+  }
+}
+
+// =============================================================================
+// ENTERPRISE MEMBERSHIPS API
+// =============================================================================
+//
+// Memberships represent the relationship between Users and Tenants.
+// This is the canonical interface for managing staff/team members in BarkBase.
+//
+// Schema (Membership table):
+//   id, tenant_id, user_id, role, status, invited_at, joined_at, created_at, updated_at
+//
+// NOTE: All membership operations are tenant-scoped. The membershipId must
+// belong to the current user's tenant_id to be accessible.
+//
+// =============================================================================
+
+/**
+ * Get all memberships (staff members) for the current tenant
+ *
+ * Returns list of team members with user details (name, email, role, status).
+ * Only returns memberships belonging to the authenticated user's tenant.
+ */
+async function handleGetMemberships(user) {
+  console.log('[CONFIG-SERVICE] handleGetMemberships - start');
+
+  try {
+    await getPoolAsync();
+
+    // First get the user's tenant
+    const userResult = await query(
+      `SELECT tenant_id, role FROM "User" WHERE cognito_sub = $1`,
+      [user.id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'User not found',
+      });
+    }
+
+    const { tenant_id: tenantId } = userResult.rows[0];
+
+    if (!tenantId) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'User has no associated tenant',
+      });
+    }
+
+    // Get all memberships for this tenant with user details
+    const result = await query(
+      `SELECT
+         m.id,
+         m.tenant_id,
+         m.user_id,
+         m.role,
+         m.status,
+         m.invited_at,
+         m.joined_at,
+         m.created_at,
+         m.updated_at,
+         u.email,
+         u.first_name,
+         u.last_name,
+         u.cognito_sub
+       FROM "Membership" m
+       LEFT JOIN "User" u ON m.user_id = u.id
+       WHERE m.tenant_id = $1
+       ORDER BY m.created_at DESC`,
+      [tenantId]
+    );
+
+    console.log('[CONFIG-SERVICE] handleGetMemberships - found:', result.rows.length, 'members');
+
+    // Transform to frontend-friendly format
+    const members = result.rows.map(row => ({
+      id: row.id,
+      membershipId: row.id,
+      tenantId: row.tenant_id,
+      userId: row.user_id,
+      role: row.role,
+      status: row.status || 'active',
+      invitedAt: row.invited_at,
+      joinedAt: row.joined_at,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      // User details
+      email: row.email,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      name: row.first_name && row.last_name
+        ? `${row.first_name} ${row.last_name}`
+        : row.email,
+      // Flag if this is the current user
+      isCurrentUser: row.cognito_sub === user.id,
+    }));
+
+    return createResponse(200, {
+      success: true,
+      data: members,
+      members,
+      total: members.length,
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to get memberships:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve team members',
+    });
+  }
+}
+
+/**
+ * Create a new membership (invite staff member to tenant)
+ *
+ * Creates a new user (if not exists) and membership record.
+ * Requires OWNER or ADMIN role.
+ */
+async function handleCreateMembership(user, body) {
+  const { email, role = 'STAFF', firstName, lastName } = body;
+
+  console.log('[CONFIG-SERVICE] handleCreateMembership - start', { email, role });
+
+  if (!email) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Email is required',
+    });
+  }
+
+  // Validate role
+  const validRoles = ['OWNER', 'ADMIN', 'STAFF', 'READONLY'];
+  if (!validRoles.includes(role)) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: `Invalid role. Must be one of: ${validRoles.join(', ')}`,
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Get current user's tenant and verify permission
+    const userResult = await query(
+      `SELECT tenant_id, role FROM "User" WHERE cognito_sub = $1`,
+      [user.id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'User not found',
+      });
+    }
+
+    const { tenant_id: tenantId, role: currentUserRole } = userResult.rows[0];
+
+    // Only OWNER or ADMIN can create memberships
+    if (!['OWNER', 'ADMIN'].includes(currentUserRole)) {
+      return createResponse(403, {
+        error: 'Forbidden',
+        message: 'You do not have permission to invite team members',
+      });
+    }
+
+    // Only OWNER can create OWNER or ADMIN memberships
+    if (['OWNER', 'ADMIN'].includes(role) && currentUserRole !== 'OWNER') {
+      return createResponse(403, {
+        error: 'Forbidden',
+        message: 'Only owners can assign admin or owner roles',
+      });
+    }
+
+    // Check if user with this email already exists
+    const existingUser = await query(
+      `SELECT id FROM "User" WHERE email = $1`,
+      [email.toLowerCase()]
+    );
+
+    let userId;
+
+    if (existingUser.rows.length > 0) {
+      userId = existingUser.rows[0].id;
+
+      // Check if already a member of this tenant
+      const existingMembership = await query(
+        `SELECT id FROM "Membership" WHERE user_id = $1 AND tenant_id = $2`,
+        [userId, tenantId]
+      );
+
+      if (existingMembership.rows.length > 0) {
+        return createResponse(409, {
+          error: 'Conflict',
+          message: 'This user is already a member of your team',
+        });
+      }
+    } else {
+      // Create new user record (pending Cognito signup)
+      const newUser = await query(
+        `INSERT INTO "User" (email, first_name, last_name, role, tenant_id, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+         RETURNING id`,
+        [email.toLowerCase(), firstName || null, lastName || null, role, tenantId]
+      );
+      userId = newUser.rows[0].id;
+    }
+
+    // Create membership record
+    const membership = await query(
+      `INSERT INTO "Membership" (tenant_id, user_id, role, status, invited_at, created_at, updated_at)
+       VALUES ($1, $2, $3, 'invited', NOW(), NOW(), NOW())
+       RETURNING *`,
+      [tenantId, userId, role]
+    );
+
+    const newMembership = membership.rows[0];
+
+    console.log('[CONFIG-SERVICE] handleCreateMembership - created:', newMembership.id);
+
+    return createResponse(201, {
+      success: true,
+      message: 'Team member invited successfully',
+      membership: {
+        id: newMembership.id,
+        membershipId: newMembership.id,
+        tenantId: newMembership.tenant_id,
+        userId: newMembership.user_id,
+        role: newMembership.role,
+        status: newMembership.status,
+        invitedAt: newMembership.invited_at,
+        createdAt: newMembership.created_at,
+        email,
+        firstName,
+        lastName,
+        name: firstName && lastName ? `${firstName} ${lastName}` : email,
+      },
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to create membership:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to invite team member',
+    });
+  }
+}
+
+/**
+ * Update a membership (change role or status)
+ *
+ * Requires OWNER or ADMIN role. Only OWNER can modify OWNER/ADMIN memberships.
+ * NOTE: membershipId must belong to the current tenant.
+ */
+async function handleUpdateMembership(user, membershipId, body) {
+  const { role, status } = body;
+
+  console.log('[CONFIG-SERVICE] handleUpdateMembership - start', { membershipId, role, status });
+
+  if (!role && !status) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'At least one field (role or status) is required',
+    });
+  }
+
+  // Validate role if provided
+  if (role) {
+    const validRoles = ['OWNER', 'ADMIN', 'STAFF', 'READONLY'];
+    if (!validRoles.includes(role)) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: `Invalid role. Must be one of: ${validRoles.join(', ')}`,
+      });
+    }
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Get current user's tenant and role
+    const userResult = await query(
+      `SELECT tenant_id, role, id as user_id FROM "User" WHERE cognito_sub = $1`,
+      [user.id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'User not found',
+      });
+    }
+
+    const { tenant_id: tenantId, role: currentUserRole, user_id: currentUserId } = userResult.rows[0];
+
+    // Only OWNER or ADMIN can update memberships
+    if (!['OWNER', 'ADMIN'].includes(currentUserRole)) {
+      return createResponse(403, {
+        error: 'Forbidden',
+        message: 'You do not have permission to update team members',
+      });
+    }
+
+    // Get the membership being updated (ensure it belongs to this tenant)
+    const membershipResult = await query(
+      `SELECT m.*, u.id as target_user_id
+       FROM "Membership" m
+       LEFT JOIN "User" u ON m.user_id = u.id
+       WHERE m.id = $1 AND m.tenant_id = $2`,
+      [membershipId, tenantId]
+    );
+
+    if (membershipResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Membership not found',
+      });
+    }
+
+    const targetMembership = membershipResult.rows[0];
+
+    // Prevent self-demotion for owners
+    if (targetMembership.target_user_id === currentUserId && role && role !== 'OWNER' && targetMembership.role === 'OWNER') {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'You cannot demote yourself from owner',
+      });
+    }
+
+    // Only OWNER can modify OWNER/ADMIN memberships
+    if (['OWNER', 'ADMIN'].includes(targetMembership.role) && currentUserRole !== 'OWNER') {
+      return createResponse(403, {
+        error: 'Forbidden',
+        message: 'Only owners can modify admin or owner memberships',
+      });
+    }
+
+    // Only OWNER can assign OWNER/ADMIN roles
+    if (role && ['OWNER', 'ADMIN'].includes(role) && currentUserRole !== 'OWNER') {
+      return createResponse(403, {
+        error: 'Forbidden',
+        message: 'Only owners can assign admin or owner roles',
+      });
+    }
+
+    // Build update query
+    const updates = ['updated_at = NOW()'];
+    const values = [membershipId, tenantId];
+    let paramIndex = 3;
+
+    if (role) {
+      updates.push(`role = $${paramIndex++}`);
+      values.push(role);
+    }
+    if (status) {
+      updates.push(`status = $${paramIndex++}`);
+      values.push(status);
+    }
+
+    const result = await query(
+      `UPDATE "Membership"
+       SET ${updates.join(', ')}
+       WHERE id = $1 AND tenant_id = $2
+       RETURNING *`,
+      values
+    );
+
+    const updatedMembership = result.rows[0];
+
+    console.log('[CONFIG-SERVICE] handleUpdateMembership - updated:', updatedMembership.id);
+
+    return createResponse(200, {
+      success: true,
+      message: 'Team member updated successfully',
+      membership: {
+        id: updatedMembership.id,
+        membershipId: updatedMembership.id,
+        tenantId: updatedMembership.tenant_id,
+        userId: updatedMembership.user_id,
+        role: updatedMembership.role,
+        status: updatedMembership.status,
+        updatedAt: updatedMembership.updated_at,
+      },
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to update membership:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to update team member',
+    });
+  }
+}
+
+/**
+ * Delete a membership (remove member from tenant)
+ *
+ * Hard deletes the membership record. Requires OWNER or ADMIN role.
+ * NOTE: membershipId must belong to the current tenant.
+ */
+async function handleDeleteMembership(user, membershipId) {
+  console.log('[CONFIG-SERVICE] handleDeleteMembership - start', { membershipId });
+
+  try {
+    await getPoolAsync();
+
+    // Get current user's tenant and role
+    const userResult = await query(
+      `SELECT tenant_id, role, id as user_id FROM "User" WHERE cognito_sub = $1`,
+      [user.id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'User not found',
+      });
+    }
+
+    const { tenant_id: tenantId, role: currentUserRole, user_id: currentUserId } = userResult.rows[0];
+
+    // Only OWNER or ADMIN can delete memberships
+    if (!['OWNER', 'ADMIN'].includes(currentUserRole)) {
+      return createResponse(403, {
+        error: 'Forbidden',
+        message: 'You do not have permission to remove team members',
+      });
+    }
+
+    // Get the membership being deleted (ensure it belongs to this tenant)
+    const membershipResult = await query(
+      `SELECT m.*, u.id as target_user_id
+       FROM "Membership" m
+       LEFT JOIN "User" u ON m.user_id = u.id
+       WHERE m.id = $1 AND m.tenant_id = $2`,
+      [membershipId, tenantId]
+    );
+
+    if (membershipResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Membership not found',
+      });
+    }
+
+    const targetMembership = membershipResult.rows[0];
+
+    // Prevent self-removal
+    if (targetMembership.target_user_id === currentUserId) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'You cannot remove yourself from the team',
+      });
+    }
+
+    // Only OWNER can remove OWNER/ADMIN members
+    if (['OWNER', 'ADMIN'].includes(targetMembership.role) && currentUserRole !== 'OWNER') {
+      return createResponse(403, {
+        error: 'Forbidden',
+        message: 'Only owners can remove admin or owner members',
+      });
+    }
+
+    // Delete the membership
+    const result = await query(
+      `DELETE FROM "Membership" WHERE id = $1 AND tenant_id = $2 RETURNING id`,
+      [membershipId, tenantId]
+    );
+
+    if (result.rowCount === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Membership not found',
+      });
+    }
+
+    console.log('[CONFIG-SERVICE] handleDeleteMembership - deleted:', membershipId);
+
+    return createResponse(200, {
+      success: true,
+      message: 'Team member removed successfully',
+      deletedMembershipId: membershipId,
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to delete membership:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to remove team member',
     });
   }
 }

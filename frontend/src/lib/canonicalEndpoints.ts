@@ -145,6 +145,15 @@ export const canonicalEndpoints = {
     category: build('/api/v1/config/settings/{id}'),
     reset: '/api/v1/config/settings/reset',
   },
+
+  // Enterprise Memberships API - /api/v1/memberships
+  // Staff/team management for current tenant
+  memberships: {
+    list: '/api/v1/memberships',
+    create: '/api/v1/memberships',
+    update: build('/api/v1/memberships/{id}'),
+    delete: build('/api/v1/memberships/{id}'),
+  },
   features: {
     list: '/api/v1/config/features',
     detail: build('/api/v1/config/features/{id}'),
