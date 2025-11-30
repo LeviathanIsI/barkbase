@@ -481,6 +481,28 @@ export class ApiCoreStack extends cdk.Stack {
     });
 
     // =========================================================================
+    // CALENDAR API
+    // =========================================================================
+    // Calendar endpoints for unified event view (bookings, tasks, runs)
+    // Routes to operations-service
+    // /api/v1/calendar/* (PROTECTED)
+    // =========================================================================
+
+    this.httpApi.addRoutes({
+      path: '/api/v1/calendar/events',
+      methods: [apigatewayv2.HttpMethod.GET],
+      integration: operationsIntegration,
+      authorizer, // JWT authorization required
+    });
+
+    this.httpApi.addRoutes({
+      path: '/api/v1/calendar/occupancy',
+      methods: [apigatewayv2.HttpMethod.GET],
+      integration: operationsIntegration,
+      authorizer, // JWT authorization required
+    });
+
+    // =========================================================================
     // CUSTOM PROPERTIES API (v2)
     // =========================================================================
     // Enterprise custom fields system - routes to config service

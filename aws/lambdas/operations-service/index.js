@@ -14,6 +14,8 @@
  * - GET /api/v1/operations/tasks/{id} - Get task
  * - POST /api/v1/operations/tasks - Create task
  * - PUT /api/v1/operations/tasks/{id} - Update task
+ * - GET /api/v1/calendar/events - Get calendar events (bookings, tasks, runs)
+ * - GET /api/v1/calendar/occupancy - Get occupancy data
  *
  * =============================================================================
  */
@@ -190,6 +192,21 @@ exports.handler = async (event, context) => {
     if (path === '/api/v1/operations/notifications' || path === '/operations/notifications') {
       if (method === 'GET') {
         return handleGetNotifications(tenantId);
+      }
+    }
+
+    // ==========================================================================
+    // Calendar routes - /api/v1/calendar/*
+    // ==========================================================================
+    if (path === '/api/v1/calendar/events' || path === '/calendar/events') {
+      if (method === 'GET') {
+        return handleGetCalendarEvents(tenantId, event.queryStringParameters || {});
+      }
+    }
+
+    if (path === '/api/v1/calendar/occupancy' || path === '/calendar/occupancy') {
+      if (method === 'GET') {
+        return handleGetOccupancy(tenantId, event.queryStringParameters || {});
       }
     }
 
@@ -2565,4 +2582,409 @@ async function handleRemovePetFromRun(tenantId, runId, body) {
       message: 'Failed to remove pet from run',
     });
   }
+}
+
+// =============================================================================
+// CALENDAR HANDLERS
+// =============================================================================
+
+/**
+ * Get calendar events for a date range
+ * Aggregates bookings, tasks, and run assignments into unified calendar events
+ *
+ * Query params:
+ *   - start: Start date (YYYY-MM-DD or ISO timestamp)
+ *   - end: End date (YYYY-MM-DD or ISO timestamp)
+ *   - types: Comma-separated list of event types (booking,task,run)
+ */
+async function handleGetCalendarEvents(tenantId, queryParams) {
+  const { start, end, types } = queryParams;
+
+  console.log('[Calendar][events] tenantId:', tenantId, 'params:', { start, end, types });
+
+  if (!start || !end) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'start and end date parameters are required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const events = [];
+    const typeFilter = types ? types.split(',').map(t => t.trim().toLowerCase()) : ['booking', 'task', 'run'];
+
+    // Fetch bookings as calendar events
+    if (typeFilter.includes('booking') || typeFilter.includes('bookings')) {
+      const bookingsResult = await query(
+        `SELECT
+           b.id,
+           b.status,
+           b.check_in AS start_date,
+           b.check_out AS end_date,
+           b.service_type,
+           COALESCE(b.service_name, s.name) as service_name,
+           COALESCE(b.kennel_name, k.name) as kennel_name,
+           b.room_number,
+           b.notes,
+           o.first_name as owner_first_name,
+           o.last_name as owner_last_name
+         FROM "Booking" b
+         LEFT JOIN "Service" s ON b.service_id = s.id
+         LEFT JOIN "Kennel" k ON b.kennel_id = k.id
+         LEFT JOIN "Owner" o ON b.owner_id = o.id
+         WHERE b.tenant_id = $1
+           AND b.deleted_at IS NULL
+           AND DATE(b.check_in) <= $3::date
+           AND DATE(b.check_out) >= $2::date
+         ORDER BY b.check_in ASC`,
+        [tenantId, start, end]
+      );
+
+      // Get pets for each booking
+      const bookingIds = bookingsResult.rows.map(b => b.id);
+      let petsMap = {};
+
+      if (bookingIds.length > 0) {
+        const petsResult = await query(
+          `SELECT bp.booking_id, p.id, p.name, p.species, p.breed, p.photo_url
+           FROM "BookingPet" bp
+           JOIN "Pet" p ON bp.pet_id = p.id
+           WHERE bp.booking_id = ANY($1)`,
+          [bookingIds]
+        );
+
+        petsResult.rows.forEach(pet => {
+          if (!petsMap[pet.booking_id]) {
+            petsMap[pet.booking_id] = [];
+          }
+          petsMap[pet.booking_id].push({
+            id: pet.id,
+            name: pet.name,
+            species: pet.species,
+            breed: pet.breed,
+            photoUrl: pet.photo_url,
+          });
+        });
+      }
+
+      bookingsResult.rows.forEach(row => {
+        const pets = petsMap[row.id] || [];
+        const petNames = pets.map(p => p.name).join(', ');
+
+        events.push({
+          id: row.id,
+          type: 'booking',
+          title: petNames || 'Booking',
+          start: row.start_date,
+          end: row.end_date,
+          status: row.status,
+          serviceType: row.service_type,
+          serviceName: row.service_name,
+          kennelName: row.kennel_name,
+          roomNumber: row.room_number,
+          notes: row.notes,
+          ownerName: row.owner_first_name
+            ? `${row.owner_first_name} ${row.owner_last_name || ''}`.trim()
+            : null,
+          pets: pets,
+          color: getBookingColor(row.status),
+        });
+      });
+    }
+
+    // Fetch tasks as calendar events
+    if (typeFilter.includes('task') || typeFilter.includes('tasks')) {
+      const tasksResult = await query(
+        `SELECT
+           t.id,
+           t.title,
+           t.description,
+           t.status,
+           t.priority,
+           t.type,
+           t.scheduled_for,
+           t.due_at,
+           u.first_name as assignee_first_name,
+           u.last_name as assignee_last_name,
+           p.name as pet_name
+         FROM "Task" t
+         LEFT JOIN "User" u ON t.assigned_to = u.id
+         LEFT JOIN "Pet" p ON t.pet_id = p.id
+         WHERE t.tenant_id = $1
+           AND t.deleted_at IS NULL
+           AND (
+             (t.scheduled_for IS NOT NULL AND DATE(t.scheduled_for) BETWEEN $2::date AND $3::date)
+             OR (t.due_at IS NOT NULL AND DATE(t.due_at) BETWEEN $2::date AND $3::date)
+           )
+         ORDER BY COALESCE(t.scheduled_for, t.due_at) ASC`,
+        [tenantId, start, end]
+      );
+
+      tasksResult.rows.forEach(row => {
+        events.push({
+          id: row.id,
+          type: 'task',
+          title: row.title,
+          description: row.description,
+          start: row.scheduled_for || row.due_at,
+          end: row.scheduled_for || row.due_at,
+          status: row.status,
+          priority: row.priority,
+          taskType: row.type,
+          assigneeName: row.assignee_first_name
+            ? `${row.assignee_first_name} ${row.assignee_last_name || ''}`.trim()
+            : null,
+          petName: row.pet_name,
+          color: getTaskColor(row.priority, row.status),
+        });
+      });
+    }
+
+    // Fetch run assignments as calendar events
+    if (typeFilter.includes('run') || typeFilter.includes('runs')) {
+      const runsResult = await query(
+        `SELECT
+           ra.id,
+           ra.run_id,
+           ra.pet_id,
+           ra.start_at,
+           ra.end_at,
+           ra.status,
+           ra.notes,
+           r.name as run_name,
+           r.code as run_code,
+           p.name as pet_name,
+           p.species as pet_species,
+           p.photo_url as pet_photo_url
+         FROM "RunAssignment" ra
+         JOIN "Run" r ON ra.run_id = r.id AND r.tenant_id = ra.tenant_id
+         LEFT JOIN "Pet" p ON ra.pet_id = p.id
+         WHERE ra.tenant_id = $1
+           AND ra.deleted_at IS NULL
+           AND r.deleted_at IS NULL
+           AND DATE(ra.start_at) BETWEEN $2::date AND $3::date
+         ORDER BY ra.start_at ASC`,
+        [tenantId, start, end]
+      );
+
+      runsResult.rows.forEach(row => {
+        events.push({
+          id: row.id,
+          type: 'run',
+          title: `${row.pet_name || 'Pet'} - ${row.run_name || 'Run'}`,
+          start: row.start_at,
+          end: row.end_at,
+          status: row.status,
+          runId: row.run_id,
+          runName: row.run_name,
+          runCode: row.run_code,
+          petId: row.pet_id,
+          petName: row.pet_name,
+          petSpecies: row.pet_species,
+          petPhotoUrl: row.pet_photo_url,
+          notes: row.notes,
+          color: '#10B981', // Green for runs
+        });
+      });
+    }
+
+    // Sort all events by start date
+    events.sort((a, b) => new Date(a.start) - new Date(b.start));
+
+    console.log('[Calendar][events] Found:', events.length, 'events');
+
+    return createResponse(200, {
+      events: events,
+      data: events,
+      total: events.length,
+      startDate: start,
+      endDate: end,
+      message: 'Calendar events retrieved successfully',
+    });
+
+  } catch (error) {
+    console.error('[Calendar] Failed to get events:', error.message, error.stack);
+
+    // If tables don't exist, return empty array
+    if (error.message?.includes('does not exist') || error.code === '42P01') {
+      return createResponse(200, {
+        events: [],
+        data: [],
+        total: 0,
+        startDate: start,
+        endDate: end,
+        message: 'Calendar events (tables not initialized)',
+      });
+    }
+
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve calendar events',
+    });
+  }
+}
+
+/**
+ * Get occupancy data for a date range
+ * Returns kennel/run capacity utilization
+ *
+ * Query params:
+ *   - start: Start date (YYYY-MM-DD)
+ *   - end: End date (YYYY-MM-DD)
+ */
+async function handleGetOccupancy(tenantId, queryParams) {
+  const { start, end } = queryParams;
+
+  console.log('[Calendar][occupancy] tenantId:', tenantId, 'params:', { start, end });
+
+  if (!start || !end) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'start and end date parameters are required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Get total kennel capacity
+    const capacityResult = await query(
+      `SELECT
+         COUNT(*) as total_kennels,
+         SUM(CASE WHEN is_active = true THEN 1 ELSE 0 END) as active_kennels
+       FROM "Kennel"
+       WHERE tenant_id = $1 AND deleted_at IS NULL`,
+      [tenantId]
+    );
+
+    const totalCapacity = parseInt(capacityResult.rows[0]?.active_kennels || 0);
+
+    // Get daily occupancy by counting active bookings per day
+    // Generate date series and count overlapping bookings
+    const occupancyResult = await query(
+      `WITH date_series AS (
+         SELECT generate_series($2::date, $3::date, '1 day'::interval)::date AS date
+       ),
+       daily_counts AS (
+         SELECT
+           ds.date,
+           COUNT(b.id) as occupied
+         FROM date_series ds
+         LEFT JOIN "Booking" b ON
+           b.tenant_id = $1
+           AND b.deleted_at IS NULL
+           AND b.status NOT IN ('CANCELLED', 'NO_SHOW')
+           AND ds.date >= DATE(b.check_in)
+           AND ds.date < DATE(b.check_out)
+         GROUP BY ds.date
+       )
+       SELECT
+         date,
+         occupied,
+         $4::integer as capacity
+       FROM daily_counts
+       ORDER BY date ASC`,
+      [tenantId, start, end, totalCapacity]
+    );
+
+    const dailyOccupancy = occupancyResult.rows.map(row => ({
+      date: row.date,
+      occupied: parseInt(row.occupied || 0),
+      capacity: parseInt(row.capacity || 0),
+      available: Math.max(0, parseInt(row.capacity || 0) - parseInt(row.occupied || 0)),
+      utilizationPercent: row.capacity > 0
+        ? Math.round((parseInt(row.occupied || 0) / parseInt(row.capacity)) * 100)
+        : 0,
+    }));
+
+    // Calculate summary statistics
+    const totalOccupied = dailyOccupancy.reduce((sum, d) => sum + d.occupied, 0);
+    const avgOccupancy = dailyOccupancy.length > 0
+      ? Math.round(totalOccupied / dailyOccupancy.length)
+      : 0;
+    const avgUtilization = totalCapacity > 0 && dailyOccupancy.length > 0
+      ? Math.round((avgOccupancy / totalCapacity) * 100)
+      : 0;
+    const peakOccupancy = Math.max(...dailyOccupancy.map(d => d.occupied), 0);
+
+    console.log('[Calendar][occupancy] Calculated for', dailyOccupancy.length, 'days');
+
+    return createResponse(200, {
+      data: dailyOccupancy,
+      occupancy: dailyOccupancy,
+      summary: {
+        totalCapacity: totalCapacity,
+        averageOccupancy: avgOccupancy,
+        averageUtilization: avgUtilization,
+        peakOccupancy: peakOccupancy,
+        daysCount: dailyOccupancy.length,
+      },
+      startDate: start,
+      endDate: end,
+      message: 'Occupancy data retrieved successfully',
+    });
+
+  } catch (error) {
+    console.error('[Calendar] Failed to get occupancy:', error.message, error.stack);
+
+    // If tables don't exist, return empty data
+    if (error.message?.includes('does not exist') || error.code === '42P01') {
+      return createResponse(200, {
+        data: [],
+        occupancy: [],
+        summary: {
+          totalCapacity: 0,
+          averageOccupancy: 0,
+          averageUtilization: 0,
+          peakOccupancy: 0,
+          daysCount: 0,
+        },
+        startDate: start,
+        endDate: end,
+        message: 'Occupancy data (tables not initialized)',
+      });
+    }
+
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve occupancy data',
+    });
+  }
+}
+
+/**
+ * Helper: Get color for booking based on status
+ */
+function getBookingColor(status) {
+  const colors = {
+    'PENDING': '#F59E0B',     // Amber
+    'CONFIRMED': '#3B82F6',   // Blue
+    'CHECKED_IN': '#10B981',  // Green
+    'CHECKED_OUT': '#6B7280', // Gray
+    'CANCELLED': '#EF4444',   // Red
+    'NO_SHOW': '#DC2626',     // Dark Red
+    'COMPLETED': '#6366F1',   // Indigo
+  };
+  return colors[status?.toUpperCase()] || '#6B7280';
+}
+
+/**
+ * Helper: Get color for task based on priority and status
+ */
+function getTaskColor(priority, status) {
+  if (status?.toUpperCase() === 'COMPLETED') {
+    return '#6B7280'; // Gray for completed
+  }
+  if (status?.toUpperCase() === 'OVERDUE') {
+    return '#EF4444'; // Red for overdue
+  }
+  const priorityColors = {
+    'HIGH': '#EF4444',    // Red
+    'URGENT': '#DC2626',  // Dark Red
+    'NORMAL': '#3B82F6',  // Blue
+    'LOW': '#6B7280',     // Gray
+  };
+  return priorityColors[priority?.toUpperCase()] || '#3B82F6';
 }

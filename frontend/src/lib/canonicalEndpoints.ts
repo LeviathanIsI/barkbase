@@ -75,6 +75,13 @@ export const canonicalEndpoints = {
     delete: '/api/v1/operations/batch/delete',
   },
 
+  // Calendar API - /api/v1/calendar/*
+  // Routed through operations-service
+  calendar: {
+    events: '/api/v1/calendar/events',
+    occupancy: '/api/v1/calendar/occupancy',
+  },
+
   // Analytics Service - /api/v1/analytics/*
   reports: {
     dashboard: '/api/v1/analytics/dashboard',
