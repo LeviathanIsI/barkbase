@@ -6,8 +6,8 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 
-const Card = React.forwardRef(({ className, children, title, description, ...props }, ref) => {
-  const hasTitle = title || description;
+const Card = React.forwardRef(({ className, children, title, description, icon, headerAction, ...props }, ref) => {
+  const hasHeader = title || description || icon || headerAction;
   return (
     <div
       ref={ref}
@@ -22,13 +22,25 @@ const Card = React.forwardRef(({ className, children, title, description, ...pro
       }}
       {...props}
     >
-      {hasTitle && (
+      {hasHeader && (
         <CardHeader>
-          {title && <CardTitle>{title}</CardTitle>}
-          {description && <CardDescription>{description}</CardDescription>}
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              {icon && (
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400">
+                  {icon}
+                </div>
+              )}
+              <div>
+                {title && <CardTitle>{title}</CardTitle>}
+                {description && <CardDescription>{description}</CardDescription>}
+              </div>
+            </div>
+            {headerAction && <div className="flex-shrink-0">{headerAction}</div>}
+          </div>
         </CardHeader>
       )}
-      {hasTitle ? (
+      {hasHeader ? (
         <CardContent>{children}</CardContent>
       ) : (
         children
