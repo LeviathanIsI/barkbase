@@ -269,6 +269,165 @@ exports.handler = async (event, context) => {
     }
 
     // =========================================================================
+    // IMPORT/EXPORT API
+    // =========================================================================
+    // Data import and export operations for backup, migration, and bulk updates
+    // =========================================================================
+
+    // GET /api/v1/import-export/jobs - List recent import/export jobs
+    if ((path === '/api/v1/import-export/jobs' || path === '/import-export/jobs') && method === 'GET') {
+      return handleGetImportExportJobs(user);
+    }
+
+    // POST /api/v1/import-export/export - Start an export job
+    if ((path === '/api/v1/import-export/export' || path === '/import-export/export') && method === 'POST') {
+      return handleCreateExport(user, parseBody(event));
+    }
+
+    // POST /api/v1/import-export/import - Process an import
+    if ((path === '/api/v1/import-export/import' || path === '/import-export/import') && method === 'POST') {
+      return handleProcessImport(user, event);
+    }
+
+    // GET /api/v1/import-export/jobs/:id - Get job details
+    const importExportJobMatch = path.match(/^\/(?:api\/v1\/)?import-export\/jobs\/([a-f0-9-]+)$/i);
+    if (importExportJobMatch && method === 'GET') {
+      const jobId = importExportJobMatch[1];
+      return handleGetImportExportJob(user, jobId);
+    }
+
+    // GET /api/v1/import-export/jobs/:id/download - Download export file
+    const importExportDownloadMatch = path.match(/^\/(?:api\/v1\/)?import-export\/jobs\/([a-f0-9-]+)\/download$/i);
+    if (importExportDownloadMatch && method === 'GET') {
+      const jobId = importExportDownloadMatch[1];
+      return handleDownloadExport(user, jobId);
+    }
+
+    // =========================================================================
+    // FORMS API (Custom forms and waivers)
+    // =========================================================================
+
+    // GET /api/v1/forms - List forms
+    if ((path === '/api/v1/forms' || path === '/forms') && method === 'GET') {
+      return handleGetForms(user);
+    }
+
+    // POST /api/v1/forms - Create form
+    if ((path === '/api/v1/forms' || path === '/forms') && method === 'POST') {
+      return handleCreateForm(user, parseBody(event));
+    }
+
+    // GET /api/v1/forms/settings - Get form settings
+    if ((path === '/api/v1/forms/settings' || path === '/forms/settings') && method === 'GET') {
+      return handleGetFormSettings(user);
+    }
+
+    // PUT /api/v1/forms/settings - Update form settings
+    if ((path === '/api/v1/forms/settings' || path === '/forms/settings') && (method === 'PUT' || method === 'PATCH')) {
+      return handleUpdateFormSettings(user, parseBody(event));
+    }
+
+    // GET /api/v1/forms/templates - Get form templates
+    if ((path === '/api/v1/forms/templates' || path === '/forms/templates') && method === 'GET') {
+      return handleGetFormTemplates(user);
+    }
+
+    // POST /api/v1/forms/templates/:templateId/use - Create form from template
+    const useTemplateMatch = path.match(/^\/(?:api\/v1\/)?forms\/templates\/([a-z_-]+)\/use$/i);
+    if (useTemplateMatch && method === 'POST') {
+      return handleUseFormTemplate(user, useTemplateMatch[1]);
+    }
+
+    // Single form routes
+    const formIdMatch = path.match(/^\/(?:api\/v1\/)?forms\/([a-f0-9-]+)$/i);
+    if (formIdMatch) {
+      const formId = formIdMatch[1];
+      if (method === 'GET') return handleGetForm(user, formId);
+      if (method === 'PUT' || method === 'PATCH') return handleUpdateForm(user, formId, parseBody(event));
+      if (method === 'DELETE') return handleDeleteForm(user, formId);
+    }
+
+    // Duplicate form
+    const duplicateFormMatch = path.match(/^\/(?:api\/v1\/)?forms\/([a-f0-9-]+)\/duplicate$/i);
+    if (duplicateFormMatch && method === 'POST') {
+      return handleDuplicateForm(user, duplicateFormMatch[1]);
+    }
+
+    // Form submissions
+    const formSubmissionsMatch = path.match(/^\/(?:api\/v1\/)?forms\/([a-f0-9-]+)\/submissions$/i);
+    if (formSubmissionsMatch && method === 'GET') {
+      return handleGetFormSubmissions(user, formSubmissionsMatch[1]);
+    }
+
+    // =========================================================================
+    // DOCUMENTS API (Received customer files)
+    // =========================================================================
+
+    // GET /api/v1/documents - List documents
+    if ((path === '/api/v1/documents' || path === '/documents') && method === 'GET') {
+      return handleGetDocuments(user, event.queryStringParameters || {});
+    }
+
+    // POST /api/v1/documents - Upload document
+    if ((path === '/api/v1/documents' || path === '/documents') && method === 'POST') {
+      return handleCreateDocument(user, parseBody(event));
+    }
+
+    // GET /api/v1/documents/stats - Get storage stats
+    if ((path === '/api/v1/documents/stats' || path === '/documents/stats') && method === 'GET') {
+      return handleGetDocumentStats(user);
+    }
+
+    // Single document routes
+    const documentIdMatch = path.match(/^\/(?:api\/v1\/)?documents\/([a-f0-9-]+)$/i);
+    if (documentIdMatch) {
+      const docId = documentIdMatch[1];
+      if (method === 'GET') return handleGetDocument(user, docId);
+      if (method === 'DELETE') return handleDeleteDocument(user, docId);
+    }
+
+    // =========================================================================
+    // FILES/TEMPLATES API (Outgoing templates)
+    // =========================================================================
+
+    // GET /api/v1/files/templates - List templates
+    if ((path === '/api/v1/files/templates' || path === '/files/templates') && method === 'GET') {
+      return handleGetFileTemplates(user);
+    }
+
+    // POST /api/v1/files/templates - Create template
+    if ((path === '/api/v1/files/templates' || path === '/files/templates') && method === 'POST') {
+      return handleCreateFileTemplate(user, parseBody(event));
+    }
+
+    // Single template routes
+    const templateIdMatch = path.match(/^\/(?:api\/v1\/)?files\/templates\/([a-f0-9-]+)$/i);
+    if (templateIdMatch) {
+      const templateId = templateIdMatch[1];
+      if (method === 'GET') return handleGetFileTemplate(user, templateId);
+      if (method === 'PUT' || method === 'PATCH') return handleUpdateFileTemplate(user, templateId, parseBody(event));
+      if (method === 'DELETE') return handleDeleteFileTemplate(user, templateId);
+    }
+
+    // GET /api/v1/files/custom - List custom files
+    if ((path === '/api/v1/files/custom' || path === '/files/custom') && method === 'GET') {
+      return handleGetCustomFiles(user);
+    }
+
+    // POST /api/v1/files/custom - Upload custom file
+    if ((path === '/api/v1/files/custom' || path === '/files/custom') && method === 'POST') {
+      return handleCreateCustomFile(user, parseBody(event));
+    }
+
+    // Single custom file routes
+    const customFileIdMatch = path.match(/^\/(?:api\/v1\/)?files\/custom\/([a-f0-9-]+)$/i);
+    if (customFileIdMatch) {
+      const fileId = customFileIdMatch[1];
+      if (method === 'GET') return handleGetCustomFile(user, fileId);
+      if (method === 'DELETE') return handleDeleteCustomFile(user, fileId);
+    }
+
+    // =========================================================================
     // ENTERPRISE MEMBERSHIPS API
     // =========================================================================
     // Memberships represent the link between Users and Tenants (staff/team).
@@ -335,14 +494,16 @@ exports.handler = async (event, context) => {
       return handleRestoreProperty(user, propertyId);
     }
 
-    // GET /api/v2/properties - List all properties
-    if ((path === '/api/v2/properties' || path === '/api/v2/properties/') && method === 'GET') {
+    // GET /api/v2/properties/list - List all properties
+    // Also support legacy /api/v2/properties for backwards compatibility
+    if ((path === '/api/v2/properties' || path === '/api/v2/properties/' || path === '/api/v2/properties/list') && method === 'GET') {
       const queryParams = event.queryStringParameters || {};
       return handleListProperties(user, queryParams);
     }
 
-    // POST /api/v2/properties - Create property
-    if ((path === '/api/v2/properties' || path === '/api/v2/properties/') && method === 'POST') {
+    // POST /api/v2/properties/create - Create property
+    // Also support legacy /api/v2/properties for backwards compatibility
+    if ((path === '/api/v2/properties' || path === '/api/v2/properties/' || path === '/api/v2/properties/create') && method === 'POST') {
       return handleCreateProperty(user, parseBody(event));
     }
 
@@ -375,14 +536,16 @@ exports.handler = async (event, context) => {
     // Feature gating: FREE: 0, PRO: 3, ENTERPRISE: unlimited custom objects
     // =========================================================================
 
-    // GET /api/v2/entities - List all entity definitions
-    if ((path === '/api/v2/entities' || path === '/api/v2/entities/') && method === 'GET') {
+    // GET /api/v2/entities/list - List all entity definitions
+    // Also support legacy /api/v2/entities for backwards compatibility
+    if ((path === '/api/v2/entities' || path === '/api/v2/entities/' || path === '/api/v2/entities/list') && method === 'GET') {
       const queryParams = event.queryStringParameters || {};
       return handleListEntityDefinitions(user, queryParams);
     }
 
-    // POST /api/v2/entities - Create custom entity definition
-    if ((path === '/api/v2/entities' || path === '/api/v2/entities/') && method === 'POST') {
+    // POST /api/v2/entities/create - Create custom entity definition
+    // Also support legacy /api/v2/entities for backwards compatibility
+    if ((path === '/api/v2/entities' || path === '/api/v2/entities/' || path === '/api/v2/entities/create') && method === 'POST') {
       return handleCreateEntityDefinition(user, parseBody(event));
     }
 
@@ -433,9 +596,9 @@ exports.handler = async (event, context) => {
     }
 
     // Single form template routes
-    const formIdMatch = path.match(/^\/(?:api\/v1\/)?forms\/([a-f0-9-]+)$/i);
-    if (formIdMatch) {
-      const formId = formIdMatch[1];
+    const formTemplateIdMatch = path.match(/^\/(?:api\/v1\/)?forms\/([a-f0-9-]+)$/i);
+    if (formTemplateIdMatch) {
+      const formId = formTemplateIdMatch[1];
 
       if (method === 'GET') {
         return handleGetFormTemplate(user, formId);
@@ -449,16 +612,16 @@ exports.handler = async (event, context) => {
     }
 
     // Form submissions by template
-    const formSubmissionsMatch = path.match(/^\/(?:api\/v1\/)?forms\/([a-f0-9-]+)\/submissions$/i);
-    if (formSubmissionsMatch && method === 'GET') {
-      const formId = formSubmissionsMatch[1];
+    const templateSubmissionsMatch = path.match(/^\/(?:api\/v1\/)?forms\/([a-f0-9-]+)\/submissions$/i);
+    if (templateSubmissionsMatch && method === 'GET') {
+      const formId = templateSubmissionsMatch[1];
       const queryParams = event.queryStringParameters || {};
       return handleListFormSubmissions(user, { ...queryParams, templateId: formId });
     }
 
     // Create submission for a form
-    if (formSubmissionsMatch && method === 'POST') {
-      const formId = formSubmissionsMatch[1];
+    if (templateSubmissionsMatch && method === 'POST') {
+      const formId = templateSubmissionsMatch[1];
       return handleCreateFormSubmission(user, formId, parseBody(event));
     }
 
@@ -1646,12 +1809,16 @@ function formatPropertyResponse(row) {
  * List all properties for tenant (filterable by entity_type)
  */
 async function handleListProperties(user, queryParams) {
-  console.log('[CONFIG-SERVICE] handleListProperties - start');
+  console.log('[CONFIG-SERVICE] handleListProperties - start', { userId: user?.id, queryParams });
 
   try {
+    console.log('[CONFIG-SERVICE] handleListProperties - getting pool');
     await getPoolAsync();
+    console.log('[CONFIG-SERVICE] handleListProperties - pool acquired');
 
+    console.log('[CONFIG-SERVICE] handleListProperties - getting tenant context');
     const ctx = await getTenantContext(user);
+    console.log('[CONFIG-SERVICE] handleListProperties - tenant context result:', ctx);
     if (ctx.error) {
       return createResponse(ctx.status, { error: ctx.error });
     }
@@ -1662,11 +1829,41 @@ async function handleListProperties(user, queryParams) {
       objectType, // Alias for entityType (frontend uses this)
       includeArchived = 'false',
       includeUsage = 'false',
+      includeSystem = 'true', // Include system properties by default
     } = queryParams;
 
     const effectiveEntityType = entityType || objectType;
 
-    // Build query
+    // =========================================================================
+    // STEP 1: Fetch system properties from SystemProperty table (global)
+    // =========================================================================
+    let systemProperties = [];
+    if (includeSystem === 'true') {
+      try {
+        let systemSql = `SELECT * FROM "SystemProperty" WHERE 1=1`;
+        const systemValues = [];
+        let systemParamIndex = 1;
+
+        if (effectiveEntityType) {
+          systemSql += ` AND entity_type = $${systemParamIndex++}`;
+          systemValues.push(effectiveEntityType);
+        }
+
+        systemSql += ` ORDER BY entity_type, sort_order`;
+
+        const systemResult = await query(systemSql, systemValues);
+        systemProperties = systemResult.rows.map(row => formatSystemPropertyResponse(row));
+        console.log('[CONFIG-SERVICE] Found system properties:', systemProperties.length);
+      } catch (err) {
+        // SystemProperty table might not exist yet - that's okay
+        console.log('[CONFIG-SERVICE] SystemProperty table not found or error:', err.message);
+        systemProperties = [];
+      }
+    }
+
+    // =========================================================================
+    // STEP 2: Fetch custom properties from Property table (per-tenant)
+    // =========================================================================
     let sql = `SELECT * FROM "Property" WHERE tenant_id = $1`;
     const values = [tenantId];
     let paramIndex = 2;
@@ -1682,14 +1879,17 @@ async function handleListProperties(user, queryParams) {
 
     sql += ` ORDER BY entity_type, sort_order, created_at`;
 
+    console.log('[CONFIG-SERVICE] handleListProperties - querying Property table:', { sql, values });
     const result = await query(sql, values);
+    console.log('[CONFIG-SERVICE] handleListProperties - Property query returned:', result.rows.length, 'rows');
+    const customProperties = result.rows.map(formatPropertyResponse);
 
-    const properties = result.rows.map(formatPropertyResponse);
-
-    // Get usage stats if requested
+    // =========================================================================
+    // STEP 3: Get usage stats for custom properties if requested
+    // =========================================================================
     let usageStats = {};
-    if (includeUsage === 'true' && properties.length > 0) {
-      const propertyIds = properties.map(p => p.id);
+    if (includeUsage === 'true' && customProperties.length > 0) {
+      const propertyIds = customProperties.map(p => p.id);
       const usageResult = await query(
         `SELECT property_id, COUNT(*) as usage_count
          FROM "PropertyValue"
@@ -1702,24 +1902,41 @@ async function handleListProperties(user, queryParams) {
       });
     }
 
-    // Add usage to properties
-    const propertiesWithUsage = properties.map(p => ({
+    // Add usage to custom properties
+    const customPropertiesWithUsage = customProperties.map(p => ({
       ...p,
       usageCount: usageStats[p.id] || 0,
     }));
 
-    // Get plan limits
+    // =========================================================================
+    // STEP 4: Merge system and custom properties
+    // =========================================================================
+    // System properties come first (sorted by sort_order), then custom properties
+    const allProperties = [...systemProperties, ...customPropertiesWithUsage];
+
+    // Sort all properties by sort_order
+    allProperties.sort((a, b) => {
+      // System properties first
+      if (a.isSystem && !b.isSystem) return -1;
+      if (!a.isSystem && b.isSystem) return 1;
+      // Then by sort_order
+      return (a.sortOrder || 0) - (b.sortOrder || 0);
+    });
+
+    // Get plan limits (only count custom properties)
     const limits = effectiveEntityType
       ? await checkPropertyLimits(tenantId, plan, effectiveEntityType)
-      : { currentCount: properties.length, limit: PLAN_LIMITS[plan], canCreate: true };
+      : { currentCount: customProperties.length, limit: PLAN_LIMITS[plan], canCreate: true };
 
-    console.log('[CONFIG-SERVICE] handleListProperties - found:', properties.length);
+    console.log('[CONFIG-SERVICE] handleListProperties - total:', allProperties.length, '(system:', systemProperties.length, ', custom:', customProperties.length, ')');
 
     return createResponse(200, {
       success: true,
-      properties: propertiesWithUsage,
+      properties: allProperties,
       metadata: {
-        total: properties.length,
+        total: allProperties.length,
+        systemCount: systemProperties.length,
+        customCount: customProperties.length,
         plan,
         limits,
       },
@@ -1727,11 +1944,44 @@ async function handleListProperties(user, queryParams) {
 
   } catch (error) {
     console.error('[CONFIG-SERVICE] Failed to list properties:', error.message);
+    console.error('[CONFIG-SERVICE] Full error stack:', error.stack);
     return createResponse(500, {
       error: 'Internal Server Error',
       message: 'Failed to retrieve properties',
+      debug: process.env.NODE_ENV !== 'production' ? error.message : undefined,
     });
   }
+}
+
+/**
+ * Format SystemProperty row to API response format
+ * Matches the structure of formatPropertyResponse but with isSystem: true
+ */
+function formatSystemPropertyResponse(row) {
+  return {
+    id: row.id,
+    propertyId: row.id,
+    propertyName: row.column_name,
+    displayLabel: row.display_label,
+    description: row.description,
+    entityType: row.entity_type,
+    dataType: row.data_type,
+    options: row.options || [],
+    isRequired: row.is_required,
+    defaultValue: null,
+    validationRules: row.validation_rules || {},
+    propertyGroup: row.property_group,
+    sortOrder: row.sort_order,
+    showInList: row.show_in_list,
+    showInForm: row.show_in_form,
+    isSystem: true, // Always true for system properties
+    isActive: true, // System properties are always active
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    archivedAt: null,
+    // System properties can't have usage stats (they're built-in columns, not PropertyValue entries)
+    usageCount: null,
+  };
 }
 
 /**
@@ -1749,30 +1999,51 @@ async function handleGetProperty(user, propertyId) {
       return createResponse(ctx.status, { error: ctx.error });
     }
 
+    // First, try to find in custom Property table (per-tenant)
     const result = await query(
       `SELECT * FROM "Property" WHERE id = $1 AND tenant_id = $2`,
       [propertyId, ctx.tenantId]
     );
 
-    if (result.rows.length === 0) {
-      return createResponse(404, {
-        error: 'Not Found',
-        message: 'Property not found',
+    if (result.rows.length > 0) {
+      const property = formatPropertyResponse(result.rows[0]);
+
+      // Get usage count for custom properties
+      const usageResult = await query(
+        `SELECT COUNT(*) as count FROM "PropertyValue" WHERE property_id = $1`,
+        [propertyId]
+      );
+      property.usageCount = parseInt(usageResult.rows[0].count, 10);
+
+      return createResponse(200, {
+        success: true,
+        property,
       });
     }
 
-    const property = formatPropertyResponse(result.rows[0]);
+    // If not found in Property, check SystemProperty table (global)
+    try {
+      const systemResult = await query(
+        `SELECT * FROM "SystemProperty" WHERE id = $1`,
+        [propertyId]
+      );
 
-    // Get usage count
-    const usageResult = await query(
-      `SELECT COUNT(*) as count FROM "PropertyValue" WHERE property_id = $1`,
-      [propertyId]
-    );
-    property.usageCount = parseInt(usageResult.rows[0].count, 10);
+      if (systemResult.rows.length > 0) {
+        const property = formatSystemPropertyResponse(systemResult.rows[0]);
+        return createResponse(200, {
+          success: true,
+          property,
+        });
+      }
+    } catch (err) {
+      // SystemProperty table might not exist
+      console.log('[CONFIG-SERVICE] SystemProperty lookup failed:', err.message);
+    }
 
-    return createResponse(200, {
-      success: true,
-      property,
+    // Not found in either table
+    return createResponse(404, {
+      error: 'Not Found',
+      message: 'Property not found',
     });
 
   } catch (error) {
@@ -4784,5 +5055,1763 @@ async function handleUpdatePrivacySettings(user, body) {
   } catch (error) {
     console.error('[PrivacySettings] Failed to update:', error.message);
     return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update privacy settings' });
+  }
+}
+
+// =============================================================================
+// IMPORT/EXPORT HANDLERS
+// =============================================================================
+// Data import and export operations for backup, migration, and bulk updates
+// =============================================================================
+
+/**
+ * List recent import/export jobs for tenant
+ */
+async function handleGetImportExportJobs(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Check if table exists
+    const tableCheck = await query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'ImportExportJob'
+      ) as exists
+    `);
+
+    if (!tableCheck.rows[0]?.exists) {
+      // Table doesn't exist yet, return empty list
+      return createResponse(200, { jobs: [], total: 0 });
+    }
+
+    const result = await query(
+      `SELECT 
+        id,
+        type,
+        status,
+        scope,
+        format,
+        filename,
+        record_count,
+        error_message,
+        download_url,
+        file_size_bytes,
+        created_at,
+        completed_at
+      FROM "ImportExportJob"
+      WHERE tenant_id = $1
+      ORDER BY created_at DESC
+      LIMIT 50`,
+      [ctx.tenantId]
+    );
+
+    const jobs = result.rows.map(row => ({
+      id: row.id,
+      type: row.type,
+      status: row.status,
+      scope: row.scope,
+      format: row.format,
+      filename: row.filename,
+      recordCount: row.record_count,
+      errorMessage: row.error_message,
+      downloadUrl: row.download_url,
+      fileSizeBytes: row.file_size_bytes,
+      createdAt: row.created_at,
+      completedAt: row.completed_at,
+    }));
+
+    return createResponse(200, { jobs, total: jobs.length });
+  } catch (error) {
+    console.error('[ImportExport] Failed to get jobs:', error.message);
+    // Return empty on error for graceful degradation
+    return createResponse(200, { jobs: [], total: 0, _error: true });
+  }
+}
+
+/**
+ * Get single import/export job by ID
+ */
+async function handleGetImportExportJob(user, jobId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(
+      `SELECT * FROM "ImportExportJob" WHERE id = $1 AND tenant_id = $2`,
+      [jobId, ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Job not found' });
+    }
+
+    const row = result.rows[0];
+    return createResponse(200, {
+      id: row.id,
+      type: row.type,
+      status: row.status,
+      scope: row.scope,
+      format: row.format,
+      filename: row.filename,
+      recordCount: row.record_count,
+      errorMessage: row.error_message,
+      errorDetails: row.error_details,
+      downloadUrl: row.download_url,
+      fileSizeBytes: row.file_size_bytes,
+      metadata: row.metadata,
+      createdAt: row.created_at,
+      completedAt: row.completed_at,
+    });
+  } catch (error) {
+    console.error('[ImportExport] Failed to get job:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to get job details' });
+  }
+}
+
+/**
+ * Create an export job
+ */
+async function handleCreateExport(user, body) {
+  const { scope = 'all', format = 'csv' } = body;
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Validate scope
+    const validScopes = ['all', 'pets', 'owners', 'bookings', 'financial', 'vaccinations'];
+    if (!validScopes.includes(scope)) {
+      return createResponse(400, { error: 'Bad Request', message: `Invalid scope. Must be one of: ${validScopes.join(', ')}` });
+    }
+
+    // Validate format
+    const validFormats = ['csv', 'json', 'xlsx'];
+    if (!validFormats.includes(format)) {
+      return createResponse(400, { error: 'Bad Request', message: `Invalid format. Must be one of: ${validFormats.join(', ')}` });
+    }
+
+    // Generate export data
+    let data = [];
+    let recordCount = 0;
+    const filename = `barkbase_${scope}_export_${new Date().toISOString().split('T')[0]}.${format}`;
+
+    try {
+      switch (scope) {
+        case 'pets':
+          const petsResult = await query(
+            `SELECT p.*, o.first_name as owner_first_name, o.last_name as owner_last_name, o.email as owner_email
+             FROM "Pet" p
+             LEFT JOIN "Owner" o ON p.owner_id = o.id
+             WHERE p.tenant_id = $1 AND p.deleted_at IS NULL
+             ORDER BY p.name`,
+            [ctx.tenantId]
+          );
+          data = petsResult.rows;
+          recordCount = data.length;
+          break;
+
+        case 'owners':
+          const ownersResult = await query(
+            `SELECT * FROM "Owner" WHERE tenant_id = $1 AND deleted_at IS NULL ORDER BY last_name, first_name`,
+            [ctx.tenantId]
+          );
+          data = ownersResult.rows;
+          recordCount = data.length;
+          break;
+
+        case 'bookings':
+          const bookingsResult = await query(
+            `SELECT b.*, o.first_name as owner_first_name, o.last_name as owner_last_name, o.email as owner_email
+             FROM "Booking" b
+             LEFT JOIN "Owner" o ON b.owner_id = o.id
+             WHERE b.tenant_id = $1 AND b.deleted_at IS NULL
+             ORDER BY b.created_at DESC`,
+            [ctx.tenantId]
+          );
+          data = bookingsResult.rows;
+          recordCount = data.length;
+          break;
+
+        case 'financial':
+          // Try to get invoices if table exists
+          try {
+            const financialResult = await query(
+              `SELECT i.*, o.first_name as owner_first_name, o.last_name as owner_last_name
+               FROM "Invoice" i
+               LEFT JOIN "Owner" o ON i.owner_id = o.id
+               WHERE i.tenant_id = $1
+               ORDER BY i.created_at DESC`,
+              [ctx.tenantId]
+            );
+            data = financialResult.rows;
+            recordCount = data.length;
+          } catch (e) {
+            // Invoice table may not exist
+            data = [];
+            recordCount = 0;
+          }
+          break;
+
+        case 'vaccinations':
+          const vaccinationsResult = await query(
+            `SELECT v.*, p.name as pet_name, o.first_name as owner_first_name, o.last_name as owner_last_name
+             FROM "Vaccination" v
+             LEFT JOIN "Pet" p ON v.pet_id = p.id
+             LEFT JOIN "Owner" o ON p.owner_id = o.id
+             WHERE v.tenant_id = $1 AND v.deleted_at IS NULL
+             ORDER BY v.expiration_date`,
+            [ctx.tenantId]
+          );
+          data = vaccinationsResult.rows;
+          recordCount = data.length;
+          break;
+
+        case 'all':
+        default:
+          // Get counts from all tables for "all" export
+          const [pets, owners, bookings, vaccinations] = await Promise.all([
+            query(`SELECT * FROM "Pet" WHERE tenant_id = $1 AND deleted_at IS NULL`, [ctx.tenantId]),
+            query(`SELECT * FROM "Owner" WHERE tenant_id = $1 AND deleted_at IS NULL`, [ctx.tenantId]),
+            query(`SELECT * FROM "Booking" WHERE tenant_id = $1 AND deleted_at IS NULL`, [ctx.tenantId]),
+            query(`SELECT * FROM "Vaccination" WHERE tenant_id = $1 AND deleted_at IS NULL`, [ctx.tenantId]),
+          ]);
+          data = {
+            pets: pets.rows,
+            owners: owners.rows,
+            bookings: bookings.rows,
+            vaccinations: vaccinations.rows,
+          };
+          recordCount = pets.rows.length + owners.rows.length + bookings.rows.length + vaccinations.rows.length;
+          break;
+      }
+    } catch (queryError) {
+      console.error('[ImportExport] Query error:', queryError.message);
+      data = [];
+      recordCount = 0;
+    }
+
+    // Format the data based on requested format
+    let exportContent;
+    let contentType;
+
+    if (format === 'json') {
+      exportContent = JSON.stringify(data, null, 2);
+      contentType = 'application/json';
+    } else if (format === 'csv') {
+      // Convert to CSV
+      if (scope === 'all') {
+        // For "all" scope, we'll export as JSON since CSV can't handle nested data
+        exportContent = JSON.stringify(data, null, 2);
+        contentType = 'application/json';
+      } else {
+        exportContent = arrayToCSV(data);
+        contentType = 'text/csv';
+      }
+    } else {
+      // XLSX would require a library - for now, fall back to JSON
+      exportContent = JSON.stringify(data, null, 2);
+      contentType = 'application/json';
+    }
+
+    // Try to record the job if the table exists
+    let jobId = null;
+    try {
+      const tableCheck = await query(`
+        SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'ImportExportJob') as exists
+      `);
+
+      if (tableCheck.rows[0]?.exists) {
+        const jobResult = await query(
+          `INSERT INTO "ImportExportJob" (tenant_id, user_id, type, status, scope, format, filename, record_count, completed_at)
+           VALUES ($1, $2, 'export', 'completed', $3, $4, $5, $6, NOW())
+           RETURNING id`,
+          [ctx.tenantId, user.id, scope, format, filename, recordCount]
+        );
+        jobId = jobResult.rows[0]?.id;
+      }
+    } catch (jobError) {
+      console.warn('[ImportExport] Could not record job:', jobError.message);
+    }
+
+    // Return the export directly as a download
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': contentType,
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': '*',
+        'Access-Control-Expose-Headers': 'Content-Disposition',
+      },
+      body: exportContent,
+    };
+  } catch (error) {
+    console.error('[ImportExport] Export failed:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Export failed' });
+  }
+}
+
+/**
+ * Convert array of objects to CSV string
+ */
+function arrayToCSV(data) {
+  if (!data || data.length === 0) return '';
+
+  // Get headers from first row
+  const headers = Object.keys(data[0]);
+
+  // Escape CSV values
+  const escapeCSV = (value) => {
+    if (value === null || value === undefined) return '';
+    const str = String(value);
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  // Build CSV string
+  const headerRow = headers.join(',');
+  const dataRows = data.map(row =>
+    headers.map(header => escapeCSV(row[header])).join(',')
+  ).join('\n');
+
+  return headerRow + '\n' + dataRows;
+}
+
+/**
+ * Process an import
+ */
+async function handleProcessImport(user, event) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Parse the body - could be JSON or form data
+    let importData;
+    let filename = 'import';
+    let format = 'json';
+
+    const contentType = event.headers?.['content-type'] || event.headers?.['Content-Type'] || '';
+
+    if (contentType.includes('application/json')) {
+      const body = parseBody(event);
+      importData = body.data;
+      format = body.format || 'json';
+      filename = body.filename || 'import.json';
+    } else if (contentType.includes('multipart/form-data')) {
+      // For multipart, we'd need to parse the form data
+      // This is a simplified version - in production you'd use a library
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Multipart form uploads are not yet supported. Please send JSON data directly.',
+      });
+    } else {
+      // Try to parse as JSON anyway
+      try {
+        const body = parseBody(event);
+        importData = body.data || body;
+        format = body.format || 'json';
+      } catch (e) {
+        return createResponse(400, { error: 'Bad Request', message: 'Invalid request body' });
+      }
+    }
+
+    if (!importData) {
+      return createResponse(400, { error: 'Bad Request', message: 'No data provided for import' });
+    }
+
+    // Determine what we're importing based on data structure
+    let scope = 'all';
+    let recordCount = 0;
+    let errors = [];
+
+    // Process the import based on data structure
+    if (Array.isArray(importData)) {
+      // Single entity type array
+      const sample = importData[0];
+      if (sample) {
+        if (sample.species || sample.breed) {
+          scope = 'pets';
+          const result = await importPets(ctx.tenantId, importData);
+          recordCount = result.count;
+          errors = result.errors;
+        } else if (sample.first_name && sample.email) {
+          scope = 'owners';
+          const result = await importOwners(ctx.tenantId, importData);
+          recordCount = result.count;
+          errors = result.errors;
+        } else if (sample.check_in || sample.booking_id) {
+          scope = 'bookings';
+          // Bookings import is more complex, skip for now
+          errors.push('Booking imports are not yet supported');
+        }
+      }
+    } else if (typeof importData === 'object') {
+      // Multi-entity import (like full backup restore)
+      if (importData.pets) {
+        const result = await importPets(ctx.tenantId, importData.pets);
+        recordCount += result.count;
+        errors.push(...result.errors);
+      }
+      if (importData.owners) {
+        const result = await importOwners(ctx.tenantId, importData.owners);
+        recordCount += result.count;
+        errors.push(...result.errors);
+      }
+    }
+
+    const status = errors.length > 0 ? 'completed' : 'completed';
+
+    // Try to record the job
+    let jobId = null;
+    try {
+      const tableCheck = await query(`
+        SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'ImportExportJob') as exists
+      `);
+
+      if (tableCheck.rows[0]?.exists) {
+        const jobResult = await query(
+          `INSERT INTO "ImportExportJob" (tenant_id, user_id, type, status, scope, format, filename, record_count, error_message, completed_at)
+           VALUES ($1, $2, 'import', $3, $4, $5, $6, $7, $8, NOW())
+           RETURNING id`,
+          [ctx.tenantId, user.id, status, scope, format, filename, recordCount, errors.length > 0 ? errors.join('; ') : null]
+        );
+        jobId = jobResult.rows[0]?.id;
+      }
+    } catch (jobError) {
+      console.warn('[ImportExport] Could not record job:', jobError.message);
+    }
+
+    return createResponse(200, {
+      success: errors.length === 0,
+      jobId,
+      recordCount,
+      errors: errors.length > 0 ? errors : undefined,
+      message: errors.length > 0
+        ? `Import completed with ${errors.length} error(s)`
+        : `Successfully imported ${recordCount} record(s)`,
+    });
+  } catch (error) {
+    console.error('[ImportExport] Import failed:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Import failed: ' + error.message });
+  }
+}
+
+/**
+ * Import pets data
+ */
+async function importPets(tenantId, pets) {
+  const errors = [];
+  let count = 0;
+
+  for (const pet of pets) {
+    try {
+      // Check if pet already exists by name + owner
+      const existing = await query(
+        `SELECT id FROM "Pet" WHERE tenant_id = $1 AND name = $2 AND owner_id = $3`,
+        [tenantId, pet.name, pet.owner_id]
+      );
+
+      if (existing.rows.length > 0) {
+        // Update existing
+        await query(
+          `UPDATE "Pet" SET
+            species = COALESCE($3, species),
+            breed = COALESCE($4, breed),
+            weight = COALESCE($5, weight),
+            birth_date = COALESCE($6, birth_date),
+            gender = COALESCE($7, gender),
+            color = COALESCE($8, color),
+            updated_at = NOW()
+          WHERE id = $1 AND tenant_id = $2`,
+          [existing.rows[0].id, tenantId, pet.species, pet.breed, pet.weight, pet.birth_date, pet.gender, pet.color]
+        );
+      } else if (pet.owner_id) {
+        // Insert new
+        await query(
+          `INSERT INTO "Pet" (tenant_id, owner_id, name, species, breed, weight, birth_date, gender, color)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [tenantId, pet.owner_id, pet.name, pet.species, pet.breed, pet.weight, pet.birth_date, pet.gender, pet.color]
+        );
+      } else {
+        errors.push(`Pet "${pet.name}" skipped: missing owner_id`);
+        continue;
+      }
+      count++;
+    } catch (e) {
+      errors.push(`Pet "${pet.name}": ${e.message}`);
+    }
+  }
+
+  return { count, errors };
+}
+
+/**
+ * Import owners data
+ */
+async function importOwners(tenantId, owners) {
+  const errors = [];
+  let count = 0;
+
+  for (const owner of owners) {
+    try {
+      // Check if owner already exists by email
+      const existing = await query(
+        `SELECT id FROM "Owner" WHERE tenant_id = $1 AND email = $2`,
+        [tenantId, owner.email]
+      );
+
+      if (existing.rows.length > 0) {
+        // Update existing
+        await query(
+          `UPDATE "Owner" SET
+            first_name = COALESCE($3, first_name),
+            last_name = COALESCE($4, last_name),
+            phone = COALESCE($5, phone),
+            address = COALESCE($6, address),
+            city = COALESCE($7, city),
+            state = COALESCE($8, state),
+            zip_code = COALESCE($9, zip_code),
+            updated_at = NOW()
+          WHERE id = $1 AND tenant_id = $2`,
+          [existing.rows[0].id, tenantId, owner.first_name, owner.last_name, owner.phone, owner.address, owner.city, owner.state, owner.zip_code]
+        );
+      } else {
+        // Insert new
+        await query(
+          `INSERT INTO "Owner" (tenant_id, first_name, last_name, email, phone, address, city, state, zip_code)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [tenantId, owner.first_name, owner.last_name, owner.email, owner.phone, owner.address, owner.city, owner.state, owner.zip_code]
+        );
+      }
+      count++;
+    } catch (e) {
+      errors.push(`Owner "${owner.email}": ${e.message}`);
+    }
+  }
+
+  return { count, errors };
+}
+
+/**
+ * Download an export file (if stored)
+ */
+async function handleDownloadExport(user, jobId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(
+      `SELECT * FROM "ImportExportJob" WHERE id = $1 AND tenant_id = $2 AND type = 'export'`,
+      [jobId, ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Export job not found' });
+    }
+
+    const job = result.rows[0];
+
+    if (job.status !== 'completed') {
+      return createResponse(400, { error: 'Bad Request', message: 'Export is not complete' });
+    }
+
+    if (!job.download_url) {
+      return createResponse(400, { error: 'Bad Request', message: 'No download available for this export' });
+    }
+
+    // Redirect to download URL
+    return {
+      statusCode: 302,
+      headers: {
+        Location: job.download_url,
+        'Access-Control-Allow-Origin': '*',
+      },
+      body: '',
+    };
+  } catch (error) {
+    console.error('[ImportExport] Download failed:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Download failed' });
+  }
+}
+
+// =============================================================================
+// FORMS HANDLERS (Custom forms and waivers)
+// =============================================================================
+
+// Default form settings
+const DEFAULT_FORM_SETTINGS = {
+  requireSignature: true,
+  saveIncomplete: true,
+  emailCopy: true,
+  autoReminder: true,
+  reminderDays: 3,
+};
+
+// Form templates
+const FORM_TEMPLATES = [
+  {
+    id: 'basic_intake',
+    name: 'Basic Intake Form',
+    description: 'Collect essential customer and pet information',
+    type: 'intake',
+    fields: [
+      { id: 'owner_name', type: 'text', label: 'Owner Name', required: true, order: 1 },
+      { id: 'email', type: 'email', label: 'Email Address', required: true, order: 2 },
+      { id: 'phone', type: 'phone', label: 'Phone Number', required: true, order: 3 },
+      { id: 'address', type: 'textarea', label: 'Address', required: false, order: 4 },
+      { id: 'pet_name', type: 'text', label: 'Pet Name', required: true, order: 5 },
+      { id: 'pet_breed', type: 'text', label: 'Breed', required: false, order: 6 },
+      { id: 'pet_age', type: 'number', label: 'Age (years)', required: false, order: 7 },
+      { id: 'special_needs', type: 'textarea', label: 'Special Needs or Instructions', required: false, order: 8 },
+    ],
+  },
+  {
+    id: 'vaccination_records',
+    name: 'Vaccination Records',
+    description: 'Track pet vaccination history and requirements',
+    type: 'health',
+    fields: [
+      { id: 'pet_name', type: 'text', label: 'Pet Name', required: true, order: 1 },
+      { id: 'rabies_date', type: 'date', label: 'Rabies Vaccination Date', required: true, order: 2 },
+      { id: 'rabies_expiry', type: 'date', label: 'Rabies Expiration Date', required: true, order: 3 },
+      { id: 'dhpp_date', type: 'date', label: 'DHPP Vaccination Date', required: true, order: 4 },
+      { id: 'bordetella_date', type: 'date', label: 'Bordetella Vaccination Date', required: true, order: 5 },
+      { id: 'vet_name', type: 'text', label: 'Veterinarian Name', required: false, order: 6 },
+      { id: 'vet_phone', type: 'phone', label: 'Veterinarian Phone', required: false, order: 7 },
+    ],
+  },
+  {
+    id: 'emergency_contact',
+    name: 'Emergency Contact',
+    description: 'Collect emergency contact information',
+    type: 'intake',
+    fields: [
+      { id: 'primary_name', type: 'text', label: 'Primary Contact Name', required: true, order: 1 },
+      { id: 'primary_phone', type: 'phone', label: 'Primary Contact Phone', required: true, order: 2 },
+      { id: 'primary_relation', type: 'text', label: 'Relationship to Pet Owner', required: false, order: 3 },
+      { id: 'secondary_name', type: 'text', label: 'Secondary Contact Name', required: false, order: 4 },
+      { id: 'secondary_phone', type: 'phone', label: 'Secondary Contact Phone', required: false, order: 5 },
+      { id: 'vet_authorization', type: 'checkbox', label: 'I authorize emergency veterinary care', required: true, order: 6 },
+    ],
+  },
+  {
+    id: 'service_agreement',
+    name: 'Service Agreement',
+    description: 'Standard terms and conditions agreement',
+    type: 'agreement',
+    fields: [
+      { id: 'owner_name', type: 'text', label: 'Owner Full Name', required: true, order: 1 },
+      { id: 'pet_name', type: 'text', label: 'Pet Name', required: true, order: 2 },
+      { id: 'terms_accepted', type: 'checkbox', label: 'I have read and agree to the terms of service', required: true, order: 3 },
+      { id: 'liability_accepted', type: 'checkbox', label: 'I understand and accept the liability waiver', required: true, order: 4 },
+      { id: 'date', type: 'date', label: 'Date', required: true, order: 5 },
+    ],
+    require_signature: true,
+  },
+];
+
+/**
+ * Check if Form table exists
+ */
+async function checkFormTableExists() {
+  const result = await query(`
+    SELECT EXISTS (
+      SELECT FROM information_schema.tables 
+      WHERE table_name = 'Form'
+    ) as exists
+  `);
+  return result.rows[0]?.exists || false;
+}
+
+/**
+ * Get forms for tenant
+ */
+async function handleGetForms(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    if (!await checkFormTableExists()) {
+      return createResponse(200, { forms: [], _tableNotExists: true });
+    }
+
+    const result = await query(`
+      SELECT * FROM "Form"
+      WHERE tenant_id = $1 AND deleted_at IS NULL
+      ORDER BY updated_at DESC
+    `, [ctx.tenantId]);
+
+    const forms = result.rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      type: row.type,
+      fields: row.fields || [],
+      fieldCount: row.field_count || 0,
+      submissionCount: row.submission_count || 0,
+      status: row.status,
+      isRequired: row.is_required,
+      requireSignature: row.require_signature,
+      autoAssignTo: row.auto_assign_to || [],
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
+    return createResponse(200, { forms });
+  } catch (error) {
+    console.error('[Forms] Failed to get forms:', error.message);
+    return createResponse(200, { forms: [], _error: true });
+  }
+}
+
+/**
+ * Get single form
+ */
+async function handleGetForm(user, formId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(`
+      SELECT * FROM "Form"
+      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+    `, [formId, ctx.tenantId]);
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Form not found' });
+    }
+
+    const row = result.rows[0];
+    return createResponse(200, {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      type: row.type,
+      fields: row.fields || [],
+      fieldCount: row.field_count || 0,
+      submissionCount: row.submission_count || 0,
+      status: row.status,
+      isRequired: row.is_required,
+      requireSignature: row.require_signature,
+      autoAssignTo: row.auto_assign_to || [],
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    });
+  } catch (error) {
+    console.error('[Forms] Failed to get form:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to get form' });
+  }
+}
+
+/**
+ * Create form
+ */
+async function handleCreateForm(user, body) {
+  const { name, description, type, fields, status, isRequired, requireSignature, autoAssignTo } = body;
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    if (!await checkFormTableExists()) {
+      return createResponse(400, { error: 'Bad Request', message: 'Forms not configured. Please run migration 019.' });
+    }
+
+    if (!name) {
+      return createResponse(400, { error: 'Bad Request', message: 'Form name is required' });
+    }
+
+    const result = await query(`
+      INSERT INTO "Form" (
+        tenant_id, name, description, type, fields, status,
+        is_required, require_signature, auto_assign_to, created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      RETURNING *
+    `, [
+      ctx.tenantId,
+      name,
+      description || null,
+      type || 'custom',
+      JSON.stringify(fields || []),
+      status || 'draft',
+      isRequired || false,
+      requireSignature || false,
+      autoAssignTo || [],
+      user.id,
+    ]);
+
+    const row = result.rows[0];
+    return createResponse(201, {
+      id: row.id,
+      name: row.name,
+      message: 'Form created successfully',
+    });
+  } catch (error) {
+    console.error('[Forms] Failed to create form:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to create form' });
+  }
+}
+
+/**
+ * Update form
+ */
+async function handleUpdateForm(user, formId, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Build update query dynamically
+    const updates = [];
+    const params = [formId, ctx.tenantId];
+    let paramIndex = 3;
+
+    if (body.name !== undefined) {
+      updates.push(`name = $${paramIndex++}`);
+      params.push(body.name);
+    }
+    if (body.description !== undefined) {
+      updates.push(`description = $${paramIndex++}`);
+      params.push(body.description);
+    }
+    if (body.type !== undefined) {
+      updates.push(`type = $${paramIndex++}`);
+      params.push(body.type);
+    }
+    if (body.fields !== undefined) {
+      updates.push(`fields = $${paramIndex++}`);
+      params.push(JSON.stringify(body.fields));
+    }
+    if (body.status !== undefined) {
+      updates.push(`status = $${paramIndex++}`);
+      params.push(body.status);
+    }
+    if (body.isRequired !== undefined) {
+      updates.push(`is_required = $${paramIndex++}`);
+      params.push(body.isRequired);
+    }
+    if (body.requireSignature !== undefined) {
+      updates.push(`require_signature = $${paramIndex++}`);
+      params.push(body.requireSignature);
+    }
+    if (body.autoAssignTo !== undefined) {
+      updates.push(`auto_assign_to = $${paramIndex++}`);
+      params.push(body.autoAssignTo);
+    }
+
+    if (updates.length === 0) {
+      return createResponse(400, { error: 'Bad Request', message: 'No fields to update' });
+    }
+
+    const result = await query(`
+      UPDATE "Form" SET ${updates.join(', ')}, updated_at = NOW()
+      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+      RETURNING *
+    `, params);
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Form not found' });
+    }
+
+    return createResponse(200, { success: true, message: 'Form updated' });
+  } catch (error) {
+    console.error('[Forms] Failed to update form:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update form' });
+  }
+}
+
+/**
+ * Delete form (soft delete)
+ */
+async function handleDeleteForm(user, formId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(`
+      UPDATE "Form" SET deleted_at = NOW()
+      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+      RETURNING id
+    `, [formId, ctx.tenantId]);
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Form not found' });
+    }
+
+    return createResponse(200, { success: true, message: 'Form deleted' });
+  } catch (error) {
+    console.error('[Forms] Failed to delete form:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to delete form' });
+  }
+}
+
+/**
+ * Duplicate form
+ */
+async function handleDuplicateForm(user, formId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Get original form
+    const original = await query(`
+      SELECT * FROM "Form"
+      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+    `, [formId, ctx.tenantId]);
+
+    if (original.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Form not found' });
+    }
+
+    const form = original.rows[0];
+
+    // Create duplicate
+    const result = await query(`
+      INSERT INTO "Form" (
+        tenant_id, name, description, type, fields, status,
+        is_required, require_signature, auto_assign_to, created_by
+      ) VALUES ($1, $2, $3, $4, $5, 'draft', $6, $7, $8, $9)
+      RETURNING *
+    `, [
+      ctx.tenantId,
+      `${form.name} (Copy)`,
+      form.description,
+      form.type,
+      JSON.stringify(form.fields || []),
+      form.is_required,
+      form.require_signature,
+      form.auto_assign_to || [],
+      user.id,
+    ]);
+
+    const row = result.rows[0];
+    return createResponse(201, {
+      id: row.id,
+      name: row.name,
+      message: 'Form duplicated successfully',
+    });
+  } catch (error) {
+    console.error('[Forms] Failed to duplicate form:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to duplicate form' });
+  }
+}
+
+/**
+ * Get form settings for tenant
+ */
+async function handleGetFormSettings(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(`SELECT form_settings FROM "Tenant" WHERE id = $1`, [ctx.tenantId]);
+    const settings = result.rows[0]?.form_settings || DEFAULT_FORM_SETTINGS;
+
+    return createResponse(200, { ...DEFAULT_FORM_SETTINGS, ...settings });
+  } catch (error) {
+    console.error('[Forms] Failed to get settings:', error.message);
+    return createResponse(200, DEFAULT_FORM_SETTINGS);
+  }
+}
+
+/**
+ * Update form settings for tenant
+ */
+async function handleUpdateFormSettings(user, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Get current settings and merge
+    const result = await query(`SELECT form_settings FROM "Tenant" WHERE id = $1`, [ctx.tenantId]);
+    const currentSettings = result.rows[0]?.form_settings || {};
+    const newSettings = { ...currentSettings, ...body };
+
+    await query(
+      `UPDATE "Tenant" SET form_settings = $1, updated_at = NOW() WHERE id = $2`,
+      [JSON.stringify(newSettings), ctx.tenantId]
+    );
+
+    return createResponse(200, { success: true, ...newSettings });
+  } catch (error) {
+    console.error('[Forms] Failed to update settings:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update settings' });
+  }
+}
+
+/**
+ * Get form templates
+ */
+async function handleGetFormTemplates(user) {
+  return createResponse(200, { templates: FORM_TEMPLATES });
+}
+
+/**
+ * Create form from template
+ */
+async function handleUseFormTemplate(user, templateId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    if (!await checkFormTableExists()) {
+      return createResponse(400, { error: 'Bad Request', message: 'Forms not configured. Please run migration 019.' });
+    }
+
+    const template = FORM_TEMPLATES.find(t => t.id === templateId);
+    if (!template) {
+      return createResponse(404, { error: 'Not Found', message: 'Template not found' });
+    }
+
+    const result = await query(`
+      INSERT INTO "Form" (
+        tenant_id, name, description, type, fields, status,
+        is_required, require_signature, created_by
+      ) VALUES ($1, $2, $3, $4, $5, 'draft', false, $6, $7)
+      RETURNING *
+    `, [
+      ctx.tenantId,
+      template.name,
+      template.description,
+      template.type,
+      JSON.stringify(template.fields),
+      template.require_signature || false,
+      user.id,
+    ]);
+
+    const row = result.rows[0];
+    return createResponse(201, {
+      id: row.id,
+      name: row.name,
+      message: 'Form created from template',
+    });
+  } catch (error) {
+    console.error('[Forms] Failed to use template:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to create form from template' });
+  }
+}
+
+/**
+ * Get form submissions
+ */
+async function handleGetFormSubmissions(user, formId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Check if FormSubmission table exists
+    const tableCheck = await query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'FormSubmission'
+      ) as exists
+    `);
+
+    if (!tableCheck.rows[0]?.exists) {
+      return createResponse(200, { submissions: [], total: 0 });
+    }
+
+    const result = await query(`
+      SELECT fs.*, o.first_name, o.last_name, o.email, p.name as pet_name
+      FROM "FormSubmission" fs
+      LEFT JOIN "Owner" o ON fs.owner_id = o.id
+      LEFT JOIN "Pet" p ON fs.pet_id = p.id
+      WHERE fs.form_id = $1 AND fs.tenant_id = $2
+      ORDER BY fs.submitted_at DESC
+      LIMIT 100
+    `, [formId, ctx.tenantId]);
+
+    const submissions = result.rows.map(row => ({
+      id: row.id,
+      data: row.data,
+      status: row.status,
+      owner: row.first_name ? { name: `${row.first_name} ${row.last_name}`, email: row.email } : null,
+      pet: row.pet_name ? { name: row.pet_name } : null,
+      signedAt: row.signed_at,
+      submittedAt: row.submitted_at,
+    }));
+
+    return createResponse(200, { submissions, total: submissions.length });
+  } catch (error) {
+    console.error('[Forms] Failed to get submissions:', error.message);
+    return createResponse(200, { submissions: [], total: 0, _error: true });
+  }
+}
+
+// =============================================================================
+// DOCUMENTS HANDLERS (Received customer files)
+// =============================================================================
+
+/**
+ * Check if Document table exists
+ */
+async function checkDocumentTableExists() {
+  const result = await query(`
+    SELECT EXISTS (
+      SELECT FROM information_schema.tables 
+      WHERE table_name = 'Document'
+    ) as exists
+  `);
+  return result.rows[0]?.exists || false;
+}
+
+/**
+ * Get documents for tenant
+ */
+async function handleGetDocuments(user, queryParams) {
+  const { category, search, sortBy = 'date', limit = 50, offset = 0 } = queryParams;
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Check if table exists
+    if (!await checkDocumentTableExists()) {
+      return createResponse(200, { documents: [], total: 0, _tableNotExists: true });
+    }
+
+    let whereClause = 'd.tenant_id = $1 AND d.deleted_at IS NULL';
+    const params = [ctx.tenantId];
+    let paramIndex = 2;
+
+    if (category && category !== 'all') {
+      whereClause += ` AND d.category = $${paramIndex}`;
+      params.push(category);
+      paramIndex++;
+    }
+
+    if (search) {
+      whereClause += ` AND (
+        d.filename ILIKE $${paramIndex} OR 
+        d.original_filename ILIKE $${paramIndex} OR
+        o.first_name ILIKE $${paramIndex} OR 
+        o.last_name ILIKE $${paramIndex} OR
+        p.name ILIKE $${paramIndex}
+      )`;
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    let orderBy = 'd.created_at DESC';
+    if (sortBy === 'name') orderBy = 'd.filename ASC';
+    if (sortBy === 'size') orderBy = 'd.file_size_bytes DESC';
+
+    const result = await query(`
+      SELECT 
+        d.*,
+        o.id as owner_id, o.first_name as owner_first_name, o.last_name as owner_last_name,
+        p.id as pet_id, p.name as pet_name
+      FROM "Document" d
+      LEFT JOIN "Owner" o ON d.owner_id = o.id
+      LEFT JOIN "Pet" p ON d.pet_id = p.id
+      WHERE ${whereClause}
+      ORDER BY ${orderBy}
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `, [...params, parseInt(limit), parseInt(offset)]);
+
+    // Get total count
+    const countResult = await query(
+      `SELECT COUNT(*) as count FROM "Document" d 
+       LEFT JOIN "Owner" o ON d.owner_id = o.id
+       LEFT JOIN "Pet" p ON d.pet_id = p.id
+       WHERE ${whereClause}`,
+      params
+    );
+
+    const documents = result.rows.map(row => ({
+      id: row.id,
+      filename: row.filename,
+      originalFilename: row.original_filename,
+      fileType: row.file_type,
+      mimeType: row.mime_type,
+      size: row.file_size_bytes,
+      category: row.category,
+      description: row.description,
+      storageUrl: row.storage_url,
+      uploadedAt: row.created_at,
+      customer: row.owner_id ? {
+        id: row.owner_id,
+        name: `${row.owner_first_name || ''} ${row.owner_last_name || ''}`.trim() || 'Unknown',
+      } : null,
+      pet: row.pet_id ? {
+        id: row.pet_id,
+        name: row.pet_name || 'Unknown',
+      } : null,
+    }));
+
+    return createResponse(200, {
+      documents,
+      total: parseInt(countResult.rows[0]?.count || 0),
+    });
+  } catch (error) {
+    console.error('[Documents] Failed to get documents:', error.message);
+    return createResponse(200, { documents: [], total: 0, _error: true });
+  }
+}
+
+/**
+ * Get document storage stats
+ */
+async function handleGetDocumentStats(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    if (!await checkDocumentTableExists()) {
+      return createResponse(200, { 
+        used: 0, 
+        total: 500 * 1024 * 1024, // 500 MB default
+        documentCount: 0,
+        byCategory: {},
+      });
+    }
+
+    const result = await query(`
+      SELECT 
+        COALESCE(SUM(file_size_bytes), 0) as total_bytes,
+        COUNT(*) as count,
+        category
+      FROM "Document"
+      WHERE tenant_id = $1 AND deleted_at IS NULL
+      GROUP BY category
+    `, [ctx.tenantId]);
+
+    const byCategory = {};
+    let totalBytes = 0;
+    let totalCount = 0;
+
+    result.rows.forEach(row => {
+      byCategory[row.category] = {
+        bytes: parseInt(row.total_bytes),
+        count: parseInt(row.count),
+      };
+      totalBytes += parseInt(row.total_bytes);
+      totalCount += parseInt(row.count);
+    });
+
+    // Get tenant storage limit (default 500 MB)
+    const tenantResult = await query(
+      `SELECT features FROM "Tenant" WHERE id = $1`,
+      [ctx.tenantId]
+    );
+    const features = tenantResult.rows[0]?.features || {};
+    const storageLimitMB = features.storageLimitMB || 500;
+
+    return createResponse(200, {
+      used: totalBytes,
+      total: storageLimitMB * 1024 * 1024,
+      documentCount: totalCount,
+      byCategory,
+    });
+  } catch (error) {
+    console.error('[Documents] Failed to get stats:', error.message);
+    return createResponse(200, { used: 0, total: 500 * 1024 * 1024, documentCount: 0, byCategory: {} });
+  }
+}
+
+/**
+ * Create/upload document
+ */
+async function handleCreateDocument(user, body) {
+  const { filename, fileType, mimeType, size, category, description, ownerId, petId, storageUrl, storagePath } = body;
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    if (!await checkDocumentTableExists()) {
+      return createResponse(400, { error: 'Bad Request', message: 'Document storage not configured. Please run migration 018.' });
+    }
+
+    if (!filename) {
+      return createResponse(400, { error: 'Bad Request', message: 'Filename is required' });
+    }
+
+    const result = await query(`
+      INSERT INTO "Document" (
+        tenant_id, owner_id, pet_id, filename, original_filename, 
+        file_type, mime_type, file_size_bytes, category, description,
+        storage_path, storage_url, uploaded_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      RETURNING *
+    `, [
+      ctx.tenantId,
+      ownerId || null,
+      petId || null,
+      filename,
+      filename,
+      fileType || 'other',
+      mimeType || 'application/octet-stream',
+      size || 0,
+      category || 'other',
+      description || null,
+      storagePath || null,
+      storageUrl || null,
+      user.id,
+    ]);
+
+    return createResponse(201, {
+      id: result.rows[0].id,
+      message: 'Document created successfully',
+    });
+  } catch (error) {
+    console.error('[Documents] Failed to create document:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to create document' });
+  }
+}
+
+/**
+ * Get single document
+ */
+async function handleGetDocument(user, docId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(`
+      SELECT d.*, o.first_name, o.last_name, p.name as pet_name
+      FROM "Document" d
+      LEFT JOIN "Owner" o ON d.owner_id = o.id
+      LEFT JOIN "Pet" p ON d.pet_id = p.id
+      WHERE d.id = $1 AND d.tenant_id = $2 AND d.deleted_at IS NULL
+    `, [docId, ctx.tenantId]);
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Document not found' });
+    }
+
+    return createResponse(200, result.rows[0]);
+  } catch (error) {
+    console.error('[Documents] Failed to get document:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to get document' });
+  }
+}
+
+/**
+ * Delete document (soft delete)
+ */
+async function handleDeleteDocument(user, docId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(`
+      UPDATE "Document" SET deleted_at = NOW() 
+      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+      RETURNING id
+    `, [docId, ctx.tenantId]);
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Document not found' });
+    }
+
+    return createResponse(200, { success: true, message: 'Document deleted' });
+  } catch (error) {
+    console.error('[Documents] Failed to delete document:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to delete document' });
+  }
+}
+
+// =============================================================================
+// FILE TEMPLATES HANDLERS (Outgoing templates)
+// =============================================================================
+
+/**
+ * Check if FileTemplate table exists
+ */
+async function checkFileTemplateTableExists() {
+  const result = await query(`
+    SELECT EXISTS (
+      SELECT FROM information_schema.tables 
+      WHERE table_name = 'FileTemplate'
+    ) as exists
+  `);
+  return result.rows[0]?.exists || false;
+}
+
+/**
+ * Get file templates for tenant
+ */
+async function handleGetFileTemplates(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    if (!await checkFileTemplateTableExists()) {
+      return createResponse(200, { templates: [], _tableNotExists: true });
+    }
+
+    const result = await query(`
+      SELECT * FROM "FileTemplate"
+      WHERE tenant_id = $1 AND deleted_at IS NULL
+      ORDER BY type, name
+    `, [ctx.tenantId]);
+
+    const templates = result.rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      type: row.type,
+      contentType: row.content_type,
+      status: row.status,
+      usageCount: row.usage_count,
+      autoAttach: row.auto_attach_to || [],
+      lastUpdated: row.updated_at,
+      createdAt: row.created_at,
+    }));
+
+    return createResponse(200, { templates });
+  } catch (error) {
+    console.error('[Files] Failed to get templates:', error.message);
+    return createResponse(200, { templates: [], _error: true });
+  }
+}
+
+/**
+ * Create file template
+ */
+async function handleCreateFileTemplate(user, body) {
+  const { name, description, type, contentType, content, status, autoAttach } = body;
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    if (!await checkFileTemplateTableExists()) {
+      return createResponse(400, { error: 'Bad Request', message: 'File templates not configured. Please run migration 018.' });
+    }
+
+    if (!name) {
+      return createResponse(400, { error: 'Bad Request', message: 'Template name is required' });
+    }
+
+    const result = await query(`
+      INSERT INTO "FileTemplate" (
+        tenant_id, name, description, type, content_type, content, 
+        status, auto_attach_to, created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING *
+    `, [
+      ctx.tenantId,
+      name,
+      description || null,
+      type || 'custom',
+      contentType || 'html',
+      content || null,
+      status || 'draft',
+      autoAttach || [],
+      user.id,
+    ]);
+
+    return createResponse(201, {
+      id: result.rows[0].id,
+      message: 'Template created successfully',
+    });
+  } catch (error) {
+    console.error('[Files] Failed to create template:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to create template' });
+  }
+}
+
+/**
+ * Get single template
+ */
+async function handleGetFileTemplate(user, templateId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(`
+      SELECT * FROM "FileTemplate"
+      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+    `, [templateId, ctx.tenantId]);
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Template not found' });
+    }
+
+    const row = result.rows[0];
+    return createResponse(200, {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      type: row.type,
+      contentType: row.content_type,
+      content: row.content,
+      status: row.status,
+      usageCount: row.usage_count,
+      autoAttach: row.auto_attach_to || [],
+      lastUpdated: row.updated_at,
+      createdAt: row.created_at,
+    });
+  } catch (error) {
+    console.error('[Files] Failed to get template:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to get template' });
+  }
+}
+
+/**
+ * Update file template
+ */
+async function handleUpdateFileTemplate(user, templateId, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Build update query dynamically
+    const updates = [];
+    const params = [templateId, ctx.tenantId];
+    let paramIndex = 3;
+
+    if (body.name !== undefined) {
+      updates.push(`name = $${paramIndex++}`);
+      params.push(body.name);
+    }
+    if (body.description !== undefined) {
+      updates.push(`description = $${paramIndex++}`);
+      params.push(body.description);
+    }
+    if (body.type !== undefined) {
+      updates.push(`type = $${paramIndex++}`);
+      params.push(body.type);
+    }
+    if (body.content !== undefined) {
+      updates.push(`content = $${paramIndex++}`);
+      params.push(body.content);
+    }
+    if (body.status !== undefined) {
+      updates.push(`status = $${paramIndex++}`);
+      params.push(body.status);
+    }
+    if (body.autoAttach !== undefined) {
+      updates.push(`auto_attach_to = $${paramIndex++}`);
+      params.push(body.autoAttach);
+    }
+
+    if (updates.length === 0) {
+      return createResponse(400, { error: 'Bad Request', message: 'No fields to update' });
+    }
+
+    const result = await query(`
+      UPDATE "FileTemplate" SET ${updates.join(', ')}, updated_at = NOW()
+      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+      RETURNING *
+    `, params);
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Template not found' });
+    }
+
+    return createResponse(200, { success: true, message: 'Template updated' });
+  } catch (error) {
+    console.error('[Files] Failed to update template:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update template' });
+  }
+}
+
+/**
+ * Delete file template (soft delete)
+ */
+async function handleDeleteFileTemplate(user, templateId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(`
+      UPDATE "FileTemplate" SET deleted_at = NOW()
+      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+      RETURNING id
+    `, [templateId, ctx.tenantId]);
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Template not found' });
+    }
+
+    return createResponse(200, { success: true, message: 'Template deleted' });
+  } catch (error) {
+    console.error('[Files] Failed to delete template:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to delete template' });
+  }
+}
+
+// =============================================================================
+// CUSTOM FILES HANDLERS
+// =============================================================================
+
+/**
+ * Check if CustomFile table exists
+ */
+async function checkCustomFileTableExists() {
+  const result = await query(`
+    SELECT EXISTS (
+      SELECT FROM information_schema.tables 
+      WHERE table_name = 'CustomFile'
+    ) as exists
+  `);
+  return result.rows[0]?.exists || false;
+}
+
+/**
+ * Get custom files for tenant
+ */
+async function handleGetCustomFiles(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    if (!await checkCustomFileTableExists()) {
+      return createResponse(200, { files: [], _tableNotExists: true });
+    }
+
+    const result = await query(`
+      SELECT * FROM "CustomFile"
+      WHERE tenant_id = $1 AND deleted_at IS NULL
+      ORDER BY created_at DESC
+    `, [ctx.tenantId]);
+
+    const files = result.rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      filename: row.filename,
+      fileType: row.file_type,
+      size: row.file_size_bytes,
+      usageCount: row.usage_count,
+      autoAttach: row.auto_attach_to || [],
+      uploadedAt: row.created_at,
+    }));
+
+    return createResponse(200, { files });
+  } catch (error) {
+    console.error('[Files] Failed to get custom files:', error.message);
+    return createResponse(200, { files: [], _error: true });
+  }
+}
+
+/**
+ * Create custom file
+ */
+async function handleCreateCustomFile(user, body) {
+  const { name, description, filename, fileType, mimeType, size, storageUrl, storagePath } = body;
+
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    if (!await checkCustomFileTableExists()) {
+      return createResponse(400, { error: 'Bad Request', message: 'Custom files not configured. Please run migration 018.' });
+    }
+
+    if (!name || !filename) {
+      return createResponse(400, { error: 'Bad Request', message: 'Name and filename are required' });
+    }
+
+    const result = await query(`
+      INSERT INTO "CustomFile" (
+        tenant_id, name, description, filename, original_filename,
+        file_type, mime_type, file_size_bytes, storage_path, storage_url, uploaded_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING *
+    `, [
+      ctx.tenantId,
+      name,
+      description || null,
+      filename,
+      filename,
+      fileType || 'pdf',
+      mimeType || 'application/pdf',
+      size || 0,
+      storagePath || null,
+      storageUrl || null,
+      user.id,
+    ]);
+
+    return createResponse(201, {
+      id: result.rows[0].id,
+      message: 'File uploaded successfully',
+    });
+  } catch (error) {
+    console.error('[Files] Failed to create custom file:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to upload file' });
+  }
+}
+
+/**
+ * Get single custom file
+ */
+async function handleGetCustomFile(user, fileId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(`
+      SELECT * FROM "CustomFile"
+      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+    `, [fileId, ctx.tenantId]);
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'File not found' });
+    }
+
+    return createResponse(200, result.rows[0]);
+  } catch (error) {
+    console.error('[Files] Failed to get custom file:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to get file' });
+  }
+}
+
+/**
+ * Delete custom file (soft delete)
+ */
+async function handleDeleteCustomFile(user, fileId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(`
+      UPDATE "CustomFile" SET deleted_at = NOW()
+      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+      RETURNING id
+    `, [fileId, ctx.tenantId]);
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'File not found' });
+    }
+
+    return createResponse(200, { success: true, message: 'File deleted' });
+  } catch (error) {
+    console.error('[Files] Failed to delete custom file:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to delete file' });
   }
 }

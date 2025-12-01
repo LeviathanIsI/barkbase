@@ -140,6 +140,64 @@ export class ApiCoreStack extends cdk.Stack {
     );
 
     // =========================================================================
+    // WILDCARD Lambda Permissions - ONE permission per Lambda covers ALL routes
+    // =========================================================================
+    // This prevents the 20KB Lambda resource-based policy limit by using a single
+    // wildcard permission instead of one permission per route/method combination.
+    // =========================================================================
+
+    const apiArn = `arn:aws:execute-api:${this.region}:${this.account}:${this.httpApi.apiId}/*/*`;
+
+    new lambda.CfnPermission(this, 'AuthApiPermission', {
+      action: 'lambda:InvokeFunction',
+      functionName: authApiFunction.functionName,
+      principal: 'apigateway.amazonaws.com',
+      sourceArn: apiArn,
+    });
+
+    new lambda.CfnPermission(this, 'UserProfilePermission', {
+      action: 'lambda:InvokeFunction',
+      functionName: userProfileFunction.functionName,
+      principal: 'apigateway.amazonaws.com',
+      sourceArn: apiArn,
+    });
+
+    new lambda.CfnPermission(this, 'EntityServicePermission', {
+      action: 'lambda:InvokeFunction',
+      functionName: entityServiceFunction.functionName,
+      principal: 'apigateway.amazonaws.com',
+      sourceArn: apiArn,
+    });
+
+    new lambda.CfnPermission(this, 'AnalyticsServicePermission', {
+      action: 'lambda:InvokeFunction',
+      functionName: analyticsServiceFunction.functionName,
+      principal: 'apigateway.amazonaws.com',
+      sourceArn: apiArn,
+    });
+
+    new lambda.CfnPermission(this, 'OperationsServicePermission', {
+      action: 'lambda:InvokeFunction',
+      functionName: operationsServiceFunction.functionName,
+      principal: 'apigateway.amazonaws.com',
+      sourceArn: apiArn,
+    });
+
+    new lambda.CfnPermission(this, 'ConfigServicePermission', {
+      action: 'lambda:InvokeFunction',
+      functionName: configServiceFunction.functionName,
+      principal: 'apigateway.amazonaws.com',
+      sourceArn: apiArn,
+    });
+
+    new lambda.CfnPermission(this, 'FinancialServicePermission', {
+      action: 'lambda:InvokeFunction',
+      functionName: financialServiceFunction.functionName,
+      principal: 'apigateway.amazonaws.com',
+      sourceArn: apiArn,
+    });
+
+    // =========================================================================
     // Routes - CONSOLIDATED to avoid Lambda policy size limit
     // =========================================================================
     //
@@ -415,6 +473,7 @@ export class ApiCoreStack extends cdk.Stack {
       authorizer,
     });
 
+    // Properties routes - use /list suffix for base queries
     this.httpApi.addRoutes({
       path: '/api/v2/properties/{proxy+}',
       methods: allMethods,
@@ -422,8 +481,40 @@ export class ApiCoreStack extends cdk.Stack {
       authorizer,
     });
 
+    // Entities routes - use /list suffix for base queries
     this.httpApi.addRoutes({
       path: '/api/v2/entities/{proxy+}',
+      methods: allMethods,
+      integration: configIntegration,
+      authorizer,
+    });
+
+    // Import/Export routes (Settings > Import & Export)
+    this.httpApi.addRoutes({
+      path: '/api/v1/import-export/{proxy+}',
+      methods: allMethods,
+      integration: configIntegration,
+      authorizer,
+    });
+
+    // Documents routes (Settings > Documents - received files)
+    this.httpApi.addRoutes({
+      path: '/api/v1/documents',
+      methods: allMethods,
+      integration: configIntegration,
+      authorizer,
+    });
+
+    this.httpApi.addRoutes({
+      path: '/api/v1/documents/{proxy+}',
+      methods: allMethods,
+      integration: configIntegration,
+      authorizer,
+    });
+
+    // Files routes (Settings > Files - outgoing templates)
+    this.httpApi.addRoutes({
+      path: '/api/v1/files/{proxy+}',
       methods: allMethods,
       integration: configIntegration,
       authorizer,

@@ -80,6 +80,7 @@ const NAV_SECTIONS = [
       },
       { label: "Forms", to: "/settings/forms" },
       { label: "Documents", to: "/settings/documents" },
+      { label: "Files", to: "/settings/files" },
       { label: "Import & Export", to: "/settings/import-export" },
     ],
   },

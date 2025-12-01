@@ -175,9 +175,10 @@ export const canonicalEndpoints = {
 
   // Custom Properties API (v2) - Enterprise custom fields system
   // Allows tenants to define their own data model per entity type
+  // Note: /list suffix required because API Gateway {proxy+} doesn't match base path
   properties: {
-    list: '/api/v2/properties',
-    create: '/api/v2/properties',
+    list: '/api/v2/properties/list',
+    create: '/api/v2/properties/create',
     detail: build('/api/v2/properties/{id}'),
     update: build('/api/v2/properties/{id}'),
     delete: build('/api/v2/properties/{id}'),
@@ -196,8 +197,8 @@ export const canonicalEndpoints = {
   // Entity Definitions API (v2) - Custom Objects
   // Allows tenants to define custom entity types beyond built-in ones
   entityDefinitions: {
-    list: '/api/v2/entities',
-    create: '/api/v2/entities',
+    list: '/api/v2/entities/list',
+    create: '/api/v2/entities/create',
     detail: build('/api/v2/entities/{id}'),
     update: build('/api/v2/entities/{id}'),
     delete: build('/api/v2/entities/{id}'),

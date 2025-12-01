@@ -109,6 +109,9 @@ const SettingsForms = lazy(() => import("@/features/settings/routes/Forms"));
 const SettingsDocuments = lazy(() =>
   import("@/features/settings/routes/Documents")
 );
+const SettingsFiles = lazy(() =>
+  import("@/features/settings/routes/Files")
+);
 const SettingsImportExport = lazy(() =>
   import("@/features/settings/routes/ImportExport")
 );
@@ -348,6 +351,7 @@ export const router = createBrowserRouter([
                   { path: "data-quality", element: <SettingsDataQuality /> },
                   { path: "forms", element: <SettingsForms /> },
                   { path: "documents", element: <SettingsDocuments /> },
+                  { path: "files", element: <SettingsFiles /> },
                   { path: "import-export", element: <SettingsImportExport /> },
                   { path: "exports", element: <SettingsExports /> },
 

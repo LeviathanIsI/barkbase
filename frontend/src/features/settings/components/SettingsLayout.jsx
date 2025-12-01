@@ -72,7 +72,8 @@ const NAV_SECTIONS = [
     items: [
       { id: 'properties', label: 'Properties', icon: Database, path: '/settings/properties', description: 'Custom fields and attributes' },
       { id: 'forms', label: 'Forms', icon: FileText, path: '/settings/forms', description: 'Intake and custom forms' },
-      { id: 'documents', label: 'Documents', icon: FileText, path: '/settings/documents', description: 'File templates and storage' },
+      { id: 'documents', label: 'Documents', icon: FileText, path: '/settings/documents', description: 'Received customer files' },
+      { id: 'files', label: 'Files', icon: FileText, path: '/settings/files', description: 'Templates to send' },
       { id: 'import-export', label: 'Import & Export', icon: Database, path: '/settings/import-export', description: 'Data migration tools' },
     ],
   },
@@ -132,7 +133,8 @@ export default function SettingsLayout() {
 
   const activeItem = getActiveItem();
 
-  const SidebarContent = () => (
+  // Sidebar content - rendered inline to preserve scroll position across navigations
+  const sidebarContent = (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-4 border-b border-border/60">
@@ -159,7 +161,6 @@ export default function SettingsLayout() {
         <div className="space-y-1">
           {NAV_SECTIONS.map((section) => {
             const isCollapsed = collapsedSections[section.id];
-            const hasActiveItem = section.items.some(item => activeItem?.id === item.id);
 
             return (
               <div key={section.id}>
@@ -220,10 +221,10 @@ export default function SettingsLayout() {
   );
 
   return (
-    <div className="flex w-full bg-background rounded-lg border border-border overflow-hidden" style={{ minHeight: '70vh' }}>
-      {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-64 flex-shrink-0 flex-col border-r border-border bg-card">
-        <SidebarContent />
+    <div className="flex w-full h-[calc(100vh-4rem)] bg-background rounded-lg border border-border overflow-hidden">
+      {/* Desktop Sidebar - scrolls independently */}
+      <aside className="hidden md:flex w-64 flex-shrink-0 flex-col border-r border-border bg-card h-full overflow-hidden">
+        {sidebarContent}
       </aside>
 
       {/* Mobile Header */}
@@ -277,11 +278,11 @@ export default function SettingsLayout() {
         "md:hidden fixed top-0 left-0 bottom-0 z-40 w-72 bg-card border-r border-border transform transition-transform duration-200",
         mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <SidebarContent />
+        {sidebarContent}
       </aside>
 
-      {/* Main Content Area */}
-      <div className="flex-1 md:pt-0 pt-24">
+      {/* Main Content Area - scrolls independently */}
+      <div className="flex-1 h-full overflow-y-auto md:pt-0 pt-24">
         <div className="w-full p-6 md:p-8">
           {/* Page Title */}
           {activeItem && (
