@@ -4,6 +4,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import Badge from '@/components/ui/Badge';
+import Switch from '@/components/ui/Switch';
 import { useTenantStore } from '@/stores/tenant';
 import SettingsPage from '../components/SettingsPage';
 import {
@@ -177,22 +178,22 @@ const Email = () => {
       <Card title="Email Templates" description="Customize emails sent to your customers" icon={<Mail className="h-5 w-5" />}>
         {isLoadingTemplates ? (
           <div className="animate-pulse space-y-3">
-            {[1, 2, 3].map((i) => (<div key={i} className="h-16 bg-gray-100 dark:bg-gray-800 rounded" />))}
+            {[1, 2, 3].map((i) => (<div key={i} className="h-16 bg-surface-secondary rounded" />))}
           </div>
         ) : (
           <div className="space-y-3">
             {templates.map((template) => (
-              <div key={template.type} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
+              <div key={template.type} className="flex items-center justify-between p-4 bg-surface-secondary rounded-lg border border-border">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
-                    <Mail className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                  <div className="p-2 bg-primary-100 dark:bg-primary-900/30 rounded-lg">
+                    <Mail className="h-5 w-5 text-primary-600 dark:text-primary-400" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-gray-900 dark:text-white">{template.name}</span>
+                      <span className="font-medium text-text-primary">{template.name}</span>
                       {template.isCustom && <Badge variant="success" size="sm">Customized</Badge>}
                     </div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{template.description}</p>
+                    <p className="text-sm text-text-secondary">{template.description}</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -220,13 +221,16 @@ const Email = () => {
       >
         <div className="space-y-4">
           {automationOptions.map(({ key, label, desc }) => (
-            <label key={key} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800">
+            <div key={key} className="flex items-center justify-between p-3 bg-surface-secondary rounded-lg">
               <div>
-                <span className="font-medium text-gray-900 dark:text-white">{label}</span>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{desc}</p>
+                <span className="font-medium text-text-primary">{label}</span>
+                <p className="text-sm text-text-secondary">{desc}</p>
               </div>
-              <input type="checkbox" checked={settings[key]} onChange={(e) => handleSettingsChange(key, e.target.checked)} className="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
-            </label>
+              <Switch
+                checked={settings[key]}
+                onChange={(checked) => handleSettingsChange(key, checked)}
+              />
+            </div>
           ))}
         </div>
       </Card>
@@ -242,10 +246,10 @@ const Email = () => {
       >
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Logo URL</label>
+            <label className="block text-sm font-medium mb-2">Logo URL</label>
             <div className="flex gap-4 items-center">
-              <div className="flex-shrink-0 w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center border border-gray-200 dark:border-gray-700">
-                {settings.logoUrl ? <img src={settings.logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" /> : <Image className="h-8 w-8 text-gray-400" />}
+              <div className="flex-shrink-0 w-16 h-16 bg-surface-secondary rounded-lg flex items-center justify-center border border-border">
+                {settings.logoUrl ? <img src={settings.logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" /> : <Image className="h-8 w-8 text-text-tertiary" />}
               </div>
               <Input value={settings.logoUrl || ''} onChange={(e) => handleSettingsChange('logoUrl', e.target.value)} placeholder="https://example.com/logo.png" className="flex-1" />
             </div>
@@ -253,31 +257,31 @@ const Email = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Primary Color</label>
+              <label className="block text-sm font-medium mb-2">Primary Color</label>
               <div className="flex gap-2 items-center">
-                <input type="color" value={settings.primaryColor} onChange={(e) => handleSettingsChange('primaryColor', e.target.value)} className="h-10 w-14 p-1 rounded border border-gray-300 dark:border-gray-600 cursor-pointer" />
+                <input type="color" value={settings.primaryColor} onChange={(e) => handleSettingsChange('primaryColor', e.target.value)} className="h-10 w-14 p-1 rounded border border-border cursor-pointer" />
                 <Input value={settings.primaryColor} onChange={(e) => handleSettingsChange('primaryColor', e.target.value)} placeholder="#4F46E5" className="flex-1" />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Header Background</label>
+              <label className="block text-sm font-medium mb-2">Header Background</label>
               <div className="flex gap-2 items-center">
-                <input type="color" value={settings.headerBgColor} onChange={(e) => handleSettingsChange('headerBgColor', e.target.value)} className="h-10 w-14 p-1 rounded border border-gray-300 dark:border-gray-600 cursor-pointer" />
+                <input type="color" value={settings.headerBgColor} onChange={(e) => handleSettingsChange('headerBgColor', e.target.value)} className="h-10 w-14 p-1 rounded border border-border cursor-pointer" />
                 <Input value={settings.headerBgColor} onChange={(e) => handleSettingsChange('headerBgColor', e.target.value)} placeholder="#1F2937" className="flex-1" />
               </div>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Footer Text</label>
+            <label className="block text-sm font-medium mb-2">Footer Text</label>
             <Input value={settings.footerText || ''} onChange={(e) => handleSettingsChange('footerText', e.target.value)} placeholder="Thank you for choosing us!" />
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Appears at the bottom of all emails</p>
+            <p className="mt-1 text-sm text-text-secondary">Appears at the bottom of all emails</p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Reply-To Email</label>
+            <label className="block text-sm font-medium mb-2">Reply-To Email</label>
             <Input type="email" value={settings.replyToEmail || ''} onChange={(e) => handleSettingsChange('replyToEmail', e.target.value)} placeholder="info@yourbusiness.com" />
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Where customer replies will be sent</p>
+            <p className="mt-1 text-sm text-text-secondary">Where customer replies will be sent</p>
           </div>
         </div>
       </Card>
@@ -286,40 +290,40 @@ const Email = () => {
       <Card title="Email Usage" description="Monitor your email sending limits" icon={<BarChart3 className="h-5 w-5" />}>
         {isLoadingUsage ? (
           <div className="animate-pulse space-y-4">
-            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
-            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
+            <div className="h-4 bg-surface-secondary rounded w-1/2" />
+            <div className="h-4 bg-surface-secondary rounded w-3/4" />
           </div>
         ) : (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                <p className="text-sm text-gray-500 dark:text-gray-400">Today</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{usage.today.toLocaleString()} <span className="text-sm font-normal text-gray-500">/ {usage.dailyLimit.toLocaleString()}</span></p>
+              <div className="p-4 bg-surface-secondary rounded-lg">
+                <p className="text-sm text-text-secondary">Today</p>
+                <p className="text-2xl font-bold text-text-primary">{usage.today.toLocaleString()} <span className="text-sm font-normal text-text-secondary">/ {usage.dailyLimit.toLocaleString()}</span></p>
               </div>
-              <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                <p className="text-sm text-gray-500 dark:text-gray-400">This Month</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{usage.thisMonth.toLocaleString()} <span className="text-sm font-normal text-gray-500">/ {usage.monthlyLimit.toLocaleString()}</span></p>
+              <div className="p-4 bg-surface-secondary rounded-lg">
+                <p className="text-sm text-text-secondary">This Month</p>
+                <p className="text-2xl font-bold text-text-primary">{usage.thisMonth.toLocaleString()} <span className="text-sm font-normal text-text-secondary">/ {usage.monthlyLimit.toLocaleString()}</span></p>
               </div>
             </div>
 
             <div>
               <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-500 dark:text-gray-400">Monthly usage</span>
-                <span className="text-gray-900 dark:text-white font-medium">{usagePercent}%</span>
+                <span className="text-text-secondary">Monthly usage</span>
+                <span className="text-text-primary font-medium">{usagePercent}%</span>
               </div>
-              <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div className={`h-full rounded-full transition-all ${usagePercent >= 90 ? 'bg-red-500' : usagePercent >= 75 ? 'bg-yellow-500' : 'bg-indigo-600'}`} style={{ width: `${Math.min(usagePercent, 100)}%` }} />
+              <div className="h-2 bg-surface-secondary rounded-full overflow-hidden">
+                <div className={`h-full rounded-full transition-all ${usagePercent >= 90 ? 'bg-error-500' : usagePercent >= 75 ? 'bg-warning-500' : 'bg-primary-600'}`} style={{ width: `${Math.min(usagePercent, 100)}%` }} />
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between pt-4 border-t border-border">
               <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Sender Email</p>
-                <p className="font-medium text-gray-900 dark:text-white">{sender.email}</p>
+                <p className="text-sm text-text-secondary">Sender Email</p>
+                <p className="font-medium text-text-primary">{sender.email}</p>
               </div>
               <div className="flex items-center gap-1.5">
                 {sender.verified ? (
-                  <><CheckCircle className="h-5 w-5 text-green-500" /><span className="text-sm text-green-600 dark:text-green-400 font-medium">Verified</span></>
+                  <><CheckCircle className="h-5 w-5 text-success-500" /><span className="text-sm text-success-600 font-medium">Verified</span></>
                 ) : (
                   <Badge variant="warning">Pending Verification</Badge>
                 )}
@@ -333,13 +337,13 @@ const Email = () => {
       <Card title="Test Email" description="Send a test email to preview how it looks" icon={<Send className="h-5 w-5" />}>
         <div className="flex gap-4 items-end">
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Template</label>
-            <select value={selectedTestTemplate} onChange={(e) => setSelectedTestTemplate(e.target.value)} className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <label className="block text-sm font-medium mb-2">Template</label>
+            <select value={selectedTestTemplate} onChange={(e) => setSelectedTestTemplate(e.target.value)} className="w-full rounded-lg border border-border bg-surface-primary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500">
               {templates.map((t) => <option key={t.type} value={t.type}>{t.name}</option>)}
             </select>
           </div>
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Send To</label>
+            <label className="block text-sm font-medium mb-2">Send To</label>
             <Input type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder="your@email.com" />
           </div>
           <Button variant="primary" onClick={handleSendTestEmail} loading={sendTestEmailMutation.isPending}>
@@ -353,24 +357,24 @@ const Email = () => {
         {editingTemplate && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Subject Line</label>
+              <label className="block text-sm font-medium mb-2">Subject Line</label>
               <Input value={templateForm.subject} onChange={(e) => setTemplateForm((prev) => ({ ...prev, subject: e.target.value }))} placeholder="Email subject..." />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email Body (HTML)</label>
-              <textarea value={templateForm.body} onChange={(e) => setTemplateForm((prev) => ({ ...prev, body: e.target.value }))} rows={12} className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="<html>...</html>" />
+              <label className="block text-sm font-medium mb-2">Email Body (HTML)</label>
+              <textarea value={templateForm.body} onChange={(e) => setTemplateForm((prev) => ({ ...prev, body: e.target.value }))} rows={12} className="w-full rounded-lg border border-border bg-surface-primary px-3 py-2 text-sm text-text-primary font-mono focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="<html>...</html>" />
             </div>
-            <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Available Variables:</p>
+            <div className="p-3 bg-surface-secondary rounded-lg">
+              <p className="text-sm font-medium mb-2">Available Variables:</p>
               <div className="flex flex-wrap gap-2">
                 {variables.map((v) => (
-                  <code key={v} className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded text-xs cursor-pointer hover:bg-gray-300 dark:hover:bg-gray-600" onClick={() => { navigator.clipboard.writeText(`{{${v}}}`); toast.success(`Copied {{${v}}}`); }}>
+                  <code key={v} className="px-2 py-1 bg-surface-elevated rounded text-xs cursor-pointer hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors" onClick={() => { navigator.clipboard.writeText(`{{${v}}}`); toast.success(`Copied {{${v}}}`); }}>
                     {`{{${v}}}`}
                   </code>
                 ))}
               </div>
             </div>
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex justify-end gap-3 pt-4 border-t border-border">
               <Button variant="ghost" onClick={() => setEditingTemplate(null)}>Cancel</Button>
               <Button variant="primary" onClick={handleSaveTemplate} loading={updateTemplateMutation.isPending}>Save Template</Button>
             </div>
@@ -382,11 +386,11 @@ const Email = () => {
       <Modal isOpen={!!previewTemplate} onClose={() => setPreviewTemplate(null)} title={`Preview: ${previewTemplate?.name || 'Template'}`} size="xl">
         {previewTemplate && (
           <div className="space-y-4">
-            <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
-              <p className="text-sm text-gray-500 dark:text-gray-400">Subject:</p>
-              <p className="font-medium text-gray-900 dark:text-white">{renderPreview(previewTemplate).subject}</p>
+            <div className="p-3 bg-surface-secondary rounded-lg">
+              <p className="text-sm text-text-secondary">Subject:</p>
+              <p className="font-medium text-text-primary">{renderPreview(previewTemplate).subject}</p>
             </div>
-            <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+            <div className="border border-border rounded-lg overflow-hidden">
               <iframe srcDoc={renderPreview(previewTemplate).body} title="Email Preview" className="w-full h-96 bg-white" />
             </div>
             <div className="flex justify-end">
