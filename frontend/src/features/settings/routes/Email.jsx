@@ -15,15 +15,15 @@ import {
   useSendTestEmailMutation,
 } from '../api';
 import {
-  EnvelopeIcon,
-  PaintBrushIcon,
-  ChartBarIcon,
-  PaperAirplaneIcon,
-  EyeIcon,
-  PencilIcon,
-  CheckCircleIcon,
-  PhotoIcon,
-} from '@heroicons/react/24/outline';
+  Mail,
+  Paintbrush,
+  BarChart3,
+  Send,
+  Eye,
+  Pencil,
+  CheckCircle,
+  Image,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const Email = () => {
@@ -174,7 +174,7 @@ const Email = () => {
   return (
     <SettingsPage title="Email Settings" description="Configure email templates, automation, and branding">
       {/* Email Templates Card */}
-      <Card title="Email Templates" description="Customize emails sent to your customers" icon={<EnvelopeIcon className="h-5 w-5" />}>
+      <Card title="Email Templates" description="Customize emails sent to your customers" icon={<Mail className="h-5 w-5" />}>
         {isLoadingTemplates ? (
           <div className="animate-pulse space-y-3">
             {[1, 2, 3].map((i) => (<div key={i} className="h-16 bg-gray-100 dark:bg-gray-800 rounded" />))}
@@ -185,7 +185,7 @@ const Email = () => {
               <div key={template.type} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
-                    <EnvelopeIcon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                    <Mail className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
@@ -197,10 +197,10 @@ const Email = () => {
                 </div>
                 <div className="flex gap-2">
                   <Button variant="ghost" size="sm" onClick={() => setPreviewTemplate(template)}>
-                    <EyeIcon className="h-4 w-4 mr-1" />Preview
+                    <Eye className="h-4 w-4 mr-1" />Preview
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => handleEditTemplate(template)}>
-                    <PencilIcon className="h-4 w-4 mr-1" />Edit
+                    <Pencil className="h-4 w-4 mr-1" />Edit
                   </Button>
                 </div>
               </div>
@@ -213,7 +213,7 @@ const Email = () => {
       <Card
         title="Automated Emails"
         description="Choose which emails are sent automatically"
-        icon={<PaperAirplaneIcon className="h-5 w-5" />}
+        icon={<Send className="h-5 w-5" />}
         headerAction={isDirty && (
           <Button variant="primary" size="sm" onClick={handleSaveSettings} loading={updateSettingsMutation.isPending}>Save Changes</Button>
         )}
@@ -235,7 +235,7 @@ const Email = () => {
       <Card
         title="Email Branding"
         description="Customize your email appearance"
-        icon={<PaintBrushIcon className="h-5 w-5" />}
+        icon={<Paintbrush className="h-5 w-5" />}
         headerAction={isDirty && (
           <Button variant="primary" size="sm" onClick={handleSaveSettings} loading={updateSettingsMutation.isPending}>Save Changes</Button>
         )}
@@ -245,7 +245,7 @@ const Email = () => {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Logo URL</label>
             <div className="flex gap-4 items-center">
               <div className="flex-shrink-0 w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center border border-gray-200 dark:border-gray-700">
-                {settings.logoUrl ? <img src={settings.logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" /> : <PhotoIcon className="h-8 w-8 text-gray-400" />}
+                {settings.logoUrl ? <img src={settings.logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" /> : <Image className="h-8 w-8 text-gray-400" />}
               </div>
               <Input value={settings.logoUrl || ''} onChange={(e) => handleSettingsChange('logoUrl', e.target.value)} placeholder="https://example.com/logo.png" className="flex-1" />
             </div>
@@ -283,7 +283,7 @@ const Email = () => {
       </Card>
 
       {/* Email Usage Card */}
-      <Card title="Email Usage" description="Monitor your email sending limits" icon={<ChartBarIcon className="h-5 w-5" />}>
+      <Card title="Email Usage" description="Monitor your email sending limits" icon={<BarChart3 className="h-5 w-5" />}>
         {isLoadingUsage ? (
           <div className="animate-pulse space-y-4">
             <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
@@ -319,7 +319,7 @@ const Email = () => {
               </div>
               <div className="flex items-center gap-1.5">
                 {sender.verified ? (
-                  <><CheckCircleIcon className="h-5 w-5 text-green-500" /><span className="text-sm text-green-600 dark:text-green-400 font-medium">Verified</span></>
+                  <><CheckCircle className="h-5 w-5 text-green-500" /><span className="text-sm text-green-600 dark:text-green-400 font-medium">Verified</span></>
                 ) : (
                   <Badge variant="warning">Pending Verification</Badge>
                 )}
@@ -330,7 +330,7 @@ const Email = () => {
       </Card>
 
       {/* Test Email Card */}
-      <Card title="Test Email" description="Send a test email to preview how it looks" icon={<PaperAirplaneIcon className="h-5 w-5" />}>
+      <Card title="Test Email" description="Send a test email to preview how it looks" icon={<Send className="h-5 w-5" />}>
         <div className="flex gap-4 items-end">
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Template</label>
@@ -343,7 +343,7 @@ const Email = () => {
             <Input type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} placeholder="your@email.com" />
           </div>
           <Button variant="primary" onClick={handleSendTestEmail} loading={sendTestEmailMutation.isPending}>
-            <PaperAirplaneIcon className="h-4 w-4 mr-2" />Send Test
+            <Send className="h-4 w-4 mr-2" />Send Test
           </Button>
         </div>
       </Card>
