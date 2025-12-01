@@ -291,7 +291,7 @@ const ProductsServices = () => {
     : 0;
 
   return (
-    <SettingsPage title="Products & Packages" description="Manage prepaid packages and add-on services">
+    <SettingsPage title="Packages & Add-Ons" description="Manage prepaid packages and add-on services">
       {/* Packages Section */}
       <Card
         title="Packages"

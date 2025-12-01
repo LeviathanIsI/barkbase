@@ -54,7 +54,7 @@ const NAV_SECTIONS = [
       { id: 'subscription', label: 'Subscription', icon: CreditCard, path: '/settings/billing', description: 'Your plan and usage' },
       { id: 'payment-processing', label: 'Payment Processing', icon: CreditCard, path: '/settings/payment-processing', description: 'Payment gateway settings' },
       { id: 'invoicing', label: 'Invoicing', icon: FileText, path: '/settings/invoicing', description: 'Invoice templates and settings' },
-      { id: 'products', label: 'Products & Packages', icon: Tag, path: '/settings/products-services', description: 'Packages and add-ons' },
+      { id: 'products', label: 'Packages & Add-Ons', icon: Tag, path: '/settings/products-services', description: 'Prepaid packages and extra services' },
     ],
   },
   {

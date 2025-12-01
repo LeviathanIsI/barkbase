@@ -50,7 +50,7 @@ const NAV_SECTIONS = [
       { label: "Subscription", to: "/settings/billing" },
       { label: "Payment Processing", to: "/settings/payment-processing" },
       { label: "Invoicing", to: "/settings/invoicing" },
-      { label: "Products & Packages", to: "/settings/products-services" },
+      { label: "Packages & Add-Ons", to: "/settings/products-services" },
     ],
   },
   {
