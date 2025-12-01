@@ -1154,3 +1154,147 @@ export const useSendTestEmailMutation = () => {
     },
   });
 };
+
+// =============================================================================
+// PACKAGE TEMPLATES API
+// =============================================================================
+// Prepaid credit packages that facilities OFFER for purchase
+
+/**
+ * List all package templates
+ */
+export const usePackageTemplatesQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  return useQuery({
+    queryKey: ['packageTemplates', tenantKey],
+    queryFn: async () => {
+      const res = await apiClient.get(canonicalEndpoints.packageTemplates.list);
+      return res.data?.templates || [];
+    },
+    staleTime: 5 * 60 * 1000,
+    ...options,
+  });
+};
+
+/**
+ * Create a package template
+ */
+export const useCreatePackageTemplateMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+  return useMutation({
+    mutationFn: async (data) => {
+      const res = await apiClient.post(canonicalEndpoints.packageTemplates.create, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['packageTemplates', tenantKey] });
+    },
+  });
+};
+
+/**
+ * Update a package template
+ */
+export const useUpdatePackageTemplateMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+  return useMutation({
+    mutationFn: async ({ id, ...data }) => {
+      const res = await apiClient.put(canonicalEndpoints.packageTemplates.update(id), data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['packageTemplates', tenantKey] });
+    },
+  });
+};
+
+/**
+ * Delete (archive) a package template
+ */
+export const useDeletePackageTemplateMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+  return useMutation({
+    mutationFn: async (id) => {
+      const res = await apiClient.delete(canonicalEndpoints.packageTemplates.delete(id));
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['packageTemplates', tenantKey] });
+    },
+  });
+};
+
+// =============================================================================
+// ADD-ON SERVICES API
+// =============================================================================
+// Optional extras customers can add to bookings
+
+/**
+ * List all add-on services
+ */
+export const useAddOnServicesQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  return useQuery({
+    queryKey: ['addonServices', tenantKey],
+    queryFn: async () => {
+      const res = await apiClient.get(canonicalEndpoints.addonServices.list);
+      return res.data?.addons || [];
+    },
+    staleTime: 5 * 60 * 1000,
+    ...options,
+  });
+};
+
+/**
+ * Create an add-on service
+ */
+export const useCreateAddOnServiceMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+  return useMutation({
+    mutationFn: async (data) => {
+      const res = await apiClient.post(canonicalEndpoints.addonServices.create, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['addonServices', tenantKey] });
+    },
+  });
+};
+
+/**
+ * Update an add-on service
+ */
+export const useUpdateAddOnServiceMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+  return useMutation({
+    mutationFn: async ({ id, ...data }) => {
+      const res = await apiClient.put(canonicalEndpoints.addonServices.update(id), data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['addonServices', tenantKey] });
+    },
+  });
+};
+
+/**
+ * Delete (archive) an add-on service
+ */
+export const useDeleteAddOnServiceMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+  return useMutation({
+    mutationFn: async (id) => {
+      const res = await apiClient.delete(canonicalEndpoints.addonServices.delete(id));
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['addonServices', tenantKey] });
+    },
+  });
+};

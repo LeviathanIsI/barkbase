@@ -736,6 +736,72 @@ exports.handler = async (event, context) => {
         return handleUpdateFormSubmission(user, submissionId, parseBody(event));
       }
     }
+
+    // =========================================================================
+    // PACKAGE TEMPLATES API
+    // =========================================================================
+    // Prepaid credit packages that facilities OFFER for purchase
+    // (The Package table tracks PURCHASED packages per customer)
+    // =========================================================================
+
+    // GET /api/v1/package-templates - List all package templates
+    if ((path === '/api/v1/package-templates' || path === '/package-templates') && method === 'GET') {
+      return handleListPackageTemplates(user);
+    }
+
+    // POST /api/v1/package-templates - Create package template
+    if ((path === '/api/v1/package-templates' || path === '/package-templates') && method === 'POST') {
+      return handleCreatePackageTemplate(user, parseBody(event));
+    }
+
+    // Single package template routes
+    const packageTemplateIdMatch = path.match(/^\/(?:api\/v1\/)?package-templates\/([a-f0-9-]+)$/i);
+    if (packageTemplateIdMatch) {
+      const templateId = packageTemplateIdMatch[1];
+
+      if (method === 'GET') {
+        return handleGetPackageTemplate(user, templateId);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdatePackageTemplate(user, templateId, parseBody(event));
+      }
+      if (method === 'DELETE') {
+        return handleDeletePackageTemplate(user, templateId);
+      }
+    }
+
+    // =========================================================================
+    // ADD-ON SERVICES API
+    // =========================================================================
+    // Optional extras customers can add to bookings
+    // =========================================================================
+
+    // GET /api/v1/addon-services - List all add-on services
+    if ((path === '/api/v1/addon-services' || path === '/addon-services') && method === 'GET') {
+      return handleListAddOnServices(user);
+    }
+
+    // POST /api/v1/addon-services - Create add-on service
+    if ((path === '/api/v1/addon-services' || path === '/addon-services') && method === 'POST') {
+      return handleCreateAddOnService(user, parseBody(event));
+    }
+
+    // Single add-on service routes
+    const addonServiceIdMatch = path.match(/^\/(?:api\/v1\/)?addon-services\/([a-f0-9-]+)$/i);
+    if (addonServiceIdMatch) {
+      const addonId = addonServiceIdMatch[1];
+
+      if (method === 'GET') {
+        return handleGetAddOnService(user, addonId);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateAddOnService(user, addonId, parseBody(event));
+      }
+      if (method === 'DELETE') {
+        return handleDeleteAddOnService(user, addonId);
+      }
+    }
+
     // Default response for unmatched routes
     return createResponse(404, {
       error: 'Not Found',
@@ -7937,5 +8003,336 @@ async function handleDeleteCustomFile(user, fileId) {
   } catch (error) {
     console.error('[Files] Failed to delete custom file:', error.message);
     return createResponse(500, { error: 'Internal Server Error', message: 'Failed to delete file' });
+  }
+}
+
+// =============================================================================
+// PACKAGE TEMPLATES HANDLERS
+// =============================================================================
+
+/**
+ * List all package templates for tenant
+ */
+async function handleListPackageTemplates(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(`
+      SELECT id, name, description, total_credits, price_in_cents,
+             expires_in_days, service_type, is_active, created_at, updated_at
+      FROM "PackageTemplate"
+      WHERE tenant_id = $1
+      ORDER BY is_active DESC, name ASC
+    `, [ctx.tenantId]);
+
+    return createResponse(200, { templates: result.rows });
+  } catch (error) {
+    console.error('[PackageTemplates] Failed to list templates:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to list package templates' });
+  }
+}
+
+/**
+ * Create a new package template
+ */
+async function handleCreatePackageTemplate(user, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const { name, description, totalCredits, priceInCents, expiresInDays, serviceType, isActive } = body;
+
+    if (!name || !totalCredits || !priceInCents) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Name, total credits, and price are required'
+      });
+    }
+
+    const result = await query(`
+      INSERT INTO "PackageTemplate" (tenant_id, name, description, total_credits, price_in_cents, expires_in_days, service_type, is_active)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+    `, [
+      ctx.tenantId,
+      name,
+      description || null,
+      totalCredits,
+      priceInCents,
+      expiresInDays || null,
+      serviceType || null,
+      isActive !== false
+    ]);
+
+    return createResponse(201, { template: result.rows[0] });
+  } catch (error) {
+    console.error('[PackageTemplates] Failed to create template:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to create package template' });
+  }
+}
+
+/**
+ * Get a single package template
+ */
+async function handleGetPackageTemplate(user, templateId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(`
+      SELECT * FROM "PackageTemplate"
+      WHERE id = $1 AND tenant_id = $2
+    `, [templateId, ctx.tenantId]);
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Package template not found' });
+    }
+
+    return createResponse(200, { template: result.rows[0] });
+  } catch (error) {
+    console.error('[PackageTemplates] Failed to get template:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to get package template' });
+  }
+}
+
+/**
+ * Update a package template
+ */
+async function handleUpdatePackageTemplate(user, templateId, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const { name, description, totalCredits, priceInCents, expiresInDays, serviceType, isActive } = body;
+
+    const result = await query(`
+      UPDATE "PackageTemplate"
+      SET name = COALESCE($3, name),
+          description = COALESCE($4, description),
+          total_credits = COALESCE($5, total_credits),
+          price_in_cents = COALESCE($6, price_in_cents),
+          expires_in_days = $7,
+          service_type = $8,
+          is_active = COALESCE($9, is_active),
+          updated_at = NOW()
+      WHERE id = $1 AND tenant_id = $2
+      RETURNING *
+    `, [
+      templateId,
+      ctx.tenantId,
+      name,
+      description,
+      totalCredits,
+      priceInCents,
+      expiresInDays,
+      serviceType,
+      isActive
+    ]);
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Package template not found' });
+    }
+
+    return createResponse(200, { template: result.rows[0] });
+  } catch (error) {
+    console.error('[PackageTemplates] Failed to update template:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update package template' });
+  }
+}
+
+/**
+ * Delete (archive) a package template
+ */
+async function handleDeletePackageTemplate(user, templateId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Soft delete by setting is_active = false
+    const result = await query(`
+      UPDATE "PackageTemplate"
+      SET is_active = false, updated_at = NOW()
+      WHERE id = $1 AND tenant_id = $2
+      RETURNING id
+    `, [templateId, ctx.tenantId]);
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Package template not found' });
+    }
+
+    return createResponse(200, { success: true, message: 'Package template archived' });
+  } catch (error) {
+    console.error('[PackageTemplates] Failed to delete template:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to delete package template' });
+  }
+}
+
+// =============================================================================
+// ADD-ON SERVICES HANDLERS
+// =============================================================================
+
+/**
+ * List all add-on services for tenant
+ */
+async function handleListAddOnServices(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(`
+      SELECT id, name, description, price_in_cents, price_type,
+             applies_to, is_active, created_at, updated_at
+      FROM "AddOnService"
+      WHERE tenant_id = $1
+      ORDER BY is_active DESC, name ASC
+    `, [ctx.tenantId]);
+
+    return createResponse(200, { addons: result.rows });
+  } catch (error) {
+    console.error('[AddOnServices] Failed to list add-ons:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to list add-on services' });
+  }
+}
+
+/**
+ * Create a new add-on service
+ */
+async function handleCreateAddOnService(user, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const { name, description, priceInCents, priceType, appliesTo, isActive } = body;
+
+    if (!name || priceInCents === undefined) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Name and price are required'
+      });
+    }
+
+    const result = await query(`
+      INSERT INTO "AddOnService" (tenant_id, name, description, price_in_cents, price_type, applies_to, is_active)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+    `, [
+      ctx.tenantId,
+      name,
+      description || null,
+      priceInCents,
+      priceType || 'flat',
+      appliesTo || null,
+      isActive !== false
+    ]);
+
+    return createResponse(201, { addon: result.rows[0] });
+  } catch (error) {
+    console.error('[AddOnServices] Failed to create add-on:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to create add-on service' });
+  }
+}
+
+/**
+ * Get a single add-on service
+ */
+async function handleGetAddOnService(user, addonId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(`
+      SELECT * FROM "AddOnService"
+      WHERE id = $1 AND tenant_id = $2
+    `, [addonId, ctx.tenantId]);
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Add-on service not found' });
+    }
+
+    return createResponse(200, { addon: result.rows[0] });
+  } catch (error) {
+    console.error('[AddOnServices] Failed to get add-on:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to get add-on service' });
+  }
+}
+
+/**
+ * Update an add-on service
+ */
+async function handleUpdateAddOnService(user, addonId, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const { name, description, priceInCents, priceType, appliesTo, isActive } = body;
+
+    const result = await query(`
+      UPDATE "AddOnService"
+      SET name = COALESCE($3, name),
+          description = COALESCE($4, description),
+          price_in_cents = COALESCE($5, price_in_cents),
+          price_type = COALESCE($6, price_type),
+          applies_to = $7,
+          is_active = COALESCE($8, is_active),
+          updated_at = NOW()
+      WHERE id = $1 AND tenant_id = $2
+      RETURNING *
+    `, [
+      addonId,
+      ctx.tenantId,
+      name,
+      description,
+      priceInCents,
+      priceType,
+      appliesTo,
+      isActive
+    ]);
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Add-on service not found' });
+    }
+
+    return createResponse(200, { addon: result.rows[0] });
+  } catch (error) {
+    console.error('[AddOnServices] Failed to update add-on:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update add-on service' });
+  }
+}
+
+/**
+ * Delete (archive) an add-on service
+ */
+async function handleDeleteAddOnService(user, addonId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Soft delete by setting is_active = false
+    const result = await query(`
+      UPDATE "AddOnService"
+      SET is_active = false, updated_at = NOW()
+      WHERE id = $1 AND tenant_id = $2
+      RETURNING id
+    `, [addonId, ctx.tenantId]);
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Add-on service not found' });
+    }
+
+    return createResponse(200, { success: true, message: 'Add-on service archived' });
+  } catch (error) {
+    console.error('[AddOnServices] Failed to delete add-on:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to delete add-on service' });
   }
 }

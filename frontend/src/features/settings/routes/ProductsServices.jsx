@@ -1,18 +1,671 @@
+import { useState } from 'react';
 import Card from '@/components/ui/Card';
-import UpgradeBanner from '@/components/ui/UpgradeBanner';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+import Modal from '@/components/ui/Modal';
+import Badge from '@/components/ui/Badge';
+import Switch from '@/components/ui/Switch';
 import SettingsPage from '../components/SettingsPage';
+import {
+  usePackageTemplatesQuery,
+  useCreatePackageTemplateMutation,
+  useUpdatePackageTemplateMutation,
+  useDeletePackageTemplateMutation,
+  useAddOnServicesQuery,
+  useCreateAddOnServiceMutation,
+  useUpdateAddOnServiceMutation,
+  useDeleteAddOnServiceMutation,
+} from '../api';
+import {
+  Ticket,
+  Plus,
+  Pencil,
+  Archive,
+  Package,
+  Sparkles,
+  Bath,
+  Bone,
+  Pill,
+  RotateCcw,
+} from 'lucide-react';
+import toast from 'react-hot-toast';
 
-const PLACEHOLDER = () => {
+// Service type options
+const SERVICE_TYPES = [
+  { value: '', label: 'All Services' },
+  { value: 'daycare', label: 'Daycare' },
+  { value: 'boarding', label: 'Boarding' },
+  { value: 'grooming', label: 'Grooming' },
+  { value: 'training', label: 'Training' },
+];
+
+// Price type options for add-ons
+const PRICE_TYPES = [
+  { value: 'flat', label: 'Flat Rate' },
+  { value: 'per_day', label: 'Per Day' },
+  { value: 'per_night', label: 'Per Night' },
+];
+
+// Format cents to dollars
+const formatPrice = (cents) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(cents / 100);
+};
+
+// Calculate per-credit price
+const getPerCreditPrice = (priceInCents, credits) => {
+  if (!credits || credits === 0) return 0;
+  return priceInCents / credits;
+};
+
+// Get icon for add-on
+const getAddOnIcon = (name) => {
+  const lowerName = name.toLowerCase();
+  if (lowerName.includes('bath')) return Bath;
+  if (lowerName.includes('play') || lowerName.includes('bone')) return Bone;
+  if (lowerName.includes('med') || lowerName.includes('pill')) return Pill;
+  return Sparkles;
+};
+
+const ProductsServices = () => {
+  // Queries
+  const { data: packages = [], isLoading: isLoadingPackages } = usePackageTemplatesQuery();
+  const { data: addons = [], isLoading: isLoadingAddons } = useAddOnServicesQuery();
+
+  // Mutations
+  const createPackageMutation = useCreatePackageTemplateMutation();
+  const updatePackageMutation = useUpdatePackageTemplateMutation();
+  const deletePackageMutation = useDeletePackageTemplateMutation();
+  const createAddonMutation = useCreateAddOnServiceMutation();
+  const updateAddonMutation = useUpdateAddOnServiceMutation();
+  const deleteAddonMutation = useDeleteAddOnServiceMutation();
+
+  // Modal state
+  const [packageModal, setPackageModal] = useState({ open: false, editing: null });
+  const [addonModal, setAddonModal] = useState({ open: false, editing: null });
+
+  // Package form state
+  const [packageForm, setPackageForm] = useState({
+    name: '',
+    description: '',
+    totalCredits: '',
+    priceInCents: '',
+    expiresInDays: '',
+    neverExpires: false,
+    serviceType: '',
+    isActive: true,
+  });
+
+  // Add-on form state
+  const [addonForm, setAddonForm] = useState({
+    name: '',
+    description: '',
+    priceInCents: '',
+    priceType: 'flat',
+    appliesTo: [],
+    isActive: true,
+  });
+
+  // Open package modal for create/edit
+  const openPackageModal = (pkg = null) => {
+    if (pkg) {
+      setPackageForm({
+        name: pkg.name || '',
+        description: pkg.description || '',
+        totalCredits: pkg.total_credits?.toString() || '',
+        priceInCents: (pkg.price_in_cents / 100)?.toString() || '',
+        expiresInDays: pkg.expires_in_days?.toString() || '',
+        neverExpires: !pkg.expires_in_days,
+        serviceType: pkg.service_type || '',
+        isActive: pkg.is_active !== false,
+      });
+      setPackageModal({ open: true, editing: pkg });
+    } else {
+      setPackageForm({
+        name: '',
+        description: '',
+        totalCredits: '',
+        priceInCents: '',
+        expiresInDays: '90',
+        neverExpires: false,
+        serviceType: '',
+        isActive: true,
+      });
+      setPackageModal({ open: true, editing: null });
+    }
+  };
+
+  // Open add-on modal for create/edit
+  const openAddonModal = (addon = null) => {
+    if (addon) {
+      setAddonForm({
+        name: addon.name || '',
+        description: addon.description || '',
+        priceInCents: (addon.price_in_cents / 100)?.toString() || '',
+        priceType: addon.price_type || 'flat',
+        appliesTo: addon.applies_to || [],
+        isActive: addon.is_active !== false,
+      });
+      setAddonModal({ open: true, editing: addon });
+    } else {
+      setAddonForm({
+        name: '',
+        description: '',
+        priceInCents: '',
+        priceType: 'flat',
+        appliesTo: [],
+        isActive: true,
+      });
+      setAddonModal({ open: true, editing: null });
+    }
+  };
+
+  // Save package
+  const handleSavePackage = async () => {
+    if (!packageForm.name || !packageForm.totalCredits || !packageForm.priceInCents) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    const data = {
+      name: packageForm.name,
+      description: packageForm.description || null,
+      totalCredits: parseInt(packageForm.totalCredits, 10),
+      priceInCents: Math.round(parseFloat(packageForm.priceInCents) * 100),
+      expiresInDays: packageForm.neverExpires ? null : parseInt(packageForm.expiresInDays, 10) || null,
+      serviceType: packageForm.serviceType || null,
+      isActive: packageForm.isActive,
+    };
+
+    try {
+      if (packageModal.editing) {
+        await updatePackageMutation.mutateAsync({ id: packageModal.editing.id, ...data });
+        toast.success('Package updated');
+      } else {
+        await createPackageMutation.mutateAsync(data);
+        toast.success('Package created');
+      }
+      setPackageModal({ open: false, editing: null });
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to save package');
+    }
+  };
+
+  // Save add-on
+  const handleSaveAddon = async () => {
+    if (!addonForm.name || !addonForm.priceInCents) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    const data = {
+      name: addonForm.name,
+      description: addonForm.description || null,
+      priceInCents: Math.round(parseFloat(addonForm.priceInCents) * 100),
+      priceType: addonForm.priceType,
+      appliesTo: addonForm.appliesTo.length > 0 ? addonForm.appliesTo : null,
+      isActive: addonForm.isActive,
+    };
+
+    try {
+      if (addonModal.editing) {
+        await updateAddonMutation.mutateAsync({ id: addonModal.editing.id, ...data });
+        toast.success('Add-on updated');
+      } else {
+        await createAddonMutation.mutateAsync(data);
+        toast.success('Add-on created');
+      }
+      setAddonModal({ open: false, editing: null });
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to save add-on');
+    }
+  };
+
+  // Archive/restore package
+  const handleTogglePackageActive = async (pkg) => {
+    try {
+      if (pkg.is_active) {
+        await deletePackageMutation.mutateAsync(pkg.id);
+        toast.success('Package archived');
+      } else {
+        await updatePackageMutation.mutateAsync({ id: pkg.id, isActive: true });
+        toast.success('Package restored');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update package');
+    }
+  };
+
+  // Archive/restore add-on
+  const handleToggleAddonActive = async (addon) => {
+    try {
+      if (addon.is_active) {
+        await deleteAddonMutation.mutateAsync(addon.id);
+        toast.success('Add-on archived');
+      } else {
+        await updateAddonMutation.mutateAsync({ id: addon.id, isActive: true });
+        toast.success('Add-on restored');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update add-on');
+    }
+  };
+
+  // Toggle service type in add-on form
+  const toggleServiceType = (serviceType) => {
+    setAddonForm((prev) => ({
+      ...prev,
+      appliesTo: prev.appliesTo.includes(serviceType)
+        ? prev.appliesTo.filter((s) => s !== serviceType)
+        : [...prev.appliesTo, serviceType],
+    }));
+  };
+
+  // Calculate per-credit display
+  const perCreditPrice = packageForm.totalCredits && packageForm.priceInCents
+    ? getPerCreditPrice(parseFloat(packageForm.priceInCents) * 100, parseInt(packageForm.totalCredits, 10))
+    : 0;
+
   return (
-    
-    <SettingsPage title="TITLE_PLACEHOLDER" description="Configuration page coming soon">
-      <Card title="Settings" description="This section is under development.">
-        <p className="text-sm text-muted">
-          Full settings for this section will be available soon. You'll be able to configure all aspects of TITLE_PLACEHOLDER here.
-        </p>
+    <SettingsPage title="Products & Packages" description="Manage prepaid packages and add-on services">
+      {/* Packages Section */}
+      <Card
+        title="Packages"
+        description="Prepaid service bundles for your customers"
+        icon={<Ticket className="h-5 w-5" />}
+        headerAction={
+          <Button variant="primary" size="sm" onClick={() => openPackageModal()}>
+            <Plus className="h-4 w-4 mr-1" />New Package
+          </Button>
+        }
+      >
+        {isLoadingPackages ? (
+          <div className="animate-pulse space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-20 bg-surface-secondary rounded-lg" />
+            ))}
+          </div>
+        ) : packages.length === 0 ? (
+          <div className="text-center py-8">
+            <Ticket className="h-12 w-12 mx-auto text-text-tertiary mb-3" />
+            <p className="text-text-secondary mb-4">No packages yet</p>
+            <Button variant="primary" size="sm" onClick={() => openPackageModal()}>
+              <Plus className="h-4 w-4 mr-1" />Create First Package
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {packages.map((pkg) => (
+              <div
+                key={pkg.id}
+                className={`flex items-center justify-between p-4 rounded-lg border ${
+                  pkg.is_active
+                    ? 'bg-surface-secondary border-border'
+                    : 'bg-surface-secondary/50 border-border/50 opacity-60'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary-100 dark:bg-primary-900/30 rounded-lg">
+                    <Ticket className="h-5 w-5 text-primary-600 dark:text-primary-400" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-text-primary">{pkg.name}</span>
+                      {pkg.is_active ? (
+                        <Badge variant="success" size="sm">Active</Badge>
+                      ) : (
+                        <Badge variant="default" size="sm">Inactive</Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-text-secondary">
+                      {formatPrice(pkg.price_in_cents)} ({formatPrice(getPerCreditPrice(pkg.price_in_cents, pkg.total_credits))}/{pkg.total_credits === 1 ? 'credit' : 'credit'})
+                    </p>
+                    <p className="text-xs text-text-tertiary">
+                      {pkg.total_credits} credits
+                      {pkg.expires_in_days && ` • Expires: ${pkg.expires_in_days} days`}
+                      {pkg.service_type && ` • ${SERVICE_TYPES.find(s => s.value === pkg.service_type)?.label || pkg.service_type}`}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => openPackageModal(pkg)}>
+                    <Pencil className="h-4 w-4 mr-1" />Edit
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleTogglePackageActive(pkg)}
+                  >
+                    {pkg.is_active ? (
+                      <><Archive className="h-4 w-4 mr-1" />Archive</>
+                    ) : (
+                      <><RotateCcw className="h-4 w-4 mr-1" />Restore</>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
+
+      {/* Add-On Services Section */}
+      <Card
+        title="Add-On Services"
+        description="Extra services customers can add to bookings"
+        icon={<Sparkles className="h-5 w-5" />}
+        headerAction={
+          <Button variant="primary" size="sm" onClick={() => openAddonModal()}>
+            <Plus className="h-4 w-4 mr-1" />New Add-On
+          </Button>
+        }
+      >
+        {isLoadingAddons ? (
+          <div className="animate-pulse space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-16 bg-surface-secondary rounded-lg" />
+            ))}
+          </div>
+        ) : addons.length === 0 ? (
+          <div className="text-center py-8">
+            <Sparkles className="h-12 w-12 mx-auto text-text-tertiary mb-3" />
+            <p className="text-text-secondary mb-4">No add-on services yet</p>
+            <Button variant="primary" size="sm" onClick={() => openAddonModal()}>
+              <Plus className="h-4 w-4 mr-1" />Create First Add-On
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {addons.map((addon) => {
+              const IconComponent = getAddOnIcon(addon.name);
+              return (
+                <div
+                  key={addon.id}
+                  className={`flex items-center justify-between p-4 rounded-lg border ${
+                    addon.is_active
+                      ? 'bg-surface-secondary border-border'
+                      : 'bg-surface-secondary/50 border-border/50 opacity-60'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-secondary-100 dark:bg-secondary-900/30 rounded-lg">
+                      <IconComponent className="h-5 w-5 text-secondary-600 dark:text-secondary-400" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-text-primary">{addon.name}</span>
+                        {addon.is_active ? (
+                          <Badge variant="success" size="sm">Active</Badge>
+                        ) : (
+                          <Badge variant="default" size="sm">Inactive</Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-text-secondary">
+                        {formatPrice(addon.price_in_cents)}
+                        {addon.price_type !== 'flat' && ` / ${addon.price_type === 'per_day' ? 'day' : 'night'}`}
+                      </p>
+                      <p className="text-xs text-text-tertiary">
+                        Applies to: {addon.applies_to?.length > 0
+                          ? addon.applies_to.map(s => SERVICE_TYPES.find(st => st.value === s)?.label || s).join(', ')
+                          : 'All Services'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => openAddonModal(addon)}>
+                      <Pencil className="h-4 w-4 mr-1" />Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleToggleAddonActive(addon)}
+                    >
+                      {addon.is_active ? (
+                        <><Archive className="h-4 w-4 mr-1" />Archive</>
+                      ) : (
+                        <><RotateCcw className="h-4 w-4 mr-1" />Restore</>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+
+      {/* Package Modal */}
+      <Modal
+        isOpen={packageModal.open}
+        onClose={() => setPackageModal({ open: false, editing: null })}
+        title={packageModal.editing ? 'Edit Package' : 'Create Package'}
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Package Name *</label>
+            <Input
+              value={packageForm.name}
+              onChange={(e) => setPackageForm((prev) => ({ ...prev, name: e.target.value }))}
+              placeholder="e.g., 10 Daycare Days"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Description</label>
+            <Input
+              value={packageForm.description}
+              onChange={(e) => setPackageForm((prev) => ({ ...prev, description: e.target.value }))}
+              placeholder="e.g., Buy 10 days, save 20%!"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Number of Credits *</label>
+              <Input
+                type="number"
+                min="1"
+                value={packageForm.totalCredits}
+                onChange={(e) => setPackageForm((prev) => ({ ...prev, totalCredits: e.target.value }))}
+                placeholder="10"
+              />
+              <p className="text-xs text-text-tertiary mt-1">Days/visits included</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Price *</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary">$</span>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={packageForm.priceInCents}
+                  onChange={(e) => setPackageForm((prev) => ({ ...prev, priceInCents: e.target.value }))}
+                  placeholder="220.00"
+                  className="pl-7"
+                />
+              </div>
+              {perCreditPrice > 0 && (
+                <p className="text-xs text-text-secondary mt-1">
+                  {formatPrice(perCreditPrice)} per credit
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Expiration</label>
+            <div className="flex items-center gap-4">
+              <Input
+                type="number"
+                min="1"
+                value={packageForm.expiresInDays}
+                onChange={(e) => setPackageForm((prev) => ({ ...prev, expiresInDays: e.target.value }))}
+                placeholder="90"
+                disabled={packageForm.neverExpires}
+                className="w-24"
+              />
+              <span className="text-text-secondary">days from purchase</span>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={packageForm.neverExpires}
+                  onChange={(e) => setPackageForm((prev) => ({ ...prev, neverExpires: e.target.checked }))}
+                  className="h-4 w-4 rounded border-border text-primary-600 focus:ring-primary-500"
+                />
+                <span className="text-sm text-text-secondary">Never expires</span>
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Applies to Service</label>
+            <select
+              value={packageForm.serviceType}
+              onChange={(e) => setPackageForm((prev) => ({ ...prev, serviceType: e.target.value }))}
+              className="w-full rounded-lg border border-border bg-surface-primary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              {SERVICE_TYPES.map((type) => (
+                <option key={type.value} value={type.value}>{type.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center justify-between p-3 bg-surface-secondary rounded-lg">
+            <div>
+              <span className="font-medium text-text-primary">Active</span>
+              <p className="text-sm text-text-secondary">Available for purchase</p>
+            </div>
+            <Switch
+              checked={packageForm.isActive}
+              onChange={(checked) => setPackageForm((prev) => ({ ...prev, isActive: checked }))}
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-border">
+            <Button variant="ghost" onClick={() => setPackageModal({ open: false, editing: null })}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleSavePackage}
+              loading={createPackageMutation.isPending || updatePackageMutation.isPending}
+            >
+              {packageModal.editing ? 'Save Changes' : 'Create Package'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Add-On Modal */}
+      <Modal
+        isOpen={addonModal.open}
+        onClose={() => setAddonModal({ open: false, editing: null })}
+        title={addonModal.editing ? 'Edit Add-On Service' : 'Create Add-On Service'}
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Name *</label>
+            <Input
+              value={addonForm.name}
+              onChange={(e) => setAddonForm((prev) => ({ ...prev, name: e.target.value }))}
+              placeholder="e.g., Exit Bath"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Description</label>
+            <Input
+              value={addonForm.description}
+              onChange={(e) => setAddonForm((prev) => ({ ...prev, description: e.target.value }))}
+              placeholder="e.g., Quick bath before pickup"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Price *</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary">$</span>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={addonForm.priceInCents}
+                  onChange={(e) => setAddonForm((prev) => ({ ...prev, priceInCents: e.target.value }))}
+                  placeholder="15.00"
+                  className="pl-7"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Price Type</label>
+              <select
+                value={addonForm.priceType}
+                onChange={(e) => setAddonForm((prev) => ({ ...prev, priceType: e.target.value }))}
+                className="w-full rounded-lg border border-border bg-surface-primary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                {PRICE_TYPES.map((type) => (
+                  <option key={type.value} value={type.value}>{type.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Applies to Services</label>
+            <p className="text-xs text-text-tertiary mb-2">Leave empty for all services</p>
+            <div className="flex flex-wrap gap-2">
+              {SERVICE_TYPES.filter(s => s.value).map((type) => (
+                <button
+                  key={type.value}
+                  type="button"
+                  onClick={() => toggleServiceType(type.value)}
+                  className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                    addonForm.appliesTo.includes(type.value)
+                      ? 'bg-primary-100 dark:bg-primary-900/30 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300'
+                      : 'bg-surface-secondary border-border text-text-secondary hover:bg-surface-elevated'
+                  }`}
+                >
+                  {type.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between p-3 bg-surface-secondary rounded-lg">
+            <div>
+              <span className="font-medium text-text-primary">Active</span>
+              <p className="text-sm text-text-secondary">Available to add to bookings</p>
+            </div>
+            <Switch
+              checked={addonForm.isActive}
+              onChange={(checked) => setAddonForm((prev) => ({ ...prev, isActive: checked }))}
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-border">
+            <Button variant="ghost" onClick={() => setAddonModal({ open: false, editing: null })}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleSaveAddon}
+              loading={createAddonMutation.isPending || updateAddonMutation.isPending}
+            >
+              {addonModal.editing ? 'Save Changes' : 'Create Add-On'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </SettingsPage>
   );
 };
 
-export default PLACEHOLDER;
+export default ProductsServices;

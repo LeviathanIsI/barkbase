@@ -309,6 +309,26 @@ export const canonicalEndpoints = {
     calculate: '/api/v1/financial/commissions/calculate',
   },
 
+  // Package Templates - /api/v1/package-templates/*
+  // Prepaid credit packages facilities offer for purchase
+  packageTemplates: {
+    list: '/api/v1/package-templates',
+    create: '/api/v1/package-templates',
+    detail: build('/api/v1/package-templates/{id}'),
+    update: build('/api/v1/package-templates/{id}'),
+    delete: build('/api/v1/package-templates/{id}'),
+  },
+
+  // Add-On Services - /api/v1/addon-services/*
+  // Optional extras customers can add to bookings
+  addonServices: {
+    list: '/api/v1/addon-services',
+    create: '/api/v1/addon-services',
+    detail: build('/api/v1/addon-services/{id}'),
+    update: build('/api/v1/addon-services/{id}'),
+    delete: build('/api/v1/addon-services/{id}'),
+  },
+
   // Health check
   health: '/api/v1/health',
 };
