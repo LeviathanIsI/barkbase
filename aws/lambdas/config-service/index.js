@@ -292,6 +292,27 @@ exports.handler = async (event, context) => {
         return handleUpdateEmailTemplate(user, templateType, parseBody(event));
       }
     }
+
+    // =========================================================================
+    // INVOICE SETTINGS API
+    // =========================================================================
+    // Invoice defaults, tax, branding, payment instructions, late fees, automation
+    // =========================================================================
+    if (path === '/api/v1/settings/invoicing' || path === '/settings/invoicing') {
+      if (method === 'GET') {
+        return handleGetInvoiceSettings(user);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateInvoiceSettings(user, parseBody(event));
+      }
+    }
+
+    if (path === '/api/v1/settings/invoicing/preview' || path === '/settings/invoicing/preview') {
+      if (method === 'GET') {
+        return handleGetInvoicePreview(user);
+      }
+    }
+
     // =========================================================================
     // POLICIES API
     // =========================================================================
@@ -5376,6 +5397,282 @@ async function handleSendTestEmail(user, body) {
   } catch (error) {
     console.error('[Email] Failed to send test email:', error.message);
     return createResponse(500, { error: 'Internal Server Error', message: 'Failed to send test email' });
+  }
+}
+
+// =============================================================================
+// INVOICE SETTINGS HANDLERS
+// =============================================================================
+// Invoice defaults, tax, branding, payment instructions, late fees, automation
+// =============================================================================
+
+const DEFAULT_INVOICE_SETTINGS = {
+  invoicePrefix: 'INV-',
+  nextInvoiceNumber: 1001,
+  paymentTerms: 'due_on_receipt',
+  defaultNotes: '',
+  chargeTax: false,
+  taxName: 'Sales Tax',
+  taxRate: 0,
+  taxId: '',
+  taxInclusive: false,
+  logoUrl: '',
+  businessName: '',
+  businessAddress: '',
+  businessPhone: '',
+  businessEmail: '',
+  paymentInstructions: '',
+  enableLateFees: false,
+  lateFeeGraceDays: 7,
+  lateFeeType: 'percentage',
+  lateFeeAmount: 1.5,
+  lateFeeRecurring: false,
+  createInvoiceOnCheckout: true,
+  createInvoiceOnBooking: false,
+  autoSendInvoice: true,
+  autoChargeCard: false,
+};
+
+async function handleGetInvoiceSettings(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(`SELECT * FROM "InvoiceSettings" WHERE tenant_id = $1`, [ctx.tenantId]);
+
+    if (result.rows.length === 0) {
+      // Get tenant info for defaults
+      const tenantResult = await query(`SELECT name FROM "Tenant" WHERE id = $1`, [ctx.tenantId]);
+      const tenantName = tenantResult.rows[0]?.name || '';
+      return createResponse(200, {
+        success: true,
+        settings: { ...DEFAULT_INVOICE_SETTINGS, businessName: tenantName },
+        isDefault: true,
+      });
+    }
+
+    const row = result.rows[0];
+    return createResponse(200, {
+      success: true,
+      settings: {
+        invoicePrefix: row.invoice_prefix,
+        nextInvoiceNumber: row.next_invoice_number,
+        paymentTerms: row.payment_terms,
+        defaultNotes: row.default_notes || '',
+        chargeTax: row.charge_tax,
+        taxName: row.tax_name || 'Sales Tax',
+        taxRate: parseFloat(row.tax_rate) || 0,
+        taxId: row.tax_id || '',
+        taxInclusive: row.tax_inclusive,
+        logoUrl: row.logo_url || '',
+        businessName: row.business_name || '',
+        businessAddress: row.business_address || '',
+        businessPhone: row.business_phone || '',
+        businessEmail: row.business_email || '',
+        paymentInstructions: row.payment_instructions || '',
+        enableLateFees: row.enable_late_fees,
+        lateFeeGraceDays: row.late_fee_grace_days,
+        lateFeeType: row.late_fee_type,
+        lateFeeAmount: parseFloat(row.late_fee_amount) || 0,
+        lateFeeRecurring: row.late_fee_recurring,
+        createInvoiceOnCheckout: row.create_invoice_on_checkout,
+        createInvoiceOnBooking: row.create_invoice_on_booking,
+        autoSendInvoice: row.auto_send_invoice,
+        autoChargeCard: row.auto_charge_card,
+      },
+      isDefault: false,
+    });
+  } catch (error) {
+    console.error('[InvoiceSettings] Failed to get settings:', error.message);
+    if (error.message?.includes('does not exist')) {
+      return createResponse(200, { success: true, settings: DEFAULT_INVOICE_SETTINGS, isDefault: true });
+    }
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to load invoice settings' });
+  }
+}
+
+async function handleUpdateInvoiceSettings(user, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const {
+      invoicePrefix = 'INV-',
+      nextInvoiceNumber = 1001,
+      paymentTerms = 'due_on_receipt',
+      defaultNotes = '',
+      chargeTax = false,
+      taxName = 'Sales Tax',
+      taxRate = 0,
+      taxId = '',
+      taxInclusive = false,
+      logoUrl = '',
+      businessName = '',
+      businessAddress = '',
+      businessPhone = '',
+      businessEmail = '',
+      paymentInstructions = '',
+      enableLateFees = false,
+      lateFeeGraceDays = 7,
+      lateFeeType = 'percentage',
+      lateFeeAmount = 1.5,
+      lateFeeRecurring = false,
+      createInvoiceOnCheckout = true,
+      createInvoiceOnBooking = false,
+      autoSendInvoice = true,
+      autoChargeCard = false,
+    } = body;
+
+    const result = await query(
+      `INSERT INTO "InvoiceSettings" (
+        tenant_id, invoice_prefix, next_invoice_number, payment_terms, default_notes,
+        charge_tax, tax_name, tax_rate, tax_id, tax_inclusive,
+        logo_url, business_name, business_address, business_phone, business_email,
+        payment_instructions, enable_late_fees, late_fee_grace_days, late_fee_type, late_fee_amount, late_fee_recurring,
+        create_invoice_on_checkout, create_invoice_on_booking, auto_send_invoice, auto_charge_card
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
+      ON CONFLICT (tenant_id) DO UPDATE SET
+        invoice_prefix = EXCLUDED.invoice_prefix,
+        next_invoice_number = EXCLUDED.next_invoice_number,
+        payment_terms = EXCLUDED.payment_terms,
+        default_notes = EXCLUDED.default_notes,
+        charge_tax = EXCLUDED.charge_tax,
+        tax_name = EXCLUDED.tax_name,
+        tax_rate = EXCLUDED.tax_rate,
+        tax_id = EXCLUDED.tax_id,
+        tax_inclusive = EXCLUDED.tax_inclusive,
+        logo_url = EXCLUDED.logo_url,
+        business_name = EXCLUDED.business_name,
+        business_address = EXCLUDED.business_address,
+        business_phone = EXCLUDED.business_phone,
+        business_email = EXCLUDED.business_email,
+        payment_instructions = EXCLUDED.payment_instructions,
+        enable_late_fees = EXCLUDED.enable_late_fees,
+        late_fee_grace_days = EXCLUDED.late_fee_grace_days,
+        late_fee_type = EXCLUDED.late_fee_type,
+        late_fee_amount = EXCLUDED.late_fee_amount,
+        late_fee_recurring = EXCLUDED.late_fee_recurring,
+        create_invoice_on_checkout = EXCLUDED.create_invoice_on_checkout,
+        create_invoice_on_booking = EXCLUDED.create_invoice_on_booking,
+        auto_send_invoice = EXCLUDED.auto_send_invoice,
+        auto_charge_card = EXCLUDED.auto_charge_card,
+        updated_at = NOW()
+      RETURNING *`,
+      [
+        ctx.tenantId, invoicePrefix, nextInvoiceNumber, paymentTerms, defaultNotes,
+        chargeTax, taxName, taxRate, taxId, taxInclusive,
+        logoUrl, businessName, businessAddress, businessPhone, businessEmail,
+        paymentInstructions, enableLateFees, lateFeeGraceDays, lateFeeType, lateFeeAmount, lateFeeRecurring,
+        createInvoiceOnCheckout, createInvoiceOnBooking, autoSendInvoice, autoChargeCard
+      ]
+    );
+
+    const row = result.rows[0];
+    return createResponse(200, {
+      success: true,
+      settings: {
+        invoicePrefix: row.invoice_prefix,
+        nextInvoiceNumber: row.next_invoice_number,
+        paymentTerms: row.payment_terms,
+        defaultNotes: row.default_notes || '',
+        chargeTax: row.charge_tax,
+        taxName: row.tax_name,
+        taxRate: parseFloat(row.tax_rate) || 0,
+        taxId: row.tax_id || '',
+        taxInclusive: row.tax_inclusive,
+        logoUrl: row.logo_url || '',
+        businessName: row.business_name || '',
+        businessAddress: row.business_address || '',
+        businessPhone: row.business_phone || '',
+        businessEmail: row.business_email || '',
+        paymentInstructions: row.payment_instructions || '',
+        enableLateFees: row.enable_late_fees,
+        lateFeeGraceDays: row.late_fee_grace_days,
+        lateFeeType: row.late_fee_type,
+        lateFeeAmount: parseFloat(row.late_fee_amount) || 0,
+        lateFeeRecurring: row.late_fee_recurring,
+        createInvoiceOnCheckout: row.create_invoice_on_checkout,
+        createInvoiceOnBooking: row.create_invoice_on_booking,
+        autoSendInvoice: row.auto_send_invoice,
+        autoChargeCard: row.auto_charge_card,
+      },
+      message: 'Invoice settings saved successfully.',
+    });
+  } catch (error) {
+    console.error('[InvoiceSettings] Failed to update settings:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update invoice settings' });
+  }
+}
+
+async function handleGetInvoicePreview(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Get invoice settings
+    const settingsResult = await query(`SELECT * FROM "InvoiceSettings" WHERE tenant_id = $1`, [ctx.tenantId]);
+    const tenantResult = await query(`SELECT name FROM "Tenant" WHERE id = $1`, [ctx.tenantId]);
+    const tenantName = tenantResult.rows[0]?.name || 'Your Business';
+
+    let settings = DEFAULT_INVOICE_SETTINGS;
+    if (settingsResult.rows.length > 0) {
+      const row = settingsResult.rows[0];
+      settings = {
+        invoicePrefix: row.invoice_prefix || 'INV-',
+        nextInvoiceNumber: row.next_invoice_number || 1001,
+        paymentTerms: row.payment_terms || 'due_on_receipt',
+        defaultNotes: row.default_notes || '',
+        chargeTax: row.charge_tax,
+        taxName: row.tax_name || 'Sales Tax',
+        taxRate: parseFloat(row.tax_rate) || 0,
+        taxInclusive: row.tax_inclusive,
+        logoUrl: row.logo_url || '',
+        businessName: row.business_name || tenantName,
+        businessAddress: row.business_address || '',
+        businessPhone: row.business_phone || '',
+        businessEmail: row.business_email || '',
+        paymentInstructions: row.payment_instructions || '',
+      };
+    } else {
+      settings.businessName = tenantName;
+    }
+
+    // Generate sample invoice data
+    const sampleInvoice = {
+      invoiceNumber: `${settings.invoicePrefix}${settings.nextInvoiceNumber}`,
+      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+      dueDate: settings.paymentTerms === 'due_on_receipt' ? 'Due on Receipt' :
+               settings.paymentTerms === 'net_7' ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) :
+               settings.paymentTerms === 'net_15' ? new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) :
+               new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+      customer: {
+        name: 'John Smith',
+        email: 'john.smith@example.com',
+        phone: '(555) 123-4567',
+        address: '123 Main Street\nTampa, FL 33601',
+      },
+      lineItems: [
+        { description: 'Boarding - Standard Kennel (5 nights)', quantity: 5, unitPrice: 4500, total: 22500 },
+        { description: 'Daycare - Full Day', quantity: 2, unitPrice: 3500, total: 7000 },
+        { description: 'Bath & Brush - Medium Dog', quantity: 1, unitPrice: 4000, total: 4000 },
+        { description: 'Medication Administration (daily)', quantity: 5, unitPrice: 500, total: 2500 },
+      ],
+      subtotal: 36000,
+      taxAmount: settings.chargeTax ? Math.round(36000 * settings.taxRate / 100) : 0,
+      total: settings.chargeTax ? 36000 + Math.round(36000 * settings.taxRate / 100) : 36000,
+      settings,
+    };
+
+    return createResponse(200, {
+      success: true,
+      preview: sampleInvoice,
+    });
+  } catch (error) {
+    console.error('[InvoiceSettings] Failed to generate preview:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to generate invoice preview' });
   }
 }
 

@@ -237,6 +237,12 @@ export const canonicalEndpoints = {
     templates: '/api/v1/settings/email/templates',
     template: build('/api/v1/settings/email/templates/{id}'),
   },
+  // Invoice Settings API - /api/v1/settings/invoicing/*
+  invoiceSettings: {
+    get: '/api/v1/settings/invoicing',
+    update: '/api/v1/settings/invoicing',
+    preview: '/api/v1/settings/invoicing/preview',
+  },
   features: {
     list: '/api/v1/config/features',
     detail: build('/api/v1/config/features/{id}'),

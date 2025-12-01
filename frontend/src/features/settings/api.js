@@ -1298,3 +1298,63 @@ export const useDeleteAddOnServiceMutation = () => {
     },
   });
 };
+
+// =============================================================================
+// INVOICE SETTINGS API
+// =============================================================================
+
+/**
+ * Fetch invoice settings (defaults, tax, branding, late fees, automation)
+ */
+export const useInvoiceSettingsQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: ['invoiceSettings', tenantKey],
+    queryFn: async () => {
+      const res = await apiClient.get(canonicalEndpoints.invoiceSettings.get);
+      return res.data;
+    },
+    enabled: isTenantReady,
+    staleTime: 5 * 60 * 1000,
+    ...options,
+  });
+};
+
+/**
+ * Update invoice settings
+ */
+export const useUpdateInvoiceSettingsMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async (settings) => {
+      const res = await apiClient.put(canonicalEndpoints.invoiceSettings.update, settings);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoiceSettings', tenantKey] });
+    },
+  });
+};
+
+/**
+ * Get invoice preview with sample data
+ */
+export const useInvoicePreviewQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: ['invoicePreview', tenantKey],
+    queryFn: async () => {
+      const res = await apiClient.get(canonicalEndpoints.invoiceSettings.preview);
+      return res.data;
+    },
+    enabled: isTenantReady && (options.enabled !== false),
+    staleTime: 0, // Always fetch fresh preview
+    ...options,
+  });
+};
