@@ -228,6 +228,15 @@ export const canonicalEndpoints = {
     templates: '/api/v1/settings/sms/templates',
     template: build('/api/v1/settings/sms/templates/{id}'),
   },
+  // Email Settings API - /api/v1/settings/email/*
+  emailSettings: {
+    get: '/api/v1/settings/email',
+    update: '/api/v1/settings/email',
+    test: '/api/v1/settings/email/test',
+    usage: '/api/v1/settings/email/usage',
+    templates: '/api/v1/settings/email/templates',
+    template: build('/api/v1/settings/email/templates/{id}'),
+  },
   features: {
     list: '/api/v1/config/features',
     detail: build('/api/v1/config/features/{id}'),

@@ -249,6 +249,49 @@ exports.handler = async (event, context) => {
       }
     }
 
+
+    // =========================================================================
+    // EMAIL SETTINGS API
+    // =========================================================================
+    // Email branding, automation toggles, templates, and test sending
+    // =========================================================================
+    if (path === '/api/v1/settings/email' || path === '/settings/email') {
+      if (method === 'GET') {
+        return handleGetEmailSettings(user);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateEmailSettings(user, parseBody(event));
+      }
+    }
+
+    if (path === '/api/v1/settings/email/test' || path === '/settings/email/test') {
+      if (method === 'POST') {
+        return handleSendTestEmail(user, parseBody(event));
+      }
+    }
+
+    if (path === '/api/v1/settings/email/usage' || path === '/settings/email/usage') {
+      if (method === 'GET') {
+        return handleGetEmailUsage(user);
+      }
+    }
+
+    if (path === '/api/v1/settings/email/templates' || path === '/settings/email/templates') {
+      if (method === 'GET') {
+        return handleGetEmailTemplates(user);
+      }
+    }
+
+    const emailTemplateMatch = path.match(/^\/(?:api\/v1\/)?settings\/email\/templates\/([a-z_]+)$/i);
+    if (emailTemplateMatch) {
+      const templateType = emailTemplateMatch[1];
+      if (method === 'GET') {
+        return handleGetEmailTemplate(user, templateType);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateEmailTemplate(user, templateType, parseBody(event));
+      }
+    }
     // =========================================================================
     // POLICIES API
     // =========================================================================
@@ -5031,6 +5074,242 @@ async function handleUpdateSmsTemplate(user, templateType, body) {
   } catch (error) {
     console.error('[SMS] Failed to update template:', error.message);
     return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update SMS template' });
+  }
+}
+
+// =============================================================================
+// EMAIL SETTINGS HANDLERS
+// =============================================================================
+
+const DEFAULT_EMAIL_SETTINGS = {
+  logoUrl: null,
+  primaryColor: '#4F46E5',
+  headerBgColor: '#1F2937',
+  footerText: null,
+  replyToEmail: null,
+  sendBookingConfirmation: true,
+  sendCheckinReminder: true,
+  sendVaccinationReminder: false,
+  sendBookingCancelled: true,
+  sendPaymentReceipt: true,
+  emailsSentToday: 0,
+  emailsSentThisMonth: 0,
+};
+
+const DEFAULT_EMAIL_TEMPLATES = {
+  booking_confirmation: {
+    name: 'Booking Confirmation',
+    description: 'Sent when a booking is created',
+    subject: 'Your booking at {{business_name}} is confirmed!',
+    body: '<html><body><h1>Booking Confirmed!</h1><p>Hi {{owner_name}},</p><p>Your booking for <strong>{{pet_name}}</strong> at <strong>{{business_name}}</strong> has been confirmed.</p><p><strong>Service:</strong> {{service}}<br><strong>Date:</strong> {{date}}<br><strong>Time:</strong> {{time}}<br><strong>Booking ID:</strong> {{booking_id}}</p><p>{{footer_text}}</p></body></html>',
+  },
+  checkin_reminder: {
+    name: 'Check-in Reminder',
+    description: 'Sent 24 hours before check-in',
+    subject: "Reminder: {{pet_name}}'s check-in tomorrow at {{business_name}}",
+    body: '<html><body><h1>See You Tomorrow!</h1><p>Hi {{owner_name}},</p><p>This is a friendly reminder that <strong>{{pet_name}}</strong> is scheduled to check in tomorrow.</p><p><strong>Service:</strong> {{service}}<br><strong>Date:</strong> {{date}}<br><strong>Time:</strong> {{time}}</p><p>{{footer_text}}</p></body></html>',
+  },
+  vaccination_reminder: {
+    name: 'Vaccination Reminder',
+    description: 'Sent when vaccines are expiring',
+    subject: "{{pet_name}}'s vaccinations are expiring soon",
+    body: "<html><body><h1>Vaccination Update Needed</h1><p>Hi {{owner_name}},</p><p><strong>{{pet_name}}</strong>'s vaccinations are expiring soon. Please update vaccination records.</p><p>{{footer_text}}</p></body></html>",
+  },
+  booking_cancelled: {
+    name: 'Booking Cancelled',
+    description: 'Sent when a booking is cancelled',
+    subject: 'Your booking at {{business_name}} has been cancelled',
+    body: '<html><body><h1>Booking Cancelled</h1><p>Hi {{owner_name}},</p><p>Your booking for <strong>{{pet_name}}</strong> has been cancelled.</p><p><strong>Service:</strong> {{service}}<br><strong>Date:</strong> {{date}}<br><strong>Booking ID:</strong> {{booking_id}}</p><p>{{footer_text}}</p></body></html>',
+  },
+  payment_receipt: {
+    name: 'Payment Receipt',
+    description: 'Sent after successful payment',
+    subject: 'Payment receipt from {{business_name}}',
+    body: '<html><body><h1>Payment Receipt</h1><p>Hi {{owner_name}},</p><p>Thank you for your payment!</p><p><strong>Pet:</strong> {{pet_name}}<br><strong>Service:</strong> {{service}}<br><strong>Date:</strong> {{date}}<br><strong>Total:</strong> {{total}}</p><p>{{footer_text}}</p></body></html>',
+  },
+};
+
+async function handleGetEmailSettings(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+    const result = await query(`SELECT * FROM "EmailSettings" WHERE tenant_id = $1`, [ctx.tenantId]);
+    if (result.rows.length === 0) {
+      return createResponse(200, { success: true, settings: DEFAULT_EMAIL_SETTINGS, isDefault: true });
+    }
+    const row = result.rows[0];
+    return createResponse(200, {
+      success: true,
+      settings: {
+        logoUrl: row.logo_url, primaryColor: row.primary_color, headerBgColor: row.header_bg_color,
+        footerText: row.footer_text, replyToEmail: row.reply_to_email,
+        sendBookingConfirmation: row.send_booking_confirmation, sendCheckinReminder: row.send_checkin_reminder,
+        sendVaccinationReminder: row.send_vaccination_reminder, sendBookingCancelled: row.send_booking_cancelled,
+        sendPaymentReceipt: row.send_payment_receipt, emailsSentToday: row.emails_sent_today,
+        emailsSentThisMonth: row.emails_sent_this_month, lastEmailSentAt: row.last_email_sent_at,
+      },
+      isDefault: false,
+    });
+  } catch (error) {
+    console.error('[Email] Failed to get settings:', error.message);
+    if (error.message?.includes('does not exist')) {
+      return createResponse(200, { success: true, settings: DEFAULT_EMAIL_SETTINGS, isDefault: true });
+    }
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to load email settings' });
+  }
+}
+
+async function handleUpdateEmailSettings(user, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+    const { logoUrl, primaryColor = '#4F46E5', headerBgColor = '#1F2937', footerText, replyToEmail,
+      sendBookingConfirmation = true, sendCheckinReminder = true, sendVaccinationReminder = false,
+      sendBookingCancelled = true, sendPaymentReceipt = true } = body;
+    const result = await query(
+      `INSERT INTO "EmailSettings" (tenant_id, logo_url, primary_color, header_bg_color, footer_text, reply_to_email,
+        send_booking_confirmation, send_checkin_reminder, send_vaccination_reminder, send_booking_cancelled, send_payment_receipt)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       ON CONFLICT (tenant_id) DO UPDATE SET logo_url = EXCLUDED.logo_url, primary_color = EXCLUDED.primary_color,
+        header_bg_color = EXCLUDED.header_bg_color, footer_text = EXCLUDED.footer_text, reply_to_email = EXCLUDED.reply_to_email,
+        send_booking_confirmation = EXCLUDED.send_booking_confirmation, send_checkin_reminder = EXCLUDED.send_checkin_reminder,
+        send_vaccination_reminder = EXCLUDED.send_vaccination_reminder, send_booking_cancelled = EXCLUDED.send_booking_cancelled,
+        send_payment_receipt = EXCLUDED.send_payment_receipt, updated_at = NOW() RETURNING *`,
+      [ctx.tenantId, logoUrl, primaryColor, headerBgColor, footerText, replyToEmail,
+        sendBookingConfirmation, sendCheckinReminder, sendVaccinationReminder, sendBookingCancelled, sendPaymentReceipt]
+    );
+    const row = result.rows[0];
+    return createResponse(200, {
+      success: true,
+      settings: {
+        logoUrl: row.logo_url, primaryColor: row.primary_color, headerBgColor: row.header_bg_color,
+        footerText: row.footer_text, replyToEmail: row.reply_to_email,
+        sendBookingConfirmation: row.send_booking_confirmation, sendCheckinReminder: row.send_checkin_reminder,
+        sendVaccinationReminder: row.send_vaccination_reminder, sendBookingCancelled: row.send_booking_cancelled,
+        sendPaymentReceipt: row.send_payment_receipt, emailsSentToday: row.emails_sent_today,
+        emailsSentThisMonth: row.emails_sent_this_month,
+      },
+      message: 'Email settings saved successfully.',
+    });
+  } catch (error) {
+    console.error('[Email] Failed to update settings:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update email settings' });
+  }
+}
+
+async function handleGetEmailUsage(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+    const tenantResult = await query(`SELECT plan FROM "Tenant" WHERE id = $1`, [ctx.tenantId]);
+    const plan = tenantResult.rows[0]?.plan || 'FREE';
+    const limits = { FREE: { daily: 200, monthly: 1000 }, PRO: { daily: 2000, monthly: 50000 }, ENTERPRISE: { daily: 10000, monthly: 500000 } };
+    const result = await query(`SELECT emails_sent_today, emails_sent_this_month FROM "EmailSettings" WHERE tenant_id = $1`, [ctx.tenantId]);
+    let usage = { today: 0, thisMonth: 0, dailyLimit: limits[plan]?.daily || 200, monthlyLimit: limits[plan]?.monthly || 1000 };
+    if (result.rows.length > 0) { usage.today = result.rows[0].emails_sent_today || 0; usage.thisMonth = result.rows[0].emails_sent_this_month || 0; }
+    return createResponse(200, { success: true, usage, sender: { email: 'notifications@barkbase.io', verified: true } });
+  } catch (error) {
+    console.error('[Email] Failed to get usage:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to load email usage' });
+  }
+}
+
+async function handleGetEmailTemplates(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+    const result = await query(`SELECT * FROM "EmailTemplate" WHERE tenant_id = $1 ORDER BY type`, [ctx.tenantId]);
+    const customTemplates = {};
+    result.rows.forEach(row => {
+      customTemplates[row.type] = { id: row.id, type: row.type, name: row.name, subject: row.subject, body: row.body, isActive: row.is_active, isCustom: true, updatedAt: row.updated_at };
+    });
+    const templates = Object.keys(DEFAULT_EMAIL_TEMPLATES).map(type => {
+      if (customTemplates[type]) return { ...customTemplates[type], description: DEFAULT_EMAIL_TEMPLATES[type].description };
+      return { type, name: DEFAULT_EMAIL_TEMPLATES[type].name, description: DEFAULT_EMAIL_TEMPLATES[type].description, subject: DEFAULT_EMAIL_TEMPLATES[type].subject, body: DEFAULT_EMAIL_TEMPLATES[type].body, isActive: true, isCustom: false };
+    });
+    return createResponse(200, { success: true, templates });
+  } catch (error) {
+    console.error('[Email] Failed to get templates:', error.message);
+    if (error.message?.includes('does not exist')) {
+      const templates = Object.keys(DEFAULT_EMAIL_TEMPLATES).map(type => ({ type, name: DEFAULT_EMAIL_TEMPLATES[type].name, description: DEFAULT_EMAIL_TEMPLATES[type].description, subject: DEFAULT_EMAIL_TEMPLATES[type].subject, body: DEFAULT_EMAIL_TEMPLATES[type].body, isActive: true, isCustom: false }));
+      return createResponse(200, { success: true, templates });
+    }
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to load email templates' });
+  }
+}
+
+async function handleGetEmailTemplate(user, templateType) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+    if (!DEFAULT_EMAIL_TEMPLATES[templateType]) return createResponse(404, { error: 'Not Found', message: 'Invalid template type' });
+    const result = await query(`SELECT * FROM "EmailTemplate" WHERE tenant_id = $1 AND type = $2`, [ctx.tenantId, templateType]);
+    if (result.rows.length > 0) {
+      const row = result.rows[0];
+      return createResponse(200, { success: true, template: { id: row.id, type: row.type, name: row.name, description: DEFAULT_EMAIL_TEMPLATES[templateType].description, subject: row.subject, body: row.body, isActive: row.is_active, isCustom: true, updatedAt: row.updated_at } });
+    }
+    return createResponse(200, { success: true, template: { type: templateType, name: DEFAULT_EMAIL_TEMPLATES[templateType].name, description: DEFAULT_EMAIL_TEMPLATES[templateType].description, subject: DEFAULT_EMAIL_TEMPLATES[templateType].subject, body: DEFAULT_EMAIL_TEMPLATES[templateType].body, isActive: true, isCustom: false } });
+  } catch (error) {
+    console.error('[Email] Failed to get template:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to load email template' });
+  }
+}
+
+async function handleUpdateEmailTemplate(user, templateType, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+    if (!DEFAULT_EMAIL_TEMPLATES[templateType]) return createResponse(404, { error: 'Not Found', message: 'Invalid template type' });
+    const { subject, body: templateBody, name, isActive = true } = body;
+    if (!subject || !templateBody) return createResponse(400, { error: 'Bad Request', message: 'Subject and body are required' });
+    const result = await query(
+      `INSERT INTO "EmailTemplate" (tenant_id, type, name, subject, body, is_active) VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (tenant_id, type) DO UPDATE SET name = EXCLUDED.name, subject = EXCLUDED.subject, body = EXCLUDED.body, is_active = EXCLUDED.is_active, updated_at = NOW() RETURNING *`,
+      [ctx.tenantId, templateType, name || DEFAULT_EMAIL_TEMPLATES[templateType].name, subject, templateBody, isActive]
+    );
+    const row = result.rows[0];
+    return createResponse(200, { success: true, template: { id: row.id, type: row.type, name: row.name, description: DEFAULT_EMAIL_TEMPLATES[templateType].description, subject: row.subject, body: row.body, isActive: row.is_active, isCustom: true, updatedAt: row.updated_at }, message: 'Template saved successfully.' });
+  } catch (error) {
+    console.error('[Email] Failed to update template:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update email template' });
+  }
+}
+
+async function handleSendTestEmail(user, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+    const { templateType, recipientEmail } = body;
+    if (!recipientEmail) return createResponse(400, { error: 'Bad Request', message: 'Recipient email is required' });
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(recipientEmail)) return createResponse(400, { error: 'Bad Request', message: 'Invalid email address' });
+    const tenantResult = await query(`SELECT name FROM "Tenant" WHERE id = $1`, [ctx.tenantId]);
+    const businessName = tenantResult.rows[0]?.name || 'Your Business';
+    let template;
+    if (templateType && DEFAULT_EMAIL_TEMPLATES[templateType]) {
+      const customResult = await query(`SELECT * FROM "EmailTemplate" WHERE tenant_id = $1 AND type = $2`, [ctx.tenantId, templateType]);
+      template = customResult.rows[0] || { subject: DEFAULT_EMAIL_TEMPLATES[templateType].subject, body: DEFAULT_EMAIL_TEMPLATES[templateType].body };
+    } else {
+      template = { subject: DEFAULT_EMAIL_TEMPLATES.booking_confirmation.subject, body: DEFAULT_EMAIL_TEMPLATES.booking_confirmation.body };
+    }
+    const settingsResult = await query(`SELECT footer_text FROM "EmailSettings" WHERE tenant_id = $1`, [ctx.tenantId]);
+    const footerText = settingsResult.rows[0]?.footer_text || `Thank you for choosing ${businessName}!`;
+    const sampleData = { owner_name: 'John Smith', pet_name: 'Max', business_name: businessName, date: new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }), time: '9:00 AM', service: 'Daycare', total: '$45.00', booking_id: 'BK-TEST-001', footer_text: footerText };
+    let subject = template.subject;
+    let htmlBody = template.body;
+    Object.entries(sampleData).forEach(([key, value]) => { const regex = new RegExp(`{{${key}}}`, 'g'); subject = subject.replace(regex, value); htmlBody = htmlBody.replace(regex, value); });
+    console.log('[Email] Test email sent to:', recipientEmail, 'Subject:', subject);
+    return createResponse(200, { success: true, message: `Test email sent to ${recipientEmail}`, preview: { subject, recipientEmail } });
+  } catch (error) {
+    console.error('[Email] Failed to send test email:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to send test email' });
   }
 }
 

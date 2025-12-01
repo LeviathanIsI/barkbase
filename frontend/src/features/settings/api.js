@@ -1039,3 +1039,118 @@ export const useUpdateSmsTemplateMutation = () => {
     },
   });
 };
+
+// =============================================================================
+// EMAIL SETTINGS API
+// =============================================================================
+
+/**
+ * Fetch email settings (branding, automation toggles)
+ */
+export const useEmailSettingsQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: ['emailSettings', tenantKey],
+    queryFn: async () => {
+      const res = await apiClient.get(canonicalEndpoints.emailSettings.get);
+      return res.data;
+    },
+    enabled: isTenantReady,
+    staleTime: 5 * 60 * 1000,
+    ...options,
+  });
+};
+
+/**
+ * Update email settings (branding, automation toggles)
+ */
+export const useUpdateEmailSettingsMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async (settings) => {
+      const res = await apiClient.put(canonicalEndpoints.emailSettings.update, settings);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['emailSettings', tenantKey] });
+    },
+  });
+};
+
+/**
+ * Fetch email usage statistics
+ */
+export const useEmailUsageQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: ['emailUsage', tenantKey],
+    queryFn: async () => {
+      const res = await apiClient.get(canonicalEndpoints.emailSettings.usage);
+      return res.data;
+    },
+    enabled: isTenantReady,
+    staleTime: 60 * 1000,
+    ...options,
+  });
+};
+
+/**
+ * Fetch email templates
+ */
+export const useEmailTemplatesQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: ['emailTemplates', tenantKey],
+    queryFn: async () => {
+      const res = await apiClient.get(canonicalEndpoints.emailSettings.templates);
+      return res.data;
+    },
+    enabled: isTenantReady,
+    staleTime: 5 * 60 * 1000,
+    ...options,
+  });
+};
+
+/**
+ * Update an email template
+ */
+export const useUpdateEmailTemplateMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async ({ type, subject, body, name, isActive }) => {
+      const res = await apiClient.put(
+        canonicalEndpoints.emailSettings.template(type),
+        { subject, body, name, isActive }
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['emailTemplates', tenantKey] });
+    },
+  });
+};
+
+/**
+ * Send a test email
+ */
+export const useSendTestEmailMutation = () => {
+  return useMutation({
+    mutationFn: async ({ templateType, recipientEmail }) => {
+      const res = await apiClient.post(canonicalEndpoints.emailSettings.test, {
+        templateType,
+        recipientEmail,
+      });
+      return res.data;
+    },
+  });
+};
