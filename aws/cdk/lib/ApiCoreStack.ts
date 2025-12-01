@@ -407,7 +407,7 @@ export class ApiCoreStack extends cdk.Stack {
     // CONFIG SERVICE - Protected routes
     // Handles: /api/v1/config/*, /api/v1/account-defaults/*, /api/v1/policies/*,
     //          /api/v1/memberships/*, /api/v1/forms/*, /api/v2/properties/*,
-    //          /api/v2/entities/*
+    //          /api/v2/entities/*, /api/v1/package-templates/*, /api/v1/addon-services/*
     // Note: Base paths added for endpoints that need direct GET/POST access
     // -------------------------------------------------------------------------
     this.httpApi.addRoutes({
@@ -523,6 +523,36 @@ export class ApiCoreStack extends cdk.Stack {
     // Files routes (Settings > Files - outgoing templates)
     this.httpApi.addRoutes({
       path: '/api/v1/files/{proxy+}',
+      methods: allMethods,
+      integration: configIntegration,
+      authorizer,
+    });
+
+    // Package Templates routes (Settings > Products & Services)
+    this.httpApi.addRoutes({
+      path: '/api/v1/package-templates',
+      methods: allMethods,
+      integration: configIntegration,
+      authorizer,
+    });
+
+    this.httpApi.addRoutes({
+      path: '/api/v1/package-templates/{proxy+}',
+      methods: allMethods,
+      integration: configIntegration,
+      authorizer,
+    });
+
+    // Add-On Services routes (Settings > Products & Services)
+    this.httpApi.addRoutes({
+      path: '/api/v1/addon-services',
+      methods: allMethods,
+      integration: configIntegration,
+      authorizer,
+    });
+
+    this.httpApi.addRoutes({
+      path: '/api/v1/addon-services/{proxy+}',
       methods: allMethods,
       integration: configIntegration,
       authorizer,
