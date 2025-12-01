@@ -489,6 +489,14 @@ export class ApiCoreStack extends cdk.Stack {
       authorizer,
     });
 
+    // Settings routes (SMS, Notifications, etc.)
+    this.httpApi.addRoutes({
+      path: '/api/v1/settings/{proxy+}',
+      methods: allMethods,
+      integration: configIntegration,
+      authorizer,
+    });
+
     // Import/Export routes (Settings > Import & Export)
     this.httpApi.addRoutes({
       path: '/api/v1/import-export/{proxy+}',
