@@ -193,6 +193,62 @@ exports.handler = async (event, context) => {
       }
     }
 
+    // Test notification endpoint
+    if (path === '/api/v1/config/notifications/test' || path === '/config/notifications/test') {
+      if (method === 'POST') {
+        return handleSendTestNotification(user, parseBody(event));
+      }
+    }
+
+    // =========================================================================
+    // SMS SETTINGS API
+    // =========================================================================
+    // Twilio configuration, SMS templates, and test messaging
+    // =========================================================================
+    if (path === '/api/v1/settings/sms' || path === '/settings/sms') {
+      if (method === 'GET') {
+        return handleGetSmsSettings(user);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateSmsSettings(user, parseBody(event));
+      }
+    }
+
+    if (path === '/api/v1/settings/sms/test' || path === '/settings/sms/test') {
+      if (method === 'POST') {
+        return handleSendTestSms(user, parseBody(event));
+      }
+    }
+
+    if (path === '/api/v1/settings/sms/verify' || path === '/settings/sms/verify') {
+      if (method === 'POST') {
+        return handleVerifyTwilioConnection(user, parseBody(event));
+      }
+    }
+
+    if (path === '/api/v1/settings/sms/disconnect' || path === '/settings/sms/disconnect') {
+      if (method === 'POST') {
+        return handleDisconnectTwilio(user);
+      }
+    }
+
+    if (path === '/api/v1/settings/sms/templates' || path === '/settings/sms/templates') {
+      if (method === 'GET') {
+        return handleGetSmsTemplates(user);
+      }
+    }
+
+    const smsTemplateMatch = path.match(/^\/(?:api\/v1\/)?settings\/sms\/templates\/([a-z_]+)$/i);
+    if (smsTemplateMatch) {
+      const templateType = smsTemplateMatch[1];
+      if (method === 'GET') {
+        return handleGetSmsTemplate(user, templateType);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateSmsTemplate(user, templateType, parseBody(event));
+      }
+    }
+
     // =========================================================================
     // POLICIES API
     // =========================================================================
@@ -4130,43 +4186,78 @@ async function handleUpdateBranding(user, body) {
 // NOTIFICATION SETTINGS HANDLERS
 // =============================================================================
 
+// Default notification settings
+const DEFAULT_NOTIFICATION_SETTINGS = {
+  emailEnabled: true,
+  smsEnabled: false,
+  pushEnabled: false,
+  bookingConfirmations: true,
+  bookingReminders: true,
+  checkinReminders: true,
+  vaccinationReminders: true,
+  paymentReceipts: true,
+  marketingEnabled: false,
+  reminderDaysBefore: 2,
+  quietHoursStart: '21:00',
+  quietHoursEnd: '08:00',
+  useCustomTemplates: false,
+  includePhotosInUpdates: true,
+};
+
 async function handleGetNotificationSettings(user) {
   try {
     await getPoolAsync();
     const ctx = await getUserTenantContext(user.id);
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
+    // Try to get from NotificationSettings table first
     const result = await query(
-      `SELECT notification_settings FROM "Tenant" WHERE id = $1`,
+      `SELECT * FROM "NotificationSettings" WHERE tenant_id = $1`,
       [ctx.tenantId]
     );
 
     if (result.rows.length === 0) {
-      return createResponse(404, { error: 'Not Found', message: 'Tenant not found' });
+      // Return defaults if no settings exist yet
+      return createResponse(200, {
+        success: true,
+        settings: DEFAULT_NOTIFICATION_SETTINGS,
+        isDefault: true,
+      });
     }
 
-    const settings = result.rows[0].notification_settings || {
-      email: {
-        bookingConfirmations: true,
-        bookingReminders: true,
-        bookingCancellations: true,
-        vaccinationExpiry: true,
-        paymentReceipts: true,
-      },
-      sms: {
-        enabled: false,
-        bookingReminders: false,
-        checkInReminders: false,
-      },
-      reminderTiming: {
-        beforeBooking: 24, // hours
-        vaccinationWarning: 30, // days
-      },
+    const row = result.rows[0];
+    const settings = {
+      emailEnabled: row.email_enabled,
+      smsEnabled: row.sms_enabled,
+      pushEnabled: row.push_enabled,
+      bookingConfirmations: row.booking_confirmations,
+      bookingReminders: row.booking_reminders,
+      checkinReminders: row.checkin_reminders,
+      vaccinationReminders: row.vaccination_reminders,
+      paymentReceipts: row.payment_receipts,
+      marketingEnabled: row.marketing_enabled,
+      reminderDaysBefore: row.reminder_days_before,
+      quietHoursStart: row.quiet_hours_start,
+      quietHoursEnd: row.quiet_hours_end,
+      useCustomTemplates: row.use_custom_templates,
+      includePhotosInUpdates: row.include_photos_in_updates,
     };
 
-    return createResponse(200, settings);
+    return createResponse(200, {
+      success: true,
+      settings,
+      isDefault: false,
+    });
   } catch (error) {
     console.error('[Notifications] Failed to get:', error.message);
+    // If table doesn't exist yet, return defaults
+    if (error.message?.includes('does not exist')) {
+      return createResponse(200, {
+        success: true,
+        settings: DEFAULT_NOTIFICATION_SETTINGS,
+        isDefault: true,
+      });
+    }
     return createResponse(500, { error: 'Internal Server Error', message: 'Failed to load notification settings' });
   }
 }
@@ -4177,15 +4268,769 @@ async function handleUpdateNotificationSettings(user, body) {
     const ctx = await getUserTenantContext(user.id);
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
-    await query(
-      `UPDATE "Tenant" SET notification_settings = $1, updated_at = NOW() WHERE id = $2`,
-      [JSON.stringify(body), ctx.tenantId]
+    const {
+      emailEnabled = true,
+      smsEnabled = false,
+      pushEnabled = false,
+      bookingConfirmations = true,
+      bookingReminders = true,
+      checkinReminders = true,
+      vaccinationReminders = true,
+      paymentReceipts = true,
+      marketingEnabled = false,
+      reminderDaysBefore = 2,
+      quietHoursStart = '21:00',
+      quietHoursEnd = '08:00',
+      useCustomTemplates = false,
+      includePhotosInUpdates = true,
+    } = body;
+
+    // Upsert - insert or update
+    const result = await query(
+      `INSERT INTO "NotificationSettings" (
+        tenant_id,
+        email_enabled, sms_enabled, push_enabled,
+        booking_confirmations, booking_reminders, checkin_reminders,
+        vaccination_reminders, payment_receipts, marketing_enabled,
+        reminder_days_before, quiet_hours_start, quiet_hours_end,
+        use_custom_templates, include_photos_in_updates
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      ON CONFLICT (tenant_id) DO UPDATE SET
+        email_enabled = EXCLUDED.email_enabled,
+        sms_enabled = EXCLUDED.sms_enabled,
+        push_enabled = EXCLUDED.push_enabled,
+        booking_confirmations = EXCLUDED.booking_confirmations,
+        booking_reminders = EXCLUDED.booking_reminders,
+        checkin_reminders = EXCLUDED.checkin_reminders,
+        vaccination_reminders = EXCLUDED.vaccination_reminders,
+        payment_receipts = EXCLUDED.payment_receipts,
+        marketing_enabled = EXCLUDED.marketing_enabled,
+        reminder_days_before = EXCLUDED.reminder_days_before,
+        quiet_hours_start = EXCLUDED.quiet_hours_start,
+        quiet_hours_end = EXCLUDED.quiet_hours_end,
+        use_custom_templates = EXCLUDED.use_custom_templates,
+        include_photos_in_updates = EXCLUDED.include_photos_in_updates,
+        updated_at = NOW()
+      RETURNING *`,
+      [
+        ctx.tenantId,
+        emailEnabled, smsEnabled, pushEnabled,
+        bookingConfirmations, bookingReminders, checkinReminders,
+        vaccinationReminders, paymentReceipts, marketingEnabled,
+        reminderDaysBefore, quietHoursStart, quietHoursEnd,
+        useCustomTemplates, includePhotosInUpdates
+      ]
     );
 
-    return createResponse(200, { success: true, ...body });
+    const row = result.rows[0];
+    const settings = {
+      emailEnabled: row.email_enabled,
+      smsEnabled: row.sms_enabled,
+      pushEnabled: row.push_enabled,
+      bookingConfirmations: row.booking_confirmations,
+      bookingReminders: row.booking_reminders,
+      checkinReminders: row.checkin_reminders,
+      vaccinationReminders: row.vaccination_reminders,
+      paymentReceipts: row.payment_receipts,
+      marketingEnabled: row.marketing_enabled,
+      reminderDaysBefore: row.reminder_days_before,
+      quietHoursStart: row.quiet_hours_start,
+      quietHoursEnd: row.quiet_hours_end,
+      useCustomTemplates: row.use_custom_templates,
+      includePhotosInUpdates: row.include_photos_in_updates,
+    };
+
+    return createResponse(200, { success: true, settings });
   } catch (error) {
     console.error('[Notifications] Failed to update:', error.message);
     return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update notification settings' });
+  }
+}
+
+async function handleSendTestNotification(user, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const { type = 'email', email, phone } = body;
+
+    if (type === 'email') {
+      if (!email) {
+        return createResponse(400, { error: 'Bad Request', message: 'Email address is required' });
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return createResponse(400, { error: 'Bad Request', message: 'Invalid email address format' });
+      }
+
+      // Get tenant name for the email
+      const tenantResult = await query(`SELECT name FROM "Tenant" WHERE id = $1`, [ctx.tenantId]);
+      const tenantName = tenantResult.rows[0]?.name || 'BarkBase';
+
+      // Send test email via SES
+      const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
+      const ses = new SESClient({ region: process.env.AWS_REGION_DEPLOY || 'us-east-2' });
+
+      const fromEmail = process.env.SES_FROM_EMAIL || 'noreply@barkbase.app';
+
+      const emailParams = {
+        Source: fromEmail,
+        Destination: {
+          ToAddresses: [email],
+        },
+        Message: {
+          Subject: {
+            Data: `Test Notification from ${tenantName}`,
+            Charset: 'UTF-8',
+          },
+          Body: {
+            Html: {
+              Data: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                  <h1 style="color: #3B82F6;">🐾 Test Notification</h1>
+                  <p>Hello!</p>
+                  <p>This is a test notification from <strong>${tenantName}</strong>.</p>
+                  <p>If you received this email, your notification settings are configured correctly!</p>
+                  <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
+                  <p style="color: #6b7280; font-size: 12px;">
+                    This email was sent as a test from your BarkBase notification settings.
+                  </p>
+                </div>
+              `,
+              Charset: 'UTF-8',
+            },
+            Text: {
+              Data: `Test Notification from ${tenantName}\n\nThis is a test notification. If you received this email, your notification settings are configured correctly!`,
+              Charset: 'UTF-8',
+            },
+          },
+        },
+      };
+
+      await ses.send(new SendEmailCommand(emailParams));
+      console.log('[Notifications] Test email sent to:', email);
+
+      return createResponse(200, {
+        success: true,
+        message: `Test email sent to ${email}`,
+        type: 'email',
+      });
+    }
+
+    if (type === 'sms') {
+      if (!phone) {
+        return createResponse(400, { error: 'Bad Request', message: 'Phone number is required' });
+      }
+
+      // Check if Twilio is configured
+      if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
+        return createResponse(400, {
+          error: 'SMS Not Configured',
+          message: 'SMS requires Twilio integration. Please configure Twilio in Settings > Integrations.',
+          requiresIntegration: true,
+        });
+      }
+
+      // TODO: Implement Twilio SMS sending
+      return createResponse(501, {
+        error: 'Not Implemented',
+        message: 'SMS sending is not yet implemented',
+      });
+    }
+
+    return createResponse(400, { error: 'Bad Request', message: 'Invalid notification type' });
+  } catch (error) {
+    console.error('[Notifications] Failed to send test:', error.message);
+
+    // Handle specific SES errors
+    if (error.name === 'MessageRejected') {
+      return createResponse(400, {
+        error: 'Email Rejected',
+        message: 'The email was rejected. Please verify the email address is valid and your SES configuration is correct.',
+      });
+    }
+
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to send test notification' });
+  }
+}
+
+// =============================================================================
+// SMS SETTINGS HANDLERS
+// =============================================================================
+// Twilio configuration, SMS templates, test messaging
+// =============================================================================
+
+// Default SMS templates
+const DEFAULT_SMS_TEMPLATES = {
+  booking_confirmation: {
+    name: 'Booking Confirmation',
+    content: 'Hi {{owner_name}}, your booking for {{pet_name}} on {{date}} at {{time}} is confirmed! - {{business_name}}',
+  },
+  booking_reminder: {
+    name: 'Booking Reminder',
+    content: "Reminder: {{pet_name}}'s stay at {{business_name}} starts tomorrow at {{time}}. See you soon!",
+  },
+  checkin_reminder: {
+    name: 'Check-in Reminder',
+    content: "Hi {{owner_name}}, just a reminder to check in {{pet_name}} today at {{time}}. - {{business_name}}",
+  },
+  vaccination_reminder: {
+    name: 'Vaccination Reminder',
+    content: "Hi {{owner_name}}, {{pet_name}}'s {{vaccination_name}} vaccination expires on {{expiry_date}}. Please update before your next visit. - {{business_name}}",
+  },
+  payment_receipt: {
+    name: 'Payment Receipt',
+    content: 'Thank you! Payment of {{amount}} received for {{pet_name}}. Receipt: {{receipt_url}} - {{business_name}}',
+  },
+};
+
+// Default settings when none exist
+const DEFAULT_SMS_SETTINGS = {
+  isConnected: false,
+  twilioPhoneNumber: null,
+  twilioAccountSid: null,
+  bookingConfirmations: true,
+  bookingReminders: true,
+  checkinReminders: false,
+  vaccinationReminders: false,
+  paymentReceipts: false,
+  messagesSentThisMonth: 0,
+};
+
+async function handleGetSmsSettings(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Try to get from SmsSettings table
+    const result = await query(
+      `SELECT * FROM "SmsSettings" WHERE tenant_id = $1`,
+      [ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      // Return defaults if no settings exist yet
+      return createResponse(200, {
+        success: true,
+        settings: DEFAULT_SMS_SETTINGS,
+        isDefault: true,
+      });
+    }
+
+    const row = result.rows[0];
+
+    // Mask the auth token - only show last 4 characters
+    let maskedAuthToken = null;
+    if (row.twilio_auth_token) {
+      const lastFour = row.twilio_auth_token.slice(-4);
+      maskedAuthToken = `****${lastFour}`;
+    }
+
+    const settings = {
+      isConnected: row.is_connected,
+      twilioAccountSid: row.twilio_account_sid,
+      twilioAuthToken: maskedAuthToken,
+      twilioPhoneNumber: row.twilio_phone_number,
+      connectionVerifiedAt: row.connection_verified_at,
+      bookingConfirmations: row.booking_confirmations,
+      bookingReminders: row.booking_reminders,
+      checkinReminders: row.checkin_reminders,
+      vaccinationReminders: row.vaccination_reminders,
+      paymentReceipts: row.payment_receipts,
+      messagesSentThisMonth: row.messages_sent_this_month,
+      lastMessageSentAt: row.last_message_sent_at,
+    };
+
+    return createResponse(200, {
+      success: true,
+      settings,
+      isDefault: false,
+    });
+  } catch (error) {
+    console.error('[SMS] Failed to get settings:', error.message);
+    // If table doesn't exist yet, return defaults
+    if (error.message?.includes('does not exist')) {
+      return createResponse(200, {
+        success: true,
+        settings: DEFAULT_SMS_SETTINGS,
+        isDefault: true,
+      });
+    }
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to load SMS settings' });
+  }
+}
+
+async function handleUpdateSmsSettings(user, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const {
+      twilioAccountSid,
+      twilioAuthToken,
+      twilioPhoneNumber,
+      bookingConfirmations = true,
+      bookingReminders = true,
+      checkinReminders = false,
+      vaccinationReminders = false,
+      paymentReceipts = false,
+    } = body;
+
+    // Check if we're updating credentials or just notification settings
+    const isUpdatingCredentials = twilioAccountSid !== undefined || twilioAuthToken !== undefined || twilioPhoneNumber !== undefined;
+
+    // Get existing settings to preserve credentials if not being updated
+    const existingResult = await query(
+      `SELECT twilio_account_sid, twilio_auth_token, twilio_phone_number, is_connected FROM "SmsSettings" WHERE tenant_id = $1`,
+      [ctx.tenantId]
+    );
+    const existing = existingResult.rows[0] || {};
+
+    // Determine final values
+    const finalAccountSid = twilioAccountSid !== undefined ? twilioAccountSid : existing.twilio_account_sid;
+    const finalAuthToken = twilioAuthToken !== undefined && !twilioAuthToken?.startsWith('****')
+      ? twilioAuthToken
+      : existing.twilio_auth_token;
+    const finalPhoneNumber = twilioPhoneNumber !== undefined ? twilioPhoneNumber : existing.twilio_phone_number;
+
+    // If credentials are being changed, mark as not connected (needs re-verification)
+    const isConnected = isUpdatingCredentials ? false : (existing.is_connected || false);
+
+    // Upsert
+    const result = await query(
+      `INSERT INTO "SmsSettings" (
+        tenant_id,
+        twilio_account_sid, twilio_auth_token, twilio_phone_number, is_connected,
+        booking_confirmations, booking_reminders, checkin_reminders,
+        vaccination_reminders, payment_receipts
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      ON CONFLICT (tenant_id) DO UPDATE SET
+        twilio_account_sid = EXCLUDED.twilio_account_sid,
+        twilio_auth_token = EXCLUDED.twilio_auth_token,
+        twilio_phone_number = EXCLUDED.twilio_phone_number,
+        is_connected = EXCLUDED.is_connected,
+        booking_confirmations = EXCLUDED.booking_confirmations,
+        booking_reminders = EXCLUDED.booking_reminders,
+        checkin_reminders = EXCLUDED.checkin_reminders,
+        vaccination_reminders = EXCLUDED.vaccination_reminders,
+        payment_receipts = EXCLUDED.payment_receipts,
+        updated_at = NOW()
+      RETURNING *`,
+      [
+        ctx.tenantId,
+        finalAccountSid, finalAuthToken, finalPhoneNumber, isConnected,
+        bookingConfirmations, bookingReminders, checkinReminders,
+        vaccinationReminders, paymentReceipts
+      ]
+    );
+
+    const row = result.rows[0];
+
+    // Mask auth token in response
+    let maskedAuthToken = null;
+    if (row.twilio_auth_token) {
+      const lastFour = row.twilio_auth_token.slice(-4);
+      maskedAuthToken = `****${lastFour}`;
+    }
+
+    const settings = {
+      isConnected: row.is_connected,
+      twilioAccountSid: row.twilio_account_sid,
+      twilioAuthToken: maskedAuthToken,
+      twilioPhoneNumber: row.twilio_phone_number,
+      bookingConfirmations: row.booking_confirmations,
+      bookingReminders: row.booking_reminders,
+      checkinReminders: row.checkin_reminders,
+      vaccinationReminders: row.vaccination_reminders,
+      paymentReceipts: row.payment_receipts,
+      messagesSentThisMonth: row.messages_sent_this_month,
+    };
+
+    return createResponse(200, {
+      success: true,
+      settings,
+      message: isUpdatingCredentials ? 'Credentials updated. Please verify the connection.' : 'Settings saved successfully.',
+    });
+  } catch (error) {
+    console.error('[SMS] Failed to update settings:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update SMS settings' });
+  }
+}
+
+async function handleVerifyTwilioConnection(user, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Get current settings (with full auth token for verification)
+    const result = await query(
+      `SELECT twilio_account_sid, twilio_auth_token, twilio_phone_number FROM "SmsSettings" WHERE tenant_id = $1`,
+      [ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(400, { error: 'Bad Request', message: 'No Twilio credentials configured' });
+    }
+
+    const { twilio_account_sid, twilio_auth_token, twilio_phone_number } = result.rows[0];
+
+    if (!twilio_account_sid || !twilio_auth_token) {
+      return createResponse(400, { error: 'Bad Request', message: 'Twilio Account SID and Auth Token are required' });
+    }
+
+    // Verify with Twilio API
+    const twilio = require('twilio');
+    const client = twilio(twilio_account_sid, twilio_auth_token);
+
+    try {
+      // Fetch account info to verify credentials
+      const account = await client.api.accounts(twilio_account_sid).fetch();
+
+      // If phone number is configured, verify it exists
+      if (twilio_phone_number) {
+        try {
+          await client.incomingPhoneNumbers.list({ phoneNumber: twilio_phone_number, limit: 1 });
+        } catch (phoneError) {
+          console.warn('[SMS] Phone number verification warning:', phoneError.message);
+          // Don't fail if phone number isn't found - it might be a messaging service number
+        }
+      }
+
+      // Update connection status
+      await query(
+        `UPDATE "SmsSettings" SET is_connected = true, connection_verified_at = NOW(), updated_at = NOW() WHERE tenant_id = $1`,
+        [ctx.tenantId]
+      );
+
+      return createResponse(200, {
+        success: true,
+        message: 'Twilio connection verified successfully',
+        accountStatus: account.status,
+        accountName: account.friendlyName,
+      });
+    } catch (twilioError) {
+      console.error('[SMS] Twilio verification failed:', twilioError.message);
+
+      // Update to mark as not connected
+      await query(
+        `UPDATE "SmsSettings" SET is_connected = false, updated_at = NOW() WHERE tenant_id = $1`,
+        [ctx.tenantId]
+      );
+
+      return createResponse(400, {
+        error: 'Verification Failed',
+        message: twilioError.message || 'Invalid Twilio credentials',
+      });
+    }
+  } catch (error) {
+    console.error('[SMS] Failed to verify connection:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to verify Twilio connection' });
+  }
+}
+
+async function handleDisconnectTwilio(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Clear Twilio credentials
+    await query(
+      `UPDATE "SmsSettings" SET
+        twilio_account_sid = NULL,
+        twilio_auth_token = NULL,
+        twilio_phone_number = NULL,
+        is_connected = false,
+        connection_verified_at = NULL,
+        updated_at = NOW()
+      WHERE tenant_id = $1`,
+      [ctx.tenantId]
+    );
+
+    return createResponse(200, {
+      success: true,
+      message: 'Twilio disconnected successfully',
+    });
+  } catch (error) {
+    console.error('[SMS] Failed to disconnect:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to disconnect Twilio' });
+  }
+}
+
+async function handleSendTestSms(user, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const { phone } = body;
+
+    if (!phone) {
+      return createResponse(400, { error: 'Bad Request', message: 'Phone number is required' });
+    }
+
+    // Validate phone format (basic validation)
+    const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+    if (!phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''))) {
+      return createResponse(400, { error: 'Bad Request', message: 'Invalid phone number format. Use E.164 format (e.g., +15551234567)' });
+    }
+
+    // Get Twilio credentials
+    const settingsResult = await query(
+      `SELECT twilio_account_sid, twilio_auth_token, twilio_phone_number, is_connected FROM "SmsSettings" WHERE tenant_id = $1`,
+      [ctx.tenantId]
+    );
+
+    if (settingsResult.rows.length === 0 || !settingsResult.rows[0].is_connected) {
+      return createResponse(400, {
+        error: 'Not Connected',
+        message: 'Twilio is not connected. Please configure and verify your Twilio credentials first.',
+        requiresSetup: true,
+      });
+    }
+
+    const { twilio_account_sid, twilio_auth_token, twilio_phone_number } = settingsResult.rows[0];
+
+    if (!twilio_phone_number) {
+      return createResponse(400, {
+        error: 'Configuration Incomplete',
+        message: 'No Twilio phone number configured. Please add a phone number in your SMS settings.',
+      });
+    }
+
+    // Get tenant name for the message
+    const tenantResult = await query(`SELECT name FROM "Tenant" WHERE id = $1`, [ctx.tenantId]);
+    const tenantName = tenantResult.rows[0]?.name || 'BarkBase';
+
+    // Send test SMS via Twilio
+    const twilio = require('twilio');
+    const client = twilio(twilio_account_sid, twilio_auth_token);
+
+    const message = await client.messages.create({
+      body: `Test message from ${tenantName}. Your SMS notifications are configured correctly!`,
+      from: twilio_phone_number,
+      to: phone,
+    });
+
+    console.log('[SMS] Test message sent:', message.sid);
+
+    // Update usage counter
+    await query(
+      `UPDATE "SmsSettings" SET
+        messages_sent_this_month = messages_sent_this_month + 1,
+        last_message_sent_at = NOW(),
+        updated_at = NOW()
+      WHERE tenant_id = $1`,
+      [ctx.tenantId]
+    );
+
+    return createResponse(200, {
+      success: true,
+      message: `Test SMS sent to ${phone}`,
+      messageSid: message.sid,
+    });
+  } catch (error) {
+    console.error('[SMS] Failed to send test:', error.message);
+
+    if (error.code === 21211) {
+      return createResponse(400, { error: 'Invalid Phone Number', message: 'The phone number is not valid.' });
+    }
+    if (error.code === 21608) {
+      return createResponse(400, { error: 'Unverified Number', message: 'Cannot send to unverified numbers in trial mode. Please verify the number in your Twilio console.' });
+    }
+
+    return createResponse(500, { error: 'Internal Server Error', message: error.message || 'Failed to send test SMS' });
+  }
+}
+
+async function handleGetSmsTemplates(user) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Get custom templates for this tenant
+    const result = await query(
+      `SELECT * FROM "SmsTemplate" WHERE tenant_id = $1 ORDER BY type`,
+      [ctx.tenantId]
+    );
+
+    // Merge with defaults (custom templates override defaults)
+    const customTemplates = {};
+    for (const row of result.rows) {
+      customTemplates[row.type] = {
+        id: row.id,
+        type: row.type,
+        name: row.name,
+        content: row.content,
+        isActive: row.is_active,
+        isCustom: true,
+        characterCount: row.content.length,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      };
+    }
+
+    // Build final template list
+    const templates = Object.keys(DEFAULT_SMS_TEMPLATES).map(type => {
+      if (customTemplates[type]) {
+        return customTemplates[type];
+      }
+      return {
+        type,
+        name: DEFAULT_SMS_TEMPLATES[type].name,
+        content: DEFAULT_SMS_TEMPLATES[type].content,
+        isActive: true,
+        isCustom: false,
+        characterCount: DEFAULT_SMS_TEMPLATES[type].content.length,
+      };
+    });
+
+    return createResponse(200, {
+      success: true,
+      templates,
+      availableVariables: [
+        { name: '{{owner_name}}', description: "Pet owner's name" },
+        { name: '{{pet_name}}', description: "Pet's name" },
+        { name: '{{business_name}}', description: 'Your business name' },
+        { name: '{{date}}', description: 'Appointment date' },
+        { name: '{{time}}', description: 'Appointment time' },
+        { name: '{{service}}', description: 'Service name' },
+        { name: '{{amount}}', description: 'Payment amount' },
+        { name: '{{vaccination_name}}', description: 'Vaccination name' },
+        { name: '{{expiry_date}}', description: 'Vaccination expiry date' },
+        { name: '{{receipt_url}}', description: 'Receipt URL' },
+      ],
+    });
+  } catch (error) {
+    console.error('[SMS] Failed to get templates:', error.message);
+    // If table doesn't exist, return defaults
+    if (error.message?.includes('does not exist')) {
+      const templates = Object.keys(DEFAULT_SMS_TEMPLATES).map(type => ({
+        type,
+        name: DEFAULT_SMS_TEMPLATES[type].name,
+        content: DEFAULT_SMS_TEMPLATES[type].content,
+        isActive: true,
+        isCustom: false,
+        characterCount: DEFAULT_SMS_TEMPLATES[type].content.length,
+      }));
+      return createResponse(200, { success: true, templates, availableVariables: [] });
+    }
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to load SMS templates' });
+  }
+}
+
+async function handleGetSmsTemplate(user, templateType) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Check if it's a valid template type
+    if (!DEFAULT_SMS_TEMPLATES[templateType]) {
+      return createResponse(404, { error: 'Not Found', message: 'Invalid template type' });
+    }
+
+    // Get custom template if exists
+    const result = await query(
+      `SELECT * FROM "SmsTemplate" WHERE tenant_id = $1 AND type = $2`,
+      [ctx.tenantId, templateType]
+    );
+
+    if (result.rows.length > 0) {
+      const row = result.rows[0];
+      return createResponse(200, {
+        success: true,
+        template: {
+          id: row.id,
+          type: row.type,
+          name: row.name,
+          content: row.content,
+          isActive: row.is_active,
+          isCustom: true,
+          characterCount: row.content.length,
+        },
+      });
+    }
+
+    // Return default
+    return createResponse(200, {
+      success: true,
+      template: {
+        type: templateType,
+        name: DEFAULT_SMS_TEMPLATES[templateType].name,
+        content: DEFAULT_SMS_TEMPLATES[templateType].content,
+        isActive: true,
+        isCustom: false,
+        characterCount: DEFAULT_SMS_TEMPLATES[templateType].content.length,
+      },
+    });
+  } catch (error) {
+    console.error('[SMS] Failed to get template:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to load SMS template' });
+  }
+}
+
+async function handleUpdateSmsTemplate(user, templateType, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Check if it's a valid template type
+    if (!DEFAULT_SMS_TEMPLATES[templateType]) {
+      return createResponse(404, { error: 'Not Found', message: 'Invalid template type' });
+    }
+
+    const { content, name, isActive = true } = body;
+
+    if (!content) {
+      return createResponse(400, { error: 'Bad Request', message: 'Template content is required' });
+    }
+
+    // Warn if content is too long (SMS segment is 160 chars)
+    const segmentCount = Math.ceil(content.length / 160);
+
+    // Upsert template
+    const result = await query(
+      `INSERT INTO "SmsTemplate" (tenant_id, type, name, content, is_active)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (tenant_id, type) DO UPDATE SET
+         name = EXCLUDED.name,
+         content = EXCLUDED.content,
+         is_active = EXCLUDED.is_active,
+         updated_at = NOW()
+       RETURNING *`,
+      [ctx.tenantId, templateType, name || DEFAULT_SMS_TEMPLATES[templateType].name, content, isActive]
+    );
+
+    const row = result.rows[0];
+
+    return createResponse(200, {
+      success: true,
+      template: {
+        id: row.id,
+        type: row.type,
+        name: row.name,
+        content: row.content,
+        isActive: row.is_active,
+        isCustom: true,
+        characterCount: row.content.length,
+        segmentCount,
+      },
+      message: segmentCount > 1
+        ? `Template saved. Note: This message will use ${segmentCount} SMS segments.`
+        : 'Template saved successfully.',
+    });
+  } catch (error) {
+    console.error('[SMS] Failed to update template:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update SMS template' });
   }
 }
 

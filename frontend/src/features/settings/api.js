@@ -827,3 +827,215 @@ export const useTenantBillingInvoicesQuery = (options = {}) => {
     ...options,
   });
 };
+
+// =============================================================================
+// NOTIFICATION SETTINGS API
+// =============================================================================
+
+/**
+ * Fetch notification settings for the current tenant
+ *
+ * Response shape:
+ * {
+ *   success: true,
+ *   settings: {
+ *     emailEnabled, smsEnabled, pushEnabled,
+ *     bookingConfirmations, bookingReminders, checkinReminders,
+ *     vaccinationReminders, paymentReceipts, marketingEnabled,
+ *     reminderDaysBefore, quietHoursStart, quietHoursEnd,
+ *     useCustomTemplates, includePhotosInUpdates
+ *   },
+ *   isDefault: boolean
+ * }
+ */
+export const useNotificationSettingsQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: ['notificationSettings', tenantKey],
+    queryFn: async () => {
+      const res = await apiClient.get(canonicalEndpoints.notificationSettings.get);
+      return res.data;
+    },
+    enabled: isTenantReady,
+    staleTime: 5 * 60 * 1000,
+    ...options,
+  });
+};
+
+/**
+ * Update notification settings for the current tenant
+ */
+export const useUpdateNotificationSettingsMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async (settings) => {
+      const res = await apiClient.put(canonicalEndpoints.notificationSettings.update, settings);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notificationSettings', tenantKey] });
+    },
+  });
+};
+
+/**
+ * Send a test notification (email or SMS)
+ */
+export const useSendTestNotificationMutation = () => {
+  return useMutation({
+    mutationFn: async ({ type, email, phone }) => {
+      const res = await apiClient.post(canonicalEndpoints.notificationSettings.test, {
+        type,
+        email,
+        phone,
+      });
+      return res.data;
+    },
+  });
+};
+
+// =============================================================================
+// SMS SETTINGS API
+// =============================================================================
+
+/**
+ * Fetch SMS/Twilio settings for the current tenant
+ *
+ * Response shape:
+ * {
+ *   success: true,
+ *   settings: {
+ *     isConnected, twilioAccountSid, twilioAuthToken (masked),
+ *     twilioPhoneNumber, connectionVerifiedAt,
+ *     bookingConfirmations, bookingReminders, checkinReminders,
+ *     vaccinationReminders, paymentReceipts,
+ *     messagesSentThisMonth, lastMessageSentAt
+ *   },
+ *   isDefault: boolean
+ * }
+ */
+export const useSmsSettingsQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: ['smsSettings', tenantKey],
+    queryFn: async () => {
+      const res = await apiClient.get(canonicalEndpoints.smsSettings.get);
+      return res.data;
+    },
+    enabled: isTenantReady,
+    staleTime: 5 * 60 * 1000,
+    ...options,
+  });
+};
+
+/**
+ * Update SMS settings for the current tenant
+ */
+export const useUpdateSmsSettingsMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async (settings) => {
+      const res = await apiClient.put(canonicalEndpoints.smsSettings.update, settings);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['smsSettings', tenantKey] });
+    },
+  });
+};
+
+/**
+ * Verify Twilio connection
+ */
+export const useVerifyTwilioMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async () => {
+      const res = await apiClient.post(canonicalEndpoints.smsSettings.verify);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['smsSettings', tenantKey] });
+    },
+  });
+};
+
+/**
+ * Disconnect Twilio
+ */
+export const useDisconnectTwilioMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async () => {
+      const res = await apiClient.post(canonicalEndpoints.smsSettings.disconnect);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['smsSettings', tenantKey] });
+    },
+  });
+};
+
+/**
+ * Send test SMS
+ */
+export const useSendTestSmsMutation = () => {
+  return useMutation({
+    mutationFn: async ({ phone }) => {
+      const res = await apiClient.post(canonicalEndpoints.smsSettings.test, { phone });
+      return res.data;
+    },
+  });
+};
+
+/**
+ * Fetch SMS templates
+ */
+export const useSmsTemplatesQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: ['smsTemplates', tenantKey],
+    queryFn: async () => {
+      const res = await apiClient.get(canonicalEndpoints.smsSettings.templates);
+      return res.data;
+    },
+    enabled: isTenantReady,
+    staleTime: 5 * 60 * 1000,
+    ...options,
+  });
+};
+
+/**
+ * Update an SMS template
+ */
+export const useUpdateSmsTemplateMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async ({ type, content, name, isActive }) => {
+      const res = await apiClient.put(
+        canonicalEndpoints.smsSettings.template(type),
+        { content, name, isActive }
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['smsTemplates', tenantKey] });
+    },
+  });
+};

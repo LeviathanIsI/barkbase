@@ -212,6 +212,22 @@ export const canonicalEndpoints = {
     update: build('/api/v1/memberships/{id}'),
     delete: build('/api/v1/memberships/{id}'),
   },
+  // Notification Settings API - /api/v1/config/notifications/*
+  notificationSettings: {
+    get: '/api/v1/config/notifications',
+    update: '/api/v1/config/notifications',
+    test: '/api/v1/config/notifications/test',
+  },
+  // SMS Settings API - /api/v1/settings/sms/*
+  smsSettings: {
+    get: '/api/v1/settings/sms',
+    update: '/api/v1/settings/sms',
+    test: '/api/v1/settings/sms/test',
+    verify: '/api/v1/settings/sms/verify',
+    disconnect: '/api/v1/settings/sms/disconnect',
+    templates: '/api/v1/settings/sms/templates',
+    template: build('/api/v1/settings/sms/templates/{id}'),
+  },
   features: {
     list: '/api/v1/config/features',
     detail: build('/api/v1/config/features/{id}'),
