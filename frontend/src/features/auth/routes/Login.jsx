@@ -20,7 +20,7 @@
  * =============================================================================
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth';
@@ -30,13 +30,13 @@ import { config } from '@/config/env';
 import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import { calculateSessionExpiry } from '@/lib/sessionManager';
 
 const Login = () => {
   const navigate = useNavigate();
   const { setAuth, updateTokens, isAuthenticated } = useAuthStore();
   const { setTenant, setLoading: setTenantLoading } = useTenantStore();
   const { register, handleSubmit, formState: { errors, isSubmitting }, setError } = useForm();
-  const [rememberMe, setRememberMe] = useState(true);
 
   // If already authenticated, redirect to app
   useEffect(() => {
@@ -81,6 +81,30 @@ const Login = () => {
 
       if (import.meta.env.DEV) console.log('[Login] Authentication successful');
 
+      // Call backend to create session record
+      try {
+        const loginResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            accessToken: result.accessToken,
+            idToken: result.idToken,
+          }),
+        });
+
+        if (!loginResponse.ok) {
+          console.warn('[Login] Backend login call failed:', loginResponse.status);
+        } else {
+          const loginData = await loginResponse.json();
+          if (import.meta.env.DEV) console.log('[Login] Backend session created:', loginData.session);
+        }
+      } catch (backendError) {
+        console.warn('[Login] Failed to create backend session:', backendError.message);
+        // Don't fail login if backend session creation fails
+      }
+
       // Decode ID token to get user info
       const userInfo = result.idToken ? decodeIdToken(result.idToken) : { email };
 
@@ -88,7 +112,6 @@ const Login = () => {
       setAuth({
         user: userInfo,
         accessToken: result.accessToken,
-        rememberMe,
       });
 
       // Store refresh token in sessionStorage for token refresh
@@ -124,6 +147,16 @@ const Login = () => {
             settings: tenantConfig.settings,
             theme: tenantConfig.theme,
             featureFlags: tenantConfig.featureFlags,
+          });
+
+          // Calculate session expiry using tenant's auto-logout interval (default 24 hours)
+          const intervalHours = tenantConfig.autoLogoutIntervalHours || 24;
+          const { sessionStartTime, sessionExpiryTime } = calculateSessionExpiry(intervalHours);
+          
+          // Update auth store with session times
+          updateTokens({
+            sessionStartTime,
+            sessionExpiryTime,
           });
 
           if (import.meta.env.DEV) console.log('[Login] Tenant config loaded:', {
@@ -249,17 +282,6 @@ const Login = () => {
                 />
                 {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>}
               </label>
-              
-              <label className="flex items-center gap-2 text-sm text-gray-900 dark:text-text-primary">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(event) => setRememberMe(event.target.checked)}
-                  className="h-4 w-4 rounded border-gray-300 dark:border-surface-border text-primary-600 focus:ring-2 focus:ring-primary-500"
-                />
-                <span>Remember me for 30 days</span>
-              </label>
-              
               <Button 
                 type="submit" 
                 disabled={isSubmitting || !config.cognitoClientId}
