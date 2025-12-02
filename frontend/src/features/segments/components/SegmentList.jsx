@@ -3,7 +3,7 @@ import { Users, Plus, Edit2, Trash2, RefreshCw, Zap } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import LoadingState from '@/components/ui/LoadingState';
 import { useSegments, useDeleteSegment, useRefreshSegments } from '@/features/communications/api';
 import SegmentForm from './SegmentForm';
 import SegmentMembers from './SegmentMembers';
@@ -109,6 +109,10 @@ export default function SegmentList() {
     );
   }
 
+  if (isLoading) {
+    return <LoadingState label="Loading segments…" />;
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -152,13 +156,7 @@ export default function SegmentList() {
         </Card>
       )}
       
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-32 w-full" />
-          ))}
-        </div>
-      ) : segments?.length === 0 ? (
+      {segments?.length === 0 ? (
         <Card>
           <div className="text-center py-12">
             <Users className="w-12 h-12 text-gray-400 dark:text-text-tertiary mx-auto mb-4" />

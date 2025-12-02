@@ -3,7 +3,7 @@ import { ArrowLeft, UserPlus, UserMinus, Dog } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import LoadingState from '@/components/ui/LoadingState';
 import { 
   useSegmentMembers, 
   useAddSegmentMembers, 
@@ -78,7 +78,7 @@ const AddMembersForm = ({ segment, onClose }) => {
       <h4 className="font-medium text-text mb-4">Add Members to Segment</h4>
       
       {isLoading ? (
-        <Skeleton className="h-48 w-full" />
+        <LoadingState label="Loading customers…" />
       ) : availableOwners.length === 0 ? (
         <p className="text-center py-8 text-text-secondary">
           No available customers to add
@@ -192,11 +192,7 @@ export default function SegmentMembers({ segment, onBack }) {
       )}
       
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-24 w-full" />
-          ))}
-        </div>
+        <LoadingState label="Loading members…" />
       ) : members.length === 0 ? (
         <Card>
           <div className="text-center py-12">
