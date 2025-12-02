@@ -261,8 +261,60 @@ async function handleLogin(event) {
       // Don't fail login if DB sync fails
     }
 
+    // Create or update session for auto-logout enforcement
+    let session = null;
+    if (dbUser?.id && dbUser?.tenant_id) {
+      try {
+        const crypto = require('crypto');
+        const sessionToken = crypto.randomBytes(32).toString('hex');
+        const sourceIp = event.requestContext?.identity?.sourceIp ||
+                        event.requestContext?.http?.sourceIp ||
+                        event.headers?.['x-forwarded-for']?.split(',')[0]?.trim() ||
+                        'Unknown';
+        const userAgent = event.headers?.['user-agent'] ||
+                         event.headers?.['User-Agent'] ||
+                         'Unknown';
+
+        console.log('[AUTH-API] Creating session for user:', { userId: dbUser.id, cognitoSub: payload.sub });
+
+        // Deactivate any existing active sessions for this user (single session per user)
+        await query(
+          `UPDATE "UserSession"
+           SET is_active = false, logged_out_at = NOW(), updated_at = NOW()
+           WHERE cognito_sub = $1 AND is_active = true`,
+          [payload.sub]
+        );
+
+        // Create new active session
+        const sessionResult = await query(
+          `INSERT INTO "UserSession" (
+            user_id, tenant_id, cognito_sub, session_token,
+            session_start_time, last_activity_time,
+            ip_address, user_agent, is_active
+          )
+          VALUES ($1, $2, $3, $4, NOW(), NOW(), $5, $6, true)
+          RETURNING id, session_start_time, session_token`,
+          [dbUser.id, dbUser.tenant_id, payload.sub, sessionToken, sourceIp, userAgent]
+        );
+
+        session = sessionResult.rows[0];
+        console.log('[AUTH-API] Session created:', {
+          sessionId: session.id,
+          startTime: session.session_start_time
+        });
+      } catch (sessionError) {
+        console.error('[AUTH-API] Failed to create session:', sessionError.message);
+        console.error('[AUTH-API] Session error details:', sessionError);
+        // Don't fail login if session creation fails
+      }
+    }
+
     return createResponse(200, {
       success: true,
+      session: session ? {
+        startTime: session.session_start_time,
+        token: session.session_token,
+      } : null,
       user: {
         id: payload.sub,
         recordId: dbUser?.id || null,
@@ -447,8 +499,20 @@ async function handleLogout(event) {
   // Log the logout event
   console.log('[AUTH-API] User logged out:', authResult.user.id);
 
-  // TODO: If session tracking is needed, create an ActivityLog entry
-  // For now, Cognito handles session invalidation
+  // Deactivate active sessions for this user
+  try {
+    await getPoolAsync();
+    const result = await query(
+      `UPDATE "UserSession"
+       SET is_active = false, logged_out_at = NOW(), updated_at = NOW()
+       WHERE cognito_sub = $1 AND is_active = true`,
+      [authResult.user.id]
+    );
+    console.log('[AUTH-API] Deactivated sessions for user:', authResult.user.id);
+  } catch (error) {
+    console.error('[AUTH-API] Failed to deactivate sessions:', error.message);
+    // Don't fail logout if session update fails
+  }
 
   return createResponse(200, {
     success: true,
