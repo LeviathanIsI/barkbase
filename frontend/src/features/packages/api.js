@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api/client';
+import { apiClient } from '@/lib/apiClient';
 
 const BASE_URL = '/api/v1/financial/packages';
 
@@ -10,8 +10,9 @@ export const useOwnerPackagesQuery = (ownerId) => {
   return useQuery({
     queryKey: ['packages', 'owner', ownerId],
     queryFn: async () => {
-      const response = await apiClient.get(`${BASE_URL}?ownerId=${ownerId}`);
-      return response.data || response.packages || [];
+      const { data } = await apiClient.get(`${BASE_URL}?ownerId=${ownerId}`);
+      // Handle both array and { packages: [...] } response shapes
+      return Array.isArray(data) ? data : (data?.packages || []);
     },
     enabled: !!ownerId
   });
@@ -30,10 +31,11 @@ export const usePackagesQuery = (filters = {}) => {
       if (filters.includeExpired) params.append('includeExpired', filters.includeExpired);
       if (filters.limit) params.append('limit', filters.limit);
       if (filters.offset) params.append('offset', filters.offset);
-      
+
       const queryString = params.toString();
-      const response = await apiClient.get(`${BASE_URL}${queryString ? `?${queryString}` : ''}`);
-      return response.data || response.packages || [];
+      const { data } = await apiClient.get(`${BASE_URL}${queryString ? `?${queryString}` : ''}`);
+      // Handle both array and { packages: [...] } response shapes
+      return Array.isArray(data) ? data : (data?.packages || []);
     }
   });
 };
@@ -151,8 +153,9 @@ export const usePackageUsageQuery = (packageId) => {
   return useQuery({
     queryKey: ['packages', packageId, 'usage'],
     queryFn: async () => {
-      const response = await apiClient.get(`${BASE_URL}/${packageId}/usage`);
-      return response.data || response.usage || [];
+      const { data } = await apiClient.get(`${BASE_URL}/${packageId}/usage`);
+      // Handle both array and { usage: [...] } response shapes
+      return Array.isArray(data) ? data : (data?.usage || []);
     },
     enabled: !!packageId
   });

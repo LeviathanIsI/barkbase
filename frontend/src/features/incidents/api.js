@@ -1,7 +1,7 @@
 /**
  * Incident API - Incident reporting and management
  */
-import { apiClient } from '@/lib/api/client';
+import { apiClient } from '@/lib/apiClient';
 
 const BASE_URL = '/api/v1/incidents';
 

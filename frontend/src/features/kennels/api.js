@@ -51,7 +51,6 @@ export const useKennels = (filters = {}) => {
       try {
         const res = await apiClient.get(KENNELS_BASE, { params: { ...filters, type: 'kennel' } });
         const kennels = normalizeKennelsResponse(res?.data);
-        console.log('[kennels] list length', Array.isArray(kennels) ? kennels.length : 'NOT ARRAY', kennels);
         return kennels;
       } catch (e) {
         console.warn('[kennels] Error fetching, returning empty array:', e?.message);

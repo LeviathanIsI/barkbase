@@ -244,6 +244,24 @@ exports.handler = async (event, context) => {
     }
 
     // ==========================================================================
+    // CAPACITY AND INSIGHTS routes
+    // ==========================================================================
+
+    // Calendar capacity - returns daily capacity data for date range
+    if (path === '/api/v1/analytics/capacity' || path === '/analytics/capacity') {
+      if (method === 'GET') {
+        return handleGetCapacity(tenantId, queryParams);
+      }
+    }
+
+    // Bookings insights - returns booking trends and patterns
+    if (path === '/api/v1/analytics/bookings-insights' || path === '/analytics/bookings-insights') {
+      if (method === 'GET') {
+        return handleGetBookingsInsights(tenantId, queryParams);
+      }
+    }
+
+    // ==========================================================================
     // COMPLIANCE / USDA FORMS routes - /api/v1/compliance/*
     // ==========================================================================
     // Available forms list
@@ -542,6 +560,257 @@ async function handleGetKPIs(tenantId) {
     return createResponse(500, {
       error: 'Internal Server Error',
       message: 'Failed to retrieve KPIs',
+    });
+  }
+}
+
+// =============================================================================
+// CAPACITY AND INSIGHTS HANDLERS
+// =============================================================================
+
+/**
+ * Get calendar capacity data for a date range
+ * Used by calendar view to show available/occupied slots
+ */
+async function handleGetCapacity(tenantId, queryParams) {
+  const { startDate, endDate } = queryParams;
+  console.log('[Capacity][get] tenantId:', tenantId, 'range:', startDate, '-', endDate);
+
+  try {
+    await getPoolAsync();
+
+    // Get total kennel capacity
+    const capacityResult = await query(
+      `SELECT
+         COUNT(*) as kennel_count,
+         COALESCE(SUM(capacity), COUNT(*)) as total_capacity
+       FROM "Kennel"
+       WHERE tenant_id = $1 AND is_active = true AND deleted_at IS NULL`,
+      [tenantId]
+    );
+
+    const totalKennels = parseInt(capacityResult.rows[0]?.kennel_count || 0);
+    const totalCapacity = parseInt(capacityResult.rows[0]?.total_capacity || totalKennels);
+
+    // Default to current week if no dates provided
+    const start = startDate || new Date().toISOString().split('T')[0];
+    const end = endDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    // Get bookings that overlap with the date range
+    const bookingsResult = await query(
+      `SELECT
+         DATE(check_in) as check_in_date,
+         DATE(check_out) as check_out_date,
+         COUNT(*) as booking_count
+       FROM "Booking"
+       WHERE tenant_id = $1
+         AND deleted_at IS NULL
+         AND status IN ('PENDING', 'CONFIRMED', 'CHECKED_IN')
+         AND DATE(check_in) <= $3
+         AND DATE(check_out) >= $2
+       GROUP BY DATE(check_in), DATE(check_out)`,
+      [tenantId, start, end]
+    );
+
+    // Build daily capacity data
+    const dailyCapacity = [];
+    const currentDate = new Date(start);
+    const endDateObj = new Date(end);
+
+    while (currentDate <= endDateObj) {
+      const dateStr = currentDate.toISOString().split('T')[0];
+
+      // Count bookings that span this date
+      let occupied = 0;
+      bookingsResult.rows.forEach(booking => {
+        const checkIn = new Date(booking.check_in_date);
+        const checkOut = new Date(booking.check_out_date);
+        if (currentDate >= checkIn && currentDate < checkOut) {
+          occupied += parseInt(booking.booking_count);
+        }
+      });
+
+      const available = Math.max(0, totalCapacity - occupied);
+      const occupancyRate = totalCapacity > 0 ? occupied / totalCapacity : 0;
+
+      dailyCapacity.push({
+        date: dateStr,
+        totalKennels: totalKennels,
+        totalCapacity: totalCapacity,
+        occupied: occupied,
+        available: available,
+        occupancyRate: Math.round(occupancyRate * 100) / 100,
+      });
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    return createResponse(200, {
+      data: dailyCapacity,
+      summary: {
+        totalKennels,
+        totalCapacity,
+        startDate: start,
+        endDate: end,
+        daysCount: dailyCapacity.length,
+      },
+      message: 'Capacity data retrieved successfully',
+    });
+
+  } catch (error) {
+    console.error('[ANALYTICS-SERVICE] Failed to get capacity:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve capacity data',
+    });
+  }
+}
+
+/**
+ * Get bookings insights - trends, patterns, and analytics
+ */
+async function handleGetBookingsInsights(tenantId, queryParams) {
+  const { period = 'month' } = queryParams;
+  console.log('[BookingsInsights][get] tenantId:', tenantId, 'period:', period);
+
+  try {
+    await getPoolAsync();
+
+    // Calculate date range based on period
+    const now = new Date();
+    let startDate;
+    switch (period) {
+      case 'week':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case 'month':
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case 'quarter':
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      case 'year':
+        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+
+    // Get total bookings in period
+    const totalBookingsResult = await query(
+      `SELECT COUNT(*) as count
+       FROM "Booking"
+       WHERE tenant_id = $1
+         AND deleted_at IS NULL
+         AND created_at >= $2`,
+      [tenantId, startDate.toISOString()]
+    );
+
+    // Get average stay duration
+    const avgStayResult = await query(
+      `SELECT AVG(EXTRACT(EPOCH FROM (check_out - check_in)) / 86400) as avg_days
+       FROM "Booking"
+       WHERE tenant_id = $1
+         AND deleted_at IS NULL
+         AND created_at >= $2
+         AND check_in IS NOT NULL
+         AND check_out IS NOT NULL`,
+      [tenantId, startDate.toISOString()]
+    );
+
+    // Get cancellation rate
+    const cancellationResult = await query(
+      `SELECT
+         COUNT(*) FILTER (WHERE status = 'CANCELLED') as cancelled,
+         COUNT(*) as total
+       FROM "Booking"
+       WHERE tenant_id = $1
+         AND deleted_at IS NULL
+         AND created_at >= $2`,
+      [tenantId, startDate.toISOString()]
+    );
+
+    // Get bookings by day of week
+    const dayOfWeekResult = await query(
+      `SELECT
+         EXTRACT(DOW FROM check_in) as day_of_week,
+         COUNT(*) as count
+       FROM "Booking"
+       WHERE tenant_id = $1
+         AND deleted_at IS NULL
+         AND created_at >= $2
+         AND check_in IS NOT NULL
+       GROUP BY EXTRACT(DOW FROM check_in)
+       ORDER BY count DESC`,
+      [tenantId, startDate.toISOString()]
+    );
+
+    // Get popular services
+    const servicesResult = await query(
+      `SELECT
+         s.name,
+         COUNT(*) as booking_count
+       FROM "Booking" b
+       JOIN "Service" s ON b.service_id = s.id
+       WHERE b.tenant_id = $1
+         AND b.deleted_at IS NULL
+         AND b.created_at >= $2
+       GROUP BY s.name
+       ORDER BY booking_count DESC
+       LIMIT 5`,
+      [tenantId, startDate.toISOString()]
+    );
+
+    // Get booking status breakdown
+    const statusResult = await query(
+      `SELECT status, COUNT(*) as count
+       FROM "Booking"
+       WHERE tenant_id = $1
+         AND deleted_at IS NULL
+         AND created_at >= $2
+       GROUP BY status`,
+      [tenantId, startDate.toISOString()]
+    );
+
+    // Map day of week numbers to names
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const peakDays = dayOfWeekResult.rows
+      .slice(0, 2)
+      .map(row => dayNames[parseInt(row.day_of_week)]);
+
+    const totalBookings = parseInt(totalBookingsResult.rows[0]?.count || 0);
+    const cancelled = parseInt(cancellationResult.rows[0]?.cancelled || 0);
+    const total = parseInt(cancellationResult.rows[0]?.total || 1);
+    const cancellationRate = total > 0 ? cancelled / total : 0;
+
+    return createResponse(200, {
+      data: {
+        period,
+        totalBookings,
+        averageStay: parseFloat(avgStayResult.rows[0]?.avg_days || 0).toFixed(1),
+        cancellationRate: Math.round(cancellationRate * 100) / 100,
+        peakDays,
+        popularServices: servicesResult.rows.map(row => ({
+          name: row.name,
+          bookingCount: parseInt(row.booking_count),
+        })),
+        statusBreakdown: statusResult.rows.reduce((acc, row) => {
+          acc[row.status] = parseInt(row.count);
+          return acc;
+        }, {}),
+        bookingsByDayOfWeek: dayOfWeekResult.rows.map(row => ({
+          day: dayNames[parseInt(row.day_of_week)],
+          count: parseInt(row.count),
+        })),
+      },
+      message: 'Bookings insights retrieved successfully',
+    });
+
+  } catch (error) {
+    console.error('[ANALYTICS-SERVICE] Failed to get bookings insights:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve bookings insights',
     });
   }
 }

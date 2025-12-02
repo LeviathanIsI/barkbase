@@ -31,7 +31,9 @@ export const useAuthSessionsQuery = () => {
     queryFn: async () => {
       try {
         const res = await apiClient.get('/api/v1/auth/sessions');
-        return res?.data || [];
+        // Backend returns { sessions: [...] }, extract the array
+        const data = res?.data;
+        return Array.isArray(data) ? data : (data?.sessions || []);
       } catch (e) {
         console.warn('[auth/sessions] Falling back to empty list due to API error:', e?.message || e);
         return [];

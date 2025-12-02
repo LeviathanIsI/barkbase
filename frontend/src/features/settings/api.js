@@ -30,6 +30,16 @@ import { useAuthStore } from '@/stores/auth';
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
+/**
+ * Hook to check if tenant context is ready for API calls
+ * Must be defined before any hooks that use it (JavaScript const is not hoisted)
+ */
+const useTenantReady = () => {
+  const tenantId = useAuthStore((state) => state.tenantId);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  return isAuthenticated && Boolean(tenantId);
+};
+
 // Properties API (v2-only)
 // All Properties CRUD and advanced operations use the v2 endpoints.
 export const usePropertiesQuery = (objectType, options = {}) => {
@@ -466,80 +476,55 @@ export const useUpdateStaffStatusMutation = () => {
 */
 
 
-// Calendar API
-export const useCalendarCapacity = (options = {}) => {
+// Calendar API - capacity data for calendar views
+export const useCalendarCapacity = (params = {}, options = {}) => {
   const tenantKey = useTenantStore((state) => state.tenant?.slug ?? 'default');
-  // Safely access auth store with error handling
-  let isAuthenticated = false;
-  let accessToken = null;
-  try {
-    isAuthenticated = useAuthStore((state) => state.isAuthenticated());
-    accessToken = useAuthStore((state) => state.accessToken);
-  } catch (error) {
-    // Auth store not available yet
-    console.warn('useAuthStore not available in useCalendarCapacity');
-  }
+  const isTenantReady = useTenantReady();
 
   return useQuery({
-    queryKey: [...queryKeys.calendar(tenantKey), 'capacity'],
-    queryFn: disabledQuery, // Needs custom Lambda
-    enabled: false,
+    queryKey: [...queryKeys.calendar(tenantKey), 'capacity', params],
+    queryFn: async () => {
+      const response = await apiClient.get('/api/v1/analytics/capacity', { params });
+      return response.data?.data || response.data || [];
+    },
+    enabled: isTenantReady,
+    staleTime: 5 * 60 * 1000,
     ...options,
   });
 };
 
 // Reports API
-// TODO: All reports require dedicated Lambdas for data aggregation.
-// These have been disabled until the backend is implemented.
-const disabledQuery = () => Promise.resolve(null);
 
 export const useReportsDashboardQuery = (params = {}, options = {}) => {
   const tenantKey = useTenantStore((state) => state.tenant?.slug ?? 'default');
-  // Safely access auth store with error handling
-  let isAuthenticated = false;
-  let accessToken = null;
-  try {
-    isAuthenticated = useAuthStore((state) => state.isAuthenticated());
-    accessToken = useAuthStore((state) => state.accessToken);
-  } catch (error) {
-    // Auth store not available yet
-    console.warn('useAuthStore not available in useReportsDashboardQuery');
-  }
-
-  const search = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== '') {
-      search.append(key, value);
-    }
-  });
-  const queryString = search.toString();
+  const isTenantReady = useTenantReady();
 
   return useQuery({
     queryKey: queryKeys.reports.dashboard(tenantKey, params),
-    queryFn: disabledQuery, // Needs custom Lambda
-    enabled: false,
+    queryFn: async () => {
+      // Use the existing analytics dashboard endpoint which returns comprehensive data
+      const response = await apiClient.get('/api/v1/analytics/dashboard');
+      return response.data?.data || response.data || null;
+    },
+    enabled: isTenantReady,
+    staleTime: 5 * 60 * 1000,
     ...options,
   });
 };
 
-// Bookings insights API (using dashboard stats for now, could be extended)
-export const useBookingsInsightsQuery = (options = {}) => {
+// Bookings insights API - returns booking trends and patterns
+export const useBookingsInsightsQuery = (params = {}, options = {}) => {
   const tenantKey = useTenantStore((state) => state.tenant?.slug ?? 'default');
-  // Safely access auth store with error handling
-  let isAuthenticated = false;
-  let accessToken = null;
-  try {
-    isAuthenticated = useAuthStore((state) => state.isAuthenticated());
-    accessToken = useAuthStore((state) => state.accessToken);
-  } catch (error) {
-    // Auth store not available yet
-    console.warn('useAuthStore not available in useBookingsInsightsQuery');
-  }
+  const isTenantReady = useTenantReady();
 
   return useQuery({
-    queryKey: [tenantKey, 'bookings-insights'],
-    queryFn: disabledQuery, // Needs custom Lambda
-    enabled: false,
+    queryKey: [tenantKey, 'bookings-insights', params],
+    queryFn: async () => {
+      const response = await apiClient.get('/api/v1/analytics/bookings-insights', { params });
+      return response.data?.data || response.data || null;
+    },
+    enabled: isTenantReady,
+    staleTime: 5 * 60 * 1000,
     ...options,
   });
 };
@@ -681,12 +666,6 @@ export const useInviteMemberMutation = () => {
 // BILLING / SUBSCRIPTIONS API
 // =============================================================================
 
-const useTenantReady = () => {
-  const tenantId = useAuthStore((state) => state.tenantId);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
-  return isAuthenticated && Boolean(tenantId);
-};
-
 /**
  * Get current subscription/plan info for the tenant
  *
@@ -716,7 +695,6 @@ export const useSubscriptionQuery = (options = {}) => {
 
         // Normalize - backend returns data.currentPlan or data.subscriptions[0]
         const currentPlan = data?.data?.currentPlan || data?.data?.subscriptions?.[0] || data?.subscriptions?.[0] || null;
-        console.log('[subscription] Fetched plan:', currentPlan?.plan);
 
         return {
           currentPlan,
@@ -731,6 +709,69 @@ export const useSubscriptionQuery = (options = {}) => {
     staleTime: 5 * 60 * 1000,
     placeholderData: (previousData) => previousData ?? { currentPlan: null, subscriptions: [] },
     ...options,
+  });
+};
+
+/**
+ * Get detailed billing usage statistics
+ *
+ * Returns real counts from database for:
+ * - Bookings this month
+ * - Active pets
+ * - Team seats
+ * - Storage used
+ * - Usage trends (last 6 months)
+ * - Insights (average, busiest month, growth)
+ */
+export const useBillingUsageQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: ['billingUsage', tenantKey],
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get(canonicalEndpoints.billing.usage);
+        return res.data;
+      } catch (e) {
+        console.warn('[billing-usage] Error fetching:', e?.message);
+        return {
+          usage: {
+            period: 'Current Month',
+            resetDate: 'Next Month',
+            bookings: { used: 0, limit: 150, percentage: 0 },
+            activePets: { used: 0, limit: 100, percentage: 0 },
+            storage: { used: 0, limit: 100, percentage: 0, details: { photos: 0, documents: 0 } },
+            seats: { used: 0, limit: 2, percentage: 0 },
+          },
+          trends: [],
+          insights: { avgBookings: 0, busiestMonth: { month: 'N/A', bookings: 0 }, growthPercent: 0 },
+          plan: 'FREE',
+        };
+      }
+    },
+    enabled: isTenantReady,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    ...options,
+  });
+};
+
+/**
+ * Initiate plan upgrade
+ */
+export const useUpgradePlanMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async ({ plan, billingCycle = 'monthly' }) => {
+      const res = await apiClient.post(canonicalEndpoints.billing.upgrade, { plan, billingCycle });
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['billingUsage', tenantKey] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions ? queryKeys.subscriptions(tenantKey) : [tenantKey, 'subscriptions'] });
+    },
   });
 };
 
@@ -761,7 +802,6 @@ export const usePaymentMethodsQuery = (options = {}) => {
 
         // Normalize
         const methods = data?.data?.methods || data?.data?.paymentMethods || data?.methods || [];
-        console.log('[payment-methods] Fetched:', methods.length);
 
         return {
           methods,
@@ -813,8 +853,6 @@ export const useTenantBillingInvoicesQuery = (options = {}) => {
       //
       // For now, return empty placeholder since we don't have
       // platform billing invoices implemented yet.
-      console.log('[useTenantBillingInvoicesQuery] Platform billing invoices not yet implemented');
-
       return {
         invoices: [],
         total: 0,
@@ -1156,6 +1194,287 @@ export const useSendTestEmailMutation = () => {
 };
 
 // =============================================================================
+// BOOKING SETTINGS API
+// =============================================================================
+
+/**
+ * Fetch booking settings (rules, windows, operating hours)
+ *
+ * Response shape:
+ * {
+ *   success: true,
+ *   settings: {
+ *     onlineBookingEnabled, requireDeposit, depositPercentage,
+ *     requireVaccinations, enableWaitlist,
+ *     maxAdvanceDays, minAdvanceHours, cancellationWindowHours,
+ *     checkinTime, checkoutTime, extendedHoursEnabled,
+ *     earlyDropoffTime, latePickupTime, earlyDropoffFeeCents, latePickupFeeCents
+ *   },
+ *   isDefault: boolean
+ * }
+ */
+export const useBookingSettingsQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: ['bookingSettings', tenantKey],
+    queryFn: async () => {
+      const res = await apiClient.get(canonicalEndpoints.bookingSettings.get);
+      return res.data;
+    },
+    enabled: isTenantReady,
+    staleTime: 5 * 60 * 1000,
+    ...options,
+  });
+};
+
+/**
+ * Update booking settings
+ */
+export const useUpdateBookingSettingsMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async (settings) => {
+      const res = await apiClient.put(canonicalEndpoints.bookingSettings.update, settings);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookingSettings', tenantKey] });
+    },
+  });
+};
+
+// =============================================================================
+// CALENDAR SETTINGS API
+// =============================================================================
+
+/**
+ * Fetch calendar settings (view, colors, display options, capacity)
+ *
+ * Response shape:
+ * {
+ *   success: true,
+ *   settings: {
+ *     defaultView, weekStartsOn, showWeekends, showCanceled, showCompleted,
+ *     businessHoursStart, businessHoursEnd, greyOutNonWorking, showHoursIndicator,
+ *     colorBy, statusColors, serviceColors,
+ *     showPetName, showOwnerName, showServiceType, showPetPhoto, showTimes, showNotesPreview,
+ *     timeSlotMinutes, showCapacityBar, capacityWarningThreshold, blockAtFullCapacity
+ *   },
+ *   isDefault: boolean
+ * }
+ */
+export const useCalendarSettingsQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: ['calendarSettings', tenantKey],
+    queryFn: async () => {
+      const res = await apiClient.get(canonicalEndpoints.calendarSettings.get);
+      return res.data;
+    },
+    enabled: isTenantReady,
+    staleTime: 5 * 60 * 1000,
+    ...options,
+  });
+};
+
+/**
+ * Update calendar settings
+ */
+export const useUpdateCalendarSettingsMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async (settings) => {
+      const res = await apiClient.put(canonicalEndpoints.calendarSettings.update, settings);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['calendarSettings', tenantKey] });
+    },
+  });
+};
+
+// =============================================================================
+// ONLINE BOOKING SETTINGS API
+// =============================================================================
+
+/**
+ * Fetch online booking settings (portal, services, new customers, requirements, confirmation, appearance)
+ */
+export const useOnlineBookingSettingsQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: ['onlineBookingSettings', tenantKey],
+    queryFn: async () => {
+      const res = await apiClient.get(canonicalEndpoints.onlineBookingSettings.get);
+      return res.data;
+    },
+    enabled: isTenantReady,
+    staleTime: 5 * 60 * 1000,
+    ...options,
+  });
+};
+
+/**
+ * Update online booking settings
+ */
+export const useUpdateOnlineBookingSettingsMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async (settings) => {
+      const res = await apiClient.put(canonicalEndpoints.onlineBookingSettings.update, settings);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['onlineBookingSettings', tenantKey] });
+    },
+  });
+};
+
+/**
+ * Check URL slug availability
+ */
+export const useCheckSlugAvailabilityMutation = () => {
+  return useMutation({
+    mutationFn: async (slug) => {
+      const res = await apiClient.post(canonicalEndpoints.onlineBookingSettings.checkSlug, { slug });
+      return res.data;
+    },
+  });
+};
+
+/**
+ * Get portal QR code
+ */
+export const usePortalQRCodeQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: ['portalQRCode', tenantKey],
+    queryFn: async () => {
+      const res = await apiClient.get(canonicalEndpoints.onlineBookingSettings.qrCode);
+      return res.data;
+    },
+    enabled: isTenantReady,
+    staleTime: 5 * 60 * 1000,
+    ...options,
+  });
+};
+
+// =============================================================================
+// POLICIES API
+// =============================================================================
+
+/**
+ * Fetch all policies (waivers, terms, etc.)
+ */
+export const usePoliciesQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: ['policies', tenantKey],
+    queryFn: async () => {
+      const res = await apiClient.get(canonicalEndpoints.policies.list);
+      return res.data;
+    },
+    enabled: isTenantReady,
+    staleTime: 5 * 60 * 1000,
+    ...options,
+  });
+};
+
+// =============================================================================
+// DOMAIN SETTINGS API
+// =============================================================================
+
+/**
+ * Fetch domain settings (custom domain, SSL, verification status)
+ */
+export const useDomainSettingsQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: ['domainSettings', tenantKey],
+    queryFn: async () => {
+      const res = await apiClient.get(canonicalEndpoints.domainSettings.get);
+      return res.data;
+    },
+    enabled: isTenantReady,
+    staleTime: 5 * 60 * 1000,
+    ...options,
+  });
+};
+
+/**
+ * Update domain settings (custom domain)
+ */
+export const useUpdateDomainSettingsMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async (settings) => {
+      const res = await apiClient.put(canonicalEndpoints.domainSettings.update, settings);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['domainSettings', tenantKey] });
+    },
+  });
+};
+
+/**
+ * Verify custom domain
+ */
+export const useVerifyDomainMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async () => {
+      const res = await apiClient.post(canonicalEndpoints.domainSettings.verify);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['domainSettings', tenantKey] });
+    },
+  });
+};
+
+/**
+ * Get domain verification status
+ */
+export const useDomainStatusQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: ['domainStatus', tenantKey],
+    queryFn: async () => {
+      const res = await apiClient.get(canonicalEndpoints.domainSettings.status);
+      return res.data;
+    },
+    enabled: isTenantReady,
+    staleTime: 30 * 1000, // 30 seconds for status checks
+    ...options,
+  });
+};
+
+// =============================================================================
 // PACKAGE TEMPLATES API
 // =============================================================================
 // Prepaid credit packages that facilities OFFER for purchase
@@ -1356,5 +1675,113 @@ export const useInvoicePreviewQuery = (options = {}) => {
     enabled: isTenantReady && (options.enabled !== false),
     staleTime: 0, // Always fetch fresh preview
     ...options,
+  });
+};
+
+// =============================================================================
+// PAYMENT SETTINGS API
+// =============================================================================
+
+/**
+ * Fetch payment settings (Stripe connection, accepted methods, processing config)
+ *
+ * Response shape:
+ * {
+ *   success: true,
+ *   settings: {
+ *     stripeConnected, stripeAccountId, stripePublishableKey, stripeSecretKeyMasked,
+ *     stripeTestMode, stripeWebhookStatus, stripeLastWebhookAt,
+ *     acceptCards, acceptAch, acceptCash, acceptCheck,
+ *     processingFeePercent, transactionFeeCents,
+ *     saveCustomerCards, autoChargeOnCheckin, autoChargeOnCheckout,
+ *     emailReceipts, requireDeposit, depositPercentage
+ *   },
+ *   isDefault: boolean
+ * }
+ */
+export const usePaymentSettingsQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: ['paymentSettings', tenantKey],
+    queryFn: async () => {
+      const res = await apiClient.get(canonicalEndpoints.paymentSettings.get);
+      return res.data;
+    },
+    enabled: isTenantReady,
+    staleTime: 5 * 60 * 1000,
+    ...options,
+  });
+};
+
+/**
+ * Update payment settings
+ */
+export const useUpdatePaymentSettingsMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async (settings) => {
+      const res = await apiClient.put(canonicalEndpoints.paymentSettings.update, settings);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['paymentSettings', tenantKey] });
+    },
+  });
+};
+
+/**
+ * Test Stripe connection with provided credentials
+ */
+export const useTestStripeConnectionMutation = () => {
+  return useMutation({
+    mutationFn: async ({ publishableKey, secretKey }) => {
+      const res = await apiClient.post(canonicalEndpoints.paymentSettings.testStripe, {
+        publishableKey,
+        secretKey,
+      });
+      return res.data;
+    },
+  });
+};
+
+/**
+ * Get current Stripe connection status
+ */
+export const useStripeStatusQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: ['stripeStatus', tenantKey],
+    queryFn: async () => {
+      const res = await apiClient.get(canonicalEndpoints.paymentSettings.stripeStatus);
+      return res.data;
+    },
+    enabled: isTenantReady,
+    staleTime: 60 * 1000, // 1 minute
+    ...options,
+  });
+};
+
+/**
+ * Disconnect Stripe (remove credentials)
+ */
+export const useDisconnectStripeMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async () => {
+      const res = await apiClient.post(canonicalEndpoints.paymentSettings.disconnectStripe);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['paymentSettings', tenantKey] });
+      queryClient.invalidateQueries({ queryKey: ['stripeStatus', tenantKey] });
+    },
   });
 };

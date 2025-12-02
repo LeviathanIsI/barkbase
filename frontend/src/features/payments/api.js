@@ -45,7 +45,6 @@ export const usePaymentsQuery = (params = {}, options = {}) => {
 
         // Normalize - backend returns both data.payments and payments
         const payments = data?.data?.payments || data?.payments || (Array.isArray(data?.data) ? data.data : []);
-        console.log('[payments] Fetched:', payments.length);
 
         return {
           payments,

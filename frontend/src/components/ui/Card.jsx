@@ -6,8 +6,10 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 
-const Card = React.forwardRef(({ className, children, title, description, icon, headerAction, ...props }, ref) => {
-  const hasHeader = title || description || icon || headerAction;
+const Card = React.forwardRef(({ className, children, title, description, icon: Icon, headerAction, ...props }, ref) => {
+  const hasHeader = title || description || Icon || headerAction;
+  // Determine if icon is a component (function) or already a rendered element
+  const isIconComponent = typeof Icon === 'function' || (Icon && Icon.$$typeof === Symbol.for('react.forward_ref'));
   return (
     <div
       ref={ref}
@@ -26,9 +28,9 @@ const Card = React.forwardRef(({ className, children, title, description, icon, 
         <CardHeader>
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
-              {icon && (
+              {Icon && (
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400">
-                  {icon}
+                  {isIconComponent ? <Icon className="h-5 w-5" /> : Icon}
                 </div>
               )}
               <div>

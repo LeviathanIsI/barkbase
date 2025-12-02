@@ -521,7 +521,6 @@ const Invoices = () => {
   // Process invoices data from normalized response { invoices, total }
   const invoices = useMemo(() => {
     const rawInvoices = invoicesData?.invoices ?? [];
-    console.log('[Finance/Invoices] loaded business invoices:', rawInvoices.length);
     return rawInvoices;
   }, [invoicesData]);
 

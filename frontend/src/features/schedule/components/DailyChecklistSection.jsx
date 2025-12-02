@@ -37,7 +37,7 @@ const DailyChecklistSection = ({ currentDate = new Date() }) => {
   
   checkInsToday.forEach(booking => {
     tasks.push({
-      id: `checkin-${booking.recordId}`,
+      id: `checkin-${booking.id || booking.recordId}`,
       icon: LogIn,
       label: `Check in ${booking.pet?.name || 'guest'} (${booking.owner?.firstName} ${booking.owner?.lastName})`,
       color: 'text-green-600',
@@ -53,7 +53,7 @@ const DailyChecklistSection = ({ currentDate = new Date() }) => {
   
   checkOutsToday.forEach(booking => {
     tasks.push({
-      id: `checkout-${booking.recordId}`,
+      id: `checkout-${booking.id || booking.recordId}`,
       icon: LogOut,
       label: `Check out ${booking.pet?.name || 'guest'} (${booking.owner?.firstName} ${booking.owner?.lastName})`,
       color: 'text-orange-600',

@@ -217,7 +217,6 @@ export const useSegments = (options = {}) => {
       const res = await apiClient.get('/api/v1/segments', { params: options });
       // Backend returns { data: [...], segments: [...], total: N }
       const data = res.data?.data || res.data?.segments || res.data || [];
-      console.log('[segments] Fetched segments:', data.length);
       return Array.isArray(data) ? data : [];
     },
     ...listQueryDefaults,

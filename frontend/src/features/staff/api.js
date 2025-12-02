@@ -63,7 +63,6 @@ export const useStaffQuery = () => {
       try {
         const res = await apiClient.get(canonicalEndpoints.staff.list);
         const staff = normalizeStaffResponse(res?.data);
-        console.log('[staff] fetched staff list', staff);
         return staff;
       } catch (e) {
         console.warn('[staff] Falling back to empty list due to API error:', e?.message || e);

@@ -1,136 +1,388 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Switch from '@/components/ui/Switch';
 import Badge from '@/components/ui/Badge';
-import Select from '@/components/ui/Select';
+import Input from '@/components/ui/Input';
 import SettingsPage from '../components/SettingsPage';
-import { CreditCard, Shield, DollarSign, AlertCircle, CheckCircle, Settings } from 'lucide-react';
+import SlideoutPanel from '@/components/SlideoutPanel';
+import {
+  usePaymentSettingsQuery,
+  useUpdatePaymentSettingsMutation,
+  useTestStripeConnectionMutation,
+  useDisconnectStripeMutation,
+} from '../api';
+import {
+  CreditCard,
+  Shield,
+  DollarSign,
+  AlertCircle,
+  CheckCircle,
+  Settings,
+  Link as LinkIcon,
+  Unlink,
+  Key,
+  Eye,
+  EyeOff,
+  Loader2,
+  RefreshCw,
+  Banknote,
+  Building2,
+} from 'lucide-react';
 
 const PaymentProcessing = () => {
+  // API hooks
+  const { data: settingsData, isLoading, error, refetch } = usePaymentSettingsQuery();
+  const updateMutation = useUpdatePaymentSettingsMutation();
+  const testStripeMutation = useTestStripeConnectionMutation();
+  const disconnectMutation = useDisconnectStripeMutation();
+
+  // Local form state
   const [settings, setSettings] = useState({
-    processor: 'stripe',
-    acceptCreditCards: true,
-    acceptACH: false,
+    stripeConnected: false,
+    stripeTestMode: true,
+    stripePublishableKey: '',
+    stripeSecretKeyMasked: '',
+    stripeWebhookStatus: 'inactive',
+    acceptCards: true,
+    acceptAch: false,
     acceptCash: true,
     acceptCheck: false,
-    requireDeposit: true,
+    processingFeePercent: 2.9,
+    transactionFeeCents: 30,
+    saveCustomerCards: true,
+    autoChargeOnCheckin: false,
+    autoChargeOnCheckout: false,
+    emailReceipts: true,
+    requireDeposit: false,
     depositPercentage: 25,
-    autoCharge: false,
-    sendReceipts: true,
-    saveCards: true,
-    pciCompliant: true,
-    taxRate: 8.25,
-    processingFee: 2.9,
-    transactionFee: 0.30
   });
 
-  const [testMode, setTestMode] = useState(true);
+  // Stripe connection slideout state
+  const [stripeSlideoutOpen, setStripeSlideoutOpen] = useState(false);
+  const [stripeCredentials, setStripeCredentials] = useState({
+    publishableKey: '',
+    secretKey: '',
+    testMode: true,
+  });
+  const [showSecretKey, setShowSecretKey] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const handleSave = () => {
-    // TODO: Save to API
-    alert('Payment settings saved!');
-  };
+  // Sync API data to local state
+  useEffect(() => {
+    if (settingsData?.settings) {
+      const s = settingsData.settings;
+      setSettings({
+        stripeConnected: s.stripeConnected || s.stripe_connected || false,
+        stripeTestMode: s.stripeTestMode ?? s.stripe_test_mode ?? true,
+        stripePublishableKey: s.stripePublishableKey || s.stripe_publishable_key || '',
+        stripeSecretKeyMasked: s.stripeSecretKeyMasked || s.stripe_secret_key_masked || '',
+        stripeWebhookStatus: s.stripeWebhookStatus || s.stripe_webhook_status || 'inactive',
+        acceptCards: s.acceptCards ?? s.accept_cards ?? true,
+        acceptAch: s.acceptAch ?? s.accept_ach ?? false,
+        acceptCash: s.acceptCash ?? s.accept_cash ?? true,
+        acceptCheck: s.acceptCheck ?? s.accept_check ?? false,
+        processingFeePercent: parseFloat(s.processingFeePercent || s.processing_fee_percent || 2.9),
+        transactionFeeCents: parseInt(s.transactionFeeCents || s.transaction_fee_cents || 30, 10),
+        saveCustomerCards: s.saveCustomerCards ?? s.save_customer_cards ?? true,
+        autoChargeOnCheckin: s.autoChargeOnCheckin ?? s.auto_charge_on_checkin ?? false,
+        autoChargeOnCheckout: s.autoChargeOnCheckout ?? s.auto_charge_on_checkout ?? false,
+        emailReceipts: s.emailReceipts ?? s.email_receipts ?? true,
+        requireDeposit: s.requireDeposit ?? s.require_deposit ?? false,
+        depositPercentage: parseInt(s.depositPercentage || s.deposit_percentage || 25, 10),
+      });
+      setHasChanges(false);
+    }
+  }, [settingsData]);
 
   const updateSetting = (key, value) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
+    setSettings((prev) => ({ ...prev, [key]: value }));
+    setHasChanges(true);
+    setSaveSuccess(false);
   };
 
+  const handleSave = async () => {
+    try {
+      await updateMutation.mutateAsync({
+        acceptCards: settings.acceptCards,
+        acceptAch: settings.acceptAch,
+        acceptCash: settings.acceptCash,
+        acceptCheck: settings.acceptCheck,
+        processingFeePercent: settings.processingFeePercent,
+        transactionFeeCents: settings.transactionFeeCents,
+        saveCustomerCards: settings.saveCustomerCards,
+        autoChargeOnCheckin: settings.autoChargeOnCheckin,
+        autoChargeOnCheckout: settings.autoChargeOnCheckout,
+        emailReceipts: settings.emailReceipts,
+        requireDeposit: settings.requireDeposit,
+        depositPercentage: settings.depositPercentage,
+      });
+      setHasChanges(false);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      console.error('Failed to save payment settings:', err);
+    }
+  };
+
+  const handleConnectStripe = async () => {
+    if (!stripeCredentials.publishableKey || !stripeCredentials.secretKey) {
+      return;
+    }
+
+    try {
+      const result = await testStripeMutation.mutateAsync({
+        publishableKey: stripeCredentials.publishableKey,
+        secretKey: stripeCredentials.secretKey,
+      });
+
+      if (result.success) {
+        // Save the credentials
+        await updateMutation.mutateAsync({
+          stripePublishableKey: stripeCredentials.publishableKey,
+          stripeSecretKey: stripeCredentials.secretKey,
+          stripeTestMode: stripeCredentials.testMode,
+          stripeConnected: true,
+        });
+        setStripeSlideoutOpen(false);
+        setStripeCredentials({ publishableKey: '', secretKey: '', testMode: true });
+        refetch();
+      }
+    } catch (err) {
+      console.error('Failed to connect Stripe:', err);
+    }
+  };
+
+  const handleDisconnectStripe = async () => {
+    if (!window.confirm('Are you sure you want to disconnect Stripe? You will not be able to process card payments until you reconnect.')) {
+      return;
+    }
+
+    try {
+      await disconnectMutation.mutateAsync();
+      refetch();
+    } catch (err) {
+      console.error('Failed to disconnect Stripe:', err);
+    }
+  };
+
+  const handleToggleTestMode = async () => {
+    try {
+      await updateMutation.mutateAsync({
+        stripeTestMode: !settings.stripeTestMode,
+      });
+      refetch();
+    } catch (err) {
+      console.error('Failed to toggle test mode:', err);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <SettingsPage
+        title="Payment Processing"
+        description="Configure payment methods and processing options"
+      >
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+        </div>
+      </SettingsPage>
+    );
+  }
+
+  if (error) {
+    return (
+      <SettingsPage
+        title="Payment Processing"
+        description="Configure payment methods and processing options"
+      >
+        <Card>
+          <div className="text-center py-8">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium mb-2">Failed to load settings</h3>
+            <p className="text-gray-600 dark:text-text-secondary mb-4">
+              {error.message || 'Unable to load payment settings. Please try again.'}
+            </p>
+            <Button onClick={() => refetch()}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Retry
+            </Button>
+          </div>
+        </Card>
+      </SettingsPage>
+    );
+  }
+
   return (
-    <SettingsPage 
-      title="Payment Processing" 
+    <SettingsPage
+      title="Payment Processing"
       description="Configure payment methods and processing options"
     >
-      {/* Payment Processor */}
-      <Card 
-        title="Payment Processor" 
-        description="Choose your payment processing provider"
+      {/* Stripe Connection Card */}
+      <Card
+        title="Stripe Connection"
+        icon={<CreditCard className="w-5 h-5" />}
+        description="Connect your Stripe account to accept online payments"
+        headerAction={
+          settings.stripeConnected ? (
+            <Badge variant="success">Connected</Badge>
+          ) : (
+            <Badge variant="warning">Not Connected</Badge>
+          )
+        }
       >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Payment Processor
-            </label>
-            <Select
-              value={settings.processor}
-              onChange={(e) => updateSetting('processor', e.target.value)}
-            >
-              <option value="stripe">Stripe</option>
-              <option value="square">Square</option>
-              <option value="paypal">PayPal</option>
-              <option value="authorize">Authorize.net</option>
-            </Select>
-          </div>
-
-          <div className="flex items-center justify-between p-4 bg-yellow-50 dark:bg-surface-primary rounded-lg">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-yellow-600" />
-              <div>
-                <p className="font-medium text-sm">Test Mode</p>
-                <p className="text-xs text-gray-600 dark:text-text-secondary">Process test transactions only</p>
+        {settings.stripeConnected ? (
+          <div className="space-y-4">
+            {/* Connected Status */}
+            <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+                <div>
+                  <p className="font-medium text-green-800 dark:text-green-200">Stripe Connected</p>
+                  <p className="text-sm text-green-600 dark:text-green-300">
+                    {settings.stripeTestMode ? 'Test mode' : 'Live mode'} • Key: {settings.stripePublishableKey?.slice(0, 20)}...
+                  </p>
+                </div>
               </div>
+              <Button variant="outline" size="sm" onClick={handleDisconnectStripe}>
+                <Unlink className="w-4 h-4 mr-2" />
+                Disconnect
+              </Button>
             </div>
-            <Switch
-              checked={testMode}
-              onChange={setTestMode}
-            />
-          </div>
 
-          <div className="bg-blue-50 dark:bg-surface-primary border border-blue-200 dark:border-blue-900/30 rounded-md p-3">
-            <div className="flex">
-              <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400 mr-2 flex-shrink-0" />
-              <div className="text-sm text-blue-800 dark:text-blue-200">
-                <p className="font-medium">PCI Compliance Status</p>
-                <div className="flex items-center gap-1 mt-1">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span>PCI DSS Level 4 Compliant</span>
+            {/* Test Mode Toggle */}
+            <div className="flex items-center justify-between p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                <div>
+                  <p className="font-medium text-yellow-800 dark:text-yellow-200">Test Mode</p>
+                  <p className="text-sm text-yellow-600 dark:text-yellow-300">
+                    {settings.stripeTestMode
+                      ? 'Using test API keys - no real charges'
+                      : 'Using live API keys - real transactions'}
+                  </p>
+                </div>
+              </div>
+              <Switch checked={settings.stripeTestMode} onChange={handleToggleTestMode} />
+            </div>
+
+            {/* Webhook Status */}
+            <div className="flex items-center justify-between py-3 border-b dark:border-surface-border">
+              <div>
+                <p className="font-medium">Webhook Status</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">
+                  Receive real-time payment events
+                </p>
+              </div>
+              <Badge
+                variant={
+                  settings.stripeWebhookStatus === 'active'
+                    ? 'success'
+                    : settings.stripeWebhookStatus === 'error'
+                    ? 'error'
+                    : 'default'
+                }
+              >
+                {settings.stripeWebhookStatus}
+              </Badge>
+            </div>
+
+            {/* PCI Compliance */}
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-3">
+              <div className="flex">
+                <Shield className="h-5 w-5 text-blue-600 dark:text-blue-400 mr-2 flex-shrink-0" />
+                <div className="text-sm text-blue-800 dark:text-blue-200">
+                  <p className="font-medium">PCI Compliance Status</p>
+                  <div className="flex items-center gap-1 mt-1">
+                    <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+                    <span>PCI DSS Level 4 Compliant via Stripe</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="text-center py-6 border-2 border-dashed border-gray-200 dark:border-surface-border rounded-lg">
+              <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <h3 className="text-lg font-medium mb-2">Connect Stripe to Accept Payments</h3>
+              <p className="text-gray-600 dark:text-text-secondary mb-4 max-w-md mx-auto">
+                Connect your Stripe account to accept credit cards, debit cards, and ACH bank
+                transfers from your customers.
+              </p>
+              <Button onClick={() => setStripeSlideoutOpen(true)}>
+                <LinkIcon className="w-4 h-4 mr-2" />
+                Connect Stripe Account
+              </Button>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-surface-secondary rounded-md p-3 text-sm text-gray-600 dark:text-text-secondary">
+              <p className="font-medium mb-1">Don't have a Stripe account?</p>
+              <p>
+                <a
+                  href="https://dashboard.stripe.com/register"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary-600 dark:text-primary-400 hover:underline"
+                >
+                  Create a free Stripe account →
+                </a>
+              </p>
+            </div>
+          </div>
+        )}
       </Card>
 
-      {/* Payment Methods */}
-      <Card 
-        title="Accepted Payment Methods" 
+      {/* Accepted Payment Methods */}
+      <Card
+        title="Accepted Payment Methods"
+        icon={<Banknote className="w-5 h-5" />}
         description="Choose which payment types to accept"
       >
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between py-2">
             <div className="flex items-center gap-3">
               <CreditCard className="w-5 h-5 text-gray-600 dark:text-text-secondary" />
               <div>
                 <h4 className="font-medium">Credit/Debit Cards</h4>
-                <p className="text-sm text-gray-600 dark:text-text-secondary">Visa, MasterCard, Amex, Discover</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">
+                  Visa, MasterCard, Amex, Discover
+                </p>
               </div>
             </div>
             <Switch
-              checked={settings.acceptCreditCards}
-              onChange={(checked) => updateSetting('acceptCreditCards', checked)}
+              checked={settings.acceptCards}
+              onChange={(checked) => updateSetting('acceptCards', checked)}
+              disabled={!settings.stripeConnected}
             />
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between py-2">
             <div className="flex items-center gap-3">
-              <DollarSign className="w-5 h-5 text-gray-600 dark:text-text-secondary" />
+              <Building2 className="w-5 h-5 text-gray-600 dark:text-text-secondary" />
               <div>
                 <h4 className="font-medium">ACH Bank Transfer</h4>
-                <p className="text-sm text-gray-600 dark:text-text-secondary">Direct bank account payments</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">
+                  Direct bank account payments (lower fees)
+                </p>
               </div>
             </div>
             <Switch
-              checked={settings.acceptACH}
-              onChange={(checked) => updateSetting('acceptACH', checked)}
+              checked={settings.acceptAch}
+              onChange={(checked) => updateSetting('acceptAch', checked)}
+              disabled={!settings.stripeConnected}
             />
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between py-2">
             <div className="flex items-center gap-3">
               <DollarSign className="w-5 h-5 text-gray-600 dark:text-text-secondary" />
               <div>
                 <h4 className="font-medium">Cash</h4>
-                <p className="text-sm text-gray-600 dark:text-text-secondary">Accept cash payments in-person</p>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">
+                  Accept cash payments in-person
+                </p>
               </div>
             </div>
             <Switch
@@ -139,7 +391,7 @@ const PaymentProcessing = () => {
             />
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between py-2">
             <div className="flex items-center gap-3">
               <DollarSign className="w-5 h-5 text-gray-600 dark:text-text-secondary" />
               <div>
@@ -153,119 +405,313 @@ const PaymentProcessing = () => {
             />
           </div>
         </div>
+
+        {!settings.stripeConnected && (
+          <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+            <p className="text-sm text-yellow-800 dark:text-yellow-200">
+              <AlertCircle className="w-4 h-4 inline mr-1" />
+              Connect Stripe above to enable card and ACH payments.
+            </p>
+          </div>
+        )}
       </Card>
 
-      {/* Fee Structure */}
-      <Card 
-        title="Fees & Taxes" 
-        description="Configure processing fees and tax rates"
+      {/* Fee Information */}
+      <Card
+        title="Processing Fees"
+        icon={<DollarSign className="w-5 h-5" />}
+        description="Standard Stripe processing fees (informational)"
       >
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Processing Fee
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  value={settings.processingFee}
-                  onChange={(e) => updateSetting('processingFee', parseFloat(e.target.value))}
-                  step="0.1"
-                  min="0"
-                  className="w-20 px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
-                />
-                <span className="text-sm text-gray-600 dark:text-text-secondary">%</span>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg">
+              <p className="text-sm text-gray-600 dark:text-text-secondary mb-1">
+                Card Processing Fee
+              </p>
+              <p className="text-2xl font-semibold">
+                {settings.processingFeePercent}% + ${(settings.transactionFeeCents / 100).toFixed(2)}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-text-muted mt-1">Per successful card charge</p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Transaction Fee
-              </label>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600 dark:text-text-secondary">$</span>
-                <input
-                  type="number"
-                  value={settings.transactionFee}
-                  onChange={(e) => updateSetting('transactionFee', parseFloat(e.target.value))}
-                  step="0.01"
-                  min="0"
-                  className="w-20 px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
-                />
-              </div>
+            <div className="p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg">
+              <p className="text-sm text-gray-600 dark:text-text-secondary mb-1">ACH Processing Fee</p>
+              <p className="text-2xl font-semibold">0.8%</p>
+              <p className="text-xs text-gray-500 dark:text-text-muted mt-1">
+                $5 max per transaction
+              </p>
             </div>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-2">
-                Tax Rate
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  value={settings.taxRate}
-                  onChange={(e) => updateSetting('taxRate', parseFloat(e.target.value))}
-                  step="0.01"
-                  min="0"
-                  className="w-20 px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
-                />
-                <span className="text-sm text-gray-600 dark:text-text-secondary">%</span>
-              </div>
-            </div>
+          <div className="text-sm text-gray-600 dark:text-text-secondary">
+            <p>
+              Fees are set by Stripe and deducted automatically from each transaction. Visit your{' '}
+              <a
+                href="https://dashboard.stripe.com/settings/payments"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary-600 dark:text-primary-400 hover:underline"
+              >
+                Stripe Dashboard
+              </a>{' '}
+              for detailed fee information.
+            </p>
           </div>
         </div>
       </Card>
 
       {/* Payment Settings */}
-      <Card 
-        title="Payment Settings" 
-        description="Additional payment configuration options"
+      <Card
+        title="Payment Settings"
+        icon={<Settings className="w-5 h-5" />}
+        description="Configure automatic payment behavior"
       >
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between py-2">
             <div>
               <h4 className="font-medium">Save Customer Cards</h4>
-              <p className="text-sm text-gray-600 dark:text-text-secondary">Securely store cards for future use</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">
+                Securely store cards for future payments
+              </p>
             </div>
             <Switch
-              checked={settings.saveCards}
-              onChange={(checked) => updateSetting('saveCards', checked)}
+              checked={settings.saveCustomerCards}
+              onChange={(checked) => updateSetting('saveCustomerCards', checked)}
             />
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between py-2">
             <div>
               <h4 className="font-medium">Auto-Charge on Check-In</h4>
-              <p className="text-sm text-gray-600 dark:text-text-secondary">Automatically process payments at check-in</p>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">
+                Automatically charge deposits when pets check in
+              </p>
             </div>
             <Switch
-              checked={settings.autoCharge}
-              onChange={(checked) => updateSetting('autoCharge', checked)}
+              checked={settings.autoChargeOnCheckin}
+              onChange={(checked) => updateSetting('autoChargeOnCheckin', checked)}
             />
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between py-2">
             <div>
-              <h4 className="font-medium">Email Receipts</h4>
-              <p className="text-sm text-gray-600 dark:text-text-secondary">Send payment receipts via email</p>
+              <h4 className="font-medium">Auto-Charge on Check-Out</h4>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">
+                Automatically charge remaining balance at check-out
+              </p>
             </div>
             <Switch
-              checked={settings.sendReceipts}
-              onChange={(checked) => updateSetting('sendReceipts', checked)}
+              checked={settings.autoChargeOnCheckout}
+              onChange={(checked) => updateSetting('autoChargeOnCheckout', checked)}
             />
+          </div>
+
+          <div className="flex items-center justify-between py-2">
+            <div>
+              <h4 className="font-medium">Email Receipts</h4>
+              <p className="text-sm text-gray-600 dark:text-text-secondary">
+                Send payment receipts via email automatically
+              </p>
+            </div>
+            <Switch
+              checked={settings.emailReceipts}
+              onChange={(checked) => updateSetting('emailReceipts', checked)}
+            />
+          </div>
+
+          <div className="border-t dark:border-surface-border pt-4 mt-4">
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <h4 className="font-medium">Require Deposit</h4>
+                <p className="text-sm text-gray-600 dark:text-text-secondary">
+                  Require a deposit when booking
+                </p>
+              </div>
+              <Switch
+                checked={settings.requireDeposit}
+                onChange={(checked) => updateSetting('requireDeposit', checked)}
+              />
+            </div>
+
+            {settings.requireDeposit && (
+              <div className="mt-3 flex items-center gap-3">
+                <label className="text-sm font-medium">Deposit Percentage</label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={settings.depositPercentage}
+                    onChange={(e) =>
+                      updateSetting('depositPercentage', parseInt(e.target.value, 10) || 0)
+                    }
+                    min={0}
+                    max={100}
+                    className="w-20"
+                  />
+                  <span className="text-sm text-gray-600 dark:text-text-secondary">%</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 pt-4 mt-4 border-t">
-          <Button variant="outline">
-            <Settings className="w-4 h-4 mr-2" />
-            Test Connection
-          </Button>
-          <Button onClick={handleSave}>
-            Save Settings
+        {/* Save Button */}
+        <div className="flex items-center justify-between pt-4 mt-4 border-t dark:border-surface-border">
+          <div className="flex items-center gap-2">
+            {saveSuccess && (
+              <span className="text-sm text-green-600 dark:text-green-400 flex items-center gap-1">
+                <CheckCircle className="w-4 h-4" />
+                Settings saved
+              </span>
+            )}
+            {updateMutation.isError && (
+              <span className="text-sm text-red-600 dark:text-red-400">
+                Failed to save. Please try again.
+              </span>
+            )}
+          </div>
+          <Button onClick={handleSave} disabled={!hasChanges || updateMutation.isPending}>
+            {updateMutation.isPending ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Save Settings'
+            )}
           </Button>
         </div>
       </Card>
+
+      {/* Stripe Connection Slideout */}
+      <SlideoutPanel
+        isOpen={stripeSlideoutOpen}
+        onClose={() => setStripeSlideoutOpen(false)}
+        title="Connect Stripe Account"
+        size="md"
+      >
+        <div className="space-y-6">
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <h4 className="font-medium text-blue-800 dark:text-blue-200 mb-2">
+              Where to find your API keys
+            </h4>
+            <ol className="text-sm text-blue-700 dark:text-blue-300 space-y-1 list-decimal list-inside">
+              <li>
+                Log in to your{' '}
+                <a
+                  href="https://dashboard.stripe.com/apikeys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:no-underline"
+                >
+                  Stripe Dashboard
+                </a>
+              </li>
+              <li>Go to Developers → API Keys</li>
+              <li>Copy your Publishable key and Secret key</li>
+            </ol>
+          </div>
+
+          <div className="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+              <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                Test Mode
+              </span>
+            </div>
+            <Switch
+              checked={stripeCredentials.testMode}
+              onChange={(checked) =>
+                setStripeCredentials((prev) => ({ ...prev, testMode: checked }))
+              }
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              <Key className="w-4 h-4 inline mr-1" />
+              Publishable Key
+            </label>
+            <Input
+              type="text"
+              value={stripeCredentials.publishableKey}
+              onChange={(e) =>
+                setStripeCredentials((prev) => ({ ...prev, publishableKey: e.target.value }))
+              }
+              placeholder={
+                stripeCredentials.testMode ? 'pk_test_...' : 'pk_live_...'
+              }
+            />
+            <p className="text-xs text-gray-500 dark:text-text-muted mt-1">
+              Starts with pk_test_ (test mode) or pk_live_ (live mode)
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              <Key className="w-4 h-4 inline mr-1" />
+              Secret Key
+            </label>
+            <div className="relative">
+              <Input
+                type={showSecretKey ? 'text' : 'password'}
+                value={stripeCredentials.secretKey}
+                onChange={(e) =>
+                  setStripeCredentials((prev) => ({ ...prev, secretKey: e.target.value }))
+                }
+                placeholder={
+                  stripeCredentials.testMode ? 'sk_test_...' : 'sk_live_...'
+                }
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowSecretKey(!showSecretKey)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showSecretKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-text-muted mt-1">
+              Starts with sk_test_ (test mode) or sk_live_ (live mode)
+            </p>
+          </div>
+
+          {testStripeMutation.isError && (
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+              <p className="text-sm text-red-800 dark:text-red-200">
+                <AlertCircle className="w-4 h-4 inline mr-1" />
+                {testStripeMutation.error?.message || 'Failed to verify Stripe credentials. Please check your keys and try again.'}
+              </p>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4 border-t dark:border-surface-border">
+            <Button variant="outline" onClick={() => setStripeSlideoutOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConnectStripe}
+              disabled={
+                !stripeCredentials.publishableKey ||
+                !stripeCredentials.secretKey ||
+                testStripeMutation.isPending
+              }
+            >
+              {testStripeMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Verifying...
+                </>
+              ) : (
+                <>
+                  <LinkIcon className="w-4 h-4 mr-2" />
+                  Connect Stripe
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </SlideoutPanel>
     </SettingsPage>
   );
 };

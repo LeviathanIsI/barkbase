@@ -67,10 +67,6 @@ export const useBusinessInvoicesQuery = (filters = {}) => {
         const response = await apiClient.get(canonicalEndpoints.invoices.list, { params: filters });
         const root = response.data;
 
-        // Debug: log raw response structure
-        console.log('[useInvoicesQuery] raw response keys:', Object.keys(root || {}));
-        console.log('[useInvoicesQuery] raw response:', root);
-
         // Normalize all known shapes into one
         // Backend returns: { data: { invoices: [...] }, invoices: [...], total: N }
         const invoices =
@@ -79,13 +75,6 @@ export const useBusinessInvoicesQuery = (filters = {}) => {
           (Array.isArray(root?.data) ? root.data : []);
 
         const total = root?.total ?? invoices.length;
-
-        // Debug log so we can see what the hook actually sees
-        console.log('[useInvoicesQuery] normalized', {
-          invoicesCount: Array.isArray(invoices) ? invoices.length : 'not array',
-          total,
-          firstInvoice: invoices[0] || null,
-        });
 
         return { invoices, total };
       } catch (e) {

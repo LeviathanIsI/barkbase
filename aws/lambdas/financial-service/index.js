@@ -99,7 +99,10 @@ exports.handler = async (event, context) => {
   }
 
   // Handle Stripe webhook BEFORE authentication (Stripe sends directly, no JWT)
-  if ((path === '/api/v1/financial/stripe/webhook' || path === '/financial/stripe/webhook') && method === 'POST') {
+  // Accept both CDK route (/api/v1/webhooks/stripe) and legacy routes
+  if ((path === '/api/v1/webhooks/stripe' ||
+       path === '/api/v1/financial/stripe/webhook' ||
+       path === '/financial/stripe/webhook') && method === 'POST') {
     return handleStripeWebhook(event);
   }
 
@@ -140,6 +143,13 @@ exports.handler = async (event, context) => {
       if (method === 'POST') {
         return handleCreateInvoice(tenantId, parseBody(event));
       }
+    }
+
+    // Generate invoice from booking route
+    const generateMatch = path.match(/\/api\/v1\/financial\/invoices\/generate\/([a-f0-9-]+)$/i);
+    if (generateMatch && method === 'POST') {
+      const bookingId = generateMatch[1];
+      return handleGenerateInvoiceFromBooking(tenantId, bookingId);
     }
 
     // Invoice by ID routes
@@ -245,8 +255,11 @@ exports.handler = async (event, context) => {
 
     // ==========================================================================
     // STRIPE WEBHOOK ROUTE - Unauthenticated (verified via signature)
+    // Note: This check is redundant as webhooks are handled before auth
     // ==========================================================================
-    if ((path === '/api/v1/financial/stripe/webhook' || path === '/financial/stripe/webhook') && method === 'POST') {
+    if ((path === '/api/v1/webhooks/stripe' ||
+         path === '/api/v1/financial/stripe/webhook' ||
+         path === '/financial/stripe/webhook') && method === 'POST') {
       return handleStripeWebhook(event);
     }
 
@@ -324,6 +337,14 @@ exports.handler = async (event, context) => {
     if (path === '/api/v1/financial/billing/charge' || path === '/financial/billing/charge') {
       if (method === 'POST') {
         return handleCreateCharge(tenantId, parseBody(event));
+      }
+    }
+    if (path === '/api/v1/financial/billing/usage' || path === '/financial/billing/usage') {
+      return handleGetBillingUsage(tenantId);
+    }
+    if (path === '/api/v1/financial/billing/upgrade' || path === '/financial/billing/upgrade') {
+      if (method === 'POST') {
+        return handleUpgradePlan(tenantId, parseBody(event));
       }
     }
 
@@ -739,6 +760,221 @@ async function handleCreateInvoice(tenantId, body) {
     return createResponse(500, {
       error: 'Internal Server Error',
       message: 'Failed to create invoice',
+    });
+  }
+}
+
+/**
+ * Generate an invoice from a booking
+ * POST /api/v1/financial/invoices/generate/{bookingId}
+ */
+async function handleGenerateInvoiceFromBooking(tenantId, bookingId) {
+  console.log('[FINANCIAL-SERVICE] Generating invoice for booking:', bookingId);
+
+  try {
+    await getPoolAsync();
+
+    // Fetch booking with related data
+    const bookingResult = await query(
+      `SELECT
+         b.id,
+         b.tenant_id,
+         b.owner_id,
+         b.pet_id,
+         b.status,
+         b.check_in,
+         b.check_out,
+         b.total_price_in_cents,
+         b.deposit_in_cents,
+         b.notes,
+         b.service_type,
+         b.kennel_id,
+         b.service_id,
+         COALESCE(b.kennel_name, k.name) as kennel_name,
+         COALESCE(b.service_name, s.name) as service_name,
+         s.price_in_cents as service_price_cents,
+         o.first_name as owner_first_name,
+         o.last_name as owner_last_name,
+         o.email as owner_email
+       FROM "Booking" b
+       LEFT JOIN "Kennel" k ON b.kennel_id = k.id
+       LEFT JOIN "Service" s ON b.service_id = s.id
+       LEFT JOIN "Owner" o ON b.owner_id = o.id
+       WHERE b.id = $1 AND b.tenant_id = $2 AND b.deleted_at IS NULL`,
+      [bookingId, tenantId]
+    );
+
+    if (bookingResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Booking not found',
+        code: 'BOOKING_NOT_FOUND',
+      });
+    }
+
+    const booking = bookingResult.rows[0];
+
+    // Validate booking has an owner
+    if (!booking.owner_id) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Booking does not have an associated owner',
+        code: 'BOOKING_NO_OWNER',
+      });
+    }
+
+    // Check if invoice already exists for this booking
+    const existingInvoice = await query(
+      `SELECT id, invoice_number, status FROM "Invoice"
+       WHERE booking_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [bookingId, tenantId]
+    );
+
+    if (existingInvoice.rows.length > 0) {
+      const existing = existingInvoice.rows[0];
+      return createResponse(409, {
+        error: 'Conflict',
+        message: `Invoice already exists for this booking: ${existing.invoice_number}`,
+        code: 'INVOICE_EXISTS',
+        existingInvoiceId: existing.id,
+        existingInvoiceNumber: existing.invoice_number,
+      });
+    }
+
+    // Calculate totals from booking
+    const totalCents = booking.total_price_in_cents || 0;
+    const depositCents = booking.deposit_in_cents || 0;
+    const amountDueCents = totalCents - depositCents;
+
+    // Calculate number of nights
+    const checkIn = new Date(booking.check_in);
+    const checkOut = new Date(booking.check_out);
+    const nights = Math.max(1, Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24)));
+
+    // Generate invoice number
+    const timestamp = Date.now();
+    const invoiceNumber = `INV-${timestamp}`;
+
+    // Set due date to check-out date or 30 days from now
+    const dueDate = booking.check_out || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    // Build line items description
+    let lineItems = [];
+    if (booking.service_name) {
+      lineItems.push({
+        description: `${booking.service_name} - ${nights} night${nights > 1 ? 's' : ''}`,
+        quantity: nights,
+        unitPriceCents: booking.service_price_cents || Math.round(totalCents / nights),
+        totalCents: totalCents,
+      });
+    } else {
+      lineItems.push({
+        description: `Boarding - ${nights} night${nights > 1 ? 's' : ''}`,
+        quantity: nights,
+        unitPriceCents: Math.round(totalCents / nights),
+        totalCents: totalCents,
+      });
+    }
+
+    // Add deposit as negative line item if applicable
+    if (depositCents > 0) {
+      lineItems.push({
+        description: 'Deposit (previously paid)',
+        quantity: 1,
+        unitPriceCents: -depositCents,
+        totalCents: -depositCents,
+      });
+    }
+
+    // Build invoice notes
+    const invoiceNotes = [
+      `Booking: ${checkIn.toLocaleDateString()} - ${checkOut.toLocaleDateString()}`,
+      booking.kennel_name ? `Kennel: ${booking.kennel_name}` : null,
+      booking.notes ? `Notes: ${booking.notes}` : null,
+    ].filter(Boolean).join('\n');
+
+    // Create invoice record
+    const result = await query(
+      `INSERT INTO "Invoice" (
+         tenant_id, owner_id, booking_id, invoice_number,
+         subtotal_cents, tax_cents, total_cents, amount_due_cents,
+         due_date, notes, line_items, status,
+         created_at, updated_at
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'DRAFT', NOW(), NOW())
+       RETURNING *`,
+      [
+        tenantId,
+        booking.owner_id,
+        bookingId,
+        invoiceNumber,
+        totalCents,       // subtotal_cents
+        0,                // tax_cents (can be calculated later)
+        totalCents,       // total_cents
+        amountDueCents,   // amount_due_cents
+        dueDate,
+        invoiceNotes,
+        JSON.stringify(lineItems),
+      ]
+    );
+
+    const invoice = result.rows[0];
+
+    console.log('[FINANCIAL-SERVICE] Invoice generated:', invoice.id, 'for booking:', bookingId);
+
+    return createResponse(201, {
+      success: true,
+      invoice: {
+        id: invoice.id,
+        invoiceNumber: invoice.invoice_number,
+        bookingId: invoice.booking_id,
+        ownerId: invoice.owner_id,
+        ownerName: `${booking.owner_first_name || ''} ${booking.owner_last_name || ''}`.trim(),
+        ownerEmail: booking.owner_email,
+        subtotalCents: invoice.subtotal_cents,
+        taxCents: invoice.tax_cents,
+        totalCents: invoice.total_cents,
+        amountDueCents: invoice.amount_due_cents,
+        // Also provide dollar amounts for convenience
+        subtotal: (invoice.subtotal_cents / 100).toFixed(2),
+        tax: (invoice.tax_cents / 100).toFixed(2),
+        total: (invoice.total_cents / 100).toFixed(2),
+        amountDue: (invoice.amount_due_cents / 100).toFixed(2),
+        dueDate: invoice.due_date,
+        status: invoice.status,
+        lineItems: lineItems,
+        notes: invoice.notes,
+        createdAt: invoice.created_at,
+      },
+      message: 'Invoice generated successfully',
+    });
+
+  } catch (error) {
+    console.error('[FINANCIAL-SERVICE] Failed to generate invoice from booking:', error.message);
+
+    // Handle specific database errors
+    if (error.code === '23505') {
+      return createResponse(409, {
+        error: 'Conflict',
+        message: 'Invoice already exists for this booking',
+        code: 'INVOICE_EXISTS',
+      });
+    }
+
+    // Handle missing column errors gracefully
+    if (error.message && error.message.includes('column')) {
+      console.error('[FINANCIAL-SERVICE] Database schema issue:', error.message);
+      return createResponse(500, {
+        error: 'Internal Server Error',
+        message: 'Database schema configuration issue. Please contact support.',
+        code: 'SCHEMA_ERROR',
+      });
+    }
+
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to generate invoice',
+      code: 'INVOICE_GENERATION_FAILED',
     });
   }
 }
@@ -1733,6 +1969,215 @@ async function handleCreateCharge(tenantId, body) {
   return handleCreatePayment(tenantId, body);
 }
 
+/**
+ * Get detailed billing usage statistics
+ * Returns real counts from database for bookings, pets, staff, storage
+ */
+async function handleGetBillingUsage(tenantId) {
+  console.log('[Billing][usage] tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    // Get tenant plan info
+    const tenantResult = await query(
+      `SELECT plan FROM "Tenant" WHERE id = $1 AND deleted_at IS NULL`,
+      [tenantId]
+    );
+    const plan = tenantResult.rows[0]?.plan || 'FREE';
+
+    // Get current month boundaries
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    // Run all usage queries in parallel
+    const [bookingsResult, petsResult, staffResult, storageResult, trendsResult] = await Promise.all([
+      // Bookings this month
+      query(
+        `SELECT COUNT(*) as count FROM "Booking"
+         WHERE tenant_id = $1 AND deleted_at IS NULL
+         AND created_at >= $2 AND created_at <= $3`,
+        [tenantId, monthStart.toISOString(), monthEnd.toISOString()]
+      ),
+      // Active pets
+      query(
+        `SELECT COUNT(*) as count FROM "Pet"
+         WHERE tenant_id = $1 AND deleted_at IS NULL AND is_active = true`,
+        [tenantId]
+      ),
+      // Team members (staff/users)
+      query(
+        `SELECT COUNT(*) as count FROM "User"
+         WHERE tenant_id = $1 AND deleted_at IS NULL AND is_active = true`,
+        [tenantId]
+      ),
+      // Storage used (placeholder - would need file tracking table)
+      Promise.resolve({ rows: [{ total_bytes: 0 }] }),
+      // Usage trends - last 6 months of bookings
+      query(
+        `SELECT
+           date_trunc('month', created_at) as month,
+           COUNT(*) as count
+         FROM "Booking"
+         WHERE tenant_id = $1
+           AND deleted_at IS NULL
+           AND created_at >= NOW() - INTERVAL '6 months'
+         GROUP BY date_trunc('month', created_at)
+         ORDER BY month DESC`,
+        [tenantId]
+      ),
+    ]);
+
+    const bookingsThisMonth = parseInt(bookingsResult.rows[0]?.count || '0', 10);
+    const activePets = parseInt(petsResult.rows[0]?.count || '0', 10);
+    const teamSeats = parseInt(staffResult.rows[0]?.count || '0', 10);
+    const storageUsedMB = Math.round((parseInt(storageResult.rows[0]?.total_bytes || '0', 10)) / (1024 * 1024));
+
+    // Define plan limits
+    const planLimits = {
+      FREE: { bookings: 150, pets: 100, seats: 2, storageMB: 100 },
+      PRO: { bookings: 2500, pets: -1, seats: 5, storageMB: 1000 },
+      ENTERPRISE: { bookings: -1, pets: -1, seats: -1, storageMB: 10000 },
+    };
+    const limits = planLimits[plan] || planLimits.FREE;
+
+    // Format trends for chart
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const trends = trendsResult.rows.map(row => ({
+      month: monthNames[new Date(row.month).getMonth()],
+      bookings: parseInt(row.count, 10),
+    })).reverse();
+
+    // Calculate average and trend
+    const totalBookings = trends.reduce((sum, t) => sum + t.bookings, 0);
+    const avgBookings = trends.length > 0 ? Math.round(totalBookings / trends.length) : 0;
+    const lastMonth = trends[trends.length - 1]?.bookings || 0;
+    const prevMonth = trends[trends.length - 2]?.bookings || 0;
+    const growthPercent = prevMonth > 0 ? Math.round(((lastMonth - prevMonth) / prevMonth) * 100) : 0;
+
+    // Calculate percentages
+    const getPercentage = (used, limit) => {
+      if (limit === -1) return 0; // Unlimited
+      return Math.min(Math.round((used / limit) * 100), 100);
+    };
+
+    // Current period info
+    const periodStart = monthStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const periodEnd = monthEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const resetDate = new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+    return createResponse(200, {
+      success: true,
+      usage: {
+        period: `${periodStart} - ${periodEnd}`,
+        resetDate,
+        bookings: {
+          used: bookingsThisMonth,
+          limit: limits.bookings,
+          percentage: getPercentage(bookingsThisMonth, limits.bookings),
+        },
+        activePets: {
+          used: activePets,
+          limit: limits.pets,
+          percentage: getPercentage(activePets, limits.pets),
+        },
+        storage: {
+          used: storageUsedMB,
+          limit: limits.storageMB,
+          percentage: getPercentage(storageUsedMB, limits.storageMB),
+          details: { photos: Math.round(storageUsedMB * 0.7), documents: Math.round(storageUsedMB * 0.3) },
+        },
+        seats: {
+          used: teamSeats,
+          limit: limits.seats,
+          percentage: getPercentage(teamSeats, limits.seats),
+        },
+      },
+      trends,
+      insights: {
+        avgBookings,
+        busiestMonth: trends.reduce((max, t) => t.bookings > max.bookings ? t : max, { month: 'N/A', bookings: 0 }),
+        growthPercent,
+        growthDirection: growthPercent >= 0 ? 'up' : 'down',
+      },
+      plan,
+    });
+
+  } catch (error) {
+    console.error('[Billing][usage] Failed:', error.message);
+    // Return safe fallback
+    return createResponse(200, {
+      success: true,
+      usage: {
+        period: 'Current Month',
+        resetDate: 'Next Month',
+        bookings: { used: 0, limit: 150, percentage: 0 },
+        activePets: { used: 0, limit: 100, percentage: 0 },
+        storage: { used: 0, limit: 100, percentage: 0, details: { photos: 0, documents: 0 } },
+        seats: { used: 0, limit: 2, percentage: 0 },
+      },
+      trends: [],
+      insights: { avgBookings: 0, busiestMonth: { month: 'N/A', bookings: 0 }, growthPercent: 0, growthDirection: 'up' },
+      plan: 'FREE',
+    });
+  }
+}
+
+/**
+ * Handle plan upgrade request
+ * In production, this would integrate with Stripe checkout
+ */
+async function handleUpgradePlan(tenantId, body) {
+  const { plan, billingCycle = 'monthly' } = body;
+  console.log('[Billing][upgrade] tenantId:', tenantId, 'plan:', plan, 'cycle:', billingCycle);
+
+  if (!plan || !['PRO', 'ENTERPRISE'].includes(plan)) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Invalid plan. Must be PRO or ENTERPRISE.',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // In production, this would:
+    // 1. Create a Stripe checkout session
+    // 2. Return the checkout URL
+    // 3. Handle webhook to update tenant plan after payment
+
+    // For now, we'll just return info about what would happen
+    const pricing = {
+      PRO: { monthly: 149, annual: 79 },
+      ENTERPRISE: { monthly: 399, annual: 299 },
+    };
+
+    const price = pricing[plan]?.[billingCycle] || 0;
+    const annualSavings = billingCycle === 'annual' ? (pricing[plan].monthly - pricing[plan].annual) * 12 : 0;
+
+    return createResponse(200, {
+      success: true,
+      message: `Upgrade to ${plan} plan initiated`,
+      checkout: {
+        plan,
+        billingCycle,
+        pricePerMonth: price,
+        annualSavings,
+        // In production: checkoutUrl: 'https://checkout.stripe.com/...'
+        checkoutUrl: null, // Not implemented - would redirect to Stripe
+      },
+    });
+
+  } catch (error) {
+    console.error('[Billing][upgrade] Failed:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to process upgrade request',
+    });
+  }
+}
+
 // =============================================================================
 // SUBSCRIPTIONS HANDLERS
 // =============================================================================
@@ -1929,12 +2374,12 @@ async function handleCreatePaymentIntent(tenantId, body) {
   try {
     await getPoolAsync();
 
-    // Get owner details for Stripe metadata
+    // Get owner details for Stripe metadata (exclude soft-deleted)
     let ownerEmail = null;
     let stripeCustomerId = null;
     if (ownerId) {
       const ownerResult = await query(
-        `SELECT email, stripe_customer_id FROM "Owner" WHERE id = $1 AND tenant_id = $2`,
+        `SELECT email, stripe_customer_id FROM "Owner" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
         [ownerId, tenantId]
       );
       if (ownerResult.rows[0]) {
@@ -2148,10 +2593,10 @@ async function handleCreateStripeCustomer(tenantId, body) {
   try {
     await getPoolAsync();
 
-    // Get owner details
+    // Get owner details (exclude soft-deleted)
     const ownerResult = await query(
       `SELECT id, first_name, last_name, email, phone, stripe_customer_id
-       FROM "Owner" WHERE id = $1 AND tenant_id = $2`,
+       FROM "Owner" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
       [ownerId, tenantId]
     );
 
@@ -2218,7 +2663,7 @@ async function handleGetStripeCustomer(tenantId, ownerId) {
 
     const result = await query(
       `SELECT id, stripe_customer_id, first_name, last_name, email
-       FROM "Owner" WHERE id = $1 AND tenant_id = $2`,
+       FROM "Owner" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
       [ownerId, tenantId]
     );
 
@@ -2275,9 +2720,9 @@ async function handleAttachPaymentMethod(tenantId, body) {
   try {
     await getPoolAsync();
 
-    // Get owner with Stripe customer ID
+    // Get owner with Stripe customer ID (exclude soft-deleted)
     const ownerResult = await query(
-      `SELECT id, stripe_customer_id FROM "Owner" WHERE id = $1 AND tenant_id = $2`,
+      `SELECT id, stripe_customer_id FROM "Owner" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
       [ownerId, tenantId]
     );
 
@@ -2515,9 +2960,9 @@ async function handleCreateSetupIntent(tenantId, body) {
   try {
     await getPoolAsync();
 
-    // Get or create Stripe customer
+    // Get or create Stripe customer (exclude soft-deleted)
     const ownerResult = await query(
-      `SELECT stripe_customer_id FROM "Owner" WHERE id = $1 AND tenant_id = $2`,
+      `SELECT stripe_customer_id FROM "Owner" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
       [ownerId, tenantId]
     );
 

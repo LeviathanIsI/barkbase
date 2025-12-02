@@ -1,12 +1,19 @@
 /**
  * =============================================================================
- * BarkBase API Core Stack
+ * BarkBase API Core Stack - OPTIMIZED FOR RESOURCE COUNT
  * =============================================================================
  * 
  * Creates HTTP API Gateway with:
  * - CORS configuration for frontend
- * - Routes for auth and profile endpoints
- * - Lambda integrations
+ * - CONSOLIDATED catch-all routes using CfnRoute (no auto-permissions)
+ * - Single wildcard permission per Lambda
+ * 
+ * OPTIMIZATION STRATEGY:
+ * - Use CfnIntegration + CfnRoute instead of HttpLambdaIntegration + addRoutes
+ * - This prevents CDK from auto-generating 1 permission per route/method
+ * - Single wildcard permission per Lambda covers ALL routes
+ * - Keep HttpUserPoolAuthorizer to preserve existing authorizer resource
+ * - Reduces from ~370 resources to ~70 resources
  * 
  * =============================================================================
  */
@@ -17,7 +24,6 @@ import * as apigatewayv2Authorizers from 'aws-cdk-lib/aws-apigatewayv2-authorize
 import * as apigatewayv2Integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
-import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 import { BarkbaseConfig } from './shared/config';
 
@@ -87,10 +93,17 @@ export class ApiCoreStack extends cdk.Stack {
     });
 
     // =========================================================================
-    // Cognito JWT Authorizer
+    // Cognito JWT Authorizer - DEFINED but NOT ATTACHED to routes
+    // =========================================================================
+    // NOTE: JWT authorizers block OPTIONS preflight requests (sent without
+    // credentials by browsers). Auth is handled by Lambda functions instead
+    // via authenticateRequest() which validates Cognito tokens.
+    // 
+    // Keeping the authorizer definition for CloudFormation state compatibility
+    // and potential future use with non-browser clients.
     // =========================================================================
 
-    const authorizer = new apigatewayv2Authorizers.HttpUserPoolAuthorizer(
+    new apigatewayv2Authorizers.HttpUserPoolAuthorizer(
       'CognitoAuthorizer',
       userPool,
       {
@@ -101,53 +114,12 @@ export class ApiCoreStack extends cdk.Stack {
     );
 
     // =========================================================================
-    // Lambda Integrations
-    // =========================================================================
-
-    const authIntegration = new apigatewayv2Integrations.HttpLambdaIntegration(
-      'AuthIntegration',
-      authApiFunction
-    );
-
-    const profileIntegration = new apigatewayv2Integrations.HttpLambdaIntegration(
-      'ProfileIntegration',
-      userProfileFunction
-    );
-
-    const entityIntegration = new apigatewayv2Integrations.HttpLambdaIntegration(
-      'EntityIntegration',
-      entityServiceFunction
-    );
-
-    const analyticsIntegration = new apigatewayv2Integrations.HttpLambdaIntegration(
-      'AnalyticsIntegration',
-      analyticsServiceFunction
-    );
-
-    const operationsIntegration = new apigatewayv2Integrations.HttpLambdaIntegration(
-      'OperationsIntegration',
-      operationsServiceFunction
-    );
-
-    const configIntegration = new apigatewayv2Integrations.HttpLambdaIntegration(
-      'ConfigIntegration',
-      configServiceFunction
-    );
-
-    const financialIntegration = new apigatewayv2Integrations.HttpLambdaIntegration(
-      'FinancialIntegration',
-      financialServiceFunction
-    );
-
-    // =========================================================================
     // WILDCARD Lambda Permissions - ONE permission per Lambda covers ALL routes
-    // =========================================================================
-    // This prevents the 20KB Lambda resource-based policy limit by using a single
-    // wildcard permission instead of one permission per route/method combination.
     // =========================================================================
 
     const apiArn = `arn:aws:execute-api:${this.region}:${this.account}:${this.httpApi.apiId}/*/*`;
 
+    // Auth Service
     new lambda.CfnPermission(this, 'AuthApiPermission', {
       action: 'lambda:InvokeFunction',
       functionName: authApiFunction.functionName,
@@ -155,6 +127,7 @@ export class ApiCoreStack extends cdk.Stack {
       sourceArn: apiArn,
     });
 
+    // Profile Service
     new lambda.CfnPermission(this, 'UserProfilePermission', {
       action: 'lambda:InvokeFunction',
       functionName: userProfileFunction.functionName,
@@ -162,6 +135,7 @@ export class ApiCoreStack extends cdk.Stack {
       sourceArn: apiArn,
     });
 
+    // Entity Service
     new lambda.CfnPermission(this, 'EntityServicePermission', {
       action: 'lambda:InvokeFunction',
       functionName: entityServiceFunction.functionName,
@@ -169,6 +143,7 @@ export class ApiCoreStack extends cdk.Stack {
       sourceArn: apiArn,
     });
 
+    // Analytics Service
     new lambda.CfnPermission(this, 'AnalyticsServicePermission', {
       action: 'lambda:InvokeFunction',
       functionName: analyticsServiceFunction.functionName,
@@ -176,6 +151,7 @@ export class ApiCoreStack extends cdk.Stack {
       sourceArn: apiArn,
     });
 
+    // Operations Service
     new lambda.CfnPermission(this, 'OperationsServicePermission', {
       action: 'lambda:InvokeFunction',
       functionName: operationsServiceFunction.functionName,
@@ -183,6 +159,7 @@ export class ApiCoreStack extends cdk.Stack {
       sourceArn: apiArn,
     });
 
+    // Config Service
     new lambda.CfnPermission(this, 'ConfigServicePermission', {
       action: 'lambda:InvokeFunction',
       functionName: configServiceFunction.functionName,
@@ -190,6 +167,7 @@ export class ApiCoreStack extends cdk.Stack {
       sourceArn: apiArn,
     });
 
+    // Financial Service
     new lambda.CfnPermission(this, 'FinancialServicePermission', {
       action: 'lambda:InvokeFunction',
       functionName: financialServiceFunction.functionName,
@@ -198,383 +176,178 @@ export class ApiCoreStack extends cdk.Stack {
     });
 
     // =========================================================================
-    // Routes - CONSOLIDATED to avoid Lambda policy size limit
-    // =========================================================================
-    //
-    // IMPORTANT: We use minimal route definitions to avoid exceeding the 20KB
-    // Lambda resource-based policy limit. Each route/method combo adds a
-    // permission statement. With 54+ routes, we hit the limit.
-    //
-    // Strategy: Use {proxy+} catch-all patterns and let Lambdas route internally.
-    // This reduces from ~54 route blocks to ~14.
-    //
-    // CORS: We use explicit HTTP methods (not ANY) so API Gateway handles OPTIONS.
+    // CfnIntegrations - Low-level integrations WITHOUT auto-permissions
     // =========================================================================
 
-    const allMethods = [
-      apigatewayv2.HttpMethod.GET,
-      apigatewayv2.HttpMethod.POST,
-      apigatewayv2.HttpMethod.PUT,
-      apigatewayv2.HttpMethod.PATCH,
-      apigatewayv2.HttpMethod.DELETE,
-    ];
+    const authIntegration = new apigatewayv2.CfnIntegration(this, 'AuthIntegration', {
+      apiId: this.httpApi.apiId,
+      integrationType: 'AWS_PROXY',
+      integrationUri: authApiFunction.functionArn,
+      payloadFormatVersion: '2.0',
+    });
+
+    const profileIntegration = new apigatewayv2.CfnIntegration(this, 'ProfileIntegration', {
+      apiId: this.httpApi.apiId,
+      integrationType: 'AWS_PROXY',
+      integrationUri: userProfileFunction.functionArn,
+      payloadFormatVersion: '2.0',
+    });
+
+    const entityIntegration = new apigatewayv2.CfnIntegration(this, 'EntityIntegration', {
+      apiId: this.httpApi.apiId,
+      integrationType: 'AWS_PROXY',
+      integrationUri: entityServiceFunction.functionArn,
+      payloadFormatVersion: '2.0',
+    });
+
+    const analyticsIntegration = new apigatewayv2.CfnIntegration(this, 'AnalyticsIntegration', {
+      apiId: this.httpApi.apiId,
+      integrationType: 'AWS_PROXY',
+      integrationUri: analyticsServiceFunction.functionArn,
+      payloadFormatVersion: '2.0',
+    });
+
+    const operationsIntegration = new apigatewayv2.CfnIntegration(this, 'OperationsIntegration', {
+      apiId: this.httpApi.apiId,
+      integrationType: 'AWS_PROXY',
+      integrationUri: operationsServiceFunction.functionArn,
+      payloadFormatVersion: '2.0',
+    });
+
+    const configIntegration = new apigatewayv2.CfnIntegration(this, 'ConfigIntegration', {
+      apiId: this.httpApi.apiId,
+      integrationType: 'AWS_PROXY',
+      integrationUri: configServiceFunction.functionArn,
+      payloadFormatVersion: '2.0',
+    });
+
+    const financialIntegration = new apigatewayv2.CfnIntegration(this, 'FinancialIntegration', {
+      apiId: this.httpApi.apiId,
+      integrationType: 'AWS_PROXY',
+      integrationUri: financialServiceFunction.functionArn,
+      payloadFormatVersion: '2.0',
+    });
+
+    // =========================================================================
+    // BINDING ROUTE - Required to "bind" the HttpUserPoolAuthorizer
+    // =========================================================================
+    // This ONE route uses the high-level addRoutes() to bind the authorizer,
+    // which allows us to access authorizer.authorizerId for all other routes.
+    // This creates 1 extra permission, but that's acceptable.
+    // =========================================================================
+
+    const entityHighLevelIntegration = new apigatewayv2Integrations.HttpLambdaIntegration(
+      'EntityBindingIntegration',
+      entityServiceFunction
+    );
+
+    // Entity service proxy route - NO authorizer (Lambda handles auth)
+    // OPTIONS preflight requests don't include credentials, so JWT authorizer blocks them
+    this.httpApi.addRoutes({
+      path: '/api/v1/entity/{proxy+}',
+      methods: [apigatewayv2.HttpMethod.ANY],
+      integration: entityHighLevelIntegration,
+    });
+
+    // =========================================================================
+    // Route Definitions - Using CfnRoute for minimal resource overhead
+    // =========================================================================
+
+    // Helper function to create routes
+    // NOTE: No JWT authorizer - Lambda functions handle auth via authenticateRequest()
+    // API Gateway JWT authorizers block OPTIONS preflight (sent without credentials)
+    const createRoute = (
+      id: string,
+      routeKey: string,
+      integrationRef: string,
+      _useAuth: boolean  // Kept for call-site compatibility, auth handled by Lambda
+    ): apigatewayv2.CfnRoute => {
+      return new apigatewayv2.CfnRoute(this, id, {
+        apiId: this.httpApi.apiId,
+        routeKey: routeKey,
+        target: `integrations/${integrationRef}`,
+      });
+    };
 
     // -------------------------------------------------------------------------
     // AUTH SERVICE - Public routes (no authorizer)
-    // Handles: /api/v1/auth/*, /api/v1/health
     // -------------------------------------------------------------------------
-    this.httpApi.addRoutes({
-      path: '/api/v1/auth/{proxy+}',
-      methods: allMethods,
-      integration: authIntegration,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/health',
-      methods: [apigatewayv2.HttpMethod.GET],
-      integration: authIntegration,
-    });
+    createRoute('AuthProxyRoute', 'ANY /api/v1/auth/{proxy+}', authIntegration.ref, false);
+    createRoute('HealthRoute', 'GET /api/v1/health', authIntegration.ref, false);
 
     // -------------------------------------------------------------------------
     // PROFILE SERVICE - Protected routes
-    // Handles: /api/v1/profile/*, /api/v1/users/*
     // -------------------------------------------------------------------------
-    this.httpApi.addRoutes({
-      path: '/api/v1/profile/{proxy+}',
-      methods: allMethods,
-      integration: profileIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/users/{proxy+}',
-      methods: allMethods,
-      integration: profileIntegration,
-      authorizer,
-    });
+    createRoute('ProfileProxyRoute', 'ANY /api/v1/profile/{proxy+}', profileIntegration.ref, true);
+    createRoute('UsersProxyRoute', 'ANY /api/v1/users/{proxy+}', profileIntegration.ref, true);
 
     // -------------------------------------------------------------------------
     // ENTITY SERVICE - Protected routes
-    // Handles: /api/v1/entity/*
+    // NOTE: /api/v1/entity/{proxy+} is already created above via addRoutes()
     // -------------------------------------------------------------------------
-    this.httpApi.addRoutes({
-      path: '/api/v1/entity/{proxy+}',
-      methods: allMethods,
-      integration: entityIntegration,
-      authorizer,
-    });
 
     // -------------------------------------------------------------------------
     // ANALYTICS SERVICE - Protected routes
-    // Handles: /api/v1/analytics/*, /api/v1/segments/*, /api/v1/messages/*,
-    //          /api/v1/reports/*, /api/v1/compliance/*
     // -------------------------------------------------------------------------
-    this.httpApi.addRoutes({
-      path: '/api/v1/analytics/{proxy+}',
-      methods: allMethods,
-      integration: analyticsIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/segments/{proxy+}',
-      methods: allMethods,
-      integration: analyticsIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/messages/{proxy+}',
-      methods: allMethods,
-      integration: analyticsIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/reports/{proxy+}',
-      methods: allMethods,
-      integration: analyticsIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/compliance/{proxy+}',
-      methods: allMethods,
-      integration: analyticsIntegration,
-      authorizer,
-    });
-
-    // Audit logs (Settings > Audit Log)
-    this.httpApi.addRoutes({
-      path: '/api/v1/audit-logs',
-      methods: allMethods,
-      integration: analyticsIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/audit-logs/{proxy+}',
-      methods: allMethods,
-      integration: analyticsIntegration,
-      authorizer,
-    });
+    createRoute('AnalyticsProxyRoute', 'ANY /api/v1/analytics/{proxy+}', analyticsIntegration.ref, true);
+    createRoute('SegmentsProxyRoute', 'ANY /api/v1/segments/{proxy+}', analyticsIntegration.ref, true);
+    createRoute('MessagesProxyRoute', 'ANY /api/v1/messages/{proxy+}', analyticsIntegration.ref, true);
+    createRoute('ReportsProxyRoute', 'ANY /api/v1/reports/{proxy+}', analyticsIntegration.ref, true);
+    createRoute('ComplianceProxyRoute', 'ANY /api/v1/compliance/{proxy+}', analyticsIntegration.ref, true);
+    createRoute('AuditLogsBaseRoute', 'ANY /api/v1/audit-logs', analyticsIntegration.ref, true);
+    createRoute('AuditLogsProxyRoute', 'ANY /api/v1/audit-logs/{proxy+}', analyticsIntegration.ref, true);
 
     // -------------------------------------------------------------------------
     // OPERATIONS SERVICE - Protected routes
-    // Handles: /api/v1/operations/*, /api/v1/incidents/*, /api/v1/customer/*,
-    //          /api/v1/run-templates/*, /api/v1/runs/*, /api/v1/calendar/*,
-    //          /api/v1/notifications/*, /api/v1/staff/*, /api/v1/time-entries/*,
-    //          /api/v1/shifts/*, /api/v1/recurring/*
     // -------------------------------------------------------------------------
-    this.httpApi.addRoutes({
-      path: '/api/v1/operations/{proxy+}',
-      methods: allMethods,
-      integration: operationsIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/incidents/{proxy+}',
-      methods: allMethods,
-      integration: operationsIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/customer/{proxy+}',
-      methods: allMethods,
-      integration: operationsIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/run-templates/{proxy+}',
-      methods: allMethods,
-      integration: operationsIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/runs/{proxy+}',
-      methods: allMethods,
-      integration: operationsIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/calendar/{proxy+}',
-      methods: allMethods,
-      integration: operationsIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/notifications/{proxy+}',
-      methods: allMethods,
-      integration: operationsIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/staff/{proxy+}',
-      methods: allMethods,
-      integration: operationsIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/time-entries/{proxy+}',
-      methods: allMethods,
-      integration: operationsIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/shifts/{proxy+}',
-      methods: allMethods,
-      integration: operationsIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/recurring/{proxy+}',
-      methods: allMethods,
-      integration: operationsIntegration,
-      authorizer,
-    });
+    createRoute('OperationsProxyRoute', 'ANY /api/v1/operations/{proxy+}', operationsIntegration.ref, true);
+    createRoute('IncidentsBaseRoute', 'ANY /api/v1/incidents', operationsIntegration.ref, true);
+    createRoute('IncidentsProxyRoute', 'ANY /api/v1/incidents/{proxy+}', operationsIntegration.ref, true);
+    createRoute('CustomerProxyRoute', 'ANY /api/v1/customer/{proxy+}', operationsIntegration.ref, true);
+    createRoute('RunTemplatesProxyRoute', 'ANY /api/v1/run-templates/{proxy+}', operationsIntegration.ref, true);
+    createRoute('RunsProxyRoute', 'ANY /api/v1/runs/{proxy+}', operationsIntegration.ref, true);
+    createRoute('CalendarProxyRoute', 'ANY /api/v1/calendar/{proxy+}', operationsIntegration.ref, true);
+    createRoute('NotificationsProxyRoute', 'ANY /api/v1/notifications/{proxy+}', operationsIntegration.ref, true);
+    createRoute('StaffBaseRoute', 'ANY /api/v1/staff', operationsIntegration.ref, true);
+    createRoute('StaffProxyRoute', 'ANY /api/v1/staff/{proxy+}', operationsIntegration.ref, true);
+    createRoute('TimeEntriesBaseRoute', 'ANY /api/v1/time-entries', operationsIntegration.ref, true);
+    createRoute('TimeEntriesProxyRoute', 'ANY /api/v1/time-entries/{proxy+}', operationsIntegration.ref, true);
+    createRoute('ShiftsBaseRoute', 'ANY /api/v1/shifts', operationsIntegration.ref, true);
+    createRoute('ShiftsProxyRoute', 'ANY /api/v1/shifts/{proxy+}', operationsIntegration.ref, true);
+    createRoute('RecurringBaseRoute', 'ANY /api/v1/recurring', operationsIntegration.ref, true);
+    createRoute('RecurringProxyRoute', 'ANY /api/v1/recurring/{proxy+}', operationsIntegration.ref, true);
 
     // -------------------------------------------------------------------------
     // CONFIG SERVICE - Protected routes
-    // Handles: /api/v1/config/*, /api/v1/account-defaults/*, /api/v1/policies/*,
-    //          /api/v1/memberships/*, /api/v1/forms/*, /api/v2/properties/*,
-    //          /api/v2/entities/*, /api/v1/package-templates/*, /api/v1/addon-services/*
-    // Note: Base paths added for endpoints that need direct GET/POST access
     // -------------------------------------------------------------------------
-    this.httpApi.addRoutes({
-      path: '/api/v1/config/{proxy+}',
-      methods: allMethods,
-      integration: configIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/account-defaults',
-      methods: allMethods,
-      integration: configIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/account-defaults/{proxy+}',
-      methods: allMethods,
-      integration: configIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/policies',
-      methods: allMethods,
-      integration: configIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/policies/{proxy+}',
-      methods: allMethods,
-      integration: configIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/memberships',
-      methods: allMethods,
-      integration: configIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/memberships/{proxy+}',
-      methods: allMethods,
-      integration: configIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/forms',
-      methods: allMethods,
-      integration: configIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/forms/{proxy+}',
-      methods: allMethods,
-      integration: configIntegration,
-      authorizer,
-    });
-
-    // Properties routes - use /list suffix for base queries
-    this.httpApi.addRoutes({
-      path: '/api/v2/properties/{proxy+}',
-      methods: allMethods,
-      integration: configIntegration,
-      authorizer,
-    });
-
-    // Entities routes - use /list suffix for base queries
-    this.httpApi.addRoutes({
-      path: '/api/v2/entities/{proxy+}',
-      methods: allMethods,
-      integration: configIntegration,
-      authorizer,
-    });
-
-    // Settings routes (SMS, Notifications, etc.)
-    this.httpApi.addRoutes({
-      path: '/api/v1/settings/{proxy+}',
-      methods: allMethods,
-      integration: configIntegration,
-      authorizer,
-    });
-
-    // Import/Export routes (Settings > Import & Export)
-    this.httpApi.addRoutes({
-      path: '/api/v1/import-export/{proxy+}',
-      methods: allMethods,
-      integration: configIntegration,
-      authorizer,
-    });
-
-    // Documents routes (Settings > Documents - received files)
-    this.httpApi.addRoutes({
-      path: '/api/v1/documents',
-      methods: allMethods,
-      integration: configIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/documents/{proxy+}',
-      methods: allMethods,
-      integration: configIntegration,
-      authorizer,
-    });
-
-    // Files routes (Settings > Files - outgoing templates)
-    this.httpApi.addRoutes({
-      path: '/api/v1/files/{proxy+}',
-      methods: allMethods,
-      integration: configIntegration,
-      authorizer,
-    });
-
-    // Package Templates routes (Settings > Products & Services)
-    this.httpApi.addRoutes({
-      path: '/api/v1/package-templates',
-      methods: allMethods,
-      integration: configIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/package-templates/{proxy+}',
-      methods: allMethods,
-      integration: configIntegration,
-      authorizer,
-    });
-
-    // Add-On Services routes (Settings > Products & Services)
-    this.httpApi.addRoutes({
-      path: '/api/v1/addon-services',
-      methods: allMethods,
-      integration: configIntegration,
-      authorizer,
-    });
-
-    this.httpApi.addRoutes({
-      path: '/api/v1/addon-services/{proxy+}',
-      methods: allMethods,
-      integration: configIntegration,
-      authorizer,
-    });
+    createRoute('ConfigProxyRoute', 'ANY /api/v1/config/{proxy+}', configIntegration.ref, true);
+    createRoute('AccountDefaultsBaseRoute', 'ANY /api/v1/account-defaults', configIntegration.ref, true);
+    createRoute('AccountDefaultsProxyRoute', 'ANY /api/v1/account-defaults/{proxy+}', configIntegration.ref, true);
+    createRoute('PoliciesBaseRoute', 'ANY /api/v1/policies', configIntegration.ref, true);
+    createRoute('PoliciesProxyRoute', 'ANY /api/v1/policies/{proxy+}', configIntegration.ref, true);
+    createRoute('MembershipsBaseRoute', 'ANY /api/v1/memberships', configIntegration.ref, true);
+    createRoute('MembershipsProxyRoute', 'ANY /api/v1/memberships/{proxy+}', configIntegration.ref, true);
+    createRoute('FormsBaseRoute', 'ANY /api/v1/forms', configIntegration.ref, true);
+    createRoute('FormsProxyRoute', 'ANY /api/v1/forms/{proxy+}', configIntegration.ref, true);
+    createRoute('PropertiesV2ProxyRoute', 'ANY /api/v2/properties/{proxy+}', configIntegration.ref, true);
+    createRoute('EntitiesV2ProxyRoute', 'ANY /api/v2/entities/{proxy+}', configIntegration.ref, true);
+    createRoute('SettingsProxyRoute', 'ANY /api/v1/settings/{proxy+}', configIntegration.ref, true);
+    createRoute('ImportExportProxyRoute', 'ANY /api/v1/import-export/{proxy+}', configIntegration.ref, true);
+    createRoute('DocumentsBaseRoute', 'ANY /api/v1/documents', configIntegration.ref, true);
+    createRoute('DocumentsProxyRoute', 'ANY /api/v1/documents/{proxy+}', configIntegration.ref, true);
+    createRoute('FilesProxyRoute', 'ANY /api/v1/files/{proxy+}', configIntegration.ref, true);
+    createRoute('PackageTemplatesBaseRoute', 'ANY /api/v1/package-templates', configIntegration.ref, true);
+    createRoute('PackageTemplatesProxyRoute', 'ANY /api/v1/package-templates/{proxy+}', configIntegration.ref, true);
+    createRoute('AddonServicesBaseRoute', 'ANY /api/v1/addon-services', configIntegration.ref, true);
+    createRoute('AddonServicesProxyRoute', 'ANY /api/v1/addon-services/{proxy+}', configIntegration.ref, true);
 
     // -------------------------------------------------------------------------
     // FINANCIAL SERVICE - Protected routes + public webhook
-    // Handles: /api/v1/financial/*
     // -------------------------------------------------------------------------
-    this.httpApi.addRoutes({
-      path: '/api/v1/financial/{proxy+}',
-      methods: allMethods,
-      integration: financialIntegration,
-      authorizer,
-    });
-
+    createRoute('FinancialProxyRoute', 'ANY /api/v1/financial/{proxy+}', financialIntegration.ref, true);
+    
     // Stripe webhook - PUBLIC (no authorizer, verified via Stripe signature)
-    this.httpApi.addRoutes({
-      path: '/api/v1/webhooks/stripe',
-      methods: [apigatewayv2.HttpMethod.POST],
-      integration: financialIntegration,
-    });
+    createRoute('StripeWebhookRoute', 'POST /api/v1/webhooks/stripe', financialIntegration.ref, false);
 
     // Store the API URL
     this.apiUrl = this.httpApi.apiEndpoint;
@@ -596,4 +369,3 @@ export class ApiCoreStack extends cdk.Stack {
     });
   }
 }
-

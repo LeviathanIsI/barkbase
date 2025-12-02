@@ -31,6 +31,16 @@ module.exports = {
   getQueryParams: authHandler.getQueryParams,
   getAuthConfig: authHandler.getAuthConfig,
 
+  // Standardized error response helpers
+  ERROR_CODES: authHandler.ERROR_CODES,
+  createErrorResponse: authHandler.createErrorResponse,
+  badRequest: authHandler.badRequest,
+  unauthorized: authHandler.unauthorized,
+  forbidden: authHandler.forbidden,
+  notFound: authHandler.notFound,
+  conflict: authHandler.conflict,
+  serverError: authHandler.serverError,
+
   // JWT validator exports
   validateToken: jwtValidator.validateToken,
   validateAuthHeader: jwtValidator.validateAuthHeader,

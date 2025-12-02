@@ -123,7 +123,7 @@ export default function PaymentMethodsTab() {
       </Card>
 
       {/* Billing Address */}
-      <Card title="BILLING CONTACT" icon={MapPin}>
+      <Card title="BILLING CONTACT" icon={<MapPin className="w-5 h-5" />}>
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -157,7 +157,7 @@ export default function PaymentMethodsTab() {
       </Card>
 
       {/* Billing Preferences */}
-      <Card title="BILLING PREFERENCES" icon={Bell}>
+      <Card title="BILLING PREFERENCES" icon={<Bell className="w-5 h-5" />}>
         <div className="space-y-6">
           {/* Auto Renewal */}
           <div className="flex items-center justify-between">
@@ -222,16 +222,16 @@ export default function PaymentMethodsTab() {
 
           {/* Invoice Email */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
+            <label className="block text-sm font-medium text-text-primary mb-2">
               Invoice Email
             </label>
             <input
               type="email"
               value={billingPreferences.invoiceEmail}
               onChange={() => {}}
-              className="w-full md:w-96 px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full md:w-96 rounded-lg border border-border bg-surface-primary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
-            <button className="text-blue-600 dark:text-blue-400 text-sm ml-2">Change</button>
+            <button className="text-sm ml-2 text-primary-600 hover:text-primary-700">Change</button>
           </div>
         </div>
       </Card>

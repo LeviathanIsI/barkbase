@@ -16,9 +16,12 @@ import { BOOKING_STATUS } from '@/features/bookings/api';
  */
 const normalizeBookingForToday = (booking) => {
   if (!booking) return null;
-  
+
   const status = (booking.status || booking.bookingStatus || '').toUpperCase();
-  
+
+  // Extract first pet from pets array if available
+  const firstPet = Array.isArray(booking.pets) && booking.pets.length > 0 ? booking.pets[0] : null;
+
   return {
     ...booking,
     recordId: booking.recordId || booking.id,
@@ -26,20 +29,22 @@ const normalizeBookingForToday = (booking) => {
     // Normalize date fields - backend might use different names
     checkIn: booking.checkIn || booking.startDate || booking.checkInDate,
     checkOut: booking.checkOut || booking.endDate || booking.checkOutDate,
-    // Pet info
-    petId: booking.petId || booking.pet?.recordId,
-    petName: booking.petName || booking.pet?.name || 'Unknown Pet',
-    petBreed: booking.petBreed || booking.pet?.breed,
-    petPhotoUrl: booking.petPhotoUrl || booking.pet?.photoUrl,
+    // Pet info - check pets array first (from backend), then pet object, then direct fields
+    petId: booking.petId || firstPet?.id || booking.pet?.recordId,
+    petName: booking.petName || firstPet?.name || booking.pet?.name || 'Unknown Pet',
+    petBreed: booking.petBreed || firstPet?.breed || booking.pet?.breed,
+    petPhotoUrl: booking.petPhotoUrl || firstPet?.photoUrl || booking.pet?.photoUrl,
+    petSpecies: booking.petSpecies || firstPet?.species || booking.pet?.species,
     // Owner info
-    ownerId: booking.ownerId || booking.owner?.recordId,
-    ownerName: booking.ownerName || 
+    ownerId: booking.ownerId || booking.owner?.recordId || booking.owner?.id,
+    ownerName: booking.ownerName ||
       (booking.owner ? `${booking.owner.firstName || ''} ${booking.owner.lastName || ''}`.trim() : null) ||
       booking.owner?.name,
     ownerPhone: booking.ownerPhone || booking.owner?.phone,
     ownerEmail: booking.ownerEmail || booking.owner?.email,
     // Service info
     serviceType: booking.serviceType || booking.service?.type || 'boarding',
+    serviceName: booking.serviceName || booking.service?.name,
     // Flags
     hasExpiringVaccinations: booking.hasExpiringVaccinations || false,
     hasNotes: !!(booking.notes || booking.specialRequirements),

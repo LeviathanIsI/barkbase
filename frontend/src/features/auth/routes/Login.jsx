@@ -79,7 +79,7 @@ const Login = () => {
         throw new Error('Authentication failed - no access token received');
       }
 
-      console.log('[Login] Authentication successful');
+      if (import.meta.env.DEV) console.log('[Login] Authentication successful');
 
       // Decode ID token to get user info
       const userInfo = result.idToken ? decodeIdToken(result.idToken) : { email };
@@ -102,7 +102,7 @@ const Login = () => {
 
       // Bootstrap: Fetch tenant config using the new access token
       // This hydrates both profile and tenant info from /api/v1/config/tenant
-      console.log('[Login] Bootstrapping tenant config...');
+      if (import.meta.env.DEV) console.log('[Login] Bootstrapping tenant config...');
       setTenantLoading(true);
       try {
         const tenantResponse = await apiClient.get(canonicalEndpoints.settings.tenant);
@@ -126,7 +126,7 @@ const Login = () => {
             featureFlags: tenantConfig.featureFlags,
           });
 
-          console.log('[Login] Tenant config loaded:', {
+          if (import.meta.env.DEV) console.log('[Login] Tenant config loaded:', {
             tenantId: tenantConfig.tenantId,
             slug: tenantConfig.slug,
             hasOnboardingCompleted: tenantConfig.hasOnboardingCompleted,

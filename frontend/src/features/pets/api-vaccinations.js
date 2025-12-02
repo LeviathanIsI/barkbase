@@ -32,7 +32,6 @@ export const useExpiringVaccinationsQuery = (daysAhead = 30, options = {}) => {
       const data = response?.data;
       // Normalize response to array
       const vaccinations = data?.data || data?.items || (Array.isArray(data) ? data : []);
-      console.log('[expiringVaccinations] Fetched:', vaccinations.length);
       return vaccinations;
     },
     staleTime: 5 * 60 * 1000,

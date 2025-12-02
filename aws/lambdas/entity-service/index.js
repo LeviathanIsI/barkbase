@@ -39,41 +39,55 @@ function getTenantIdFromHeader(event) {
 }
 
 /**
- * Resolve tenant ID with fallback precedence:
- * 1. X-Tenant-Id header (case-insensitive)
+ * Resolve tenant ID with security validation
+ *
+ * SECURITY: Validates that header tenant ID matches JWT tenant ID to prevent
+ * tenant spoofing attacks where a malicious user could try to access another
+ * tenant's data by manipulating the X-Tenant-Id header.
+ *
+ * Precedence:
+ * 1. JWT claims (authorizer) - most trusted source
  * 2. event.user.tenantId (from authenticateRequest)
- * 3. Authorizer claims
+ * 3. X-Tenant-Id header - only if matches JWT or no JWT available
+ *
  * @param {object} event - Lambda event
- * @returns {string|null} - Resolved tenant ID or null
+ * @returns {string|null} - Resolved tenant ID or null if validation fails
  */
 function resolveTenantId(event) {
-  // 1. Check headers first (case-insensitive)
+  // Extract tenant ID from all sources
   const headers = event.headers || {};
-  const tenantFromHeader =
+  const headerTenantId =
     headers['x-tenant-id'] ||
     headers['X-Tenant-Id'] ||
     headers['x-Tenant-Id'] ||
     headers['X-TENANT-ID'];
 
-  if (tenantFromHeader) {
-    console.log('[ENTITY-SERVICE] Resolved tenantId from header:', tenantFromHeader);
-    return tenantFromHeader;
+  const jwtTenantId =
+    event.requestContext?.authorizer?.jwt?.claims?.['custom:tenant_id'] ||
+    event.requestContext?.authorizer?.claims?.['custom:tenant_id'] ||
+    event.requestContext?.authorizer?.tenantId;
+
+  const userTenantId = event.user?.tenantId;
+
+  // SECURITY: If both header and JWT exist, they MUST match
+  if (headerTenantId && jwtTenantId && headerTenantId !== jwtTenantId) {
+    console.error('[ENTITY-SERVICE][SECURITY] Tenant ID mismatch - header:', headerTenantId, 'jwt:', jwtTenantId);
+    return null; // Return null to trigger auth failure
   }
 
-  // 2. Check event.user (set by authenticateRequest)
-  if (event.user?.tenantId) {
-    console.log('[ENTITY-SERVICE] Resolved tenantId from event.user:', event.user.tenantId);
-    return event.user.tenantId;
+  // SECURITY: If both header and user exist, they MUST match
+  if (headerTenantId && userTenantId && headerTenantId !== userTenantId) {
+    console.error('[ENTITY-SERVICE][SECURITY] Tenant ID mismatch - header:', headerTenantId, 'user:', userTenantId);
+    return null; // Return null to trigger auth failure
   }
 
-  // 3. Check authorizer claims
-  const authorizerTenantId =
-    event.requestContext?.authorizer?.tenantId ||
-    event.requestContext?.authorizer?.claims?.['custom:tenant_id'];
+  // Prefer trusted sources: JWT > user > header
+  const resolvedTenantId = jwtTenantId || userTenantId || headerTenantId;
 
-  if (authorizerTenantId) {
-    console.log('[ENTITY-SERVICE] Resolved tenantId from authorizer:', authorizerTenantId);
-    return authorizerTenantId;
+  if (resolvedTenantId) {
+    console.log('[ENTITY-SERVICE] Resolved tenantId:', resolvedTenantId,
+      '(source:', jwtTenantId ? 'jwt' : userTenantId ? 'user' : 'header', ')');
+    return resolvedTenantId;
   }
 
   console.warn('[ENTITY-SERVICE] Could not resolve tenantId from any source');
@@ -918,12 +932,12 @@ async function getOwners(event) {
   try {
     await getPoolAsync();
 
-    // Diagnostic queries
+    // Diagnostic queries (exclude soft-deleted)
     try {
-      const diagAll = await query('SELECT tenant_id, COUNT(*) AS count FROM "Owner" GROUP BY tenant_id;');
+      const diagAll = await query('SELECT tenant_id, COUNT(*) AS count FROM "Owner" WHERE deleted_at IS NULL GROUP BY tenant_id;');
       console.log('[Owners][diag] counts per tenant:', JSON.stringify(diagAll.rows));
       const diagForTenant = await query(
-        'SELECT id, email FROM "Owner" WHERE tenant_id = $1 ORDER BY created_at ASC LIMIT 5;',
+        'SELECT id, email FROM "Owner" WHERE tenant_id = $1 AND deleted_at IS NULL ORDER BY created_at ASC LIMIT 5;',
         [tenantId]
       );
       console.log('[Owners][diag] sample for tenant', tenantId, ':', JSON.stringify(diagForTenant.rows));
@@ -938,7 +952,7 @@ async function getOwners(event) {
               o.emergency_contact_name, o.emergency_contact_phone, o.notes,
               o.is_active, o.created_at, o.updated_at
        FROM "Owner" o
-       WHERE o.tenant_id = $1
+       WHERE o.tenant_id = $1 AND o.deleted_at IS NULL
        ORDER BY o.last_name, o.first_name`,
       [tenantId]
     );
@@ -969,7 +983,7 @@ async function getOwner(event) {
               o.emergency_contact_name, o.emergency_contact_phone, o.notes,
               o.is_active, o.created_at, o.updated_at
        FROM "Owner" o
-       WHERE o.id = $1 AND o.tenant_id = $2`,
+       WHERE o.id = $1 AND o.tenant_id = $2 AND o.deleted_at IS NULL`,
       [id, tenantId]
     );
     if (result.rows.length === 0) {
@@ -1176,9 +1190,9 @@ async function exportOwnerData(event) {
   try {
     await getPoolAsync();
 
-    // Get owner details
+    // Get owner details (exclude soft-deleted)
     const ownerResult = await query(
-      `SELECT * FROM "Owner" WHERE id = $1 AND tenant_id = $2`,
+      `SELECT * FROM "Owner" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
       [ownerId, tenantId]
     );
 
@@ -1188,9 +1202,11 @@ async function exportOwnerData(event) {
 
     const owner = ownerResult.rows[0];
 
-    // Get all pets
+    // Get all pets via PetOwner junction table (Pet has NO owner_id column)
     const petsResult = await query(
-      `SELECT * FROM "Pet" WHERE owner_id = $1 AND tenant_id = $2`,
+      `SELECT p.* FROM "Pet" p
+       JOIN "PetOwner" po ON p.id = po.pet_id
+       WHERE po.owner_id = $1 AND p.tenant_id = $2 AND p.deleted_at IS NULL`,
       [ownerId, tenantId]
     );
 
@@ -1346,9 +1362,9 @@ async function deleteOwnerData(event) {
   try {
     await getPoolAsync();
 
-    // Verify owner exists
+    // Verify owner exists (exclude soft-deleted)
     const ownerResult = await query(
-      `SELECT id, first_name, last_name FROM "Owner" WHERE id = $1 AND tenant_id = $2`,
+      `SELECT id, first_name, last_name FROM "Owner" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
       [ownerId, tenantId]
     );
 
@@ -1358,9 +1374,11 @@ async function deleteOwnerData(event) {
 
     const owner = ownerResult.rows[0];
 
-    // Get all pet IDs for this owner
+    // Get all pet IDs for this owner via PetOwner junction table (Pet has NO owner_id column)
     const petsResult = await query(
-      `SELECT id FROM "Pet" WHERE owner_id = $1 AND tenant_id = $2`,
+      `SELECT p.id FROM "Pet" p
+       JOIN "PetOwner" po ON p.id = po.pet_id
+       WHERE po.owner_id = $1 AND p.tenant_id = $2`,
       [ownerId, tenantId]
     );
     const petIds = petsResult.rows.map(p => p.id);
@@ -1445,12 +1463,24 @@ async function deleteOwnerData(event) {
       console.log('[ENTITY-SERVICE] Booking delete skipped:', e.message);
     }
 
-    // Delete pets
-    const petsDeleteResult = await query(
-      `DELETE FROM "Pet" WHERE owner_id = $1 AND tenant_id = $2`,
-      [ownerId, tenantId]
-    );
-    deletionSummary.pets = petsDeleteResult.rowCount || 0;
+    // Delete PetOwner relationships first
+    try {
+      await query(
+        `DELETE FROM "PetOwner" WHERE owner_id = $1`,
+        [ownerId]
+      );
+    } catch (e) {
+      console.log('[ENTITY-SERVICE] PetOwner delete skipped:', e.message);
+    }
+
+    // Delete pets using the petIds we already collected
+    if (petIds.length > 0) {
+      const petsDeleteResult = await query(
+        `DELETE FROM "Pet" WHERE id = ANY($1) AND tenant_id = $2`,
+        [petIds, tenantId]
+      );
+      deletionSummary.pets = petsDeleteResult.rowCount || 0;
+    }
 
     // Finally, delete the owner
     const ownerDeleteResult = await query(
@@ -1883,43 +1913,37 @@ async function getPetVaccinations(event) {
       });
     }
 
+    // Actual Vaccination schema columns:
+    // id, tenant_id, pet_id, type, administered_at, expires_at, provider, lot_number, notes, document_url, created_at, updated_at, deleted_at
     const result = await query(
       `SELECT
-         v.id, v.pet_id, v.vaccine_name, v.vaccine_type,
-         v.administered_date, v.expiration_date, v.next_due_date,
-         v.lot_number, v.manufacturer, v.administered_by,
-         v.vet_clinic, v.vet_name, v.notes, v.is_required,
-         v.document_url, v.verified, v.verified_by, v.verified_at,
+         v.id, v.pet_id, v.type, v.administered_at, v.expires_at,
+         v.provider, v.lot_number, v.notes, v.document_url,
          v.created_at, v.updated_at
        FROM "Vaccination" v
        WHERE v.pet_id = $1 AND v.tenant_id = $2 AND v.deleted_at IS NULL
-       ORDER BY v.expiration_date ASC NULLS LAST, v.administered_date DESC`,
+       ORDER BY v.expires_at ASC NULLS LAST, v.administered_at DESC`,
       [petId, tenantId]
     );
 
     const vaccinations = result.rows.map(row => ({
       id: row.id,
       petId: row.pet_id,
-      vaccineName: row.vaccine_name,
-      vaccineType: row.vaccine_type,
-      administeredDate: row.administered_date,
-      expirationDate: row.expiration_date,
-      nextDueDate: row.next_due_date,
+      // Map to camelCase for frontend compatibility
+      vaccineName: row.type, // Schema uses 'type' column
+      type: row.type,
+      administeredDate: row.administered_at,
+      administeredAt: row.administered_at,
+      expirationDate: row.expires_at,
+      expiresAt: row.expires_at,
+      provider: row.provider,
       lotNumber: row.lot_number,
-      manufacturer: row.manufacturer,
-      administeredBy: row.administered_by,
-      vetClinic: row.vet_clinic,
-      vetName: row.vet_name,
       notes: row.notes,
-      isRequired: row.is_required,
       documentUrl: row.document_url,
-      verified: row.verified,
-      verifiedBy: row.verified_by,
-      verifiedAt: row.verified_at,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
-      isExpired: row.expiration_date ? new Date(row.expiration_date) < new Date() : false,
-      isExpiringSoon: row.expiration_date ? (new Date(row.expiration_date) - new Date()) / (1000 * 60 * 60 * 24) <= 30 : false,
+      isExpired: row.expires_at ? new Date(row.expires_at) < new Date() : false,
+      isExpiringSoon: row.expires_at ? (new Date(row.expires_at) - new Date()) / (1000 * 60 * 60 * 24) <= 30 : false,
     }));
 
     console.log('[ENTITY-SERVICE] Found', vaccinations.length, 'vaccinations for pet');
@@ -1976,16 +2000,19 @@ async function createPetVaccination(event) {
     });
   }
 
+  // Actual Vaccination schema: type, administered_at, expires_at, provider, lot_number, notes, document_url
   const {
-    vaccineName, vaccineType, administeredDate, expirationDate, nextDueDate,
-    lotNumber, manufacturer, administeredBy, vetClinic, vetName,
-    notes, isRequired, documentUrl
+    vaccineName, type, administeredDate, administeredAt, expirationDate, expiresAt,
+    provider, lotNumber, notes, documentUrl
   } = body;
 
-  if (!vaccineName) {
+  // Accept either 'type' or 'vaccineName' for the vaccine type
+  const vaccineType = type || vaccineName;
+
+  if (!vaccineType) {
     return createResponse(400, {
       error: 'Bad Request',
-      message: 'Vaccine name is required',
+      message: 'Vaccine type is required',
     });
   }
 
@@ -2005,22 +2032,21 @@ async function createPetVaccination(event) {
       });
     }
 
+    // Use correct column names from actual schema
     const result = await query(
       `INSERT INTO "Vaccination" (
-         tenant_id, pet_id, vaccine_name, vaccine_type,
-         administered_date, expiration_date, next_due_date,
-         lot_number, manufacturer, administered_by,
-         vet_clinic, vet_name, notes, is_required, document_url,
+         tenant_id, pet_id, type, administered_at, expires_at,
+         provider, lot_number, notes, document_url,
          created_at, updated_at
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
        RETURNING *`,
       [
-        tenantId, petId, vaccineName, vaccineType || null,
-        administeredDate || null, expirationDate || null, nextDueDate || null,
-        lotNumber || null, manufacturer || null, administeredBy || null,
-        vetClinic || null, vetName || null, notes || null,
-        isRequired || false, documentUrl || null
+        tenantId, petId, vaccineType,
+        administeredAt || administeredDate || null,
+        expiresAt || expirationDate || null,
+        provider || null, lotNumber || null,
+        notes || null, documentUrl || null
       ]
     );
 
@@ -2031,7 +2057,8 @@ async function createPetVaccination(event) {
     return createResponse(201, {
       success: true,
       id: row.id,
-      vaccineName: row.vaccine_name,
+      type: row.type,
+      vaccineName: row.type, // Alias for frontend compatibility
       petId: row.pet_id,
       message: 'Vaccination record created successfully',
     });
@@ -2070,10 +2097,10 @@ async function updatePetVaccination(event) {
     });
   }
 
+  // Actual Vaccination schema: type, administered_at, expires_at, provider, lot_number, notes, document_url
   const {
-    vaccineName, vaccineType, administeredDate, expirationDate, nextDueDate,
-    lotNumber, manufacturer, administeredBy, vetClinic, vetName,
-    notes, isRequired, documentUrl, verified
+    vaccineName, type, administeredDate, administeredAt, expirationDate, expiresAt,
+    provider, lotNumber, notes, documentUrl
   } = body;
 
   try {
@@ -2083,28 +2110,23 @@ async function updatePetVaccination(event) {
     const values = [vaccinationId, tenantId];
     let paramIndex = 3;
 
-    if (vaccineName !== undefined) { updates.push(`vaccine_name = $${paramIndex++}`); values.push(vaccineName); }
-    if (vaccineType !== undefined) { updates.push(`vaccine_type = $${paramIndex++}`); values.push(vaccineType); }
-    if (administeredDate !== undefined) { updates.push(`administered_date = $${paramIndex++}`); values.push(administeredDate); }
-    if (expirationDate !== undefined) { updates.push(`expiration_date = $${paramIndex++}`); values.push(expirationDate); }
-    if (nextDueDate !== undefined) { updates.push(`next_due_date = $${paramIndex++}`); values.push(nextDueDate); }
-    if (lotNumber !== undefined) { updates.push(`lot_number = $${paramIndex++}`); values.push(lotNumber); }
-    if (manufacturer !== undefined) { updates.push(`manufacturer = $${paramIndex++}`); values.push(manufacturer); }
-    if (administeredBy !== undefined) { updates.push(`administered_by = $${paramIndex++}`); values.push(administeredBy); }
-    if (vetClinic !== undefined) { updates.push(`vet_clinic = $${paramIndex++}`); values.push(vetClinic); }
-    if (vetName !== undefined) { updates.push(`vet_name = $${paramIndex++}`); values.push(vetName); }
-    if (notes !== undefined) { updates.push(`notes = $${paramIndex++}`); values.push(notes); }
-    if (isRequired !== undefined) { updates.push(`is_required = $${paramIndex++}`); values.push(isRequired); }
-    if (documentUrl !== undefined) { updates.push(`document_url = $${paramIndex++}`); values.push(documentUrl); }
-    if (verified !== undefined) {
-      updates.push(`verified = $${paramIndex++}`);
-      values.push(verified);
-      if (verified && event.user?.id) {
-        updates.push(`verified_by = $${paramIndex++}`);
-        values.push(event.user.id);
-        updates.push(`verified_at = NOW()`);
-      }
+    // Map incoming fields to actual schema columns
+    if (type !== undefined || vaccineName !== undefined) {
+      updates.push(`type = $${paramIndex++}`);
+      values.push(type || vaccineName);
     }
+    if (administeredAt !== undefined || administeredDate !== undefined) {
+      updates.push(`administered_at = $${paramIndex++}`);
+      values.push(administeredAt || administeredDate);
+    }
+    if (expiresAt !== undefined || expirationDate !== undefined) {
+      updates.push(`expires_at = $${paramIndex++}`);
+      values.push(expiresAt || expirationDate);
+    }
+    if (provider !== undefined) { updates.push(`provider = $${paramIndex++}`); values.push(provider); }
+    if (lotNumber !== undefined) { updates.push(`lot_number = $${paramIndex++}`); values.push(lotNumber); }
+    if (notes !== undefined) { updates.push(`notes = $${paramIndex++}`); values.push(notes); }
+    if (documentUrl !== undefined) { updates.push(`document_url = $${paramIndex++}`); values.push(documentUrl); }
 
     if (updates.length === 0) {
       return createResponse(400, {
@@ -2137,7 +2159,8 @@ async function updatePetVaccination(event) {
     return createResponse(200, {
       success: true,
       id: row.id,
-      vaccineName: row.vaccine_name,
+      type: row.type,
+      vaccineName: row.type, // Alias for frontend compatibility
       message: 'Vaccination record updated successfully',
     });
 
@@ -2181,7 +2204,7 @@ async function deletePetVaccination(event) {
       `UPDATE "Vaccination"
        SET deleted_at = NOW(), updated_at = NOW()
        WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING id, vaccine_name`,
+       RETURNING id, type`,
       [vaccinationId, tenantId]
     );
 

@@ -31,7 +31,6 @@ export const useRunsQuery = (params = {}) => {
     queryFn: async () => {
       const res = await apiClient.get('/api/v1/runs', { params });
       const data = res.data?.data || res.data?.runs || (Array.isArray(res.data) ? res.data : []);
-      console.log('[runs] Fetched runs:', data.length);
 
       // Map to expected format with recordId for consistency
       return data.map(run => ({
@@ -170,8 +169,6 @@ export const useTodaysAssignmentsQuery = (date) => {
       const assignments = res.data?.data || res.data?.assignments || [];
       const runsFromApi = res.data?.runs || [];
 
-      console.log('[runAssignments] Fetched for', dateStr, ':', assignments.length, 'assignments,', runsFromApi.length, 'runs');
-
       // Transform flat assignments into runs with nested assignments
       // The frontend expects: runs[].assignments = [{pet: {...}, startTime, endTime}]
       const runMap = new Map();
@@ -259,8 +256,6 @@ export const useRunAssignmentsQuery = (params = {}) => {
     queryFn: async () => {
       const res = await apiClient.get('/api/v1/runs/assignments', { params });
       const data = res.data || {};
-
-      console.log('[runAssignments] Range query:', params, '- Found:', data.total || 0);
 
       return {
         assignments: data.data || data.assignments || [],

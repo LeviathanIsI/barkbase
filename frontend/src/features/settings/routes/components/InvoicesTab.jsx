@@ -100,7 +100,7 @@ export default function InvoicesTab() {
             <select
               value={filterTime}
               onChange={(e) => setFilterTime(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm"
+              className="rounded-lg border border-border bg-surface-primary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="all">All Time</option>
               <option value="2024">2024</option>
@@ -110,7 +110,7 @@ export default function InvoicesTab() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md text-sm"
+              className="rounded-lg border border-border bg-surface-primary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="all">All Status</option>
               <option value="paid">Paid</option>
@@ -203,7 +203,7 @@ export default function InvoicesTab() {
       </Card>
 
       {/* Tax Information */}
-      <Card title="TAX SETTINGS" icon={Building}>
+      <Card title="TAX SETTINGS" icon={<Building className="w-5 h-5" />}>
         <div className="space-y-6">
           {/* Business Tax ID */}
           <div>
@@ -249,13 +249,13 @@ export default function InvoicesTab() {
           {/* Billing Country/State */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
+              <label className="block text-sm font-medium text-text-primary mb-2">
                 Billing Country
               </label>
               <select
                 value={taxSettings.country}
                 onChange={() => {}}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-lg border border-border bg-surface-primary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 <option value="United States">United States</option>
                 <option value="Canada">Canada</option>
@@ -263,13 +263,13 @@ export default function InvoicesTab() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
+              <label className="block text-sm font-medium text-text-primary mb-2">
                 State/Province
               </label>
               <select
                 value={taxSettings.state}
                 onChange={() => {}}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-lg border border-border bg-surface-primary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 <option value="California">California</option>
                 <option value="New York">New York</option>

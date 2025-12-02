@@ -287,9 +287,9 @@ const TasksList = ({ tasks, isLoading, emptyMessage, onComplete, isCompleting, i
 
   return (
     <div className="space-y-2 max-h-64 overflow-y-auto">
-      {tasks.slice(0, 10).map((task) => (
+      {tasks.slice(0, 10).map((task, idx) => (
         <div
-          key={task.recordId}
+          key={task.recordId || task.id || idx}
           className={cn(
             "flex items-center justify-between p-3 rounded-lg border transition-colors",
             isOverdue 

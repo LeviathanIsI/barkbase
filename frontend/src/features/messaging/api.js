@@ -28,7 +28,6 @@ export const useConversationsQuery = () => {
       const response = await apiClient.get('/api/v1/messages/conversations');
       const data = response?.data;
       const conversations = data?.data || data?.conversations || (Array.isArray(data) ? data : []);
-      console.log('[conversations] Fetched:', conversations.length);
       return conversations;
     },
     staleTime: 30 * 1000,
@@ -53,7 +52,6 @@ export const useConversationMessagesQuery = (conversationId) => {
       const response = await apiClient.get(`/api/v1/messages/${conversationId}`);
       const data = response?.data;
       const messages = data?.data || data?.messages || (Array.isArray(data) ? data : []);
-      console.log('[messages] Fetched for conversation', conversationId, ':', messages.length);
       return messages;
     },
     placeholderData: (previousData) => previousData ?? [],
@@ -112,7 +110,6 @@ export const useUnreadCountQuery = () => {
     queryFn: async () => {
       const response = await apiClient.get('/api/v1/messages/unread/count');
       const count = response?.data?.count ?? 0;
-      console.log('[messages] Unread count:', count);
       return count;
     },
     staleTime: 30 * 1000,

@@ -101,9 +101,11 @@ const Schedule = () => {
 
   // Process bookings for the week (for stats/compatibility)
   const processedBookings = useMemo(() => {
-    return weekBookings.map(booking => ({
+    return weekBookings
+      .filter(booking => booking && (booking.id || booking.recordId))
+      .map((booking, index) => ({
       ...booking,
-      id: booking.recordId,
+      id: booking.id || booking.recordId || `fallback-${index}`,
       checkInDate: booking.checkIn ? new Date(booking.checkIn) : null,
       checkOutDate: booking.checkOut ? new Date(booking.checkOut) : null,
       petName: booking.pet?.name || 'Unknown',

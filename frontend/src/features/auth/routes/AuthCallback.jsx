@@ -58,7 +58,7 @@ const AuthCallback = () => {
           throw new Error('Token exchange failed - no access token received');
         }
 
-        console.log('[AuthCallback] Token exchange successful');
+        if (import.meta.env.DEV) console.log('[AuthCallback] Token exchange successful');
 
         // Decode the ID token to extract basic user info
         let userInfo = {};

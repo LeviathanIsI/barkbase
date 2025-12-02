@@ -141,6 +141,8 @@ export const canonicalEndpoints = {
     history: '/api/v1/financial/billing/history',
     upcoming: '/api/v1/financial/billing/upcoming',
     charge: '/api/v1/financial/billing/charge',
+    usage: '/api/v1/financial/billing/usage',
+    upgrade: '/api/v1/financial/billing/upgrade',
   },
   subscriptions: {
     list: '/api/v1/financial/subscriptions',
@@ -242,6 +244,47 @@ export const canonicalEndpoints = {
     get: '/api/v1/settings/invoicing',
     update: '/api/v1/settings/invoicing',
     preview: '/api/v1/settings/invoicing/preview',
+  },
+  // Payment Settings API - /api/v1/settings/payments/*
+  paymentSettings: {
+    get: '/api/v1/settings/payments',
+    update: '/api/v1/settings/payments',
+    testStripe: '/api/v1/settings/payments/test-stripe',
+    stripeStatus: '/api/v1/settings/payments/stripe-status',
+    disconnectStripe: '/api/v1/settings/payments/disconnect-stripe',
+  },
+  // Booking Settings API - /api/v1/settings/booking/*
+  bookingSettings: {
+    get: '/api/v1/settings/booking',
+    update: '/api/v1/settings/booking',
+  },
+  // Calendar Settings API - /api/v1/settings/calendar/*
+  calendarSettings: {
+    get: '/api/v1/settings/calendar',
+    update: '/api/v1/settings/calendar',
+  },
+  // Online Booking Settings API - /api/v1/settings/online-booking/*
+  onlineBookingSettings: {
+    get: '/api/v1/settings/online-booking',
+    update: '/api/v1/settings/online-booking',
+    checkSlug: '/api/v1/settings/online-booking/check-slug',
+    qrCode: '/api/v1/settings/online-booking/qr-code',
+  },
+  // Domain Settings API - /api/v1/settings/domain/*
+  domainSettings: {
+    get: '/api/v1/settings/domain',
+    update: '/api/v1/settings/domain',
+    verify: '/api/v1/settings/domain/verify',
+    status: '/api/v1/settings/domain/status',
+  },
+  // Policies API - /api/v1/policies/*
+  policies: {
+    list: '/api/v1/policies',
+    create: '/api/v1/policies',
+    detail: build('/api/v1/policies/{id}'),
+    update: build('/api/v1/policies/{id}'),
+    delete: build('/api/v1/policies/{id}'),
+    templates: '/api/v1/policies/templates',
   },
   features: {
     list: '/api/v1/config/features',

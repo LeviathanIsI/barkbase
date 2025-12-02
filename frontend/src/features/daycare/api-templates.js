@@ -31,7 +31,6 @@ export const useRunTemplatesQuery = () => {
     queryFn: async () => {
       const res = await apiClient.get('/api/v1/run-templates');
       const data = res?.data?.data || res?.data?.runTemplates || (Array.isArray(res?.data) ? res.data : []);
-      console.log('[runTemplates] Fetched templates:', data.length);
       return data;
     },
     staleTime: 5 * 60 * 1000,
@@ -104,7 +103,6 @@ export const useAvailableSlotsQuery = (runId, date) => {
         params: { date },
       });
       const slots = res.data?.data || res.data?.slots || res.data || [];
-      console.log('[availableSlots] Fetched slots for run', runId, ':', slots.length);
       return slots;
     },
     placeholderData: (previousData) => previousData ?? [],

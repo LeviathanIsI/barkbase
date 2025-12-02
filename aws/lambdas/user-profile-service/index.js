@@ -41,14 +41,23 @@ exports.handler = async (event, context) => {
   // Prevent Lambda from waiting for empty event loop
   context.callbackWaitsForEmptyEventLoop = false;
 
+  const method = event.requestContext?.http?.method || event.httpMethod || 'GET';
+  const path = event.requestContext?.http?.path || event.path || '/';
+
   console.log('[PROFILE-API] Request:', {
-    method: event.requestContext?.http?.method || event.httpMethod,
-    path: event.requestContext?.http?.path || event.path,
+    method,
+    path,
     headers: Object.keys(event.headers || {}),
   });
 
+  // Handle CORS preflight requests BEFORE authentication
+  // OPTIONS requests don't include Authorization headers
+  if (method === 'OPTIONS') {
+    return createResponse(200, { message: 'OK' });
+  }
+
   try {
-    // Authenticate all requests
+    // Authenticate all non-OPTIONS requests
     const authResult = await authenticateRequest(event);
 
     if (!authResult.authenticated) {
@@ -59,8 +68,6 @@ exports.handler = async (event, context) => {
     }
 
     const { user } = authResult;
-    const method = event.requestContext?.http?.method || event.httpMethod || 'GET';
-    const path = event.requestContext?.http?.path || event.path || '/';
 
     // Route to appropriate handler
     // Support both /api/v1/profile/* and /api/v1/users/profile (compatibility route)

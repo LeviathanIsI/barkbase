@@ -319,7 +319,7 @@ export const useDeleteVaccinationMutation = (petId) => {
   const queryClient = useQueryClient();
   const tenantId = useTenantId();
   const vaccinationsKey = ['petVaccinations', { tenantId, petId }];
-  
+
   return useMutation({
     mutationFn: async (vaccinationId) => {
       const res = await apiClient.delete(`${canonicalEndpoints.pets.vaccinations(petId)}/${vaccinationId}`);
@@ -330,4 +330,51 @@ export const useDeleteVaccinationMutation = (petId) => {
       queryClient.invalidateQueries({ queryKey: ['vaccinations', 'expiring'] });
     },
   });
+};
+
+// ============================================================================
+// DIRECT API FUNCTIONS (non-hook, for use in effects/callbacks)
+// ============================================================================
+
+/**
+ * Fetch all pets - direct function for use outside of React components
+ */
+export const getPets = async (params = {}) => {
+  const res = await apiClient.get(canonicalEndpoints.pets.list, { params });
+  const data = res?.data;
+  // Handle both array and wrapped response shapes
+  const pets = Array.isArray(data) ? data : (data?.pets || data?.items || []);
+  return { data: pets };
+};
+
+/**
+ * Fetch a single pet by ID
+ */
+export const getPet = async (petId) => {
+  const res = await apiClient.get(canonicalEndpoints.pets.detail(petId));
+  return res?.data;
+};
+
+/**
+ * Create a new pet
+ */
+export const createPet = async (payload) => {
+  const res = await apiClient.post(canonicalEndpoints.pets.list, payload);
+  return res?.data;
+};
+
+/**
+ * Update a pet
+ */
+export const updatePet = async (petId, payload) => {
+  const res = await apiClient.put(canonicalEndpoints.pets.detail(petId), payload);
+  return res?.data;
+};
+
+/**
+ * Delete a pet
+ */
+export const deletePet = async (petId) => {
+  await apiClient.delete(canonicalEndpoints.pets.detail(petId));
+  return petId;
 };

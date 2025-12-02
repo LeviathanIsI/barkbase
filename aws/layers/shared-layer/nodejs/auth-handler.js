@@ -175,6 +175,111 @@ function getQueryParams(event) {
   return event.queryStringParameters || {};
 }
 
+// =============================================================================
+// STANDARDIZED ERROR RESPONSE HELPERS
+// =============================================================================
+
+/**
+ * Standard error codes for consistent frontend handling
+ */
+const ERROR_CODES = {
+  // Validation errors (400)
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  MISSING_REQUIRED_FIELD: 'MISSING_REQUIRED_FIELD',
+  INVALID_INPUT: 'INVALID_INPUT',
+  INVALID_DATE_FORMAT: 'INVALID_DATE_FORMAT',
+  INVALID_STATUS: 'INVALID_STATUS',
+
+  // Authentication errors (401)
+  UNAUTHORIZED: 'UNAUTHORIZED',
+  TOKEN_EXPIRED: 'TOKEN_EXPIRED',
+  INVALID_TOKEN: 'INVALID_TOKEN',
+
+  // Authorization errors (403)
+  FORBIDDEN: 'FORBIDDEN',
+  TENANT_MISMATCH: 'TENANT_MISMATCH',
+  INSUFFICIENT_PERMISSIONS: 'INSUFFICIENT_PERMISSIONS',
+
+  // Not found errors (404)
+  NOT_FOUND: 'NOT_FOUND',
+  OWNER_NOT_FOUND: 'OWNER_NOT_FOUND',
+  PET_NOT_FOUND: 'PET_NOT_FOUND',
+  BOOKING_NOT_FOUND: 'BOOKING_NOT_FOUND',
+  INVOICE_NOT_FOUND: 'INVOICE_NOT_FOUND',
+  RESOURCE_NOT_FOUND: 'RESOURCE_NOT_FOUND',
+
+  // Conflict errors (409)
+  CONFLICT: 'CONFLICT',
+  DUPLICATE_ENTRY: 'DUPLICATE_ENTRY',
+  ALREADY_EXISTS: 'ALREADY_EXISTS',
+
+  // Server errors (500)
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  DATABASE_ERROR: 'DATABASE_ERROR',
+  EXTERNAL_SERVICE_ERROR: 'EXTERNAL_SERVICE_ERROR',
+};
+
+/**
+ * Create a standardized error response
+ * @param {number} statusCode - HTTP status code
+ * @param {string} errorType - Error type (e.g., 'ValidationError', 'NotFound')
+ * @param {string} message - User-friendly error message
+ * @param {string} code - Error code from ERROR_CODES
+ * @param {object} details - Additional error details (optional)
+ * @returns {object} Lambda response
+ */
+function createErrorResponse(statusCode, errorType, message, code, details = {}) {
+  return createResponse(statusCode, {
+    success: false,
+    error: errorType,
+    message,
+    code: code || ERROR_CODES.INTERNAL_ERROR,
+    ...details,
+  });
+}
+
+/**
+ * Helper for 400 Bad Request errors
+ */
+function badRequest(message, code = ERROR_CODES.VALIDATION_ERROR, details = {}) {
+  return createErrorResponse(400, 'Bad Request', message, code, details);
+}
+
+/**
+ * Helper for 401 Unauthorized errors
+ */
+function unauthorized(message = 'Authentication required', code = ERROR_CODES.UNAUTHORIZED) {
+  return createErrorResponse(401, 'Unauthorized', message, code);
+}
+
+/**
+ * Helper for 403 Forbidden errors
+ */
+function forbidden(message = 'Access denied', code = ERROR_CODES.FORBIDDEN) {
+  return createErrorResponse(403, 'Forbidden', message, code);
+}
+
+/**
+ * Helper for 404 Not Found errors
+ */
+function notFound(resourceType = 'Resource', code = ERROR_CODES.NOT_FOUND) {
+  return createErrorResponse(404, 'Not Found', `${resourceType} not found`, code);
+}
+
+/**
+ * Helper for 409 Conflict errors
+ */
+function conflict(message, code = ERROR_CODES.CONFLICT, details = {}) {
+  return createErrorResponse(409, 'Conflict', message, code, details);
+}
+
+/**
+ * Helper for 500 Internal Server errors
+ */
+function serverError(message = 'An unexpected error occurred', code = ERROR_CODES.INTERNAL_ERROR) {
+  return createErrorResponse(500, 'Internal Server Error', message, code);
+}
+
 module.exports = {
   authenticateRequest,
   requireAuth,
@@ -182,6 +287,15 @@ module.exports = {
   parseBody,
   getPathParams,
   getQueryParams,
+  // Error utilities
+  ERROR_CODES,
+  createErrorResponse,
+  badRequest,
+  unauthorized,
+  forbidden,
+  notFound,
+  conflict,
+  serverError,
   getAuthConfig,
 };
 

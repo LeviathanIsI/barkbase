@@ -857,7 +857,10 @@ const AccountDefaults = () => {
 
   const accountDefaultsQuery = useQuery({
     queryKey: ['account-defaults'],
-    queryFn: async () => apiClient('/api/v1/account-defaults'),
+    queryFn: async () => {
+      const { data } = await apiClient.get('/api/v1/account-defaults');
+      return data;
+    },
   });
 
   const form = useForm({
@@ -889,11 +892,10 @@ const AccountDefaults = () => {
   }, [accountDefaultsQuery.data, reset, plan, tenantName]);
 
   const saveMutation = useMutation({
-    mutationFn: async (payload) =>
-      apiClient('/api/v1/account-defaults', {
-        method: 'PATCH',
-        body: payload,
-      }),
+    mutationFn: async (payload) => {
+      const { data } = await apiClient.patch('/api/v1/account-defaults', payload);
+      return data;
+    },
     onSuccess: (data) => {
       const normalized = normalizeResponse(data, tenantName, plan);
       reset(normalized, { keepDirty: false });
