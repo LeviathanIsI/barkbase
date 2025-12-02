@@ -263,6 +263,13 @@ async function handleLogin(event) {
 
     // Create or update session for auto-logout enforcement
     let session = null;
+    console.log('[AUTH-API] Session check - dbUser:', {
+      hasId: !!dbUser?.id,
+      hasTenantId: !!dbUser?.tenant_id,
+      userId: dbUser?.id,
+      tenantId: dbUser?.tenant_id
+    });
+
     if (dbUser?.id && dbUser?.tenant_id) {
       try {
         const crypto = require('crypto');
@@ -275,7 +282,11 @@ async function handleLogin(event) {
                          event.headers?.['User-Agent'] ||
                          'Unknown';
 
-        console.log('[AUTH-API] Creating session for user:', { userId: dbUser.id, cognitoSub: payload.sub });
+        console.log('[AUTH-API] Creating session for user:', {
+          userId: dbUser.id,
+          tenantId: dbUser.tenant_id,
+          cognitoSub: payload.sub
+        });
 
         // Deactivate any existing active sessions for this user (single session per user)
         await query(
@@ -307,6 +318,12 @@ async function handleLogin(event) {
         console.error('[AUTH-API] Session error details:', sessionError);
         // Don't fail login if session creation fails
       }
+    } else {
+      console.warn('[AUTH-API] Skipping session creation - missing user or tenant:', {
+        hasUser: !!dbUser,
+        hasId: !!dbUser?.id,
+        hasTenantId: !!dbUser?.tenant_id
+      });
     }
 
     return createResponse(200, {
