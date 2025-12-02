@@ -1009,6 +1009,7 @@ async function handleGetTenantConfig(user, event) {
          t.settings as tenant_settings,
          t.theme as tenant_theme,
          t.feature_flags as tenant_features,
+         t.auto_logout_interval_hours as auto_logout_interval_hours,
          t.created_at as tenant_created_at,
          (SELECT COUNT(*) FROM "Service" WHERE tenant_id = t.id) as service_count,
          (SELECT COUNT(*) FROM "Kennel" WHERE tenant_id = t.id) as kennel_count
@@ -1053,6 +1054,7 @@ async function handleGetTenantConfig(user, event) {
       name: row.tenant_name,
       slug: row.tenant_slug,
       plan: row.tenant_plan || 'FREE',
+      autoLogoutIntervalHours: row.auto_logout_interval_hours || 24,
       settings: row.tenant_settings || {},
       theme: row.tenant_theme || {},
       featureFlags: row.tenant_features || {},
@@ -1088,7 +1090,7 @@ async function handleGetTenantConfig(user, event) {
  * Update tenant configuration
  */
 async function handleUpdateTenantConfig(user, body) {
-  const { name, settings } = body;
+  const { name, settings, autoLogoutIntervalHours } = body;
 
   try {
     await getPoolAsync();
@@ -1128,6 +1130,17 @@ async function handleUpdateTenantConfig(user, body) {
       updates.push(`settings = $${paramIndex++}`);
       values.push(JSON.stringify(settings));
     }
+    if (autoLogoutIntervalHours !== undefined) {
+      // Validate interval value
+      if (![8, 12, 24, 48, 72].includes(autoLogoutIntervalHours)) {
+        return createResponse(400, {
+          error: 'Bad Request',
+          message: 'Invalid auto-logout interval. Must be one of: 8, 12, 24, 48, 72 hours',
+        });
+      }
+      updates.push(`auto_logout_interval_hours = ${paramIndex++}`);
+      values.push(autoLogoutIntervalHours);
+    }
 
     if (updates.length === 0) {
       return createResponse(400, {
@@ -1142,7 +1155,7 @@ async function handleUpdateTenantConfig(user, body) {
       `UPDATE "Tenant"
        SET ${updates.join(', ')}
        WHERE id = $1
-       RETURNING id, name, slug, plan, settings, updated_at`,
+       RETURNING id, name, slug, plan, settings, auto_logout_interval_hours, updated_at`,
       values
     );
 
@@ -1157,6 +1170,7 @@ async function handleUpdateTenantConfig(user, body) {
       slug: updated.slug,
       plan: updated.plan,
       settings: updated.settings || {},
+      autoLogoutIntervalHours: updated.auto_logout_interval_hours || 24,
       updatedAt: updated.updated_at,
     });
 

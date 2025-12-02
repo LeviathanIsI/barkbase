@@ -33,14 +33,97 @@ function getAuthConfig() {
 }
 
 /**
+ * Validate session age against tenant's auto_logout_interval_hours
+ * @param {string} cognitoSub - User's Cognito sub
+ * @param {string} tenantId - Tenant ID (UUID)
+ * @returns {Promise<object>} Validation result
+ */
+async function validateSessionAge(cognitoSub, tenantId) {
+  try {
+    const { query } = require('/opt/nodejs/db');
+
+    // Get active session and tenant settings in one query
+    const result = await query(
+      `SELECT
+        s.session_start_time,
+        s.last_activity_time,
+        t.auto_logout_interval_hours
+       FROM "UserSession" s
+       JOIN "Tenant" t ON s.tenant_id = t.id
+       WHERE s.cognito_sub = $1
+         AND s.tenant_id = $2
+         AND s.is_active = true
+       LIMIT 1`,
+      [cognitoSub, tenantId]
+    );
+
+    if (!result.rows.length) {
+      return {
+        valid: false,
+        code: 'SESSION_NOT_FOUND',
+        message: 'No active session found. Please log in again.',
+      };
+    }
+
+    const { session_start_time, auto_logout_interval_hours } = result.rows[0];
+    const intervalHours = auto_logout_interval_hours || 24;
+    const maxAgeMs = intervalHours * 60 * 60 * 1000;
+    const sessionAgeMs = Date.now() - new Date(session_start_time).getTime();
+
+    if (sessionAgeMs > maxAgeMs) {
+      // Session expired - mark as inactive
+      await query(
+        `UPDATE "UserSession"
+         SET is_active = false, logged_out_at = NOW(), updated_at = NOW()
+         WHERE cognito_sub = $1 AND is_active = true`,
+        [cognitoSub]
+      );
+
+      return {
+        valid: false,
+        code: 'SESSION_EXPIRED',
+        message: `Session expired after ${intervalHours} hours. Please log in again.`,
+        sessionAge: sessionAgeMs,
+        maxAge: maxAgeMs,
+      };
+    }
+
+    // Update last activity time
+    await query(
+      `UPDATE "UserSession"
+       SET last_activity_time = NOW(), updated_at = NOW()
+       WHERE cognito_sub = $1 AND is_active = true`,
+      [cognitoSub]
+    );
+
+    return {
+      valid: true,
+      sessionAge: sessionAgeMs,
+      maxAge: maxAgeMs,
+      remainingMs: maxAgeMs - sessionAgeMs,
+    };
+
+  } catch (error) {
+    console.error('[SESSION] Validation error:', error);
+    return {
+      valid: false,
+      code: 'SESSION_VALIDATION_ERROR',
+      message: 'Failed to validate session',
+    };
+  }
+}
+
+/**
  * Authenticate a Lambda event
  * @param {object} event - Lambda event
  * @param {object} options - Auth options
+ * @param {boolean} options.skipSessionCheck - Skip session age validation (for login/logout)
  * @returns {Promise<object>} Auth result with user info
  */
 async function authenticateRequest(event, options = {}) {
   const config = { ...getAuthConfig(), ...options };
-  
+  const skipSessionCheck = options.skipSessionCheck || false;
+
   // Extract authorization header (case-insensitive)
   const headers = event.headers || {};
   const authHeader = headers.Authorization || headers.authorization || '';
@@ -49,6 +132,7 @@ async function authenticateRequest(event, options = {}) {
     return {
       authenticated: false,
       error: 'No authorization header',
+      code: 'UNAUTHORIZED',
       user: null,
     };
   }
@@ -63,18 +147,34 @@ async function authenticateRequest(event, options = {}) {
 
     const user = extractUserFromToken(payload);
 
+    // Check session age unless explicitly skipped (e.g., for login/logout endpoints)
+    if (!skipSessionCheck && user.tenantId) {
+      const sessionCheck = await validateSessionAge(user.id, user.tenantId);
+
+      if (!sessionCheck.valid) {
+        return {
+          authenticated: false,
+          error: sessionCheck.message,
+          code: sessionCheck.code,
+          user: null,
+        };
+      }
+    }
+
     return {
       authenticated: true,
       user,
       payload,
       error: null,
+      code: null,
     };
   } catch (error) {
     console.error('[AUTH] Authentication failed:', error.message);
-    
+
     return {
       authenticated: false,
       error: error.message,
+      code: 'INVALID_TOKEN',
       user: null,
     };
   }
@@ -195,6 +295,11 @@ const ERROR_CODES = {
   TOKEN_EXPIRED: 'TOKEN_EXPIRED',
   INVALID_TOKEN: 'INVALID_TOKEN',
 
+  // Session errors (401)
+  SESSION_EXPIRED: 'SESSION_EXPIRED',
+  SESSION_NOT_FOUND: 'SESSION_NOT_FOUND',
+  SESSION_VALIDATION_ERROR: 'SESSION_VALIDATION_ERROR',
+
   // Authorization errors (403)
   FORBIDDEN: 'FORBIDDEN',
   TENANT_MISMATCH: 'TENANT_MISMATCH',
@@ -282,6 +387,7 @@ function serverError(message = 'An unexpected error occurred', code = ERROR_CODE
 
 module.exports = {
   authenticateRequest,
+  validateSessionAge,
   requireAuth,
   createResponse,
   parseBody,

@@ -229,36 +229,36 @@ async function handleLogin(event) {
 
     console.log('[AUTH-API] Token validated for user:', payload.sub);
 
-    // Optionally sync user to database (upsert based on cognito_sub)
+    // Fetch user from database (users must be created via registration first)
     let dbUser = null;
     try {
       await getPoolAsync();
 
-      const displayName = payload.name || payload['cognito:username'] || payload.email?.split('@')[0] || '';
-      const nameParts = displayName.split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
+      console.log('[AUTH-API] Fetching user from DB:', { cognito_sub: payload.sub, email: payload.email });
 
-      console.log('[AUTH-API] Syncing user to DB:', { cognito_sub: payload.sub, email: payload.email });
-
-      // Upsert user record - update if exists, insert if not
+      // Fetch existing user and update last_login_at
       const result = await query(
-        `INSERT INTO "User" (cognito_sub, email, first_name, last_name, updated_at)
-         VALUES ($1, $2, $3, $4, NOW())
-         ON CONFLICT (cognito_sub) DO UPDATE SET
-           email = EXCLUDED.email,
-           first_name = COALESCE(NULLIF(EXCLUDED.first_name, ''), "User".first_name),
-           last_name = COALESCE(NULLIF(EXCLUDED.last_name, ''), "User".last_name),
-           last_login_at = NOW(),
-           updated_at = NOW()
+        `UPDATE "User"
+         SET last_login_at = NOW(), updated_at = NOW()
+         WHERE cognito_sub = $1
          RETURNING id, email, first_name, last_name, role, tenant_id`,
-        [payload.sub, payload.email, firstName, lastName]
+        [payload.sub]
       );
-      dbUser = result.rows[0];
-      console.log('[AUTH-API] User synced successfully:', { id: dbUser?.id, email: dbUser?.email });
+
+      if (result.rows.length > 0) {
+        dbUser = result.rows[0];
+        console.log('[AUTH-API] User found:', {
+          id: dbUser.id,
+          email: dbUser.email,
+          tenantId: dbUser.tenant_id
+        });
+      } else {
+        console.warn('[AUTH-API] User not found in database. Must register first.');
+      }
     } catch (dbError) {
-      console.error('[AUTH-API] Failed to sync user to DB:', dbError.message);
-      // Don't fail login if DB sync fails
+      console.error('[AUTH-API] Failed to fetch user from DB:', dbError.message);
+      console.error('[AUTH-API] DB error details:', dbError);
+      // Don't fail login if DB fetch fails
     }
 
     // Create or update session for auto-logout enforcement

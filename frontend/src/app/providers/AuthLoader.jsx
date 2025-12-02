@@ -15,6 +15,8 @@ const AuthLoader = () => {
     hasAttemptedRef.current = true;
 
     const attemptRefresh = async () => {
+      // Session expiry is now handled server-side via validateSessionAge() in auth-handler.js
+      // Frontend will receive SESSION_EXPIRED error code on API requests and redirect to login
       // Handle Cognito Hosted UI callback first (exchange code for tokens)
       try {
         const url = typeof window !== 'undefined' ? new URL(window.location.href) : null;

@@ -1,6 +1,10 @@
 import Card from '@/components/ui/Card';
 import UpgradeBanner from '@/components/ui/UpgradeBanner';
 import { useTenantStore } from '@/stores/tenant';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/lib/apiClient';
+import { toast } from 'react-hot-toast';
+import { useState } from 'react';
 import SettingsPage from '../components/SettingsPage';
 
 const AccountSecurity = () => {
@@ -53,6 +57,31 @@ const AccountSecurity = () => {
           </label>
         </div>
       </Card>
+
+      
+      <Card title="Auto-Logout Interval" description="Users will be logged out at 11:59 PM after this duration.">
+        <div className="space-y-3">
+          <label className="block text-sm">
+            <span className="font-medium text-text">Logout interval</span>
+            <select 
+              className="mt-1 w-full max-w-xs rounded-lg border border-border bg-surface px-3 py-2"
+              value={tenant?.autoLogoutIntervalHours || 24}
+              onChange={(e) => handleAutoLogoutChange(Number(e.target.value))}
+              disabled={isSaving}
+            >
+              <option value={8}>8 hours</option>
+              <option value={12}>12 hours</option>
+              <option value={24}>24 hours (Default)</option>
+              <option value={48}>48 hours</option>
+              <option value={72}>72 hours</option>
+            </select>
+            <span className="mt-1 block text-xs text-muted">
+              Users will be automatically logged out at 11:59 PM after the selected duration
+            </span>
+          </label>
+        </div>
+      </Card>
+
 
       <Card title="Password Policies" description="Set requirements for staff passwords.">
         <div className="space-y-3 text-sm">

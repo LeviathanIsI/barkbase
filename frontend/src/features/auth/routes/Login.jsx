@@ -30,7 +30,6 @@ import { config } from '@/config/env';
 import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
-import { calculateSessionExpiry } from '@/lib/sessionManager';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -147,16 +146,6 @@ const Login = () => {
             settings: tenantConfig.settings,
             theme: tenantConfig.theme,
             featureFlags: tenantConfig.featureFlags,
-          });
-
-          // Calculate session expiry using tenant's auto-logout interval (default 24 hours)
-          const intervalHours = tenantConfig.autoLogoutIntervalHours || 24;
-          const { sessionStartTime, sessionExpiryTime } = calculateSessionExpiry(intervalHours);
-          
-          // Update auth store with session times
-          updateTokens({
-            sessionStartTime,
-            sessionExpiryTime,
           });
 
           if (import.meta.env.DEV) console.log('[Login] Tenant config loaded:', {

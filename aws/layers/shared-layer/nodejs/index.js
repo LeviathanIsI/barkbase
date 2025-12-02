@@ -24,6 +24,7 @@ const auditUtils = require('./audit-utils');
 module.exports = {
   // Auth handler exports
   authenticateRequest: authHandler.authenticateRequest,
+  validateSessionAge: authHandler.validateSessionAge,
   requireAuth: authHandler.requireAuth,
   createResponse: authHandler.createResponse,
   parseBody: authHandler.parseBody,

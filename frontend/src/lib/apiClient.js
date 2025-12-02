@@ -111,12 +111,23 @@ const triggerAutoLogout = async () => {
 /**
  * Handle authentication errors (401/403)
  * - 401 Unauthorized: Token expired or invalid - auto logout
+ * - SESSION_EXPIRED error code: Session exceeded auto-logout interval - auto logout
  * - 403 Forbidden: User lacks permission - don't logout, just report
  */
 const ensureAuthorized = async (response) => {
   if (response?.status === 401) {
+    // Parse response to check for SESSION_EXPIRED error code
+    const data = await parseResponse(response);
+    const errorCode = data?.code;
+
+    if (errorCode === 'SESSION_EXPIRED' || errorCode === 'SESSION_NOT_FOUND') {
+      console.warn('[AUTH] Session expired on server - auto logout');
+    } else if (errorCode === 'INVALID_TOKEN' || errorCode === 'UNAUTHORIZED') {
+      console.warn('[AUTH] Invalid token - auto logout');
+    }
+
     await triggerAutoLogout();
-    throw new Error('Session expired. Please log in again.');
+    throw new Error(data?.message || 'Session expired. Please log in again.');
   }
 
   // 403 doesn't trigger logout - user is authenticated but lacks permission
