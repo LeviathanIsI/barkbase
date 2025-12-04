@@ -21,6 +21,83 @@ const usdaForms = require('./usda-forms');
 const vaccinationRules = require('./vaccination-rules');
 const auditUtils = require('./audit-utils');
 
+
+/**
+ * Rewrites /admin/v1/* paths to /api/v1/* for internal routing.
+ * MUST be called at the very start of every Lambda handler before any routing.
+ *
+ * SECURITY: This function validates IAM authentication before marking as admin.
+ * The X-Admin-User header is only trusted after IAM validation passes.
+ *
+ * @param {object} event - The Lambda event object (will be mutated)
+ * @returns {boolean} - True if this is a valid admin request
+ */
+function handleAdminPathRewrite(event) {
+  const path = event.path || event.requestContext?.http?.path || '';
+
+  if (!path.startsWith('/admin/v1/')) {
+    return false;
+  }
+
+  // SECURITY: Validate IAM authentication
+  // API Gateway sets these when using AWS_IAM authorization
+  const requestContext = event.requestContext || {};
+  const identity = requestContext.identity || {};
+  const iamAuthorizer = requestContext.authorizer?.iam || {};
+
+  // Check for IAM authentication markers set by API Gateway
+  const hasIamAuth = !!(
+    identity.userArn ||
+    identity.caller ||
+    identity.accountId ||
+    iamAuthorizer.userArn ||
+    iamAuthorizer.cognitoIdentityId
+  );
+
+  if (!hasIamAuth) {
+    console.warn('[ADMIN] Path rewrite REJECTED - no IAM authentication present');
+    console.warn('[ADMIN] Path:', path);
+    return false;
+  }
+
+  const callerArn = identity.userArn || iamAuthorizer.userArn || '';
+  console.log('[ADMIN] IAM-authenticated request from:', callerArn);
+
+  const originalPath = path;
+
+  // Rewrite all path references
+  if (event.path) {
+    event.path = event.path.replace('/admin/v1/', '/api/v1/');
+  }
+
+  if (event.rawPath) {
+    event.rawPath = event.rawPath.replace('/admin/v1/', '/api/v1/');
+  }
+
+  if (event.requestContext?.http?.path) {
+    event.requestContext.http.path = event.requestContext.http.path.replace('/admin/v1/', '/api/v1/');
+  }
+
+  if (event.routeKey) {
+    event.routeKey = event.routeKey.replace('/admin/v1/', '/api/v1/');
+  }
+
+  console.log(`[ADMIN] Path rewritten: ${originalPath} -> ${event.path || event.requestContext?.http?.path}`);
+
+  // Mark this as an admin request for downstream handlers
+  event.isAdminRequest = true;
+
+  // Now we can trust the X-Admin-User header for audit logging
+  const adminUser = event.headers?.['x-admin-user'] || event.headers?.['X-Admin-User'];
+  if (adminUser) {
+    event.adminUser = adminUser;
+    event.adminOperator = adminUser;
+    console.log('[ADMIN] Operator (from header):', adminUser);
+  }
+
+  return true;
+}
+
 module.exports = {
   // Auth handler exports
   authenticateRequest: authHandler.authenticateRequest,
@@ -31,6 +108,14 @@ module.exports = {
   getPathParams: authHandler.getPathParams,
   getQueryParams: authHandler.getQueryParams,
   getAuthConfig: authHandler.getAuthConfig,
+
+  // CORS utilities
+  setRequestContext: authHandler.setRequestContext,
+  getCorsOrigin: authHandler.getCorsOrigin,
+
+  // Database authorization (defense-in-depth)
+  getUserAuthorizationFromDB: authHandler.getUserAuthorizationFromDB,
+  getCachedUserAuthorization: authHandler.getCachedUserAuthorization,
 
   // Standardized error response helpers
   ERROR_CODES: authHandler.ERROR_CODES,
@@ -154,4 +239,7 @@ module.exports = {
   getAuditSummary: auditUtils.getAuditSummary,
   extractAuditContext: auditUtils.extractAuditContext,
   maskSensitiveData: auditUtils.maskSensitiveData,
+
+  // Admin path rewriting
+  handleAdminPathRewrite,
 };

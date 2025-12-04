@@ -99,41 +99,79 @@ export const useDeleteRunMutation = () => {
 };
 
 /**
- * Assign pets to a run with time slots
- *
- * =============================================================================
- * WARNING: RUN ASSIGNMENT PERSISTENCE IS NOT IMPLEMENTED
- * =============================================================================
- *
- * This mutation is TEMPORARILY DISABLED because the backend does not have a
- * working endpoint to persist run assignments.
- *
- * Current state of backend (operations-service/index.js):
- * - PUT /api/v1/runs/:id only updates Run metadata (name, code, etc.)
- * - It does NOT process the { assignedPets } payload
- * - There is NO endpoint like POST /api/v1/runs/assignments to create assignments
- *
- * TODO: To implement run assignment persistence, the backend needs:
- * 1. POST /api/v1/runs/assignments - Create/update assignments for a run + date
- *    Payload: { runId, date, assignments: [{ petId, bookingId, startAt, endAt }] }
- *    Should INSERT into RunAssignment table or UPDATE existing assignments
- *
- * 2. DELETE /api/v1/runs/assignments/:id - Remove a specific assignment
- *    (This already exists as POST /api/v1/runs/:id/remove-pet)
- *
- * Once backend is implemented, update this mutation to call the correct endpoint.
- * =============================================================================
+ * Save all run assignments for a date
+ * POST /api/v1/runs/assignments
+ * Payload: { date, assignments: [{ runId, petId, startTime, endTime, bookingId?, notes? }] }
+ */
+export const useSaveRunAssignmentsMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async ({ date, assignments }) => {
+      const res = await apiClient.post('/api/v1/runs/assignments', {
+        date,
+        assignments,
+      });
+      return res.data;
+    },
+    onSuccess: (data, variables) => {
+      // Invalidate run assignments for the date
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.runs(tenantKey, { date: variables.date, type: 'today' })
+      });
+    },
+  });
+};
+
+/**
+ * Assign pets to a specific run
+ * POST /api/v1/runs/:runId/assignments
+ * Payload: { date, petIds, startTime?, endTime?, bookingIds? }
  */
 export const useAssignPetsToRunMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
   return useMutation({
-    mutationFn: async ({ runId, assignedPets, date }) => {
-      // DO NOT call the backend - it doesn't persist assignments
-      // Instead, reject with a clear error message so the UI can handle it honestly
-      throw new Error(
-        'Run assignment save is not implemented yet. ' +
-        'The backend does not have an endpoint to persist pet-to-run assignments. ' +
-        'Your changes have NOT been saved.'
-      );
+    mutationFn: async ({ runId, petIds, date, startTime, endTime, bookingIds }) => {
+      const res = await apiClient.post(`/api/v1/runs/${runId}/assignments`, {
+        date,
+        petIds,
+        startTime,
+        endTime,
+        bookingIds,
+      });
+      return res.data;
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.runs(tenantKey, { date: variables.date, type: 'today' })
+      });
+    },
+  });
+};
+
+/**
+ * Remove pet(s) from a run
+ * DELETE /api/v1/runs/:runId/assignments
+ * Body: { date?, petIds?, assignmentIds? }
+ */
+export const useRemovePetFromRunMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async ({ runId, petIds, date, assignmentIds }) => {
+      const res = await apiClient.delete(`/api/v1/runs/${runId}/assignments`, {
+        data: { date, petIds, assignmentIds },
+      });
+      return res.data;
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.runs(tenantKey, { date: variables.date, type: 'today' })
+      });
     },
   });
 };
@@ -270,20 +308,3 @@ export const useRunAssignmentsQuery = (params = {}) => {
   });
 };
 
-/**
- * Remove pet from run
- */
-export const useRemovePetFromRunMutation = () => {
-  const queryClient = useQueryClient();
-  const tenantKey = useTenantKey();
-
-  return useMutation({
-    mutationFn: async ({ runId, petId, date }) => {
-      const res = await apiClient.post(`/api/v1/runs/${runId}/remove-pet`, { petId, date });
-      return res.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.runs(tenantKey, {}) });
-    }
-  });
-};

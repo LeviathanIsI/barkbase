@@ -229,8 +229,12 @@ export class ServicesStack extends cdk.Stack {
       },
     });
 
-    // Reminder Service Function (Scheduled)
-    // Sends booking reminders and vaccination expiry notifications
+    // =========================================================================
+    // Reminder Service Function (EventBridge-only, NOT exposed via API Gateway)
+    // =========================================================================
+    // This service is INTENTIONALLY not exposed via HTTP API.
+    // It is invoked exclusively via EventBridge scheduled rules.
+    // Sends booking reminders and vaccination expiry notifications to owners.
     this.reminderServiceFunction = new lambda.Function(this, 'ReminderServiceFunction', {
       ...commonLambdaConfig,
       functionName: `${config.stackPrefix}-reminder-service`,

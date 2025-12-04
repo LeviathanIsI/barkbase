@@ -76,13 +76,32 @@ exports.handler = async (event) => {
         },
       },
       customAttributes: {
+        // AUTHORIZATION ARCHITECTURE - DEFENSE IN DEPTH
+        // =============================================
+        // These attributes are MUTABLE but we NEVER trust them for authorization.
+        //
+        // Cognito handles AUTHENTICATION (verifying identity via sub claim)
+        // Database handles AUTHORIZATION (tenant membership, roles, permissions)
+        //
+        // These custom attributes exist only for:
+        // 1. Initial user setup/provisioning
+        // 2. Convenience in Cognito admin console
+        // 3. Legacy compatibility
+        //
+        // ALL authorization decisions use database lookups by cognito_sub.
+        // See: auth-handler.js getUserAuthorizationFromDB()
+        //
+        // This pattern ensures:
+        // - Cognito compromise doesn't grant unauthorized access
+        // - Role/tenant changes are instant (no token refresh needed)
+        // - Complete audit trail in our database
         tenantId: new cognito.StringAttribute({
-          mutable: true,
+          mutable: true, // Safe because authorization comes from database
           minLen: 1,
           maxLen: 256,
         }),
         role: new cognito.StringAttribute({
-          mutable: true,
+          mutable: true, // Safe because authorization comes from database
           minLen: 1,
           maxLen: 50,
         }),

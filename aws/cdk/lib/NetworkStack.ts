@@ -80,7 +80,13 @@ export class NetworkStack extends cdk.Stack {
       allowAllOutbound: true,
     });
 
-    // Allow SSH access to Bastion from anywhere (restricted in production)
+    // SECURITY: Restrict SSH access to Bastion
+    // In development: allow from anywhere (for convenience)
+    // In production: REQUIRE explicit allowed IPs via context variable
+    //
+    // Best practice: Use AWS SSM Session Manager instead of SSH
+    // This eliminates the need for open SSH ports entirely.
+    // To use SSM: aws ssm start-session --target <instance-id>
     if (config.env === 'dev') {
       this.bastionSecurityGroup.addIngressRule(
         ec2.Peer.anyIpv4(),
@@ -88,12 +94,37 @@ export class NetworkStack extends cdk.Stack {
         'Allow SSH access from anywhere (dev only)'
       );
     } else {
-      // In production, you'd restrict this to specific IPs
-      this.bastionSecurityGroup.addIngressRule(
-        ec2.Peer.ipv4('0.0.0.0/0'), // Replace with your office IP in production
-        ec2.Port.tcp(22),
-        'Allow SSH access from allowed IPs'
-      );
+      // SECURITY: Production requires explicit allowed IPs
+      // Set BASTION_ALLOWED_CIDRS environment variable with comma-separated CIDRs
+      // Example: BASTION_ALLOWED_CIDRS="1.2.3.4/32,5.6.7.8/32"
+      const allowedCidrsEnv = process.env.BASTION_ALLOWED_CIDRS || '';
+      const allowedCidrs = allowedCidrsEnv.split(',').map(s => s.trim()).filter(Boolean);
+
+      if (allowedCidrs.length === 0) {
+        // If no CIDRs provided, only allow VPC-internal SSH access
+        // External access should use SSM Session Manager
+        console.warn('[SECURITY] No BASTION_ALLOWED_CIDRS provided - SSH only accessible from within VPC');
+        console.warn('[SECURITY] Use AWS SSM Session Manager for external access: aws ssm start-session --target <instance-id>');
+        this.bastionSecurityGroup.addIngressRule(
+          ec2.Peer.ipv4(this.vpc.vpcCidrBlock),
+          ec2.Port.tcp(22),
+          'Allow SSH access from within VPC only (use SSM for external access)'
+        );
+      } else {
+        // Add explicit IP allowlist
+        for (const cidr of allowedCidrs) {
+          try {
+            this.bastionSecurityGroup.addIngressRule(
+              ec2.Peer.ipv4(cidr),
+              ec2.Port.tcp(22),
+              `Allow SSH access from ${cidr}`
+            );
+            console.log(`[SECURITY] Added SSH access from: ${cidr}`);
+          } catch (err) {
+            console.error(`[SECURITY] Invalid CIDR in BASTION_ALLOWED_CIDRS: ${cidr}`);
+          }
+        }
+      }
     }
 
     // =========================================================================

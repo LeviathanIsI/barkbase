@@ -17,6 +17,20 @@
 
 const { Pool } = require('pg');
 const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
+const fs = require('fs');
+const path = require('path');
+
+// Load RDS CA certificate bundle for secure SSL connections
+let rdsCaCert = null;
+try {
+  const certPath = path.join(__dirname, 'rds-ca-us-east-2-bundle.pem');
+  if (fs.existsSync(certPath)) {
+    rdsCaCert = fs.readFileSync(certPath).toString();
+    console.log('[DB] Loaded RDS CA certificate bundle');
+  }
+} catch (err) {
+  console.warn('[DB] Could not load RDS CA certificate bundle:', err.message);
+}
 
 // Connection pool (reused across Lambda invocations)
 let pool = null;
@@ -102,7 +116,10 @@ async function initPool() {
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000,
     ssl: process.env.DB_SSL === 'false' ? false : {
-      rejectUnauthorized: false, // Required for RDS
+      rejectUnauthorized: true,
+      // Use RDS CA certificate bundle for proper certificate validation
+      // Falls back to system CA if bundle not available (less secure but functional)
+      ...(rdsCaCert ? { ca: rdsCaCert } : {}),
     },
   });
 

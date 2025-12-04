@@ -113,8 +113,37 @@ function maskSensitive(value, visibleChars = 4) {
 
 /**
  * Extract user info from Cognito JWT payload
+ *
+ * ⚠️  DEPRECATED FOR AUTHORIZATION - USE getUserAuthorizationFromDB() INSTEAD  ⚠️
+ *
+ * SECURITY WARNING:
+ * This function extracts claims from the JWT token, including custom:tenantId
+ * and custom:role. These Cognito custom attributes are MUTABLE in our User Pool
+ * and MUST NOT be trusted for authorization decisions.
+ *
+ * AUTHORIZATION ARCHITECTURE (Defense-in-Depth):
+ * - COGNITO (Authentication): Verifies user identity - only trust 'sub' claim
+ * - DATABASE (Authorization): Single source of truth for tenant/role/permissions
+ *
+ * USE THIS FUNCTION ONLY FOR:
+ * - Getting the 'sub' (Cognito user ID) to pass to database lookup
+ * - Getting email for display/logging purposes
+ * - Token metadata (issuedAt, expiresAt)
+ *
+ * NEVER USE FOR:
+ * - Authorization decisions (tenant access, role checks, permissions)
+ * - Any security-critical logic
+ *
+ * CORRECT PATTERN:
+ *   const payload = await validateAuthHeader(authHeader, config);
+ *   const user = await getCachedUserAuthorization(event, payload.sub);
+ *   // user.tenantId and user.role now come from DATABASE
+ *
+ * See: auth-handler.js getUserAuthorizationFromDB() for the secure implementation.
+ *
  * @param {object} payload - JWT payload
- * @returns {object} User info
+ * @returns {object} User info (tenantId/role are UNTRUSTED - use DB lookup instead)
+ * @deprecated Use getUserAuthorizationFromDB() for authorization decisions
  */
 function extractUserFromToken(payload) {
   if (!payload) {
@@ -126,6 +155,7 @@ function extractUserFromToken(payload) {
     email: payload.email || payload['cognito:username'],
     emailVerified: payload.email_verified === true || payload.email_verified === 'true',
     name: payload.name || payload['cognito:username'],
+    // UNTRUSTED - use getUserAuthorizationFromDB() instead for authorization
     tenantId: payload['custom:tenantId'],
     role: payload['custom:role'],
     tokenType: payload.token_use,

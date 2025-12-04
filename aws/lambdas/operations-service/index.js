@@ -66,6 +66,10 @@ function getTenantIdFromHeader(event) {
  * Route requests to appropriate handlers
  */
 exports.handler = async (event, context) => {
+  // Handle admin path rewriting (Ops Center requests)
+  const { handleAdminPathRewrite } = require('/opt/nodejs/index');
+  handleAdminPathRewrite(event);
+
   // Prevent Lambda from waiting for empty event loop
   context.callbackWaitsForEmptyEventLoop = false;
 
@@ -117,6 +121,25 @@ exports.handler = async (event, context) => {
       }
       if (method === 'POST') {
         return handleCreateBooking(tenantId, user, parseBody(event));
+      }
+    }
+
+    // Booking bulk actions
+    if (path === '/api/v1/operations/bookings/bulk/delete') {
+      if (method === 'POST') {
+        return handleBulkDeleteBookings(tenantId, parseBody(event));
+      }
+    }
+
+    if (path === '/api/v1/operations/bookings/bulk/update') {
+      if (method === 'POST') {
+        return handleBulkUpdateBookings(tenantId, parseBody(event));
+      }
+    }
+
+    if (path === '/api/v1/operations/bookings/bulk/export') {
+      if (method === 'POST') {
+        return handleBulkExportBookings(tenantId, parseBody(event));
       }
     }
 
@@ -566,6 +589,24 @@ exports.handler = async (event, context) => {
       if (method === 'GET') {
         return handleGetRunAssignments(tenantId, event.queryStringParameters || {});
       }
+      if (method === 'POST') {
+        return handleSaveRunAssignments(tenantId, parseBody(event));
+      }
+    }
+
+    // Bulk update run assignments for a specific run
+    const runAssignMatch = path.match(/\/api\/v1\/runs\/([a-f0-9-]+)\/assignments$/i);
+    if (runAssignMatch) {
+      const runId = runAssignMatch[1];
+      if (method === 'GET') {
+        return handleGetRunAssignmentsForRun(tenantId, runId, event.queryStringParameters || {});
+      }
+      if (method === 'POST') {
+        return handleAssignPetsToRun(tenantId, runId, parseBody(event));
+      }
+      if (method === 'DELETE') {
+        return handleClearRunAssignments(tenantId, runId, parseBody(event));
+      }
     }
 
     // Run by ID
@@ -706,25 +747,15 @@ async function handleGetBookings(tenantId, queryParams) {
   try {
     await getPoolAsync();
 
-    // Diagnostic: counts per tenant
+    // Diagnostic: count for THIS tenant only (tenant-scoped for security)
     try {
-      const diagCounts = await query(
-        `SELECT tenant_id, COUNT(*) as cnt FROM "Booking" GROUP BY tenant_id`
-      );
-      console.log('[Bookings][diag] counts per tenant:', JSON.stringify(diagCounts.rows));
-    } catch (diagErr) {
-      console.warn('[Bookings][diag] count query failed:', diagErr.message);
-    }
-
-    // Diagnostic: sample rows for this tenant
-    try {
-      const diagSample = await query(
-        `SELECT id, status, check_in, check_out FROM "Booking" WHERE tenant_id = $1 ORDER BY check_in ASC LIMIT 5`,
+      const diagCount = await query(
+        `SELECT COUNT(*) as cnt FROM "Booking" WHERE tenant_id = $1 AND deleted_at IS NULL`,
         [tenantId]
       );
-      console.log('[Bookings][diag] sample for tenant', tenantId, ':', JSON.stringify(diagSample.rows));
+      console.log('[Bookings][diag] count for tenant', tenantId, ':', diagCount.rows[0]?.cnt || 0);
     } catch (diagErr) {
-      console.warn('[Bookings][diag] sample query failed:', diagErr.message);
+      console.warn('[Bookings][diag] count query failed:', diagErr.message);
     }
 
     let whereClause = 'b.tenant_id = $1';
@@ -779,13 +810,14 @@ async function handleGetBookings(tenantId, queryParams) {
 
     if (days) {
       const daysInt = parseInt(days, 10);
-      if (isNaN(daysInt) || daysInt < 0) {
+      if (isNaN(daysInt) || daysInt < 1 || daysInt > 365) {
         return createResponse(400, {
           error: 'Bad Request',
-          message: 'Invalid days parameter. Expected a positive integer.',
+          message: 'Invalid days parameter. Expected a positive integer between 1 and 365.',
         });
       }
-      whereClause += ` AND b.check_in <= NOW() + INTERVAL '${daysInt} days'`;
+      whereClause += ` AND b.check_in <= NOW() + INTERVAL '1 day' * $${paramIndex++}`;
+      params.push(daysInt);
     }
 
     if (pet_id) {
@@ -1737,6 +1769,252 @@ async function handleCheckOut(tenantId, bookingId, body) {
     return createResponse(500, {
       error: 'Internal Server Error',
       message: 'Failed to check out',
+    });
+  }
+}
+
+// =============================================================================
+// BOOKING BULK ACTIONS
+// =============================================================================
+
+/**
+ * Bulk delete bookings (soft delete by setting status to CANCELLED)
+ * Body: { ids: string[] }
+ */
+async function handleBulkDeleteBookings(tenantId, body) {
+  const { ids } = body;
+
+  console.log('[Bookings][bulkDelete] tenantId:', tenantId, 'count:', ids?.length);
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'ids array is required',
+    });
+  }
+
+  if (ids.length > 100) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Maximum 100 items per bulk operation',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "Booking"
+       SET status = 'CANCELLED', deleted_at = NOW(), updated_at = NOW()
+       WHERE id = ANY($1) AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING id`,
+      [ids, tenantId]
+    );
+
+    console.log('[Bookings][bulkDelete] cancelled:', result.rowCount);
+
+    return createResponse(200, {
+      success: true,
+      deletedCount: result.rowCount,
+      deletedIds: result.rows.map(r => r.id),
+      message: `${result.rowCount} booking(s) cancelled successfully`,
+    });
+  } catch (error) {
+    console.error('[OPERATIONS-SERVICE] bulkDeleteBookings error:', error);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to cancel bookings',
+    });
+  }
+}
+
+/**
+ * Bulk update bookings status
+ * Body: { ids: string[], updates: { status?: string } }
+ */
+async function handleBulkUpdateBookings(tenantId, body) {
+  const { ids, updates } = body;
+
+  console.log('[Bookings][bulkUpdate] tenantId:', tenantId, 'count:', ids?.length);
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'ids array is required',
+    });
+  }
+
+  if (!updates || typeof updates !== 'object') {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'updates object is required',
+    });
+  }
+
+  if (ids.length > 100) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Maximum 100 items per bulk operation',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const setClauses = [];
+    const values = [ids, tenantId];
+    let paramIndex = 3;
+
+    // Validate and apply status update
+    if (updates.status !== undefined) {
+      const validStatuses = ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT', 'CANCELLED', 'NO_SHOW', 'COMPLETED'];
+      const normalizedStatus = updates.status.toUpperCase();
+      if (!validStatuses.includes(normalizedStatus)) {
+        return createResponse(400, {
+          error: 'Bad Request',
+          message: `Invalid status: ${updates.status}. Valid values: ${validStatuses.join(', ')}`,
+        });
+      }
+      setClauses.push(`status = $${paramIndex++}`);
+      values.push(normalizedStatus);
+    }
+
+    if (setClauses.length === 0) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'No valid updates provided',
+      });
+    }
+
+    setClauses.push('updated_at = NOW()');
+
+    const result = await query(
+      `UPDATE "Booking"
+       SET ${setClauses.join(', ')}
+       WHERE id = ANY($1) AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING id`,
+      values
+    );
+
+    console.log('[Bookings][bulkUpdate] updated:', result.rowCount);
+
+    return createResponse(200, {
+      success: true,
+      updatedCount: result.rowCount,
+      updatedIds: result.rows.map(r => r.id),
+      message: `${result.rowCount} booking(s) updated successfully`,
+    });
+  } catch (error) {
+    console.error('[OPERATIONS-SERVICE] bulkUpdateBookings error:', error);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to update bookings',
+    });
+  }
+}
+
+/**
+ * Bulk export bookings
+ * Body: { ids?: string[] } - if empty/missing, exports all
+ */
+async function handleBulkExportBookings(tenantId, body) {
+  const { ids, startDate, endDate } = body;
+
+  console.log('[Bookings][bulkExport] tenantId:', tenantId, 'count:', ids?.length || 'all');
+
+  try {
+    await getPoolAsync();
+
+    let queryText = `
+      SELECT
+        b.id,
+        b.status,
+        b.check_in,
+        b.check_out,
+        b.total_price_in_cents,
+        b.deposit_in_cents,
+        b.notes,
+        b.special_instructions,
+        b.service_type,
+        b.service_name,
+        b.checked_in_at,
+        b.checked_out_at,
+        b.created_at,
+        o.first_name as owner_first_name,
+        o.last_name as owner_last_name,
+        o.email as owner_email,
+        o.phone as owner_phone,
+        s.name as service_name_from_service
+      FROM "Booking" b
+      LEFT JOIN "Owner" o ON b.owner_id = o.id
+      LEFT JOIN "Service" s ON b.service_id = s.id
+      WHERE b.tenant_id = $1 AND b.deleted_at IS NULL
+    `;
+    const params = [tenantId];
+    let paramIndex = 2;
+
+    if (Array.isArray(ids) && ids.length > 0) {
+      queryText += ` AND b.id = ANY($${paramIndex++})`;
+      params.push(ids);
+    }
+
+    if (startDate && endDate) {
+      queryText += ` AND DATE(b.check_in) >= $${paramIndex}::date AND DATE(b.check_in) <= $${paramIndex + 1}::date`;
+      params.push(startDate, endDate);
+      paramIndex += 2;
+    }
+
+    queryText += ` ORDER BY b.check_in DESC`;
+
+    const result = await query(queryText, params);
+
+    // Get pets for each booking
+    const bookingIds = result.rows.map(b => b.id);
+    let petsMap = {};
+
+    if (bookingIds.length > 0) {
+      const petsResult = await query(
+        `SELECT bp.booking_id, p.name, p.species, p.breed
+         FROM "BookingPet" bp
+         JOIN "Pet" p ON bp.pet_id = p.id
+         WHERE bp.booking_id = ANY($1)`,
+        [bookingIds]
+      );
+
+      petsMap = petsResult.rows.reduce((acc, row) => {
+        if (!acc[row.booking_id]) acc[row.booking_id] = [];
+        acc[row.booking_id].push({
+          name: row.name,
+          species: row.species,
+          breed: row.breed,
+        });
+        return acc;
+      }, {});
+    }
+
+    // Merge pets into bookings
+    const exportData = result.rows.map(booking => ({
+      ...booking,
+      totalPrice: booking.total_price_in_cents / 100,
+      deposit: booking.deposit_in_cents / 100,
+      ownerName: `${booking.owner_first_name || ''} ${booking.owner_last_name || ''}`.trim(),
+      pets: petsMap[booking.id] || [],
+    }));
+
+    console.log('[Bookings][bulkExport] exported:', result.rows.length);
+
+    return createResponse(200, {
+      success: true,
+      exportedCount: result.rows.length,
+      data: exportData,
+      exportDate: new Date().toISOString(),
+      message: `${result.rows.length} booking(s) exported successfully`,
+    });
+  } catch (error) {
+    console.error('[OPERATIONS-SERVICE] bulkExportBookings error:', error);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to export bookings',
     });
   }
 }
@@ -3019,6 +3297,337 @@ async function handleGetRunAssignments(tenantId, queryParams) {
     return createResponse(500, {
       error: 'Internal Server Error',
       message: 'Failed to retrieve run assignments',
+    });
+  }
+}
+
+/**
+ * Save run assignments - bulk create/update assignments for a date
+ * Body: { date: string, assignments: { runId, petId, startTime, endTime }[] }
+ */
+async function handleSaveRunAssignments(tenantId, body) {
+  const { date, assignments } = body;
+
+  console.log('[RunAssignments][save] tenantId:', tenantId, 'date:', date, 'count:', assignments?.length);
+
+  if (!date) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'date is required (YYYY-MM-DD format)',
+    });
+  }
+
+  if (!Array.isArray(assignments)) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'assignments array is required',
+    });
+  }
+
+  // Validate date format
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Invalid date format. Expected YYYY-MM-DD',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Start transaction
+    await query('BEGIN');
+
+    try {
+      // First, soft delete all existing assignments for this date
+      await query(
+        `UPDATE "RunAssignment"
+         SET deleted_at = NOW(), updated_at = NOW()
+         WHERE tenant_id = $1
+           AND DATE(start_at) = $2::date
+           AND deleted_at IS NULL`,
+        [tenantId, date]
+      );
+
+      const created = [];
+      const errors = [];
+
+      // Insert new assignments
+      for (const assignment of assignments) {
+        const { runId, petId, startTime, endTime, bookingId, notes } = assignment;
+
+        if (!runId || !petId) {
+          errors.push({ assignment, error: 'runId and petId are required' });
+          continue;
+        }
+
+        // Parse start and end times
+        let startAt, endAt;
+        if (startTime && endTime) {
+          // If times are provided, combine with date
+          startAt = `${date}T${startTime}:00`;
+          endAt = `${date}T${endTime}:00`;
+        } else {
+          // Default to full day
+          startAt = `${date}T00:00:00`;
+          endAt = `${date}T23:59:59`;
+        }
+
+        try {
+          const result = await query(
+            `INSERT INTO "RunAssignment" (tenant_id, run_id, pet_id, booking_id, start_at, end_at, status, notes)
+             VALUES ($1, $2, $3, $4, $5::timestamptz, $6::timestamptz, 'SCHEDULED', $7)
+             RETURNING id`,
+            [tenantId, runId, petId, bookingId || null, startAt, endAt, notes || null]
+          );
+
+          created.push({
+            id: result.rows[0].id,
+            runId,
+            petId,
+            startAt,
+            endAt,
+          });
+        } catch (insertError) {
+          console.error('[RunAssignments] Insert failed:', insertError.message);
+          errors.push({ assignment, error: insertError.message });
+        }
+      }
+
+      // Commit transaction
+      await query('COMMIT');
+
+      console.log('[RunAssignments][save] Created:', created.length, 'Errors:', errors.length);
+
+      return createResponse(200, {
+        success: true,
+        createdCount: created.length,
+        created: created,
+        errors: errors.length > 0 ? errors : undefined,
+        message: `${created.length} assignment(s) saved successfully${errors.length > 0 ? `, ${errors.length} failed` : ''}`,
+      });
+
+    } catch (txError) {
+      await query('ROLLBACK');
+      throw txError;
+    }
+
+  } catch (error) {
+    console.error('[RunAssignments] Save failed:', error.message, error.stack);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to save run assignments',
+    });
+  }
+}
+
+/**
+ * Get assignments for a specific run
+ */
+async function handleGetRunAssignmentsForRun(tenantId, runId, queryParams) {
+  const { date, startDate, endDate } = queryParams;
+  let rangeStart = startDate || date || new Date().toISOString().split('T')[0];
+  let rangeEnd = endDate || date || rangeStart;
+
+  console.log('[RunAssignments][forRun] runId:', runId, 'date range:', rangeStart, '-', rangeEnd);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `SELECT
+         ra.id,
+         ra.booking_id,
+         ra.pet_id,
+         ra.start_at,
+         ra.end_at,
+         ra.status,
+         ra.notes,
+         p.name as pet_name,
+         p.species as pet_species,
+         p.breed as pet_breed
+       FROM "RunAssignment" ra
+       LEFT JOIN "Pet" p ON p.id = ra.pet_id
+       WHERE ra.run_id = $1
+         AND ra.tenant_id = $2
+         AND ra.deleted_at IS NULL
+         AND DATE(ra.start_at) >= $3::date
+         AND DATE(ra.start_at) <= $4::date
+       ORDER BY ra.start_at ASC`,
+      [runId, tenantId, rangeStart, rangeEnd]
+    );
+
+    const assignments = result.rows.map(row => ({
+      id: row.id,
+      bookingId: row.booking_id,
+      petId: row.pet_id,
+      petName: row.pet_name,
+      petSpecies: row.pet_species,
+      petBreed: row.pet_breed,
+      startAt: row.start_at,
+      endAt: row.end_at,
+      startTime: row.start_at,
+      endTime: row.end_at,
+      status: row.status,
+      notes: row.notes,
+    }));
+
+    return createResponse(200, {
+      data: assignments,
+      runId: runId,
+      startDate: rangeStart,
+      endDate: rangeEnd,
+      total: assignments.length,
+    });
+
+  } catch (error) {
+    console.error('[RunAssignments][forRun] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to get run assignments',
+    });
+  }
+}
+
+/**
+ * Assign pets to a specific run
+ * Body: { date, petIds, startTime, endTime }
+ */
+async function handleAssignPetsToRun(tenantId, runId, body) {
+  const { date, petIds, startTime, endTime, bookingIds } = body;
+
+  console.log('[RunAssignments][assignToRun] runId:', runId, 'petIds:', petIds?.length);
+
+  if (!date) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'date is required',
+    });
+  }
+
+  if (!Array.isArray(petIds) || petIds.length === 0) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'petIds array is required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Verify run exists and belongs to tenant
+    const runCheck = await query(
+      `SELECT id FROM "Run" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      [runId, tenantId]
+    );
+
+    if (runCheck.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Run not found',
+      });
+    }
+
+    // Parse times
+    let startAt = startTime ? `${date}T${startTime}:00` : `${date}T00:00:00`;
+    let endAt = endTime ? `${date}T${endTime}:00` : `${date}T23:59:59`;
+
+    const created = [];
+    const errors = [];
+
+    for (let i = 0; i < petIds.length; i++) {
+      const petId = petIds[i];
+      const bookingId = bookingIds?.[i] || null;
+
+      try {
+        // Use upsert to handle duplicates
+        const result = await query(
+          `INSERT INTO "RunAssignment" (tenant_id, run_id, pet_id, booking_id, start_at, end_at, status)
+           VALUES ($1, $2, $3, $4, $5::timestamptz, $6::timestamptz, 'SCHEDULED')
+           ON CONFLICT (run_id, pet_id, start_at) WHERE deleted_at IS NULL
+           DO UPDATE SET end_at = EXCLUDED.end_at, booking_id = EXCLUDED.booking_id, updated_at = NOW()
+           RETURNING id`,
+          [tenantId, runId, petId, bookingId, startAt, endAt]
+        );
+
+        created.push({
+          id: result.rows[0].id,
+          petId,
+          startAt,
+          endAt,
+        });
+      } catch (insertError) {
+        errors.push({ petId, error: insertError.message });
+      }
+    }
+
+    return createResponse(200, {
+      success: true,
+      createdCount: created.length,
+      created: created,
+      errors: errors.length > 0 ? errors : undefined,
+      message: `${created.length} pet(s) assigned to run`,
+    });
+
+  } catch (error) {
+    console.error('[RunAssignments][assignToRun] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to assign pets to run',
+    });
+  }
+}
+
+/**
+ * Clear/remove assignments from a run
+ * Body: { date?, petIds? } - if empty, clears all
+ */
+async function handleClearRunAssignments(tenantId, runId, body) {
+  const { date, petIds, assignmentIds } = body;
+
+  console.log('[RunAssignments][clear] runId:', runId, 'date:', date, 'petIds:', petIds?.length);
+
+  try {
+    await getPoolAsync();
+
+    let deleteQuery = `
+      UPDATE "RunAssignment"
+      SET deleted_at = NOW(), updated_at = NOW()
+      WHERE run_id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+    `;
+    const params = [runId, tenantId];
+    let paramIndex = 3;
+
+    if (date) {
+      deleteQuery += ` AND DATE(start_at) = $${paramIndex++}::date`;
+      params.push(date);
+    }
+
+    if (Array.isArray(petIds) && petIds.length > 0) {
+      deleteQuery += ` AND pet_id = ANY($${paramIndex++})`;
+      params.push(petIds);
+    }
+
+    if (Array.isArray(assignmentIds) && assignmentIds.length > 0) {
+      deleteQuery += ` AND id = ANY($${paramIndex++})`;
+      params.push(assignmentIds);
+    }
+
+    const result = await query(deleteQuery, params);
+
+    console.log('[RunAssignments][clear] Cleared:', result.rowCount);
+
+    return createResponse(200, {
+      success: true,
+      clearedCount: result.rowCount,
+      message: `${result.rowCount} assignment(s) cleared`,
+    });
+
+  } catch (error) {
+    console.error('[RunAssignments][clear] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to clear run assignments',
     });
   }
 }

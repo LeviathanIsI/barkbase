@@ -85,6 +85,10 @@ function resolveTenantIdFromHeader(event) {
  * Route requests to appropriate handlers
  */
 exports.handler = async (event, context) => {
+  // Handle admin path rewriting (Ops Center requests)
+  const { handleAdminPathRewrite } = require('/opt/nodejs/index');
+  handleAdminPathRewrite(event);
+
   // Prevent Lambda from waiting for empty event loop
   context.callbackWaitsForEmptyEventLoop = false;
 
@@ -198,6 +202,12 @@ exports.handler = async (event, context) => {
       }
       if (subPath === '/capture' && method === 'POST') {
         return handleCapturePayment(tenantId, paymentId);
+      }
+      if (subPath === '/receipt' && method === 'POST') {
+        return handleSendReceipt(tenantId, paymentId, parseBody(event));
+      }
+      if (subPath === '/receipt' && method === 'GET') {
+        return handleGetReceipt(tenantId, paymentId);
       }
       if (!subPath || subPath === '') {
         if (method === 'GET') {
@@ -551,25 +561,15 @@ async function handleGetInvoices(tenantId, queryParams) {
   try {
     await getPoolAsync();
 
-    // Diagnostic: counts per tenant
+    // Diagnostic: count for THIS tenant only (tenant-scoped for security)
     try {
-      const diagCounts = await query(
-        `SELECT tenant_id, COUNT(*) as cnt FROM "Invoice" GROUP BY tenant_id`
-      );
-      console.log('[Invoices][diag] counts per tenant:', JSON.stringify(diagCounts.rows));
-    } catch (diagErr) {
-      console.warn('[Invoices][diag] count query failed:', diagErr.message);
-    }
-
-    // Diagnostic: sample rows for this tenant
-    try {
-      const diagSample = await query(
-        `SELECT id, status, total_cents, due_date FROM "Invoice" WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 5`,
+      const diagCount = await query(
+        `SELECT COUNT(*) as cnt FROM "Invoice" WHERE tenant_id = $1 AND deleted_at IS NULL`,
         [tenantId]
       );
-      console.log('[Invoices][diag] sample for tenant', tenantId, ':', JSON.stringify(diagSample.rows));
+      console.log('[Invoices][diag] count for tenant', tenantId, ':', diagCount.rows[0]?.cnt || 0);
     } catch (diagErr) {
-      console.warn('[Invoices][diag] sample query failed:', diagErr.message);
+      console.warn('[Invoices][diag] count query failed:', diagErr.message);
     }
 
     let whereClause = 'i.tenant_id = $1 AND i.deleted_at IS NULL';
@@ -1144,25 +1144,15 @@ async function handleGetPayments(tenantId, queryParams) {
   try {
     await getPoolAsync();
 
-    // Diagnostic: counts per tenant
+    // Diagnostic: count for THIS tenant only (tenant-scoped for security)
     try {
-      const diagCounts = await query(
-        `SELECT tenant_id, COUNT(*) as cnt FROM "Payment" GROUP BY tenant_id`
-      );
-      console.log('[Payments][diag] counts per tenant:', JSON.stringify(diagCounts.rows));
-    } catch (diagErr) {
-      console.warn('[Payments][diag] count query failed:', diagErr.message);
-    }
-
-    // Diagnostic: sample rows for this tenant
-    try {
-      const diagSample = await query(
-        `SELECT id, status, amount_cents, processed_at FROM "Payment" WHERE tenant_id = $1 ORDER BY processed_at DESC LIMIT 5`,
+      const diagCount = await query(
+        `SELECT COUNT(*) as cnt FROM "Payment" WHERE tenant_id = $1`,
         [tenantId]
       );
-      console.log('[Payments][diag] sample for tenant', tenantId, ':', JSON.stringify(diagSample.rows));
+      console.log('[Payments][diag] count for tenant', tenantId, ':', diagCount.rows[0]?.cnt || 0);
     } catch (diagErr) {
-      console.warn('[Payments][diag] sample query failed:', diagErr.message);
+      console.warn('[Payments][diag] count query failed:', diagErr.message);
     }
 
     // Note: Payment table has no deleted_at column
@@ -1424,6 +1414,205 @@ async function handleCapturePayment(tenantId, paymentId) {
     return createResponse(500, {
       error: 'Internal Server Error',
       message: 'Failed to capture payment',
+    });
+  }
+}
+
+/**
+ * Get receipt data for a payment
+ */
+async function handleGetReceipt(tenantId, paymentId) {
+  console.log('[Receipt][get] paymentId:', paymentId, 'tenantId:', tenantId);
+
+  try {
+    await getPoolAsync();
+
+    // Get payment with related data
+    const result = await query(
+      `SELECT
+         p.id,
+         p.amount_in_cents,
+         p.method,
+         p.status,
+         p.processed_at,
+         p.notes,
+         p.invoice_id,
+         p.booking_id,
+         b.check_in,
+         b.check_out,
+         b.service_name,
+         o.id as owner_id,
+         o.first_name as owner_first_name,
+         o.last_name as owner_last_name,
+         o.email as owner_email,
+         o.phone as owner_phone,
+         o.address_street,
+         o.address_city,
+         o.address_state,
+         o.address_zip,
+         pet.name as pet_name,
+         t.name as tenant_name,
+         t.business_address_street,
+         t.business_address_city,
+         t.business_address_state,
+         t.business_address_zip,
+         t.business_phone,
+         t.business_email
+       FROM "Payment" p
+       LEFT JOIN "Booking" b ON b.id = p.booking_id
+       LEFT JOIN "Owner" o ON o.id = p.owner_id OR o.id = b.owner_id
+       LEFT JOIN "Pet" pet ON pet.id = b.pet_id
+       LEFT JOIN "Tenant" t ON t.id = p.tenant_id
+       WHERE p.id = $1 AND p.tenant_id = $2`,
+      [paymentId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Payment not found',
+      });
+    }
+
+    const payment = result.rows[0];
+
+    // Generate receipt data
+    const receipt = {
+      receiptNumber: `RCP-${paymentId.split('-')[0].toUpperCase()}`,
+      paymentId: payment.id,
+      paymentDate: payment.processed_at || new Date().toISOString(),
+      amount: payment.amount_in_cents / 100,
+      amountFormatted: `$${(payment.amount_in_cents / 100).toFixed(2)}`,
+      paymentMethod: payment.method || 'Card',
+      status: payment.status,
+
+      // Business info
+      business: {
+        name: payment.tenant_name || 'BarkBase',
+        address: [
+          payment.business_address_street,
+          `${payment.business_address_city || ''}, ${payment.business_address_state || ''} ${payment.business_address_zip || ''}`.trim(),
+        ].filter(Boolean).join('\n'),
+        phone: payment.business_phone,
+        email: payment.business_email,
+      },
+
+      // Customer info
+      customer: {
+        id: payment.owner_id,
+        name: `${payment.owner_first_name || ''} ${payment.owner_last_name || ''}`.trim() || 'Customer',
+        email: payment.owner_email,
+        phone: payment.owner_phone,
+        address: [
+          payment.address_street,
+          `${payment.address_city || ''}, ${payment.address_state || ''} ${payment.address_zip || ''}`.trim(),
+        ].filter(Boolean).join('\n'),
+      },
+
+      // Service info
+      service: {
+        name: payment.service_name || 'Pet Boarding',
+        petName: payment.pet_name,
+        checkIn: payment.check_in,
+        checkOut: payment.check_out,
+      },
+
+      notes: payment.notes,
+      generatedAt: new Date().toISOString(),
+    };
+
+    return createResponse(200, {
+      success: true,
+      receipt: receipt,
+      message: 'Receipt generated successfully',
+    });
+
+  } catch (error) {
+    console.error('[Receipt][get] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to generate receipt',
+    });
+  }
+}
+
+/**
+ * Send receipt via email
+ * Body: { email?: string } - optional email override
+ */
+async function handleSendReceipt(tenantId, paymentId, body) {
+  const { email } = body;
+
+  console.log('[Receipt][send] paymentId:', paymentId, 'tenantId:', tenantId, 'email:', email);
+
+  try {
+    await getPoolAsync();
+
+    // Get payment and owner details
+    const result = await query(
+      `SELECT
+         p.id,
+         p.amount_in_cents,
+         p.method,
+         p.status,
+         p.processed_at,
+         o.email as owner_email,
+         o.first_name as owner_first_name,
+         o.last_name as owner_last_name,
+         t.name as tenant_name
+       FROM "Payment" p
+       LEFT JOIN "Owner" o ON o.id = p.owner_id
+       LEFT JOIN "Tenant" t ON t.id = p.tenant_id
+       WHERE p.id = $1 AND p.tenant_id = $2`,
+      [paymentId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Payment not found',
+      });
+    }
+
+    const payment = result.rows[0];
+    const recipientEmail = email || payment.owner_email;
+
+    if (!recipientEmail) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'No email address available. Please provide an email in the request.',
+      });
+    }
+
+    // For now, we'll just mark the receipt as "sent" and return success
+    // In production, this would integrate with an email service like SES, SendGrid, etc.
+
+    // Log the receipt send attempt
+    console.log('[Receipt][send] Would send receipt to:', recipientEmail, {
+      paymentId,
+      amount: payment.amount_in_cents / 100,
+      customerName: `${payment.owner_first_name || ''} ${payment.owner_last_name || ''}`.trim(),
+      business: payment.tenant_name,
+    });
+
+    // Generate receipt URL (in production, this would be a real URL)
+    const receiptUrl = `/api/v1/financial/payments/${paymentId}/receipt`;
+
+    return createResponse(200, {
+      success: true,
+      sentTo: recipientEmail,
+      receiptUrl: receiptUrl,
+      receiptNumber: `RCP-${paymentId.split('-')[0].toUpperCase()}`,
+      message: `Receipt sent successfully to ${recipientEmail}`,
+      // Note: In production, implement actual email sending
+      note: 'Email service integration pending. Receipt data is available at the receiptUrl.',
+    });
+
+  } catch (error) {
+    console.error('[Receipt][send] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to send receipt',
     });
   }
 }

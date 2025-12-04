@@ -22,6 +22,7 @@ import * as cdk from 'aws-cdk-lib';
 import * as apigatewayv2 from 'aws-cdk-lib/aws-apigatewayv2';
 import * as apigatewayv2Authorizers from 'aws-cdk-lib/aws-apigatewayv2-authorizers';
 import * as apigatewayv2Integrations from 'aws-cdk-lib/aws-apigatewayv2-integrations';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import { Construct } from 'constructs';
@@ -93,14 +94,22 @@ export class ApiCoreStack extends cdk.Stack {
     });
 
     // =========================================================================
-    // Cognito JWT Authorizer - DEFINED but NOT ATTACHED to routes
+    // INTENTIONALLY UNUSED: Cognito JWT Authorizer
     // =========================================================================
-    // NOTE: JWT authorizers block OPTIONS preflight requests (sent without
-    // credentials by browsers). Auth is handled by Lambda functions instead
-    // via authenticateRequest() which validates Cognito tokens.
-    // 
-    // Keeping the authorizer definition for CloudFormation state compatibility
-    // and potential future use with non-browser clients.
+    // This authorizer is INTENTIONALLY defined but NOT attached to any routes.
+    //
+    // WHY NOT USED:
+    // - JWT authorizers block OPTIONS preflight requests (browsers send these
+    //   without credentials, causing CORS failures)
+    // - All authentication is handled by Lambda functions instead via
+    //   authenticateRequest() which validates Cognito tokens in the request body
+    //
+    // WHY KEPT:
+    // - CloudFormation state compatibility (removing would cause stack drift)
+    // - Potential future use with non-browser API clients
+    // - Documents the architectural decision
+    //
+    // DO NOT REMOVE without coordinating CloudFormation state migration.
     // =========================================================================
 
     new apigatewayv2Authorizers.HttpUserPoolAuthorizer(
@@ -348,6 +357,65 @@ export class ApiCoreStack extends cdk.Stack {
     
     // Stripe webhook - PUBLIC (no authorizer, verified via Stripe signature)
     createRoute('StripeWebhookRoute', 'POST /api/v1/webhooks/stripe', financialIntegration.ref, false);
+
+    // =========================================================================
+    // ADMIN ROUTES - IAM Authorized (Ops Center service-to-service only)
+    // =========================================================================
+    // These routes mirror the regular /api/v1/* routes but under /admin/v1/*
+    // They require AWS IAM SigV4 authentication (no user tokens)
+    // Lambda handlers detect admin requests via X-Admin-User header and
+    // the path starting with /admin/v1/
+    // =========================================================================
+
+    // Helper function to create IAM-authorized admin routes
+    const createAdminRoute = (
+      id: string,
+      routeKey: string,
+      integrationRef: string
+    ): apigatewayv2.CfnRoute => {
+      return new apigatewayv2.CfnRoute(this, id, {
+        apiId: this.httpApi.apiId,
+        routeKey: routeKey,
+        target: `integrations/${integrationRef}`,
+        authorizationType: 'AWS_IAM',
+      });
+    };
+
+    // Admin Auth Routes
+    createAdminRoute('AdminAuthProxyRoute', 'ANY /admin/v1/auth/{proxy+}', authIntegration.ref);
+    createAdminRoute('AdminHealthRoute', 'GET /admin/v1/health', authIntegration.ref);
+
+    // Admin Profile Routes
+    createAdminRoute('AdminProfileProxyRoute', 'ANY /admin/v1/profile/{proxy+}', profileIntegration.ref);
+    createAdminRoute('AdminUsersProxyRoute', 'ANY /admin/v1/users/{proxy+}', profileIntegration.ref);
+
+    // Admin Entity Routes
+    createAdminRoute('AdminEntityProxyRoute', 'ANY /admin/v1/entity/{proxy+}', entityIntegration.ref);
+
+    // Admin Analytics Routes
+    createAdminRoute('AdminAnalyticsProxyRoute', 'ANY /admin/v1/analytics/{proxy+}', analyticsIntegration.ref);
+    createAdminRoute('AdminSegmentsProxyRoute', 'ANY /admin/v1/segments/{proxy+}', analyticsIntegration.ref);
+    createAdminRoute('AdminMessagesProxyRoute', 'ANY /admin/v1/messages/{proxy+}', analyticsIntegration.ref);
+    createAdminRoute('AdminReportsProxyRoute', 'ANY /admin/v1/reports/{proxy+}', analyticsIntegration.ref);
+    createAdminRoute('AdminComplianceProxyRoute', 'ANY /admin/v1/compliance/{proxy+}', analyticsIntegration.ref);
+
+    // Admin Operations Routes
+    createAdminRoute('AdminOperationsProxyRoute', 'ANY /admin/v1/operations/{proxy+}', operationsIntegration.ref);
+    createAdminRoute('AdminIncidentsBaseRoute', 'ANY /admin/v1/incidents', operationsIntegration.ref);
+    createAdminRoute('AdminIncidentsProxyRoute', 'ANY /admin/v1/incidents/{proxy+}', operationsIntegration.ref);
+    createAdminRoute('AdminCustomerProxyRoute', 'ANY /admin/v1/customer/{proxy+}', operationsIntegration.ref);
+    createAdminRoute('AdminRunTemplatesProxyRoute', 'ANY /admin/v1/run-templates/{proxy+}', operationsIntegration.ref);
+    createAdminRoute('AdminRunsProxyRoute', 'ANY /admin/v1/runs/{proxy+}', operationsIntegration.ref);
+    createAdminRoute('AdminCalendarProxyRoute', 'ANY /admin/v1/calendar/{proxy+}', operationsIntegration.ref);
+    createAdminRoute('AdminStaffBaseRoute', 'ANY /admin/v1/staff', operationsIntegration.ref);
+    createAdminRoute('AdminStaffProxyRoute', 'ANY /admin/v1/staff/{proxy+}', operationsIntegration.ref);
+
+    // Admin Config Routes
+    createAdminRoute('AdminConfigProxyRoute', 'ANY /admin/v1/config/{proxy+}', configIntegration.ref);
+    createAdminRoute('AdminSettingsProxyRoute', 'ANY /admin/v1/settings/{proxy+}', configIntegration.ref);
+
+    // Admin Financial Routes
+    createAdminRoute('AdminFinancialProxyRoute', 'ANY /admin/v1/financial/{proxy+}', financialIntegration.ref);
 
     // Store the API URL
     this.apiUrl = this.httpApi.apiEndpoint;

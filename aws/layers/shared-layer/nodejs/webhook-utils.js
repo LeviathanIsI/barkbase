@@ -276,19 +276,19 @@ async function processPendingDeliveries(db) {
       } else {
         // Calculate next retry time with exponential backoff
         const attemptCount = delivery.attempt_count + 1;
-        const backoffMinutes = Math.pow(2, attemptCount); // 2, 4, 8, 16...
-        
+        const backoffMinutes = Math.min(Math.pow(2, attemptCount), 1440); // 2, 4, 8, 16... max 1440 (24 hours)
+
         const status = attemptCount >= delivery.max_retries ? 'failed' : 'retrying';
-        
+
         await db.query(
           `UPDATE "WebhookDelivery"
            SET status = $2,
                attempt_count = $3,
                response_status = $4,
                error_message = $5,
-               next_retry_at = NOW() + INTERVAL '${backoffMinutes} minutes'
+               next_retry_at = NOW() + INTERVAL '1 minute' * $6
            WHERE id = $1`,
-          [delivery.id, status, attemptCount, result.status, result.error]
+          [delivery.id, status, attemptCount, result.status, result.error, backoffMinutes]
         );
         
         if (status === 'failed') {

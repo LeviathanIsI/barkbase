@@ -116,6 +116,10 @@ const handlers = {
   'POST /api/v1/entity/pets': createPet,
   'PUT /api/v1/entity/pets/{id}': updatePet,
   'DELETE /api/v1/entity/pets/{id}': deletePet,
+  // Pet Bulk Actions
+  'POST /api/v1/entity/pets/bulk/delete': bulkDeletePets,
+  'POST /api/v1/entity/pets/bulk/update': bulkUpdatePets,
+  'POST /api/v1/entity/pets/bulk/export': bulkExportPets,
 
   // Pet Vaccinations
   'GET /api/v1/entity/pets/vaccinations/expiring': getExpiringVaccinations,
@@ -130,6 +134,10 @@ const handlers = {
   'POST /api/v1/entity/owners': createOwner,
   'PUT /api/v1/entity/owners/{id}': updateOwner,
   'DELETE /api/v1/entity/owners/{id}': deleteOwner,
+  // Owner Bulk Actions
+  'POST /api/v1/entity/owners/bulk/delete': bulkDeleteOwners,
+  'POST /api/v1/entity/owners/bulk/update': bulkUpdateOwners,
+  'POST /api/v1/entity/owners/bulk/export': bulkExportOwners,
   // Privacy / Data Request endpoints
   'GET /api/v1/entity/owners/{id}/export': exportOwnerData,
   'DELETE /api/v1/entity/owners/{id}/data': deleteOwnerData,
@@ -140,9 +148,16 @@ const handlers = {
   'POST /api/v1/entity/staff': createStaffMember,
   'PUT /api/v1/entity/staff/{id}': updateStaffMember,
   'DELETE /api/v1/entity/staff/{id}': deleteStaffMember,
+  // Staff Bulk Actions
+  'POST /api/v1/entity/staff/bulk/delete': bulkDeleteStaff,
+  'POST /api/v1/entity/staff/bulk/update': bulkUpdateStaff,
 };
 
 exports.handler = async (event, context) => {
+  // Handle admin path rewriting (Ops Center requests)
+  const { handleAdminPathRewrite } = require('/opt/nodejs/index');
+  handleAdminPathRewrite(event);
+
   // Prevent Lambda from waiting for empty event loop
   context.callbackWaitsForEmptyEventLoop = false;
 
@@ -262,7 +277,16 @@ async function getTenants(event) {
 async function getTenant(event) {
   const pathParams = getPathParams(event);
   const id = pathParams.id || event.path?.split('/').pop();
-  console.log('[Tenants][get] id:', id);
+  const userTenantId = resolveTenantId(event);
+  const isAdmin = event.isAdminRequest === true;
+
+  console.log('[Tenants][get] id:', id, 'userTenantId:', userTenantId, 'isAdmin:', isAdmin);
+
+  // SECURITY: Non-admin users can only access their own tenant
+  if (!isAdmin && id !== userTenantId) {
+    console.warn('[ENTITY-SERVICE] Tenant access denied:', { requestedId: id, userTenantId });
+    return createResponse(403, { error: 'Forbidden', message: 'Access denied to this tenant' });
+  }
 
   try {
     await getPoolAsync();
@@ -284,9 +308,18 @@ async function getTenant(event) {
 }
 
 async function createTenant(event) {
+  const isAdmin = event.isAdminRequest === true;
+
+  // SECURITY: Only admin/ops users can create tenants
+  // Regular users get tenants created during signup flow
+  if (!isAdmin) {
+    console.warn('[ENTITY-SERVICE] Tenant creation denied - not an admin request');
+    return createResponse(403, { error: 'Forbidden', message: 'Only administrators can create tenants' });
+  }
+
   const body = parseBody(event);
 
-  console.log('[ENTITY-SERVICE] Creating tenant:', body);
+  console.log('[ENTITY-SERVICE] Creating tenant (admin):', body);
 
   if (!body.name || !body.slug) {
     return createResponse(400, { error: 'BadRequest', message: 'Name and slug are required' });
@@ -630,8 +663,12 @@ async function deleteFacility(event) {
 async function getPets(event) {
   const tenantId = resolveTenantId(event);
   const queryParams = getQueryParams(event);
+  const page = parseInt(queryParams.page, 10) || 1;
+  const limit = Math.min(parseInt(queryParams.limit, 10) || 50, 200);
+  const offset = (page - 1) * limit;
+  const search = queryParams.search || queryParams.q || '';
 
-  console.log('[Pets][list] tenantId:', tenantId);
+  console.log('[Pets][list] tenantId:', tenantId, 'page:', page, 'limit:', limit);
 
   if (!tenantId) {
     return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
@@ -639,6 +676,26 @@ async function getPets(event) {
 
   try {
     await getPoolAsync();
+
+    // Build WHERE clause with optional search
+    let whereClause = 'p.tenant_id = $1 AND p.deleted_at IS NULL';
+    const params = [tenantId];
+    let paramIndex = 2;
+
+    if (search) {
+      whereClause += ` AND (p.name ILIKE $${paramIndex} OR p.breed ILIKE $${paramIndex} OR p.species ILIKE $${paramIndex})`;
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    // Get total count for pagination
+    const countResult = await query(
+      `SELECT COUNT(*) as total FROM "Pet" p WHERE ${whereClause}`,
+      params
+    );
+    const total = parseInt(countResult.rows[0]?.total || 0, 10);
+    const totalPages = Math.ceil(total / limit);
+
     // Schema: id, tenant_id, name, species, breed, gender, color, weight, date_of_birth,
     //         microchip_number, last_vet_visit, medical_notes, behavior_notes, dietary_notes,
     //         notes, description, documents, behavior_flags, status, photo_url, is_active,
@@ -651,15 +708,19 @@ async function getPets(event) {
               p.vet_name, p.vet_phone, p.vet_clinic, p.vet_address, p.vet_email, p.vet_notes,
               p.created_at, p.updated_at
        FROM "Pet" p
-       WHERE p.tenant_id = $1 AND p.deleted_at IS NULL
-       ORDER BY p.name`,
-      [tenantId]
+       WHERE ${whereClause}
+       ORDER BY p.name
+       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      [...params, limit, offset]
     );
-    console.log('[Pets][diag] count:', result.rows.length);
-    return createResponse(200, { data: result.rows });
+    console.log('[Pets][diag] count:', result.rows.length, 'total:', total);
+    return createResponse(200, {
+      data: result.rows,
+      pagination: { page, limit, total, totalPages }
+    });
   } catch (error) {
     console.error('[ENTITY-SERVICE] getPets error:', error);
-    return createResponse(200, { data: [] });
+    return createResponse(200, { data: [], pagination: { page: 1, limit, total: 0, totalPages: 0 } });
   }
 }
 
@@ -917,9 +978,13 @@ async function getOwners(event) {
   // Use resolveTenantId helper with header fallback
   const tenantId = resolveTenantId(event);
   const queryParams = getQueryParams(event);
+  const page = parseInt(queryParams.page, 10) || 1;
+  const limit = Math.min(parseInt(queryParams.limit, 10) || 50, 200);
+  const offset = (page - 1) * limit;
+  const search = queryParams.search || queryParams.q || '';
 
   // Diagnostic logging
-  console.log('[Owners][list] tenantId:', tenantId);
+  console.log('[Owners][list] tenantId:', tenantId, 'page:', page, 'limit:', limit);
   console.log('[Owners][list] env DB_HOST:', process.env.DB_HOST);
   console.log('[Owners][list] env DB_NAME:', process.env.DB_NAME || process.env.DB_DATABASE);
   console.log('[ENTITY-SERVICE] Getting owners for tenant:', tenantId);
@@ -932,18 +997,26 @@ async function getOwners(event) {
   try {
     await getPoolAsync();
 
-    // Diagnostic queries (exclude soft-deleted)
-    try {
-      const diagAll = await query('SELECT tenant_id, COUNT(*) AS count FROM "Owner" WHERE deleted_at IS NULL GROUP BY tenant_id;');
-      console.log('[Owners][diag] counts per tenant:', JSON.stringify(diagAll.rows));
-      const diagForTenant = await query(
-        'SELECT id, email FROM "Owner" WHERE tenant_id = $1 AND deleted_at IS NULL ORDER BY created_at ASC LIMIT 5;',
-        [tenantId]
-      );
-      console.log('[Owners][diag] sample for tenant', tenantId, ':', JSON.stringify(diagForTenant.rows));
-    } catch (err) {
-      console.error('[Owners][diag] diagnostic queries failed:', err);
+    // Build WHERE clause with optional search
+    let whereClause = 'o.tenant_id = $1 AND o.deleted_at IS NULL';
+    const params = [tenantId];
+    let paramIndex = 2;
+
+    if (search) {
+      whereClause += ` AND (o.first_name ILIKE $${paramIndex} OR o.last_name ILIKE $${paramIndex} OR o.email ILIKE $${paramIndex} OR o.phone ILIKE $${paramIndex})`;
+      params.push(`%${search}%`);
+      paramIndex++;
     }
+
+    // Get total count for pagination
+    const countResult = await query(
+      `SELECT COUNT(*) as total FROM "Owner" o WHERE ${whereClause}`,
+      params
+    );
+    const total = parseInt(countResult.rows[0]?.total || 0, 10);
+    const totalPages = Math.ceil(total / limit);
+
+    console.log('[Owners][diag] total for tenant', tenantId, ':', total);
 
     const result = await query(
       `SELECT o.id, o.tenant_id, o.first_name, o.last_name, o.email, o.phone,
@@ -952,14 +1025,18 @@ async function getOwners(event) {
               o.emergency_contact_name, o.emergency_contact_phone, o.notes,
               o.is_active, o.created_at, o.updated_at
        FROM "Owner" o
-       WHERE o.tenant_id = $1 AND o.deleted_at IS NULL
-       ORDER BY o.last_name, o.first_name`,
-      [tenantId]
+       WHERE ${whereClause}
+       ORDER BY o.last_name, o.first_name
+       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      [...params, limit, offset]
     );
-    return createResponse(200, { data: result.rows });
+    return createResponse(200, {
+      data: result.rows,
+      pagination: { page, limit, total, totalPages }
+    });
   } catch (error) {
     console.error('[ENTITY-SERVICE] getOwners error:', error);
-    return createResponse(200, { data: [] });
+    return createResponse(200, { data: [], pagination: { page: 1, limit, total: 0, totalPages: 0 } });
   }
 }
 
@@ -1341,15 +1418,22 @@ async function exportOwnerData(event) {
 }
 
 /**
- * Delete all data for a customer (GDPR/privacy right to be forgotten)
- * This is a hard delete of all related records
+ * Soft-delete all data for a customer (GDPR/privacy right to erasure)
+ *
+ * GDPR COMPLIANCE NOTE:
+ * This uses SOFT DELETES (setting deleted_at timestamp) rather than hard deletes.
+ * This preserves audit trail and allows for data recovery if needed, while
+ * effectively removing the data from all user-facing queries.
+ *
+ * For complete data erasure (hard delete), a separate admin process should be
+ * used after the legally required retention period has passed.
  */
 async function deleteOwnerData(event) {
   const tenantId = resolveTenantId(event);
   const pathParams = getPathParams(event);
   const ownerId = pathParams.id || event.path?.split('/')[5]; // /api/v1/entity/owners/{id}/data
 
-  console.log('[ENTITY-SERVICE] Deleting all owner data:', ownerId, 'for tenant:', tenantId);
+  console.log('[ENTITY-SERVICE] Soft-deleting all owner data:', ownerId, 'for tenant:', tenantId);
 
   if (!tenantId) {
     return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
@@ -1378,12 +1462,12 @@ async function deleteOwnerData(event) {
     const petsResult = await query(
       `SELECT p.id FROM "Pet" p
        JOIN "PetOwner" po ON p.id = po.pet_id
-       WHERE po.owner_id = $1 AND p.tenant_id = $2`,
+       WHERE po.owner_id = $1 AND p.tenant_id = $2 AND p.deleted_at IS NULL`,
       [ownerId, tenantId]
     );
     const petIds = petsResult.rows.map(p => p.id);
 
-    // Begin transaction-like deletion (in order of dependencies)
+    // Begin soft-deletion (set deleted_at timestamp)
     const deletionSummary = {
       vaccinations: 0,
       communications: 0,
@@ -1395,106 +1479,116 @@ async function deleteOwnerData(event) {
       owner: 0,
     };
 
-    // Delete vaccinations for all pets
+    // Soft-delete vaccinations for all pets
     if (petIds.length > 0) {
       try {
         const result = await query(
-          `DELETE FROM "Vaccination" WHERE pet_id = ANY($1) AND tenant_id = $2`,
+          `UPDATE "Vaccination" SET deleted_at = NOW(), updated_at = NOW()
+           WHERE pet_id = ANY($1) AND tenant_id = $2 AND deleted_at IS NULL`,
           [petIds, tenantId]
         );
         deletionSummary.vaccinations = result.rowCount || 0;
       } catch (e) {
-        console.log('[ENTITY-SERVICE] Vaccination delete skipped:', e.message);
+        console.log('[ENTITY-SERVICE] Vaccination soft-delete skipped:', e.message);
       }
     }
 
-    // Delete communications
+    // Soft-delete communications
     try {
       const result = await query(
-        `DELETE FROM "Communication" WHERE owner_id = $1 AND tenant_id = $2`,
+        `UPDATE "Communication" SET deleted_at = NOW(), updated_at = NOW()
+         WHERE owner_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
         [ownerId, tenantId]
       );
       deletionSummary.communications = result.rowCount || 0;
     } catch (e) {
-      console.log('[ENTITY-SERVICE] Communication delete skipped:', e.message);
+      console.log('[ENTITY-SERVICE] Communication soft-delete skipped:', e.message);
     }
 
-    // Delete policy agreements
+    // Soft-delete policy agreements
     try {
       const result = await query(
-        `DELETE FROM "PolicyAgreement" WHERE owner_id = $1 AND tenant_id = $2`,
+        `UPDATE "PolicyAgreement" SET deleted_at = NOW(), updated_at = NOW()
+         WHERE owner_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
         [ownerId, tenantId]
       );
       deletionSummary.policyAgreements = result.rowCount || 0;
     } catch (e) {
-      console.log('[ENTITY-SERVICE] PolicyAgreement delete skipped:', e.message);
+      console.log('[ENTITY-SERVICE] PolicyAgreement soft-delete skipped:', e.message);
     }
 
-    // Delete payments
+    // Soft-delete payments
     try {
       const result = await query(
-        `DELETE FROM "Payment" WHERE owner_id = $1 AND tenant_id = $2`,
+        `UPDATE "Payment" SET deleted_at = NOW(), updated_at = NOW()
+         WHERE owner_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
         [ownerId, tenantId]
       );
       deletionSummary.payments = result.rowCount || 0;
     } catch (e) {
-      console.log('[ENTITY-SERVICE] Payment delete skipped:', e.message);
+      console.log('[ENTITY-SERVICE] Payment soft-delete skipped:', e.message);
     }
 
-    // Delete invoices
+    // Soft-delete invoices
     try {
       const result = await query(
-        `DELETE FROM "Invoice" WHERE owner_id = $1 AND tenant_id = $2`,
+        `UPDATE "Invoice" SET deleted_at = NOW(), updated_at = NOW()
+         WHERE owner_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
         [ownerId, tenantId]
       );
       deletionSummary.invoices = result.rowCount || 0;
     } catch (e) {
-      console.log('[ENTITY-SERVICE] Invoice delete skipped:', e.message);
+      console.log('[ENTITY-SERVICE] Invoice soft-delete skipped:', e.message);
     }
 
-    // Delete bookings
+    // Soft-delete bookings
     try {
       const result = await query(
-        `DELETE FROM "Booking" WHERE owner_id = $1 AND tenant_id = $2`,
+        `UPDATE "Booking" SET deleted_at = NOW(), status = 'CANCELLED', updated_at = NOW()
+         WHERE owner_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
         [ownerId, tenantId]
       );
       deletionSummary.bookings = result.rowCount || 0;
     } catch (e) {
-      console.log('[ENTITY-SERVICE] Booking delete skipped:', e.message);
+      console.log('[ENTITY-SERVICE] Booking soft-delete skipped:', e.message);
     }
 
-    // Delete PetOwner relationships first
+    // Soft-delete PetOwner relationships (mark as inactive)
     try {
       await query(
-        `DELETE FROM "PetOwner" WHERE owner_id = $1`,
+        `UPDATE "PetOwner" SET is_primary = false, updated_at = NOW()
+         WHERE owner_id = $1`,
         [ownerId]
       );
     } catch (e) {
-      console.log('[ENTITY-SERVICE] PetOwner delete skipped:', e.message);
+      console.log('[ENTITY-SERVICE] PetOwner update skipped:', e.message);
     }
 
-    // Delete pets using the petIds we already collected
+    // Soft-delete pets using the petIds we already collected
     if (petIds.length > 0) {
       const petsDeleteResult = await query(
-        `DELETE FROM "Pet" WHERE id = ANY($1) AND tenant_id = $2`,
+        `UPDATE "Pet" SET deleted_at = NOW(), is_active = false, updated_at = NOW()
+         WHERE id = ANY($1) AND tenant_id = $2 AND deleted_at IS NULL`,
         [petIds, tenantId]
       );
       deletionSummary.pets = petsDeleteResult.rowCount || 0;
     }
 
-    // Finally, delete the owner
+    // Finally, soft-delete the owner
     const ownerDeleteResult = await query(
-      `DELETE FROM "Owner" WHERE id = $1 AND tenant_id = $2`,
+      `UPDATE "Owner" SET deleted_at = NOW(), is_active = false, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
       [ownerId, tenantId]
     );
     deletionSummary.owner = ownerDeleteResult.rowCount || 0;
 
-    console.log('[ENTITY-SERVICE] Deleted all data for owner:', ownerId, deletionSummary);
+    console.log('[ENTITY-SERVICE] Soft-deleted all data for owner:', ownerId, deletionSummary);
 
     return createResponse(200, {
       success: true,
-      message: `All data for ${owner.first_name} ${owner.last_name} has been permanently deleted`,
+      message: `All data for ${owner.first_name} ${owner.last_name} has been marked for deletion (GDPR soft-delete)`,
       summary: deletionSummary,
+      note: 'Data has been soft-deleted and will no longer appear in queries. Hard deletion occurs after retention period.',
     });
   } catch (error) {
     console.error('[ENTITY-SERVICE] deleteOwnerData error:', error);
@@ -1764,7 +1858,15 @@ async function getExpiringVaccinations(event) {
   }
 
   const queryParams = getQueryParams(event);
-  const daysAhead = parseInt(queryParams.daysAhead) || 30;
+  const daysAhead = parseInt(queryParams.daysAhead, 10) || 30;
+
+  // Validate daysAhead to prevent abuse
+  if (daysAhead < 1 || daysAhead > 365) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'daysAhead must be between 1 and 365',
+    });
+  }
 
   console.log('[ENTITY-SERVICE] Getting expiring vaccinations:', { tenantId, daysAhead });
 
@@ -1799,9 +1901,9 @@ async function getExpiringVaccinations(event) {
          AND v.deleted_at IS NULL
          AND v.expires_at IS NOT NULL
          AND v.expires_at >= CURRENT_DATE - INTERVAL '7 days'
-         AND v.expires_at <= CURRENT_DATE + INTERVAL '${daysAhead} days'
+         AND v.expires_at <= CURRENT_DATE + INTERVAL '1 day' * $2
        ORDER BY v.expires_at ASC`,
-      [tenantId]
+      [tenantId, daysAhead]
     );
 
     const vaccinations = result.rows.map(row => {
@@ -2229,5 +2331,466 @@ async function deletePetVaccination(event) {
       error: 'Internal Server Error',
       message: 'Failed to delete vaccination record',
     });
+  }
+}
+
+// =============================================================================
+// BULK ACTION HANDLERS
+// =============================================================================
+
+/**
+ * Bulk delete pets (soft delete)
+ * Body: { ids: string[] }
+ */
+async function bulkDeletePets(event) {
+  const tenantId = resolveTenantId(event);
+  const body = parseBody(event);
+  const { ids } = body;
+
+  console.log('[Pets][bulkDelete] tenantId:', tenantId, 'count:', ids?.length);
+
+  if (!tenantId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return createResponse(400, { error: 'BadRequest', message: 'ids array is required' });
+  }
+
+  if (ids.length > 100) {
+    return createResponse(400, { error: 'BadRequest', message: 'Maximum 100 items per bulk operation' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "Pet"
+       SET deleted_at = NOW(), is_active = false, updated_at = NOW()
+       WHERE id = ANY($1) AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING id`,
+      [ids, tenantId]
+    );
+
+    console.log('[Pets][bulkDelete] deleted:', result.rowCount);
+
+    return createResponse(200, {
+      success: true,
+      deletedCount: result.rowCount,
+      deletedIds: result.rows.map(r => r.id),
+      message: `${result.rowCount} pet(s) deleted successfully`,
+    });
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] bulkDeletePets error:', error);
+    return createResponse(500, { error: 'InternalServerError', message: 'Failed to delete pets' });
+  }
+}
+
+/**
+ * Bulk update pets
+ * Body: { ids: string[], updates: { status?: string, isActive?: boolean } }
+ */
+async function bulkUpdatePets(event) {
+  const tenantId = resolveTenantId(event);
+  const body = parseBody(event);
+  const { ids, updates } = body;
+
+  console.log('[Pets][bulkUpdate] tenantId:', tenantId, 'count:', ids?.length);
+
+  if (!tenantId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return createResponse(400, { error: 'BadRequest', message: 'ids array is required' });
+  }
+
+  if (!updates || typeof updates !== 'object') {
+    return createResponse(400, { error: 'BadRequest', message: 'updates object is required' });
+  }
+
+  if (ids.length > 100) {
+    return createResponse(400, { error: 'BadRequest', message: 'Maximum 100 items per bulk operation' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const setClauses = [];
+    const values = [ids, tenantId];
+    let paramIndex = 3;
+
+    if (updates.status !== undefined) {
+      setClauses.push(`status = $${paramIndex++}`);
+      values.push(updates.status);
+    }
+    if (updates.isActive !== undefined || updates.is_active !== undefined) {
+      setClauses.push(`is_active = $${paramIndex++}`);
+      values.push(updates.isActive ?? updates.is_active);
+    }
+
+    if (setClauses.length === 0) {
+      return createResponse(400, { error: 'BadRequest', message: 'No valid updates provided' });
+    }
+
+    setClauses.push('updated_at = NOW()');
+
+    const result = await query(
+      `UPDATE "Pet"
+       SET ${setClauses.join(', ')}
+       WHERE id = ANY($1) AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING id`,
+      values
+    );
+
+    console.log('[Pets][bulkUpdate] updated:', result.rowCount);
+
+    return createResponse(200, {
+      success: true,
+      updatedCount: result.rowCount,
+      updatedIds: result.rows.map(r => r.id),
+      message: `${result.rowCount} pet(s) updated successfully`,
+    });
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] bulkUpdatePets error:', error);
+    return createResponse(500, { error: 'InternalServerError', message: 'Failed to update pets' });
+  }
+}
+
+/**
+ * Bulk export pets
+ * Body: { ids: string[] } - if empty/missing, exports all
+ */
+async function bulkExportPets(event) {
+  const tenantId = resolveTenantId(event);
+  const body = parseBody(event);
+  const { ids } = body;
+
+  console.log('[Pets][bulkExport] tenantId:', tenantId, 'count:', ids?.length || 'all');
+
+  if (!tenantId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    let queryText = `
+      SELECT p.id, p.name, p.species, p.breed, p.gender, p.color,
+             p.weight, p.date_of_birth, p.microchip_number,
+             p.medical_notes, p.behavior_notes, p.dietary_notes, p.notes,
+             p.status, p.is_active, p.vet_name, p.vet_phone, p.vet_clinic,
+             p.created_at, p.updated_at
+      FROM "Pet" p
+      WHERE p.tenant_id = $1 AND p.deleted_at IS NULL
+    `;
+    const params = [tenantId];
+
+    if (Array.isArray(ids) && ids.length > 0) {
+      queryText += ` AND p.id = ANY($2)`;
+      params.push(ids);
+    }
+
+    queryText += ` ORDER BY p.name`;
+
+    const result = await query(queryText, params);
+
+    console.log('[Pets][bulkExport] exported:', result.rows.length);
+
+    return createResponse(200, {
+      success: true,
+      exportedCount: result.rows.length,
+      data: result.rows,
+      exportDate: new Date().toISOString(),
+      message: `${result.rows.length} pet(s) exported successfully`,
+    });
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] bulkExportPets error:', error);
+    return createResponse(500, { error: 'InternalServerError', message: 'Failed to export pets' });
+  }
+}
+
+/**
+ * Bulk delete owners (soft delete)
+ * Body: { ids: string[] }
+ */
+async function bulkDeleteOwners(event) {
+  const tenantId = resolveTenantId(event);
+  const body = parseBody(event);
+  const { ids } = body;
+
+  console.log('[Owners][bulkDelete] tenantId:', tenantId, 'count:', ids?.length);
+
+  if (!tenantId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return createResponse(400, { error: 'BadRequest', message: 'ids array is required' });
+  }
+
+  if (ids.length > 100) {
+    return createResponse(400, { error: 'BadRequest', message: 'Maximum 100 items per bulk operation' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "Owner"
+       SET deleted_at = NOW(), is_active = false, updated_at = NOW()
+       WHERE id = ANY($1) AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING id`,
+      [ids, tenantId]
+    );
+
+    console.log('[Owners][bulkDelete] deleted:', result.rowCount);
+
+    return createResponse(200, {
+      success: true,
+      deletedCount: result.rowCount,
+      deletedIds: result.rows.map(r => r.id),
+      message: `${result.rowCount} owner(s) deleted successfully`,
+    });
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] bulkDeleteOwners error:', error);
+    return createResponse(500, { error: 'InternalServerError', message: 'Failed to delete owners' });
+  }
+}
+
+/**
+ * Bulk update owners
+ * Body: { ids: string[], updates: { isActive?: boolean } }
+ */
+async function bulkUpdateOwners(event) {
+  const tenantId = resolveTenantId(event);
+  const body = parseBody(event);
+  const { ids, updates } = body;
+
+  console.log('[Owners][bulkUpdate] tenantId:', tenantId, 'count:', ids?.length);
+
+  if (!tenantId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return createResponse(400, { error: 'BadRequest', message: 'ids array is required' });
+  }
+
+  if (!updates || typeof updates !== 'object') {
+    return createResponse(400, { error: 'BadRequest', message: 'updates object is required' });
+  }
+
+  if (ids.length > 100) {
+    return createResponse(400, { error: 'BadRequest', message: 'Maximum 100 items per bulk operation' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const setClauses = [];
+    const values = [ids, tenantId];
+    let paramIndex = 3;
+
+    if (updates.isActive !== undefined || updates.is_active !== undefined) {
+      setClauses.push(`is_active = $${paramIndex++}`);
+      values.push(updates.isActive ?? updates.is_active);
+    }
+
+    if (setClauses.length === 0) {
+      return createResponse(400, { error: 'BadRequest', message: 'No valid updates provided' });
+    }
+
+    setClauses.push('updated_at = NOW()');
+
+    const result = await query(
+      `UPDATE "Owner"
+       SET ${setClauses.join(', ')}
+       WHERE id = ANY($1) AND tenant_id = $2 AND deleted_at IS NULL
+       RETURNING id`,
+      values
+    );
+
+    console.log('[Owners][bulkUpdate] updated:', result.rowCount);
+
+    return createResponse(200, {
+      success: true,
+      updatedCount: result.rowCount,
+      updatedIds: result.rows.map(r => r.id),
+      message: `${result.rowCount} owner(s) updated successfully`,
+    });
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] bulkUpdateOwners error:', error);
+    return createResponse(500, { error: 'InternalServerError', message: 'Failed to update owners' });
+  }
+}
+
+/**
+ * Bulk export owners
+ * Body: { ids: string[] } - if empty/missing, exports all
+ */
+async function bulkExportOwners(event) {
+  const tenantId = resolveTenantId(event);
+  const body = parseBody(event);
+  const { ids } = body;
+
+  console.log('[Owners][bulkExport] tenantId:', tenantId, 'count:', ids?.length || 'all');
+
+  if (!tenantId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    let queryText = `
+      SELECT o.id, o.first_name, o.last_name, o.email, o.phone,
+             o.address_street, o.address_city, o.address_state, o.address_zip, o.address_country,
+             o.emergency_contact_name, o.emergency_contact_phone, o.notes,
+             o.is_active, o.created_at, o.updated_at
+      FROM "Owner" o
+      WHERE o.tenant_id = $1 AND o.deleted_at IS NULL
+    `;
+    const params = [tenantId];
+
+    if (Array.isArray(ids) && ids.length > 0) {
+      queryText += ` AND o.id = ANY($2)`;
+      params.push(ids);
+    }
+
+    queryText += ` ORDER BY o.last_name, o.first_name`;
+
+    const result = await query(queryText, params);
+
+    console.log('[Owners][bulkExport] exported:', result.rows.length);
+
+    return createResponse(200, {
+      success: true,
+      exportedCount: result.rows.length,
+      data: result.rows,
+      exportDate: new Date().toISOString(),
+      message: `${result.rows.length} owner(s) exported successfully`,
+    });
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] bulkExportOwners error:', error);
+    return createResponse(500, { error: 'InternalServerError', message: 'Failed to export owners' });
+  }
+}
+
+/**
+ * Bulk delete staff (hard delete since staff can be re-created)
+ * Body: { ids: string[] }
+ */
+async function bulkDeleteStaff(event) {
+  const tenantId = resolveTenantId(event);
+  const body = parseBody(event);
+  const { ids } = body;
+
+  console.log('[Staff][bulkDelete] tenantId:', tenantId, 'count:', ids?.length);
+
+  if (!tenantId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return createResponse(400, { error: 'BadRequest', message: 'ids array is required' });
+  }
+
+  if (ids.length > 100) {
+    return createResponse(400, { error: 'BadRequest', message: 'Maximum 100 items per bulk operation' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `DELETE FROM "Staff"
+       WHERE id = ANY($1) AND tenant_id = $2
+       RETURNING id`,
+      [ids, tenantId]
+    );
+
+    console.log('[Staff][bulkDelete] deleted:', result.rowCount);
+
+    return createResponse(200, {
+      success: true,
+      deletedCount: result.rowCount,
+      deletedIds: result.rows.map(r => r.id),
+      message: `${result.rowCount} staff member(s) deleted successfully`,
+    });
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] bulkDeleteStaff error:', error);
+    return createResponse(500, { error: 'InternalServerError', message: 'Failed to delete staff' });
+  }
+}
+
+/**
+ * Bulk update staff
+ * Body: { ids: string[], updates: { isActive?: boolean, department?: string } }
+ */
+async function bulkUpdateStaff(event) {
+  const tenantId = resolveTenantId(event);
+  const body = parseBody(event);
+  const { ids, updates } = body;
+
+  console.log('[Staff][bulkUpdate] tenantId:', tenantId, 'count:', ids?.length);
+
+  if (!tenantId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return createResponse(400, { error: 'BadRequest', message: 'ids array is required' });
+  }
+
+  if (!updates || typeof updates !== 'object') {
+    return createResponse(400, { error: 'BadRequest', message: 'updates object is required' });
+  }
+
+  if (ids.length > 100) {
+    return createResponse(400, { error: 'BadRequest', message: 'Maximum 100 items per bulk operation' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const setClauses = [];
+    const values = [ids, tenantId];
+    let paramIndex = 3;
+
+    if (updates.isActive !== undefined || updates.is_active !== undefined) {
+      setClauses.push(`is_active = $${paramIndex++}`);
+      values.push(updates.isActive ?? updates.is_active);
+    }
+    if (updates.department !== undefined) {
+      setClauses.push(`department = $${paramIndex++}`);
+      values.push(updates.department);
+    }
+
+    if (setClauses.length === 0) {
+      return createResponse(400, { error: 'BadRequest', message: 'No valid updates provided' });
+    }
+
+    setClauses.push('updated_at = NOW()');
+
+    const result = await query(
+      `UPDATE "Staff"
+       SET ${setClauses.join(', ')}
+       WHERE id = ANY($1) AND tenant_id = $2
+       RETURNING id`,
+      values
+    );
+
+    console.log('[Staff][bulkUpdate] updated:', result.rowCount);
+
+    return createResponse(200, {
+      success: true,
+      updatedCount: result.rowCount,
+      updatedIds: result.rows.map(r => r.id),
+      message: `${result.rowCount} staff member(s) updated successfully`,
+    });
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] bulkUpdateStaff error:', error);
+    return createResponse(500, { error: 'InternalServerError', message: 'Failed to update staff' });
   }
 }

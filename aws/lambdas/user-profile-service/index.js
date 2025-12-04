@@ -38,6 +38,10 @@ const {
  * Route requests to appropriate handlers
  */
 exports.handler = async (event, context) => {
+  // Handle admin path rewriting (Ops Center requests)
+  const { handleAdminPathRewrite } = require('/opt/nodejs/index');
+  handleAdminPathRewrite(event);
+
   // Prevent Lambda from waiting for empty event loop
   context.callbackWaitsForEmptyEventLoop = false;
 

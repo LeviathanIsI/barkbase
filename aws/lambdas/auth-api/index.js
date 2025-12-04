@@ -42,6 +42,10 @@ exports.handler = async (event, context) => {
   // Prevent Lambda from waiting for empty event loop
   context.callbackWaitsForEmptyEventLoop = false;
 
+  // Handle admin path rewriting (Ops Center requests)
+  const { handleAdminPathRewrite } = require('/opt/nodejs/index');
+  handleAdminPathRewrite(event);
+
   const method = event.requestContext?.http?.method || event.httpMethod || 'GET';
   const path = event.requestContext?.http?.path || event.path || '/';
 
@@ -326,6 +330,9 @@ async function handleLogin(event) {
       });
     }
 
+    // SECURITY: Use DATABASE values for authorization (tenantId, role)
+    // Token claims (custom:tenantId, custom:role) are NOT trusted
+    // See: auth-handler.js getUserAuthorizationFromDB() for the pattern
     return createResponse(200, {
       success: true,
       session: session ? {
@@ -339,8 +346,9 @@ async function handleLogin(event) {
         firstName: dbUser?.first_name,
         lastName: dbUser?.last_name,
         name: payload.name || payload['cognito:username'],
-        tenantId: payload['custom:tenantId'] || dbUser?.tenant_id,
-        role: payload['custom:role'] || dbUser?.role,
+        // AUTHORIZATION from DATABASE only (defense-in-depth)
+        tenantId: dbUser?.tenant_id || null,
+        role: dbUser?.role || null,
       },
     });
 

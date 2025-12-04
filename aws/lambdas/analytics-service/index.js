@@ -57,6 +57,10 @@ function getTenantIdFromHeader(event) {
  * Route requests to appropriate handlers
  */
 exports.handler = async (event, context) => {
+  // Handle admin path rewriting (Ops Center requests)
+  const { handleAdminPathRewrite } = require('/opt/nodejs/index');
+  handleAdminPathRewrite(event);
+
   // Prevent Lambda from waiting for empty event loop
   context.callbackWaitsForEmptyEventLoop = false;
 
@@ -994,7 +998,15 @@ async function handleGetCurrentOccupancy(tenantId) {
 }
 
 async function handleGetOccupancyForecast(tenantId, queryParams) {
-  const days = parseInt(queryParams.days) || 7;
+  const days = parseInt(queryParams.days, 10) || 7;
+
+  // Validate days to prevent abuse
+  if (days < 1 || days > 365) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'days must be between 1 and 365',
+    });
+  }
 
   try {
     await getPoolAsync();
@@ -1005,11 +1017,11 @@ async function handleGetOccupancyForecast(tenantId, queryParams) {
        FROM "Booking"
        WHERE tenant_id = $1
        AND start_date >= CURRENT_DATE
-       AND start_date <= CURRENT_DATE + INTERVAL '${days} days'
+       AND start_date <= CURRENT_DATE + INTERVAL '1 day' * $2
        AND status = 'PENDING'
        GROUP BY DATE(start_date)
        ORDER BY date`,
-      [tenantId]
+      [tenantId, days]
     );
 
     return createResponse(200, {
@@ -1846,25 +1858,15 @@ async function handleGetSegments(tenantId) {
   try {
     await getPoolAsync();
 
-    // Diagnostic: counts per tenant
+    // Diagnostic: count for THIS tenant only (tenant-scoped for security)
     try {
-      const diagCounts = await query(
-        `SELECT tenant_id, COUNT(*) as cnt FROM "Segment" GROUP BY tenant_id`
-      );
-      console.log('[Segments][diag] counts per tenant:', JSON.stringify(diagCounts.rows));
-    } catch (diagErr) {
-      console.warn('[Segments][diag] count query failed:', diagErr.message);
-    }
-
-    // Diagnostic: sample rows for this tenant
-    try {
-      const diagSample = await query(
-        `SELECT id, name, is_dynamic, member_count FROM "Segment" WHERE tenant_id = $1 ORDER BY created_at ASC LIMIT 5`,
+      const diagCount = await query(
+        `SELECT COUNT(*) as cnt FROM "Segment" WHERE tenant_id = $1 AND deleted_at IS NULL`,
         [tenantId]
       );
-      console.log('[Segments][diag] sample for tenant', tenantId, ':', JSON.stringify(diagSample.rows));
+      console.log('[Segments][diag] count for tenant', tenantId, ':', diagCount.rows[0]?.cnt || 0);
     } catch (diagErr) {
-      console.warn('[Segments][diag] sample query failed:', diagErr.message);
+      console.warn('[Segments][diag] count query failed:', diagErr.message);
     }
 
     // Main query - use actual schema columns (no is_active, no SegmentCampaign)
