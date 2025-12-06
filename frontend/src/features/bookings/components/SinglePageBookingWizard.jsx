@@ -127,17 +127,17 @@ const SinglePageBookingWizard = ({ onComplete, initialData = {} }) => {
                     onClick={() => index <= currentStep && setCurrentStep(index)}
                     className={cn(
                       "flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-sm font-medium transition-all",
-                      isActive && "border-primary-500 bg-primary-600 text-white shadow-sm",
-                      isCompleted && "border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100",
-                      !isActive && !isCompleted && "border-border bg-surface-secondary text-text-tertiary dark:bg-dark-bg-tertiary"
+                      isActive && "border-accent-500 bg-accent-600 text-white shadow-sm",
+                      isCompleted && "border-accent-500/50 bg-surface-primary text-accent-400 hover:bg-surface-hover",
+                      !isActive && !isCompleted && "border-surface-border bg-surface-secondary text-text-tertiary"
                     )}
                     disabled={index > currentStep}
                   >
                     <div className={cn(
                       "flex h-6 w-6 items-center justify-center rounded-full border shrink-0",
                       isActive && "border-white/40 bg-white/10 text-white",
-                      isCompleted && "border-primary-600 bg-primary-600 text-white",
-                      !isActive && !isCompleted && "border-border bg-surface text-text-tertiary"
+                      isCompleted && "border-accent-500 bg-accent-600 text-white",
+                      !isActive && !isCompleted && "border-surface-border bg-surface-secondary text-text-tertiary"
                     )}>
                       {isCompleted ? (
                         <CheckCircle className="h-4 w-4" />
@@ -366,28 +366,28 @@ const PetStep = ({ bookingData, updateBookingData }) => {
               key={pet.id}
               onClick={() => togglePet(pet)}
               className={cn(
-                "p-4 rounded-lg border-2 transition-all text-left",
-                isSelected 
-                  ? "border-primary-600 bg-primary-50" 
-                  : "border-gray-200 dark:border-surface-border hover:border-gray-300"
+                "p-4 rounded-lg border-2 transition-all text-left bg-surface-secondary",
+                isSelected
+                  ? "border-accent-500 bg-surface-primary ring-1 ring-accent-500/20"
+                  : "border-surface-border hover:border-surface-border-hover hover:bg-surface-hover"
               )}
             >
               <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-12 h-12 bg-gray-200 dark:bg-surface-border rounded-full flex items-center justify-center">
-                  <PawPrint className="h-6 w-6 text-gray-600 dark:text-text-secondary" />
+                <div className="flex-shrink-0 w-12 h-12 bg-surface-tertiary rounded-full flex items-center justify-center">
+                  <PawPrint className="h-6 w-6 text-text-secondary" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-medium text-gray-900 dark:text-text-primary">{pet.name}</p>
-                  <p className="text-sm text-gray-600 dark:text-text-secondary">{pet.breed} • {pet.age}</p>
+                  <p className="font-medium text-text-primary">{pet.name}</p>
+                  <p className="text-sm text-text-secondary">{pet.breed} • {pet.age}</p>
                   {pet.vaccinations === 'expires soon' && (
                     <div className="flex items-center gap-1 mt-1">
-                      <AlertCircle className="h-3 w-3 text-warning-600" />
-                      <span className="text-xs text-warning-600">Vaccination expires soon</span>
+                      <AlertCircle className="h-3 w-3 text-warning-500" />
+                      <span className="text-xs text-warning-500">Vaccination expires soon</span>
                     </div>
                   )}
                 </div>
                 {isSelected && (
-                  <CheckCircle className="h-5 w-5 text-primary-600 flex-shrink-0" />
+                  <CheckCircle className="h-5 w-5 text-accent-500 flex-shrink-0" />
                 )}
               </div>
             </button>
@@ -398,8 +398,8 @@ const PetStep = ({ bookingData, updateBookingData }) => {
 
       {/* Selected count */}
       {bookingData.pets.length > 0 && (
-        <div className="bg-primary-50 dark:bg-surface-primary border border-primary-200 dark:border-primary-900/30 rounded-lg p-3">
-          <p className="text-sm text-primary-700 dark:text-primary-300">
+        <div className="bg-accent-500/10 border border-accent-500/30 rounded-lg p-3">
+          <p className="text-sm text-accent-400">
             {bookingData.pets.length} pet(s) selected for this booking
           </p>
         </div>
@@ -586,28 +586,31 @@ const RoomStep = ({ bookingData, updateBookingData }) => {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {availableRunTemplates.map(template => (
+          {availableRunTemplates.map(template => {
+            const isSelected = bookingData.runTemplate?.recordId === template.recordId || bookingData.runTemplate?.id === template.id;
+            return (
             <button
               key={template.recordId || template.id}
               onClick={() => template.available && updateBookingData('runTemplate', template)}
               disabled={!template.available}
               className={cn(
-                "p-4 rounded-lg border-2 transition-all",
-                (bookingData.runTemplate?.recordId === template.recordId || bookingData.runTemplate?.id === template.id) && "border-primary-600 bg-primary-50",
-                template.available && (bookingData.runTemplate?.recordId !== template.recordId && bookingData.runTemplate?.id !== template.id) && "border-gray-200 dark:border-surface-border hover:border-gray-300",
-                !template.available && "border-gray-100 bg-gray-50 dark:bg-surface-secondary cursor-not-allowed opacity-60"
+                "p-4 rounded-lg border-2 transition-all bg-surface-secondary",
+                isSelected && "border-accent-500 bg-surface-primary ring-1 ring-accent-500/20",
+                template.available && !isSelected && "border-surface-border hover:border-surface-border-hover hover:bg-surface-hover",
+                !template.available && "border-surface-border bg-surface-tertiary cursor-not-allowed opacity-60"
               )}
             >
               <div className="text-center">
-                <p className="font-bold text-lg text-gray-900 dark:text-text-primary">{template.name}</p>
-                <p className="text-sm text-gray-600 dark:text-text-secondary">Capacity: {template.maxCapacity || 'N/A'}</p>
-                <p className="text-xs text-gray-500 dark:text-text-secondary">{template.capacityType || 'total'}</p>
+                <p className="font-bold text-lg text-text-primary">{template.name}</p>
+                <p className="text-sm text-text-secondary">Capacity: {template.maxCapacity || 'N/A'}</p>
+                <p className="text-xs text-text-tertiary">{template.capacityType || 'total'}</p>
                 {!template.available && (
                   <Badge variant="error" className="mt-2">Occupied</Badge>
                 )}
               </div>
             </button>
-          ))}
+          );
+          })}
         </div>
       )}
 
@@ -657,44 +660,44 @@ const BillingStep = ({ bookingData }) => {
       </div>
 
       {/* Booking Summary */}
-      <div className="bg-gray-50 dark:bg-surface-secondary rounded-lg p-4 space-y-3">
-        <h4 className="font-medium text-gray-900 dark:text-text-primary">Booking Summary</h4>
-        
+      <div className="bg-surface-secondary rounded-lg p-4 space-y-3 border border-surface-border">
+        <h4 className="font-medium text-text-primary">Booking Summary</h4>
+
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-gray-600 dark:text-text-secondary">Owner:</span>
-            <span className="font-medium">{bookingData.owner?.name}</span>
+            <span className="text-text-secondary">Owner:</span>
+            <span className="font-medium text-text-primary">{bookingData.owner?.name}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600 dark:text-text-secondary">Pets:</span>
-            <span className="font-medium">{bookingData.pets.map(p => p.name).join(', ')}</span>
+            <span className="text-text-secondary">Pets:</span>
+            <span className="font-medium text-text-primary">{bookingData.pets.map(p => p.name).join(', ')}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600 dark:text-text-secondary">Service:</span>
-            <span className="font-medium">{bookingData.service?.name} ({nights} nights)</span>
+            <span className="text-text-secondary">Service:</span>
+            <span className="font-medium text-text-primary">{bookingData.service?.name} ({nights} nights)</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600 dark:text-text-secondary">Run/Room:</span>
-            <span className="font-medium">{bookingData.runTemplate?.name || 'Not selected'}</span>
+            <span className="text-text-secondary">Run/Room:</span>
+            <span className="font-medium text-text-primary">{bookingData.runTemplate?.name || 'Not selected'}</span>
           </div>
         </div>
       </div>
 
       {/* Price Breakdown */}
       <div className="space-y-2">
-        <h4 className="font-medium text-gray-900 dark:text-text-primary">Price Breakdown</h4>
+        <h4 className="font-medium text-text-primary">Price Breakdown</h4>
         <div className="space-y-1 text-sm">
           <div className="flex justify-between">
-            <span className="text-gray-600 dark:text-text-secondary">{bookingData.service?.name} ({nights} {nights === 1 ? 'night' : 'nights'} × {bookingData.pets.length} {bookingData.pets.length === 1 ? 'pet' : 'pets'})</span>
-            <span className="font-medium">${serviceTotal.toFixed(2)}</span>
+            <span className="text-text-secondary">{bookingData.service?.name} ({nights} {nights === 1 ? 'night' : 'nights'} × {bookingData.pets.length} {bookingData.pets.length === 1 ? 'pet' : 'pets'})</span>
+            <span className="font-medium text-text-primary">${serviceTotal.toFixed(2)}</span>
           </div>
           {bookingData.additionalServices.map(addon => (
             <div key={addon} className="flex justify-between">
-              <span className="text-gray-600 dark:text-text-secondary">{addon}</span>
-              <span className="font-medium">$15</span>
+              <span className="text-text-secondary">{addon}</span>
+              <span className="font-medium text-text-primary">$15</span>
             </div>
           ))}
-          <div className="border-t border-gray-300 dark:border-surface-border pt-1 flex justify-between font-medium">
+          <div className="border-t border-surface-border pt-1 flex justify-between font-medium text-text-primary">
             <span>Total</span>
             <span className="text-lg">${total.toFixed(2)}</span>
           </div>
@@ -703,19 +706,19 @@ const BillingStep = ({ bookingData }) => {
 
       {/* Payment Options */}
       <div className="space-y-3">
-        <h4 className="font-medium text-gray-900 dark:text-text-primary">Payment Method</h4>
+        <h4 className="font-medium text-text-primary">Payment Method</h4>
         <div className="space-y-2">
-          <label className="flex items-center gap-3 p-3 border border-gray-200 dark:border-surface-border rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary">
-            <input type="radio" name="payment" className="text-primary-600" />
-            <span className="text-sm">Pay now (Card on file ending in 4242)</span>
+          <label className="flex items-center gap-3 p-3 border border-surface-border rounded-lg cursor-pointer hover:bg-surface-hover bg-surface-secondary">
+            <input type="radio" name="payment" className="text-accent-500" />
+            <span className="text-sm text-text-primary">Pay now (Card on file ending in 4242)</span>
           </label>
-          <label className="flex items-center gap-3 p-3 border border-gray-200 dark:border-surface-border rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary">
-            <input type="radio" name="payment" className="text-primary-600" />
-            <span className="text-sm">Pay at drop-off</span>
+          <label className="flex items-center gap-3 p-3 border border-surface-border rounded-lg cursor-pointer hover:bg-surface-hover bg-surface-secondary">
+            <input type="radio" name="payment" className="text-accent-500" />
+            <span className="text-sm text-text-primary">Pay at drop-off</span>
           </label>
-          <label className="flex items-center gap-3 p-3 border border-gray-200 dark:border-surface-border rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary">
-            <input type="radio" name="payment" className="text-primary-600" />
-            <span className="text-sm">Send invoice</span>
+          <label className="flex items-center gap-3 p-3 border border-surface-border rounded-lg cursor-pointer hover:bg-surface-hover bg-surface-secondary">
+            <input type="radio" name="payment" className="text-accent-500" />
+            <span className="text-sm text-text-primary">Send invoice</span>
           </label>
         </div>
       </div>
