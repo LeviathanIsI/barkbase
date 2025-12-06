@@ -269,15 +269,15 @@ const OwnerStep = ({ bookingData, updateBookingData }) => {
               onClick={() => updateBookingData('owner', owner)}
               className={cn(
                 "w-full text-left p-4 rounded-lg border transition-all",
-                (bookingData.owner?.recordId === owner.recordId || bookingData.owner?.id === owner.id)
-                  ? "border-primary-600 bg-primary-50" 
-                  : "border-gray-200 dark:border-surface-border hover:border-gray-300 hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary"
+                bookingData.owner && (bookingData.owner.recordId === owner.recordId || bookingData.owner.id === owner.id)
+                  ? "border-[color:var(--bb-color-accent)] bg-[color:var(--bb-color-accent-soft)]"
+                  : "border-[color:var(--bb-color-border)] bg-[color:var(--bb-color-bg-surface)] hover:bg-[color:var(--bb-color-bg-elevated)]"
               )}
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-text-primary">{owner.name}</p>
-                  <p className="text-sm text-gray-600 dark:text-text-secondary">
+                  <p className="font-medium text-[color:var(--bb-color-text-primary)]">{owner.name}</p>
+                  <p className="text-sm text-[color:var(--bb-color-text-muted)]">
                     {owner.email} {owner.phone ? `• ${owner.phone}` : ''}
                   </p>
                 </div>
@@ -461,15 +461,15 @@ const ServiceStep = ({ bookingData, updateBookingData }) => {
               key={service.recordId || service.id}
               onClick={() => updateBookingData('service', service)}
               className={cn(
-                "p-4 rounded-lg border-2 transition-all",
+                "p-4 rounded-lg border-2 transition-all text-left bg-surface-secondary",
                 (bookingData.service?.recordId === service.recordId || bookingData.service?.id === service.id)
-                  ? "border-primary-600 bg-primary-50"
-                  : "border-gray-200 dark:border-surface-border hover:border-gray-300"
+                  ? "border-accent-500 bg-surface-primary ring-1 ring-accent-500/20"
+                  : "border-surface-border hover:border-surface-border-hover hover:bg-surface-hover"
               )}
             >
               <div className="text-3xl mb-2">{getServiceIcon(service.category)}</div>
-              <p className="font-medium text-gray-900 dark:text-text-primary">{service.name}</p>
-              <p className="text-sm text-gray-600 dark:text-text-secondary">{formatPrice(service)}</p>
+              <p className="font-medium text-text-primary">{service.name}</p>
+              <p className="text-sm text-text-secondary">{formatPrice(service)}</p>
             </button>
           ))}
         </div>
