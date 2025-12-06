@@ -132,7 +132,7 @@ const ServicesOverview = () => {
       </div>
 
       {/* Service Analytics Dashboard */}
-      {hasServices && <ServiceAnalyticsDashboard data={currentData} />}
+      {hasServices && <ServiceAnalyticsDashboard data={{ services: servicesData || [] }} />}
 
       {/* Category Tabs */}
       <div className="border-b border-gray-200 dark:border-surface-border">
@@ -198,10 +198,10 @@ const ServicesOverview = () => {
           />
 
           {/* Smart Recommendations */}
-          {hasServices && <SmartRecommendations services={currentData.services} />}
+          {hasServices && <SmartRecommendations services={servicesData || []} />}
 
           {/* Competitor Pricing Intelligence */}
-          {hasServices && <CompetitorPricingIntelligence services={currentData.services} />}
+          {hasServices && <CompetitorPricingIntelligence services={servicesData || []} />}
         </>
       )}
 
