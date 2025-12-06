@@ -368,6 +368,16 @@ export const canonicalEndpoints = {
     delete: build('/api/v1/package-templates/{id}'),
   },
 
+  // Services - /api/v1/services/*
+  // Primary services (boarding, daycare, grooming, training)
+  services: {
+    list: '/api/v1/services',
+    create: '/api/v1/services',
+    detail: build('/api/v1/services/{id}'),
+    update: build('/api/v1/services/{id}'),
+    delete: build('/api/v1/services/{id}'),
+  },
+
   // Add-On Services - /api/v1/addon-services/*
   // Optional extras customers can add to bookings
   addonServices: {

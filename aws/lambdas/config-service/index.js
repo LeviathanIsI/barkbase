@@ -908,6 +908,38 @@ exports.handler = async (event, context) => {
     }
 
     // =========================================================================
+    // SERVICES API (Primary Services - boarding, daycare, grooming, training)
+    // =========================================================================
+    // Main services offered by the facility (from Service table)
+    // =========================================================================
+
+    // GET /api/v1/services - List all services
+    if ((path === '/api/v1/services' || path === '/services') && method === 'GET') {
+      return handleListServices(user, event.queryStringParameters || {});
+    }
+
+    // POST /api/v1/services - Create service
+    if ((path === '/api/v1/services' || path === '/services') && method === 'POST') {
+      return handleCreateService(user, parseBody(event));
+    }
+
+    // Single service routes
+    const serviceIdMatch = path.match(/^\/(?:api\/v1\/)?services\/([a-f0-9-]+)$/i);
+    if (serviceIdMatch) {
+      const serviceId = serviceIdMatch[1];
+
+      if (method === 'GET') {
+        return handleGetService(user, serviceId);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateService(user, serviceId, parseBody(event));
+      }
+      if (method === 'DELETE') {
+        return handleDeleteService(user, serviceId);
+      }
+    }
+
+    // =========================================================================
     // ADD-ON SERVICES API
     // =========================================================================
     // Optional extras customers can add to bookings
@@ -9915,6 +9947,263 @@ async function handleDeletePackageTemplate(user, templateId) {
   } catch (error) {
     console.error('[PackageTemplates] Failed to delete template:', error.message);
     return createResponse(500, { error: 'Internal Server Error', message: 'Failed to delete package template' });
+  }
+}
+
+// =============================================================================
+// SERVICES HANDLERS (Primary Services - boarding, daycare, grooming, training)
+// =============================================================================
+
+/**
+ * List all services for tenant
+ * Supports filtering by category via query param
+ */
+async function handleListServices(user, queryParams = {}) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const { category, activeOnly } = queryParams;
+
+    let sql = `
+      SELECT id, name, description, category, price_in_cents as "priceInCents",
+             duration_minutes as "durationMinutes", is_active as "isActive",
+             sort_order as "sortOrder", created_at as "createdAt", updated_at as "updatedAt"
+      FROM "Service"
+      WHERE tenant_id = $1
+    `;
+    const params = [ctx.tenantId];
+
+    // Filter by category if provided
+    if (category) {
+      sql += ` AND LOWER(category) = LOWER($${params.length + 1})`;
+      params.push(category);
+    }
+
+    // Filter active only if requested
+    if (activeOnly === 'true') {
+      sql += ` AND is_active = true`;
+    }
+
+    sql += ` ORDER BY sort_order ASC, name ASC`;
+
+    const result = await query(sql, params);
+
+    // Transform to match frontend expectations
+    const services = result.rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      category: row.category?.toUpperCase(), // Frontend expects uppercase
+      priceInCents: row.priceInCents,
+      price: row.priceInCents / 100, // Also provide price in dollars
+      durationMinutes: row.durationMinutes,
+      isActive: row.isActive,
+      sortOrder: row.sortOrder,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt
+    }));
+
+    return createResponse(200, services);
+  } catch (error) {
+    console.error('[Services] Failed to list services:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to list services' });
+  }
+}
+
+/**
+ * Create a new service
+ */
+async function handleCreateService(user, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const { name, description, category, priceInCents, durationMinutes, isActive, sortOrder } = body;
+
+    if (!name || !category || priceInCents === undefined) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Name, category, and price are required'
+      });
+    }
+
+    // Get max sort order if not provided
+    let finalSortOrder = sortOrder;
+    if (finalSortOrder === undefined) {
+      const maxResult = await query(
+        `SELECT COALESCE(MAX(sort_order), 0) + 1 as next_order FROM "Service" WHERE tenant_id = $1`,
+        [ctx.tenantId]
+      );
+      finalSortOrder = maxResult.rows[0].next_order;
+    }
+
+    const result = await query(`
+      INSERT INTO "Service" (tenant_id, name, description, category, price_in_cents, duration_minutes, is_active, sort_order)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING id, name, description, category, price_in_cents as "priceInCents",
+                duration_minutes as "durationMinutes", is_active as "isActive",
+                sort_order as "sortOrder", created_at as "createdAt"
+    `, [
+      ctx.tenantId,
+      name,
+      description || null,
+      category.toLowerCase(),
+      priceInCents,
+      durationMinutes || 60,
+      isActive !== false,
+      finalSortOrder
+    ]);
+
+    const service = result.rows[0];
+    return createResponse(201, {
+      ...service,
+      category: service.category?.toUpperCase(),
+      price: service.priceInCents / 100
+    });
+  } catch (error) {
+    console.error('[Services] Failed to create service:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to create service' });
+  }
+}
+
+/**
+ * Get a single service
+ */
+async function handleGetService(user, serviceId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(`
+      SELECT id, name, description, category, price_in_cents as "priceInCents",
+             duration_minutes as "durationMinutes", is_active as "isActive",
+             sort_order as "sortOrder", created_at as "createdAt", updated_at as "updatedAt"
+      FROM "Service"
+      WHERE id = $1 AND tenant_id = $2
+    `, [serviceId, ctx.tenantId]);
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Service not found' });
+    }
+
+    const service = result.rows[0];
+    return createResponse(200, {
+      ...service,
+      category: service.category?.toUpperCase(),
+      price: service.priceInCents / 100
+    });
+  } catch (error) {
+    console.error('[Services] Failed to get service:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to get service' });
+  }
+}
+
+/**
+ * Update a service
+ */
+async function handleUpdateService(user, serviceId, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const { name, description, category, priceInCents, durationMinutes, isActive, sortOrder } = body;
+
+    // Build dynamic update query
+    const updates = [];
+    const params = [];
+    let paramIndex = 1;
+
+    if (name !== undefined) {
+      updates.push(`name = $${paramIndex++}`);
+      params.push(name);
+    }
+    if (description !== undefined) {
+      updates.push(`description = $${paramIndex++}`);
+      params.push(description);
+    }
+    if (category !== undefined) {
+      updates.push(`category = $${paramIndex++}`);
+      params.push(category.toLowerCase());
+    }
+    if (priceInCents !== undefined) {
+      updates.push(`price_in_cents = $${paramIndex++}`);
+      params.push(priceInCents);
+    }
+    if (durationMinutes !== undefined) {
+      updates.push(`duration_minutes = $${paramIndex++}`);
+      params.push(durationMinutes);
+    }
+    if (isActive !== undefined) {
+      updates.push(`is_active = $${paramIndex++}`);
+      params.push(isActive);
+    }
+    if (sortOrder !== undefined) {
+      updates.push(`sort_order = $${paramIndex++}`);
+      params.push(sortOrder);
+    }
+
+    if (updates.length === 0) {
+      return createResponse(400, { error: 'Bad Request', message: 'No fields to update' });
+    }
+
+    updates.push(`updated_at = NOW()`);
+    params.push(serviceId, ctx.tenantId);
+
+    const result = await query(`
+      UPDATE "Service"
+      SET ${updates.join(', ')}
+      WHERE id = $${paramIndex++} AND tenant_id = $${paramIndex}
+      RETURNING id, name, description, category, price_in_cents as "priceInCents",
+                duration_minutes as "durationMinutes", is_active as "isActive",
+                sort_order as "sortOrder", created_at as "createdAt", updated_at as "updatedAt"
+    `, params);
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Service not found' });
+    }
+
+    const service = result.rows[0];
+    return createResponse(200, {
+      ...service,
+      category: service.category?.toUpperCase(),
+      price: service.priceInCents / 100
+    });
+  } catch (error) {
+    console.error('[Services] Failed to update service:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update service' });
+  }
+}
+
+/**
+ * Delete (soft-delete) a service
+ */
+async function handleDeleteService(user, serviceId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Soft delete by setting is_active to false
+    const result = await query(`
+      UPDATE "Service"
+      SET is_active = false, updated_at = NOW()
+      WHERE id = $1 AND tenant_id = $2
+      RETURNING id
+    `, [serviceId, ctx.tenantId]);
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Service not found' });
+    }
+
+    return createResponse(200, { success: true, message: 'Service deactivated' });
+  } catch (error) {
+    console.error('[Services] Failed to delete service:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to delete service' });
   }
 }
 

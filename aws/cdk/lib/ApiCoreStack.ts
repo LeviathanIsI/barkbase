@@ -94,6 +94,19 @@ export class ApiCoreStack extends cdk.Stack {
     });
 
     // =========================================================================
+    // API Gateway Throttling Configuration
+    // =========================================================================
+    // Configure default throttling at the API level
+    // These are baseline limits; WAF provides more granular rate limiting
+    const defaultStage = this.httpApi.defaultStage?.node.defaultChild as apigatewayv2.CfnStage;
+    if (defaultStage) {
+      defaultStage.defaultRouteSettings = {
+        throttlingBurstLimit: 1000, // Burst capacity
+        throttlingRateLimit: 500,   // Sustained requests per second
+      };
+    }
+
+    // =========================================================================
     // INTENTIONALLY UNUSED: Cognito JWT Authorizer
     // =========================================================================
     // This authorizer is INTENTIONALLY defined but NOT attached to any routes.
@@ -349,6 +362,8 @@ export class ApiCoreStack extends cdk.Stack {
     createRoute('PackageTemplatesProxyRoute', 'ANY /api/v1/package-templates/{proxy+}', configIntegration.ref, true);
     createRoute('AddonServicesBaseRoute', 'ANY /api/v1/addon-services', configIntegration.ref, true);
     createRoute('AddonServicesProxyRoute', 'ANY /api/v1/addon-services/{proxy+}', configIntegration.ref, true);
+    createRoute('ServicesBaseRoute', 'ANY /api/v1/services', configIntegration.ref, true);
+    createRoute('ServicesProxyRoute', 'ANY /api/v1/services/{proxy+}', configIntegration.ref, true);
 
     // -------------------------------------------------------------------------
     // FINANCIAL SERVICE - Protected routes + public webhook
