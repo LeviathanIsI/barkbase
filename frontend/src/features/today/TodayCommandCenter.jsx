@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, AlertTriangle, Clock, ListTodo, ChevronLeft } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Clock, ListTodo } from 'lucide-react';
 import { useUserProfileQuery } from '@/features/settings/api-user';
 // Dashboard hooks available if needed:
 // import { useDashboardStatsQuery } from '@/features/dashboard/api';
@@ -12,6 +12,7 @@ import TodayBatchCheckInModal from '@/features/today/components/TodayBatchCheckI
 import TodayBatchCheckOutModal from '@/features/today/components/TodayBatchCheckOutModal';
 import useTodayBookingsSnapshot, { getTodayBookingsSnapshotKey } from '@/features/today/hooks/useTodayBookingsSnapshot';
 import SinglePageBookingWizard from '@/features/bookings/components/SinglePageBookingWizard';
+import Modal from '@/components/ui/Modal';
 // Replaced with LoadingState (mascot) for page-level loading
 import LoadingState from '@/components/ui/LoadingState';
 import TodayCard from '@/features/today/components/TodayCard';
@@ -145,20 +146,6 @@ const TodayCommandCenter = () => {
     return <LoadingState label="Loading today's schedule…" variant="mascot" />;
   }
 
-  // Show booking wizard in full-page mode
-  if (showNewBooking) {
-    return (
-      <div className="flex h-full flex-col">
-        <div className="mb-4">
-          <Button variant="ghost" onClick={() => setShowNewBooking(false)} className="gap-2">
-            <ChevronLeft className="h-4 w-4" />
-            Back to Today
-          </Button>
-        </div>
-        <SinglePageBookingWizard onComplete={handleBookingComplete} />
-      </div>
-    );
-  }
 
   return (
     <div className={cn(
@@ -257,6 +244,14 @@ const TodayCommandCenter = () => {
         departures={departures}
         snapshotQueryKey={snapshotQueryKey}
       />
+      <Modal
+        open={showNewBooking}
+        onClose={() => setShowNewBooking(false)}
+        title="New Booking"
+        size="xl"
+      >
+        <SinglePageBookingWizard onComplete={handleBookingComplete} />
+      </Modal>
     </div>
   );
 };
@@ -289,7 +284,7 @@ const TasksList = ({ tasks, isLoading, emptyMessage, onComplete, isCompleting, i
     <div className="space-y-2 max-h-64 overflow-y-auto">
       {tasks.slice(0, 10).map((task, idx) => (
         <div
-          key={task.recordId || task.id || idx}
+          key={task.id || idx}
           className={cn(
             "flex items-center justify-between p-3 rounded-lg border transition-colors",
             isOverdue 
@@ -315,7 +310,7 @@ const TasksList = ({ tasks, isLoading, emptyMessage, onComplete, isCompleting, i
           <Button
             size="sm"
             variant={isOverdue ? "warning" : "outline"}
-            onClick={() => onComplete(task.recordId)}
+            onClick={() => onComplete(task.id)}
             disabled={isCompleting}
             className="ml-2 flex-shrink-0"
           >

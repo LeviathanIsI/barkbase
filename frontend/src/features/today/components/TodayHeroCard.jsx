@@ -144,6 +144,7 @@ const StatCard = ({ icon: Icon, label, value, variant = 'primary', tooltip, onCl
   return (
     <button
       type="button"
+      data-testid="stat-card"
       onClick={onClick}
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
