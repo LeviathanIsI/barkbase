@@ -422,18 +422,34 @@ const ServiceStep = ({ bookingData, updateBookingData }) => {
 
   // Format price display
   const formatPrice = (service) => {
-    if (service.priceCents) {
-      const dollars = (service.priceCents / 100).toFixed(2);
+    // Check multiple possible field names from API
+    const cents = service.priceInCents || service.priceCents || service.price_in_cents;
+    const dollars = service.price; // API also sends price in dollars
+
+    if (cents) {
+      const dollarAmount = (cents / 100).toFixed(2);
       // Try to infer if it's per night/day from category or name
       const nameLower = (service.name || '').toLowerCase();
       const catLower = (service.category || '').toLowerCase();
       if (catLower.includes('boarding') || nameLower.includes('boarding')) {
-        return `$${dollars}/night`;
+        return `$${dollarAmount}/night`;
       }
       if (catLower.includes('daycare') || nameLower.includes('daycare')) {
-        return `$${dollars}/day`;
+        return `$${dollarAmount}/day`;
       }
-      return `$${dollars}`;
+      return `$${dollarAmount}`;
+    }
+    if (dollars) {
+      const dollarAmount = dollars.toFixed(2);
+      const nameLower = (service.name || '').toLowerCase();
+      const catLower = (service.category || '').toLowerCase();
+      if (catLower.includes('boarding') || nameLower.includes('boarding')) {
+        return `$${dollarAmount}/night`;
+      }
+      if (catLower.includes('daycare') || nameLower.includes('daycare')) {
+        return `$${dollarAmount}/day`;
+      }
+      return `$${dollarAmount}`;
     }
     return 'Price on request';
   };
