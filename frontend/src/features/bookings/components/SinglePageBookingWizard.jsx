@@ -127,17 +127,17 @@ const SinglePageBookingWizard = ({ onComplete, initialData = {} }) => {
                     onClick={() => index <= currentStep && setCurrentStep(index)}
                     className={cn(
                       "flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-sm font-medium transition-all",
-                      isActive && "border-accent-500 bg-accent-600 text-white shadow-sm",
-                      isCompleted && "border-accent-500/50 bg-surface-primary text-accent-400 hover:bg-surface-hover",
-                      !isActive && !isCompleted && "border-surface-border bg-surface-secondary text-text-tertiary"
+                      isActive && "border-primary-500 bg-primary-600 text-white shadow-sm",
+                      isCompleted && "border-primary-500/50 bg-gray-800 text-primary-400 hover:bg-gray-700",
+                      !isActive && !isCompleted && "border-gray-700 bg-gray-800 text-gray-500"
                     )}
                     disabled={index > currentStep}
                   >
                     <div className={cn(
                       "flex h-6 w-6 items-center justify-center rounded-full border shrink-0",
                       isActive && "border-white/40 bg-white/10 text-white",
-                      isCompleted && "border-accent-500 bg-accent-600 text-white",
-                      !isActive && !isCompleted && "border-surface-border bg-surface-secondary text-text-tertiary"
+                      isCompleted && "border-primary-500 bg-primary-600 text-white",
+                      !isActive && !isCompleted && "border-gray-600 bg-gray-700 text-gray-500"
                     )}>
                       {isCompleted ? (
                         <CheckCircle className="h-4 w-4" />
@@ -366,28 +366,28 @@ const PetStep = ({ bookingData, updateBookingData }) => {
               key={pet.id}
               onClick={() => togglePet(pet)}
               className={cn(
-                "p-4 rounded-lg border-2 transition-all text-left bg-surface-secondary",
+                "p-4 rounded-lg border-2 transition-all text-left",
                 isSelected
-                  ? "border-accent-500 bg-surface-primary ring-1 ring-accent-500/20"
-                  : "border-surface-border hover:border-surface-border-hover hover:bg-surface-hover"
+                  ? "border-primary-500 bg-primary-500/10 ring-2 ring-primary-500/30"
+                  : "border-gray-700 bg-gray-800 hover:border-gray-600 hover:bg-gray-700"
               )}
             >
               <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-12 h-12 bg-surface-tertiary rounded-full flex items-center justify-center">
-                  <PawPrint className="h-6 w-6 text-text-secondary" />
+                <div className="flex-shrink-0 w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center">
+                  <PawPrint className="h-6 w-6 text-gray-400" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-medium text-text-primary">{pet.name}</p>
-                  <p className="text-sm text-text-secondary">{pet.breed} • {pet.age}</p>
+                  <p className="font-medium text-gray-100">{pet.name}</p>
+                  <p className="text-sm text-gray-400">{pet.breed} • {pet.age}</p>
                   {pet.vaccinations === 'expires soon' && (
                     <div className="flex items-center gap-1 mt-1">
-                      <AlertCircle className="h-3 w-3 text-warning-500" />
-                      <span className="text-xs text-warning-500">Vaccination expires soon</span>
+                      <AlertCircle className="h-3 w-3 text-yellow-500" />
+                      <span className="text-xs text-yellow-500">Vaccination expires soon</span>
                     </div>
                   )}
                 </div>
                 {isSelected && (
-                  <CheckCircle className="h-5 w-5 text-accent-500 flex-shrink-0" />
+                  <CheckCircle className="h-5 w-5 text-primary-500 flex-shrink-0" />
                 )}
               </div>
             </button>
@@ -398,8 +398,8 @@ const PetStep = ({ bookingData, updateBookingData }) => {
 
       {/* Selected count */}
       {bookingData.pets.length > 0 && (
-        <div className="bg-accent-500/10 border border-accent-500/30 rounded-lg p-3">
-          <p className="text-sm text-accent-400">
+        <div className="bg-primary-500/10 border border-primary-500/30 rounded-lg p-3">
+          <p className="text-sm text-primary-400">
             {bookingData.pets.length} pet(s) selected for this booking
           </p>
         </div>
@@ -461,15 +461,20 @@ const ServiceStep = ({ bookingData, updateBookingData }) => {
               key={service.recordId || service.id}
               onClick={() => updateBookingData('service', service)}
               className={cn(
-                "p-4 rounded-lg border-2 transition-all text-left bg-surface-secondary",
+                "p-4 rounded-lg border-2 transition-all text-left",
                 (bookingData.service?.recordId === service.recordId || bookingData.service?.id === service.id)
-                  ? "border-accent-500 bg-surface-primary ring-1 ring-accent-500/20"
-                  : "border-surface-border hover:border-surface-border-hover hover:bg-surface-hover"
+                  ? "border-primary-500 bg-primary-500/10 ring-2 ring-primary-500/30"
+                  : "border-gray-700 bg-gray-800 hover:border-gray-600 hover:bg-gray-700"
               )}
             >
-              <div className="text-3xl mb-2">{getServiceIcon(service.category)}</div>
-              <p className="font-medium text-text-primary">{service.name}</p>
-              <p className="text-sm text-text-secondary">{formatPrice(service)}</p>
+              <div className="flex items-start justify-between">
+                <div className="text-3xl mb-2">{getServiceIcon(service.category)}</div>
+                {(bookingData.service?.recordId === service.recordId || bookingData.service?.id === service.id) && (
+                  <CheckCircle className="h-5 w-5 text-primary-500 flex-shrink-0" />
+                )}
+              </div>
+              <p className="font-medium text-gray-100">{service.name}</p>
+              <p className="text-sm text-gray-400">{formatPrice(service)}</p>
             </button>
           ))}
         </div>
@@ -594,16 +599,19 @@ const RoomStep = ({ bookingData, updateBookingData }) => {
               onClick={() => template.available && updateBookingData('runTemplate', template)}
               disabled={!template.available}
               className={cn(
-                "p-4 rounded-lg border-2 transition-all bg-surface-secondary",
-                isSelected && "border-accent-500 bg-surface-primary ring-1 ring-accent-500/20",
-                template.available && !isSelected && "border-surface-border hover:border-surface-border-hover hover:bg-surface-hover",
-                !template.available && "border-surface-border bg-surface-tertiary cursor-not-allowed opacity-60"
+                "p-4 rounded-lg border-2 transition-all",
+                isSelected && "border-primary-500 bg-primary-500/10 ring-2 ring-primary-500/30",
+                template.available && !isSelected && "border-gray-700 bg-gray-800 hover:border-gray-600 hover:bg-gray-700",
+                !template.available && "border-gray-700 bg-gray-900 cursor-not-allowed opacity-60"
               )}
             >
               <div className="text-center">
-                <p className="font-bold text-lg text-text-primary">{template.name}</p>
-                <p className="text-sm text-text-secondary">Capacity: {template.maxCapacity || 'N/A'}</p>
-                <p className="text-xs text-text-tertiary">{template.capacityType || 'total'}</p>
+                {isSelected && (
+                  <CheckCircle className="h-5 w-5 text-primary-500 mx-auto mb-2" />
+                )}
+                <p className="font-bold text-lg text-gray-100">{template.name}</p>
+                <p className="text-sm text-gray-400">Capacity: {template.maxCapacity || 'N/A'}</p>
+                <p className="text-xs text-gray-500">{template.capacityType || 'total'}</p>
                 {!template.available && (
                   <Badge variant="error" className="mt-2">Occupied</Badge>
                 )}
