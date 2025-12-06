@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, ChevronRight, Maximize2, Minimize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Button from './Button';
@@ -110,11 +111,11 @@ const SlideOutDrawer = ({
 
   if (!isOpen && !isClosing) return null;
 
-  return (
-    <div className="fixed inset-0 z-50">
+  const content = (
+    <div className="fixed inset-0 z-[100]">
       {/* Backdrop */}
       {showBackdrop && (
-        <div 
+        <div
           className={cn(
             "absolute inset-0 bg-[var(--bb-color-overlay-scrim)] backdrop-blur-sm transition-opacity duration-300",
             isClosing ? "opacity-0" : "opacity-100"
@@ -130,7 +131,7 @@ const SlideOutDrawer = ({
         aria-modal="true"
         aria-label={title || 'Slide out drawer'}
         className={cn(
-          "absolute inset-y-0 right-0 flex flex-col transition-transform duration-300",
+          "absolute top-0 right-0 bottom-0 flex flex-col transition-transform duration-300 overflow-hidden",
           "bg-[var(--bb-color-bg-surface)] border-l border-[var(--bb-color-border-subtle)]",
           "shadow-[var(--bb-elevation-card)]",
           !width && sizeClasses[currentSize],
@@ -156,7 +157,7 @@ const SlideOutDrawer = ({
 
         {/* Header */}
         <div className={cn(
-          "px-[var(--bb-space-6)] py-[var(--bb-space-4)] border-b border-[var(--bb-color-border-subtle)]",
+          "flex-shrink-0 px-[var(--bb-space-6)] py-[var(--bb-space-4)] border-b border-[var(--bb-color-border-subtle)]",
           "bg-[var(--bb-color-bg-surface)]",
           headerClassName
         )}>
@@ -167,7 +168,7 @@ const SlideOutDrawer = ({
                 <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)] mt-[var(--bb-space-1)]">{subtitle}</p>
               )}
             </div>
-            
+
             <div className="flex items-center gap-[var(--bb-space-1)]">
               {/* Size Toggle */}
               {resizable && (
@@ -184,7 +185,7 @@ const SlideOutDrawer = ({
                   )}
                 </Button>
               )}
-              
+
               {/* Close Button */}
               <Button
                 variant="ghost"
@@ -207,7 +208,7 @@ const SlideOutDrawer = ({
 
         {/* Content */}
         <div className={cn(
-          "flex-1 overflow-y-auto",
+          "flex-1 overflow-y-auto overflow-x-hidden",
           contentClassName
         )}>
           {children}
@@ -215,13 +216,15 @@ const SlideOutDrawer = ({
 
         {/* Footer */}
         {footerContent && (
-          <div className="px-[var(--bb-space-6)] py-[var(--bb-space-4)] border-t border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-elevated)]">
+          <div className="flex-shrink-0 px-[var(--bb-space-6)] py-[var(--bb-space-4)] border-t border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-elevated)]">
             {footerContent}
           </div>
         )}
       </div>
     </div>
   );
+
+  return createPortal(content, document.body);
 };
 
 // Specialized Drawer Variants
