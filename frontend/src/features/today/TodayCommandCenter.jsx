@@ -12,7 +12,7 @@ import TodayBatchCheckInModal from '@/features/today/components/TodayBatchCheckI
 import TodayBatchCheckOutModal from '@/features/today/components/TodayBatchCheckOutModal';
 import useTodayBookingsSnapshot, { getTodayBookingsSnapshotKey } from '@/features/today/hooks/useTodayBookingsSnapshot';
 import SinglePageBookingWizard from '@/features/bookings/components/SinglePageBookingWizard';
-import Modal from '@/components/ui/Modal';
+import SlideOutDrawer from '@/components/ui/SlideOutDrawer';
 // Replaced with LoadingState (mascot) for page-level loading
 import LoadingState from '@/components/ui/LoadingState';
 import TodayCard from '@/features/today/components/TodayCard';
@@ -244,14 +244,14 @@ const TodayCommandCenter = () => {
         departures={departures}
         snapshotQueryKey={snapshotQueryKey}
       />
-      <Modal
-        open={showNewBooking}
+      <SlideOutDrawer
+        isOpen={showNewBooking}
         onClose={() => setShowNewBooking(false)}
         title="New Booking"
-        size="xl"
+        size="lg"
       >
         <SinglePageBookingWizard onComplete={handleBookingComplete} />
-      </Modal>
+      </SlideOutDrawer>
     </div>
   );
 };

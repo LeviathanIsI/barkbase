@@ -126,6 +126,9 @@ const SlideOutDrawer = ({
 
       {/* Drawer */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title || 'Slide out drawer'}
         className={cn(
           "absolute inset-y-0 right-0 flex flex-col transition-transform duration-300",
           "bg-[var(--bb-color-bg-surface)] border-l border-[var(--bb-color-border-subtle)]",
