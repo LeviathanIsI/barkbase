@@ -34,11 +34,11 @@ const SlideOutDrawer = ({
   const [isResizing, setIsResizing] = useState(false);
   const [width, setWidth] = useState(null);
 
-  // Size presets
+  // Size presets - use max-w to ensure drawer stays within viewport
   const sizeClasses = {
-    sm: 'w-96',
-    md: 'w-[600px]',
-    lg: 'w-[800px]',
+    sm: 'w-96 max-w-[calc(100vw-1rem)]',
+    md: 'w-[600px] max-w-[calc(100vw-1rem)]',
+    lg: 'w-[800px] max-w-[calc(100vw-1rem)]',
     full: 'w-screen'
   };
 
@@ -131,14 +131,14 @@ const SlideOutDrawer = ({
         aria-modal="true"
         aria-label={title || 'Slide out drawer'}
         className={cn(
-          "absolute top-0 right-0 bottom-0 flex flex-col transition-transform duration-300 overflow-hidden",
+          "absolute top-0 bottom-0 right-0 flex flex-col transition-transform duration-300 overflow-hidden box-border",
           "bg-[var(--bb-color-bg-surface)] border-l border-[var(--bb-color-border-subtle)]",
           "shadow-[var(--bb-elevation-card)]",
           !width && sizeClasses[currentSize],
           isClosing ? "translate-x-full" : "translate-x-0",
           className
         )}
-        style={width ? { width: `${width}px` } : undefined}
+        style={width ? { width: `${width}px`, maxWidth: 'calc(100vw - 0.5rem)' } : undefined}
       >
         {/* Resize Handle */}
         {resizable && currentSize !== 'full' && (
@@ -208,7 +208,7 @@ const SlideOutDrawer = ({
 
         {/* Content */}
         <div className={cn(
-          "flex-1 overflow-y-auto overflow-x-hidden",
+          "flex-1 overflow-y-auto overflow-x-hidden min-w-0 [&>*]:max-w-full",
           contentClassName
         )}>
           {children}

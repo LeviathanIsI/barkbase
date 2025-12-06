@@ -110,23 +110,23 @@ const SinglePageBookingWizard = ({ onComplete, initialData = {} }) => {
   };
 
   return (
-    <div className="flex h-full flex-col gap-6 lg:flex-row">
+    <div className="flex h-full flex-col gap-6 2xl:flex-row">
       {/* Main Wizard Area - Takes up 2/3 of space */}
-      <div className="flex-1 flex flex-col">
-        {/* Progress Stepper - Always visible */}
-        <div className="mb-6 rounded-lg border border-border bg-surface px-4 py-3 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Progress Stepper - Always visible, horizontally scrollable on small screens */}
+        <div className="mb-6 rounded-lg border border-border bg-surface px-4 py-3 shadow-sm overflow-x-auto">
+          <div className="flex items-center gap-1 min-w-max">
             {STEPS.map((step, index) => {
               const Icon = step.icon;
               const isActive = index === currentStep;
               const isCompleted = index < currentStep;
-              
+
               return (
-                <div key={step.id} className="flex items-center flex-1 min-w-[120px]">
+                <div key={step.id} className="flex items-center shrink-0">
                   <button
                     onClick={() => index <= currentStep && setCurrentStep(index)}
                     className={cn(
-                      "flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-all",
+                      "flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-sm font-medium transition-all",
                       isActive && "border-primary-500 bg-primary-600 text-white shadow-sm",
                       isCompleted && "border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100",
                       !isActive && !isCompleted && "border-border bg-surface-secondary text-text-tertiary dark:bg-dark-bg-tertiary"
@@ -134,21 +134,21 @@ const SinglePageBookingWizard = ({ onComplete, initialData = {} }) => {
                     disabled={index > currentStep}
                   >
                     <div className={cn(
-                      "flex h-8 w-8 items-center justify-center rounded-full border",
+                      "flex h-6 w-6 items-center justify-center rounded-full border shrink-0",
                       isActive && "border-white/40 bg-white/10 text-white",
                       isCompleted && "border-primary-600 bg-primary-600 text-white",
                       !isActive && !isCompleted && "border-border bg-surface text-text-tertiary"
                     )}>
                       {isCompleted ? (
-                        <CheckCircle className="h-5 w-5" />
+                        <CheckCircle className="h-4 w-4" />
                       ) : (
-                        <Icon className="h-5 w-5" />
+                        <Icon className="h-4 w-4" />
                       )}
                     </div>
-                    <span className="font-medium hidden sm:block">{step.label}</span>
+                    <span className="font-medium whitespace-nowrap">{step.label}</span>
                   </button>
                   {index < STEPS.length - 1 && (
-                    <ChevronRight className="mx-2 hidden text-gray-300 dark:text-text-tertiary lg:block" />
+                    <ChevronRight className="mx-1 h-4 w-4 text-gray-300 dark:text-text-tertiary shrink-0" />
                   )}
                 </div>
               );
@@ -206,8 +206,8 @@ const SinglePageBookingWizard = ({ onComplete, initialData = {} }) => {
         </div>
       </div>
 
-      {/* Persistent Capacity Panel - Always visible, takes 1/3 space */}
-      <div className="w-96 flex-shrink-0">
+      {/* Persistent Capacity Panel - Always visible, stacked on most screens, side-by-side only on very wide screens */}
+      <div className="2xl:w-72 flex-shrink-0">
         <CapacityPanel dateRange={bookingData.dateRange} selectedRunTemplate={bookingData.runTemplate} />
       </div>
     </div>
@@ -307,27 +307,24 @@ const OwnerStep = ({ bookingData, updateBookingData }) => {
 };
 
 const PetStep = ({ bookingData, updateBookingData }) => {
-  // Fetch pets for selected owner
-  const { data: petsResult, isLoading } = usePetsQuery();
-  const allPets = petsResult?.pets ?? [];
-  
-  // Filter pets by selected owner
+  // Get owner ID for fetching their pets
+  const ownerId = bookingData.owner?.recordId || bookingData.owner?.id;
+
+  // Fetch pets for selected owner - pass ownerId to filter on backend
+  const { data: petsResult, isLoading } = usePetsQuery(ownerId ? { ownerId } : {});
+
   const availablePets = useMemo(() => {
-    if (!bookingData.owner) return [];
-    const ownerId = bookingData.owner.recordId || bookingData.owner.id;
-    return allPets.filter(pet => {
-      // Check if pet belongs to this owner
-      return pet.ownerId === ownerId || 
-             (pet.owners && pet.owners.some(o => o.recordId === ownerId || o.id === ownerId)) ||
-             pet.primaryOwnerId === ownerId;
-    }).map(pet => ({
+    // Only show pets if an owner is selected
+    if (!ownerId) return [];
+    const pets = petsResult?.pets ?? [];
+    return pets.map(pet => ({
       ...pet,
       name: pet.name,
       breed: pet.breed || 'Unknown',
       age: pet.age ? `${pet.age} ${pet.ageUnit || 'years'}` : 'Unknown',
       vaccinations: 'current' // TODO: Check vaccination status from API
     }));
-  }, [allPets, bookingData.owner]);
+  }, [petsResult, ownerId]);
 
   const togglePet = (pet) => {
     const petId = pet.recordId || pet.id;

@@ -667,8 +667,9 @@ async function getPets(event) {
   const limit = Math.min(parseInt(queryParams.limit, 10) || 50, 200);
   const offset = (page - 1) * limit;
   const search = queryParams.search || queryParams.q || '';
+  const ownerId = queryParams.ownerId || queryParams.owner_id || '';
 
-  console.log('[Pets][list] tenantId:', tenantId, 'page:', page, 'limit:', limit);
+  console.log('[Pets][list] tenantId:', tenantId, 'page:', page, 'limit:', limit, 'ownerId:', ownerId);
 
   if (!tenantId) {
     return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
@@ -677,10 +678,19 @@ async function getPets(event) {
   try {
     await getPoolAsync();
 
-    // Build WHERE clause with optional search
+    // Build WHERE clause with optional search and owner filter
     let whereClause = 'p.tenant_id = $1 AND p.deleted_at IS NULL';
     const params = [tenantId];
     let paramIndex = 2;
+    let joinClause = '';
+
+    // Filter by owner via PetOwner junction table
+    if (ownerId) {
+      joinClause = 'INNER JOIN "PetOwner" po ON po.pet_id = p.id';
+      whereClause += ` AND po.owner_id = $${paramIndex}`;
+      params.push(ownerId);
+      paramIndex++;
+    }
 
     if (search) {
       whereClause += ` AND (p.name ILIKE $${paramIndex} OR p.breed ILIKE $${paramIndex} OR p.species ILIKE $${paramIndex})`;
@@ -690,7 +700,7 @@ async function getPets(event) {
 
     // Get total count for pagination
     const countResult = await query(
-      `SELECT COUNT(*) as total FROM "Pet" p WHERE ${whereClause}`,
+      `SELECT COUNT(DISTINCT p.id) as total FROM "Pet" p ${joinClause} WHERE ${whereClause}`,
       params
     );
     const total = parseInt(countResult.rows[0]?.total || 0, 10);
@@ -701,13 +711,14 @@ async function getPets(event) {
     //         notes, description, documents, behavior_flags, status, photo_url, is_active,
     //         vet_name, vet_phone, vet_clinic, vet_address, vet_email, vet_notes
     const result = await query(
-      `SELECT p.id, p.tenant_id, p.name, p.species, p.breed, p.gender, p.color,
+      `SELECT DISTINCT p.id, p.tenant_id, p.name, p.species, p.breed, p.gender, p.color,
               p.weight, p.date_of_birth, p.microchip_number, p.last_vet_visit,
               p.medical_notes, p.behavior_notes, p.dietary_notes, p.notes, p.description,
               p.documents, p.behavior_flags, p.status, p.photo_url, p.is_active,
               p.vet_name, p.vet_phone, p.vet_clinic, p.vet_address, p.vet_email, p.vet_notes,
               p.created_at, p.updated_at
        FROM "Pet" p
+       ${joinClause}
        WHERE ${whereClause}
        ORDER BY p.name
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,

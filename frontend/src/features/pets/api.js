@@ -83,13 +83,14 @@ const shapePetsCache = (data) => {
 /**
  * Fetch all pets for the current tenant
  * Returns: { pets: Pet[], total: number, raw: any }
+ * @param {Object} params - Query parameters (e.g., { ownerId: 'uuid' })
  */
 export const usePetsQuery = (params = {}) => {
   const tenantId = useTenantId();
   const isTenantReady = useTenantReady();
 
   return useQuery({
-    queryKey: queryKeys.pets(tenantId),
+    queryKey: [...queryKeys.pets(tenantId), params],
     enabled: isTenantReady,
     queryFn: async () => {
       try {
