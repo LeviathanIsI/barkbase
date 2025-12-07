@@ -29,6 +29,7 @@ import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import KennelForm from '../components/KennelForm';
+import KennelAssignDrawer from '../components/KennelAssignDrawer';
 import { useKennels, useDeleteKennel } from '../api';
 import { useTerminology } from '@/lib/terminology';
 import toast from 'react-hot-toast';
@@ -96,7 +97,7 @@ const StatPill = ({ icon: Icon, label, value, onClick, isActive }) => (
 );
 
 // Simplified Kennel Card
-const KennelCard = ({ kennel, onEdit, onDelete, onViewBookings, onAssignRun, isCompact }) => {
+const KennelCard = ({ kennel, onEdit, onDelete, onViewBookings, onAssignPet, isCompact }) => {
   const [showMenu, setShowMenu] = useState(false);
   const typeConfig = KENNEL_TYPES[kennel.type] || KENNEL_TYPES.KENNEL;
 
@@ -142,7 +143,7 @@ const KennelCard = ({ kennel, onEdit, onDelete, onViewBookings, onAssignRun, isC
                   <Calendar className="h-3.5 w-3.5" /> Bookings
                 </button>
                 <button
-                  onClick={() => { onAssignRun(kennel); setShowMenu(false); }}
+                  onClick={() => { onAssignPet(kennel); setShowMenu(false); }}
                   className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-text hover:bg-surface"
                 >
                   <PawPrint className="h-3.5 w-3.5" /> Assign
@@ -185,7 +186,7 @@ const KennelCard = ({ kennel, onEdit, onDelete, onViewBookings, onAssignRun, isC
           Bookings
         </button>
         <button
-          onClick={() => onAssignRun(kennel)}
+          onClick={() => onAssignPet(kennel)}
           className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted hover:text-primary hover:bg-primary/5 rounded transition-colors"
         >
           <PawPrint className="h-3.5 w-3.5" />
@@ -229,7 +230,9 @@ const Kennels = () => {
   const terminology = useTerminology();
   const [showForm, setShowForm] = useState(false);
   const [selectedKennel, setSelectedKennel] = useState(null);
-  
+  const [showAssignDrawer, setShowAssignDrawer] = useState(false);
+  const [assignKennel, setAssignKennel] = useState(null);
+
   // View mode
   const [isCompact, setIsCompact] = useState(true);
   
@@ -351,8 +354,14 @@ const Kennels = () => {
     navigate(`/bookings?kennel=${kennel.id || kennel.recordId}`);
   };
 
-  const handleAssignRun = (kennel) => {
-    navigate(`/runs?preselect=${kennel.id || kennel.recordId}`);
+  const handleAssignPet = (kennel) => {
+    setAssignKennel(kennel);
+    setShowAssignDrawer(true);
+  };
+
+  const handleCloseAssignDrawer = () => {
+    setShowAssignDrawer(false);
+    setAssignKennel(null);
   };
 
   const handleCloseForm = () => {
@@ -582,7 +591,7 @@ const Kennels = () => {
                       onEdit={handleEdit}
                       onDelete={handleDelete}
                       onViewBookings={handleViewBookings}
-                      onAssignRun={handleAssignRun}
+                      onAssignPet={handleAssignPet}
                       isCompact={isCompact}
                     />
                   ))}
@@ -602,6 +611,13 @@ const Kennels = () => {
           terminology={terminology}
         />
       )}
+
+      {/* Kennel Assignment Drawer */}
+      <KennelAssignDrawer
+        isOpen={showAssignDrawer}
+        onClose={handleCloseAssignDrawer}
+        kennel={assignKennel}
+      />
     </div>
   );
 };

@@ -1,0 +1,19 @@
+# Auth state (contains sensitive tokens)
+.auth/
+
+# Test results and artifacts
+test-results/
+reports/html/
+reports/screenshots/
+reports/results.json
+reports/summary.json
+
+# Temporary files
+.temp/
+
+# Playwright cache
+.cache/
+
+# Visual test artifacts (diffs should not be committed)
+visual-baselines/**/*-actual.png
+visual-baselines/**/*-diff.png

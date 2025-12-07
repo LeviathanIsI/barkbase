@@ -21,16 +21,56 @@ const useTenantReady = () => {
 const KENNELS_BASE = '/api/v1/entity/facilities';
 
 /**
- * Normalize kennels response to always return an array
+ * Normalize a single kennel from backend field names to frontend expectations
+ * Backend: max_occupancy, is_active, location, size
+ * Frontend: capacity, isActive, building, type
+ */
+const normalizeKennel = (kennel) => {
+  if (!kennel) return null;
+
+  // Map size to type for display
+  const sizeToType = {
+    'SMALL': 'KENNEL',
+    'MEDIUM': 'KENNEL',
+    'LARGE': 'KENNEL',
+    'XLARGE': 'SUITE',
+  };
+
+  return {
+    ...kennel,
+    // Core ID fields
+    id: kennel.id,
+    recordId: kennel.id,
+    // Capacity mapping
+    capacity: kennel.max_occupancy || kennel.capacity || 1,
+    maxOccupancy: kennel.max_occupancy || kennel.capacity || 1,
+    // Status mapping
+    isActive: kennel.is_active !== undefined ? kennel.is_active : (kennel.isActive !== false),
+    // Location/building mapping
+    building: kennel.location || kennel.building || null,
+    location: kennel.location || kennel.building || null,
+    // Type mapping from size
+    type: kennel.type || sizeToType[kennel.size] || 'KENNEL',
+    size: kennel.size || null,
+    // Occupied from backend (may be string from COUNT) - defaults to 0
+    occupied: parseInt(kennel.occupied, 10) || 0,
+  };
+};
+
+/**
+ * Normalize kennels response to always return an array with normalized fields
  */
 const normalizeKennelsResponse = (data) => {
   if (!data) return [];
-  if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.data)) return data.data;
-  if (Array.isArray(data?.items)) return data.items;
-  if (Array.isArray(data?.kennels)) return data.kennels;
-  if (Array.isArray(data?.facilities)) return data.facilities;
-  return [];
+
+  let items = [];
+  if (Array.isArray(data)) items = data;
+  else if (Array.isArray(data?.data)) items = data.data;
+  else if (Array.isArray(data?.items)) items = data.items;
+  else if (Array.isArray(data?.kennels)) items = data.kennels;
+  else if (Array.isArray(data?.facilities)) items = data.facilities;
+
+  return items.map(normalizeKennel);
 };
 
 /**

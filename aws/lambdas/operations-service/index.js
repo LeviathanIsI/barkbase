@@ -788,7 +788,8 @@ async function handleGetBookings(tenantId, queryParams) {
         });
       }
       // Overlap logic: check_in <= endDate AND check_out >= startDate
-      whereClause += ` AND DATE(b.check_in) <= $${paramIndex} AND DATE(b.check_out) >= $${paramIndex + 1}`;
+      // Handle NULL check_out by treating it as far future (booking still active)
+      whereClause += ` AND DATE(b.check_in) <= $${paramIndex} AND (b.check_out IS NULL OR DATE(b.check_out) >= $${paramIndex + 1})`;
       params.push(endDate, startDate);
       paramIndex += 2;
       console.log('[Bookings][list] Using date range filter:', startDate, 'to', endDate);
@@ -827,30 +828,28 @@ async function handleGetBookings(tenantId, queryParams) {
 
     console.log('[Bookings][list] tenantId:', tenantId, 'status:', status, 'date:', date, 'startDate:', startDate, 'endDate:', endDate);
 
-    // Schema: check_in, check_out (not start_date/end_date), total_price_in_cents (not total_price)
+    // Schema: check_in, check_out, total_price_cents, deposit_cents
+    // Note: pet_id is NOT on Booking table - pets are linked via BookingPet join table
     const result = await query(
       `SELECT
          b.id,
          b.tenant_id,
-         b.pet_id,
          b.owner_id,
          b.status,
          b.check_in AS start_date,
          b.check_out AS end_date,
          b.checked_in_at,
          b.checked_out_at,
-         b.total_price_in_cents,
-         b.deposit_in_cents,
+         b.total_price_cents,
+         b.deposit_cents,
          b.notes,
          b.special_instructions,
-         b.service_type,
-         b.room_number,
+         b.kennel_id,
+         b.service_id,
          b.created_at,
          b.updated_at,
-         k.id as kennel_id,
-         COALESCE(b.kennel_name, k.name) as kennel_name,
-         s.id as service_id,
-         COALESCE(b.service_name, s.name) as service_name,
+         k.name as kennel_name,
+         s.name as service_name,
          o.id as resolved_owner_id,
          o.first_name as owner_first_name,
          o.last_name as owner_last_name,
@@ -860,8 +859,7 @@ async function handleGetBookings(tenantId, queryParams) {
        LEFT JOIN "Kennel" k ON b.kennel_id = k.id
        LEFT JOIN "Service" s ON b.service_id = s.id
        LEFT JOIN "Owner" o ON b.owner_id = o.id
-       LEFT JOIN "BookingPet" bp ON bp.booking_id = b.id
-       WHERE ${whereClause}       GROUP BY b.id, k.id, k.name, s.id, s.name, o.id, o.first_name, o.last_name, o.email, o.phone
+       WHERE ${whereClause}
        ORDER BY b.check_in DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
       [...params, parseInt(limit), parseInt(offset)]
@@ -898,36 +896,7 @@ async function handleGetBookings(tenantId, queryParams) {
         });
       });
 
-      // Fallback: For bookings with pet_id but no BookingPet entries, lookup pet directly
-      const bookingsWithDirectPetId = result.rows.filter(
-        row => row.pet_id && (!petsMap[row.id] || petsMap[row.id].length === 0)
-      );
-
-      if (bookingsWithDirectPetId.length > 0) {
-        const directPetIds = bookingsWithDirectPetId.map(b => b.pet_id);
-        const directPetsResult = await query(
-          `SELECT id, name, species, breed FROM "Pet" WHERE id = ANY($1)`,
-          [directPetIds]
-        );
-
-        const directPetsById = {};
-        directPetsResult.rows.forEach(pet => {
-          directPetsById[pet.id] = {
-            id: pet.id,
-            name: pet.name,
-            species: pet.species,
-            breed: pet.breed,
-          };
-        });
-
-        // Add direct pets to petsMap for bookings that don't have BookingPet entries
-        bookingsWithDirectPetId.forEach(booking => {
-          const pet = directPetsById[booking.pet_id];
-          if (pet) {
-            petsMap[booking.id] = [pet];
-          }
-        });
-      }
+      // Note: Pets are linked via BookingPet join table only (no pet_id on Booking)
     }
 
     console.log('[Bookings][diag] count:', result.rows.length);
@@ -3188,6 +3157,7 @@ async function handleGetRunAssignments(tenantId, queryParams) {
         AND r.tenant_id = ra.tenant_id
        LEFT JOIN "Pet" p
          ON p.id = ra.pet_id
+        AND p.tenant_id = ra.tenant_id
        LEFT JOIN "Booking" b
          ON b.id = ra.booking_id
         AND b.tenant_id = ra.tenant_id
@@ -3206,6 +3176,20 @@ async function handleGetRunAssignments(tenantId, queryParams) {
     );
 
     console.log('[RunAssignments][list] Found:', result.rows.length, 'assignments after JOINs');
+
+    // Debug: log first row to see actual column values
+    if (result.rows.length > 0) {
+      console.log('[RunAssignments][DEBUG] First row keys:', Object.keys(result.rows[0]));
+      console.log('[RunAssignments][DEBUG] First row pet data:', {
+        pet_id: result.rows[0].pet_id,
+        pet_name: result.rows[0].pet_name,
+        pet_breed: result.rows[0].pet_breed,
+        pet_species: result.rows[0].pet_species,
+        kennel_id: result.rows[0].kennel_id,
+        kennel_name: result.rows[0].kennel_name,
+        booking_total_cents: result.rows[0].booking_total_cents,
+      });
+    }
 
     // Transform to frontend-friendly format
     const assignments = result.rows.map(row => {

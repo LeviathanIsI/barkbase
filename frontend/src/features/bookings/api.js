@@ -269,6 +269,31 @@ export const useDeleteBookingMutation = () => {
   });
 };
 
+/**
+ * Assign a kennel to a booking
+ * Flexible mutation that accepts bookingId in the payload
+ */
+export const useAssignKennelMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async ({ bookingId, kennelId }) => {
+      const res = await apiClient.put(canonicalEndpoints.bookings.detail(bookingId), {
+        kennelId,
+      });
+      return normalizeBooking(res.data);
+    },
+    onSuccess: () => {
+      getBookingInvalidationKeys(tenantKey).forEach((key) => {
+        queryClient.invalidateQueries({ queryKey: key });
+      });
+      // Also invalidate kennels to refresh occupancy
+      queryClient.invalidateQueries({ queryKey: ['kennels'] });
+    },
+  });
+};
+
 // ============================================================================
 // CHECK-IN / CHECK-OUT MUTATIONS
 // ============================================================================

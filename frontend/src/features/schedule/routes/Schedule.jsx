@@ -125,10 +125,21 @@ const Schedule = () => {
       return {
         id: assignment.id,
         runId: assignment.runId,
+        runName: assignment.runName,
         petId: assignment.petId,
         petName: assignment.petName || 'Unknown',
+        petBreed: assignment.petBreed,
+        petSpecies: assignment.petSpecies,
+        petPhotoUrl: assignment.petPhotoUrl,
         ownerName: assignment.ownerName || 'Unknown',
+        ownerPhone: assignment.ownerPhone,
         bookingId: assignment.bookingId,
+        bookingStatus: assignment.bookingStatus,
+        bookingCheckIn: assignment.bookingCheckIn,
+        bookingCheckOut: assignment.bookingCheckOut,
+        bookingTotalCents: assignment.bookingTotalCents || 0,
+        kennelId: assignment.kennelId,
+        kennelName: assignment.kennelName,
         startAt: assignment.startAt,
         endAt: assignment.endAt,
         startTime: assignment.startTime,
@@ -203,8 +214,37 @@ const Schedule = () => {
     setLastRefreshed(new Date());
   }, [refetchRuns, refetchBookings, refetchAssignments, queryClient]);
 
-  const handleBookingClick = useCallback((booking) => {
-    setSelectedBooking(booking);
+  const handleBookingClick = useCallback((bookingOrAssignment) => {
+    // Transform run assignment to booking-like shape for the detail modal
+    // Run assignments have flat fields (petName, ownerName), bookings have nested objects (pet, owner)
+    const normalizedBooking = bookingOrAssignment.pet
+      ? bookingOrAssignment // Already a booking with nested objects
+      : {
+          // Transform flat assignment to booking shape
+          id: bookingOrAssignment.bookingId || bookingOrAssignment.id,
+          recordId: bookingOrAssignment.bookingId || bookingOrAssignment.id,
+          pet: {
+            id: bookingOrAssignment.petId,
+            name: bookingOrAssignment.petName || 'Unknown Pet',
+            breed: bookingOrAssignment.petBreed || null,
+            species: bookingOrAssignment.petSpecies || null,
+            photoUrl: bookingOrAssignment.petPhotoUrl,
+          },
+          owner: {
+            name: bookingOrAssignment.ownerName || 'Unknown',
+            phone: bookingOrAssignment.ownerPhone,
+          },
+          // Use booking dates if available, otherwise use assignment times
+          checkIn: bookingOrAssignment.bookingCheckIn || bookingOrAssignment.startAt || bookingOrAssignment.assignedDate,
+          checkOut: bookingOrAssignment.bookingCheckOut || bookingOrAssignment.endAt || bookingOrAssignment.assignedDate,
+          status: bookingOrAssignment.bookingStatus || bookingOrAssignment.status || 'CONFIRMED',
+          kennel: { name: bookingOrAssignment.kennelName || 'Unassigned' },
+          // Use run name as additional context
+          runName: bookingOrAssignment.runName,
+          totalCents: bookingOrAssignment.bookingTotalCents || 0,
+          amountPaidCents: 0, // TODO: fetch actual paid amount if needed
+        };
+    setSelectedBooking(normalizedBooking);
     setShowBookingModal(true);
   }, []);
 

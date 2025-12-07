@@ -235,10 +235,21 @@ const Bookings = () => {
       return {
         id: assignment.id,
         runId: assignment.runId,
+        runName: assignment.runName,
         petId: assignment.petId,
         petName: assignment.petName || 'Unknown',
+        petBreed: assignment.petBreed,
+        petSpecies: assignment.petSpecies,
+        petPhotoUrl: assignment.petPhotoUrl,
         ownerName: assignment.ownerName || 'Unknown',
+        ownerPhone: assignment.ownerPhone,
         bookingId: assignment.bookingId,
+        bookingStatus: assignment.bookingStatus,
+        bookingCheckIn: assignment.bookingCheckIn,
+        bookingCheckOut: assignment.bookingCheckOut,
+        bookingTotalCents: assignment.bookingTotalCents || 0,
+        kennelId: assignment.kennelId,
+        kennelName: assignment.kennelName,
         startAt: assignment.startAt,
         endAt: assignment.endAt,
         startTime: assignment.startTime,
@@ -387,6 +398,8 @@ const Bookings = () => {
   }, [refetchBookings]);
 
   const handleBookingClick = useCallback((bookingOrAssignment) => {
+    // Debug: log what we receive
+    console.log('[BookingClick] Raw data:', bookingOrAssignment);
     // Transform run assignment to booking-like shape for the detail modal
     // Run assignments have flat fields (petName, ownerName), bookings have nested objects (pet, owner)
     const normalizedBooking = bookingOrAssignment.pet
