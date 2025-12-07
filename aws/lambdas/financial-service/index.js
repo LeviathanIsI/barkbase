@@ -1240,7 +1240,8 @@ async function handleGetPayments(tenantId, queryParams) {
       params.push(status.toLowerCase()); // Payment status is lowercase in schema
     }
 
-    // Schema columns (no deleted_at, refunded_at, or refund_amount_cents)
+    // Schema columns: id, tenant_id, invoice_id, owner_id, amount_cents, method, status,
+    // stripe_payment_intent_id, notes, processed_at, processed_by, created_at, updated_at
     const result = await query(
       `SELECT
          p.id,
@@ -1248,11 +1249,11 @@ async function handleGetPayments(tenantId, queryParams) {
          p.owner_id,
          p.amount_cents,
          p.method,
-         p.processor,
-         p.processor_transaction_id,
+         p.stripe_payment_intent_id,
          p.status,
          p.notes,
          p.processed_at,
+         p.processed_by,
          p.created_at,
          p.updated_at,
          o.first_name,
@@ -1270,6 +1271,7 @@ async function handleGetPayments(tenantId, queryParams) {
 
     const payments = result.rows.map(row => ({
       id: row.id,
+      recordId: row.id,
       invoiceId: row.invoice_id,
       ownerId: row.owner_id,
       amount: row.amount_cents ? row.amount_cents / 100 : 0,  // Convert cents to dollars
@@ -1277,11 +1279,13 @@ async function handleGetPayments(tenantId, queryParams) {
       status: row.status,
       paymentMethod: row.method,
       method: row.method,
-      processor: row.processor,
-      processorTransactionId: row.processor_transaction_id,
+      stripePaymentIntentId: row.stripe_payment_intent_id,
       notes: row.notes,
       processedAt: row.processed_at,
+      processedBy: row.processed_by,
       paidAt: row.processed_at, // Alias for frontend compatibility
+      ownerFirstName: row.first_name,
+      ownerLastName: row.last_name,
       customerName: row.first_name ? `${row.first_name} ${row.last_name}`.trim() : null,
       ownerEmail: row.owner_email,
       createdAt: row.created_at,
@@ -1388,13 +1392,14 @@ async function handleCreatePayment(tenantId, body) {
   try {
     await getPoolAsync();
 
-    const paymentMethodValue = method || paymentMethod || 'card';
+    const paymentMethodValue = (method || paymentMethod || 'CARD').toUpperCase();
+    const statusValue = (body.status || 'CAPTURED').toUpperCase();
 
     const result = await query(
       `INSERT INTO "Payment" (tenant_id, owner_id, invoice_id, amount_cents, method, status, processed_at, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, 'completed', NOW(), NOW(), NOW())
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW(), NOW())
        RETURNING *`,
-      [tenantId, ownerId || null, invoiceId || null, cents, paymentMethodValue.toLowerCase()]
+      [tenantId, ownerId || null, invoiceId || null, cents, paymentMethodValue, statusValue]
     );
 
     const payment = result.rows[0];

@@ -41,6 +41,10 @@ import {
   Banknote,
   Percent,
   RotateCcw,
+  Building,
+  Key,
+  Link as LinkIcon,
+  Shield,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -49,7 +53,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import SlidePanel from '@/components/ui/SlidePanel';
 // Unified loader: replaced inline loading with LoadingState
 import LoadingState from '@/components/ui/LoadingState';
-import { usePaymentsQuery, usePaymentSummaryQuery } from '../api';
+import { usePaymentsQuery, usePaymentSummaryQuery, useCreatePaymentMutation } from '../api';
+import { useOwnersQuery } from '@/features/owners/api';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
 
@@ -72,6 +77,10 @@ const METHOD_CONFIG = {
   cash: { label: 'Cash', icon: Banknote },
   check: { label: 'Check', icon: FileText },
   bank: { label: 'Bank', icon: Wallet },
+  bank_transfer: { label: 'Bank Transfer', icon: Building },
+  stripe: { label: 'Stripe', icon: CreditCard },
+  ach: { label: 'ACH', icon: Wallet },
+  wire: { label: 'Wire', icon: Wallet },
 };
 
 // KPI Tile Component
@@ -338,6 +347,422 @@ const TransactionDrawer = ({ payment, isOpen, onClose }) => {
   );
 };
 
+// Manual Payment Drawer
+const ManualPaymentDrawer = ({ isOpen, onClose, outstandingItems = [], owners = [], onSuccess }) => {
+  const [formData, setFormData] = useState({
+    ownerId: '',
+    amount: '',
+    method: 'cash',
+    notes: '',
+    outstandingItemId: '',
+  });
+  const [ownerSearch, setOwnerSearch] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const createPayment = useCreatePaymentMutation();
+
+  // Filter owners based on search
+  const filteredOwners = useMemo(() => {
+    if (!ownerSearch) return owners.slice(0, 10);
+    const term = ownerSearch.toLowerCase();
+    return owners.filter(owner => {
+      const name = `${owner.firstName || ''} ${owner.lastName || ''}`.toLowerCase();
+      const email = (owner.email || '').toLowerCase();
+      return name.includes(term) || email.includes(term);
+    }).slice(0, 10);
+  }, [owners, ownerSearch]);
+
+  // Get selected owner details
+  const selectedOwner = useMemo(() => {
+    return owners.find(o => o.recordId === formData.ownerId || o.id === formData.ownerId);
+  }, [owners, formData.ownerId]);
+
+  // Handle selecting from outstanding items
+  const handleSelectOutstanding = (item) => {
+    setFormData(prev => ({
+      ...prev,
+      outstandingItemId: item.id,
+      ownerId: item.ownerId || '',
+      amount: item.amount || '',
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.amount || parseFloat(formData.amount) <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await createPayment.mutateAsync({
+        ownerId: formData.ownerId,
+        amount: parseFloat(formData.amount),
+        amountCents: Math.round(parseFloat(formData.amount) * 100),
+        paymentMethod: formData.method.toUpperCase(),
+        method: formData.method.toUpperCase(),
+        status: 'CAPTURED',
+        notes: formData.notes,
+        customerName: selectedOwner ? `${selectedOwner.firstName || ''} ${selectedOwner.lastName || ''}`.trim() : 'Walk-in',
+      });
+      toast.success('Payment recorded successfully');
+      onSuccess?.();
+      onClose();
+      setFormData({ ownerId: '', amount: '', method: 'cash', notes: '', outstandingItemId: '' });
+    } catch (error) {
+      toast.error(error.message || 'Failed to record payment');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({ ownerId: '', amount: '', method: 'cash', notes: '', outstandingItemId: '' });
+    setOwnerSearch('');
+  };
+
+  return (
+    <SlidePanel
+      open={isOpen}
+      onClose={() => { resetForm(); onClose(); }}
+      title="Record Manual Payment"
+      size="md"
+    >
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Outstanding Balances Quick Select */}
+        {outstandingItems.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-text mb-2">
+              Quick Select: Outstanding Balances
+            </label>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {outstandingItems.map(item => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleSelectOutstanding(item)}
+                  className={cn(
+                    'w-full p-3 rounded-lg border text-left transition-colors',
+                    formData.outstandingItemId === item.id
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-primary/50 bg-surface'
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-red-500" />
+                      <span className="font-medium text-text">{item.ownerName}</span>
+                    </div>
+                    <span className="font-semibold text-red-600">${item.amount}</span>
+                  </div>
+                  <p className="text-xs text-muted mt-1">{item.petName} • {item.reason}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Customer Search / Selection */}
+        <div>
+          <label className="block text-sm font-medium text-text mb-2">
+            Customer
+          </label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+            <input
+              type="text"
+              placeholder="Search customers..."
+              value={ownerSearch}
+              onChange={(e) => setOwnerSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+          </div>
+          {(ownerSearch || !formData.ownerId) && filteredOwners.length > 0 && (
+            <div className="mt-2 max-h-40 overflow-y-auto border border-border rounded-lg">
+              {filteredOwners.map(owner => (
+                <button
+                  key={owner.recordId || owner.id}
+                  type="button"
+                  onClick={() => {
+                    setFormData(prev => ({ ...prev, ownerId: owner.recordId || owner.id }));
+                    setOwnerSearch('');
+                  }}
+                  className={cn(
+                    'w-full p-2 text-left hover:bg-surface/80 flex items-center gap-2',
+                    formData.ownerId === (owner.recordId || owner.id) && 'bg-primary/5'
+                  )}
+                >
+                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-text">
+                      {owner.firstName} {owner.lastName}
+                    </p>
+                    <p className="text-xs text-muted">{owner.email}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+          {selectedOwner && !ownerSearch && (
+            <div className="mt-2 p-2 bg-primary/5 rounded-lg flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <User className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-text">
+                    {selectedOwner.firstName} {selectedOwner.lastName}
+                  </p>
+                  <p className="text-xs text-muted">{selectedOwner.email}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, ownerId: '' }))}
+                className="p-1 hover:bg-surface rounded"
+              >
+                <X className="h-4 w-4 text-muted" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Amount */}
+        <div>
+          <label className="block text-sm font-medium text-text mb-2">
+            Amount *
+          </label>
+          <div className="relative">
+            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+              value={formData.amount}
+              onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
+              className="w-full pl-9 pr-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              required
+            />
+          </div>
+        </div>
+
+        {/* Payment Method */}
+        <div>
+          <label className="block text-sm font-medium text-text mb-2">
+            Payment Method
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { value: 'cash', label: 'Cash', icon: Banknote },
+              { value: 'card', label: 'Card', icon: CreditCard },
+              { value: 'check', label: 'Check', icon: FileText },
+              { value: 'bank_transfer', label: 'Bank Transfer', icon: Building },
+            ].map(method => (
+              <button
+                key={method.value}
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, method: method.value }))}
+                className={cn(
+                  'p-3 rounded-lg border flex items-center gap-2 transition-colors',
+                  formData.method === method.value
+                    ? 'border-primary bg-primary/5 text-primary'
+                    : 'border-border hover:border-primary/50 text-muted'
+                )}
+              >
+                <method.icon className="h-4 w-4" />
+                <span className="text-sm font-medium">{method.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div>
+          <label className="block text-sm font-medium text-text mb-2">
+            Notes (optional)
+          </label>
+          <textarea
+            value={formData.notes}
+            onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+            placeholder="Add payment notes..."
+            rows={3}
+            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+          />
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3 pt-4 border-t border-border">
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1"
+            onClick={() => { resetForm(); onClose(); }}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            className="flex-1"
+            disabled={isSubmitting || !formData.amount}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Recording...
+              </>
+            ) : (
+              <>
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Record Payment
+              </>
+            )}
+          </Button>
+        </div>
+      </form>
+    </SlidePanel>
+  );
+};
+
+// Stripe Settings Modal
+const StripeSettingsModal = ({ isOpen, onClose, processorStatus }) => {
+  const isConnected = processorStatus?.status === 'active';
+
+  return (
+    <SlidePanel
+      open={isOpen}
+      onClose={onClose}
+      title="Payment Processor Settings"
+      size="md"
+    >
+      <div className="space-y-6">
+        {/* Connection Status */}
+        <div className={cn(
+          'p-4 rounded-lg border',
+          isConnected ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800' : 'bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800'
+        )}>
+          <div className="flex items-center gap-3">
+            <div className={cn(
+              'h-10 w-10 rounded-full flex items-center justify-center',
+              isConnected ? 'bg-green-100 dark:bg-green-900/30' : 'bg-amber-100 dark:bg-amber-900/30'
+            )}>
+              {isConnected ? (
+                <CheckCircle className="h-5 w-5 text-green-600" />
+              ) : (
+                <AlertCircle className="h-5 w-5 text-amber-600" />
+              )}
+            </div>
+            <div>
+              <p className={cn(
+                'font-medium',
+                isConnected ? 'text-green-700 dark:text-green-300' : 'text-amber-700 dark:text-amber-300'
+              )}>
+                {isConnected ? `Connected: ${processorStatus?.name || 'Stripe'}` : 'Not Connected'}
+              </p>
+              <p className="text-sm text-muted">
+                {isConnected
+                  ? `Last sync: ${processorStatus?.lastSync ? format(new Date(processorStatus.lastSync), 'MMM d, h:mm a') : 'N/A'}`
+                  : 'Connect Stripe to accept online payments'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {isConnected ? (
+          <>
+            {/* Account Info */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium text-text">Account Details</h4>
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted">Processor</span>
+                  <span className="text-text font-medium">{processorStatus?.name || 'Stripe'}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted">Processing Rate</span>
+                  <span className="text-text">{processorStatus?.rate || '2.9% + 30¢'}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted">Status</span>
+                  <Badge variant="success" size="sm">Active</Badge>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium text-text">Quick Actions</h4>
+              <div className="space-y-2">
+                <Button variant="outline" className="w-full justify-start">
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Open Stripe Dashboard
+                </Button>
+                <Button variant="outline" className="w-full justify-start">
+                  <Key className="h-4 w-4 mr-2" />
+                  View API Keys
+                </Button>
+                <Button variant="outline" className="w-full justify-start">
+                  <LinkIcon className="h-4 w-4 mr-2" />
+                  Webhook Settings
+                </Button>
+              </div>
+            </div>
+
+            {/* Danger Zone */}
+            <div className="pt-4 border-t border-border">
+              <h4 className="text-sm font-medium text-red-600 mb-3">Danger Zone</h4>
+              <Button
+                variant="outline"
+                className="w-full justify-center text-red-600 border-red-200 hover:bg-red-50"
+                onClick={() => toast.info('Disconnect functionality coming soon')}
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                Disconnect Stripe
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Connect Stripe */}
+            <div className="text-center py-8">
+              <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <CreditCard className="h-8 w-8 text-primary" />
+              </div>
+              <h3 className="font-medium text-text mb-2">Connect Stripe</h3>
+              <p className="text-sm text-muted mb-6">
+                Accept credit cards, debit cards, and online payments securely with Stripe.
+              </p>
+              <Button onClick={() => toast.info('Stripe connect flow coming soon')}>
+                <Shield className="h-4 w-4 mr-2" />
+                Connect with Stripe
+              </Button>
+            </div>
+
+            {/* Benefits */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium text-text">Benefits</h4>
+              {[
+                'Accept all major credit and debit cards',
+                'Secure, PCI-compliant payment processing',
+                'Automatic invoicing and receipts',
+                'Real-time payment notifications',
+              ].map((benefit, i) => (
+                <div key={i} className="flex items-center gap-2 text-sm text-muted">
+                  <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                  {benefit}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </SlidePanel>
+  );
+};
+
 const Payments = () => {
   const navigate = useNavigate();
   const [currentView, setCurrentView] = useState('overview');
@@ -345,16 +770,18 @@ const Payments = () => {
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [showDrawer, setShowDrawer] = useState(false);
   const [showOutstanding, setShowOutstanding] = useState(true);
+  const [showManualPayment, setShowManualPayment] = useState(false);
+  const [showStripeSettings, setShowStripeSettings] = useState(false);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [methodFilter, setMethodFilter] = useState('all');
   const [dateRange, setDateRange] = useState('all');
-  
+
   // Sorting
   const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' });
-  
+
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -362,6 +789,7 @@ const Payments = () => {
   // Data fetching
   const { data: paymentsData, isLoading, error, refetch } = usePaymentsQuery();
   const { data: summaryData } = usePaymentSummaryQuery();
+  const { data: ownersData } = useOwnersQuery();
 
   // Process payments data - normalize backend response
   const payments = useMemo(() => {
@@ -372,8 +800,8 @@ const Payments = () => {
       ...p,
       // Normalize ID fields
       recordId: p.recordId || p.id,
-      // Normalize amount (backend returns both amount and amountCents)
-      amountCents: p.amountCents || (p.amount ? Math.round(p.amount * 100) : 0),
+      // Normalize amount (backend returns both amount and amountCents) - ensure integer
+      amountCents: parseInt(p.amountCents, 10) || (p.amount ? Math.round(parseFloat(p.amount) * 100) : 0),
       // Parse customer name if combined, otherwise use individual fields
       ownerFirstName: p.ownerFirstName || (p.customerName ? p.customerName.split(' ')[0] : ''),
       ownerLastName: p.ownerLastName || (p.customerName ? p.customerName.split(' ').slice(1).join(' ') : ''),
@@ -394,10 +822,11 @@ const Payments = () => {
     const refunded = payments.filter(p => p.status === 'REFUNDED');
     const failed = payments.filter(p => ['FAILED', 'CANCELLED'].includes(p.status));
 
-    const revenueCollected = captured.reduce((sum, p) => sum + (p.amountCents || 0), 0) / 100;
-    const processedAmount = captured.reduce((sum, p) => sum + (p.amountCents || 0), 0) / 100;
-    const pendingAmount = pending.reduce((sum, p) => sum + (p.amountCents || 0), 0) / 100;
-    const refundedAmount = refunded.reduce((sum, p) => sum + (p.amountCents || 0), 0) / 100;
+    // Ensure amountCents is parsed as integer to avoid string concatenation
+    const revenueCollected = captured.reduce((sum, p) => sum + (parseInt(p.amountCents, 10) || 0), 0) / 100;
+    const processedAmount = captured.reduce((sum, p) => sum + (parseInt(p.amountCents, 10) || 0), 0) / 100;
+    const pendingAmount = pending.reduce((sum, p) => sum + (parseInt(p.amountCents, 10) || 0), 0) / 100;
+    const refundedAmount = refunded.reduce((sum, p) => sum + (parseInt(p.amountCents, 10) || 0), 0) / 100;
     const successRate = payments.length > 0 ? Math.round((captured.length / payments.length) * 100) : 0;
     const avgTransaction = captured.length > 0 ? revenueCollected / captured.length : 0;
 
@@ -599,159 +1028,172 @@ const Payments = () => {
             ))}
           </div>
 
-          <Button size="sm" onClick={() => navigate('/invoices?action=new')}>
+          <Button size="sm" onClick={() => setShowManualPayment(true)}>
             <Plus className="h-3.5 w-3.5 mr-1.5" />
-            Process Payment
+            Record Payment
           </Button>
         </div>
       </div>
 
-      {/* Tier 1: KPI Tiles */}
-      <div className="space-y-3">
-        {/* Row 1: Big metrics */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <KPITile
-            icon={DollarSign}
-            label="Revenue Collected"
-            value={`$${stats.revenueCollected.toLocaleString()}`}
-            subtext="YTD"
-            trend="+15%"
-            trendType="positive"
-            size="large"
-          />
-          <KPITile
-            icon={CreditCard}
-            label="Processed (Card/Online)"
-            value={`$${stats.processedAmount.toLocaleString()}`}
-            subtext={`${stats.capturedCount} transactions`}
-            size="large"
-          />
-          <KPITile
-            icon={Clock}
-            label="Pending / Outstanding"
-            value={`$${stats.pendingAmount.toLocaleString()}`}
-            subtext={`${stats.pendingCount} awaiting`}
-            trend={stats.pendingCount > 0 ? 'Action needed' : null}
-            trendType={stats.pendingCount > 0 ? 'negative' : null}
-            size="large"
-          />
-          <KPITile
-            icon={Wallet}
-            label="Payouts"
-            value="$0"
-            subtext="Next payout: —"
-            size="large"
-          />
-        </div>
-
-        {/* Row 2: Operational metrics */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <KPITile
-            icon={Percent}
-            label="Success Rate"
-            value={`${stats.successRate}%`}
-            trend={stats.successRate >= 95 ? 'Excellent' : stats.successRate >= 90 ? 'Good' : 'Review'}
-            trendType={stats.successRate >= 95 ? 'positive' : stats.successRate >= 90 ? 'neutral' : 'negative'}
-          />
-          <KPITile
-            icon={RotateCcw}
-            label="Refunds"
-            value={`$${stats.refundedAmount.toLocaleString()}`}
-            subtext={`${stats.refundedCount} refunds`}
-          />
-          <KPITile
-            icon={AlertTriangle}
-            label="Chargebacks"
-            value={stats.chargebacks}
-            subtext="This month"
-            trend={stats.chargebacks === 0 ? 'Clean' : null}
-            trendType={stats.chargebacks === 0 ? 'positive' : 'negative'}
-          />
-          <KPITile
-            icon={Receipt}
-            label="Avg Transaction"
-            value={`$${stats.avgTransaction.toFixed(2)}`}
-            subtext="Per payment"
-          />
-        </div>
-      </div>
-
-      {/* Tier 2: Processor Status */}
-      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className={cn(
-              'h-10 w-10 rounded-lg flex items-center justify-center',
-              isProcessorConnected ? 'bg-green-100 dark:bg-green-900/30' : 'bg-amber-100 dark:bg-amber-900/30'
-            )}>
-              {isProcessorConnected ? (
-                <CheckCircle className="h-5 w-5 text-green-600" />
-              ) : (
-                <AlertCircle className="h-5 w-5 text-amber-600" />
-              )}
+      {/* Tab Content */}
+      {currentView === 'overview' && (
+        <>
+          {/* Tier 1: KPI Tiles */}
+          <div className="space-y-3">
+            {/* Row 1: Big metrics */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <KPITile
+                icon={DollarSign}
+                label="Revenue Collected"
+                value={`$${stats.revenueCollected.toLocaleString()}`}
+                subtext="YTD"
+                trend="+15%"
+                trendType="positive"
+                size="large"
+              />
+              <KPITile
+                icon={CreditCard}
+                label="Processed (Card/Online)"
+                value={`$${stats.processedAmount.toLocaleString()}`}
+                subtext={`${stats.capturedCount} transactions`}
+                size="large"
+              />
+              <KPITile
+                icon={Clock}
+                label="Pending / Outstanding"
+                value={`$${stats.pendingAmount.toLocaleString()}`}
+                subtext={`${stats.pendingCount} awaiting`}
+                trend={stats.pendingCount > 0 ? 'Action needed' : null}
+                trendType={stats.pendingCount > 0 ? 'negative' : null}
+                size="large"
+              />
+              <KPITile
+                icon={Wallet}
+                label="Payouts"
+                value="$0"
+                subtext="Next payout: —"
+                size="large"
+              />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="font-medium text-text">
-                  {isProcessorConnected ? `Connected: ${processorStatus.name}` : 'Payment Processor'}
-                </p>
-                <Badge variant={isProcessorConnected ? 'success' : 'warning'} size="sm">
-                  {isProcessorConnected ? 'Active' : 'Not Connected'}
-                </Badge>
-              </div>
-              <p className="text-xs text-muted">
-                {isProcessorConnected
-                  ? `Last sync: ${format(processorStatus.lastSync, 'MMM d, h:mm a')} • Processing smoothly`
-                  : 'Connect a payment processor to accept payments'}
-              </p>
+
+            {/* Row 2: Operational metrics */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <KPITile
+                icon={Percent}
+                label="Success Rate"
+                value={`${stats.successRate}%`}
+                trend={stats.successRate >= 95 ? 'Excellent' : stats.successRate >= 90 ? 'Good' : 'Review'}
+                trendType={stats.successRate >= 95 ? 'positive' : stats.successRate >= 90 ? 'neutral' : 'negative'}
+              />
+              <KPITile
+                icon={RotateCcw}
+                label="Refunds"
+                value={`$${stats.refundedAmount.toLocaleString()}`}
+                subtext={`${stats.refundedCount} refunds`}
+              />
+              <KPITile
+                icon={AlertTriangle}
+                label="Chargebacks"
+                value={stats.chargebacks}
+                subtext="This month"
+                trend={stats.chargebacks === 0 ? 'Clean' : null}
+                trendType={stats.chargebacks === 0 ? 'positive' : 'negative'}
+              />
+              <KPITile
+                icon={Receipt}
+                label="Avg Transaction"
+                value={`$${stats.avgTransaction.toFixed(2)}`}
+                subtext="Per payment"
+              />
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            {isProcessorConnected && (
-              <div className="text-right">
-                <p className="text-xs text-muted">Your rate</p>
-                <p className="text-sm font-medium text-text">{processorStatus.rate}</p>
-              </div>
-            )}
-            <Button variant="outline" size="sm">
-              {isProcessorConnected ? 'Manage' : 'Connect Processor'}
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Outstanding Section */}
-      {outstandingItems.length > 0 && (
-        <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-lg">
-          <button
-            onClick={() => setShowOutstanding(!showOutstanding)}
-            className="w-full flex items-center justify-between p-3"
-          >
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 text-red-500" />
-              <span className="font-medium text-red-700 dark:text-red-300">
-                {outstandingItems.length} Outstanding / Failed Payments
-              </span>
-              <Badge variant="danger" size="sm">${outstandingItems.reduce((sum, i) => sum + parseFloat(i.amount), 0).toFixed(2)}</Badge>
-            </div>
-            {showOutstanding ? <ChevronUp className="h-4 w-4 text-red-500" /> : <ChevronDown className="h-4 w-4 text-red-500" />}
-          </button>
-          {showOutstanding && (
-            <div className="px-3 pb-3 space-y-1">
-              {outstandingItems.map(item => (
-                <OutstandingRow
-                  key={item.id}
-                  item={item}
-                  onRetry={() => toast.info('Retry payment functionality coming soon')}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+        </>
       )}
 
-      {/* Tier 2: Filters Toolbar */}
-      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-3">
+      {/* Overview Tab - Processor Status and Outstanding */}
+      {currentView === 'overview' && (
+        <>
+          {/* Tier 2: Processor Status */}
+          <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className={cn(
+                  'h-10 w-10 rounded-lg flex items-center justify-center',
+                  isProcessorConnected ? 'bg-green-100 dark:bg-green-900/30' : 'bg-amber-100 dark:bg-amber-900/30'
+                )}>
+                  {isProcessorConnected ? (
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  ) : (
+                    <AlertCircle className="h-5 w-5 text-amber-600" />
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium text-text">
+                      {isProcessorConnected ? `Connected: ${processorStatus.name}` : 'Payment Processor'}
+                    </p>
+                    <Badge variant={isProcessorConnected ? 'success' : 'warning'} size="sm">
+                      {isProcessorConnected ? 'Active' : 'Not Connected'}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted">
+                    {isProcessorConnected
+                      ? `Last sync: ${format(processorStatus.lastSync, 'MMM d, h:mm a')} • Processing smoothly`
+                      : 'Connect a payment processor to accept payments'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                {isProcessorConnected && (
+                  <div className="text-right">
+                    <p className="text-xs text-muted">Your rate</p>
+                    <p className="text-sm font-medium text-text">{processorStatus.rate}</p>
+                  </div>
+                )}
+                <Button variant="outline" size="sm" onClick={() => setShowStripeSettings(true)}>
+                  {isProcessorConnected ? 'Manage' : 'Connect Processor'}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Outstanding Section */}
+          {outstandingItems.length > 0 && (
+            <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-lg">
+              <button
+                onClick={() => setShowOutstanding(!showOutstanding)}
+                className="w-full flex items-center justify-between p-3"
+              >
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="h-5 w-5 text-red-500" />
+                  <span className="font-medium text-red-700 dark:text-red-300">
+                    {outstandingItems.length} Outstanding / Failed Payments
+                  </span>
+                  <Badge variant="danger" size="sm">${outstandingItems.reduce((sum, i) => sum + parseFloat(i.amount), 0).toFixed(2)}</Badge>
+                </div>
+                {showOutstanding ? <ChevronUp className="h-4 w-4 text-red-500" /> : <ChevronDown className="h-4 w-4 text-red-500" />}
+              </button>
+              {showOutstanding && (
+                <div className="px-3 pb-3 space-y-1">
+                  {outstandingItems.map(item => (
+                    <OutstandingRow
+                      key={item.id}
+                      item={item}
+                      onRetry={() => toast.info('Retry payment functionality coming soon')}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Overview Tab - Filters and Transactions */}
+      {currentView === 'overview' && (
+        <>
+          {/* Tier 2: Filters Toolbar */}
+          <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-3">
         <div className="flex flex-wrap items-center gap-3">
           {/* Search */}
           <div className="relative flex-1 min-w-[200px] max-w-sm">
@@ -789,7 +1231,7 @@ const Payments = () => {
             <option value="card">Card</option>
             <option value="cash">Cash</option>
             <option value="check">Check</option>
-            <option value="bank">Bank Transfer</option>
+            <option value="bank_transfer">Bank Transfer</option>
           </select>
 
           {/* Date Range */}
@@ -869,9 +1311,9 @@ const Payments = () => {
                 : 'Try adjusting your filters'}
             </p>
             {payments.length === 0 ? (
-              <Button size="sm" onClick={() => navigate('/invoices?action=new')}>
+              <Button size="sm" onClick={() => setShowManualPayment(true)}>
                 <Plus className="h-4 w-4 mr-1.5" />
-                Create Manual Payment
+                Record Payment
               </Button>
             ) : (
               <Button variant="outline" size="sm" onClick={clearFilters}>
@@ -992,12 +1434,284 @@ const Payments = () => {
           </>
         )}
       </div>
+        </>
+      )}
+
+      {/* Analytics Tab */}
+      {currentView === 'analytics' && (
+        <div className="space-y-6">
+          {/* Analytics Header */}
+          <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <BarChart3 className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="font-semibold text-text">Payment Analytics</h2>
+                <p className="text-sm text-muted">Insights and trends from your payment data</p>
+              </div>
+            </div>
+
+            {/* Analytics KPIs */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <div className="p-4 bg-surface rounded-lg">
+                <p className="text-xs text-muted uppercase tracking-wide mb-1">Total Revenue</p>
+                <p className="text-2xl font-bold text-text">${stats.revenueCollected.toLocaleString()}</p>
+                <p className="text-xs text-green-600 mt-1">+15% from last month</p>
+              </div>
+              <div className="p-4 bg-surface rounded-lg">
+                <p className="text-xs text-muted uppercase tracking-wide mb-1">Avg Transaction</p>
+                <p className="text-2xl font-bold text-text">${stats.avgTransaction.toFixed(2)}</p>
+                <p className="text-xs text-muted mt-1">{stats.capturedCount} transactions</p>
+              </div>
+              <div className="p-4 bg-surface rounded-lg">
+                <p className="text-xs text-muted uppercase tracking-wide mb-1">Success Rate</p>
+                <p className="text-2xl font-bold text-text">{stats.successRate}%</p>
+                <p className="text-xs text-green-600 mt-1">Above industry avg</p>
+              </div>
+              <div className="p-4 bg-surface rounded-lg">
+                <p className="text-xs text-muted uppercase tracking-wide mb-1">Refund Rate</p>
+                <p className="text-2xl font-bold text-text">
+                  {stats.capturedCount > 0 ? ((stats.refundedCount / stats.capturedCount) * 100).toFixed(1) : 0}%
+                </p>
+                <p className="text-xs text-muted mt-1">${stats.refundedAmount.toLocaleString()} total</p>
+              </div>
+            </div>
+
+            {/* Payment Methods Breakdown */}
+            <div>
+              <h3 className="text-sm font-medium text-text mb-3">Payment Methods</h3>
+              <div className="space-y-3">
+                {['card', 'cash', 'check', 'bank'].map(method => {
+                  const methodPayments = payments.filter(p => (p.method || '').toLowerCase() === method);
+                  const methodTotal = methodPayments.reduce((sum, p) => sum + (p.amountCents || 0), 0) / 100;
+                  const percentage = stats.revenueCollected > 0 ? (methodTotal / stats.revenueCollected) * 100 : 0;
+                  const config = METHOD_CONFIG[method] || { label: method, icon: CreditCard };
+                  const MethodIcon = config.icon;
+
+                  return (
+                    <div key={method} className="flex items-center gap-3">
+                      <MethodIcon className="h-4 w-4 text-muted" />
+                      <span className="text-sm text-text w-20">{config.label}</span>
+                      <div className="flex-1 bg-surface rounded-full h-2 overflow-hidden">
+                        <div
+                          className="h-full bg-primary rounded-full transition-all"
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                      <span className="text-sm text-muted w-20 text-right">${methodTotal.toLocaleString()}</span>
+                      <span className="text-xs text-muted w-12 text-right">{percentage.toFixed(1)}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Monthly Trend Placeholder */}
+          <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-6">
+            <h3 className="font-medium text-text mb-4">Revenue Trend</h3>
+            <div className="h-48 flex items-center justify-center border border-dashed border-border rounded-lg">
+              <div className="text-center">
+                <BarChart3 className="h-8 w-8 text-muted mx-auto mb-2" />
+                <p className="text-sm text-muted">Chart visualization coming soon</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Outstanding Tab */}
+      {currentView === 'outstanding' && (
+        <div className="space-y-4">
+          <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                  <Clock className="h-5 w-5 text-red-600" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-text">Outstanding Balances</h2>
+                  <p className="text-sm text-muted">Payments requiring attention</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-bold text-red-600">
+                  ${outstandingItems.reduce((sum, i) => sum + parseFloat(i.amount), 0).toFixed(2)}
+                </p>
+                <p className="text-xs text-muted">{outstandingItems.length} items</p>
+              </div>
+            </div>
+
+            {outstandingItems.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="h-8 w-8 text-green-600" />
+                </div>
+                <h3 className="font-medium text-text mb-1">All caught up!</h3>
+                <p className="text-sm text-muted">No outstanding balances at this time</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {outstandingItems.map(item => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between p-4 bg-surface rounded-lg hover:bg-surface/80 transition-colors"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                        <AlertCircle className="h-5 w-5 text-red-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-text">{item.ownerName}</p>
+                        <p className="text-sm text-muted">{item.petName} • {item.reason}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-lg font-semibold text-red-600">${item.amount}</span>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setShowManualPayment(true);
+                        }}
+                      >
+                        <Plus className="h-3.5 w-3.5 mr-1" />
+                        Collect
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Settings Tab */}
+      {currentView === 'settings' && (
+        <div className="space-y-6">
+          {/* Payment Processor Settings */}
+          <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Settings className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="font-semibold text-text">Payment Settings</h2>
+                <p className="text-sm text-muted">Configure your payment processing options</p>
+              </div>
+            </div>
+
+            {/* Processor Card */}
+            <div className={cn(
+              'p-4 rounded-lg border mb-6',
+              isProcessorConnected ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800' : 'bg-surface border-border'
+            )}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    'h-10 w-10 rounded-lg flex items-center justify-center',
+                    isProcessorConnected ? 'bg-green-100 dark:bg-green-900/30' : 'bg-surface'
+                  )}>
+                    {isProcessorConnected ? (
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                    ) : (
+                      <CreditCard className="h-5 w-5 text-muted" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-medium text-text">
+                      {isProcessorConnected ? processorStatus.name : 'Payment Processor'}
+                    </p>
+                    <p className="text-sm text-muted">
+                      {isProcessorConnected ? `Rate: ${processorStatus.rate}` : 'Not connected'}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant={isProcessorConnected ? 'outline' : 'primary'}
+                  size="sm"
+                  onClick={() => setShowStripeSettings(true)}
+                >
+                  {isProcessorConnected ? 'Manage' : 'Connect Stripe'}
+                </Button>
+              </div>
+            </div>
+
+            {/* Payment Options */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium text-text">Accepted Payment Methods</h3>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { value: 'card', label: 'Credit/Debit Cards', icon: CreditCard, enabled: true },
+                  { value: 'cash', label: 'Cash', icon: Banknote, enabled: true },
+                  { value: 'check', label: 'Check', icon: FileText, enabled: true },
+                  { value: 'bank', label: 'Bank Transfer', icon: Building, enabled: false },
+                ].map(method => (
+                  <div
+                    key={method.value}
+                    className={cn(
+                      'p-3 rounded-lg border flex items-center gap-3',
+                      method.enabled ? 'border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-800' : 'border-border bg-surface'
+                    )}
+                  >
+                    <method.icon className={cn('h-5 w-5', method.enabled ? 'text-green-600' : 'text-muted')} />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-text">{method.label}</p>
+                    </div>
+                    <Badge variant={method.enabled ? 'success' : 'neutral'} size="sm">
+                      {method.enabled ? 'Enabled' : 'Disabled'}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Additional Settings */}
+            <div className="mt-6 pt-6 border-t border-border space-y-4">
+              <h3 className="text-sm font-medium text-text">Receipt Settings</h3>
+              <div className="space-y-3">
+                <label className="flex items-center justify-between p-3 bg-surface rounded-lg cursor-pointer">
+                  <div className="flex items-center gap-3">
+                    <Mail className="h-4 w-4 text-muted" />
+                    <span className="text-sm text-text">Auto-send email receipts</span>
+                  </div>
+                  <input type="checkbox" defaultChecked className="rounded border-border" />
+                </label>
+                <label className="flex items-center justify-between p-3 bg-surface rounded-lg cursor-pointer">
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-4 w-4 text-muted" />
+                    <span className="text-sm text-text">Include business logo on receipts</span>
+                  </div>
+                  <input type="checkbox" defaultChecked className="rounded border-border" />
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Transaction Detail Drawer */}
       <TransactionDrawer
         payment={selectedPayment}
         isOpen={showDrawer}
         onClose={() => setShowDrawer(false)}
+      />
+
+      {/* Manual Payment Drawer */}
+      <ManualPaymentDrawer
+        isOpen={showManualPayment}
+        onClose={() => setShowManualPayment(false)}
+        outstandingItems={outstandingItems}
+        owners={ownersData || []}
+        onSuccess={() => refetch()}
+      />
+
+      {/* Stripe Settings Modal */}
+      <StripeSettingsModal
+        isOpen={showStripeSettings}
+        onClose={() => setShowStripeSettings(false)}
+        processorStatus={processorStatus}
       />
     </div>
   );
