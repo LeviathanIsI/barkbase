@@ -1,6 +1,0 @@
-
-> frontend@0.0.0 test:e2e
-> playwright test --project=chromium --reporter=list
-
-Error: ENOTEMPTY: directory not empty, rmdir 'D:\barkbase\frontend\e2e\test-results'
-

@@ -60,7 +60,10 @@ export default function IncidentList({ onCreateNew, onViewIncident, onRefresh })
       setLoading(true);
       setError(null);
       const response = await getIncidents(filters);
-      setIncidents(response.data || response.incidents || []);
+      // apiClient.get returns { data: backendResponse }
+      // Backend returns { data: [...], incidents: [...], total: ... }
+      const backendData = response.data || {};
+      setIncidents(backendData.data || backendData.incidents || []);
     } catch (err) {
       console.error('Failed to fetch incidents:', err);
       setError(err.message || 'Failed to load incidents');
@@ -330,7 +333,7 @@ export default function IncidentList({ onCreateNew, onViewIncident, onRefresh })
                     >
                       <Eye className="h-4 w-4" />
                     </Button>
-                    {incident.status === 'OPEN' && !incident.ownerNotified && incident.ownerId && (
+                    {!incident.ownerNotified && incident.ownerId && (
                       <Button
                         variant="ghost"
                         size="sm"

@@ -288,6 +288,102 @@ dev.*.json
 *.local.ts
 
 # =============================================================================
+# 🚫 LOCAL DEV TOOLS & IDE CONFIG (NEVER COMMIT)
+# =============================================================================
+
+# IDE & Editor configurations
+.vscode/
+.cursor/
+.idea/
+
+# Claude Code / AI Assistant config
+.claude/
+claude.md
+
+# MCP (Model Context Protocol) config
+.mcp.json
+.playwright-mcp/
+
+# =============================================================================
+# 🗄️ DATABASE & MIGRATIONS (LOCAL ONLY)
+# =============================================================================
+
+# Database folder with seeds/migrations (contains sensitive data patterns)
+backend/database/
+
+# =============================================================================
+# 🧪 E2E TESTING (LOCAL DEVELOPMENT ONLY)
+# =============================================================================
+
+# Root level e2e directories
+e2e/
+e2eutils/
+e2etests/
+e2ereports/
+e2epages/
+e2efixtures/
+
+# Frontend e2e testing
+frontend/e2e/
+frontend/e2e-test-output.txt
+frontend/playwright.config.js
+frontend/test-orchestration/
+
+# Playwright artifacts
+playwright-report/
+test-results/
+*.visual.spec.js-snapshots/
+
+# =============================================================================
+# 📝 AUDIT REPORTS & ANALYSIS (LOCAL ONLY)
+# =============================================================================
+
+# Audit and analysis reports
+*_AUDIT*.md
+*_REPORT*.md
+*_ANALYSIS*.md
+AUDIT_*.md
+*AUDIT*.txt
+frontend/CARD_AUDIT*.md
+frontend/COVERAGE_ANALYSIS*.md
+frontend/LAYOUT_SPACING_AUDIT.md
+frontend/TEST_QUALITY_ANALYSIS.md
+frontend/UI_UX_COMPREHENSIVE_AUDIT.md
+frontend/docs/ui-audit*.md
+
+# =============================================================================
+# 📚 DOCS FOLDER (LOCAL DOCUMENTATION)
+# =============================================================================
+
+# Local docs folder (use wiki or separate docs repo instead)
+docs/
+
+# =============================================================================
+# 🔧 SCRIPTS & UTILITIES (LOCAL ONLY)
+# =============================================================================
+
+# Local scripts directory
+scripts/
+
+# Test/debug scripts at root
+check-*.js
+check-*.ps1
+test-*.js
+fix-*.py
+
+# Backup files
+*.bak
+*.backup
+*.orig
+
+# Misc text files at root (not in subdirs)
+/lambda-functions.txt
+/routes.txt
+
+# Local test config
+frontend/vitest.config.js
+
+# =============================================================================
 # 🚦 ALLOW PATTERNS (Explicitly allowed files)
 # =============================================================================
 # Use ! to explicitly allow files that might match above patterns

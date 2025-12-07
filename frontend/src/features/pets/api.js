@@ -343,8 +343,9 @@ export const useDeleteVaccinationMutation = (petId) => {
 export const getPets = async (params = {}) => {
   const res = await apiClient.get(canonicalEndpoints.pets.list, { params });
   const data = res?.data;
-  // Handle both array and wrapped response shapes
-  const pets = Array.isArray(data) ? data : (data?.pets || data?.items || []);
+  // Handle various response shapes from entity-service
+  // Entity-service returns: { data: [...pets], pagination: {...} }
+  const pets = Array.isArray(data) ? data : (data?.data || data?.pets || data?.items || []);
   return { data: pets };
 };
 

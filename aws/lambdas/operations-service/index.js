@@ -5758,20 +5758,48 @@ async function handleGetIncidents(tenantId, queryParams) {
       paramIndex += 2;
     }
 
+    // Incident table schema:
+    // id, tenant_id, title, description, incident_type, severity, status,
+    // incident_date, location, pet_id, booking_id, reported_by, witnesses,
+    // immediate_actions, vet_contacted, medical_treatment, resolution_notes,
+    // resolved_at, resolved_by, attachments, created_at, updated_at
     const result = await query(
       `SELECT
-         i.*,
+         i.id,
+         i.tenant_id,
+         i.title,
+         i.description,
+         i.incident_type,
+         i.severity,
+         i.status,
+         i.incident_date,
+         i.location,
+         i.pet_id,
+         i.booking_id,
+         i.reported_by,
+         i.witnesses,
+         i.immediate_actions,
+         i.vet_contacted,
+         i.medical_treatment,
+         i.resolution_notes,
+         i.resolved_at,
+         i.resolved_by,
+         i.attachments,
+         i.created_at,
+         i.updated_at,
          p.name as pet_name,
+         o.id as owner_id,
          o.first_name as owner_first_name,
          o.last_name as owner_last_name,
          o.email as owner_email,
          o.phone as owner_phone,
-         u.first_name as created_by_first_name,
-         u.last_name as created_by_last_name
+         u.first_name as reported_by_first_name,
+         u.last_name as reported_by_last_name
        FROM "Incident" i
        LEFT JOIN "Pet" p ON i.pet_id = p.id
-       LEFT JOIN "Owner" o ON i.owner_id = o.id
-       LEFT JOIN "User" u ON i.created_by = u.id
+       LEFT JOIN "PetOwner" po ON p.id = po.pet_id AND po.is_primary = true
+       LEFT JOIN "Owner" o ON po.owner_id = o.id
+       LEFT JOIN "User" u ON i.reported_by = u.id
        WHERE ${whereClause}
        ORDER BY i.incident_date DESC, i.created_at DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
@@ -5781,6 +5809,13 @@ async function handleGetIncidents(tenantId, queryParams) {
     const incidents = result.rows.map(row => ({
       id: row.id,
       tenantId: row.tenant_id,
+      title: row.title,
+      description: row.description,
+      incidentType: row.incident_type,
+      severity: row.severity,
+      status: row.status,
+      incidentDate: row.incident_date,
+      location: row.location,
       petId: row.pet_id,
       petName: row.pet_name,
       bookingId: row.booking_id,
@@ -5788,32 +5823,16 @@ async function handleGetIncidents(tenantId, queryParams) {
       ownerName: row.owner_first_name ? `${row.owner_first_name} ${row.owner_last_name || ''}`.trim() : null,
       ownerEmail: row.owner_email,
       ownerPhone: row.owner_phone,
-      incidentType: row.incident_type,
-      severity: row.severity,
-      title: row.title,
-      description: row.description,
-      incidentDate: row.incident_date,
-      location: row.location,
-      staffInvolved: row.staff_involved,
-      staffWitness: row.staff_witness,
+      reportedBy: row.reported_by,
+      reportedByName: row.reported_by_first_name ? `${row.reported_by_first_name} ${row.reported_by_last_name || ''}`.trim() : null,
+      witnesses: row.witnesses,
       immediateActions: row.immediate_actions,
-      followUpActions: row.follow_up_actions,
-      preventiveMeasures: row.preventive_measures,
       vetContacted: row.vet_contacted,
-      vetContactedAt: row.vet_contacted_at,
-      vetName: row.vet_name,
-      vetRecommendations: row.vet_recommendations,
       medicalTreatment: row.medical_treatment,
-      ownerNotified: row.owner_notified,
-      ownerNotifiedAt: row.owner_notified_at,
-      ownerResponse: row.owner_response,
-      status: row.status,
-      resolvedAt: row.resolved_at,
       resolutionNotes: row.resolution_notes,
-      photos: row.photos,
-      documents: row.documents,
-      createdBy: row.created_by,
-      createdByName: row.created_by_first_name ? `${row.created_by_first_name} ${row.created_by_last_name || ''}`.trim() : null,
+      resolvedAt: row.resolved_at,
+      resolvedBy: row.resolved_by,
+      attachments: row.attachments,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));
