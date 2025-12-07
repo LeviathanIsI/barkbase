@@ -51,7 +51,7 @@ try {
   sharedLayer = require('../../layers/shared-layer/nodejs/index');
 }
 
-const { getPoolAsync, query } = dbLayer;
+const { getPoolAsync, query, softDelete, softDeleteBatch } = dbLayer;
 const {
   authenticateRequest,
   createResponse,
@@ -999,7 +999,12 @@ exports.handler = async (event, context) => {
  */
 async function getUserTenantContext(cognitoSub) {
   const result = await query(
-    `SELECT id, tenant_id, role FROM "User" WHERE cognito_sub = $1 LIMIT 1`,
+    `SELECT u.id, u.tenant_id, r.name as role
+     FROM "User" u
+     LEFT JOIN "UserRole" ur ON u.id = ur.user_id
+     LEFT JOIN "Role" r ON ur.role_id = r.id
+     WHERE u.cognito_sub = $1
+     LIMIT 1`,
     [cognitoSub]
   );
 
@@ -1030,27 +1035,58 @@ async function handleGetTenantConfig(user, event) {
     await getPoolAsync();
 
     // Look up user and their tenant from database
+    // NEW SCHEMA: Tenant has NO settings/theme columns - use TenantSettings table
     const result = await query(
       `SELECT
          u.id as user_id,
          u.email,
          u.first_name,
          u.last_name,
-         u.role,
+         r.name as role,
          u.tenant_id,
          t.id as tenant_record_id,
          t.name as tenant_name,
          t.slug as tenant_slug,
          t.plan as tenant_plan,
-         t.settings as tenant_settings,
-         t.theme as tenant_theme,
          t.feature_flags as tenant_features,
-         t.auto_logout_interval_hours as auto_logout_interval_hours,
          t.created_at as tenant_created_at,
+         -- TenantSettings fields (1:1 with Tenant)
+         ts.timezone,
+         ts.currency,
+         ts.date_format,
+         ts.time_format,
+         ts.language,
+         ts.business_name,
+         ts.business_phone,
+         ts.business_email,
+         ts.business_address,
+         ts.default_check_in_time,
+         ts.default_check_out_time,
+         ts.booking_buffer_minutes,
+         ts.max_advance_booking_days,
+         ts.min_advance_booking_hours,
+         ts.allow_online_booking,
+         ts.require_deposit,
+         ts.deposit_percent,
+         ts.require_vaccinations,
+         ts.cancellation_window_hours,
+         ts.tax_rate,
+         ts.tax_name,
+         ts.invoice_prefix,
+         ts.invoice_footer,
+         ts.notification_prefs,
+         ts.email_templates,
+         ts.business_hours,
+         ts.branding,
+         ts.integrations,
+         ts.custom_fields,
          (SELECT COUNT(*) FROM "Service" WHERE tenant_id = t.id) as service_count,
          (SELECT COUNT(*) FROM "Kennel" WHERE tenant_id = t.id) as kennel_count
        FROM "User" u
        LEFT JOIN "Tenant" t ON u.tenant_id = t.id
+       LEFT JOIN "TenantSettings" ts ON t.id = ts.tenant_id
+       LEFT JOIN "UserRole" ur ON u.id = ur.user_id
+       LEFT JOIN "Role" r ON ur.role_id = r.id
        WHERE u.cognito_sub = $1
        LIMIT 1`,
       [cognitoSub]
@@ -1079,6 +1115,46 @@ async function handleGetTenantConfig(user, event) {
     // Determine onboarding status
     const hasOnboardingCompleted = parseInt(row.service_count || 0) > 0 && parseInt(row.kennel_count || 0) > 0;
 
+    // Build settings object from TenantSettings columns
+    const settings = {
+      // Regional/Localization
+      timezone: row.timezone || 'America/New_York',
+      currency: row.currency || 'USD',
+      dateFormat: row.date_format || 'MM/DD/YYYY',
+      timeFormat: row.time_format || '12h',
+      language: row.language || 'en',
+      // Business Info
+      businessName: row.business_name,
+      businessPhone: row.business_phone,
+      businessEmail: row.business_email,
+      businessAddress: row.business_address,
+      // Booking Configuration
+      defaultCheckInTime: row.default_check_in_time || '09:00',
+      defaultCheckOutTime: row.default_check_out_time || '17:00',
+      bookingBufferMinutes: row.booking_buffer_minutes || 15,
+      maxAdvanceBookingDays: row.max_advance_booking_days || 365,
+      minAdvanceBookingHours: row.min_advance_booking_hours || 24,
+      allowOnlineBooking: row.allow_online_booking !== false,
+      requireDeposit: row.require_deposit || false,
+      depositPercent: row.deposit_percent || 0,
+      requireVaccinations: row.require_vaccinations !== false,
+      cancellationWindowHours: row.cancellation_window_hours || 48,
+      // Financial
+      taxRate: parseFloat(row.tax_rate) || 0,
+      taxName: row.tax_name || 'Sales Tax',
+      invoicePrefix: row.invoice_prefix || 'INV-',
+      invoiceFooter: row.invoice_footer,
+      // JSONB fields
+      notificationPrefs: row.notification_prefs || {},
+      emailTemplates: row.email_templates || {},
+      businessHours: row.business_hours || {},
+      integrations: row.integrations || {},
+      customFields: row.custom_fields || {},
+    };
+
+    // Build branding/theme object
+    const theme = row.branding || {};
+
     // Return tenant config in the format frontend expects
     return createResponse(200, {
       // Top-level fields for compatibility
@@ -1090,9 +1166,8 @@ async function handleGetTenantConfig(user, event) {
       name: row.tenant_name,
       slug: row.tenant_slug,
       plan: row.tenant_plan || 'FREE',
-      autoLogoutIntervalHours: row.auto_logout_interval_hours || 24,
-      settings: row.tenant_settings || {},
-      theme: row.tenant_theme || {},
+      settings,
+      theme,
       featureFlags: row.tenant_features || {},
       createdAt: row.tenant_created_at,
       // User info
@@ -1124,16 +1199,22 @@ async function handleGetTenantConfig(user, event) {
 
 /**
  * Update tenant configuration
+ * NEW SCHEMA: Tenant has name/slug/plan. Settings are in TenantSettings table.
  */
 async function handleUpdateTenantConfig(user, body) {
-  const { name, settings, autoLogoutIntervalHours } = body;
+  const { name, settings } = body;
 
   try {
     await getPoolAsync();
 
     // Get user's tenant and verify permission
+    // NEW SCHEMA: Role comes from UserRole junction table
     const userResult = await query(
-      `SELECT role, tenant_id FROM "User" WHERE cognito_sub = $1`,
+      `SELECT u.tenant_id, r.name as role
+       FROM "User" u
+       LEFT JOIN "UserRole" ur ON u.id = ur.user_id
+       LEFT JOIN "Role" r ON ur.role_id = r.id
+       WHERE u.cognito_sub = $1`,
       [user.id]
     );
 
@@ -1153,46 +1234,84 @@ async function handleUpdateTenantConfig(user, body) {
       });
     }
 
-    // Build update
-    const updates = [];
-    const values = [tenantId];
-    let paramIndex = 2;
-
+    // Update Tenant table if name is provided
     if (name !== undefined) {
-      updates.push(`name = $${paramIndex++}`);
-      values.push(name.trim());
+      await query(
+        `UPDATE "Tenant" SET name = $2, updated_at = NOW() WHERE id = $1`,
+        [tenantId, name.trim()]
+      );
     }
-    if (settings !== undefined) {
-      updates.push(`settings = $${paramIndex++}`);
-      values.push(JSON.stringify(settings));
-    }
-    if (autoLogoutIntervalHours !== undefined) {
-      // Validate interval value
-      if (![8, 12, 24, 48, 72].includes(autoLogoutIntervalHours)) {
-        return createResponse(400, {
-          error: 'Bad Request',
-          message: 'Invalid auto-logout interval. Must be one of: 8, 12, 24, 48, 72 hours',
-        });
+
+    // Update TenantSettings if settings provided
+    if (settings !== undefined && Object.keys(settings).length > 0) {
+      const settingsUpdates = [];
+      const settingsValues = [tenantId];
+      let paramIndex = 2;
+
+      // Map frontend camelCase to database snake_case
+      const fieldMap = {
+        timezone: 'timezone',
+        currency: 'currency',
+        dateFormat: 'date_format',
+        timeFormat: 'time_format',
+        language: 'language',
+        businessName: 'business_name',
+        businessPhone: 'business_phone',
+        businessEmail: 'business_email',
+        businessAddress: 'business_address',
+        defaultCheckInTime: 'default_check_in_time',
+        defaultCheckOutTime: 'default_check_out_time',
+        bookingBufferMinutes: 'booking_buffer_minutes',
+        maxAdvanceBookingDays: 'max_advance_booking_days',
+        minAdvanceBookingHours: 'min_advance_booking_hours',
+        allowOnlineBooking: 'allow_online_booking',
+        requireDeposit: 'require_deposit',
+        depositPercent: 'deposit_percent',
+        requireVaccinations: 'require_vaccinations',
+        cancellationWindowHours: 'cancellation_window_hours',
+        taxRate: 'tax_rate',
+        taxName: 'tax_name',
+        invoicePrefix: 'invoice_prefix',
+        invoiceFooter: 'invoice_footer',
+        notificationPrefs: 'notification_prefs',
+        emailTemplates: 'email_templates',
+        businessHours: 'business_hours',
+        branding: 'branding',
+        integrations: 'integrations',
+        customFields: 'custom_fields',
+      };
+
+      for (const [frontendKey, dbColumn] of Object.entries(fieldMap)) {
+        if (settings[frontendKey] !== undefined) {
+          const value = settings[frontendKey];
+          // Handle JSONB fields
+          if (['notificationPrefs', 'emailTemplates', 'businessHours', 'branding', 'integrations', 'customFields'].includes(frontendKey)) {
+            settingsUpdates.push(`${dbColumn} = $${paramIndex++}`);
+            settingsValues.push(JSON.stringify(value));
+          } else {
+            settingsUpdates.push(`${dbColumn} = $${paramIndex++}`);
+            settingsValues.push(value);
+          }
+        }
       }
-      updates.push(`auto_logout_interval_hours = ${paramIndex++}`);
-      values.push(autoLogoutIntervalHours);
+
+      if (settingsUpdates.length > 0) {
+        settingsUpdates.push('updated_at = NOW()');
+        await query(
+          `UPDATE "TenantSettings" SET ${settingsUpdates.join(', ')} WHERE tenant_id = $1`,
+          settingsValues
+        );
+      }
     }
 
-    if (updates.length === 0) {
-      return createResponse(400, {
-        error: 'Bad Request',
-        message: 'No valid fields to update',
-      });
-    }
-
-    updates.push('updated_at = NOW()');
-
+    // Fetch updated data
     const result = await query(
-      `UPDATE "Tenant"
-       SET ${updates.join(', ')}
-       WHERE id = $1
-       RETURNING id, name, slug, plan, settings, auto_logout_interval_hours, updated_at`,
-      values
+      `SELECT t.id, t.name, t.slug, t.plan, t.updated_at,
+              ts.timezone, ts.currency, ts.business_name, ts.branding
+       FROM "Tenant" t
+       LEFT JOIN "TenantSettings" ts ON t.id = ts.tenant_id
+       WHERE t.id = $1`,
+      [tenantId]
     );
 
     const updated = result.rows[0];
@@ -1205,8 +1324,12 @@ async function handleUpdateTenantConfig(user, body) {
       name: updated.name,
       slug: updated.slug,
       plan: updated.plan,
-      settings: updated.settings || {},
-      autoLogoutIntervalHours: updated.auto_logout_interval_hours || 24,
+      settings: {
+        timezone: updated.timezone,
+        currency: updated.currency,
+        businessName: updated.business_name,
+      },
+      theme: updated.branding || {},
       updatedAt: updated.updated_at,
     });
 
@@ -1221,15 +1344,16 @@ async function handleUpdateTenantConfig(user, body) {
 
 /**
  * Get tenant theme
+ * NEW SCHEMA: Theme/branding is stored in TenantSettings.branding JSONB column
  */
 async function handleGetTenantTheme(user) {
   try {
     await getPoolAsync();
 
     const result = await query(
-      `SELECT t.theme
-       FROM "Tenant" t
-       INNER JOIN "User" u ON u.tenant_id = t.id
+      `SELECT ts.branding
+       FROM "TenantSettings" ts
+       INNER JOIN "User" u ON u.tenant_id = ts.tenant_id
        WHERE u.cognito_sub = $1`,
       [user.id]
     );
@@ -1242,7 +1366,7 @@ async function handleGetTenantTheme(user) {
     }
 
     return createResponse(200, {
-      theme: result.rows[0].theme || {
+      theme: result.rows[0].branding || {
         primaryColor: '#007bff',
         secondaryColor: '#6c757d',
         logo: null,
@@ -1260,6 +1384,7 @@ async function handleGetTenantTheme(user) {
 
 /**
  * Update tenant theme
+ * NEW SCHEMA: Theme/branding is stored in TenantSettings.branding JSONB column
  */
 async function handleUpdateTenantTheme(user, body) {
   const { theme, primaryColor, secondaryColor, logo } = body;
@@ -1267,9 +1392,13 @@ async function handleUpdateTenantTheme(user, body) {
   try {
     await getPoolAsync();
 
-    // Get user's tenant
+    // Get user's tenant - NEW SCHEMA: Role from UserRole junction
     const userResult = await query(
-      `SELECT role, tenant_id FROM "User" WHERE cognito_sub = $1`,
+      `SELECT u.tenant_id, r.name as role
+       FROM "User" u
+       LEFT JOIN "UserRole" ur ON u.id = ur.user_id
+       LEFT JOIN "Role" r ON ur.role_id = r.id
+       WHERE u.cognito_sub = $1`,
       [user.id]
     );
 
@@ -1290,16 +1419,16 @@ async function handleUpdateTenantTheme(user, body) {
     const themeData = theme || { primaryColor, secondaryColor, logo };
 
     const result = await query(
-      `UPDATE "Tenant"
-       SET theme = $2, updated_at = NOW()
-       WHERE id = $1
-       RETURNING theme`,
+      `UPDATE "TenantSettings"
+       SET branding = $2, updated_at = NOW()
+       WHERE tenant_id = $1
+       RETURNING branding`,
       [tenantId, JSON.stringify(themeData)]
     );
 
     return createResponse(200, {
       success: true,
-      theme: result.rows[0].theme,
+      theme: result.rows[0].branding,
     });
 
   } catch (error) {
@@ -1367,8 +1496,13 @@ async function handleUpdateTenantFeatures(user, body) {
   try {
     await getPoolAsync();
 
+    // NEW SCHEMA: Role from UserRole junction table
     const userResult = await query(
-      `SELECT role, tenant_id FROM "User" WHERE cognito_sub = $1`,
+      `SELECT u.tenant_id, r.name as role
+       FROM "User" u
+       LEFT JOIN "UserRole" ur ON u.id = ur.user_id
+       LEFT JOIN "Role" r ON ur.role_id = r.id
+       WHERE u.cognito_sub = $1`,
       [user.id]
     );
 
@@ -1508,15 +1642,16 @@ async function handleGetSystemFeatures() {
 
 /**
  * Get all settings for current tenant
+ * NEW SCHEMA: Settings come from TenantSettings table (1:1 with Tenant)
  */
 async function handleGetSettings(user) {
   try {
     await getPoolAsync();
 
     const result = await query(
-      `SELECT t.settings
-       FROM "Tenant" t
-       INNER JOIN "User" u ON u.tenant_id = t.id
+      `SELECT ts.*
+       FROM "TenantSettings" ts
+       INNER JOIN "User" u ON u.tenant_id = ts.tenant_id
        WHERE u.cognito_sub = $1`,
       [user.id]
     );
@@ -1524,12 +1659,52 @@ async function handleGetSettings(user) {
     if (result.rows.length === 0) {
       return createResponse(404, {
         error: 'Not Found',
-        message: 'Tenant not found',
+        message: 'Tenant settings not found',
       });
     }
 
+    const row = result.rows[0];
+
+    // Build settings object from TenantSettings columns
+    const settings = {
+      // Regional/Localization
+      timezone: row.timezone || 'America/New_York',
+      currency: row.currency || 'USD',
+      dateFormat: row.date_format || 'MM/DD/YYYY',
+      timeFormat: row.time_format || '12h',
+      language: row.language || 'en',
+      // Business Info
+      businessName: row.business_name,
+      businessPhone: row.business_phone,
+      businessEmail: row.business_email,
+      businessAddress: row.business_address,
+      // Booking Configuration
+      defaultCheckInTime: row.default_check_in_time || '09:00',
+      defaultCheckOutTime: row.default_check_out_time || '17:00',
+      bookingBufferMinutes: row.booking_buffer_minutes || 15,
+      maxAdvanceBookingDays: row.max_advance_booking_days || 365,
+      minAdvanceBookingHours: row.min_advance_booking_hours || 24,
+      allowOnlineBooking: row.allow_online_booking !== false,
+      requireDeposit: row.require_deposit || false,
+      depositPercent: row.deposit_percent || 0,
+      requireVaccinations: row.require_vaccinations !== false,
+      cancellationWindowHours: row.cancellation_window_hours || 48,
+      // Financial
+      taxRate: parseFloat(row.tax_rate) || 0,
+      taxName: row.tax_name || 'Sales Tax',
+      invoicePrefix: row.invoice_prefix || 'INV-',
+      invoiceFooter: row.invoice_footer,
+      // JSONB fields
+      notificationPrefs: row.notification_prefs || {},
+      emailTemplates: row.email_templates || {},
+      businessHours: row.business_hours || {},
+      branding: row.branding || {},
+      integrations: row.integrations || {},
+      customFields: row.custom_fields || {},
+    };
+
     return createResponse(200, {
-      settings: result.rows[0].settings || {},
+      settings,
       categories: ['general', 'notifications', 'booking', 'billing'],
     });
 
@@ -1577,10 +1752,14 @@ async function handleGetMemberships(user) {
       });
     }
 
-    // First get the user's tenant
+    // First get the user's tenant - NEW SCHEMA: Role from UserRole junction
     console.log('[CONFIG-SERVICE] Querying user with cognito_sub:', user.id);
     const userResult = await query(
-      `SELECT tenant_id, role FROM "User" WHERE cognito_sub = $1`,
+      `SELECT u.tenant_id, r.name as role
+       FROM "User" u
+       LEFT JOIN "UserRole" ur ON u.id = ur.user_id
+       LEFT JOIN "Role" r ON ur.role_id = r.id
+       WHERE u.cognito_sub = $1`,
       [user.id]
     );
 
@@ -1697,9 +1876,13 @@ async function handleCreateMembership(user, body) {
   try {
     await getPoolAsync();
 
-    // Get current user's tenant and verify permission
+    // Get current user's tenant and verify permission - NEW SCHEMA: Role from UserRole junction
     const userResult = await query(
-      `SELECT tenant_id, role FROM "User" WHERE cognito_sub = $1`,
+      `SELECT u.tenant_id, r.name as role
+       FROM "User" u
+       LEFT JOIN "UserRole" ur ON u.id = ur.user_id
+       LEFT JOIN "Role" r ON ur.role_id = r.id
+       WHERE u.cognito_sub = $1`,
       [user.id]
     );
 
@@ -1834,9 +2017,13 @@ async function handleUpdateMembership(user, membershipId, body) {
   try {
     await getPoolAsync();
 
-    // Get current user's tenant and role
+    // Get current user's tenant and role - NEW SCHEMA: Role from UserRole junction
     const userResult = await query(
-      `SELECT tenant_id, role, id as user_id FROM "User" WHERE cognito_sub = $1`,
+      `SELECT u.tenant_id, r.name as role, u.id as user_id
+       FROM "User" u
+       LEFT JOIN "UserRole" ur ON u.id = ur.user_id
+       LEFT JOIN "Role" r ON ur.role_id = r.id
+       WHERE u.cognito_sub = $1`,
       [user.id]
     );
 
@@ -1960,9 +2147,13 @@ async function handleDeleteMembership(user, membershipId) {
   try {
     await getPoolAsync();
 
-    // Get current user's tenant and role
+    // Get current user's tenant and role - NEW SCHEMA: Role from UserRole junction
     const userResult = await query(
-      `SELECT tenant_id, role, id as user_id FROM "User" WHERE cognito_sub = $1`,
+      `SELECT u.tenant_id, r.name as role, u.id as user_id
+       FROM "User" u
+       LEFT JOIN "UserRole" ur ON u.id = ur.user_id
+       LEFT JOIN "Role" r ON ur.role_id = r.id
+       WHERE u.cognito_sub = $1`,
       [user.id]
     );
 
@@ -2079,9 +2270,11 @@ const PLAN_LIMITS = {
  */
 async function getTenantContext(user, requireAdmin = false) {
   const userResult = await query(
-    `SELECT u.id as user_id, u.role, u.tenant_id, t.plan
+    `SELECT u.id as user_id, r.name as role, u.tenant_id, t.plan
      FROM "User" u
      LEFT JOIN "Tenant" t ON u.tenant_id = t.id
+     LEFT JOIN "UserRole" ur ON u.id = ur.user_id
+     LEFT JOIN "Role" r ON ur.role_id = r.id
      WHERE u.cognito_sub = $1`,
     [user.id]
   );
@@ -3736,7 +3929,7 @@ async function handleListFormTemplates(user, queryParams) {
       });
     }
 
-    let whereClause = 'tenant_id = $1 AND deleted_at IS NULL';
+    let whereClause = 'tenant_id = $1 ';
     const params = [ctx.tenantId];
     let paramIndex = 2;
 
@@ -3838,7 +4031,7 @@ async function handleGetFormTemplate(user, formId) {
          is_active, is_required, require_signature, expiration_days,
          sort_order, category, created_by, updated_by, created_at, updated_at
        FROM "FormTemplate"
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+       WHERE id = $1 AND tenant_id = $2 `,
       [formId, ctx.tenantId]
     );
 
@@ -3912,7 +4105,7 @@ async function handleCreateFormTemplate(user, body) {
     const formSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
     const existing = await query(
-      `SELECT id FROM "FormTemplate" WHERE tenant_id = $1 AND slug = $2 AND deleted_at IS NULL`,
+      `SELECT id FROM "FormTemplate" WHERE tenant_id = $1 AND slug = $2 `,
       [ctx.tenantId, formSlug]
     );
 
@@ -4007,7 +4200,7 @@ async function handleUpdateFormTemplate(user, formId, body) {
     updates.push('updated_at = NOW()');
 
     const result = await query(
-      `UPDATE "FormTemplate" SET ${updates.join(', ')} WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL RETURNING *`,
+      `UPDATE "FormTemplate" SET ${updates.join(', ')} WHERE id = $1 AND tenant_id = $2  RETURNING *`,
       values
     );
 
@@ -4037,12 +4230,9 @@ async function handleDeleteFormTemplate(user, formId) {
       return createResponse(400, { error: 'Bad Request', message: 'No tenant context found' });
     }
 
-    const result = await query(
-      `UPDATE "FormTemplate" SET deleted_at = NOW(), updated_by = $3, updated_at = NOW() WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL RETURNING id`,
-      [formId, ctx.tenantId, ctx.userId]
-    );
+    const deletedRecord = await softDelete('FormTemplate', formId, ctx.tenantId, ctx.userId);
 
-    if (result.rows.length === 0) {
+    if (!deletedRecord) {
       return createResponse(404, { error: 'Not Found', message: 'Form template not found' });
     }
 
@@ -4148,7 +4338,7 @@ async function handleCreateFormSubmission(user, templateId, body) {
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
     const templateResult = await query(
-      `SELECT id, require_signature FROM "FormTemplate" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL AND is_active = true`,
+      `SELECT id, require_signature FROM "FormTemplate" WHERE id = $1 AND tenant_id = $2  AND is_active = true`,
       [templateId, ctx.tenantId]
     );
     if (templateResult.rows.length === 0) return createResponse(404, { error: 'Not Found', message: 'Template not found' });
@@ -4221,6 +4411,7 @@ async function handleUpdateFormSubmission(user, submissionId, body) {
 
 /**
  * Get account defaults (business info, operating hours, holidays, regional settings)
+ * NEW SCHEMA: Uses Tenant (name only) + TenantSettings (all other settings)
  */
 async function handleGetAccountDefaults(user) {
   try {
@@ -4230,16 +4421,24 @@ async function handleGetAccountDefaults(user) {
       return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
     }
 
+    // Query Tenant for name and TenantSettings for all other data
     const result = await query(
       `SELECT
-         name, phone, email, website, notes, address, city, state, zip_code as "postalCode", country,
-         logo_url, logo_filename,
-         operating_hours, holidays,
-         timezone, date_format, time_format, week_starts_on,
-         supported_currencies, default_currency,
-         created_at, updated_at
-       FROM "Tenant"
-       WHERE id = $1`,
+         t.name,
+         ts.business_name,
+         ts.business_phone,
+         ts.business_email,
+         ts.business_address,
+         ts.timezone,
+         ts.currency,
+         ts.date_format,
+         ts.time_format,
+         ts.language,
+         ts.business_hours,
+         ts.branding
+       FROM "Tenant" t
+       LEFT JOIN "TenantSettings" ts ON t.id = ts.tenant_id
+       WHERE t.id = $1`,
       [ctx.tenantId]
     );
 
@@ -4247,32 +4446,34 @@ async function handleGetAccountDefaults(user) {
       return createResponse(404, { error: 'Not Found', message: 'Tenant not found' });
     }
 
-    const tenant = result.rows[0];
+    const data = result.rows[0];
+    const branding = data.branding || {};
+    const businessHours = data.business_hours || {};
 
     // Build response matching frontend schema
     const response = {
       businessInfo: {
-        name: tenant.name || '',
-        phone: tenant.phone || '',
-        email: tenant.email || '',
-        website: tenant.website || '',
-        notes: tenant.notes || '',
+        name: data.business_name || data.name || '',
+        phone: data.business_phone || '',
+        email: data.business_email || '',
+        website: branding.website || '',
+        notes: branding.notes || '',
         address: {
-          street: tenant.address || '',
+          street: data.business_address || '',
           street2: '',
-          city: tenant.city || '',
-          state: tenant.state || '',
-          postalCode: tenant.postalCode || '',
-          country: tenant.country || 'United States',
+          city: branding.city || '',
+          state: branding.state || '',
+          postalCode: branding.postalCode || '',
+          country: branding.country || 'United States',
         },
-        logo: tenant.logo_url ? {
-          url: tenant.logo_url,
-          fileName: tenant.logo_filename,
+        logo: branding.logoUrl ? {
+          url: branding.logoUrl,
+          fileName: branding.logoFilename || null,
           uploadedAt: null,
           size: null,
         } : null,
       },
-      operatingHours: tenant.operating_hours || {
+      operatingHours: businessHours.schedule || {
         monday: { isOpen: true, open: '08:00', close: '18:00' },
         tuesday: { isOpen: true, open: '08:00', close: '18:00' },
         wednesday: { isOpen: true, open: '08:00', close: '18:00' },
@@ -4281,16 +4482,16 @@ async function handleGetAccountDefaults(user) {
         saturday: { isOpen: true, open: '09:00', close: '17:00' },
         sunday: { isOpen: true, open: '09:00', close: '17:00' },
       },
-      holidays: tenant.holidays || [],
+      holidays: businessHours.holidays || [],
       regionalSettings: {
-        timeZone: tenant.timezone || 'America/New_York',
-        dateFormat: tenant.date_format || 'MM/DD/YYYY',
-        timeFormat: tenant.time_format || '12-hour',
-        weekStartsOn: tenant.week_starts_on || 'Sunday',
+        timeZone: data.timezone || 'America/New_York',
+        dateFormat: data.date_format || 'MM/DD/YYYY',
+        timeFormat: data.time_format || '12h',
+        weekStartsOn: businessHours.weekStartsOn || 'Sunday',
       },
       currencySettings: {
-        supportedCurrencies: tenant.supported_currencies || ['USD'],
-        defaultCurrency: tenant.default_currency || 'USD',
+        supportedCurrencies: branding.supportedCurrencies || ['USD'],
+        defaultCurrency: data.currency || 'USD',
       },
     };
 
@@ -4303,6 +4504,7 @@ async function handleGetAccountDefaults(user) {
 
 /**
  * Update account defaults
+ * NEW SCHEMA: Updates TenantSettings table, not Tenant
  */
 async function handleUpdateAccountDefaults(user, body) {
   const { businessInfo, operatingHours, holidays, regionalSettings, currencySettings } = body;
@@ -4314,71 +4516,103 @@ async function handleUpdateAccountDefaults(user, body) {
       return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
     }
 
-    const updates = [];
-    const values = [];
-    let paramIndex = 1;
+    // Get current settings to merge JSONB fields
+    const currentResult = await query(
+      `SELECT ts.business_hours, ts.branding FROM "TenantSettings" ts WHERE ts.tenant_id = $1`,
+      [ctx.tenantId]
+    );
+    const current = currentResult.rows[0] || {};
+    let currentBranding = current.branding || {};
+    let currentBusinessHours = current.business_hours || {};
 
-    // Business info
+    const updates = [];
+    const values = [ctx.tenantId];
+    let paramIndex = 2;
+
+    // Business info - map to TenantSettings columns and branding JSONB
     if (businessInfo) {
-      if (businessInfo.name !== undefined) { updates.push(`name = $${paramIndex++}`); values.push(businessInfo.name); }
-      if (businessInfo.phone !== undefined) { updates.push(`phone = $${paramIndex++}`); values.push(businessInfo.phone); }
-      if (businessInfo.email !== undefined) { updates.push(`email = $${paramIndex++}`); values.push(businessInfo.email); }
-      if (businessInfo.website !== undefined) { updates.push(`website = $${paramIndex++}`); values.push(businessInfo.website); }
-      if (businessInfo.notes !== undefined) { updates.push(`notes = $${paramIndex++}`); values.push(businessInfo.notes); }
+      if (businessInfo.name !== undefined) {
+        updates.push(`business_name = $${paramIndex++}`);
+        values.push(businessInfo.name);
+      }
+      if (businessInfo.phone !== undefined) {
+        updates.push(`business_phone = $${paramIndex++}`);
+        values.push(businessInfo.phone);
+      }
+      if (businessInfo.email !== undefined) {
+        updates.push(`business_email = $${paramIndex++}`);
+        values.push(businessInfo.email);
+      }
+      if (businessInfo.address && businessInfo.address.street !== undefined) {
+        updates.push(`business_address = $${paramIndex++}`);
+        values.push(businessInfo.address.street);
+      }
+      // Store additional address fields, website, notes, logo in branding JSONB
+      if (businessInfo.website !== undefined) currentBranding.website = businessInfo.website;
+      if (businessInfo.notes !== undefined) currentBranding.notes = businessInfo.notes;
       if (businessInfo.address) {
-        if (businessInfo.address.street !== undefined) { updates.push(`address = $${paramIndex++}`); values.push(businessInfo.address.street); }
-        if (businessInfo.address.city !== undefined) { updates.push(`city = $${paramIndex++}`); values.push(businessInfo.address.city); }
-        if (businessInfo.address.state !== undefined) { updates.push(`state = $${paramIndex++}`); values.push(businessInfo.address.state); }
-        if (businessInfo.address.postalCode !== undefined) { updates.push(`zip_code = $${paramIndex++}`); values.push(businessInfo.address.postalCode); }
-        if (businessInfo.address.country !== undefined) { updates.push(`country = $${paramIndex++}`); values.push(businessInfo.address.country); }
+        if (businessInfo.address.city !== undefined) currentBranding.city = businessInfo.address.city;
+        if (businessInfo.address.state !== undefined) currentBranding.state = businessInfo.address.state;
+        if (businessInfo.address.postalCode !== undefined) currentBranding.postalCode = businessInfo.address.postalCode;
+        if (businessInfo.address.country !== undefined) currentBranding.country = businessInfo.address.country;
       }
       if (businessInfo.logo) {
-        updates.push(`logo_url = $${paramIndex++}`); values.push(businessInfo.logo.url);
-        updates.push(`logo_filename = $${paramIndex++}`); values.push(businessInfo.logo.fileName);
+        currentBranding.logoUrl = businessInfo.logo.url;
+        currentBranding.logoFilename = businessInfo.logo.fileName;
       }
     }
 
-    // Operating hours
+    // Operating hours - store in business_hours JSONB
     if (operatingHours !== undefined) {
-      updates.push(`operating_hours = $${paramIndex++}`);
-      values.push(JSON.stringify(operatingHours));
+      currentBusinessHours.schedule = operatingHours;
     }
 
-    // Holidays
+    // Holidays - store in business_hours JSONB
     if (holidays !== undefined) {
-      updates.push(`holidays = $${paramIndex++}`);
-      values.push(JSON.stringify(holidays));
+      currentBusinessHours.holidays = holidays;
     }
 
-    // Regional settings
+    // Regional settings - map to TenantSettings columns
     if (regionalSettings) {
-      if (regionalSettings.timeZone !== undefined) { updates.push(`timezone = $${paramIndex++}`); values.push(regionalSettings.timeZone); }
-      if (regionalSettings.dateFormat !== undefined) { updates.push(`date_format = $${paramIndex++}`); values.push(regionalSettings.dateFormat); }
-      if (regionalSettings.timeFormat !== undefined) { updates.push(`time_format = $${paramIndex++}`); values.push(regionalSettings.timeFormat); }
-      if (regionalSettings.weekStartsOn !== undefined) { updates.push(`week_starts_on = $${paramIndex++}`); values.push(regionalSettings.weekStartsOn); }
+      if (regionalSettings.timeZone !== undefined) {
+        updates.push(`timezone = $${paramIndex++}`);
+        values.push(regionalSettings.timeZone);
+      }
+      if (regionalSettings.dateFormat !== undefined) {
+        updates.push(`date_format = $${paramIndex++}`);
+        values.push(regionalSettings.dateFormat);
+      }
+      if (regionalSettings.timeFormat !== undefined) {
+        updates.push(`time_format = $${paramIndex++}`);
+        values.push(regionalSettings.timeFormat);
+      }
+      if (regionalSettings.weekStartsOn !== undefined) {
+        currentBusinessHours.weekStartsOn = regionalSettings.weekStartsOn;
+      }
     }
 
-    // Currency settings
+    // Currency settings - map to TenantSettings columns and branding JSONB
     if (currencySettings) {
       if (currencySettings.supportedCurrencies !== undefined) {
-        updates.push(`supported_currencies = $${paramIndex++}`);
-        values.push(currencySettings.supportedCurrencies);
+        currentBranding.supportedCurrencies = currencySettings.supportedCurrencies;
       }
       if (currencySettings.defaultCurrency !== undefined) {
-        updates.push(`default_currency = $${paramIndex++}`);
+        updates.push(`currency = $${paramIndex++}`);
         values.push(currencySettings.defaultCurrency);
       }
     }
 
-    if (updates.length === 0) {
-      return createResponse(400, { error: 'Bad Request', message: 'No fields to update' });
-    }
+    // Always update branding and business_hours JSONB if changed
+    updates.push(`branding = $${paramIndex++}`);
+    values.push(JSON.stringify(currentBranding));
+
+    updates.push(`business_hours = $${paramIndex++}`);
+    values.push(JSON.stringify(currentBusinessHours));
 
     updates.push('updated_at = NOW()');
-    values.push(ctx.tenantId);
 
     await query(
-      `UPDATE "Tenant" SET ${updates.join(', ')} WHERE id = $${paramIndex}`,
+      `UPDATE "TenantSettings" SET ${updates.join(', ')} WHERE tenant_id = $1`,
       values
     );
 
@@ -4410,6 +4644,10 @@ async function handleUploadLogo(user, event) {
 // BRANDING SETTINGS HANDLERS
 // =============================================================================
 
+/**
+ * Get branding settings
+ * NEW SCHEMA: Uses TenantSettings.branding JSONB column
+ */
 async function handleGetBranding(user) {
   try {
     await getPoolAsync();
@@ -4417,8 +4655,10 @@ async function handleGetBranding(user) {
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
     const result = await query(
-      `SELECT name, logo_url, primary_color, secondary_color, custom_terminology, theme_settings
-       FROM "Tenant" WHERE id = $1`,
+      `SELECT t.name, ts.business_name, ts.branding
+       FROM "Tenant" t
+       LEFT JOIN "TenantSettings" ts ON t.id = ts.tenant_id
+       WHERE t.id = $1`,
       [ctx.tenantId]
     );
 
@@ -4426,14 +4666,16 @@ async function handleGetBranding(user) {
       return createResponse(404, { error: 'Not Found', message: 'Tenant not found' });
     }
 
-    const tenant = result.rows[0];
+    const row = result.rows[0];
+    const branding = row.branding || {};
+
     return createResponse(200, {
-      businessName: tenant.name || '',
-      logoUrl: tenant.logo_url || '',
-      primaryColor: tenant.primary_color || '#3B82F6',
-      secondaryColor: tenant.secondary_color || '#10B981',
-      customTerminology: tenant.custom_terminology || {},
-      themeSettings: tenant.theme_settings || {},
+      businessName: row.business_name || row.name || '',
+      logoUrl: branding.logoUrl || '',
+      primaryColor: branding.primaryColor || '#3B82F6',
+      secondaryColor: branding.secondaryColor || '#10B981',
+      customTerminology: branding.customTerminology || {},
+      themeSettings: branding.themeSettings || {},
     });
   } catch (error) {
     console.error('[Branding] Failed to get:', error.message);
@@ -4441,6 +4683,10 @@ async function handleGetBranding(user) {
   }
 }
 
+/**
+ * Update branding settings
+ * NEW SCHEMA: Updates TenantSettings.branding JSONB column
+ */
 async function handleUpdateBranding(user, body) {
   const { businessName, logoUrl, primaryColor, secondaryColor, customTerminology, themeSettings } = body;
 
@@ -4449,23 +4695,33 @@ async function handleUpdateBranding(user, body) {
     const ctx = await getUserTenantContext(user.id);
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
-    const updates = [];
-    const values = [];
-    let paramIndex = 1;
+    // Get current branding to merge
+    const currentResult = await query(
+      `SELECT ts.branding FROM "TenantSettings" ts WHERE ts.tenant_id = $1`,
+      [ctx.tenantId]
+    );
+    let currentBranding = currentResult.rows[0]?.branding || {};
 
-    if (businessName !== undefined) { updates.push(`name = $${paramIndex++}`); values.push(businessName); }
-    if (logoUrl !== undefined) { updates.push(`logo_url = $${paramIndex++}`); values.push(logoUrl); }
-    if (primaryColor !== undefined) { updates.push(`primary_color = $${paramIndex++}`); values.push(primaryColor); }
-    if (secondaryColor !== undefined) { updates.push(`secondary_color = $${paramIndex++}`); values.push(secondaryColor); }
-    if (customTerminology !== undefined) { updates.push(`custom_terminology = $${paramIndex++}`); values.push(JSON.stringify(customTerminology)); }
-    if (themeSettings !== undefined) { updates.push(`theme_settings = $${paramIndex++}`); values.push(JSON.stringify(themeSettings)); }
+    // Update business_name in TenantSettings if provided
+    if (businessName !== undefined) {
+      await query(
+        `UPDATE "TenantSettings" SET business_name = $2, updated_at = NOW() WHERE tenant_id = $1`,
+        [ctx.tenantId, businessName]
+      );
+    }
 
-    if (updates.length === 0) return createResponse(400, { error: 'Bad Request', message: 'No fields to update' });
+    // Merge branding fields
+    if (logoUrl !== undefined) currentBranding.logoUrl = logoUrl;
+    if (primaryColor !== undefined) currentBranding.primaryColor = primaryColor;
+    if (secondaryColor !== undefined) currentBranding.secondaryColor = secondaryColor;
+    if (customTerminology !== undefined) currentBranding.customTerminology = customTerminology;
+    if (themeSettings !== undefined) currentBranding.themeSettings = themeSettings;
 
-    updates.push('updated_at = NOW()');
-    values.push(ctx.tenantId);
-
-    await query(`UPDATE "Tenant" SET ${updates.join(', ')} WHERE id = $${paramIndex}`, values);
+    // Update branding JSONB
+    await query(
+      `UPDATE "TenantSettings" SET branding = $2, updated_at = NOW() WHERE tenant_id = $1`,
+      [ctx.tenantId, JSON.stringify(currentBranding)]
+    );
 
     return handleGetBranding(user);
   } catch (error) {
@@ -6861,6 +7117,10 @@ async function handleGetInvoicePreview(user) {
 // Terms & Policies for legal documents: liability waivers, ToS, cancellation, etc.
 // =============================================================================
 
+/**
+ * Get policies for tenant
+ * NEW SCHEMA: Policies stored in TenantSettings.custom_fields.policies
+ */
 async function handleGetPolicies(user) {
   try {
     await getPoolAsync();
@@ -6868,16 +7128,18 @@ async function handleGetPolicies(user) {
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
     const result = await query(
-      `SELECT policies FROM "Tenant" WHERE id = $1`,
+      `SELECT custom_fields FROM "TenantSettings" WHERE tenant_id = $1`,
       [ctx.tenantId]
     );
 
     if (result.rows.length === 0) {
-      return createResponse(404, { error: 'Not Found', message: 'Tenant not found' });
+      // Return empty policies if TenantSettings doesn't exist yet
+      return createResponse(200, { policies: [] });
     }
 
     // Return empty array if no policies set - user creates from scratch or templates
-    const policies = result.rows[0].policies || [];
+    const customFields = result.rows[0].custom_fields || {};
+    const policies = customFields.policies || [];
 
     return createResponse(200, { policies });
   } catch (error) {
@@ -6886,12 +7148,16 @@ async function handleGetPolicies(user) {
   }
 }
 
+/**
+ * Create a new policy
+ * NEW SCHEMA: Policies stored in TenantSettings.custom_fields.policies
+ */
 async function handleCreatePolicy(user, body) {
-  const { 
-    name, 
+  const {
+    name,
     title,
-    type, 
-    content, 
+    type,
+    content,
     status = 'draft',
     isActive,
     requireForBooking = false,
@@ -6901,7 +7167,7 @@ async function handleCreatePolicy(user, body) {
 
   // Support both 'name' and 'title' for policy title
   const policyTitle = title || name;
-  
+
   if (!policyTitle || !type) {
     return createResponse(400, { error: 'Bad Request', message: 'Title and type are required' });
   }
@@ -6911,9 +7177,10 @@ async function handleCreatePolicy(user, body) {
     const ctx = await getUserTenantContext(user.id);
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
-    // Get current policies
-    const result = await query(`SELECT policies FROM "Tenant" WHERE id = $1`, [ctx.tenantId]);
-    const policies = result.rows[0]?.policies || [];
+    // Get current custom_fields
+    const result = await query(`SELECT custom_fields FROM "TenantSettings" WHERE tenant_id = $1`, [ctx.tenantId]);
+    const customFields = result.rows[0]?.custom_fields || {};
+    const policies = customFields.policies || [];
 
     // Generate unique ID
     const policyId = `policy-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -6935,8 +7202,12 @@ async function handleCreatePolicy(user, body) {
     };
     policies.push(newPolicy);
 
-    // Save
-    await query(`UPDATE "Tenant" SET policies = $1, updated_at = NOW() WHERE id = $2`, [JSON.stringify(policies), ctx.tenantId]);
+    // Save to TenantSettings.custom_fields
+    customFields.policies = policies;
+    await query(
+      `UPDATE "TenantSettings" SET custom_fields = $1, updated_at = NOW() WHERE tenant_id = $2`,
+      [JSON.stringify(customFields), ctx.tenantId]
+    );
 
     return createResponse(201, { success: true, policy: newPolicy });
   } catch (error) {
@@ -6945,14 +7216,19 @@ async function handleCreatePolicy(user, body) {
   }
 }
 
+/**
+ * Get a specific policy by ID
+ * NEW SCHEMA: Policies stored in TenantSettings.custom_fields.policies
+ */
 async function handleGetPolicy(user, policyId) {
   try {
     await getPoolAsync();
     const ctx = await getUserTenantContext(user.id);
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
-    const result = await query(`SELECT policies FROM "Tenant" WHERE id = $1`, [ctx.tenantId]);
-    const policies = result.rows[0]?.policies || [];
+    const result = await query(`SELECT custom_fields FROM "TenantSettings" WHERE tenant_id = $1`, [ctx.tenantId]);
+    const customFields = result.rows[0]?.custom_fields || {};
+    const policies = customFields.policies || [];
     const policy = policies.find(p => p.id === policyId);
 
     if (!policy) {
@@ -6966,14 +7242,19 @@ async function handleGetPolicy(user, policyId) {
   }
 }
 
+/**
+ * Update a policy
+ * NEW SCHEMA: Policies stored in TenantSettings.custom_fields.policies
+ */
 async function handleUpdatePolicy(user, policyId, body) {
   try {
     await getPoolAsync();
     const ctx = await getUserTenantContext(user.id);
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
-    const result = await query(`SELECT policies FROM "Tenant" WHERE id = $1`, [ctx.tenantId]);
-    const policies = result.rows[0]?.policies || [];
+    const result = await query(`SELECT custom_fields FROM "TenantSettings" WHERE tenant_id = $1`, [ctx.tenantId]);
+    const customFields = result.rows[0]?.custom_fields || {};
+    const policies = customFields.policies || [];
     const index = policies.findIndex(p => p.id === policyId);
 
     if (index === -1) {
@@ -6988,7 +7269,7 @@ async function handleUpdatePolicy(user, policyId, body) {
     if (updateData.name && !updateData.title) {
       updateData.title = updateData.name;
     }
-    
+
     // Handle status/isActive sync
     if (updateData.status !== undefined) {
       updateData.isActive = updateData.status === 'active';
@@ -7008,13 +7289,17 @@ async function handleUpdatePolicy(user, policyId, body) {
     }
 
     // Update policy - merge with existing data
-    policies[index] = { 
-      ...policies[index], 
-      ...updateData, 
-      updatedAt: new Date().toISOString() 
+    policies[index] = {
+      ...policies[index],
+      ...updateData,
+      updatedAt: new Date().toISOString()
     };
 
-    await query(`UPDATE "Tenant" SET policies = $1, updated_at = NOW() WHERE id = $2`, [JSON.stringify(policies), ctx.tenantId]);
+    customFields.policies = policies;
+    await query(
+      `UPDATE "TenantSettings" SET custom_fields = $1, updated_at = NOW() WHERE tenant_id = $2`,
+      [JSON.stringify(customFields), ctx.tenantId]
+    );
 
     return createResponse(200, { success: true, policy: policies[index] });
   } catch (error) {
@@ -7023,21 +7308,30 @@ async function handleUpdatePolicy(user, policyId, body) {
   }
 }
 
+/**
+ * Delete a policy
+ * NEW SCHEMA: Policies stored in TenantSettings.custom_fields.policies
+ */
 async function handleDeletePolicy(user, policyId) {
   try {
     await getPoolAsync();
     const ctx = await getUserTenantContext(user.id);
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
-    const result = await query(`SELECT policies FROM "Tenant" WHERE id = $1`, [ctx.tenantId]);
-    const policies = result.rows[0]?.policies || [];
+    const result = await query(`SELECT custom_fields FROM "TenantSettings" WHERE tenant_id = $1`, [ctx.tenantId]);
+    const customFields = result.rows[0]?.custom_fields || {};
+    const policies = customFields.policies || [];
     const filtered = policies.filter(p => p.id !== policyId);
 
     if (filtered.length === policies.length) {
       return createResponse(404, { error: 'Not Found', message: 'Policy not found' });
     }
 
-    await query(`UPDATE "Tenant" SET policies = $1, updated_at = NOW() WHERE id = $2`, [JSON.stringify(filtered), ctx.tenantId]);
+    customFields.policies = filtered;
+    await query(
+      `UPDATE "TenantSettings" SET custom_fields = $1, updated_at = NOW() WHERE tenant_id = $2`,
+      [JSON.stringify(customFields), ctx.tenantId]
+    );
 
     return createResponse(200, { success: true, message: 'Policy deleted' });
   } catch (error) {
@@ -7523,6 +7817,10 @@ Your pet's safety is paramount. Please ensure all contact information is current
 // REQUIRED VACCINATIONS HANDLERS
 // =============================================================================
 
+/**
+ * Get required vaccinations for tenant
+ * NEW SCHEMA: Stored in TenantSettings.custom_fields.requiredVaccinations
+ */
 async function handleGetRequiredVaccinations(user) {
   try {
     await getPoolAsync();
@@ -7530,15 +7828,12 @@ async function handleGetRequiredVaccinations(user) {
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
     const result = await query(
-      `SELECT required_vaccinations FROM "Tenant" WHERE id = $1`,
+      `SELECT custom_fields FROM "TenantSettings" WHERE tenant_id = $1`,
       [ctx.tenantId]
     );
 
-    if (result.rows.length === 0) {
-      return createResponse(404, { error: 'Not Found', message: 'Tenant not found' });
-    }
-
-    const vaccinations = result.rows[0].required_vaccinations || [
+    const customFields = result.rows[0]?.custom_fields || {};
+    const vaccinations = customFields.requiredVaccinations || [
       { id: 'rabies', name: 'Rabies', required: true, expirationWarningDays: 30, blockBookingIfExpired: true },
       { id: 'dhpp', name: 'DHPP/DAPP', required: true, expirationWarningDays: 30, blockBookingIfExpired: true },
       { id: 'bordetella', name: 'Bordetella (Kennel Cough)', required: true, expirationWarningDays: 14, blockBookingIfExpired: true },
@@ -7554,6 +7849,10 @@ async function handleGetRequiredVaccinations(user) {
   }
 }
 
+/**
+ * Update required vaccinations for tenant
+ * NEW SCHEMA: Stored in TenantSettings.custom_fields.requiredVaccinations
+ */
 async function handleUpdateRequiredVaccinations(user, body) {
   const { vaccinations } = body;
 
@@ -7562,9 +7861,14 @@ async function handleUpdateRequiredVaccinations(user, body) {
     const ctx = await getUserTenantContext(user.id);
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
+    // Get current custom_fields and merge
+    const result = await query(`SELECT custom_fields FROM "TenantSettings" WHERE tenant_id = $1`, [ctx.tenantId]);
+    const customFields = result.rows[0]?.custom_fields || {};
+    customFields.requiredVaccinations = vaccinations;
+
     await query(
-      `UPDATE "Tenant" SET required_vaccinations = $1, updated_at = NOW() WHERE id = $2`,
-      [JSON.stringify(vaccinations), ctx.tenantId]
+      `UPDATE "TenantSettings" SET custom_fields = $1, updated_at = NOW() WHERE tenant_id = $2`,
+      [JSON.stringify(customFields), ctx.tenantId]
     );
 
     return createResponse(200, { success: true, vaccinations });
@@ -7606,30 +7910,24 @@ function maskSecretKey(key) {
   return `${prefix}...${key.slice(-6)}`;
 }
 
+/**
+ * Get payment settings for tenant
+ * NEW SCHEMA: Uses PaymentSettings table (not Tenant table)
+ */
 async function handleGetPaymentSettings(user) {
   try {
     await getPoolAsync();
     const ctx = await getUserTenantContext(user.id);
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
-    // Try new PaymentSettings table first
+    // Get from PaymentSettings table
     const result = await query(`SELECT * FROM "PaymentSettings" WHERE tenant_id = $1`, [ctx.tenantId]);
 
     if (result.rows.length === 0) {
-      // Check legacy Tenant columns for migration
-      const tenantResult = await query(
-        `SELECT stripe_account_id, stripe_connected FROM "Tenant" WHERE id = $1`,
-        [ctx.tenantId]
-      );
-      const tenant = tenantResult.rows[0] || {};
-
+      // Return defaults if no PaymentSettings exist yet
       return createResponse(200, {
         success: true,
-        settings: {
-          ...DEFAULT_PAYMENT_SETTINGS,
-          stripeConnected: Boolean(tenant.stripe_connected),
-          stripeAccountId: tenant.stripe_account_id || null,
-        },
+        settings: DEFAULT_PAYMENT_SETTINGS,
         isDefault: true,
       });
     }
@@ -7845,11 +8143,7 @@ async function handleTestStripeConnection(user, body) {
       [ctx.tenantId, publishableKey, secretKey, isTestMode]
     );
 
-    // Also update Tenant table for legacy compatibility
-    await query(
-      `UPDATE "Tenant" SET stripe_connected = true, updated_at = NOW() WHERE id = $1`,
-      [ctx.tenantId]
-    );
+    // NOTE: stripe_connected is stored in PaymentSettings table only (not Tenant)
 
     return createResponse(200, {
       success: true,
@@ -7919,11 +8213,7 @@ async function handleDisconnectStripe(user) {
       [ctx.tenantId]
     );
 
-    // Also update Tenant table for legacy compatibility
-    await query(
-      `UPDATE "Tenant" SET stripe_connected = false, stripe_account_id = NULL, updated_at = NOW() WHERE id = $1`,
-      [ctx.tenantId]
-    );
+    // NOTE: stripe_connected is stored in PaymentSettings table only (not Tenant)
 
     return createResponse(200, {
       success: true,
@@ -7966,6 +8256,10 @@ const DEFAULT_PRIVACY_SETTINGS = {
   },
 };
 
+/**
+ * Get privacy settings for tenant
+ * NEW SCHEMA: Stored in TenantSettings.custom_fields.privacySettings
+ */
 async function handleGetPrivacySettings(user) {
   try {
     await getPoolAsync();
@@ -7973,16 +8267,14 @@ async function handleGetPrivacySettings(user) {
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
     const result = await query(
-      `SELECT privacy_settings FROM "Tenant" WHERE id = $1`,
+      `SELECT custom_fields FROM "TenantSettings" WHERE tenant_id = $1`,
       [ctx.tenantId]
     );
 
-    if (result.rows.length === 0) {
-      return createResponse(404, { error: 'Not Found', message: 'Tenant not found' });
-    }
+    const customFields = result.rows[0]?.custom_fields || {};
 
     // Merge with defaults in case some settings don't exist
-    const storedSettings = result.rows[0].privacy_settings || {};
+    const storedSettings = customFields.privacySettings || {};
     const settings = {
       retention: { ...DEFAULT_PRIVACY_SETTINGS.retention, ...(storedSettings.retention || {}) },
       visibility: { ...DEFAULT_PRIVACY_SETTINGS.visibility, ...(storedSettings.visibility || {}) },
@@ -7996,15 +8288,20 @@ async function handleGetPrivacySettings(user) {
   }
 }
 
+/**
+ * Update privacy settings for tenant
+ * NEW SCHEMA: Stored in TenantSettings.custom_fields.privacySettings
+ */
 async function handleUpdatePrivacySettings(user, body) {
   try {
     await getPoolAsync();
     const ctx = await getUserTenantContext(user.id);
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
-    // Get current settings and merge
-    const result = await query(`SELECT privacy_settings FROM "Tenant" WHERE id = $1`, [ctx.tenantId]);
-    const currentSettings = result.rows[0]?.privacy_settings || {};
+    // Get current custom_fields and merge
+    const result = await query(`SELECT custom_fields FROM "TenantSettings" WHERE tenant_id = $1`, [ctx.tenantId]);
+    const customFields = result.rows[0]?.custom_fields || {};
+    const currentSettings = customFields.privacySettings || {};
 
     // Deep merge the settings
     const newSettings = {
@@ -8013,9 +8310,10 @@ async function handleUpdatePrivacySettings(user, body) {
       communication: { ...(currentSettings.communication || {}), ...(body.communication || {}) },
     };
 
+    customFields.privacySettings = newSettings;
     await query(
-      `UPDATE "Tenant" SET privacy_settings = $1, updated_at = NOW() WHERE id = $2`,
-      [JSON.stringify(newSettings), ctx.tenantId]
+      `UPDATE "TenantSettings" SET custom_fields = $1, updated_at = NOW() WHERE tenant_id = $2`,
+      [JSON.stringify(customFields), ctx.tenantId]
     );
 
     return createResponse(200, { success: true, ...newSettings });
@@ -8173,8 +8471,7 @@ async function handleCreateExport(user, body) {
             `SELECT p.*, o.first_name as owner_first_name, o.last_name as owner_last_name, o.email as owner_email
              FROM "Pet" p
              LEFT JOIN "Owner" o ON p.owner_id = o.id
-             WHERE p.tenant_id = $1 AND p.deleted_at IS NULL
-             ORDER BY p.name`,
+             WHERE p.tenant_id = $1              ORDER BY p.name`,
             [ctx.tenantId]
           );
           data = petsResult.rows;
@@ -8183,7 +8480,7 @@ async function handleCreateExport(user, body) {
 
         case 'owners':
           const ownersResult = await query(
-            `SELECT * FROM "Owner" WHERE tenant_id = $1 AND deleted_at IS NULL ORDER BY last_name, first_name`,
+            `SELECT * FROM "Owner" WHERE tenant_id = $1  ORDER BY last_name, first_name`,
             [ctx.tenantId]
           );
           data = ownersResult.rows;
@@ -8195,8 +8492,7 @@ async function handleCreateExport(user, body) {
             `SELECT b.*, o.first_name as owner_first_name, o.last_name as owner_last_name, o.email as owner_email
              FROM "Booking" b
              LEFT JOIN "Owner" o ON b.owner_id = o.id
-             WHERE b.tenant_id = $1 AND b.deleted_at IS NULL
-             ORDER BY b.created_at DESC`,
+             WHERE b.tenant_id = $1              ORDER BY b.created_at DESC`,
             [ctx.tenantId]
           );
           data = bookingsResult.rows;
@@ -8229,8 +8525,7 @@ async function handleCreateExport(user, body) {
              FROM "Vaccination" v
              LEFT JOIN "Pet" p ON v.pet_id = p.id
              LEFT JOIN "Owner" o ON p.owner_id = o.id
-             WHERE v.tenant_id = $1 AND v.deleted_at IS NULL
-             ORDER BY v.expiration_date`,
+             WHERE v.tenant_id = $1              ORDER BY v.expiration_date`,
             [ctx.tenantId]
           );
           data = vaccinationsResult.rows;
@@ -8241,10 +8536,10 @@ async function handleCreateExport(user, body) {
         default:
           // Get counts from all tables for "all" export
           const [pets, owners, bookings, vaccinations] = await Promise.all([
-            query(`SELECT * FROM "Pet" WHERE tenant_id = $1 AND deleted_at IS NULL`, [ctx.tenantId]),
-            query(`SELECT * FROM "Owner" WHERE tenant_id = $1 AND deleted_at IS NULL`, [ctx.tenantId]),
-            query(`SELECT * FROM "Booking" WHERE tenant_id = $1 AND deleted_at IS NULL`, [ctx.tenantId]),
-            query(`SELECT * FROM "Vaccination" WHERE tenant_id = $1 AND deleted_at IS NULL`, [ctx.tenantId]),
+            query(`SELECT * FROM "Pet" WHERE tenant_id = $1 `, [ctx.tenantId]),
+            query(`SELECT * FROM "Owner" WHERE tenant_id = $1 `, [ctx.tenantId]),
+            query(`SELECT * FROM "Booking" WHERE tenant_id = $1 `, [ctx.tenantId]),
+            query(`SELECT * FROM "Vaccination" WHERE tenant_id = $1 `, [ctx.tenantId]),
           ]);
           data = {
             pets: pets.rows,
@@ -8713,8 +9008,7 @@ async function handleGetForms(user) {
 
     const result = await query(`
       SELECT * FROM "Form"
-      WHERE tenant_id = $1 AND deleted_at IS NULL
-      ORDER BY updated_at DESC
+      WHERE tenant_id = $1      ORDER BY updated_at DESC
     `, [ctx.tenantId]);
 
     const forms = result.rows.map(row => ({
@@ -8751,8 +9045,7 @@ async function handleGetForm(user, formId) {
 
     const result = await query(`
       SELECT * FROM "Form"
-      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-    `, [formId, ctx.tenantId]);
+      WHERE id = $1 AND tenant_id = $2    `, [formId, ctx.tenantId]);
 
     if (result.rows.length === 0) {
       return createResponse(404, { error: 'Not Found', message: 'Form not found' });
@@ -8883,8 +9176,7 @@ async function handleUpdateForm(user, formId, body) {
 
     const result = await query(`
       UPDATE "Form" SET ${updates.join(', ')}, updated_at = NOW()
-      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-      RETURNING *
+      WHERE id = $1 AND tenant_id = $2      RETURNING *
     `, params);
 
     if (result.rows.length === 0) {
@@ -8907,13 +9199,9 @@ async function handleDeleteForm(user, formId) {
     const ctx = await getUserTenantContext(user.id);
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
-    const result = await query(`
-      UPDATE "Form" SET deleted_at = NOW()
-      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-      RETURNING id
-    `, [formId, ctx.tenantId]);
+    const deletedRecord = await softDelete('Form', formId, ctx.tenantId, ctx.userId);
 
-    if (result.rows.length === 0) {
+    if (!deletedRecord) {
       return createResponse(404, { error: 'Not Found', message: 'Form not found' });
     }
 
@@ -8936,8 +9224,7 @@ async function handleDuplicateForm(user, formId) {
     // Get original form
     const original = await query(`
       SELECT * FROM "Form"
-      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-    `, [formId, ctx.tenantId]);
+      WHERE id = $1 AND tenant_id = $2    `, [formId, ctx.tenantId]);
 
     if (original.rows.length === 0) {
       return createResponse(404, { error: 'Not Found', message: 'Form not found' });
@@ -8978,6 +9265,7 @@ async function handleDuplicateForm(user, formId) {
 
 /**
  * Get form settings for tenant
+ * NEW SCHEMA: Stored in TenantSettings.custom_fields.formSettings
  */
 async function handleGetFormSettings(user) {
   try {
@@ -8985,8 +9273,9 @@ async function handleGetFormSettings(user) {
     const ctx = await getUserTenantContext(user.id);
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
-    const result = await query(`SELECT form_settings FROM "Tenant" WHERE id = $1`, [ctx.tenantId]);
-    const settings = result.rows[0]?.form_settings || DEFAULT_FORM_SETTINGS;
+    const result = await query(`SELECT custom_fields FROM "TenantSettings" WHERE tenant_id = $1`, [ctx.tenantId]);
+    const customFields = result.rows[0]?.custom_fields || {};
+    const settings = customFields.formSettings || DEFAULT_FORM_SETTINGS;
 
     return createResponse(200, { ...DEFAULT_FORM_SETTINGS, ...settings });
   } catch (error) {
@@ -8997,6 +9286,7 @@ async function handleGetFormSettings(user) {
 
 /**
  * Update form settings for tenant
+ * NEW SCHEMA: Stored in TenantSettings.custom_fields.formSettings
  */
 async function handleUpdateFormSettings(user, body) {
   try {
@@ -9004,14 +9294,16 @@ async function handleUpdateFormSettings(user, body) {
     const ctx = await getUserTenantContext(user.id);
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
-    // Get current settings and merge
-    const result = await query(`SELECT form_settings FROM "Tenant" WHERE id = $1`, [ctx.tenantId]);
-    const currentSettings = result.rows[0]?.form_settings || {};
+    // Get current custom_fields and merge
+    const result = await query(`SELECT custom_fields FROM "TenantSettings" WHERE tenant_id = $1`, [ctx.tenantId]);
+    const customFields = result.rows[0]?.custom_fields || {};
+    const currentSettings = customFields.formSettings || {};
     const newSettings = { ...currentSettings, ...body };
 
+    customFields.formSettings = newSettings;
     await query(
-      `UPDATE "Tenant" SET form_settings = $1, updated_at = NOW() WHERE id = $2`,
-      [JSON.stringify(newSettings), ctx.tenantId]
+      `UPDATE "TenantSettings" SET custom_fields = $1, updated_at = NOW() WHERE tenant_id = $2`,
+      [JSON.stringify(customFields), ctx.tenantId]
     );
 
     return createResponse(200, { success: true, ...newSettings });
@@ -9155,7 +9447,7 @@ async function handleGetDocuments(user, queryParams) {
       return createResponse(200, { documents: [], total: 0, _tableNotExists: true });
     }
 
-    let whereClause = 'd.tenant_id = $1 AND d.deleted_at IS NULL';
+    let whereClause = 'd.tenant_id = $1';
     const params = [ctx.tenantId];
     let paramIndex = 2;
 
@@ -9258,8 +9550,7 @@ async function handleGetDocumentStats(user) {
         COUNT(*) as count,
         category
       FROM "Document"
-      WHERE tenant_id = $1 AND deleted_at IS NULL
-      GROUP BY category
+      WHERE tenant_id = $1      GROUP BY category
     `, [ctx.tenantId]);
 
     const byCategory = {};
@@ -9276,12 +9567,13 @@ async function handleGetDocumentStats(user) {
     });
 
     // Get tenant storage limit (default 500 MB)
+    // NEW SCHEMA: Uses feature_flags column (not features)
     const tenantResult = await query(
-      `SELECT features FROM "Tenant" WHERE id = $1`,
+      `SELECT feature_flags FROM "Tenant" WHERE id = $1`,
       [ctx.tenantId]
     );
-    const features = tenantResult.rows[0]?.features || {};
-    const storageLimitMB = features.storageLimitMB || 500;
+    const featureFlags = tenantResult.rows[0]?.feature_flags || {};
+    const storageLimitMB = featureFlags.storageLimitMB || 500;
 
     return createResponse(200, {
       used: totalBytes,
@@ -9361,8 +9653,7 @@ async function handleGetDocument(user, docId) {
       FROM "Document" d
       LEFT JOIN "Owner" o ON d.owner_id = o.id
       LEFT JOIN "Pet" p ON d.pet_id = p.id
-      WHERE d.id = $1 AND d.tenant_id = $2 AND d.deleted_at IS NULL
-    `, [docId, ctx.tenantId]);
+      WHERE d.id = $1 AND d.tenant_id = $2     `, [docId, ctx.tenantId]);
 
     if (result.rows.length === 0) {
       return createResponse(404, { error: 'Not Found', message: 'Document not found' });
@@ -9384,13 +9675,9 @@ async function handleDeleteDocument(user, docId) {
     const ctx = await getUserTenantContext(user.id);
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
-    const result = await query(`
-      UPDATE "Document" SET deleted_at = NOW() 
-      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-      RETURNING id
-    `, [docId, ctx.tenantId]);
+    const deletedRecord = await softDelete('Document', docId, ctx.tenantId, ctx.userId);
 
-    if (result.rows.length === 0) {
+    if (!deletedRecord) {
       return createResponse(404, { error: 'Not Found', message: 'Document not found' });
     }
 
@@ -9433,8 +9720,7 @@ async function handleGetFileTemplates(user) {
 
     const result = await query(`
       SELECT * FROM "FileTemplate"
-      WHERE tenant_id = $1 AND deleted_at IS NULL
-      ORDER BY type, name
+      WHERE tenant_id = $1      ORDER BY type, name
     `, [ctx.tenantId]);
 
     const templates = result.rows.map(row => ({
@@ -9515,8 +9801,7 @@ async function handleGetFileTemplate(user, templateId) {
 
     const result = await query(`
       SELECT * FROM "FileTemplate"
-      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-    `, [templateId, ctx.tenantId]);
+      WHERE id = $1 AND tenant_id = $2    `, [templateId, ctx.tenantId]);
 
     if (result.rows.length === 0) {
       return createResponse(404, { error: 'Not Found', message: 'Template not found' });
@@ -9587,8 +9872,7 @@ async function handleUpdateFileTemplate(user, templateId, body) {
 
     const result = await query(`
       UPDATE "FileTemplate" SET ${updates.join(', ')}, updated_at = NOW()
-      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-      RETURNING *
+      WHERE id = $1 AND tenant_id = $2      RETURNING *
     `, params);
 
     if (result.rows.length === 0) {
@@ -9611,13 +9895,9 @@ async function handleDeleteFileTemplate(user, templateId) {
     const ctx = await getUserTenantContext(user.id);
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
-    const result = await query(`
-      UPDATE "FileTemplate" SET deleted_at = NOW()
-      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-      RETURNING id
-    `, [templateId, ctx.tenantId]);
+    const deletedRecord = await softDelete('FileTemplate', templateId, ctx.tenantId, ctx.userId);
 
-    if (result.rows.length === 0) {
+    if (!deletedRecord) {
       return createResponse(404, { error: 'Not Found', message: 'Template not found' });
     }
 
@@ -9660,8 +9940,7 @@ async function handleGetCustomFiles(user) {
 
     const result = await query(`
       SELECT * FROM "CustomFile"
-      WHERE tenant_id = $1 AND deleted_at IS NULL
-      ORDER BY created_at DESC
+      WHERE tenant_id = $1      ORDER BY created_at DESC
     `, [ctx.tenantId]);
 
     const files = result.rows.map(row => ({
@@ -9743,8 +10022,7 @@ async function handleGetCustomFile(user, fileId) {
 
     const result = await query(`
       SELECT * FROM "CustomFile"
-      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-    `, [fileId, ctx.tenantId]);
+      WHERE id = $1 AND tenant_id = $2    `, [fileId, ctx.tenantId]);
 
     if (result.rows.length === 0) {
       return createResponse(404, { error: 'Not Found', message: 'File not found' });
@@ -9766,13 +10044,9 @@ async function handleDeleteCustomFile(user, fileId) {
     const ctx = await getUserTenantContext(user.id);
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
-    const result = await query(`
-      UPDATE "CustomFile" SET deleted_at = NOW()
-      WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-      RETURNING id
-    `, [fileId, ctx.tenantId]);
+    const deletedRecord = await softDelete('CustomFile', fileId, ctx.tenantId, ctx.userId);
 
-    if (result.rows.length === 0) {
+    if (!deletedRecord) {
       return createResponse(404, { error: 'Not Found', message: 'File not found' });
     }
 

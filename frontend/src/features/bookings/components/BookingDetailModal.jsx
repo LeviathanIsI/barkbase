@@ -52,7 +52,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
 
   // Compute booking display data
   const displayBooking = {
-    id: booking.recordId || booking.id || 'Unknown',
+    id: booking.id || booking.recordId || 'Unknown',
     pet: booking.pet || {},
     owner: booking.owner || {},
     checkIn: booking.checkIn,

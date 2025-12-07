@@ -83,8 +83,7 @@ async function processBookingReminders() {
        FROM "Booking" b
        LEFT JOIN "Owner" o ON b.owner_id = o.id
        LEFT JOIN "Service" s ON b.service_id = s.id
-       WHERE b.deleted_at IS NULL
-         AND b.status IN ('CONFIRMED', 'PENDING')
+       WHERE b.status IN ('CONFIRMED', 'PENDING')
          AND DATE(b.check_in) = CURRENT_DATE + INTERVAL '1 day'
          AND o.email IS NOT NULL
        ORDER BY b.tenant_id, b.check_in`
@@ -177,9 +176,7 @@ async function processVaccinationReminders() {
        JOIN "Pet" p ON v.pet_id = p.id
        LEFT JOIN "PetOwner" po ON po.pet_id = p.id AND po.is_primary = true
        LEFT JOIN "Owner" o ON po.owner_id = o.id
-       WHERE v.deleted_at IS NULL
-         AND p.deleted_at IS NULL
-         AND o.email IS NOT NULL
+       WHERE o.email IS NOT NULL
          AND (
            DATE(v.expires_at) = CURRENT_DATE + INTERVAL '30 days'
            OR DATE(v.expires_at) = CURRENT_DATE + INTERVAL '14 days'

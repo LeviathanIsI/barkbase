@@ -1,25 +1,67 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useBookingStore } from '@/stores/booking';
 import { useTenantStore } from '@/stores/tenant';
 import '@testing-library/jest-dom';
 
+// Set up mocks BEFORE importing the component
 vi.mock('../CheckInModal', () => ({ default: () => null }));
 vi.mock('../CheckOutModal', () => ({ default: () => null }));
+vi.mock('../QuickCheckIn', () => ({ default: () => <div data-testid="quick-check-in">Quick Check-In</div> }));
+vi.mock('../WaitlistManager', () => ({ default: () => <div data-testid="waitlist-manager">Waitlist</div> }));
 
-import BookingCalendar from '../BookingCalendar';
+vi.mock('@/lib/offlineQueue', () => ({
+  enqueueRequest: vi.fn(),
+}));
 
+vi.mock('@/lib/terminology', () => ({
+  useTerminology: () => ({
+    getDisplayName: (type, name) => name,
+  }),
+}));
+
+vi.mock('@/lib/socket', () => ({
+  getSocket: () => ({
+    on: vi.fn(),
+    off: vi.fn(),
+  }),
+}));
+
+// Mock Card to render header prop content
+vi.mock('@/components/ui/Card', () => ({
+  default: ({ children, header, ...props }) => (
+    <div data-testid="card" {...props}>
+      {header && <div data-testid="card-header">{header}</div>}
+      {children}
+    </div>
+  ),
+  Card: ({ children, header, ...props }) => (
+    <div data-testid="card" {...props}>
+      {header && <div data-testid="card-header">{header}</div>}
+      {children}
+    </div>
+  ),
+}));
 
 let capturedDragHandler;
 
-const mockKennels = [{ id: 'kennel-1', name: 'Suite 1', type: 'SUITE' }];
+vi.mock('@dnd-kit/core', () => ({
+  DndContext: ({ children, onDragEnd }) => {
+    capturedDragHandler = onDragEnd;
+    return <div data-testid="dnd-context">{children}</div>;
+  },
+  useDroppable: () => ({ setNodeRef: vi.fn(), isOver: false }),
+  useDraggable: () => ({ setNodeRef: vi.fn(), listeners: {}, attributes: {}, transform: null, isDragging: false }),
+}));
+
+const mockKennels = [{ recordId: 'kennel-1', name: 'Suite 1', type: 'SUITE' }];
 const mockBookings = [
   {
-    id: 'booking-1',
+    recordId: 'booking-1',
     petName: 'Riley',
     ownerName: 'Alex Anderson',
     status: 'CONFIRMED',
+    deposit: 50,
     checkIn: '2025-01-01T08:00:00.000Z',
     checkOut: '2025-01-02T08:00:00.000Z',
     dateRange: { start: '2025-01-01T08:00:00.000Z', end: '2025-01-02T08:00:00.000Z' },
@@ -33,19 +75,6 @@ const mockBookings = [
     ],
   },
 ];
-
-vi.mock('@/lib/offlineQueue', () => ({
-  enqueueRequest: vi.fn(),
-}));
-
-vi.mock('@dnd-kit/core', () => ({
-  DndContext: ({ children, onDragEnd }) => {
-    capturedDragHandler = onDragEnd;
-    return <div>{children}</div>;
-  },
-  useDroppable: () => ({ setNodeRef: vi.fn(), isOver: false }),
-  useDraggable: () => ({ setNodeRef: vi.fn(), listeners: {}, attributes: {}, transform: null, isDragging: false }),
-}));
 
 const updateBookingMock = vi.fn().mockResolvedValue({
   ...mockBookings[0],
@@ -73,7 +102,7 @@ const bookingState = (() => {
       state.waitlist = entries;
     }),
     upsertBooking: vi.fn((booking) => {
-      const index = state.bookings.findIndex((item) => item.id === booking.id);
+      const index = state.bookings.findIndex((item) => item.recordId === booking.recordId);
       if (index === -1) {
         state.bookings = [booking, ...state.bookings];
       } else {
@@ -95,17 +124,17 @@ vi.mock('@/stores/booking', () => {
 });
 
 vi.mock('../../api', () => ({
-  useBookingsQuery: () => ({ data: mockBookings, isLoading: false }),
-  useKennelAvailability: () => ({ data: mockKennels }),
+  useBookingsQuery: vi.fn(() => ({ data: mockBookings, isLoading: false })),
   updateBooking: (...args) => updateBookingMock(...args),
 }));
 
-vi.mock('@/lib/socket', () => ({
-  getSocket: () => ({
-    on: vi.fn(),
-    off: vi.fn(),
-  }),
+vi.mock('@/features/kennels/api', () => ({
+  useKennelAvailability: vi.fn(() => ({ data: mockKennels })),
 }));
+
+// Import after mocks
+import BookingCalendar from '../BookingCalendar';
+import { useBookingStore } from '@/stores/booking';
 
 beforeEach(() => {
   updateBookingMock.mockClear();
@@ -135,7 +164,26 @@ beforeEach(() => {
   });
 });
 
-describe('BookingCalendar drag', () => {
+describe('BookingCalendar', () => {
+  it('renders the booking calendar', () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <BookingCalendar />
+      </QueryClientProvider>,
+    );
+
+    // Check that core UI elements are rendered
+    expect(screen.getByTestId('dnd-context')).toBeInTheDocument();
+    expect(screen.getByText('Bookings Board')).toBeInTheDocument();
+  });
+
   it('calls updateBooking on drag end', async () => {
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -153,7 +201,7 @@ describe('BookingCalendar drag', () => {
     const dropDate = new Date('2025-01-03T08:00:00.000Z');
 
     await capturedDragHandler({
-      active: { id: 'booking-1' },
+      active: { recordId: 'booking-1' },
       over: { data: { current: { kennelId: 'kennel-1', date: dropDate } } },
     });
 

@@ -205,7 +205,8 @@ const Bookings = () => {
       const ownerPhone = booking.owner?.phone || '';
       const ownerEmail = booking.owner?.email || '';
       const serviceName = booking.service?.name || 'Boarding';
-      const runId = booking.runTemplateId || booking.runTemplate?.recordId;
+      // Use kennel_id (the actual DB field) or kennelId (camelCase from API), falling back to runTemplateId for backwards compat
+      const runId = booking.kennelId || booking.kennel_id || booking.kennel?.id || booking.runTemplateId || booking.runTemplate?.recordId;
 
       return {
         ...booking,
@@ -385,8 +386,37 @@ const Bookings = () => {
     refetchBookings();
   }, [refetchBookings]);
 
-  const handleBookingClick = useCallback((booking) => {
-    setSelectedBooking(booking);
+  const handleBookingClick = useCallback((bookingOrAssignment) => {
+    // Transform run assignment to booking-like shape for the detail modal
+    // Run assignments have flat fields (petName, ownerName), bookings have nested objects (pet, owner)
+    const normalizedBooking = bookingOrAssignment.pet
+      ? bookingOrAssignment // Already a booking with nested objects
+      : {
+          // Transform flat assignment to booking shape
+          id: bookingOrAssignment.bookingId || bookingOrAssignment.id,
+          recordId: bookingOrAssignment.bookingId || bookingOrAssignment.id,
+          pet: {
+            id: bookingOrAssignment.petId,
+            name: bookingOrAssignment.petName || 'Unknown Pet',
+            breed: bookingOrAssignment.petBreed || null,
+            species: bookingOrAssignment.petSpecies || null,
+            photoUrl: bookingOrAssignment.petPhotoUrl,
+          },
+          owner: {
+            name: bookingOrAssignment.ownerName || 'Unknown',
+            phone: bookingOrAssignment.ownerPhone,
+          },
+          // Use booking dates if available, otherwise use assignment times
+          checkIn: bookingOrAssignment.bookingCheckIn || bookingOrAssignment.startAt || bookingOrAssignment.assignedDate,
+          checkOut: bookingOrAssignment.bookingCheckOut || bookingOrAssignment.endAt || bookingOrAssignment.assignedDate,
+          status: bookingOrAssignment.bookingStatus || bookingOrAssignment.status || 'CONFIRMED',
+          kennel: { name: bookingOrAssignment.kennelName || 'Unassigned' },
+          // Use run name as additional context
+          runName: bookingOrAssignment.runName,
+          totalCents: bookingOrAssignment.bookingTotalCents || 0,
+          amountPaidCents: 0, // TODO: fetch actual paid amount if needed
+        };
+    setSelectedBooking(normalizedBooking);
     setShowBookingDetail(true);
   }, []);
 
@@ -1037,6 +1067,33 @@ const RunBoardView = ({
     return assignments.filter(a => a.runId === runId && a.dateStr === dateStr);
   };
 
+  // Get bookings for a specific run and date (fallback when no assignments)
+  const getBookingsForCell = (runId, date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    return bookings.filter(b => {
+      if (!b.runId || b.runId !== runId) return false;
+      if (!b.checkInDate || !b.checkOutDate) return false;
+      const checkInStr = b.checkInDate.toISOString().split('T')[0];
+      const checkOutStr = b.checkOutDate.toISOString().split('T')[0];
+      return dateStr >= checkInStr && dateStr <= checkOutStr;
+    });
+  };
+
+  // Get unassigned bookings for a date (no runId set)
+  const getUnassignedBookingsForDate = (date) => {
+    const dateStr = date.toISOString().split('T')[0];
+    return bookings.filter(b => {
+      if (b.runId) return false; // Skip if assigned to a run
+      if (!b.checkInDate || !b.checkOutDate) return false;
+      const checkInStr = b.checkInDate.toISOString().split('T')[0];
+      const checkOutStr = b.checkOutDate.toISOString().split('T')[0];
+      return dateStr >= checkInStr && dateStr <= checkOutStr;
+    });
+  };
+
+  // Check if there are any unassigned bookings in the date range
+  const hasUnassignedBookings = bookings.some(b => !b.runId && b.checkInDate && b.checkOutDate);
+
   if (runs.length === 0 && !isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -1136,64 +1193,140 @@ const RunBoardView = ({
               <LoadingState label="Loading bookings…" variant="skeleton" />
             </div>
           ) : (
-            /* Run Rows */
-            runs.map((run) => (
-              <div
-                key={run.id}
-                className="grid gap-px"
-                style={{
-                  gridTemplateColumns: `180px repeat(${dateRange.length}, minmax(120px, 1fr))`,
-                  backgroundColor: 'var(--bb-color-border-subtle)',
-                }}
-              >
-                {/* Run Label */}
+            <>
+              {/* Run Rows */}
+              {runs.map((run) => (
                 <div
-                  className="p-3 flex flex-col justify-center"
-                  style={{ backgroundColor: 'var(--bb-color-bg-surface)' }}
+                  key={run.id}
+                  className="grid gap-px"
+                  style={{
+                    gridTemplateColumns: `180px repeat(${dateRange.length}, minmax(120px, 1fr))`,
+                    backgroundColor: 'var(--bb-color-border-subtle)',
+                  }}
                 >
-                  <div className="font-medium text-sm text-[color:var(--bb-color-text-primary)]">{run.name}</div>
-                  <div className="text-xs text-[color:var(--bb-color-text-muted)]">
-                    {run.type} • Cap: {run.capacity}
-                  </div>
-                </div>
-
-                {/* Date Cells */}
-                {dateRange.map((date, dateIdx) => {
-                  const cellAssignments = getAssignmentsForCell(run.id, date);
-                  const isToday = date.toDateString() === today.toDateString();
-                  const hasAssignments = cellAssignments.length > 0;
-
-                  return (
-                    <div
-                      key={dateIdx}
-                      className={cn(
-                        'min-h-[80px] relative transition-colors',
-                        !hasAssignments && 'hover:bg-[color:var(--bb-color-bg-elevated)] cursor-pointer'
-                      )}
-                      style={{ backgroundColor: isToday ? 'var(--bb-color-accent-soft)' : 'var(--bb-color-bg-body)' }}
-                      onClick={() => !hasAssignments && onEmptyCellClick(run.id, date)}
-                    >
-                      {hasAssignments ? (
-                        <div className="p-1 space-y-0.5 overflow-hidden">
-                          {cellAssignments.slice(0, 3).map((assignment, aIdx) => (
-                            <AssignmentCell
-                              key={assignment.id || aIdx}
-                              assignment={assignment}
-                              onClick={() => onBookingClick(assignment)}
-                            />
-                          ))}
-                          {cellAssignments.length > 3 && (
-                            <p className="text-[9px] text-center text-blue-600 dark:text-blue-300 font-medium">
-                              +{cellAssignments.length - 3} more
-                            </p>
-                          )}
-                        </div>
-                      ) : null}
+                  {/* Run Label */}
+                  <div
+                    className="p-3 flex flex-col justify-center"
+                    style={{ backgroundColor: 'var(--bb-color-bg-surface)' }}
+                  >
+                    <div className="font-medium text-sm text-[color:var(--bb-color-text-primary)]">{run.name}</div>
+                    <div className="text-xs text-[color:var(--bb-color-text-muted)]">
+                      {run.type} • Cap: {run.capacity}
                     </div>
-                  );
-                })}
-              </div>
-            ))
+                  </div>
+
+                  {/* Date Cells */}
+                  {dateRange.map((date, dateIdx) => {
+                    const cellAssignments = getAssignmentsForCell(run.id, date);
+                    const cellBookings = getBookingsForCell(run.id, date);
+                    const isToday = date.toDateString() === today.toDateString();
+                    // Use assignments if available, otherwise fall back to bookings
+                    const hasContent = cellAssignments.length > 0 || cellBookings.length > 0;
+                    const useAssignments = cellAssignments.length > 0;
+
+                    return (
+                      <div
+                        key={dateIdx}
+                        className={cn(
+                          'min-h-[80px] relative transition-colors',
+                          !hasContent && 'hover:bg-[color:var(--bb-color-bg-elevated)] cursor-pointer'
+                        )}
+                        style={{ backgroundColor: isToday ? 'var(--bb-color-accent-soft)' : 'var(--bb-color-bg-body)' }}
+                        onClick={() => !hasContent && onEmptyCellClick(run.id, date)}
+                      >
+                        {useAssignments ? (
+                          <div className="p-1 space-y-0.5 overflow-hidden">
+                            {cellAssignments.slice(0, 3).map((assignment, aIdx) => (
+                              <AssignmentCell
+                                key={assignment.id || aIdx}
+                                assignment={assignment}
+                                onClick={() => onBookingClick(assignment)}
+                              />
+                            ))}
+                            {cellAssignments.length > 3 && (
+                              <p className="text-[9px] text-center text-blue-600 dark:text-blue-300 font-medium">
+                                +{cellAssignments.length - 3} more
+                              </p>
+                            )}
+                          </div>
+                        ) : cellBookings.length > 0 ? (
+                          <div className="p-1 space-y-0.5 overflow-hidden">
+                            {cellBookings.slice(0, 3).map((booking, bIdx) => (
+                              <BookingCellCompact
+                                key={booking.id || bIdx}
+                                booking={booking}
+                                onClick={() => onBookingClick(booking)}
+                              />
+                            ))}
+                            {cellBookings.length > 3 && (
+                              <p className="text-[9px] text-center text-blue-600 dark:text-blue-300 font-medium">
+                                +{cellBookings.length - 3} more
+                              </p>
+                            )}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+
+              {/* Unassigned Bookings Row - Show bookings without a kennel/run assignment */}
+              {hasUnassignedBookings && (
+                <div
+                  className="grid gap-px"
+                  style={{
+                    gridTemplateColumns: `180px repeat(${dateRange.length}, minmax(120px, 1fr))`,
+                    backgroundColor: 'var(--bb-color-border-subtle)',
+                  }}
+                >
+                  {/* Unassigned Label */}
+                  <div
+                    className="p-3 flex flex-col justify-center"
+                    style={{ backgroundColor: 'var(--bb-color-bg-surface)' }}
+                  >
+                    <div className="font-medium text-sm text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                      <AlertTriangle className="h-4 w-4" />
+                      Unassigned
+                    </div>
+                    <div className="text-xs text-[color:var(--bb-color-text-muted)]">
+                      Needs run assignment
+                    </div>
+                  </div>
+
+                  {/* Date Cells for Unassigned */}
+                  {dateRange.map((date, dateIdx) => {
+                    const unassignedBookings = getUnassignedBookingsForDate(date);
+                    const isToday = date.toDateString() === today.toDateString();
+
+                    return (
+                      <div
+                        key={dateIdx}
+                        className="min-h-[80px] relative transition-colors"
+                        style={{ backgroundColor: isToday ? 'var(--bb-color-accent-soft)' : 'var(--bb-color-bg-body)' }}
+                      >
+                        {unassignedBookings.length > 0 && (
+                          <div className="p-1 space-y-0.5 overflow-hidden">
+                            {unassignedBookings.slice(0, 3).map((booking, bIdx) => (
+                              <BookingCellCompact
+                                key={booking.id || bIdx}
+                                booking={booking}
+                                onClick={() => onBookingClick(booking)}
+                              />
+                            ))}
+                            {unassignedBookings.length > 3 && (
+                              <p className="text-[9px] text-center text-amber-600 dark:text-amber-300 font-medium">
+                                +{unassignedBookings.length - 3} more
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -1262,6 +1395,41 @@ const AssignmentCell = ({ assignment, onClick }) => {
           {assignment.ownerName}
         </p>
       )}
+    </div>
+  );
+};
+
+// Compact Booking Cell Component (for booking-based rendering in Run Board)
+const BookingCellCompact = ({ booking, onClick }) => {
+  const statusKey = booking.displayStatus?.toUpperCase() || 'PENDING';
+  const statusColors = {
+    PENDING: 'bg-gray-100 dark:bg-gray-800 border-gray-400 text-gray-700 dark:text-gray-300',
+    CONFIRMED: 'bg-blue-100 dark:bg-blue-900/40 border-blue-500 text-blue-800 dark:text-blue-200',
+    CHECKED_IN: 'bg-emerald-100 dark:bg-emerald-900/40 border-emerald-500 text-emerald-800 dark:text-emerald-200',
+    CHECKOUT_TODAY: 'bg-orange-100 dark:bg-orange-900/40 border-orange-500 text-orange-800 dark:text-orange-200',
+    OVERDUE: 'bg-red-100 dark:bg-red-900/40 border-red-500 text-red-800 dark:text-red-200',
+    CHECKED_OUT: 'bg-gray-100 dark:bg-gray-800 border-gray-400 text-gray-500 dark:text-gray-400',
+    CANCELLED: 'bg-red-100 dark:bg-red-900/40 border-red-400 text-red-700 dark:text-red-300',
+  };
+  const colorClass = statusColors[statusKey] || statusColors.PENDING;
+
+  return (
+    <div
+      className={cn('rounded border-l-2 px-1.5 py-1 cursor-pointer hover:shadow-sm transition-shadow overflow-hidden', colorClass)}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+    >
+      <p className="text-[11px] font-medium truncate">
+        {booking.petName}
+      </p>
+      <p className="text-[9px] truncate opacity-75">
+        {booking.ownerName}
+      </p>
+      <p className="text-[9px] truncate opacity-60">
+        {booking.serviceName}
+      </p>
     </div>
   );
 };

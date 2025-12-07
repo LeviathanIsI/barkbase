@@ -72,6 +72,13 @@ function getAuthConfig() {
 
 /**
  * Validate session age against tenant's auto_logout_interval_hours
+ *
+ * NEW SCHEMA NOTES:
+ * - UserSession has user_id FK (not cognito_sub column)
+ * - Column names: session_start, last_activity (not session_start_time, last_activity_time)
+ * - No updated_at column on UserSession
+ * - Auto logout hours stored in TenantSettings (via JSONB or we default to 24h)
+ *
  * @param {string} cognitoSub - User's Cognito sub
  * @param {string} tenantId - Tenant ID (UUID)
  * @returns {Promise<object>} Validation result
@@ -80,17 +87,23 @@ async function validateSessionAge(cognitoSub, tenantId) {
   try {
     const { query } = require('/opt/nodejs/db');
 
-    // Get active session and tenant settings in one query
+    // NEW SCHEMA: UserSession has user_id FK, not cognito_sub
+    // Need to join through User to find session by cognito_sub
+    // Auto logout hours from TenantSettings (default 24h if not set)
     const result = await query(
       `SELECT
-        s.session_start_time,
-        s.last_activity_time,
-        t.auto_logout_interval_hours
+        s.id as session_id,
+        s.session_start,
+        s.last_activity,
+        s.user_id,
+        COALESCE((ts.notification_prefs->>'auto_logout_hours')::INTEGER, 24) as auto_logout_hours
        FROM "UserSession" s
-       JOIN "Tenant" t ON s.tenant_id = t.id
-       WHERE s.cognito_sub = $1
+       JOIN "User" u ON s.user_id = u.id
+       LEFT JOIN "TenantSettings" ts ON s.tenant_id = ts.tenant_id
+       WHERE u.cognito_sub = $1
          AND s.tenant_id = $2
          AND s.is_active = true
+       ORDER BY s.session_start DESC
        LIMIT 1`,
       [cognitoSub, tenantId]
     );
@@ -103,18 +116,19 @@ async function validateSessionAge(cognitoSub, tenantId) {
       };
     }
 
-    const { session_start_time, auto_logout_interval_hours } = result.rows[0];
-    const intervalHours = auto_logout_interval_hours || 24;
+    const { session_id, session_start, auto_logout_hours, user_id } = result.rows[0];
+    const intervalHours = auto_logout_hours || 24;
     const maxAgeMs = intervalHours * 60 * 60 * 1000;
-    const sessionAgeMs = Date.now() - new Date(session_start_time).getTime();
+    const sessionAgeMs = Date.now() - new Date(session_start).getTime();
 
     if (sessionAgeMs > maxAgeMs) {
       // Session expired - mark as inactive
+      // NEW SCHEMA: Use user_id instead of cognito_sub
       await query(
         `UPDATE "UserSession"
-         SET is_active = false, logged_out_at = NOW(), updated_at = NOW()
-         WHERE cognito_sub = $1 AND is_active = true`,
-        [cognitoSub]
+         SET is_active = false, logged_out_at = NOW()
+         WHERE user_id = $1 AND is_active = true`,
+        [user_id]
       );
 
       return {
@@ -127,11 +141,12 @@ async function validateSessionAge(cognitoSub, tenantId) {
     }
 
     // Update last activity time
+    // NEW SCHEMA: Column is last_activity, no updated_at
     await query(
       `UPDATE "UserSession"
-       SET last_activity_time = NOW(), updated_at = NOW()
-       WHERE cognito_sub = $1 AND is_active = true`,
-      [cognitoSub]
+       SET last_activity = NOW()
+       WHERE id = $1`,
+      [session_id]
     );
 
     return {
@@ -158,6 +173,13 @@ async function validateSessionAge(cognitoSub, tenantId) {
  * SECURITY: This function implements defense-in-depth by looking up
  * authorization from the database, NOT from Cognito token claims.
  *
+ * NEW SCHEMA NOTES:
+ * - User table has NO role column - use UserRole junction table
+ * - Roles are in Role table, linked via UserRole
+ * - Permissions are in Permission table, linked via RolePermission
+ * - No deleted_at columns - use DeletedRecord archive table
+ * - TenantSettings is a separate 1:1 table (contains timezone, etc.)
+ *
  * @param {string} cognitoSub - The Cognito user ID (sub claim from JWT)
  * @returns {Promise<Object|null>} User authorization context or null if not found/inactive
  */
@@ -170,15 +192,13 @@ async function getUserAuthorizationFromDB(cognitoSub) {
   try {
     const { query } = require('/opt/nodejs/db');
 
-    // Query uses actual schema columns:
-    // - User.is_active (boolean) instead of status
-    // - Tenant uses soft-delete (deleted_at) instead of status
+    // NEW SCHEMA: Role comes from UserRole -> Role junction tables
+    // No deleted_at columns - records are either in table or in DeletedRecord archive
     const result = await query(
       `SELECT
         u.id,
         u.cognito_sub,
         u.tenant_id,
-        u.role,
         u.email,
         u.first_name,
         u.last_name,
@@ -188,13 +208,18 @@ async function getUserAuthorizationFromDB(cognitoSub) {
         t.slug as tenant_slug,
         t.plan as tenant_plan,
         t.feature_flags as tenant_feature_flags,
-        t.timezone as tenant_timezone
+        ts.timezone as tenant_timezone,
+        COALESCE(
+          (SELECT array_agg(r.name) FROM "UserRole" ur
+           JOIN "Role" r ON ur.role_id = r.id
+           WHERE ur.user_id = u.id),
+          ARRAY[]::VARCHAR[]
+        ) as roles
       FROM "User" u
       LEFT JOIN "Tenant" t ON u.tenant_id = t.id
+      LEFT JOIN "TenantSettings" ts ON t.id = ts.tenant_id
       WHERE u.cognito_sub = $1
-        AND u.is_active = true
-        AND u.deleted_at IS NULL
-        AND (t.id IS NULL OR t.deleted_at IS NULL)`,
+        AND u.is_active = true`,
       [cognitoSub]
     );
 
@@ -205,7 +230,13 @@ async function getUserAuthorizationFromDB(cognitoSub) {
 
     const user = result.rows[0];
 
-    console.log(`[AUTH] Authorization loaded from DB: userId=${user.id}, cognitoSub=${user.cognito_sub}, tenant=${user.tenant_id}, role=${user.role}`);
+    // Determine primary role for backwards compatibility
+    // Priority: OWNER > MANAGER > STAFF > RECEPTIONIST > GROOMER > VIEWER
+    const roleHierarchy = ['OWNER', 'SUPER_ADMIN', 'MANAGER', 'STAFF', 'RECEPTIONIST', 'GROOMER', 'VIEWER'];
+    const userRoles = user.roles || [];
+    const primaryRole = roleHierarchy.find(r => userRoles.map(ur => ur?.toUpperCase()).includes(r)) || userRoles[0] || null;
+
+    console.log(`[AUTH] Authorization loaded from DB: userId=${user.id}, cognitoSub=${user.cognito_sub}, tenant=${user.tenant_id}, roles=${userRoles.join(',')}, primaryRole=${primaryRole}`);
 
     return {
       // User identification
@@ -217,9 +248,10 @@ async function getUserAuthorizationFromDB(cognitoSub) {
       userId: user.id,                // Database User.id (UUID)
       recordId: user.id,              // Database User.id (UUID)
 
-      // AUTHORIZATION - from DATABASE, not token
+      // AUTHORIZATION - from DATABASE via UserRole junction table
       tenantId: user.tenant_id,
-      role: user.role,
+      roles: userRoles,               // NEW: Array of role names from UserRole junction
+      role: primaryRole,              // BACKWARDS COMPAT: Primary role for legacy code
 
       // User profile
       email: user.email,
@@ -556,9 +588,19 @@ function createResponse(statusCode, body, headers = {}) {
   const corsOrigins = process.env.CORS_ORIGINS || 'http://localhost:5173';
   const corsOrigin = getCorsOrigin(currentRequestOrigin, corsOrigins);
 
-  return {
-    statusCode,
-    headers: {
+  // Import security headers utility
+  const { mergeSecurityHeaders } = require('./security-headers');
+
+  // Determine if this is an auth endpoint based on common patterns
+  // This is a heuristic - can be overridden by passing X-Auth-Endpoint header
+  const isAuthEndpoint = headers['X-Auth-Endpoint'] === 'true';
+
+  // Remove the marker header if present
+  delete headers['X-Auth-Endpoint'];
+
+  // Merge security headers with CORS and custom headers
+  const finalHeaders = mergeSecurityHeaders(
+    {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': corsOrigin,
       'Access-Control-Allow-Credentials': 'true',
@@ -566,6 +608,12 @@ function createResponse(statusCode, body, headers = {}) {
       'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
       ...headers,
     },
+    isAuthEndpoint
+  );
+
+  return {
+    statusCode,
+    headers: finalHeaders,
     body: typeof body === 'string' ? body : JSON.stringify(body),
   };
 }

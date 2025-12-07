@@ -220,7 +220,7 @@ const Owners = () => {
     if (selectedRows.size === paginatedOwners.length) {
       setSelectedRows(new Set());
     } else {
-      setSelectedRows(new Set(paginatedOwners.map(o => o.recordId)));
+      setSelectedRows(new Set(paginatedOwners.map(o => o.id || o.recordId)));
     }
   }, [paginatedOwners, selectedRows.size]);
 
@@ -463,12 +463,12 @@ const Owners = () => {
                 <tbody>
                   {paginatedOwners.map((owner, index) => (
                     <OwnerRow
-                      key={owner.recordId}
+                      key={owner.id || owner.recordId}
                       owner={owner}
                       columns={orderedColumns}
-                      isSelected={selectedRows.has(owner.recordId)}
-                      onSelect={() => handleSelectRow(owner.recordId)}
-                      onView={() => navigate(`/customers/${owner.recordId}`)}
+                      isSelected={selectedRows.has(owner.id || owner.recordId)}
+                      onSelect={() => handleSelectRow(owner.id || owner.recordId)}
+                      onView={() => navigate(`/customers/${owner.id || owner.recordId}`)}
                       isEven={index % 2 === 0}
                     />
                   ))}

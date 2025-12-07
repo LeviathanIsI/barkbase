@@ -18,7 +18,7 @@ const SlideOutDrawer = ({
   subtitle,
   children,
   actions,
-  size = 'md', // sm, md, lg, full
+  size = 'md', // sm, md, lg, xl, full
   resizable = true,
   closeOnEscape = true,
   closeOnBackdropClick = true,
@@ -39,6 +39,7 @@ const SlideOutDrawer = ({
     sm: 'w-96 max-w-[calc(100vw-1rem)]',
     md: 'w-[600px] max-w-[calc(100vw-1rem)]',
     lg: 'w-[800px] max-w-[calc(100vw-1rem)]',
+    xl: 'w-[1000px] max-w-[calc(100vw-1rem)]',
     full: 'w-screen'
   };
 
@@ -51,11 +52,11 @@ const SlideOutDrawer = ({
   };
 
   const handleSizeToggle = () => {
-    const sizes = ['sm', 'md', 'lg', 'full'];
+    const sizes = ['sm', 'md', 'lg', 'xl', 'full'];
     const currentIndex = sizes.indexOf(currentSize);
     const nextIndex = (currentIndex + 1) % sizes.length;
     const nextSize = sizes[nextIndex];
-    
+
     setCurrentSize(nextSize);
     onSizeChange?.(nextSize);
   };

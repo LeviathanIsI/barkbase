@@ -640,9 +640,9 @@ const Messages = () => {
                       }
                       return (
                         <MessageBubble
-                          key={item.message.recordId}
+                          key={item.message.id || item.message.recordId || `msg-${idx}`}
                           message={item.message}
-                          isCurrentUser={item.message.senderId === currentUser?.recordId}
+                          isCurrentUser={item.message.senderId === currentUser?.recordId || item.message.senderType === 'STAFF'}
                           showTimestamp={item.showTimestamp}
                         />
                       );

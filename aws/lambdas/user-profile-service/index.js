@@ -138,13 +138,18 @@ async function handleGetProfile(user) {
          u.last_name,
          u.phone,
          u.avatar_url,
-         u.role,
          u.tenant_id,
          u.created_at,
          u.updated_at,
          t.name as tenant_name,
          t.slug as tenant_slug,
-         t.plan as tenant_plan
+         t.plan as tenant_plan,
+         COALESCE(
+           (SELECT array_agg(r.name) FROM "UserRole" ur
+            JOIN "Role" r ON ur.role_id = r.id
+            WHERE ur.user_id = u.id),
+           ARRAY[]::VARCHAR[]
+         ) as roles
        FROM "User" u
        LEFT JOIN "Tenant" t ON u.tenant_id = t.id
        WHERE u.cognito_sub = $1
@@ -163,6 +168,11 @@ async function handleGetProfile(user) {
     const profile = result.rows[0];
     console.log('[PROFILE-API] Found profile:', { id: profile.id, email: profile.email });
 
+    // Determine primary role for backward compatibility (highest privilege role)
+    const roleHierarchy = ['OWNER', 'ADMIN', 'MANAGER', 'STAFF', 'USER'];
+    const userRoles = profile.roles || [];
+    const primaryRole = roleHierarchy.find(r => userRoles.includes(r)) || userRoles[0] || 'USER';
+
     return createResponse(200, {
       profile: {
         id: profile.id,
@@ -174,7 +184,8 @@ async function handleGetProfile(user) {
         name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || profile.email?.split('@')[0],
         phone: profile.phone,
         avatarUrl: profile.avatar_url,
-        role: profile.role,
+        role: primaryRole,  // Primary role for backward compatibility
+        roles: userRoles,   // All roles from UserRole junction table
         tenantId: profile.tenant_id,
         tenant: profile.tenant_id ? {
           id: profile.tenant_id,
@@ -254,7 +265,7 @@ async function handleUpdateProfile(user, body) {
       `UPDATE "User"
        SET ${setClauses.join(', ')}
        WHERE cognito_sub = $1
-       RETURNING id, email, first_name, last_name, phone, avatar_url, role, tenant_id, updated_at`,
+       RETURNING id, email, first_name, last_name, phone, avatar_url, tenant_id, updated_at`,
       [user.id, ...Object.values(dbFieldMap)]
     );
 
@@ -268,6 +279,19 @@ async function handleUpdateProfile(user, body) {
     const updated = result.rows[0];
     console.log('[PROFILE-API] Profile updated:', { id: updated.id });
 
+    // Fetch roles from UserRole junction table for the response
+    const rolesResult = await query(
+      `SELECT r.name FROM "UserRole" ur
+       JOIN "Role" r ON ur.role_id = r.id
+       WHERE ur.user_id = $1`,
+      [updated.id]
+    );
+    const userRoles = rolesResult.rows.map(r => r.name);
+
+    // Determine primary role for backward compatibility
+    const roleHierarchy = ['OWNER', 'ADMIN', 'MANAGER', 'STAFF', 'USER'];
+    const primaryRole = roleHierarchy.find(r => userRoles.includes(r)) || userRoles[0] || 'USER';
+
     return createResponse(200, {
       success: true,
       profile: {
@@ -279,7 +303,8 @@ async function handleUpdateProfile(user, body) {
         name: `${updated.first_name || ''} ${updated.last_name || ''}`.trim(),
         phone: updated.phone,
         avatarUrl: updated.avatar_url,
-        role: updated.role,
+        role: primaryRole,  // Primary role for backward compatibility
+        roles: userRoles,   // All roles from UserRole junction table
         tenantId: updated.tenant_id,
         updatedAt: updated.updated_at,
       },
@@ -296,6 +321,7 @@ async function handleUpdateProfile(user, body) {
 
 /**
  * Get tenant info
+ * NOTE: Settings are stored in TenantSettings table, not on Tenant directly
  */
 async function handleGetTenant(user) {
   try {
@@ -303,15 +329,13 @@ async function handleGetTenant(user) {
 
     console.log('[PROFILE-API] Fetching tenant for cognito_sub:', user.id);
 
+    // Query Tenant table - settings, theme, terminology are NOT on this table
     const result = await query(
       `SELECT
          t.id,
          t.name,
          t.slug,
          t.plan,
-         t.settings,
-         t.theme,
-         t.terminology,
          t.feature_flags,
          t.created_at,
          t.updated_at
@@ -333,6 +357,47 @@ async function handleGetTenant(user) {
     const tenant = result.rows[0];
     console.log('[PROFILE-API] Found tenant:', { id: tenant.id, slug: tenant.slug });
 
+    // Fetch settings from TenantSettings table (1:1 relationship with Tenant)
+    const settingsResult = await query(
+      `SELECT
+         timezone,
+         currency,
+         date_format,
+         time_format,
+         language,
+         business_name,
+         business_phone,
+         business_email,
+         business_address,
+         default_check_in_time,
+         default_check_out_time,
+         booking_buffer_minutes,
+         max_advance_booking_days,
+         min_advance_booking_hours,
+         allow_online_booking,
+         require_deposit,
+         deposit_percent,
+         require_vaccinations,
+         cancellation_window_hours,
+         tax_rate,
+         tax_name,
+         invoice_prefix,
+         invoice_footer,
+         notification_prefs,
+         email_templates,
+         business_hours,
+         branding,
+         integrations,
+         custom_fields,
+         created_at as settings_created_at,
+         updated_at as settings_updated_at
+       FROM "TenantSettings"
+       WHERE tenant_id = $1`,
+      [tenant.id]
+    );
+
+    const settings = settingsResult.rows[0] || {};
+
     return createResponse(200, {
       tenant: {
         id: tenant.id,
@@ -340,12 +405,42 @@ async function handleGetTenant(user) {
         name: tenant.name,
         slug: tenant.slug,
         plan: tenant.plan,
-        settings: tenant.settings || {},
-        theme: tenant.theme || {},
-        terminology: tenant.terminology || {},
         featureFlags: tenant.feature_flags || {},
         createdAt: tenant.created_at,
         updatedAt: tenant.updated_at,
+        // Settings from TenantSettings table
+        settings: {
+          timezone: settings.timezone,
+          currency: settings.currency,
+          dateFormat: settings.date_format,
+          timeFormat: settings.time_format,
+          language: settings.language,
+          businessName: settings.business_name,
+          businessPhone: settings.business_phone,
+          businessEmail: settings.business_email,
+          businessAddress: settings.business_address,
+          defaultCheckInTime: settings.default_check_in_time,
+          defaultCheckOutTime: settings.default_check_out_time,
+          bookingBufferMinutes: settings.booking_buffer_minutes,
+          maxAdvanceBookingDays: settings.max_advance_booking_days,
+          minAdvanceBookingHours: settings.min_advance_booking_hours,
+          allowOnlineBooking: settings.allow_online_booking,
+          requireDeposit: settings.require_deposit,
+          depositPercent: settings.deposit_percent,
+          requireVaccinations: settings.require_vaccinations,
+          cancellationWindowHours: settings.cancellation_window_hours,
+          taxRate: settings.tax_rate,
+          taxName: settings.tax_name,
+          invoicePrefix: settings.invoice_prefix,
+          invoiceFooter: settings.invoice_footer,
+          notificationPrefs: settings.notification_prefs || {},
+          emailTemplates: settings.email_templates || {},
+          businessHours: settings.business_hours || {},
+          integrations: settings.integrations || {},
+          customFields: settings.custom_fields || {},
+        },
+        // Branding is a subset often needed separately
+        branding: settings.branding || {},
       },
     });
 
@@ -360,16 +455,29 @@ async function handleGetTenant(user) {
 
 /**
  * Update tenant info (requires OWNER or ADMIN role)
+ * NOTE: Settings are stored in TenantSettings table, not on Tenant directly
+ * - Tenant table: only `name` can be updated here
+ * - TenantSettings table: all settings fields go here
  */
 async function handleUpdateTenant(user, body) {
-  const { name, settings, theme, terminology } = body;
+  const { name, settings, branding } = body;
 
   try {
     await getPoolAsync();
 
-    // Check if user has permission
+    // Check if user has permission - fetch roles from UserRole junction table
     const userResult = await query(
-      `SELECT role, tenant_id FROM "User" WHERE cognito_sub = $1`,
+      `SELECT
+         u.id,
+         u.tenant_id,
+         COALESCE(
+           (SELECT array_agg(r.name) FROM "UserRole" ur
+            JOIN "Role" r ON ur.role_id = r.id
+            WHERE ur.user_id = u.id),
+           ARRAY[]::VARCHAR[]
+         ) as roles
+       FROM "User" u
+       WHERE u.cognito_sub = $1`,
       [user.id]
     );
 
@@ -380,66 +488,177 @@ async function handleUpdateTenant(user, body) {
       });
     }
 
-    const { role, tenant_id: tenantId } = userResult.rows[0];
+    const { roles, tenant_id: tenantId } = userResult.rows[0];
+    const userRoles = roles || [];
 
-    if (!['OWNER', 'ADMIN'].includes(role)) {
+    // Check if user has OWNER or ADMIN role
+    const hasPermission = userRoles.some(role => ['OWNER', 'ADMIN'].includes(role));
+    if (!hasPermission) {
       return createResponse(403, {
         error: 'Forbidden',
         message: 'You do not have permission to update tenant settings',
       });
     }
 
-    // Build update with snake_case columns
-    const dbFieldMap = {};
+    // Separate updates: Tenant table vs TenantSettings table
+    const tenantUpdates = {};
+    const settingsUpdates = {};
+
+    // Only 'name' can be updated on Tenant table
     if (name !== undefined) {
-      dbFieldMap.name = sanitizeInput(name.trim());
-    }
-    if (settings !== undefined) {
-      dbFieldMap.settings = JSON.stringify(settings);
-    }
-    if (theme !== undefined) {
-      dbFieldMap.theme = JSON.stringify(theme);
-    }
-    if (terminology !== undefined) {
-      dbFieldMap.terminology = JSON.stringify(terminology);
+      tenantUpdates.name = sanitizeInput(name.trim());
     }
 
-    if (Object.keys(dbFieldMap).length === 0) {
+    // Settings go to TenantSettings table
+    if (settings !== undefined && typeof settings === 'object') {
+      // Map camelCase input to snake_case database columns
+      if (settings.timezone !== undefined) settingsUpdates.timezone = settings.timezone;
+      if (settings.currency !== undefined) settingsUpdates.currency = settings.currency;
+      if (settings.dateFormat !== undefined) settingsUpdates.date_format = settings.dateFormat;
+      if (settings.timeFormat !== undefined) settingsUpdates.time_format = settings.timeFormat;
+      if (settings.language !== undefined) settingsUpdates.language = settings.language;
+      if (settings.businessName !== undefined) settingsUpdates.business_name = settings.businessName;
+      if (settings.businessPhone !== undefined) settingsUpdates.business_phone = settings.businessPhone;
+      if (settings.businessEmail !== undefined) settingsUpdates.business_email = settings.businessEmail;
+      if (settings.businessAddress !== undefined) settingsUpdates.business_address = settings.businessAddress;
+      if (settings.defaultCheckInTime !== undefined) settingsUpdates.default_check_in_time = settings.defaultCheckInTime;
+      if (settings.defaultCheckOutTime !== undefined) settingsUpdates.default_check_out_time = settings.defaultCheckOutTime;
+      if (settings.bookingBufferMinutes !== undefined) settingsUpdates.booking_buffer_minutes = settings.bookingBufferMinutes;
+      if (settings.maxAdvanceBookingDays !== undefined) settingsUpdates.max_advance_booking_days = settings.maxAdvanceBookingDays;
+      if (settings.minAdvanceBookingHours !== undefined) settingsUpdates.min_advance_booking_hours = settings.minAdvanceBookingHours;
+      if (settings.allowOnlineBooking !== undefined) settingsUpdates.allow_online_booking = settings.allowOnlineBooking;
+      if (settings.requireDeposit !== undefined) settingsUpdates.require_deposit = settings.requireDeposit;
+      if (settings.depositPercent !== undefined) settingsUpdates.deposit_percent = settings.depositPercent;
+      if (settings.requireVaccinations !== undefined) settingsUpdates.require_vaccinations = settings.requireVaccinations;
+      if (settings.cancellationWindowHours !== undefined) settingsUpdates.cancellation_window_hours = settings.cancellationWindowHours;
+      if (settings.taxRate !== undefined) settingsUpdates.tax_rate = settings.taxRate;
+      if (settings.taxName !== undefined) settingsUpdates.tax_name = settings.taxName;
+      if (settings.invoicePrefix !== undefined) settingsUpdates.invoice_prefix = settings.invoicePrefix;
+      if (settings.invoiceFooter !== undefined) settingsUpdates.invoice_footer = settings.invoiceFooter;
+      if (settings.notificationPrefs !== undefined) settingsUpdates.notification_prefs = JSON.stringify(settings.notificationPrefs);
+      if (settings.emailTemplates !== undefined) settingsUpdates.email_templates = JSON.stringify(settings.emailTemplates);
+      if (settings.businessHours !== undefined) settingsUpdates.business_hours = JSON.stringify(settings.businessHours);
+      if (settings.integrations !== undefined) settingsUpdates.integrations = JSON.stringify(settings.integrations);
+      if (settings.customFields !== undefined) settingsUpdates.custom_fields = JSON.stringify(settings.customFields);
+    }
+
+    // Branding is a JSONB column in TenantSettings
+    if (branding !== undefined) {
+      settingsUpdates.branding = JSON.stringify(branding);
+    }
+
+    if (Object.keys(tenantUpdates).length === 0 && Object.keys(settingsUpdates).length === 0) {
       return createResponse(400, {
         error: 'Bad Request',
         message: 'No valid fields to update',
       });
     }
 
-    const columns = Object.keys(dbFieldMap);
-    const setClauses = columns.map((key, i) => `${key} = $${i + 2}`);
-    setClauses.push('updated_at = NOW()');
+    let updatedTenant = null;
+    let updatedSettings = null;
 
-    console.log('[PROFILE-API] Updating tenant:', tenantId, 'fields:', columns);
+    // Update Tenant table if there are tenant-level changes
+    if (Object.keys(tenantUpdates).length > 0) {
+      const columns = Object.keys(tenantUpdates);
+      const setClauses = columns.map((key, i) => `${key} = $${i + 2}`);
+      setClauses.push('updated_at = NOW()');
 
-    const result = await query(
-      `UPDATE "Tenant"
-       SET ${setClauses.join(', ')}
-       WHERE id = $1
-       RETURNING id, name, slug, plan, settings, theme, terminology, updated_at`,
-      [tenantId, ...Object.values(dbFieldMap)]
-    );
+      console.log('[PROFILE-API] Updating Tenant table:', tenantId, 'fields:', columns);
 
-    const updated = result.rows[0];
-    console.log('[PROFILE-API] Tenant updated:', { id: updated.id });
+      const result = await query(
+        `UPDATE "Tenant"
+         SET ${setClauses.join(', ')}
+         WHERE id = $1
+         RETURNING id, name, slug, plan, feature_flags, updated_at`,
+        [tenantId, ...Object.values(tenantUpdates)]
+      );
+
+      updatedTenant = result.rows[0];
+    } else {
+      // Just fetch current tenant data
+      const result = await query(
+        `SELECT id, name, slug, plan, feature_flags, updated_at FROM "Tenant" WHERE id = $1`,
+        [tenantId]
+      );
+      updatedTenant = result.rows[0];
+    }
+
+    // Update TenantSettings table if there are settings changes
+    if (Object.keys(settingsUpdates).length > 0) {
+      const columns = Object.keys(settingsUpdates);
+      const setClauses = columns.map((key, i) => `${key} = $${i + 2}`);
+      setClauses.push('updated_at = NOW()');
+
+      console.log('[PROFILE-API] Updating TenantSettings table:', tenantId, 'fields:', columns);
+
+      // Use UPSERT in case TenantSettings row doesn't exist yet
+      const insertColumns = ['tenant_id', ...columns, 'updated_at'];
+      const insertValues = ['$1', ...columns.map((_, i) => `$${i + 2}`), 'NOW()'];
+      const updateClauses = columns.map((key, i) => `${key} = EXCLUDED.${key}`);
+      updateClauses.push('updated_at = NOW()');
+
+      const result = await query(
+        `INSERT INTO "TenantSettings" (${insertColumns.join(', ')})
+         VALUES (${insertValues.join(', ')})
+         ON CONFLICT (tenant_id) DO UPDATE
+         SET ${updateClauses.join(', ')}
+         RETURNING *`,
+        [tenantId, ...Object.values(settingsUpdates)]
+      );
+
+      updatedSettings = result.rows[0];
+    } else {
+      // Just fetch current settings
+      const result = await query(
+        `SELECT * FROM "TenantSettings" WHERE tenant_id = $1`,
+        [tenantId]
+      );
+      updatedSettings = result.rows[0] || {};
+    }
+
+    console.log('[PROFILE-API] Tenant updated:', { id: updatedTenant.id });
 
     return createResponse(200, {
       success: true,
       tenant: {
-        id: updated.id,
-        recordId: updated.id,
-        name: updated.name,
-        slug: updated.slug,
-        plan: updated.plan,
-        settings: updated.settings || {},
-        theme: updated.theme || {},
-        terminology: updated.terminology || {},
-        updatedAt: updated.updated_at,
+        id: updatedTenant.id,
+        recordId: updatedTenant.id,
+        name: updatedTenant.name,
+        slug: updatedTenant.slug,
+        plan: updatedTenant.plan,
+        featureFlags: updatedTenant.feature_flags || {},
+        updatedAt: updatedTenant.updated_at,
+        settings: {
+          timezone: updatedSettings.timezone,
+          currency: updatedSettings.currency,
+          dateFormat: updatedSettings.date_format,
+          timeFormat: updatedSettings.time_format,
+          language: updatedSettings.language,
+          businessName: updatedSettings.business_name,
+          businessPhone: updatedSettings.business_phone,
+          businessEmail: updatedSettings.business_email,
+          businessAddress: updatedSettings.business_address,
+          defaultCheckInTime: updatedSettings.default_check_in_time,
+          defaultCheckOutTime: updatedSettings.default_check_out_time,
+          bookingBufferMinutes: updatedSettings.booking_buffer_minutes,
+          maxAdvanceBookingDays: updatedSettings.max_advance_booking_days,
+          minAdvanceBookingHours: updatedSettings.min_advance_booking_hours,
+          allowOnlineBooking: updatedSettings.allow_online_booking,
+          requireDeposit: updatedSettings.require_deposit,
+          depositPercent: updatedSettings.deposit_percent,
+          requireVaccinations: updatedSettings.require_vaccinations,
+          cancellationWindowHours: updatedSettings.cancellation_window_hours,
+          taxRate: updatedSettings.tax_rate,
+          taxName: updatedSettings.tax_name,
+          invoicePrefix: updatedSettings.invoice_prefix,
+          invoiceFooter: updatedSettings.invoice_footer,
+          notificationPrefs: updatedSettings.notification_prefs || {},
+          emailTemplates: updatedSettings.email_templates || {},
+          businessHours: updatedSettings.business_hours || {},
+          integrations: updatedSettings.integrations || {},
+          customFields: updatedSettings.custom_fields || {},
+        },
+        branding: updatedSettings.branding || {},
       },
     });
 

@@ -59,6 +59,12 @@ const PERMISSIONS = {
   TIMECLOCK_APPROVE: 'timeclock:approve',
   TIMECLOCK_EDIT: 'timeclock:edit',
 
+  // Task permissions
+  TASKS_VIEW: 'tasks:view',
+  TASKS_CREATE: 'tasks:create',
+  TASKS_EDIT: 'tasks:edit',
+  TASKS_DELETE: 'tasks:delete',
+
   // Schedule permissions
   SCHEDULE_VIEW: 'schedule:view',
   SCHEDULE_CREATE: 'schedule:create',
@@ -147,6 +153,10 @@ const ROLES = {
       PERMISSIONS.TIMECLOCK_CLOCKIN,
       PERMISSIONS.TIMECLOCK_APPROVE,
       PERMISSIONS.TIMECLOCK_EDIT,
+      PERMISSIONS.TASKS_VIEW,
+      PERMISSIONS.TASKS_CREATE,
+      PERMISSIONS.TASKS_EDIT,
+      PERMISSIONS.TASKS_DELETE,
       PERMISSIONS.SCHEDULE_VIEW,
       PERMISSIONS.SCHEDULE_CREATE,
       PERMISSIONS.SCHEDULE_EDIT,

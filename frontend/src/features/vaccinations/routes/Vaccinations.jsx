@@ -89,8 +89,8 @@ const Vaccinations = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Fetch all vaccinations (use large number to get all)
-  const { data, isLoading, refetch, isFetching } = useExpiringVaccinationsQuery(36500);
+  // Fetch vaccinations expiring within 1 year (max allowed by API)
+  const { data, isLoading, refetch, isFetching } = useExpiringVaccinationsQuery(365);
 
   // Helper to detect if a vaccine is appropriate for the pet's species
   const isVaccineAppropriate = useCallback((vaccine, species) => {

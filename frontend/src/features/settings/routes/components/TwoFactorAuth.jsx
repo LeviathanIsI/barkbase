@@ -3,8 +3,10 @@ import { Shield, Smartphone, Mail, QrCode, Key, AlertTriangle, CheckCircle } fro
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import { useAuthStore } from '@/stores/auth';
 
 const TwoFactorAuth = () => {
+  const user = useAuthStore((state) => state.user);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [setupStep, setSetupStep] = useState(1);
@@ -30,7 +32,7 @@ const TwoFactorAuth = () => {
     {
       id: 'email',
       name: 'Email',
-      description: 'Get codes via email to joshua.r.bradford1@gmail.com',
+      description: `Get codes via email to ${user?.email || 'your email'}`,
       details: 'Least secure, but better than nothing',
       icon: Mail,
     }

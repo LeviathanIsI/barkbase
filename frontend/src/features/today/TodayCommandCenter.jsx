@@ -248,7 +248,7 @@ const TodayCommandCenter = () => {
         isOpen={showNewBooking}
         onClose={() => setShowNewBooking(false)}
         title="New Booking"
-        size="lg"
+        size="xl"
       >
         <SinglePageBookingWizard onComplete={handleBookingComplete} />
       </SlideOutDrawer>

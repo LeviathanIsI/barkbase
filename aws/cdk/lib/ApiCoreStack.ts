@@ -312,7 +312,9 @@ export class ApiCoreStack extends cdk.Stack {
     // ANALYTICS SERVICE - Protected routes
     // -------------------------------------------------------------------------
     createRoute('AnalyticsProxyRoute', 'ANY /api/v1/analytics/{proxy+}', analyticsIntegration.ref, true);
+    createRoute('SegmentsBaseRoute', 'ANY /api/v1/segments', analyticsIntegration.ref, true);
     createRoute('SegmentsProxyRoute', 'ANY /api/v1/segments/{proxy+}', analyticsIntegration.ref, true);
+    createRoute('MessagesBaseRoute', 'ANY /api/v1/messages', analyticsIntegration.ref, true);
     createRoute('MessagesProxyRoute', 'ANY /api/v1/messages/{proxy+}', analyticsIntegration.ref, true);
     createRoute('ReportsProxyRoute', 'ANY /api/v1/reports/{proxy+}', analyticsIntegration.ref, true);
     createRoute('ComplianceProxyRoute', 'ANY /api/v1/compliance/{proxy+}', analyticsIntegration.ref, true);
@@ -326,7 +328,9 @@ export class ApiCoreStack extends cdk.Stack {
     createRoute('IncidentsBaseRoute', 'ANY /api/v1/incidents', operationsIntegration.ref, true);
     createRoute('IncidentsProxyRoute', 'ANY /api/v1/incidents/{proxy+}', operationsIntegration.ref, true);
     createRoute('CustomerProxyRoute', 'ANY /api/v1/customer/{proxy+}', operationsIntegration.ref, true);
+    createRoute('RunTemplatesBaseRoute', 'ANY /api/v1/run-templates', operationsIntegration.ref, true);
     createRoute('RunTemplatesProxyRoute', 'ANY /api/v1/run-templates/{proxy+}', operationsIntegration.ref, true);
+    createRoute('RunsBaseRoute', 'ANY /api/v1/runs', operationsIntegration.ref, true);
     createRoute('RunsProxyRoute', 'ANY /api/v1/runs/{proxy+}', operationsIntegration.ref, true);
     createRoute('CalendarProxyRoute', 'ANY /api/v1/calendar/{proxy+}', operationsIntegration.ref, true);
     createRoute('NotificationsProxyRoute', 'ANY /api/v1/notifications/{proxy+}', operationsIntegration.ref, true);

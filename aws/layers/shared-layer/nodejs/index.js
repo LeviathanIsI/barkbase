@@ -11,6 +11,8 @@
 const authHandler = require('./auth-handler');
 const jwtValidator = require('./jwt-validator');
 const securityUtils = require('./security-utils');
+const securityHeaders = require('./security-headers');
+const rateLimiter = require('./rate-limiter');
 const emailUtils = require('./email-utils');
 const permissions = require('./permissions');
 const smsUtils = require('./sms-utils');
@@ -140,6 +142,20 @@ module.exports = {
   isValidEmail: securityUtils.isValidEmail,
   maskSensitive: securityUtils.maskSensitive,
   extractUserFromToken: securityUtils.extractUserFromToken,
+
+  // Security headers exports
+  getSecurityHeaders: securityHeaders.getSecurityHeaders,
+  getAuthSecurityHeaders: securityHeaders.getAuthSecurityHeaders,
+  mergeSecurityHeaders: securityHeaders.mergeSecurityHeaders,
+
+  // Rate limiting exports
+  checkRateLimit: rateLimiter.checkRateLimit,
+  getRateLimitHeaders: rateLimiter.getRateLimitHeaders,
+  applyRateLimit: rateLimiter.applyRateLimit,
+  getClientIp: rateLimiter.getClientIp,
+  getRateLimitConfig: rateLimiter.getRateLimitConfig,
+  getRateLimitStats: rateLimiter.getRateLimitStats,
+  RATE_LIMITS: rateLimiter.RATE_LIMITS,
 
   // Email utils exports
   sendEmail: emailUtils.sendEmail,

@@ -15,7 +15,7 @@ try {
   sharedLayer = require('../../layers/shared-layer/nodejs/index');
 }
 
-const { getPoolAsync, query } = dbLayer;
+const { getPoolAsync, query, softDelete, softDeleteBatch } = dbLayer;
 const { createResponse, authenticateRequest, parseBody, getQueryParams, getPathParams } = sharedLayer;
 
 /**
@@ -264,7 +264,7 @@ async function getTenants(event) {
       `SELECT id, name, slug, plan, feature_flags, theme, terminology, settings,
               storage_provider, db_provider, custom_domain, onboarding_dismissed,
               created_at, updated_at
-       FROM "Tenant" WHERE id = $1 AND deleted_at IS NULL`,
+       FROM "Tenant" WHERE id = $1`,
       [tenantId]
     );
     return createResponse(200, { data: result.rows });
@@ -294,7 +294,7 @@ async function getTenant(event) {
       `SELECT id, name, slug, plan, feature_flags, theme, terminology, settings,
               storage_provider, db_provider, custom_domain, onboarding_dismissed,
               created_at, updated_at
-       FROM "Tenant" WHERE id = $1 AND deleted_at IS NULL`,
+       FROM "Tenant" WHERE id = $1`,
       [id]
     );
     if (result.rows.length === 0) {
@@ -438,6 +438,7 @@ async function deleteTenant(event) {
   const tenantId = event.user?.tenantId;
   const pathParams = getPathParams(event);
   const id = pathParams.id || event.path?.split('/').pop();
+  const deletedBy = event.user?.id || null;
 
   console.log('[ENTITY-SERVICE] Deleting tenant:', id);
 
@@ -447,17 +448,11 @@ async function deleteTenant(event) {
   }
 
   try {
-    await getPoolAsync();
+    // Use softDelete helper - archives to DeletedRecord table then hard deletes
+    // Note: Tenant uses itself as tenantId for the archive
+    const result = await softDelete('Tenant', id, id, deletedBy);
 
-    // Soft delete
-    const result = await query(
-      `UPDATE "Tenant" SET deleted_at = NOW()
-       WHERE id = $1 AND deleted_at IS NULL
-       RETURNING id`,
-      [id]
-    );
-
-    if (result.rows.length === 0) {
+    if (!result) {
       return createResponse(404, { error: 'NotFound', message: 'Tenant not found' });
     }
 
@@ -483,13 +478,13 @@ async function getFacilities(event) {
 
   try {
     await getPoolAsync();
-    // Schema: id, tenant_id, name, category, capacity, size, features, price_modifier_cents, is_active, sort_order
+    // Schema: id, tenant_id, name, size, location, max_occupancy, is_active, created_at, updated_at
     const result = await query(
-      `SELECT id, tenant_id, name, category AS type, capacity, size, features,
-              price_modifier_cents, is_active, sort_order, created_at, updated_at
+      `SELECT id, tenant_id, name, size, location, max_occupancy,
+              is_active, created_at, updated_at
        FROM "Kennel"
-       WHERE tenant_id = $1 AND deleted_at IS NULL
-       ORDER BY sort_order, name`,
+       WHERE tenant_id = $1
+       ORDER BY name`,
       [tenantId]
     );
     console.log('[Facilities][diag] count:', result.rows.length);
@@ -513,11 +508,12 @@ async function getFacility(event) {
 
   try {
     await getPoolAsync();
+    // Schema: id, tenant_id, name, size, location, max_occupancy, is_active, created_at, updated_at
     const result = await query(
-      `SELECT id, tenant_id, name, category AS type, capacity, size, features,
-              price_modifier_cents, is_active, sort_order, created_at, updated_at
+      `SELECT id, tenant_id, name, size, location, max_occupancy,
+              is_active, created_at, updated_at
        FROM "Kennel"
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+       WHERE id = $1 AND tenant_id = $2`,
       [id, tenantId]
     );
     if (result.rows.length === 0) {
@@ -546,20 +542,19 @@ async function createFacility(event) {
 
   try {
     await getPoolAsync();
+    // Schema: id, tenant_id, name, size, location, max_occupancy, is_active, created_at, updated_at
+    // size must be: SMALL, MEDIUM, LARGE, XLARGE or null
     const result = await query(
-      `INSERT INTO "Kennel" (tenant_id, name, category, capacity, size, features, price_modifier_cents, is_active, sort_order)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO "Kennel" (tenant_id, name, size, location, max_occupancy, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
       [
         tenantId,
         body.name,
-        body.category || body.type || 'standard',
-        body.capacity || 1,
-        body.size || null,
-        JSON.stringify(body.features || []),
-        body.priceModifierCents || body.price_modifier_cents || 0,
-        body.isActive !== false,
-        body.sortOrder || body.sort_order || 0
+        body.size || null, // SMALL, MEDIUM, LARGE, XLARGE
+        body.location || null,
+        body.maxOccupancy || body.max_occupancy || body.capacity || 1,
+        body.isActive !== false
       ]
     );
 
@@ -587,18 +582,22 @@ async function updateFacility(event) {
     await getPoolAsync();
 
     // Build dynamic update query
+    // Schema: id, tenant_id, name, size, location, max_occupancy, is_active, created_at, updated_at
     const updates = [];
     const values = [];
     let paramIndex = 1;
 
     if (body.name !== undefined) { updates.push(`name = $${paramIndex++}`); values.push(body.name); }
-    if (body.category !== undefined) { updates.push(`category = $${paramIndex++}`); values.push(body.category); }
-    if (body.capacity !== undefined) { updates.push(`capacity = $${paramIndex++}`); values.push(body.capacity); }
     if (body.size !== undefined) { updates.push(`size = $${paramIndex++}`); values.push(body.size); }
-    if (body.features !== undefined) { updates.push(`features = $${paramIndex++}`); values.push(JSON.stringify(body.features)); }
-    if (body.priceModifierCents !== undefined) { updates.push(`price_modifier_cents = $${paramIndex++}`); values.push(body.priceModifierCents); }
-    if (body.isActive !== undefined) { updates.push(`is_active = $${paramIndex++}`); values.push(body.isActive); }
-    if (body.sortOrder !== undefined) { updates.push(`sort_order = $${paramIndex++}`); values.push(body.sortOrder); }
+    if (body.location !== undefined) { updates.push(`location = $${paramIndex++}`); values.push(body.location); }
+    if (body.maxOccupancy !== undefined || body.max_occupancy !== undefined || body.capacity !== undefined) {
+      updates.push(`max_occupancy = $${paramIndex++}`);
+      values.push(body.maxOccupancy || body.max_occupancy || body.capacity);
+    }
+    if (body.isActive !== undefined || body.is_active !== undefined) {
+      updates.push(`is_active = $${paramIndex++}`);
+      values.push(body.isActive ?? body.is_active);
+    }
 
     if (updates.length === 0) {
       return createResponse(400, { error: 'BadRequest', message: 'No fields to update' });
@@ -629,6 +628,7 @@ async function deleteFacility(event) {
   const tenantId = resolveTenantId(event);
   const pathParams = getPathParams(event);
   const id = pathParams.id || event.path?.split('/').pop();
+  const deletedBy = event.user?.id || null;
 
   console.log('[Facilities][delete] id:', id, 'tenantId:', tenantId);
 
@@ -637,17 +637,10 @@ async function deleteFacility(event) {
   }
 
   try {
-    await getPoolAsync();
+    // Use softDelete helper - archives to DeletedRecord table then hard deletes
+    const result = await softDelete('Kennel', id, tenantId, deletedBy);
 
-    // Soft delete
-    const result = await query(
-      `UPDATE "Kennel" SET deleted_at = NOW(), is_active = false
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING id`,
-      [id, tenantId]
-    );
-
-    if (result.rows.length === 0) {
+    if (!result) {
       return createResponse(404, { error: 'NotFound', message: 'Facility not found' });
     }
 
@@ -679,7 +672,7 @@ async function getPets(event) {
     await getPoolAsync();
 
     // Build WHERE clause with optional search and owner filter
-    let whereClause = 'p.tenant_id = $1 AND p.deleted_at IS NULL';
+    let whereClause = 'p.tenant_id = $1';
     const params = [tenantId];
     let paramIndex = 2;
     let joinClause = '';
@@ -706,18 +699,22 @@ async function getPets(event) {
     const total = parseInt(countResult.rows[0]?.total || 0, 10);
     const totalPages = Math.ceil(total / limit);
 
-    // Schema: id, tenant_id, name, species, breed, gender, color, weight, date_of_birth,
-    //         microchip_number, last_vet_visit, medical_notes, behavior_notes, dietary_notes,
-    //         notes, description, documents, behavior_flags, status, photo_url, is_active,
-    //         vet_name, vet_phone, vet_clinic, vet_address, vet_email, vet_notes
+    // Schema: id, tenant_id, vet_id (FK), name, species, breed, gender, color, weight,
+    //         date_of_birth, microchip_number, photo_url, medical_notes, dietary_notes,
+    //         behavior_notes, behavior_flags, status, is_active, created_at, updated_at
+    // Vet info comes from Veterinarian table via vet_id FK
     const result = await query(
       `SELECT DISTINCT p.id, p.tenant_id, p.name, p.species, p.breed, p.gender, p.color,
-              p.weight, p.date_of_birth, p.microchip_number, p.last_vet_visit,
-              p.medical_notes, p.behavior_notes, p.dietary_notes, p.notes, p.description,
-              p.documents, p.behavior_flags, p.status, p.photo_url, p.is_active,
-              p.vet_name, p.vet_phone, p.vet_clinic, p.vet_address, p.vet_email, p.vet_notes,
-              p.created_at, p.updated_at
+              p.weight, p.date_of_birth, p.microchip_number,
+              p.medical_notes, p.behavior_notes, p.dietary_notes,
+              p.behavior_flags, p.status, p.photo_url, p.is_active,
+              p.vet_id, p.created_at, p.updated_at,
+              v.clinic_name AS vet_clinic, v.vet_name, v.phone AS vet_phone,
+              v.email AS vet_email, v.notes AS vet_notes,
+              v.address_street AS vet_address_street, v.address_city AS vet_address_city,
+              v.address_state AS vet_address_state, v.address_zip AS vet_address_zip
        FROM "Pet" p
+       LEFT JOIN "Veterinarian" v ON p.vet_id = v.id
        ${joinClause}
        WHERE ${whereClause}
        ORDER BY p.name
@@ -748,15 +745,20 @@ async function getPet(event) {
 
   try {
     await getPoolAsync();
+    // Schema: Pet has vet_id FK, vet info comes from Veterinarian table
     const result = await query(
       `SELECT p.id, p.tenant_id, p.name, p.species, p.breed, p.gender, p.color,
-              p.weight, p.date_of_birth, p.microchip_number, p.last_vet_visit,
-              p.medical_notes, p.behavior_notes, p.dietary_notes, p.notes, p.description,
-              p.documents, p.behavior_flags, p.status, p.photo_url, p.is_active,
-              p.vet_name, p.vet_phone, p.vet_clinic, p.vet_address, p.vet_email, p.vet_notes,
-              p.created_at, p.updated_at
+              p.weight, p.date_of_birth, p.microchip_number,
+              p.medical_notes, p.behavior_notes, p.dietary_notes,
+              p.behavior_flags, p.status, p.photo_url, p.is_active,
+              p.vet_id, p.created_at, p.updated_at, p.created_by, p.updated_by,
+              v.clinic_name AS vet_clinic, v.vet_name, v.phone AS vet_phone,
+              v.email AS vet_email, v.notes AS vet_notes,
+              v.address_street AS vet_address_street, v.address_city AS vet_address_city,
+              v.address_state AS vet_address_state, v.address_zip AS vet_address_zip
        FROM "Pet" p
-       WHERE p.id = $1 AND p.tenant_id = $2 AND p.deleted_at IS NULL`,
+       LEFT JOIN "Veterinarian" v ON p.vet_id = v.id
+       WHERE p.id = $1 AND p.tenant_id = $2`,
       [id, tenantId]
     );
     if (result.rows.length === 0) {
@@ -785,13 +787,47 @@ async function createPet(event) {
 
   try {
     await getPoolAsync();
+
+    // Handle vet_id - can be provided directly or we can create/find a Veterinarian record
+    let vetId = body.vetId || body.vet_id || null;
+
+    // If vet info is provided but no vetId, try to find or create Veterinarian
+    if (!vetId && (body.vetName || body.vet_name || body.vetClinic || body.vet_clinic)) {
+      const vetClinic = body.vetClinic || body.vet_clinic || null;
+      const vetName = body.vetName || body.vet_name || null;
+      const vetPhone = body.vetPhone || body.vet_phone || null;
+      const vetEmail = body.vetEmail || body.vet_email || null;
+
+      // Try to find existing vet by clinic name and vet name
+      if (vetClinic || vetName) {
+        const existingVet = await query(
+          `SELECT id FROM "Veterinarian"
+           WHERE tenant_id = $1 AND (clinic_name = $2 OR vet_name = $3)
+           LIMIT 1`,
+          [tenantId, vetClinic, vetName]
+        );
+
+        if (existingVet.rows.length > 0) {
+          vetId = existingVet.rows[0].id;
+        } else {
+          // Create new Veterinarian record
+          const newVet = await query(
+            `INSERT INTO "Veterinarian" (tenant_id, clinic_name, vet_name, phone, email, is_active)
+             VALUES ($1, $2, $3, $4, $5, true)
+             RETURNING id`,
+            [tenantId, vetClinic, vetName, vetPhone, vetEmail]
+          );
+          vetId = newVet.rows[0].id;
+        }
+      }
+    }
+
+    // Schema: Pet table has vet_id FK, NOT embedded vet fields
     const result = await query(
       `INSERT INTO "Pet" (tenant_id, name, species, breed, gender, color, weight, date_of_birth,
-                         microchip_number, medical_notes, behavior_notes, dietary_notes, notes,
-                         description, status, photo_url, is_active,
-                         vet_name, vet_phone, vet_clinic, vet_address, vet_email, vet_notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17,
-               $18, $19, $20, $21, $22, $23)
+                         microchip_number, medical_notes, behavior_notes, dietary_notes,
+                         status, photo_url, is_active, vet_id, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
        RETURNING *`,
       [
         tenantId,
@@ -806,18 +842,11 @@ async function createPet(event) {
         body.medicalNotes || body.medical_notes || null,
         body.behaviorNotes || body.behavior_notes || null,
         body.dietaryNotes || body.dietary_notes || null,
-        body.notes || null,
-        body.description || null,
         body.status || 'ACTIVE',
         body.photoUrl || body.photo_url || null,
         body.isActive !== false,
-        // Veterinarian info fields
-        body.vetName || body.vet_name || null,
-        body.vetPhone || body.vet_phone || null,
-        body.vetClinic || body.vet_clinic || null,
-        body.vetAddress || body.vet_address || null,
-        body.vetEmail || body.vet_email || null,
-        body.vetNotes || body.vet_notes || null
+        vetId,
+        event.user?.id || null
       ]
     );
 
@@ -888,8 +917,6 @@ async function updatePet(event) {
       updates.push(`dietary_notes = $${paramIndex++}`);
       values.push(body.dietaryNotes || body.dietary_notes);
     }
-    if (body.notes !== undefined) { updates.push(`notes = $${paramIndex++}`); values.push(body.notes); }
-    if (body.description !== undefined) { updates.push(`description = $${paramIndex++}`); values.push(body.description); }
     if (body.status !== undefined) { updates.push(`status = $${paramIndex++}`); values.push(body.status); }
     if (body.photoUrl !== undefined || body.photo_url !== undefined) {
       updates.push(`photo_url = $${paramIndex++}`);
@@ -899,31 +926,58 @@ async function updatePet(event) {
       updates.push(`is_active = $${paramIndex++}`);
       values.push(body.isActive ?? body.is_active);
     }
-    // Veterinarian info fields
-    if (body.vetName !== undefined || body.vet_name !== undefined) {
-      updates.push(`vet_name = $${paramIndex++}`);
-      values.push(body.vetName || body.vet_name);
+
+    // Handle vet_id - Schema uses vet_id FK to Veterinarian table, NOT embedded vet fields
+    if (body.vetId !== undefined || body.vet_id !== undefined) {
+      updates.push(`vet_id = $${paramIndex++}`);
+      values.push(body.vetId || body.vet_id);
+    } else if (body.vetName !== undefined || body.vet_name !== undefined ||
+               body.vetClinic !== undefined || body.vet_clinic !== undefined) {
+      // If vet info provided without vetId, find or create Veterinarian
+      const vetClinic = body.vetClinic || body.vet_clinic || null;
+      const vetName = body.vetName || body.vet_name || null;
+      const vetPhone = body.vetPhone || body.vet_phone || null;
+      const vetEmail = body.vetEmail || body.vet_email || null;
+
+      if (vetClinic || vetName) {
+        const existingVet = await query(
+          `SELECT id FROM "Veterinarian"
+           WHERE tenant_id = $1 AND (clinic_name = $2 OR vet_name = $3)
+           LIMIT 1`,
+          [tenantId, vetClinic, vetName]
+        );
+
+        let vetId;
+        if (existingVet.rows.length > 0) {
+          vetId = existingVet.rows[0].id;
+          // Optionally update vet info
+          await query(
+            `UPDATE "Veterinarian" SET
+               clinic_name = COALESCE($2, clinic_name),
+               vet_name = COALESCE($3, vet_name),
+               phone = COALESCE($4, phone),
+               email = COALESCE($5, email),
+               updated_at = NOW()
+             WHERE id = $1`,
+            [vetId, vetClinic, vetName, vetPhone, vetEmail]
+          );
+        } else {
+          const newVet = await query(
+            `INSERT INTO "Veterinarian" (tenant_id, clinic_name, vet_name, phone, email, is_active)
+             VALUES ($1, $2, $3, $4, $5, true)
+             RETURNING id`,
+            [tenantId, vetClinic, vetName, vetPhone, vetEmail]
+          );
+          vetId = newVet.rows[0].id;
+        }
+        updates.push(`vet_id = $${paramIndex++}`);
+        values.push(vetId);
+      }
     }
-    if (body.vetPhone !== undefined || body.vet_phone !== undefined) {
-      updates.push(`vet_phone = $${paramIndex++}`);
-      values.push(body.vetPhone || body.vet_phone);
-    }
-    if (body.vetClinic !== undefined || body.vet_clinic !== undefined) {
-      updates.push(`vet_clinic = $${paramIndex++}`);
-      values.push(body.vetClinic || body.vet_clinic);
-    }
-    if (body.vetAddress !== undefined || body.vet_address !== undefined) {
-      updates.push(`vet_address = $${paramIndex++}`);
-      values.push(body.vetAddress || body.vet_address);
-    }
-    if (body.vetEmail !== undefined || body.vet_email !== undefined) {
-      updates.push(`vet_email = $${paramIndex++}`);
-      values.push(body.vetEmail || body.vet_email);
-    }
-    if (body.vetNotes !== undefined || body.vet_notes !== undefined) {
-      updates.push(`vet_notes = $${paramIndex++}`);
-      values.push(body.vetNotes || body.vet_notes);
-    }
+
+    // Add updated_by
+    updates.push(`updated_by = $${paramIndex++}`);
+    values.push(event.user?.id || null);
 
     if (updates.length === 0) {
       return createResponse(400, { error: 'BadRequest', message: 'No fields to update' });
@@ -954,6 +1008,7 @@ async function deletePet(event) {
   const tenantId = resolveTenantId(event);
   const pathParams = getPathParams(event);
   const id = pathParams.id || event.path?.split('/').pop();
+  const deletedBy = event.user?.id || null;
 
   console.log('[Pets][delete] id:', id, 'tenantId:', tenantId);
 
@@ -962,17 +1017,10 @@ async function deletePet(event) {
   }
 
   try {
-    await getPoolAsync();
+    // Use softDelete helper - archives to DeletedRecord table then hard deletes
+    const result = await softDelete('Pet', id, tenantId, deletedBy);
 
-    // Soft delete
-    const result = await query(
-      `UPDATE "Pet" SET deleted_at = NOW(), is_active = false
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING id`,
-      [id, tenantId]
-    );
-
-    if (result.rows.length === 0) {
+    if (!result) {
       return createResponse(404, { error: 'NotFound', message: 'Pet not found' });
     }
 
@@ -1009,7 +1057,7 @@ async function getOwners(event) {
     await getPoolAsync();
 
     // Build WHERE clause with optional search
-    let whereClause = 'o.tenant_id = $1 AND o.deleted_at IS NULL';
+    let whereClause = 'o.tenant_id = $1';
     const params = [tenantId];
     let paramIndex = 2;
 
@@ -1029,12 +1077,15 @@ async function getOwners(event) {
 
     console.log('[Owners][diag] total for tenant', tenantId, ':', total);
 
+    // Schema: Owner has address_street, address_city, address_state, address_zip, address_country
+    // Also has tags (TEXT[]), stripe_customer_id, created_by, updated_by
     const result = await query(
       `SELECT o.id, o.tenant_id, o.first_name, o.last_name, o.email, o.phone,
-              o.address_street AS address, o.address_city AS city, o.address_state AS state,
-              o.address_zip AS zip_code, o.address_country AS country,
+              o.address_street, o.address_city, o.address_state,
+              o.address_zip, o.address_country,
               o.emergency_contact_name, o.emergency_contact_phone, o.notes,
-              o.is_active, o.created_at, o.updated_at
+              o.tags, o.stripe_customer_id,
+              o.is_active, o.created_at, o.updated_at, o.created_by, o.updated_by
        FROM "Owner" o
        WHERE ${whereClause}
        ORDER BY o.last_name, o.first_name
@@ -1064,14 +1115,17 @@ async function getOwner(event) {
 
   try {
     await getPoolAsync();
+    // Schema: Owner has address_street, address_city, address_state, address_zip, address_country
+    // Also has tags (TEXT[]), stripe_customer_id, created_by, updated_by
     const result = await query(
       `SELECT o.id, o.tenant_id, o.first_name, o.last_name, o.email, o.phone,
-              o.address_street AS address, o.address_city AS city, o.address_state AS state,
-              o.address_zip AS zip_code, o.address_country AS country,
+              o.address_street, o.address_city, o.address_state,
+              o.address_zip, o.address_country,
               o.emergency_contact_name, o.emergency_contact_phone, o.notes,
-              o.is_active, o.created_at, o.updated_at
+              o.tags, o.stripe_customer_id,
+              o.is_active, o.created_at, o.updated_at, o.created_by, o.updated_by
        FROM "Owner" o
-       WHERE o.id = $1 AND o.tenant_id = $2 AND o.deleted_at IS NULL`,
+       WHERE o.id = $1 AND o.tenant_id = $2`,
       [id, tenantId]
     );
     if (result.rows.length === 0) {
@@ -1101,11 +1155,12 @@ async function createOwner(event) {
 
   try {
     await getPoolAsync();
+    // Schema: Owner has tags (TEXT[]), stripe_customer_id, created_by, updated_by
     const result = await query(
       `INSERT INTO "Owner" (tenant_id, first_name, last_name, email, phone,
                            address_street, address_city, address_state, address_zip, address_country,
-                           emergency_contact_name, emergency_contact_phone, notes, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                           emergency_contact_name, emergency_contact_phone, notes, tags, is_active, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        RETURNING *`,
       [
         tenantId,
@@ -1121,7 +1176,9 @@ async function createOwner(event) {
         body.emergencyContactName || body.emergency_contact_name || null,
         body.emergencyContactPhone || body.emergency_contact_phone || null,
         body.notes || null,
-        body.isActive !== false
+        body.tags || [],
+        body.isActive !== false,
+        event.user?.id || null
       ]
     );
 
@@ -1192,10 +1249,15 @@ async function updateOwner(event) {
       values.push(body.emergencyContactPhone || body.emergency_contact_phone);
     }
     if (body.notes !== undefined) { updates.push(`notes = $${paramIndex++}`); values.push(body.notes); }
+    if (body.tags !== undefined) { updates.push(`tags = $${paramIndex++}`); values.push(body.tags); }
     if (body.isActive !== undefined || body.is_active !== undefined) {
       updates.push(`is_active = $${paramIndex++}`);
       values.push(body.isActive ?? body.is_active);
     }
+
+    // Add updated_by
+    updates.push(`updated_by = $${paramIndex++}`);
+    values.push(event.user?.id || null);
 
     if (updates.length === 0) {
       return createResponse(400, { error: 'BadRequest', message: 'No fields to update' });
@@ -1226,6 +1288,7 @@ async function deleteOwner(event) {
   const tenantId = resolveTenantId(event);
   const pathParams = getPathParams(event);
   const id = pathParams.id || event.path?.split('/').pop();
+  const deletedBy = event.user?.id || null;
 
   console.log('[ENTITY-SERVICE] Deleting owner:', id, 'for tenant:', tenantId);
 
@@ -1234,17 +1297,10 @@ async function deleteOwner(event) {
   }
 
   try {
-    await getPoolAsync();
+    // Use softDelete helper - archives to DeletedRecord table then hard deletes
+    const result = await softDelete('Owner', id, tenantId, deletedBy);
 
-    // Soft delete
-    const result = await query(
-      `UPDATE "Owner" SET deleted_at = NOW(), is_active = false
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING id`,
-      [id, tenantId]
-    );
-
-    if (result.rows.length === 0) {
+    if (!result) {
       return createResponse(404, { error: 'NotFound', message: 'Owner not found' });
     }
 
@@ -1278,9 +1334,9 @@ async function exportOwnerData(event) {
   try {
     await getPoolAsync();
 
-    // Get owner details (exclude soft-deleted)
+    // Get owner details
     const ownerResult = await query(
-      `SELECT * FROM "Owner" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT * FROM "Owner" WHERE id = $1 AND tenant_id = $2`,
       [ownerId, tenantId]
     );
 
@@ -1294,7 +1350,7 @@ async function exportOwnerData(event) {
     const petsResult = await query(
       `SELECT p.* FROM "Pet" p
        JOIN "PetOwner" po ON p.id = po.pet_id
-       WHERE po.owner_id = $1 AND p.tenant_id = $2 AND p.deleted_at IS NULL`,
+       WHERE po.owner_id = $1 AND p.tenant_id = $2`,
       [ownerId, tenantId]
     );
 
@@ -1378,12 +1434,10 @@ async function exportOwnerData(event) {
         ...owner,
         // Remove sensitive internal fields
         tenant_id: undefined,
-        deleted_at: undefined,
       },
       pets: petsResult.rows.map(pet => ({
         ...pet,
         tenant_id: undefined,
-        deleted_at: undefined,
       })),
       bookings: bookingsResult.rows.map(booking => ({
         ...booking,
@@ -1429,22 +1483,23 @@ async function exportOwnerData(event) {
 }
 
 /**
- * Soft-delete all data for a customer (GDPR/privacy right to erasure)
+ * Delete all data for a customer (GDPR/privacy right to erasure)
  *
  * GDPR COMPLIANCE NOTE:
- * This uses SOFT DELETES (setting deleted_at timestamp) rather than hard deletes.
- * This preserves audit trail and allows for data recovery if needed, while
- * effectively removing the data from all user-facing queries.
+ * This uses the softDelete/softDeleteBatch helpers which:
+ * 1. Archive records to the DeletedRecord table (preserves audit trail)
+ * 2. Hard delete from original tables (data erasure)
  *
- * For complete data erasure (hard delete), a separate admin process should be
- * used after the legally required retention period has passed.
+ * The DeletedRecord table preserves data for legal retention requirements
+ * while removing it from active queries.
  */
 async function deleteOwnerData(event) {
   const tenantId = resolveTenantId(event);
   const pathParams = getPathParams(event);
   const ownerId = pathParams.id || event.path?.split('/')[5]; // /api/v1/entity/owners/{id}/data
+  const deletedBy = event.user?.id || null;
 
-  console.log('[ENTITY-SERVICE] Soft-deleting all owner data:', ownerId, 'for tenant:', tenantId);
+  console.log('[ENTITY-SERVICE] Deleting all owner data:', ownerId, 'for tenant:', tenantId);
 
   if (!tenantId) {
     return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
@@ -1457,9 +1512,9 @@ async function deleteOwnerData(event) {
   try {
     await getPoolAsync();
 
-    // Verify owner exists (exclude soft-deleted)
+    // Verify owner exists
     const ownerResult = await query(
-      `SELECT id, first_name, last_name FROM "Owner" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT id, first_name, last_name FROM "Owner" WHERE id = $1 AND tenant_id = $2`,
       [ownerId, tenantId]
     );
 
@@ -1469,16 +1524,16 @@ async function deleteOwnerData(event) {
 
     const owner = ownerResult.rows[0];
 
-    // Get all pet IDs for this owner via PetOwner junction table (Pet has NO owner_id column)
+    // Get all pet IDs for this owner via PetOwner junction table
     const petsResult = await query(
       `SELECT p.id FROM "Pet" p
        JOIN "PetOwner" po ON p.id = po.pet_id
-       WHERE po.owner_id = $1 AND p.tenant_id = $2 AND p.deleted_at IS NULL`,
+       WHERE po.owner_id = $1 AND p.tenant_id = $2`,
       [ownerId, tenantId]
     );
     const petIds = petsResult.rows.map(p => p.id);
 
-    // Begin soft-deletion (set deleted_at timestamp)
+    // Begin deletion (archive to DeletedRecord, then hard delete)
     const deletionSummary = {
       vaccinations: 0,
       communications: 0,
@@ -1490,116 +1545,123 @@ async function deleteOwnerData(event) {
       owner: 0,
     };
 
-    // Soft-delete vaccinations for all pets
+    // Delete vaccinations for all pets
     if (petIds.length > 0) {
       try {
-        const result = await query(
-          `UPDATE "Vaccination" SET deleted_at = NOW(), updated_at = NOW()
-           WHERE pet_id = ANY($1) AND tenant_id = $2 AND deleted_at IS NULL`,
+        // Get vaccination IDs first
+        const vacResult = await query(
+          `SELECT id FROM "Vaccination" WHERE pet_id = ANY($1) AND tenant_id = $2`,
           [petIds, tenantId]
         );
-        deletionSummary.vaccinations = result.rowCount || 0;
+        const vacIds = vacResult.rows.map(v => v.id);
+        if (vacIds.length > 0) {
+          deletionSummary.vaccinations = await softDeleteBatch('Vaccination', vacIds, tenantId, deletedBy);
+        }
       } catch (e) {
-        console.log('[ENTITY-SERVICE] Vaccination soft-delete skipped:', e.message);
+        console.log('[ENTITY-SERVICE] Vaccination delete skipped:', e.message);
       }
     }
 
-    // Soft-delete communications
+    // Delete communications
     try {
-      const result = await query(
-        `UPDATE "Communication" SET deleted_at = NOW(), updated_at = NOW()
-         WHERE owner_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      const commResult = await query(
+        `SELECT id FROM "Communication" WHERE owner_id = $1 AND tenant_id = $2`,
         [ownerId, tenantId]
       );
-      deletionSummary.communications = result.rowCount || 0;
+      const commIds = commResult.rows.map(c => c.id);
+      if (commIds.length > 0) {
+        deletionSummary.communications = await softDeleteBatch('Communication', commIds, tenantId, deletedBy);
+      }
     } catch (e) {
-      console.log('[ENTITY-SERVICE] Communication soft-delete skipped:', e.message);
+      console.log('[ENTITY-SERVICE] Communication delete skipped:', e.message);
     }
 
-    // Soft-delete policy agreements
+    // Delete policy agreements
     try {
-      const result = await query(
-        `UPDATE "PolicyAgreement" SET deleted_at = NOW(), updated_at = NOW()
-         WHERE owner_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      const paResult = await query(
+        `SELECT id FROM "PolicyAgreement" WHERE owner_id = $1 AND tenant_id = $2`,
         [ownerId, tenantId]
       );
-      deletionSummary.policyAgreements = result.rowCount || 0;
+      const paIds = paResult.rows.map(p => p.id);
+      if (paIds.length > 0) {
+        deletionSummary.policyAgreements = await softDeleteBatch('PolicyAgreement', paIds, tenantId, deletedBy);
+      }
     } catch (e) {
-      console.log('[ENTITY-SERVICE] PolicyAgreement soft-delete skipped:', e.message);
+      console.log('[ENTITY-SERVICE] PolicyAgreement delete skipped:', e.message);
     }
 
-    // Soft-delete payments
+    // Delete payments
     try {
-      const result = await query(
-        `UPDATE "Payment" SET deleted_at = NOW(), updated_at = NOW()
-         WHERE owner_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      const payResult = await query(
+        `SELECT id FROM "Payment" WHERE owner_id = $1 AND tenant_id = $2`,
         [ownerId, tenantId]
       );
-      deletionSummary.payments = result.rowCount || 0;
+      const payIds = payResult.rows.map(p => p.id);
+      if (payIds.length > 0) {
+        deletionSummary.payments = await softDeleteBatch('Payment', payIds, tenantId, deletedBy);
+      }
     } catch (e) {
-      console.log('[ENTITY-SERVICE] Payment soft-delete skipped:', e.message);
+      console.log('[ENTITY-SERVICE] Payment delete skipped:', e.message);
     }
 
-    // Soft-delete invoices
+    // Delete invoices
     try {
-      const result = await query(
-        `UPDATE "Invoice" SET deleted_at = NOW(), updated_at = NOW()
-         WHERE owner_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      const invResult = await query(
+        `SELECT id FROM "Invoice" WHERE owner_id = $1 AND tenant_id = $2`,
         [ownerId, tenantId]
       );
-      deletionSummary.invoices = result.rowCount || 0;
+      const invIds = invResult.rows.map(i => i.id);
+      if (invIds.length > 0) {
+        deletionSummary.invoices = await softDeleteBatch('Invoice', invIds, tenantId, deletedBy);
+      }
     } catch (e) {
-      console.log('[ENTITY-SERVICE] Invoice soft-delete skipped:', e.message);
+      console.log('[ENTITY-SERVICE] Invoice delete skipped:', e.message);
     }
 
-    // Soft-delete bookings
-    try {
-      const result = await query(
-        `UPDATE "Booking" SET deleted_at = NOW(), status = 'CANCELLED', updated_at = NOW()
-         WHERE owner_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
-        [ownerId, tenantId]
-      );
-      deletionSummary.bookings = result.rowCount || 0;
-    } catch (e) {
-      console.log('[ENTITY-SERVICE] Booking soft-delete skipped:', e.message);
-    }
-
-    // Soft-delete PetOwner relationships (mark as inactive)
+    // Delete bookings (cancel status first for any active ones)
     try {
       await query(
-        `UPDATE "PetOwner" SET is_primary = false, updated_at = NOW()
-         WHERE owner_id = $1`,
+        `UPDATE "Booking" SET status = 'CANCELLED' WHERE owner_id = $1 AND tenant_id = $2 AND status NOT IN ('CANCELLED', 'COMPLETED')`,
+        [ownerId, tenantId]
+      );
+      const bookResult = await query(
+        `SELECT id FROM "Booking" WHERE owner_id = $1 AND tenant_id = $2`,
+        [ownerId, tenantId]
+      );
+      const bookIds = bookResult.rows.map(b => b.id);
+      if (bookIds.length > 0) {
+        deletionSummary.bookings = await softDeleteBatch('Booking', bookIds, tenantId, deletedBy);
+      }
+    } catch (e) {
+      console.log('[ENTITY-SERVICE] Booking delete skipped:', e.message);
+    }
+
+    // Delete PetOwner relationships (hard delete junction table - no archive needed)
+    try {
+      await query(
+        `DELETE FROM "PetOwner" WHERE owner_id = $1`,
         [ownerId]
       );
     } catch (e) {
-      console.log('[ENTITY-SERVICE] PetOwner update skipped:', e.message);
+      console.log('[ENTITY-SERVICE] PetOwner delete skipped:', e.message);
     }
 
-    // Soft-delete pets using the petIds we already collected
+    // Delete pets using the petIds we already collected
     if (petIds.length > 0) {
-      const petsDeleteResult = await query(
-        `UPDATE "Pet" SET deleted_at = NOW(), is_active = false, updated_at = NOW()
-         WHERE id = ANY($1) AND tenant_id = $2 AND deleted_at IS NULL`,
-        [petIds, tenantId]
-      );
-      deletionSummary.pets = petsDeleteResult.rowCount || 0;
+      deletionSummary.pets = await softDeleteBatch('Pet', petIds, tenantId, deletedBy);
     }
 
-    // Finally, soft-delete the owner
-    const ownerDeleteResult = await query(
-      `UPDATE "Owner" SET deleted_at = NOW(), is_active = false, updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
-      [ownerId, tenantId]
-    );
-    deletionSummary.owner = ownerDeleteResult.rowCount || 0;
+    // Finally, delete the owner
+    const ownerDeleted = await softDelete('Owner', ownerId, tenantId, deletedBy);
+    deletionSummary.owner = ownerDeleted ? 1 : 0;
 
-    console.log('[ENTITY-SERVICE] Soft-deleted all data for owner:', ownerId, deletionSummary);
+    console.log('[ENTITY-SERVICE] Deleted all data for owner:', ownerId, deletionSummary);
 
     return createResponse(200, {
       success: true,
-      message: `All data for ${owner.first_name} ${owner.last_name} has been marked for deletion (GDPR soft-delete)`,
+      message: `All data for ${owner.first_name} ${owner.last_name} has been deleted (GDPR erasure)`,
       summary: deletionSummary,
-      note: 'Data has been soft-deleted and will no longer appear in queries. Hard deletion occurs after retention period.',
+      note: 'Data has been archived to DeletedRecord table and removed from active tables.',
     });
   } catch (error) {
     console.error('[ENTITY-SERVICE] deleteOwnerData error:', error);
@@ -1619,12 +1681,16 @@ async function getStaff(event) {
 
   try {
     await getPoolAsync();
+    // User.role doesn't exist - roles come from UserRole junction table
     const result = await query(
       `SELECT s.id, s.tenant_id, s.user_id, s.title, s.department, s.hire_date,
               s.is_active, s.permissions, s.created_at, s.updated_at,
-              u.first_name, u.last_name, u.email, u.phone, u.role, u.avatar_url
+              u.first_name, u.last_name, u.email, u.phone, u.avatar_url,
+              COALESCE(r.name, 'user') AS role
        FROM "Staff" s
        LEFT JOIN "User" u ON s.user_id = u.id
+       LEFT JOIN "UserRole" ur ON u.id = ur.user_id
+       LEFT JOIN "Role" r ON ur.role_id = r.id
        WHERE s.tenant_id = $1
        ORDER BY u.last_name, u.first_name`,
       [tenantId]
@@ -1650,12 +1716,16 @@ async function getStaffMember(event) {
 
   try {
     await getPoolAsync();
+    // User.role doesn't exist - roles come from UserRole junction table
     const result = await query(
       `SELECT s.id, s.tenant_id, s.user_id, s.title, s.department, s.hire_date,
               s.is_active, s.permissions, s.created_at, s.updated_at,
-              u.first_name, u.last_name, u.email, u.phone, u.role, u.avatar_url
+              u.first_name, u.last_name, u.email, u.phone, u.avatar_url,
+              COALESCE(r.name, 'user') AS role
        FROM "Staff" s
        LEFT JOIN "User" u ON s.user_id = u.id
+       LEFT JOIN "UserRole" ur ON u.id = ur.user_id
+       LEFT JOIN "Role" r ON ur.role_id = r.id
        WHERE s.id = $1 AND s.tenant_id = $2`,
       [id, tenantId]
     );
@@ -1909,8 +1979,7 @@ async function getExpiringVaccinations(event) {
        LEFT JOIN "PetOwner" po ON p.id = po.pet_id AND po.is_primary = true
        LEFT JOIN "Owner" o ON po.owner_id = o.id
        WHERE v.tenant_id = $1
-         AND v.deleted_at IS NULL
-         AND v.expires_at IS NOT NULL
+                 AND v.expires_at IS NOT NULL
          AND v.expires_at >= CURRENT_DATE - INTERVAL '7 days'
          AND v.expires_at <= CURRENT_DATE + INTERVAL '1 day' * $2
        ORDER BY v.expires_at ASC`,
@@ -2015,7 +2084,7 @@ async function getPetVaccinations(event) {
 
     // Verify pet belongs to tenant
     const petResult = await query(
-      `SELECT id FROM "Pet" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT id FROM "Pet" WHERE id = $1 AND tenant_id = $2`,
       [petId, tenantId]
     );
 
@@ -2027,15 +2096,14 @@ async function getPetVaccinations(event) {
     }
 
     // Actual Vaccination schema columns:
-    // id, tenant_id, pet_id, type, administered_at, expires_at, provider, lot_number, notes, document_url, created_at, updated_at, deleted_at
+    // id, tenant_id, pet_id, type, administered_at, expires_at, provider, lot_number, notes, document_url, created_at, updated_at
     const result = await query(
       `SELECT
          v.id, v.pet_id, v.type, v.administered_at, v.expires_at,
          v.provider, v.lot_number, v.notes, v.document_url,
          v.created_at, v.updated_at
        FROM "Vaccination" v
-       WHERE v.pet_id = $1 AND v.tenant_id = $2 AND v.deleted_at IS NULL
-       ORDER BY v.expires_at ASC NULLS LAST, v.administered_at DESC`,
+       WHERE v.pet_id = $1 AND v.tenant_id = $2       ORDER BY v.expires_at ASC NULLS LAST, v.administered_at DESC`,
       [petId, tenantId]
     );
 
@@ -2134,7 +2202,7 @@ async function createPetVaccination(event) {
 
     // Verify pet belongs to tenant
     const petResult = await query(
-      `SELECT id, name FROM "Pet" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT id, name FROM "Pet" WHERE id = $1 AND tenant_id = $2`,
       [petId, tenantId]
     );
 
@@ -2253,8 +2321,7 @@ async function updatePetVaccination(event) {
     const result = await query(
       `UPDATE "Vaccination"
        SET ${updates.join(', ')}
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING *`,
+       WHERE id = $1 AND tenant_id = $2       RETURNING *`,
       values
     );
 
@@ -2293,6 +2360,7 @@ async function deletePetVaccination(event) {
   const tenantId = resolveTenantId(event);
   const petId = event.pathParameters?.petId;
   const vaccinationId = event.pathParameters?.id;
+  const deletedBy = event.user?.id || null;
 
   console.log('[ENTITY-SERVICE] Deleting vaccination:', vaccinationId);
 
@@ -2311,17 +2379,10 @@ async function deletePetVaccination(event) {
   }
 
   try {
-    await getPoolAsync();
+    // Use softDelete helper - archives to DeletedRecord table then hard deletes
+    const result = await softDelete('Vaccination', vaccinationId, tenantId, deletedBy);
 
-    const result = await query(
-      `UPDATE "Vaccination"
-       SET deleted_at = NOW(), updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING id, type`,
-      [vaccinationId, tenantId]
-    );
-
-    if (result.rows.length === 0) {
+    if (!result) {
       return createResponse(404, {
         error: 'Not Found',
         message: 'Vaccination record not found',
@@ -2357,6 +2418,7 @@ async function bulkDeletePets(event) {
   const tenantId = resolveTenantId(event);
   const body = parseBody(event);
   const { ids } = body;
+  const deletedBy = event.user?.id || null;
 
   console.log('[Pets][bulkDelete] tenantId:', tenantId, 'count:', ids?.length);
 
@@ -2373,23 +2435,16 @@ async function bulkDeletePets(event) {
   }
 
   try {
-    await getPoolAsync();
+    // Use softDeleteBatch helper - archives to DeletedRecord table then hard deletes
+    const deletedCount = await softDeleteBatch('Pet', ids, tenantId, deletedBy);
 
-    const result = await query(
-      `UPDATE "Pet"
-       SET deleted_at = NOW(), is_active = false, updated_at = NOW()
-       WHERE id = ANY($1) AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING id`,
-      [ids, tenantId]
-    );
-
-    console.log('[Pets][bulkDelete] deleted:', result.rowCount);
+    console.log('[Pets][bulkDelete] deleted:', deletedCount);
 
     return createResponse(200, {
       success: true,
-      deletedCount: result.rowCount,
-      deletedIds: result.rows.map(r => r.id),
-      message: `${result.rowCount} pet(s) deleted successfully`,
+      deletedCount,
+      deletedIds: ids.slice(0, deletedCount), // Best approximation of which were deleted
+      message: `${deletedCount} pet(s) deleted successfully`,
     });
   } catch (error) {
     console.error('[ENTITY-SERVICE] bulkDeletePets error:', error);
@@ -2449,8 +2504,7 @@ async function bulkUpdatePets(event) {
     const result = await query(
       `UPDATE "Pet"
        SET ${setClauses.join(', ')}
-       WHERE id = ANY($1) AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING id`,
+       WHERE id = ANY($1) AND tenant_id = $2       RETURNING id`,
       values
     );
 
@@ -2486,15 +2540,18 @@ async function bulkExportPets(event) {
   try {
     await getPoolAsync();
 
+    // Schema: Pet has vet_id FK, vet info comes from Veterinarian table
     let queryText = `
       SELECT p.id, p.name, p.species, p.breed, p.gender, p.color,
              p.weight, p.date_of_birth, p.microchip_number,
-             p.medical_notes, p.behavior_notes, p.dietary_notes, p.notes,
-             p.status, p.is_active, p.vet_name, p.vet_phone, p.vet_clinic,
-             p.created_at, p.updated_at
+             p.medical_notes, p.behavior_notes, p.dietary_notes,
+             p.status, p.is_active, p.vet_id,
+             p.created_at, p.updated_at,
+             v.clinic_name AS vet_clinic, v.vet_name, v.phone AS vet_phone,
+             v.email AS vet_email
       FROM "Pet" p
-      WHERE p.tenant_id = $1 AND p.deleted_at IS NULL
-    `;
+      LEFT JOIN "Veterinarian" v ON p.vet_id = v.id
+      WHERE p.tenant_id = $1    `;
     const params = [tenantId];
 
     if (Array.isArray(ids) && ids.length > 0) {
@@ -2529,6 +2586,7 @@ async function bulkDeleteOwners(event) {
   const tenantId = resolveTenantId(event);
   const body = parseBody(event);
   const { ids } = body;
+  const deletedBy = event.user?.id || null;
 
   console.log('[Owners][bulkDelete] tenantId:', tenantId, 'count:', ids?.length);
 
@@ -2545,23 +2603,16 @@ async function bulkDeleteOwners(event) {
   }
 
   try {
-    await getPoolAsync();
+    // Use softDeleteBatch helper - archives to DeletedRecord table then hard deletes
+    const deletedCount = await softDeleteBatch('Owner', ids, tenantId, deletedBy);
 
-    const result = await query(
-      `UPDATE "Owner"
-       SET deleted_at = NOW(), is_active = false, updated_at = NOW()
-       WHERE id = ANY($1) AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING id`,
-      [ids, tenantId]
-    );
-
-    console.log('[Owners][bulkDelete] deleted:', result.rowCount);
+    console.log('[Owners][bulkDelete] deleted:', deletedCount);
 
     return createResponse(200, {
       success: true,
-      deletedCount: result.rowCount,
-      deletedIds: result.rows.map(r => r.id),
-      message: `${result.rowCount} owner(s) deleted successfully`,
+      deletedCount,
+      deletedIds: ids.slice(0, deletedCount), // Best approximation of which were deleted
+      message: `${deletedCount} owner(s) deleted successfully`,
     });
   } catch (error) {
     console.error('[ENTITY-SERVICE] bulkDeleteOwners error:', error);
@@ -2617,8 +2668,7 @@ async function bulkUpdateOwners(event) {
     const result = await query(
       `UPDATE "Owner"
        SET ${setClauses.join(', ')}
-       WHERE id = ANY($1) AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING id`,
+       WHERE id = ANY($1) AND tenant_id = $2       RETURNING id`,
       values
     );
 
@@ -2660,8 +2710,7 @@ async function bulkExportOwners(event) {
              o.emergency_contact_name, o.emergency_contact_phone, o.notes,
              o.is_active, o.created_at, o.updated_at
       FROM "Owner" o
-      WHERE o.tenant_id = $1 AND o.deleted_at IS NULL
-    `;
+      WHERE o.tenant_id = $1    `;
     const params = [tenantId];
 
     if (Array.isArray(ids) && ids.length > 0) {

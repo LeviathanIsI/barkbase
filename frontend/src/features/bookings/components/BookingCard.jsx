@@ -14,12 +14,12 @@ const BookingCard = ({ booking, onCheckIn, onCheckOut, onEdit, onCancel, onConta
           <input
             type="checkbox"
             checked={isSelected}
-            onChange={() => onSelect(booking.recordId || booking.id)}
+            onChange={() => onSelect(booking.id || booking.recordId)}
             className="w-4 h-4 rounded border-gray-300 dark:border-surface-border text-blue-600 dark:text-blue-400 focus:ring-blue-500"
           />
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">#{(booking.recordId || booking.id || '').slice(0, 8)}</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary">#{(booking.id || booking.recordId || '').slice(0, 8)}</h3>
               <StatusPill status={booking.status || 'pending'} />
             </div>
           </div>

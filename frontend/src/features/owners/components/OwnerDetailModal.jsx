@@ -162,7 +162,7 @@ const OwnerDetailModal = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-[var(--bb-space-3)]">
               {pets.map((pet) => (
                 <div
-                  key={pet.recordId}
+                  key={pet.id || pet.recordId}
                   className="flex items-center gap-[var(--bb-space-3)] rounded-[var(--bb-radius-lg)] border border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-elevated)] p-[var(--bb-space-3)] hover:bg-[var(--bb-color-sidebar-item-hover-bg)] transition-colors"
                 >
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--bb-color-accent-soft)] text-[var(--bb-color-accent)]">
@@ -191,7 +191,7 @@ const OwnerDetailModal = ({
             <div className="space-y-[var(--bb-space-2)]">
               {owner.bookings.slice(0, 5).map((booking) => (
                 <div
-                  key={booking.recordId}
+                  key={booking.id || booking.recordId}
                   className="flex items-center justify-between rounded-[var(--bb-radius-lg)] border border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-elevated)] p-[var(--bb-space-3)]"
                 >
                   <div className="flex items-center gap-[var(--bb-space-3)]">

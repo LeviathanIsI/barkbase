@@ -180,7 +180,7 @@ const Profile = () => {
     {
       id: 1,
       name: 'Google Calendar',
-      description: 'Syncing bookings to joshua.r.bradford1@gmail.com',
+      description: `Syncing bookings to ${user?.email || 'your email'}`,
       connected: true,
       icon: Calendar,
     },

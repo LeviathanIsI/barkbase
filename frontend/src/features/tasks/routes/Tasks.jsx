@@ -124,7 +124,7 @@ const TaskCard = ({
   // Get related pet info
   const relatedPet = useMemo(() => {
     if (task.relatedType === 'PET' && task.relatedId && pets?.pets) {
-      return pets.pets.find(p => p.recordId === task.relatedId);
+      return pets.pets.find(p => (p.id || p.recordId) === task.relatedId);
     }
     return null;
   }, [task.relatedType, task.relatedId, pets]);
@@ -133,7 +133,7 @@ const TaskCard = ({
   const assignedStaff = useMemo(() => {
     if (task.assignedTo && staff) {
       const staffList = Array.isArray(staff) ? staff : (staff?.data || []);
-      return staffList.find(s => s.recordId === task.assignedTo);
+      return staffList.find(s => (s.id || s.recordId) === task.assignedTo);
     }
     return null;
   }, [task.assignedTo, staff]);
@@ -156,7 +156,7 @@ const TaskCard = ({
       <div className="flex items-start gap-3">
         {/* Checkbox */}
         <button
-          onClick={() => !isCompleted && onComplete(task.recordId)}
+          onClick={() => !isCompleted && onComplete(task.id)}
           disabled={isCompleted || isCompleting}
           className={cn(
             'mt-0.5 transition-colors',
@@ -221,8 +221,8 @@ const TaskCard = ({
 
             {/* Related Pet */}
             {relatedPet && (
-              <Link 
-                to={`/pets/${relatedPet.recordId}`}
+              <Link
+                to={`/pets/${relatedPet.id || relatedPet.recordId}`}
                 className="flex items-center gap-1.5 hover:text-primary transition-colors"
               >
                 <div className="h-5 w-5 rounded-full bg-primary/10 flex items-center justify-center">
@@ -316,15 +316,24 @@ const Tasks = () => {
 
   const isLoading = tasksLoading || todaysLoading || overdueLoading;
 
-  // Combine tasks with overdue flag
+  // Combine tasks with overdue flag - use allTasks as base, mark overdue ones
   const combinedTasks = useMemo(() => {
-    const overdueIds = new Set((overdueTasks || []).map(t => t.recordId));
+    const now = new Date();
+    // Use allTasks if available, otherwise fall back to combining overdue + today
+    if (allTasks && allTasks.length > 0) {
+      return allTasks.map(t => ({
+        ...t,
+        isOverdue: t.scheduledFor && !t.completedAt && new Date(t.scheduledFor) < now
+      }));
+    }
+    // Fallback to old behavior
+    const overdueIds = new Set((overdueTasks || []).map(t => t.id));
     const tasks = [
       ...(overdueTasks || []).map(t => ({ ...t, isOverdue: true })),
-      ...(todaysTasks || []).filter(t => !overdueIds.has(t.recordId))
+      ...(todaysTasks || []).filter(t => !overdueIds.has(t.id))
     ];
     return tasks;
-  }, [todaysTasks, overdueTasks]);
+  }, [allTasks, todaysTasks, overdueTasks]);
 
   // Category counts
   const categoryCounts = useMemo(() => {
@@ -463,7 +472,20 @@ const Tasks = () => {
   const handleCreateTask = async (e) => {
     e.preventDefault();
     try {
-      await createMutation.mutateAsync(taskForm);
+      // Map form fields to backend expected format
+      const payload = {
+        title: `${taskForm.type} Task`, // Backend requires title
+        type: taskForm.type,
+        priority: taskForm.priority,
+        scheduledFor: taskForm.scheduledFor || null,
+        dueAt: taskForm.scheduledFor || null, // Backend also uses dueAt
+        assignedTo: taskForm.assignedTo || null,
+        description: taskForm.notes || null,
+        // Map relatedId to petId or bookingId based on relatedType
+        petId: taskForm.relatedType === 'PET' ? taskForm.relatedId : null,
+        bookingId: taskForm.relatedType === 'BOOKING' ? taskForm.relatedId : null,
+      };
+      await createMutation.mutateAsync(payload);
       toast.success('Task created successfully');
       setShowCreateModal(false);
       setTaskForm({
@@ -633,7 +655,7 @@ const Tasks = () => {
             >
               <option value="all">All Staff</option>
               {staffList.map(s => (
-                <option key={s.recordId} value={s.recordId}>
+                <option key={s.id || s.recordId} value={s.id || s.recordId}>
                   {s.firstName} {s.lastName}
                 </option>
               ))}
@@ -679,7 +701,7 @@ const Tasks = () => {
               onClick={() => setStaffFilter('all')}
               className="flex items-center gap-1 px-2 py-1 text-xs bg-surface border border-border rounded-full hover:bg-surface-secondary"
             >
-              Staff: {staffList.find(s => s.recordId === staffFilter)?.firstName || 'Unknown'} <X className="h-3 w-3" />
+              Staff: {staffList.find(s => (s.id || s.recordId) === staffFilter)?.firstName || 'Unknown'} <X className="h-3 w-3" />
             </button>
           )}
           {searchTerm && (
@@ -759,10 +781,10 @@ const Tasks = () => {
             <div className="space-y-2">
               {taskBuckets.overdue.map(task => (
                 <TaskCard
-                  key={task.recordId}
+                  key={task.id}
                   task={task}
                   onComplete={handleCompleteTask}
-                  isCompleting={completingTaskId === task.recordId}
+                  isCompleting={completingTaskId === task.id}
                   pets={pets}
                   staff={staff}
                 />
@@ -783,10 +805,10 @@ const Tasks = () => {
             <div className="space-y-2">
               {taskBuckets.dueNow.map(task => (
                 <TaskCard
-                  key={task.recordId}
+                  key={task.id}
                   task={task}
                   onComplete={handleCompleteTask}
-                  isCompleting={completingTaskId === task.recordId}
+                  isCompleting={completingTaskId === task.id}
                   pets={pets}
                   staff={staff}
                 />
@@ -806,10 +828,10 @@ const Tasks = () => {
             <div className="space-y-2">
               {taskBuckets.dueLater.map(task => (
                 <TaskCard
-                  key={task.recordId}
+                  key={task.id}
                   task={task}
                   onComplete={handleCompleteTask}
-                  isCompleting={completingTaskId === task.recordId}
+                  isCompleting={completingTaskId === task.id}
                   pets={pets}
                   staff={staff}
                 />
@@ -829,10 +851,10 @@ const Tasks = () => {
             <div className="space-y-2">
               {taskBuckets.upcoming.map(task => (
                 <TaskCard
-                  key={task.recordId}
+                  key={task.id}
                   task={task}
                   onComplete={handleCompleteTask}
-                  isCompleting={completingTaskId === task.recordId}
+                  isCompleting={completingTaskId === task.id}
                   pets={pets}
                   staff={staff}
                 />
@@ -852,10 +874,10 @@ const Tasks = () => {
             <div className="space-y-2">
               {taskBuckets.completed.map(task => (
                 <TaskCard
-                  key={task.recordId}
+                  key={task.id}
                   task={task}
                   onComplete={handleCompleteTask}
-                  isCompleting={completingTaskId === task.recordId}
+                  isCompleting={completingTaskId === task.id}
                   pets={pets}
                   staff={staff}
                 />
@@ -961,7 +983,7 @@ const Tasks = () => {
                     >
                       <option value="">Select pet...</option>
                       {pets.pets.map(pet => (
-                        <option key={pet.recordId} value={pet.recordId}>{pet.name}</option>
+                        <option key={pet.id || pet.recordId} value={pet.id || pet.recordId}>{pet.name}</option>
                       ))}
                     </select>
                   ) : (
@@ -1002,7 +1024,7 @@ const Tasks = () => {
                   >
                     <option value="">Unassigned</option>
                     {staffList.map(s => (
-                      <option key={s.recordId} value={s.recordId}>
+                      <option key={s.id || s.recordId} value={s.id || s.recordId}>
                         {s.firstName} {s.lastName}
                       </option>
                     ))}

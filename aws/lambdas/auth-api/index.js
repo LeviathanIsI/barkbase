@@ -43,7 +43,7 @@ exports.handler = async (event, context) => {
   context.callbackWaitsForEmptyEventLoop = false;
 
   // Handle admin path rewriting (Ops Center requests)
-  const { handleAdminPathRewrite } = require('/opt/nodejs/index');
+  const { handleAdminPathRewrite, applyRateLimit } = require('/opt/nodejs/index');
   handleAdminPathRewrite(event);
 
   const method = event.requestContext?.http?.method || event.httpMethod || 'GET';
@@ -59,6 +59,13 @@ exports.handler = async (event, context) => {
   if (method === 'OPTIONS') {
     console.log('[AUTH-API] Handling CORS preflight request');
     return createResponse(200, { message: 'OK' });
+  }
+
+  // Apply rate limiting (defense in depth - WAF also rate limits)
+  const rateLimitResponse = applyRateLimit(event);
+  if (rateLimitResponse) {
+    console.log('[AUTH-API] Request rate limited');
+    return rateLimitResponse;
   }
 
   try {
@@ -144,6 +151,10 @@ async function handleHealthCheck() {
 
 /**
  * Get current user info
+ *
+ * NEW SCHEMA NOTES:
+ * - User table has NO role column - roles via UserRole junction table
+ * - Roles are fetched from Role table via UserRole
  */
 async function handleGetMe(event) {
   const authResult = await authenticateRequest(event);
@@ -162,30 +173,41 @@ async function handleGetMe(event) {
   try {
     await getPoolAsync();
     console.log('[AUTH-API] Fetching user from DB for cognito_sub:', user.id);
+    // NEW SCHEMA: No role column on User - fetch from UserRole junction
     const result = await query(
       `SELECT
-         id,
-         email,
-         first_name,
-         last_name,
-         role,
-         tenant_id,
-         created_at,
-         updated_at
-       FROM "User"
-       WHERE cognito_sub = $1
+         u.id,
+         u.email,
+         u.first_name,
+         u.last_name,
+         u.tenant_id,
+         u.created_at,
+         u.updated_at,
+         COALESCE(
+           (SELECT array_agg(r.name) FROM "UserRole" ur
+            JOIN "Role" r ON ur.role_id = r.id
+            WHERE ur.user_id = u.id),
+           ARRAY[]::VARCHAR[]
+         ) as roles
+       FROM "User" u
+       WHERE u.cognito_sub = $1
        LIMIT 1`,
       [user.id]
     );
     dbUser = result.rows[0] || null;
     if (dbUser) {
-      console.log('[AUTH-API] Found user in DB:', { id: dbUser.id, email: dbUser.email });
+      console.log('[AUTH-API] Found user in DB:', { id: dbUser.id, email: dbUser.email, roles: dbUser.roles });
     } else {
       console.log('[AUTH-API] User not found in DB for cognito_sub:', user.id);
     }
   } catch (error) {
     console.error('[AUTH-API] Failed to fetch user from DB:', error.message);
   }
+
+  // Determine primary role for backwards compatibility
+  const roleHierarchy = ['OWNER', 'SUPER_ADMIN', 'MANAGER', 'STAFF', 'RECEPTIONIST', 'GROOMER', 'VIEWER'];
+  const userRoles = dbUser?.roles || user.roles || [];
+  const primaryRole = roleHierarchy.find(r => userRoles.map(ur => ur?.toUpperCase()).includes(r)) || userRoles[0] || null;
 
   return createResponse(200, {
     user: {
@@ -197,7 +219,8 @@ async function handleGetMe(event) {
       name: user.name || (dbUser ? `${dbUser.first_name || ''} ${dbUser.last_name || ''}`.trim() : null),
       emailVerified: user.emailVerified,
       tenantId: user.tenantId || dbUser?.tenant_id,
-      role: user.role || dbUser?.role,
+      roles: userRoles,          // NEW: Array of roles
+      role: primaryRole,         // BACKWARDS COMPAT: Primary role
       createdAt: dbUser?.created_at,
       updatedAt: dbUser?.updated_at,
     },
@@ -206,6 +229,12 @@ async function handleGetMe(event) {
 
 /**
  * Handle login - validates provided tokens
+ *
+ * NEW SCHEMA NOTES:
+ * - User table has NO role column - roles via UserRole junction table
+ * - UserSession: no cognito_sub column, uses user_id FK
+ * - UserSession: columns are session_start, last_activity (not *_time)
+ * - UserSession: no updated_at column
  */
 async function handleLogin(event) {
   const body = parseBody(event);
@@ -240,21 +269,33 @@ async function handleLogin(event) {
 
       console.log('[AUTH-API] Fetching user from DB:', { cognito_sub: payload.sub, email: payload.email });
 
-      // Fetch existing user and update last_login_at
+      // NEW SCHEMA: Fetch user with roles from UserRole junction table
+      // No role column on User table anymore
       const result = await query(
         `UPDATE "User"
          SET last_login_at = NOW(), updated_at = NOW()
          WHERE cognito_sub = $1
-         RETURNING id, email, first_name, last_name, role, tenant_id`,
+         RETURNING id, email, first_name, last_name, tenant_id`,
         [payload.sub]
       );
 
       if (result.rows.length > 0) {
         dbUser = result.rows[0];
+
+        // Fetch roles separately from UserRole junction
+        const rolesResult = await query(
+          `SELECT r.name FROM "UserRole" ur
+           JOIN "Role" r ON ur.role_id = r.id
+           WHERE ur.user_id = $1`,
+          [dbUser.id]
+        );
+        dbUser.roles = rolesResult.rows.map(r => r.name);
+
         console.log('[AUTH-API] User found:', {
           id: dbUser.id,
           email: dbUser.email,
-          tenantId: dbUser.tenant_id
+          tenantId: dbUser.tenant_id,
+          roles: dbUser.roles
         });
       } else {
         console.warn('[AUTH-API] User not found in database. Must register first.');
@@ -292,30 +333,32 @@ async function handleLogin(event) {
           cognitoSub: payload.sub
         });
 
-        // Deactivate any existing active sessions for this user (single session per user)
+        // NEW SCHEMA: Deactivate sessions by user_id (not cognito_sub)
         await query(
           `UPDATE "UserSession"
-           SET is_active = false, logged_out_at = NOW(), updated_at = NOW()
-           WHERE cognito_sub = $1 AND is_active = true`,
-          [payload.sub]
+           SET is_active = false, logged_out_at = NOW()
+           WHERE user_id = $1 AND is_active = true`,
+          [dbUser.id]
         );
 
-        // Create new active session
+        // NEW SCHEMA: Create new active session
+        // - No cognito_sub column
+        // - Column names: session_start, last_activity (not *_time)
         const sessionResult = await query(
           `INSERT INTO "UserSession" (
-            user_id, tenant_id, cognito_sub, session_token,
-            session_start_time, last_activity_time,
+            user_id, tenant_id, session_token,
+            session_start, last_activity,
             ip_address, user_agent, is_active
           )
-          VALUES ($1, $2, $3, $4, NOW(), NOW(), $5, $6, true)
-          RETURNING id, session_start_time, session_token`,
-          [dbUser.id, dbUser.tenant_id, payload.sub, sessionToken, sourceIp, userAgent]
+          VALUES ($1, $2, $3, NOW(), NOW(), $4, $5, true)
+          RETURNING id, session_start, session_token`,
+          [dbUser.id, dbUser.tenant_id, sessionToken, sourceIp, userAgent]
         );
 
         session = sessionResult.rows[0];
         console.log('[AUTH-API] Session created:', {
           sessionId: session.id,
-          startTime: session.session_start_time
+          startTime: session.session_start
         });
       } catch (sessionError) {
         console.error('[AUTH-API] Failed to create session:', sessionError.message);
@@ -330,13 +373,18 @@ async function handleLogin(event) {
       });
     }
 
-    // SECURITY: Use DATABASE values for authorization (tenantId, role)
+    // Determine primary role for backwards compatibility
+    const roleHierarchy = ['OWNER', 'SUPER_ADMIN', 'MANAGER', 'STAFF', 'RECEPTIONIST', 'GROOMER', 'VIEWER'];
+    const userRoles = dbUser?.roles || [];
+    const primaryRole = roleHierarchy.find(r => userRoles.map(ur => ur?.toUpperCase()).includes(r)) || userRoles[0] || null;
+
+    // SECURITY: Use DATABASE values for authorization (tenantId, roles)
     // Token claims (custom:tenantId, custom:role) are NOT trusted
     // See: auth-handler.js getUserAuthorizationFromDB() for the pattern
     return createResponse(200, {
       success: true,
       session: session ? {
-        startTime: session.session_start_time,
+        startTime: session.session_start,
         token: session.session_token,
       } : null,
       user: {
@@ -348,7 +396,8 @@ async function handleLogin(event) {
         name: payload.name || payload['cognito:username'],
         // AUTHORIZATION from DATABASE only (defense-in-depth)
         tenantId: dbUser?.tenant_id || null,
-        role: dbUser?.role || null,
+        roles: userRoles,          // NEW: Array of roles
+        role: primaryRole,         // BACKWARDS COMPAT: Primary role
       },
     });
 
@@ -364,6 +413,11 @@ async function handleLogin(event) {
 /**
  * Handle registration - creates user record after Cognito signup
  * This is the main tenant/user bootstrap flow.
+ *
+ * NEW SCHEMA NOTES:
+ * - User table has NO role column - roles assigned via UserRole junction table
+ * - Need to create Role record for OWNER and assign via UserRole
+ * - TenantSettings is a separate 1:1 table (created with defaults)
  */
 async function handleRegister(event) {
   const body = parseBody(event);
@@ -397,6 +451,7 @@ async function handleRegister(event) {
     // Create user and tenant in database
     let user = null;
     let tenant = null;
+    let ownerRole = null;
 
     try {
       await getPoolAsync();
@@ -419,17 +474,54 @@ async function handleRegister(event) {
       tenant = tenantResult.rows[0];
       console.log('[AuthBootstrap] Tenant created:', { id: tenant.id, slug: tenant.slug });
 
-      // Create user with tenant association as OWNER
+      // NEW SCHEMA: Create TenantSettings with defaults
+      await query(
+        `INSERT INTO "TenantSettings" (tenant_id)
+         VALUES ($1)
+         ON CONFLICT (tenant_id) DO NOTHING`,
+        [tenant.id]
+      );
+      console.log('[AuthBootstrap] TenantSettings created for tenant:', tenant.id);
+
+      // NEW SCHEMA: Create default roles for the tenant
+      const roleResult = await query(
+        `INSERT INTO "Role" (tenant_id, name, description, is_system, created_at, updated_at)
+         VALUES
+           ($1, 'OWNER', 'Business owner with full facility access', true, NOW(), NOW()),
+           ($1, 'MANAGER', 'Manages daily operations and staff', true, NOW(), NOW()),
+           ($1, 'STAFF', 'Regular staff member', true, NOW(), NOW()),
+           ($1, 'RECEPTIONIST', 'Front desk operations', true, NOW(), NOW()),
+           ($1, 'GROOMER', 'Grooming staff', true, NOW(), NOW()),
+           ($1, 'VIEWER', 'Read-only access', true, NOW(), NOW())
+         ON CONFLICT (tenant_id, name) DO UPDATE SET updated_at = NOW()
+         RETURNING id, name`,
+        [tenant.id]
+      );
+      ownerRole = roleResult.rows.find(r => r.name === 'OWNER');
+      console.log('[AuthBootstrap] Default roles created, OWNER role id:', ownerRole?.id);
+
+      // NEW SCHEMA: Create user WITHOUT role column
       console.log('[AuthBootstrap] Creating user for tenant_id:', tenant.id, 'cognito_sub:', payload.sub);
 
       const userResult = await query(
-        `INSERT INTO "User" (tenant_id, cognito_sub, email, first_name, last_name, role, is_active, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, 'OWNER', TRUE, NOW(), NOW())
-         RETURNING id, email, first_name, last_name, role, tenant_id`,
+        `INSERT INTO "User" (tenant_id, cognito_sub, email, first_name, last_name, is_active, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, TRUE, NOW(), NOW())
+         RETURNING id, email, first_name, last_name, tenant_id`,
         [tenant.id, payload.sub, userEmail, firstName, lastName]
       );
       user = userResult.rows[0];
-      console.log('[AuthBootstrap] User created:', { id: user.id, email: user.email, role: user.role });
+      console.log('[AuthBootstrap] User created:', { id: user.id, email: user.email });
+
+      // NEW SCHEMA: Assign OWNER role via UserRole junction table
+      if (ownerRole) {
+        await query(
+          `INSERT INTO "UserRole" (user_id, role_id, tenant_id, assigned_at)
+           VALUES ($1, $2, $3, NOW())
+           ON CONFLICT (user_id, role_id) DO NOTHING`,
+          [user.id, ownerRole.id, tenant.id]
+        );
+        console.log('[AuthBootstrap] OWNER role assigned to user:', user.id);
+      }
 
     } catch (dbError) {
       console.error('[AuthBootstrap] DB error during registration:', dbError.message);
@@ -454,7 +546,8 @@ async function handleRegister(event) {
         lastName: user?.last_name,
         name: displayName,
         tenantId: tenant?.id,
-        role: 'OWNER',
+        roles: ['OWNER'],          // NEW: Array of roles
+        role: 'OWNER',             // BACKWARDS COMPAT: Primary role
       },
       tenant: tenant ? {
         id: tenant.id,
@@ -509,6 +602,10 @@ async function handleRefresh(event) {
 
 /**
  * Handle logout
+ *
+ * NEW SCHEMA NOTES:
+ * - UserSession: no cognito_sub column, uses user_id FK
+ * - UserSession: no updated_at column
  */
 async function handleLogout(event) {
   const authResult = await authenticateRequest(event);
@@ -525,15 +622,16 @@ async function handleLogout(event) {
   console.log('[AUTH-API] User logged out:', authResult.user.id);
 
   // Deactivate active sessions for this user
+  // NEW SCHEMA: Use userId (database UUID), not cognitoSub
   try {
     await getPoolAsync();
-    const result = await query(
+    await query(
       `UPDATE "UserSession"
-       SET is_active = false, logged_out_at = NOW(), updated_at = NOW()
-       WHERE cognito_sub = $1 AND is_active = true`,
-      [authResult.user.id]
+       SET is_active = false, logged_out_at = NOW()
+       WHERE user_id = $1 AND is_active = true`,
+      [authResult.user.userId]
     );
-    console.log('[AUTH-API] Deactivated sessions for user:', authResult.user.id);
+    console.log('[AUTH-API] Deactivated sessions for user:', authResult.user.userId);
   } catch (error) {
     console.error('[AUTH-API] Failed to deactivate sessions:', error.message);
     // Don't fail logout if session update fails

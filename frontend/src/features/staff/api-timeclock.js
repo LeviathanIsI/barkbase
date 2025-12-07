@@ -1,7 +1,7 @@
 /**
  * Time Clock API - Staff time tracking
  */
-import { apiClient } from '@/lib/api/client';
+import { apiClient } from '@/lib/apiClient';
 
 const BASE_URL = '/api/v1/staff';
 

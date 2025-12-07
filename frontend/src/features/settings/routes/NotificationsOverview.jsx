@@ -14,12 +14,14 @@ import MobilePush from './components/MobilePush';
 import DoNotDisturb from './components/DoNotDisturb';
 import toast from 'react-hot-toast';
 import apiClient from '@/lib/apiClient';
+import { useAuthStore } from '@/stores/auth';
 
 const NotificationsOverview = () => {
+  const user = useAuthStore((state) => state.user);
   const [preferences, setPreferences] = useState({
     email: {
       enabled: true,
-      address: 'joshua.r.bradford1@gmail.com'
+      address: user?.email || ''
     },
     sms: {
       enabled: false,

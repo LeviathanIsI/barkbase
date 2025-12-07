@@ -16,10 +16,11 @@ import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as path from 'path';
+import * as fs from 'fs';
+import * as dotenv from 'dotenv';
 import { Construct } from 'constructs';
 import { BarkbaseConfig } from './shared/config';
 
@@ -27,7 +28,7 @@ export interface ServicesStackProps extends cdk.StackProps {
   readonly config: BarkbaseConfig;
   readonly vpc: ec2.IVpc;
   readonly lambdaSecurityGroup: ec2.ISecurityGroup;
-  readonly dbSecretArn: string;
+  readonly lambdaSubnets: ec2.ISubnet[];
   readonly userPoolId: string;
   readonly userPoolClientId: string;
   readonly jwksUrl: string;
@@ -48,14 +49,14 @@ export class ServicesStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: ServicesStackProps) {
     super(scope, id, props);
 
-    const { 
-      config, 
-      vpc, 
-      lambdaSecurityGroup, 
-      dbSecretArn, 
-      userPoolId, 
+    const {
+      config,
+      vpc,
+      lambdaSecurityGroup,
+      lambdaSubnets,
+      userPoolId,
       userPoolClientId,
-      jwksUrl 
+      jwksUrl
     } = props;
 
     // =========================================================================
@@ -92,15 +93,8 @@ export class ServicesStack extends cdk.Stack {
       ],
     });
 
-    // Grant access to Secrets Manager
-    lambdaRole.addToPolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      actions: [
-        'secretsmanager:GetSecretValue',
-        'secretsmanager:DescribeSecret',
-      ],
-      resources: [dbSecretArn],
-    }));
+    // NOTE: No Secrets Manager access needed - DATABASE_URL is set via environment variables
+    // from .env files during deployment
 
     // Grant SES permissions for sending emails
     lambdaRole.addToPolicy(new iam.PolicyStatement({
@@ -113,45 +107,53 @@ export class ServicesStack extends cdk.Stack {
       resources: ['*'], // SES doesn't support resource-level permissions well
     }));
 
-    // Common environment variables for all Lambda functions
+    // =========================================================================
+    // Environment Variables
+    // =========================================================================
+    // DATABASE_URL is loaded from backend/.env.development or backend/.env.production
+    // based on the deployment environment (dev or prod)
+    // =========================================================================
+
+    // Determine which .env file to load based on environment
+    const envFileName = config.env === 'prod' ? '.env.production' : '.env.development';
+    const envFilePath = path.join(__dirname, '../../../backend', envFileName);
+
+    // Load environment variables from .env file
+    if (!fs.existsSync(envFilePath)) {
+      throw new Error(`Environment file not found: ${envFilePath}\nPlease create ${envFileName} in the backend directory.`);
+    }
+
+    const envConfig = dotenv.parse(fs.readFileSync(envFilePath));
+
+    // Validate required environment variables
+    if (!envConfig.DATABASE_URL) {
+      throw new Error(`DATABASE_URL not found in ${envFilePath}`);
+    }
+
     const commonEnvironment: Record<string, string> = {
       NODE_ENV: config.env === 'prod' ? 'production' : 'development',
       AWS_REGION_DEPLOY: config.region,
-      DB_SECRET_ARN: dbSecretArn,
-      DB_NAME: 'barkbase',
       COGNITO_USER_POOL_ID: userPoolId,
       COGNITO_CLIENT_ID: userPoolClientId,
       COGNITO_JWKS_URL: jwksUrl,
       COGNITO_ISSUER_URL: `https://cognito-idp.${config.region}.amazonaws.com/${userPoolId}`,
-      // SES configuration - email must be verified in SES
-      SES_FROM_EMAIL: process.env.SES_FROM_EMAIL || 'noreply@barkbase.app',
-      // Twilio SMS configuration - set via AWS Console or CI/CD secrets
-      // TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID || '',
-      // TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN || '',
-      // TWILIO_PHONE_NUMBER: process.env.TWILIO_PHONE_NUMBER || '',
-      // Square POS configuration - set via AWS Console or CI/CD secrets
-      // SQUARE_ACCESS_TOKEN: process.env.SQUARE_ACCESS_TOKEN || '',
-      // SQUARE_ENVIRONMENT: process.env.SQUARE_ENVIRONMENT || 'sandbox',
-      // SQUARE_LOCATION_ID: process.env.SQUARE_LOCATION_ID || '',
-      // QuickBooks Online configuration - set via AWS Console or CI/CD secrets
-      // QUICKBOOKS_CLIENT_ID: process.env.QUICKBOOKS_CLIENT_ID || '',
-      // QUICKBOOKS_CLIENT_SECRET: process.env.QUICKBOOKS_CLIENT_SECRET || '',
-      // QUICKBOOKS_REDIRECT_URI: process.env.QUICKBOOKS_REDIRECT_URI || '',
-      // QUICKBOOKS_ENVIRONMENT: process.env.QUICKBOOKS_ENVIRONMENT || 'sandbox',
+      DATABASE_URL: envConfig.DATABASE_URL,
     };
 
     // Common Lambda configuration
+    // Lambdas run in private subnets with no internet access.
+    // They only need RDS access via VPC internal routing.
     const commonLambdaConfig = {
       runtime: lambda.Runtime.NODEJS_20_X,
       memorySize: 256,
       timeout: cdk.Duration.seconds(30),
       role: lambdaRole,
       vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      vpcSubnets: { subnets: lambdaSubnets },
       securityGroups: [lambdaSecurityGroup],
       layers: [this.dbLayer, this.sharedLayer],
       environment: commonEnvironment,
-      tracing: lambda.Tracing.ACTIVE, // Enable X-Ray tracing
+      tracing: lambda.Tracing.ACTIVE,
     };
 
     // =========================================================================

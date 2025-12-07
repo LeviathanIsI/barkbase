@@ -545,8 +545,8 @@ function OwnerSummaryPanel({ owner, stats, pets, totalBookings, lifetimeValue, o
           <div className="flex flex-wrap gap-2">
             {pets.slice(0, 4).map((pet) => (
               <Link
-                key={pet.recordId}
-                to={`/pets/${pet.recordId}`}
+                key={pet.id || pet.recordId}
+                to={`/pets/${pet.id || pet.recordId}`}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm transition-colors"
                 style={{
                   backgroundColor: 'var(--bb-color-bg-elevated)',
@@ -726,7 +726,7 @@ function OverviewTab({ ownerId, owner, pets, upcomingBookings, recentBookings, s
                 </p>
                 <div className="space-y-2">
                   {upcomingBookings.map((booking) => (
-                    <BookingRow key={booking.recordId} booking={booking} />
+                    <BookingRow key={booking.id || booking.recordId} booking={booking} />
                   ))}
                 </div>
               </div>
@@ -738,7 +738,7 @@ function OverviewTab({ ownerId, owner, pets, upcomingBookings, recentBookings, s
                 </p>
                 <div className="space-y-2">
                   {recentBookings.map((booking) => (
-                    <BookingRow key={booking.recordId} booking={booking} />
+                    <BookingRow key={booking.id || booking.recordId} booking={booking} />
                   ))}
                 </div>
               </div>
@@ -777,7 +777,7 @@ function OverviewTab({ ownerId, owner, pets, upcomingBookings, recentBookings, s
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {pets.slice(0, 6).map((pet) => (
-              <PetCard key={pet.recordId} pet={pet} />
+              <PetCard key={pet.id || pet.recordId} pet={pet} />
             ))}
           </div>
         )}
@@ -820,7 +820,7 @@ function ActivityItem({ item }) {
 function BookingRow({ booking }) {
   return (
     <Link
-      to={`/bookings/${booking.recordId}`}
+      to={`/bookings/${booking.id || booking.recordId}`}
       className="flex items-center gap-3 p-3 rounded-lg border transition-colors hover:border-[color:var(--bb-color-accent)]"
       style={{ borderColor: 'var(--bb-color-border-subtle)' }}
     >
@@ -848,7 +848,7 @@ function BookingRow({ booking }) {
 function PetCard({ pet }) {
   return (
     <Link
-      to={`/pets/${pet.recordId}`}
+      to={`/pets/${pet.id || pet.recordId}`}
       className="flex items-center gap-3 p-3 rounded-lg border transition-colors hover:border-[color:var(--bb-color-accent)]"
       style={{ borderColor: 'var(--bb-color-border-subtle)' }}
     >
@@ -952,7 +952,7 @@ function BookingsTab({ bookings, ownerName, ownerId }) {
       ) : (
         <div className="space-y-3">
           {filteredBookings.map((booking) => (
-            <BookingRow key={booking.recordId} booking={booking} />
+            <BookingRow key={booking.id || booking.recordId} booking={booking} />
           ))}
         </div>
       )}
@@ -995,8 +995,8 @@ function PetsTab({ pets, ownerId, ownerName }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {pets.map((pet) => (
             <div
-              key={pet.recordId}
-              onClick={() => navigate(`/pets/${pet.recordId}`)}
+              key={pet.id || pet.recordId}
+              onClick={() => navigate(`/pets/${pet.id || pet.recordId}`)}
               className="flex items-start gap-4 p-4 rounded-lg border cursor-pointer transition-all hover:border-[color:var(--bb-color-accent)] hover:shadow-sm"
               style={{ borderColor: 'var(--bb-color-border-subtle)' }}
             >

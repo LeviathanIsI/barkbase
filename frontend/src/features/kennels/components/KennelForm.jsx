@@ -32,7 +32,7 @@ const AMENITY_OPTIONS = [
 
 const KennelForm = ({ kennel, onClose, onSuccess, terminology }) => {
   const createMutation = useCreateKennel();
-  const updateMutation = useUpdateKennel(kennel?.recordId);
+  const updateMutation = useUpdateKennel(kennel?.id || kennel?.recordId);
   
   const [formData, setFormData] = useState({
     name: '',

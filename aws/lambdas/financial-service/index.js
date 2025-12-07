@@ -25,7 +25,7 @@ try {
   sharedLayer = require('../../layers/shared-layer/nodejs/index');
 }
 
-const { getPoolAsync, query } = dbLayer;
+const { getPoolAsync, query, softDelete, softDeleteBatch } = dbLayer;
 const {
   authenticateRequest,
   createResponse,
@@ -549,7 +549,7 @@ async function getTenantIdForUser(cognitoSub) {
  * Schema (Invoice table):
  *   id, tenant_id, booking_id, owner_id, invoice_number, status,
  *   subtotal_cents, tax_cents, discount_cents, total_cents, paid_cents,
- *   due_date, issued_at, sent_at, paid_at, notes, line_items, created_at, updated_at, deleted_at
+ *   due_date, issued_at, sent_at, paid_at, notes, line_items, created_at, updated_at
  */
 async function handleGetInvoices(tenantId, queryParams) {
   const { status, customerId, limit = 50, offset = 0 } = queryParams;
@@ -564,7 +564,7 @@ async function handleGetInvoices(tenantId, queryParams) {
     // Diagnostic: count for THIS tenant only (tenant-scoped for security)
     try {
       const diagCount = await query(
-        `SELECT COUNT(*) as cnt FROM "Invoice" WHERE tenant_id = $1 AND deleted_at IS NULL`,
+        `SELECT COUNT(*) as cnt FROM "Invoice" WHERE tenant_id = $1 `,
         [tenantId]
       );
       console.log('[Invoices][diag] count for tenant', tenantId, ':', diagCount.rows[0]?.cnt || 0);
@@ -572,7 +572,7 @@ async function handleGetInvoices(tenantId, queryParams) {
       console.warn('[Invoices][diag] count query failed:', diagErr.message);
     }
 
-    let whereClause = 'i.tenant_id = $1 AND i.deleted_at IS NULL';
+    let whereClause = 'i.tenant_id = $1';
     const params = [tenantId];
     let paramIndex = 2;
 
@@ -700,15 +700,28 @@ async function handleGetInvoice(tenantId, invoiceId) {
       id: row.id,
       invoiceNumber: row.invoice_number,
       status: row.status,
-      amount: parseFloat(row.amount || 0),
+      // Use _cents columns per schema
+      amount: row.total_cents ? row.total_cents / 100 : 0,  // Convert cents to dollars for frontend
+      subtotalCents: row.subtotal_cents,
+      taxCents: row.tax_cents,
+      discountCents: row.discount_cents,
+      totalCents: row.total_cents,
+      paidCents: row.paid_cents,
       dueDate: row.due_date,
+      issuedAt: row.issued_at,
+      sentAt: row.sent_at,
+      paidAt: row.paid_at,
       notes: row.notes,
+      lineItems: row.line_items,
+      bookingId: row.booking_id,
+      ownerId: row.owner_id,
       customer: row.first_name ? {
         firstName: row.first_name,
         lastName: row.last_name,
         email: row.email,
       } : null,
       createdAt: row.created_at,
+      updatedAt: row.updated_at,
       message: 'Invoice retrieved successfully',
     });
 
@@ -722,12 +735,18 @@ async function handleGetInvoice(tenantId, invoiceId) {
 }
 
 async function handleCreateInvoice(tenantId, body) {
-  const { ownerId, amount, dueDate, notes, lineItems } = body;
+  const { ownerId, amount, amountCents, totalCents, subtotalCents, taxCents, discountCents, dueDate, notes, lineItems, bookingId } = body;
 
-  if (!ownerId || !amount) {
+  // Support both dollar amount and cents - schema uses _cents columns (BIGINT)
+  const totalInCents = totalCents || amountCents || (amount ? Math.round(amount * 100) : null);
+  const subtotalInCents = subtotalCents || totalInCents || 0;
+  const taxInCents = taxCents || 0;
+  const discountInCents = discountCents || 0;
+
+  if (!ownerId || !totalInCents) {
     return createResponse(400, {
       error: 'Bad Request',
-      message: 'Owner ID and amount are required',
+      message: 'Owner ID and amount (or totalCents) are required',
     });
   }
 
@@ -737,20 +756,45 @@ async function handleCreateInvoice(tenantId, body) {
     // Generate invoice number
     const invoiceNumber = `INV-${Date.now()}`;
 
+    // Schema: subtotal_cents, tax_cents, discount_cents, total_cents, paid_cents (NOT amount)
     const result = await query(
-      `INSERT INTO "Invoice" (tenant_id, owner_id, invoice_number, amount, due_date, notes, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, 'DRAFT', NOW(), NOW())
+      `INSERT INTO "Invoice" (
+        tenant_id, owner_id, booking_id, invoice_number,
+        subtotal_cents, tax_cents, discount_cents, total_cents, paid_cents,
+        due_date, notes, line_items, status, created_at, updated_at
+      )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, $9, $10, $11, 'DRAFT', NOW(), NOW())
        RETURNING *`,
-      [tenantId, ownerId, invoiceNumber, amount, dueDate, notes]
+      [
+        tenantId,
+        ownerId,
+        bookingId || null,
+        invoiceNumber,
+        subtotalInCents,
+        taxInCents,
+        discountInCents,
+        totalInCents,
+        dueDate || null,
+        notes || null,
+        lineItems ? JSON.stringify(lineItems) : null
+      ]
     );
+
+    const invoice = result.rows[0];
 
     return createResponse(201, {
       success: true,
       invoice: {
-        id: result.rows[0].id,
-        invoiceNumber: result.rows[0].invoice_number,
-        status: result.rows[0].status,
-        amount: parseFloat(result.rows[0].amount),
+        id: invoice.id,
+        invoiceNumber: invoice.invoice_number,
+        status: invoice.status,
+        // Provide both cents and dollars for frontend compatibility
+        amount: invoice.total_cents / 100,
+        subtotalCents: invoice.subtotal_cents,
+        taxCents: invoice.tax_cents,
+        discountCents: invoice.discount_cents,
+        totalCents: invoice.total_cents,
+        paidCents: invoice.paid_cents,
       },
       message: 'Invoice created successfully',
     });
@@ -800,7 +844,7 @@ async function handleGenerateInvoiceFromBooking(tenantId, bookingId) {
        LEFT JOIN "Kennel" k ON b.kennel_id = k.id
        LEFT JOIN "Service" s ON b.service_id = s.id
        LEFT JOIN "Owner" o ON b.owner_id = o.id
-       WHERE b.id = $1 AND b.tenant_id = $2 AND b.deleted_at IS NULL`,
+       WHERE b.id = $1 AND b.tenant_id = $2 `,
       [bookingId, tenantId]
     );
 
@@ -826,7 +870,7 @@ async function handleGenerateInvoiceFromBooking(tenantId, bookingId) {
     // Check if invoice already exists for this booking
     const existingInvoice = await query(
       `SELECT id, invoice_number, status FROM "Invoice"
-       WHERE booking_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+       WHERE booking_id = $1 AND tenant_id = $2 `,
       [bookingId, tenantId]
     );
 
@@ -980,7 +1024,8 @@ async function handleGenerateInvoiceFromBooking(tenantId, bookingId) {
 }
 
 async function handleUpdateInvoice(tenantId, invoiceId, body) {
-  const { amount, dueDate, notes, status } = body;
+  // Schema uses _cents columns (BIGINT), NOT amount
+  const { amount, amountCents, totalCents, subtotalCents, taxCents, discountCents, paidCents, dueDate, notes, status } = body;
 
   try {
     await getPoolAsync();
@@ -989,9 +1034,33 @@ async function handleUpdateInvoice(tenantId, invoiceId, body) {
     const values = [invoiceId, tenantId];
     let paramIndex = 3;
 
-    if (amount !== undefined) {
-      updates.push(`amount = $${paramIndex++}`);
-      values.push(amount);
+    // Support both dollar amount and cents - convert to cents if dollar amount provided
+    if (totalCents !== undefined) {
+      updates.push(`total_cents = $${paramIndex++}`);
+      values.push(totalCents);
+    } else if (amountCents !== undefined) {
+      updates.push(`total_cents = $${paramIndex++}`);
+      values.push(amountCents);
+    } else if (amount !== undefined) {
+      updates.push(`total_cents = $${paramIndex++}`);
+      values.push(Math.round(amount * 100));
+    }
+
+    if (subtotalCents !== undefined) {
+      updates.push(`subtotal_cents = $${paramIndex++}`);
+      values.push(subtotalCents);
+    }
+    if (taxCents !== undefined) {
+      updates.push(`tax_cents = $${paramIndex++}`);
+      values.push(taxCents);
+    }
+    if (discountCents !== undefined) {
+      updates.push(`discount_cents = $${paramIndex++}`);
+      values.push(discountCents);
+    }
+    if (paidCents !== undefined) {
+      updates.push(`paid_cents = $${paramIndex++}`);
+      values.push(paidCents);
     }
     if (dueDate) {
       updates.push(`due_date = $${paramIndex++}`);
@@ -1030,9 +1099,15 @@ async function handleUpdateInvoice(tenantId, invoiceId, body) {
       });
     }
 
+    const invoice = result.rows[0];
+
     return createResponse(200, {
       success: true,
-      invoice: result.rows[0],
+      invoice: {
+        ...invoice,
+        // Provide dollar amount for frontend compatibility
+        amount: invoice.total_cents ? invoice.total_cents / 100 : 0,
+      },
       message: 'Invoice updated successfully',
     });
 
@@ -1420,6 +1495,7 @@ async function handleCapturePayment(tenantId, paymentId) {
 
 /**
  * Get receipt data for a payment
+ * Schema: Payment uses amount_cents (NOT amount_in_cents)
  */
 async function handleGetReceipt(tenantId, paymentId) {
   console.log('[Receipt][get] paymentId:', paymentId, 'tenantId:', tenantId);
@@ -1428,19 +1504,16 @@ async function handleGetReceipt(tenantId, paymentId) {
     await getPoolAsync();
 
     // Get payment with related data
+    // Schema uses amount_cents (NOT amount_in_cents)
     const result = await query(
       `SELECT
          p.id,
-         p.amount_in_cents,
+         p.amount_cents,
          p.method,
          p.status,
          p.processed_at,
          p.notes,
          p.invoice_id,
-         p.booking_id,
-         b.check_in,
-         b.check_out,
-         b.service_name,
          o.id as owner_id,
          o.first_name as owner_first_name,
          o.last_name as owner_last_name,
@@ -1450,7 +1523,6 @@ async function handleGetReceipt(tenantId, paymentId) {
          o.address_city,
          o.address_state,
          o.address_zip,
-         pet.name as pet_name,
          t.name as tenant_name,
          t.business_address_street,
          t.business_address_city,
@@ -1459,9 +1531,7 @@ async function handleGetReceipt(tenantId, paymentId) {
          t.business_phone,
          t.business_email
        FROM "Payment" p
-       LEFT JOIN "Booking" b ON b.id = p.booking_id
-       LEFT JOIN "Owner" o ON o.id = p.owner_id OR o.id = b.owner_id
-       LEFT JOIN "Pet" pet ON pet.id = b.pet_id
+       LEFT JOIN "Owner" o ON o.id = p.owner_id
        LEFT JOIN "Tenant" t ON t.id = p.tenant_id
        WHERE p.id = $1 AND p.tenant_id = $2`,
       [paymentId, tenantId]
@@ -1475,14 +1545,16 @@ async function handleGetReceipt(tenantId, paymentId) {
     }
 
     const payment = result.rows[0];
+    const amountCents = payment.amount_cents || 0;
 
     // Generate receipt data
     const receipt = {
       receiptNumber: `RCP-${paymentId.split('-')[0].toUpperCase()}`,
       paymentId: payment.id,
       paymentDate: payment.processed_at || new Date().toISOString(),
-      amount: payment.amount_in_cents / 100,
-      amountFormatted: `$${(payment.amount_in_cents / 100).toFixed(2)}`,
+      amount: amountCents / 100,
+      amountCents: amountCents,
+      amountFormatted: `$${(amountCents / 100).toFixed(2)}`,
       paymentMethod: payment.method || 'Card',
       status: payment.status,
 
@@ -1509,14 +1581,6 @@ async function handleGetReceipt(tenantId, paymentId) {
         ].filter(Boolean).join('\n'),
       },
 
-      // Service info
-      service: {
-        name: payment.service_name || 'Pet Boarding',
-        petName: payment.pet_name,
-        checkIn: payment.check_in,
-        checkOut: payment.check_out,
-      },
-
       notes: payment.notes,
       generatedAt: new Date().toISOString(),
     };
@@ -1539,6 +1603,7 @@ async function handleGetReceipt(tenantId, paymentId) {
 /**
  * Send receipt via email
  * Body: { email?: string } - optional email override
+ * Schema: Payment uses amount_cents (NOT amount_in_cents)
  */
 async function handleSendReceipt(tenantId, paymentId, body) {
   const { email } = body;
@@ -1549,10 +1614,11 @@ async function handleSendReceipt(tenantId, paymentId, body) {
     await getPoolAsync();
 
     // Get payment and owner details
+    // Schema uses amount_cents (NOT amount_in_cents)
     const result = await query(
       `SELECT
          p.id,
-         p.amount_in_cents,
+         p.amount_cents,
          p.method,
          p.status,
          p.processed_at,
@@ -1590,7 +1656,7 @@ async function handleSendReceipt(tenantId, paymentId, body) {
     // Log the receipt send attempt
     console.log('[Receipt][send] Would send receipt to:', recipientEmail, {
       paymentId,
-      amount: payment.amount_in_cents / 100,
+      amount: (payment.amount_cents || 0) / 100,
       customerName: `${payment.owner_first_name || ''} ${payment.owner_last_name || ''}`.trim(),
       business: payment.tenant_name,
     });
@@ -1727,8 +1793,9 @@ async function handleGetPricing(tenantId) {
   try {
     await getPoolAsync();
 
+    // Schema uses price_in_cents (BIGINT), NOT price
     const result = await query(
-      `SELECT id, name, description, price, unit, is_active
+      `SELECT id, name, description, price_in_cents, unit, is_active
        FROM "Service"
        WHERE tenant_id = $1
        ORDER BY name`,
@@ -1739,7 +1806,9 @@ async function handleGetPricing(tenantId) {
       id: row.id,
       name: row.name,
       description: row.description,
-      price: parseFloat(row.price || 0),
+      // Convert cents to dollars for frontend compatibility
+      price: row.price_in_cents ? row.price_in_cents / 100 : 0,
+      priceInCents: row.price_in_cents,
       unit: row.unit || 'per day',
       isActive: row.is_active,
     }));
@@ -1763,8 +1832,10 @@ async function handleGetPriceItem(tenantId, priceId) {
   try {
     await getPoolAsync();
 
+    // Schema uses price_in_cents (BIGINT), NOT price
     const result = await query(
-      `SELECT * FROM "Service" WHERE id = $1 AND tenant_id = $2`,
+      `SELECT id, name, description, price_in_cents, unit, is_active, created_at, updated_at
+       FROM "Service" WHERE id = $1 AND tenant_id = $2`,
       [priceId, tenantId]
     );
 
@@ -1781,9 +1852,13 @@ async function handleGetPriceItem(tenantId, priceId) {
       id: row.id,
       name: row.name,
       description: row.description,
-      price: parseFloat(row.price || 0),
+      // Convert cents to dollars for frontend compatibility
+      price: row.price_in_cents ? row.price_in_cents / 100 : 0,
+      priceInCents: row.price_in_cents,
       unit: row.unit,
       isActive: row.is_active,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
       message: 'Price item retrieved successfully',
     });
 
@@ -1797,31 +1872,42 @@ async function handleGetPriceItem(tenantId, priceId) {
 }
 
 async function handleCreatePriceItem(tenantId, body) {
-  const { name, description, price, unit } = body;
+  const { name, description, price, priceInCents, unit } = body;
 
-  if (!name || price === undefined) {
+  // Support both dollar amount and cents - schema uses price_in_cents (BIGINT)
+  const priceInCentsValue = priceInCents || (price !== undefined ? Math.round(price * 100) : null);
+
+  if (!name || priceInCentsValue === null) {
     return createResponse(400, {
       error: 'Bad Request',
-      message: 'Name and price are required',
+      message: 'Name and price (or priceInCents) are required',
     });
   }
 
   try {
     await getPoolAsync();
 
+    // Schema uses price_in_cents (BIGINT), NOT price
     const result = await query(
-      `INSERT INTO "Service" (tenant_id, name, description, price, unit, is_active, created_at, updated_at)
+      `INSERT INTO "Service" (tenant_id, name, description, price_in_cents, unit, is_active, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW())
        RETURNING *`,
-      [tenantId, name, description, price, unit || 'per day']
+      [tenantId, name, description, priceInCentsValue, unit || 'per day']
     );
+
+    const service = result.rows[0];
 
     return createResponse(201, {
       success: true,
       item: {
-        id: result.rows[0].id,
-        name: result.rows[0].name,
-        price: parseFloat(result.rows[0].price),
+        id: service.id,
+        name: service.name,
+        description: service.description,
+        // Convert cents to dollars for frontend compatibility
+        price: service.price_in_cents / 100,
+        priceInCents: service.price_in_cents,
+        unit: service.unit,
+        isActive: service.is_active,
       },
       message: 'Price item created successfully',
     });
@@ -1836,7 +1922,7 @@ async function handleCreatePriceItem(tenantId, body) {
 }
 
 async function handleUpdatePriceItem(tenantId, priceId, body) {
-  const { name, description, price, unit, isActive } = body;
+  const { name, description, price, priceInCents, unit, isActive } = body;
 
   try {
     await getPoolAsync();
@@ -1853,9 +1939,14 @@ async function handleUpdatePriceItem(tenantId, priceId, body) {
       updates.push(`description = $${paramIndex++}`);
       values.push(description);
     }
-    if (price !== undefined) {
-      updates.push(`price = $${paramIndex++}`);
-      values.push(price);
+    // Schema uses price_in_cents (BIGINT), NOT price
+    if (priceInCents !== undefined) {
+      updates.push(`price_in_cents = $${paramIndex++}`);
+      values.push(priceInCents);
+    } else if (price !== undefined) {
+      // Convert dollars to cents
+      updates.push(`price_in_cents = $${paramIndex++}`);
+      values.push(Math.round(price * 100));
     }
     if (unit) {
       updates.push(`unit = $${paramIndex++}`);
@@ -1890,9 +1981,16 @@ async function handleUpdatePriceItem(tenantId, priceId, body) {
       });
     }
 
+    const service = result.rows[0];
+
     return createResponse(200, {
       success: true,
-      item: result.rows[0],
+      item: {
+        ...service,
+        // Convert cents to dollars for frontend compatibility
+        price: service.price_in_cents ? service.price_in_cents / 100 : 0,
+        priceInCents: service.price_in_cents,
+      },
       message: 'Price item updated successfully',
     });
 
@@ -1944,26 +2042,33 @@ async function handleCalculatePrice(tenantId, queryParams) {
   try {
     await getPoolAsync();
 
-    let basePrice = 0;
+    let basePriceCents = 0;
 
     if (serviceId) {
+      // Schema uses price_in_cents (BIGINT), NOT price
       const result = await query(
-        `SELECT price FROM "Service" WHERE id = $1 AND tenant_id = $2`,
+        `SELECT price_in_cents FROM "Service" WHERE id = $1 AND tenant_id = $2`,
         [serviceId, tenantId]
       );
-      basePrice = parseFloat(result.rows[0]?.price || 0);
+      basePriceCents = parseInt(result.rows[0]?.price_in_cents || 0);
     }
 
-    const subtotal = basePrice * parseInt(quantity);
-    const discount = subtotal * (parseFloat(discountPercent) / 100);
-    const total = subtotal - discount;
+    const subtotalCents = basePriceCents * parseInt(quantity);
+    const discountCents = Math.round(subtotalCents * (parseFloat(discountPercent) / 100));
+    const totalCents = subtotalCents - discountCents;
 
     return createResponse(200, {
       data: {
-        subtotal,
-        discount,
-        tax: 0, // Tax calculation would depend on location
-        total,
+        // Provide both cents and dollars
+        subtotalCents,
+        discountCents,
+        taxCents: 0, // Tax calculation would depend on location
+        totalCents,
+        // Dollar amounts for frontend compatibility
+        subtotal: subtotalCents / 100,
+        discount: discountCents / 100,
+        tax: 0,
+        total: totalCents / 100,
       },
       message: 'Price calculated successfully',
     });
@@ -1998,7 +2103,7 @@ async function handleGetBillingSummary(tenantId) {
       const outstandingResult = await query(
         `SELECT COALESCE(SUM(total_cents - COALESCE(paid_cents, 0)), 0) as total_cents
          FROM "Invoice"
-         WHERE tenant_id = $1 AND status IN ('SENT', 'OVERDUE') AND deleted_at IS NULL`,
+         WHERE tenant_id = $1 AND status IN ('SENT', 'OVERDUE') `,
         [tenantId]
       );
       // Convert cents to dollars
@@ -2117,8 +2222,7 @@ async function handleGetUpcomingCharges(tenantId) {
        WHERE b.tenant_id = $1
        AND b.status IN ('PENDING', 'CONFIRMED')
        AND b.check_in >= CURRENT_DATE
-       AND b.deleted_at IS NULL
-       ORDER BY b.check_in
+             ORDER BY b.check_in
        LIMIT 10`,
       [tenantId]
     );
@@ -2170,7 +2274,7 @@ async function handleGetBillingUsage(tenantId) {
 
     // Get tenant plan info
     const tenantResult = await query(
-      `SELECT plan FROM "Tenant" WHERE id = $1 AND deleted_at IS NULL`,
+      `SELECT plan FROM "Tenant" WHERE id = $1 `,
       [tenantId]
     );
     const plan = tenantResult.rows[0]?.plan || 'FREE';
@@ -2185,20 +2289,19 @@ async function handleGetBillingUsage(tenantId) {
       // Bookings this month
       query(
         `SELECT COUNT(*) as count FROM "Booking"
-         WHERE tenant_id = $1 AND deleted_at IS NULL
-         AND created_at >= $2 AND created_at <= $3`,
+         WHERE tenant_id = $1         AND created_at >= $2 AND created_at <= $3`,
         [tenantId, monthStart.toISOString(), monthEnd.toISOString()]
       ),
       // Active pets
       query(
         `SELECT COUNT(*) as count FROM "Pet"
-         WHERE tenant_id = $1 AND deleted_at IS NULL AND is_active = true`,
+         WHERE tenant_id = $1  AND is_active = true`,
         [tenantId]
       ),
       // Team members (staff/users)
       query(
         `SELECT COUNT(*) as count FROM "User"
-         WHERE tenant_id = $1 AND deleted_at IS NULL AND is_active = true`,
+         WHERE tenant_id = $1  AND is_active = true`,
         [tenantId]
       ),
       // Storage used (placeholder - would need file tracking table)
@@ -2210,8 +2313,7 @@ async function handleGetBillingUsage(tenantId) {
            COUNT(*) as count
          FROM "Booking"
          WHERE tenant_id = $1
-           AND deleted_at IS NULL
-           AND created_at >= NOW() - INTERVAL '6 months'
+                     AND created_at >= NOW() - INTERVAL '6 months'
          GROUP BY date_trunc('month', created_at)
          ORDER BY month DESC`,
         [tenantId]
@@ -2381,7 +2483,7 @@ async function handleGetSubscriptions(tenantId) {
     const tenantResult = await query(
       `SELECT id, name, plan, created_at, updated_at
        FROM "Tenant"
-       WHERE id = $1 AND deleted_at IS NULL`,
+       WHERE id = $1 `,
       [tenantId]
     );
 
@@ -2399,20 +2501,19 @@ async function handleGetSubscriptions(tenantId) {
       // Count bookings this month
       query(
         `SELECT COUNT(*) as count FROM "Booking"
-         WHERE tenant_id = $1 AND deleted_at IS NULL
-         AND created_at >= date_trunc('month', CURRENT_DATE)`,
+         WHERE tenant_id = $1         AND created_at >= date_trunc('month', CURRENT_DATE)`,
         [tenantId]
       ),
       // Count active pets
       query(
         `SELECT COUNT(*) as count FROM "Pet"
-         WHERE tenant_id = $1 AND deleted_at IS NULL AND is_active = true`,
+         WHERE tenant_id = $1  AND is_active = true`,
         [tenantId]
       ),
       // Count team members (users)
       query(
         `SELECT COUNT(*) as count FROM "User"
-         WHERE tenant_id = $1 AND deleted_at IS NULL AND is_active = true`,
+         WHERE tenant_id = $1  AND is_active = true`,
         [tenantId]
       ),
     ]);
@@ -2568,7 +2669,7 @@ async function handleCreatePaymentIntent(tenantId, body) {
     let stripeCustomerId = null;
     if (ownerId) {
       const ownerResult = await query(
-        `SELECT email, stripe_customer_id FROM "Owner" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+        `SELECT email, stripe_customer_id FROM "Owner" WHERE id = $1 AND tenant_id = $2 `,
         [ownerId, tenantId]
       );
       if (ownerResult.rows[0]) {
@@ -2785,7 +2886,7 @@ async function handleCreateStripeCustomer(tenantId, body) {
     // Get owner details (exclude soft-deleted)
     const ownerResult = await query(
       `SELECT id, first_name, last_name, email, phone, stripe_customer_id
-       FROM "Owner" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+       FROM "Owner" WHERE id = $1 AND tenant_id = $2 `,
       [ownerId, tenantId]
     );
 
@@ -2852,7 +2953,7 @@ async function handleGetStripeCustomer(tenantId, ownerId) {
 
     const result = await query(
       `SELECT id, stripe_customer_id, first_name, last_name, email
-       FROM "Owner" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+       FROM "Owner" WHERE id = $1 AND tenant_id = $2 `,
       [ownerId, tenantId]
     );
 
@@ -2911,7 +3012,7 @@ async function handleAttachPaymentMethod(tenantId, body) {
 
     // Get owner with Stripe customer ID (exclude soft-deleted)
     const ownerResult = await query(
-      `SELECT id, stripe_customer_id FROM "Owner" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT id, stripe_customer_id FROM "Owner" WHERE id = $1 AND tenant_id = $2 `,
       [ownerId, tenantId]
     );
 
@@ -3151,7 +3252,7 @@ async function handleCreateSetupIntent(tenantId, body) {
 
     // Get or create Stripe customer (exclude soft-deleted)
     const ownerResult = await query(
-      `SELECT stripe_customer_id FROM "Owner" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT stripe_customer_id FROM "Owner" WHERE id = $1 AND tenant_id = $2 `,
       [ownerId, tenantId]
     );
 
@@ -3323,13 +3424,14 @@ async function handleStripeWebhook(event) {
         console.log('[Stripe Webhook] Charge refunded:', charge.id);
 
         // Update payment record with refund info
+        // NOTE: Payment table does NOT have refund_amount_cents or refunded_at columns
+        // Just update the status and add a note about the refund amount
         await query(
           `UPDATE "Payment"
            SET status = 'refunded',
-               refund_amount_cents = $1,
-               refunded_at = NOW(),
+               notes = COALESCE(notes, '') || ' [Refunded: $' || ($1::numeric / 100)::text || ' on ' || NOW()::text || ']',
                updated_at = NOW()
-           WHERE stripe_charge_id = $2 OR processor_transaction_id = $2`,
+           WHERE processor_transaction_id = $2`,
           [charge.amount_refunded, charge.id]
         );
         break;
@@ -3376,7 +3478,7 @@ async function handleStripeWebhook(event) {
  * Get packages for tenant/owner
  */
 async function handleGetPackages(tenantId, queryParams) {
-  const { ownerId, status, includeExpired = false, limit = 50, offset = 0 } = queryParams;
+  const { status, limit = 50, offset = 0 } = queryParams;
 
   console.log('[Packages][list] tenantId:', tenantId, queryParams);
 
@@ -3387,48 +3489,54 @@ async function handleGetPackages(tenantId, queryParams) {
     const params = [tenantId];
     let paramIndex = 2;
 
-    if (ownerId) {
-      whereClause += ` AND p.owner_id = $${paramIndex++}`;
-      params.push(ownerId);
-    }
     if (status === 'active') {
-      whereClause += ` AND p.is_active = true AND (p.expires_at IS NULL OR p.expires_at > NOW())`;
-    }
-    if (!includeExpired || includeExpired === 'false') {
-      whereClause += ` AND (p.expires_at IS NULL OR p.expires_at > NOW())`;
+      whereClause += ` AND p.is_active = true`;
     }
 
+    // Get packages with their included services
     const result = await query(
       `SELECT
-         p.*,
-         o.first_name as owner_first_name,
-         o.last_name as owner_last_name,
-         o.email as owner_email,
-         (p.total_credits - COALESCE(p.used_credits, 0)) as remaining_credits
+         p.id,
+         p.tenant_id,
+         p.name,
+         p.description,
+         p.price_in_cents,
+         p.discount_percent,
+         p.is_active,
+         p.created_at,
+         p.updated_at,
+         COALESCE(
+           json_agg(
+             json_build_object(
+               'serviceId', ps.service_id,
+               'serviceName', s.name,
+               'quantity', ps.quantity,
+               'unitPriceInCents', s.price_in_cents
+             )
+           ) FILTER (WHERE ps.service_id IS NOT NULL),
+           '[]'
+         ) as services
        FROM "Package" p
-       LEFT JOIN "Owner" o ON p.owner_id = o.id
+       LEFT JOIN "PackageService" ps ON p.id = ps.package_id
+       LEFT JOIN "Service" s ON ps.service_id = s.id
        WHERE ${whereClause}
-       ORDER BY p.purchased_at DESC
+       GROUP BY p.id
+       ORDER BY p.created_at DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
       [...params, parseInt(limit), parseInt(offset)]
     );
 
     const packages = result.rows.map(row => ({
       id: row.id,
+      recordId: row.id,
       tenantId: row.tenant_id,
-      ownerId: row.owner_id,
-      ownerName: row.owner_first_name ? `${row.owner_first_name} ${row.owner_last_name || ''}`.trim() : null,
-      ownerEmail: row.owner_email,
       name: row.name,
       description: row.description,
-      totalCredits: row.total_credits,
-      usedCredits: row.used_credits || 0,
-      remainingCredits: row.remaining_credits,
       priceInCents: row.price_in_cents,
-      purchasedAt: row.purchased_at,
-      expiresAt: row.expires_at,
+      price: row.price_in_cents / 100,
+      discountPercent: row.discount_percent,
       isActive: row.is_active,
-      isExpired: row.expires_at ? new Date(row.expires_at) < new Date() : false,
+      services: row.services || [],
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));

@@ -149,7 +149,7 @@ const KennelCard = ({ kennel, onEdit, onDelete, onViewBookings, onAssignRun, isC
                 </button>
                 <hr className="my-1 border-border" />
                 <button
-                  onClick={() => { onDelete(kennel.recordId); setShowMenu(false); }}
+                  onClick={() => { onDelete(kennel.id || kennel.recordId); setShowMenu(false); }}
                   className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-danger hover:bg-danger/10"
                 >
                   <Trash2 className="h-3.5 w-3.5" /> Delete
@@ -348,11 +348,11 @@ const Kennels = () => {
   };
 
   const handleViewBookings = (kennel) => {
-    navigate(`/bookings?kennel=${kennel.recordId}`);
+    navigate(`/bookings?kennel=${kennel.id || kennel.recordId}`);
   };
 
   const handleAssignRun = (kennel) => {
-    navigate(`/runs?preselect=${kennel.recordId}`);
+    navigate(`/runs?preselect=${kennel.id || kennel.recordId}`);
   };
 
   const handleCloseForm = () => {
@@ -577,7 +577,7 @@ const Kennels = () => {
                 <div className="grid gap-4 sm:grid-cols-2">
                   {groupKennels.map((kennel) => (
                     <KennelCard
-                      key={kennel.recordId}
+                      key={kennel.id || kennel.recordId}
                       kennel={kennel}
                       onEdit={handleEdit}
                       onDelete={handleDelete}

@@ -725,14 +725,14 @@ const Pets = () => {
                   <tbody>
                     {paginatedPets.map((pet, index) => (
                       <PetRow
-                        key={pet.recordId}
+                        key={pet.id || pet.recordId}
                         pet={pet}
                         columns={orderedColumns}
-                        isSelected={selectedRows.has(pet.recordId)}
-                        onSelect={() => handleSelectRow(pet.recordId)}
-                        onView={() => navigate(`/pets/${pet.recordId}`)}
-                        onEdit={() => navigate(`/pets/${pet.recordId}`)}
-                        onDelete={() => deletePetMutation.mutate(pet.recordId)}
+                        isSelected={selectedRows.has(pet.id || pet.recordId)}
+                        onSelect={() => handleSelectRow(pet.id || pet.recordId)}
+                        onView={() => navigate(`/pets/${pet.id || pet.recordId}`)}
+                        onEdit={() => navigate(`/pets/${pet.id || pet.recordId}`)}
+                        onDelete={() => deletePetMutation.mutate(pet.id || pet.recordId)}
                         isEven={index % 2 === 0}
                         onUpdateField={handleInlineUpdateField}
                         owners={owners}
@@ -747,11 +747,11 @@ const Pets = () => {
               <div className="md:hidden px-4 space-y-3">
                 {paginatedPets.map((pet) => (
                   <MobilePetCard
-                    key={pet.recordId}
+                    key={pet.id || pet.recordId}
                     pet={pet}
-                    isSelected={selectedRows.has(pet.recordId)}
-                    onSelect={() => handleSelectRow(pet.recordId)}
-                    onView={() => navigate(`/pets/${pet.recordId}`)}
+                    isSelected={selectedRows.has(pet.id || pet.recordId)}
+                    onSelect={() => handleSelectRow(pet.id || pet.recordId)}
+                    onView={() => navigate(`/pets/${pet.id || pet.recordId}`)}
                   />
                 ))}
               </div>

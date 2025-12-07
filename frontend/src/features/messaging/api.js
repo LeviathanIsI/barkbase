@@ -28,7 +28,15 @@ export const useConversationsQuery = () => {
       const response = await apiClient.get('/api/v1/messages/conversations');
       const data = response?.data;
       const conversations = data?.data || data?.conversations || (Array.isArray(data) ? data : []);
-      return conversations;
+      // Normalize: backend returns 'id', frontend expects 'conversationId'
+      return conversations.map(conv => ({
+        ...conv,
+        conversationId: conv.conversationId || conv.id,
+        otherUser: conv.owner ? {
+          name: `${conv.owner.firstName || ''} ${conv.owner.lastName || ''}`.trim() || 'Unknown',
+          email: conv.owner.email,
+        } : { name: 'Unknown' },
+      }));
     },
     staleTime: 30 * 1000,
     placeholderData: (previousData) => previousData ?? [],

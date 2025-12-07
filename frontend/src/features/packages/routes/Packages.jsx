@@ -57,40 +57,72 @@ const Packages = () => {
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {packages?.map((pkg) => (
-          <Card key={pkg.recordId} className="hover:shadow-lg transition-shadow">
+          <Card key={pkg.recordId || pkg.id} className="hover:shadow-lg transition-shadow">
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h3 className="font-semibold text-lg">{pkg.name}</h3>
-                <p className="text-sm text-muted">
-                  {pkg.owner.firstName} {pkg.owner.lastName}
-                </p>
+                {pkg.owner ? (
+                  <p className="text-sm text-muted">
+                    {pkg.owner.firstName} {pkg.owner.lastName}
+                  </p>
+                ) : pkg.description ? (
+                  <p className="text-sm text-muted">{pkg.description}</p>
+                ) : null}
               </div>
-              {getStatusBadge(pkg)}
+              {pkg.owner ? getStatusBadge(pkg) : (
+                <Badge variant={pkg.isActive ? 'success' : 'neutral'}>
+                  {pkg.isActive ? 'Active' : 'Inactive'}
+                </Badge>
+              )}
             </div>
 
             <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted">Credits Remaining</span>
-                <span className="font-semibold text-lg">
-                  {pkg.creditsRemaining} / {pkg.creditsPurchased}
-                </span>
-              </div>
+              {pkg.creditsRemaining !== undefined && pkg.creditsPurchased !== undefined ? (
+                <>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted">Credits Remaining</span>
+                    <span className="font-semibold text-lg">
+                      {pkg.creditsRemaining} / {pkg.creditsPurchased}
+                    </span>
+                  </div>
 
-              <div className="w-full bg-surface rounded-full h-2">
-                <div
-                  className="bg-primary h-2 rounded-full transition-all"
-                  style={{
-                    width: `${(pkg.creditsRemaining / pkg.creditsPurchased) * 100}%`
-                  }}
-                />
-              </div>
+                  <div className="w-full bg-surface rounded-full h-2">
+                    <div
+                      className="bg-primary h-2 rounded-full transition-all"
+                      style={{
+                        width: `${(pkg.creditsRemaining / pkg.creditsPurchased) * 100}%`
+                      }}
+                    />
+                  </div>
+                </>
+              ) : pkg.services && pkg.services.length > 0 ? (
+                <div>
+                  <span className="text-sm text-muted">Included Services:</span>
+                  <ul className="mt-1 space-y-1">
+                    {pkg.services.slice(0, 3).map((svc, idx) => (
+                      <li key={idx} className="text-sm flex justify-between">
+                        <span>{svc.serviceName || svc.name}</span>
+                        {svc.quantity > 1 && <span className="text-muted">x{svc.quantity}</span>}
+                      </li>
+                    ))}
+                    {pkg.services.length > 3 && (
+                      <li className="text-xs text-muted">+{pkg.services.length - 3} more</li>
+                    )}
+                  </ul>
+                </div>
+              ) : null}
 
               <div className="flex justify-between items-center text-sm">
                 <span className="text-muted">
                   <DollarSign className="h-4 w-4 inline mr-1" />
-                  Package Value
+                  {pkg.owner ? 'Package Value' : 'Price'}
                 </span>
-                <span className="font-medium">{formatCurrency(pkg.priceCents)}</span>
+                <span className="font-medium">
+                  {formatCurrency(pkg.priceCents || pkg.priceInCents || 0)}
+                  {pkg.discountPercent > 0 && (
+                    <span className="text-success ml-1">(-{pkg.discountPercent}%)</span>
+                  )}
+                </span>
               </div>
 
               {pkg.expiresAt && (
@@ -107,9 +139,11 @@ const Packages = () => {
                 </div>
               )}
 
-              <div className="text-xs text-muted pt-2 border-t border-border">
-                {pkg._count?.usages || 0} time{pkg._count?.usages === 1 ? '' : 's'} used
-              </div>
+              {pkg._count?.usages !== undefined && (
+                <div className="text-xs text-muted pt-2 border-t border-border">
+                  {pkg._count?.usages || 0} time{pkg._count?.usages === 1 ? '' : 's'} used
+                </div>
+              )}
             </div>
 
             <Button

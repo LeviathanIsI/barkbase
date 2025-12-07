@@ -41,7 +41,7 @@ const SinglePageBookingWizard = ({ onComplete, initialData = {} }) => {
   const [bookingData, setBookingData] = useState({
     owner: null,
     pets: [],
-    service: null,
+    services: [],
     dateRange: { start: null, end: null },
     runTemplate: null,
     additionalServices: [],
@@ -60,7 +60,7 @@ const SinglePageBookingWizard = ({ onComplete, initialData = {} }) => {
     switch (currentStep) {
       case 0: return bookingData.owner !== null;
       case 1: return bookingData.pets.length > 0;
-      case 2: return bookingData.service && bookingData.dateRange.start && bookingData.dateRange.end;
+      case 2: return bookingData.services.length > 0 && bookingData.dateRange.start && bookingData.dateRange.end;
       case 3: return bookingData.runTemplate !== null;
       case 4: return true; // Billing can be completed later
       default: return false;
@@ -68,37 +68,41 @@ const SinglePageBookingWizard = ({ onComplete, initialData = {} }) => {
   };
 
   const handleComplete = async () => {
-    if (!bookingData.owner || !bookingData.pets.length || !bookingData.service || !bookingData.dateRange.start || !bookingData.dateRange.end) {
+    if (!bookingData.owner || !bookingData.pets.length || !bookingData.services.length || !bookingData.dateRange.start || !bookingData.dateRange.end) {
       toast.error('Please complete all required fields');
       return;
     }
 
     try {
-      // Create booking for each pet
-      const bookingPromises = bookingData.pets.map(pet => {
-        const payload = {
-          ownerId: bookingData.owner.recordId || bookingData.owner.id,
-          petId: pet.recordId || pet.id,
-          serviceId: bookingData.service.recordId || bookingData.service.id,
-          runTemplateId: bookingData.runTemplate?.recordId || bookingData.runTemplate?.id,
-          checkIn: bookingData.dateRange.start,
-          checkOut: bookingData.dateRange.end,
-          notes: bookingData.notes || bookingData.specialRequirements,
-          specialRequirements: bookingData.specialRequirements,
-          status: 'PENDING'
-        };
+      // Create booking for each pet and each service combination
+      const bookingPromises = bookingData.pets.flatMap(pet =>
+        bookingData.services.map(service => {
+          const payload = {
+            ownerId: bookingData.owner.recordId || bookingData.owner.id,
+            petId: pet.recordId || pet.id,
+            serviceId: service.recordId || service.id,
+            runTemplateId: bookingData.runTemplate?.recordId || bookingData.runTemplate?.id,
+            startDate: bookingData.dateRange.start,
+            endDate: bookingData.dateRange.end,
+            notes: bookingData.notes || bookingData.specialRequirements,
+            specialRequirements: bookingData.specialRequirements,
+            status: 'PENDING'
+          };
 
-        // Calculate pricing if available
-        if (bookingData.service.priceCents) {
-          const days = Math.ceil((new Date(bookingData.dateRange.end) - new Date(bookingData.dateRange.start)) / (1000 * 60 * 60 * 24));
-          payload.totalPriceInCents = days * bookingData.service.priceCents * bookingData.pets.length;
-        }
+          // Calculate pricing if available (parse dates as local time to avoid timezone shift)
+          if (service.priceCents) {
+            const startDate = new Date(bookingData.dateRange.start + 'T00:00:00');
+            const endDate = new Date(bookingData.dateRange.end + 'T00:00:00');
+            const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+            payload.totalPriceInCents = days * service.priceCents;
+          }
 
-        return createBookingMutation.mutateAsync(payload);
-      });
+          return createBookingMutation.mutateAsync(payload);
+        })
+      );
 
       await Promise.all(bookingPromises);
-      toast.success('Booking created successfully!');
+      toast.success(`${bookingPromises.length} booking(s) created successfully!`);
       
       if (onComplete) {
         onComplete(bookingData);
@@ -475,17 +479,25 @@ const ServiceStep = ({ bookingData, updateBookingData }) => {
           {services.filter(s => s.isActive !== false).map(service => (
             <button
               key={service.recordId || service.id}
-              onClick={() => updateBookingData('service', service)}
+              onClick={() => {
+                const serviceId = service.id;
+                const isSelected = bookingData.services.some(s => s.id === serviceId);
+                if (isSelected) {
+                  updateBookingData('services', bookingData.services.filter(s => s.id !== serviceId));
+                } else {
+                  updateBookingData('services', [...bookingData.services, service]);
+                }
+              }}
               className={cn(
                 "p-4 rounded-lg border-2 transition-all text-left",
-                (bookingData.service?.recordId === service.recordId || bookingData.service?.id === service.id)
+                bookingData.services.some(s => s.id === service.id)
                   ? "border-primary-500 bg-primary-500/10 ring-2 ring-primary-500/30"
                   : "border-gray-700 bg-gray-800 hover:border-gray-600 hover:bg-gray-700"
               )}
             >
               <div className="flex items-start justify-between">
                 <div className="text-3xl mb-2">{getServiceIcon(service.category)}</div>
-                {(bookingData.service?.recordId === service.recordId || bookingData.service?.id === service.id) && (
+                {bookingData.services.some(s => s.id === service.id) && (
                   <CheckCircle className="h-5 w-5 text-primary-500 flex-shrink-0" />
                 )}
               </div>
@@ -496,8 +508,17 @@ const ServiceStep = ({ bookingData, updateBookingData }) => {
         </div>
       )}
 
+      {/* Selected Services Summary */}
+      {bookingData.services.length > 0 && (
+        <div className="bg-primary-500/10 border border-primary-500/30 rounded-lg p-3">
+          <p className="text-sm text-primary-400">
+            {bookingData.services.length} service(s) selected: {bookingData.services.map(s => s.name).join(', ')}
+          </p>
+        </div>
+      )}
+
       {/* Date Selection - Inline, not modal */}
-      {bookingData.service && (
+      {bookingData.services.length > 0 && (
         <div className="space-y-4">
           <h4 className="font-medium text-gray-900 dark:text-text-primary">Select Dates</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -654,23 +675,26 @@ const RoomStep = ({ bookingData, updateBookingData }) => {
 };
 
 const BillingStep = ({ bookingData }) => {
-  // Calculate nights between dates
+  // Calculate nights between dates (parse as local time to avoid timezone shift)
   const nights = useMemo(() => {
     if (!bookingData.dateRange.start || !bookingData.dateRange.end) return 0;
-    const start = new Date(bookingData.dateRange.start);
-    const end = new Date(bookingData.dateRange.end);
+    const start = new Date(bookingData.dateRange.start + 'T00:00:00');
+    const end = new Date(bookingData.dateRange.end + 'T00:00:00');
     const diffTime = Math.abs(end - start);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
   }, [bookingData.dateRange]);
 
-  // Calculate service total
+  // Calculate service total for all selected services
   const serviceTotal = useMemo(() => {
-    if (!bookingData.service?.priceCents || !nights || !bookingData.pets.length) return 0;
-    // Service price is in cents, convert to dollars
-    const pricePerUnit = bookingData.service.priceCents / 100;
-    return nights * pricePerUnit * bookingData.pets.length;
-  }, [bookingData.service, nights, bookingData.pets.length]);
+    if (!bookingData.services.length || !nights || !bookingData.pets.length) return 0;
+    // Sum prices for all selected services
+    return bookingData.services.reduce((total, service) => {
+      const priceCents = service.priceCents || service.priceInCents || 0;
+      const pricePerUnit = priceCents / 100;
+      return total + (nights * pricePerUnit * bookingData.pets.length);
+    }, 0);
+  }, [bookingData.services, nights, bookingData.pets.length]);
 
   // Mock addon pricing (would come from services API in production)
   const addonsTotal = bookingData.additionalServices.length * 15;
@@ -697,8 +721,8 @@ const BillingStep = ({ bookingData }) => {
             <span className="font-medium text-text-primary">{bookingData.pets.map(p => p.name).join(', ')}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-text-secondary">Service:</span>
-            <span className="font-medium text-text-primary">{bookingData.service?.name} ({nights} nights)</span>
+            <span className="text-text-secondary">Service(s):</span>
+            <span className="font-medium text-text-primary">{bookingData.services.map(s => s.name).join(', ')} ({nights} nights)</span>
           </div>
           <div className="flex justify-between">
             <span className="text-text-secondary">Run/Room:</span>
@@ -711,10 +735,17 @@ const BillingStep = ({ bookingData }) => {
       <div className="space-y-2">
         <h4 className="font-medium text-text-primary">Price Breakdown</h4>
         <div className="space-y-1 text-sm">
-          <div className="flex justify-between">
-            <span className="text-text-secondary">{bookingData.service?.name} ({nights} {nights === 1 ? 'night' : 'nights'} × {bookingData.pets.length} {bookingData.pets.length === 1 ? 'pet' : 'pets'})</span>
-            <span className="font-medium text-text-primary">${serviceTotal.toFixed(2)}</span>
-          </div>
+          {bookingData.services.map(service => {
+            const priceCents = service.priceCents || service.priceInCents || 0;
+            const pricePerUnit = priceCents / 100;
+            const serviceSubtotal = nights * pricePerUnit * bookingData.pets.length;
+            return (
+              <div key={service.id} className="flex justify-between">
+                <span className="text-text-secondary">{service.name} ({nights} {nights === 1 ? 'night' : 'nights'} × {bookingData.pets.length} {bookingData.pets.length === 1 ? 'pet' : 'pets'})</span>
+                <span className="font-medium text-text-primary">${serviceSubtotal.toFixed(2)}</span>
+              </div>
+            );
+          })}
           {bookingData.additionalServices.map(addon => (
             <div key={addon} className="flex justify-between">
               <span className="text-text-secondary">{addon}</span>
@@ -824,7 +855,7 @@ const CapacityPanel = ({ dateRange, selectedRunTemplate }) => {
           <h4 className="text-sm font-medium text-gray-700 dark:text-text-primary mb-2">Selected Period</h4>
           <div className="space-y-1 text-sm">
             <p className="text-gray-600 dark:text-text-secondary">
-              {new Date(dateRange.start).toLocaleDateString()} - {new Date(dateRange.end).toLocaleDateString()}
+              {new Date(dateRange.start + 'T00:00:00').toLocaleDateString()} - {new Date(dateRange.end + 'T00:00:00').toLocaleDateString()}
             </p>
             {selectedRunTemplate ? (
               <p className="font-medium text-success-600">✓ {selectedRunTemplate.name} selected</p>

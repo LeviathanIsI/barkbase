@@ -181,6 +181,8 @@ barkbase-react/
 3. **Cognito tokens may not have tenantId** - Always implement database fallback
 4. **Lambda in VPC is expensive** - Use public endpoints with SSL instead
 5. **Connection pooling is critical** - Prevents "too many connections" errors
+6. **WAF cannot attach directly to HTTP APIs** - Must use CloudFront in front of API Gateway and attach WAF to CloudFront
+7. **WAF for CloudFront must be in us-east-1** - Even if your API is in another region, the WAF WebACL must be deployed to us-east-1
 
 ---
 

@@ -54,7 +54,7 @@ const OwnerCard = ({
           <div className="flex flex-wrap gap-1.5">
             {pets.slice(0, compact ? 2 : 3).map((pet, idx) => (
               <span
-                key={idx}
+                key={pet.id || pet.recordId || idx}
                 className="inline-flex items-center gap-1 rounded-md bg-blue-50 dark:bg-surface-primary px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-300"
               >
                 <PawPrint className="h-3 w-3" />

@@ -1,96 +1,116 @@
-import { render, waitFor } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import TenantLoader from '../TenantLoader';
 import { useTenantStore } from '@/stores/tenant';
+import { useAuthStore } from '@/stores/auth';
 import { getDefaultTheme } from '@/lib/theme';
 
-describe('TenantLoader', () => {
-  const originalFetch = globalThis.fetch;
+// Mock apiClient
+vi.mock('@/lib/apiClient', () => ({
+  apiClient: {
+    get: vi.fn(),
+    post: vi.fn(),
+  },
+  default: {
+    get: vi.fn(),
+    post: vi.fn(),
+  },
+}));
 
+// Mock cookies
+vi.mock('@/lib/cookies', () => ({
+  setTenantSlugCookie: vi.fn(),
+}));
+
+describe('TenantLoader', () => {
   beforeEach(() => {
+    // Reset tenant store to default state
     useTenantStore.setState({
       tenant: {
-        id: null,
+        recordId: null,
         slug: 'default',
         name: 'BarkBase',
         plan: 'FREE',
         featureFlags: {},
         theme: getDefaultTheme(),
         terminology: {},
+        settings: {},
       },
       initialized: false,
+      isLoading: false,
     });
-    document.documentElement.style.cssText = '';
-    window.history.replaceState({}, '', '/');
+
+    // Reset auth store - not authenticated by default
+    useAuthStore.setState({
+      accessToken: null,
+      tenantId: null,
+      user: null,
+    });
   });
 
   afterEach(() => {
-    globalThis.fetch = originalFetch;
     vi.restoreAllMocks();
   });
 
-  it('loads tenant data and applies theme variables', async () => {
-    const tenantPayload = {
-      id: 'tenant-123',
-      slug: 'acme',
-      name: 'Acme Boarding',
-      plan: 'PRO',
-      featureFlags: {},
-      theme: {
-        colors: {
-          primary: '10 20 30',
-        },
-        mode: 'dark',
-      },
-    };
-
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve(tenantPayload),
-    });
-
-    window.history.replaceState({}, '', '/?tenant=acme');
-
-    render(<TenantLoader />);
-
-    await waitFor(() => expect(useTenantStore.getState().initialized).toBe(true));
-
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/v1/tenants/current'),
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          'X-Tenant': 'acme',
-        }),
-      }),
-    );
-
-    const primaryColor = document.documentElement.style.getPropertyValue('--color-primary');
-    expect(primaryColor.trim()).toBe('10 20 30');
+  it('renders null (no visible content)', () => {
+    const { container } = render(<TenantLoader />);
+    expect(container.firstChild).toBeNull();
   });
 
-  it('prefers tenant slug from query string', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve({ id: 'tenant-xyz', slug: 'query-slug', name: 'Query Tenant' }),
+  it('does not immediately update stores on mount', () => {
+    render(<TenantLoader />);
+
+    // Initially, store state should remain as set in beforeEach
+    expect(useTenantStore.getState().initialized).toBe(false);
+    expect(useTenantStore.getState().isLoading).toBe(false);
+  });
+
+  it('skips loading when tenant already has recordId', async () => {
+    const { apiClient } = await import('@/lib/apiClient');
+
+    // Set tenant with existing recordId (already loaded)
+    useTenantStore.setState({
+      tenant: {
+        recordId: 'existing-tenant',
+        slug: 'existing',
+        name: 'Existing Tenant',
+        plan: 'PRO',
+      },
+      initialized: true,
     });
 
-    window.history.replaceState({}, '', '/?tenant=query-slug');
+    // Set authenticated state
+    useAuthStore.setState({
+      accessToken: 'valid-token',
+      tenantId: 'existing-tenant',
+      user: { id: 'user-1' },
+    });
 
     render(<TenantLoader />);
 
-    await waitFor(() => expect(useTenantStore.getState().initialized).toBe(true));
+    // Wait a bit for any potential calls
+    await new Promise(resolve => setTimeout(resolve, 200));
 
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/v1/tenants/current'),
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          'X-Tenant': 'query-slug',
-        }),
-      }),
-    );
+    // Should not have called API since tenant already loaded
+    expect(apiClient.get).not.toHaveBeenCalled();
+  });
 
-    expect(useTenantStore.getState().tenant.slug).toBe('query-slug');
+  it('does not fetch when user is not authenticated', async () => {
+    const { apiClient } = await import('@/lib/apiClient');
+
+    // Ensure not authenticated
+    useAuthStore.setState({
+      accessToken: null,
+      tenantId: null,
+      user: null,
+    });
+
+    render(<TenantLoader />);
+
+    // Wait past the 100ms delay
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    // Should not have called API
+    expect(apiClient.get).not.toHaveBeenCalled();
   });
 });

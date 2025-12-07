@@ -138,6 +138,12 @@ exports.handler = async (event, context) => {
       }
     }
 
+    // Mark conversation as read - PUT /api/v1/messages/{id}/read
+    const markReadMatch = path.match(/\/api\/v1\/messages\/([a-f0-9-]+)\/read$/i);
+    if (markReadMatch && method === 'PUT') {
+      return handleMarkConversationRead(tenantId, markReadMatch[1]);
+    }
+
     // Messages by conversation ID
     const messagesMatch = path.match(/\/api\/v1\/messages\/([a-f0-9-]+)$/i);
     if (messagesMatch && method === 'GET') {
@@ -396,7 +402,7 @@ async function handleGetDashboard(tenantId) {
     // Get active bookings count (status CHECKED_IN)
     const activeBookingsResult = await query(
       `SELECT COUNT(*) as count FROM "Booking"
-       WHERE tenant_id = $1 AND status = 'CHECKED_IN' AND deleted_at IS NULL`,
+       WHERE tenant_id = $1 AND status = 'CHECKED_IN' `,
       [tenantId]
     );
 
@@ -404,7 +410,7 @@ async function handleGetDashboard(tenantId) {
     const arrivalsResult = await query(
       `SELECT COUNT(*) as count FROM "Booking"
        WHERE tenant_id = $1 AND status IN ('PENDING', 'CONFIRMED')
-       AND DATE(check_in) = CURRENT_DATE AND deleted_at IS NULL`,
+       AND DATE(check_in) = CURRENT_DATE `,
       [tenantId]
     );
 
@@ -412,33 +418,33 @@ async function handleGetDashboard(tenantId) {
     const departuresResult = await query(
       `SELECT COUNT(*) as count FROM "Booking"
        WHERE tenant_id = $1 AND status = 'CHECKED_IN'
-       AND DATE(check_out) = CURRENT_DATE AND deleted_at IS NULL`,
+       AND DATE(check_out) = CURRENT_DATE `,
       [tenantId]
     );
 
     // Get total capacity (kennels)
     const capacityResult = await query(
       `SELECT COALESCE(SUM(capacity), 0) as capacity, COUNT(*) as count FROM "Kennel"
-       WHERE tenant_id = $1 AND is_active = true AND deleted_at IS NULL`,
+       WHERE tenant_id = $1 AND is_active = true `,
       [tenantId]
     );
 
     // Get pending tasks
     const pendingTasksResult = await query(
       `SELECT COUNT(*) as count FROM "Task"
-       WHERE tenant_id = $1 AND status = 'PENDING' AND deleted_at IS NULL`,
+       WHERE tenant_id = $1 AND status = 'PENDING' `,
       [tenantId]
     );
 
     // Get total customers (owners)
     const customersResult = await query(
-      `SELECT COUNT(*) as count FROM "Owner" WHERE tenant_id = $1 AND deleted_at IS NULL`,
+      `SELECT COUNT(*) as count FROM "Owner" WHERE tenant_id = $1 `,
       [tenantId]
     );
 
     // Get total pets
     const petsResult = await query(
-      `SELECT COUNT(*) as count FROM "Pet" WHERE tenant_id = $1 AND deleted_at IS NULL`,
+      `SELECT COUNT(*) as count FROM "Pet" WHERE tenant_id = $1 `,
       [tenantId]
     );
 
@@ -490,7 +496,7 @@ async function handleGetDashboardSummary(tenantId) {
       `SELECT COUNT(*) as count FROM "Booking"
        WHERE tenant_id = $1
        AND check_in >= DATE_TRUNC('week', CURRENT_DATE)
-       AND deleted_at IS NULL`,
+       `,
       [tenantId]
     );
 
@@ -499,7 +505,7 @@ async function handleGetDashboardSummary(tenantId) {
       `SELECT COUNT(*) as count FROM "Booking"
        WHERE tenant_id = $1
        AND check_in >= DATE_TRUNC('month', CURRENT_DATE)
-       AND deleted_at IS NULL`,
+       `,
       [tenantId]
     );
 
@@ -589,7 +595,7 @@ async function handleGetCapacity(tenantId, queryParams) {
          COUNT(*) as kennel_count,
          COALESCE(SUM(capacity), COUNT(*)) as total_capacity
        FROM "Kennel"
-       WHERE tenant_id = $1 AND is_active = true AND deleted_at IS NULL`,
+       WHERE tenant_id = $1 AND is_active = true `,
       [tenantId]
     );
 
@@ -608,8 +614,7 @@ async function handleGetCapacity(tenantId, queryParams) {
          COUNT(*) as booking_count
        FROM "Booking"
        WHERE tenant_id = $1
-         AND deleted_at IS NULL
-         AND status IN ('PENDING', 'CONFIRMED', 'CHECKED_IN')
+                 AND status IN ('PENDING', 'CONFIRMED', 'CHECKED_IN')
          AND DATE(check_in) <= $3
          AND DATE(check_out) >= $2
        GROUP BY DATE(check_in), DATE(check_out)`,
@@ -705,8 +710,7 @@ async function handleGetBookingsInsights(tenantId, queryParams) {
       `SELECT COUNT(*) as count
        FROM "Booking"
        WHERE tenant_id = $1
-         AND deleted_at IS NULL
-         AND created_at >= $2`,
+                 AND created_at >= $2`,
       [tenantId, startDate.toISOString()]
     );
 
@@ -715,8 +719,7 @@ async function handleGetBookingsInsights(tenantId, queryParams) {
       `SELECT AVG(EXTRACT(EPOCH FROM (check_out - check_in)) / 86400) as avg_days
        FROM "Booking"
        WHERE tenant_id = $1
-         AND deleted_at IS NULL
-         AND created_at >= $2
+                 AND created_at >= $2
          AND check_in IS NOT NULL
          AND check_out IS NOT NULL`,
       [tenantId, startDate.toISOString()]
@@ -729,8 +732,7 @@ async function handleGetBookingsInsights(tenantId, queryParams) {
          COUNT(*) as total
        FROM "Booking"
        WHERE tenant_id = $1
-         AND deleted_at IS NULL
-         AND created_at >= $2`,
+                 AND created_at >= $2`,
       [tenantId, startDate.toISOString()]
     );
 
@@ -741,8 +743,7 @@ async function handleGetBookingsInsights(tenantId, queryParams) {
          COUNT(*) as count
        FROM "Booking"
        WHERE tenant_id = $1
-         AND deleted_at IS NULL
-         AND created_at >= $2
+                 AND created_at >= $2
          AND check_in IS NOT NULL
        GROUP BY EXTRACT(DOW FROM check_in)
        ORDER BY count DESC`,
@@ -757,8 +758,7 @@ async function handleGetBookingsInsights(tenantId, queryParams) {
        FROM "Booking" b
        JOIN "Service" s ON b.service_id = s.id
        WHERE b.tenant_id = $1
-         AND b.deleted_at IS NULL
-         AND b.created_at >= $2
+                 AND b.created_at >= $2
        GROUP BY s.name
        ORDER BY booking_count DESC
        LIMIT 5`,
@@ -770,8 +770,7 @@ async function handleGetBookingsInsights(tenantId, queryParams) {
       `SELECT status, COUNT(*) as count
        FROM "Booking"
        WHERE tenant_id = $1
-         AND deleted_at IS NULL
-         AND created_at >= $2
+                 AND created_at >= $2
        GROUP BY status`,
       [tenantId, startDate.toISOString()]
     );
@@ -843,9 +842,9 @@ async function handleGetRevenue(tenantId, queryParams) {
 
     const result = await query(
       `SELECT
-         COALESCE(SUM(total_price), 0) as total_revenue,
+         COALESCE(SUM(total_price_cents), 0) as total_revenue_cents,
          COUNT(*) as transaction_count,
-         COALESCE(AVG(total_price), 0) as avg_transaction
+         COALESCE(AVG(total_price_cents), 0) as avg_transaction_cents
        FROM "Booking" b
        WHERE ${whereClause} AND b.status IN ('CHECKED_IN', 'COMPLETED')`,
       params
@@ -855,9 +854,9 @@ async function handleGetRevenue(tenantId, queryParams) {
 
     return createResponse(200, {
       data: {
-        totalRevenue: parseFloat(row.total_revenue || 0),
+        totalRevenue: parseFloat(row.total_revenue_cents || 0) / 100,
         transactionCount: parseInt(row.transaction_count || 0),
-        averageTransactionValue: parseFloat(row.avg_transaction || 0),
+        averageTransactionValue: parseFloat(row.avg_transaction_cents || 0) / 100,
         period: { startDate, endDate },
       },
       message: 'Revenue analytics retrieved successfully',
@@ -881,7 +880,7 @@ async function handleGetDailyRevenue(tenantId, queryParams) {
 
     const result = await query(
       `SELECT
-         COALESCE(SUM(total_price), 0) as revenue,
+         COALESCE(SUM(total_price_cents), 0) as revenue_cents,
          COUNT(*) as bookings
        FROM "Booking"
        WHERE tenant_id = $1
@@ -893,7 +892,7 @@ async function handleGetDailyRevenue(tenantId, queryParams) {
     return createResponse(200, {
       data: {
         date: targetDate,
-        revenue: parseFloat(result.rows[0]?.revenue || 0),
+        revenue: parseFloat(result.rows[0]?.revenue_cents || 0) / 100,
         bookings: parseInt(result.rows[0]?.bookings || 0),
       },
       message: 'Daily revenue retrieved successfully',
@@ -918,7 +917,7 @@ async function handleGetMonthlyRevenue(tenantId, queryParams) {
 
     const result = await query(
       `SELECT
-         COALESCE(SUM(total_price), 0) as revenue,
+         COALESCE(SUM(total_price_cents), 0) as revenue_cents,
          COUNT(*) as bookings
        FROM "Booking"
        WHERE tenant_id = $1
@@ -932,7 +931,7 @@ async function handleGetMonthlyRevenue(tenantId, queryParams) {
       data: {
         year: parseInt(targetYear),
         month: parseInt(targetMonth),
-        revenue: parseFloat(result.rows[0]?.revenue || 0),
+        revenue: parseFloat(result.rows[0]?.revenue_cents || 0) / 100,
         bookings: parseInt(result.rows[0]?.bookings || 0),
       },
       message: 'Monthly revenue retrieved successfully',
@@ -1013,13 +1012,13 @@ async function handleGetOccupancyForecast(tenantId, queryParams) {
 
     // Get upcoming bookings
     const result = await query(
-      `SELECT DATE(start_date) as date, COUNT(*) as bookings
+      `SELECT DATE(check_in) as date, COUNT(*) as bookings
        FROM "Booking"
        WHERE tenant_id = $1
-       AND start_date >= CURRENT_DATE
-       AND start_date <= CURRENT_DATE + INTERVAL '1 day' * $2
+       AND check_in >= CURRENT_DATE
+       AND check_in <= CURRENT_DATE + INTERVAL '1 day' * $2
        AND status = 'PENDING'
-       GROUP BY DATE(start_date)
+       GROUP BY DATE(check_in)
        ORDER BY date`,
       [tenantId, days]
     );
@@ -1306,8 +1305,8 @@ async function handleExportRevenue(tenantId, queryParams) {
       `SELECT
          DATE(created_at) as date,
          COUNT(*) as booking_count,
-         COALESCE(SUM(total_price), 0) as revenue,
-         COALESCE(AVG(total_price), 0) as avg_booking_value,
+         COALESCE(SUM(total_price_cents), 0) as revenue_cents,
+         COALESCE(AVG(total_price_cents), 0) as avg_booking_value_cents,
          status
        FROM "Booking"
        WHERE ${whereClause} AND status IN ('CHECKED_IN', 'COMPLETED')
@@ -1315,13 +1314,13 @@ async function handleExportRevenue(tenantId, queryParams) {
        ORDER BY date DESC`,
       params
     );
-    
+
     const columns = ['date', 'booking_count', 'revenue', 'avg_booking_value', 'status'];
     const rows = result.rows.map(row => ({
       date: row.date,
       booking_count: parseInt(row.booking_count),
-      revenue: parseFloat(row.revenue).toFixed(2),
-      avg_booking_value: parseFloat(row.avg_booking_value).toFixed(2),
+      revenue: (parseFloat(row.revenue_cents) / 100).toFixed(2),
+      avg_booking_value: (parseFloat(row.avg_booking_value_cents) / 100).toFixed(2),
       status: row.status,
     }));
     
@@ -1366,25 +1365,25 @@ async function handleExportBookings(tenantId, queryParams) {
     const params = [tenantId];
     
     if (startDate) {
-      whereClause += ` AND b.start_date >= $${params.length + 1}`;
+      whereClause += ` AND b.check_in >= $${params.length + 1}`;
       params.push(startDate);
     }
     if (endDate) {
-      whereClause += ` AND b.end_date <= $${params.length + 1}`;
+      whereClause += ` AND b.check_out <= $${params.length + 1}`;
       params.push(endDate);
     }
     if (status) {
       whereClause += ` AND b.status = $${params.length + 1}`;
       params.push(status);
     }
-    
+
     const result = await query(
       `SELECT
          b.id as booking_id,
-         b.start_date,
-         b.end_date,
+         b.check_in,
+         b.check_out,
          b.status,
-         b.total_price,
+         b.total_price_cents,
          b.notes,
          b.created_at,
          o.first_name as owner_first_name,
@@ -1399,22 +1398,22 @@ async function handleExportBookings(tenantId, queryParams) {
        LEFT JOIN "Pet" p ON p.id = ANY(b.pet_ids)
        LEFT JOIN "Kennel" k ON b.kennel_id = k.id
        WHERE ${whereClause}
-       ORDER BY b.start_date DESC`,
+       ORDER BY b.check_in DESC`,
       params
     );
-    
+
     const columns = [
-      'booking_id', 'start_date', 'end_date', 'status', 'total_price',
+      'booking_id', 'check_in', 'check_out', 'status', 'total_price',
       'owner_first_name', 'owner_last_name', 'owner_email', 'owner_phone',
       'pet_name', 'pet_breed', 'kennel_name', 'notes', 'created_at'
     ];
-    
+
     const rows = result.rows.map(row => ({
       booking_id: row.booking_id,
-      start_date: row.start_date?.toISOString().split('T')[0] || '',
-      end_date: row.end_date?.toISOString().split('T')[0] || '',
+      check_in: row.check_in?.toISOString().split('T')[0] || '',
+      check_out: row.check_out?.toISOString().split('T')[0] || '',
       status: row.status,
-      total_price: parseFloat(row.total_price || 0).toFixed(2),
+      total_price: (parseFloat(row.total_price_cents || 0) / 100).toFixed(2),
       owner_first_name: row.owner_first_name || '',
       owner_last_name: row.owner_last_name || '',
       owner_email: row.owner_email || '',
@@ -1427,7 +1426,7 @@ async function handleExportBookings(tenantId, queryParams) {
     }));
     
     const filename = `bookings_report_${startDate || 'all'}_${endDate || 'all'}.${format}`;
-    
+
     if (format === 'json') {
       return createExportResponse({
         report: 'Bookings Report',
@@ -1441,7 +1440,7 @@ async function handleExportBookings(tenantId, queryParams) {
         }
       }, filename, 'json');
     }
-    
+
     return createExportResponse(toCSV(rows, columns), filename, 'csv');
     
   } catch (error) {
@@ -1479,25 +1478,26 @@ async function handleExportCustomers(tenantId, queryParams) {
          o.emergency_contact_phone,
          o.created_at,
          COUNT(DISTINCT b.id) as total_bookings,
-         COALESCE(SUM(b.total_price), 0) as lifetime_value,
+         COALESCE(SUM(b.total_price_cents), 0) as lifetime_value_cents,
          MAX(b.created_at) as last_booking_date,
          COUNT(DISTINCT p.id) as pet_count
        FROM "Owner" o
        LEFT JOIN "Booking" b ON o.id = b.owner_id AND b.status IN ('CHECKED_IN', 'COMPLETED')
-       LEFT JOIN "Pet" p ON o.id = p.owner_id
-       WHERE o.tenant_id = $1 AND o.deleted_at IS NULL
+       LEFT JOIN "PetOwner" po ON o.id = po.owner_id
+       LEFT JOIN "Pet" p ON po.pet_id = p.id
+       WHERE o.tenant_id = $1
        GROUP BY o.id
        ORDER BY o.last_name, o.first_name`,
       [tenantId]
     );
-    
+
     const columns = [
       'owner_id', 'first_name', 'last_name', 'email', 'phone',
       'address', 'city', 'state', 'zip_code',
       'emergency_contact_name', 'emergency_contact_phone',
       'total_bookings', 'lifetime_value', 'last_booking_date', 'pet_count', 'created_at'
     ];
-    
+
     const rows = result.rows.map(row => ({
       owner_id: row.owner_id,
       first_name: row.first_name || '',
@@ -1511,7 +1511,7 @@ async function handleExportCustomers(tenantId, queryParams) {
       emergency_contact_name: row.emergency_contact_name || '',
       emergency_contact_phone: row.emergency_contact_phone || '',
       total_bookings: parseInt(row.total_bookings || 0),
-      lifetime_value: parseFloat(row.lifetime_value || 0).toFixed(2),
+      lifetime_value: (parseFloat(row.lifetime_value_cents || 0) / 100).toFixed(2),
       last_booking_date: row.last_booking_date?.toISOString().split('T')[0] || '',
       pet_count: parseInt(row.pet_count || 0),
       created_at: row.created_at?.toISOString() || '',
@@ -1573,8 +1573,8 @@ async function handleExportOccupancy(tenantId, queryParams) {
          COALESCE(SUM(array_length(b.pet_ids, 1)), 0) as pets_boarded
        FROM generate_series($2::date, $3::date, '1 day'::interval) d
        LEFT JOIN "Booking" b ON b.tenant_id = $1
-         AND b.start_date <= d::date
-         AND b.end_date > d::date
+         AND b.check_in <= d::date
+         AND b.check_out > d::date
          AND b.status IN ('CONFIRMED', 'CHECKED_IN')
        GROUP BY d::date
        ORDER BY d::date`,
@@ -1649,9 +1649,9 @@ async function handleExportPets(tenantId, queryParams) {
          p.microchip_number,
          p.special_needs,
          p.dietary_requirements,
-         p.vet_name,
-         p.vet_phone,
-         p.vet_clinic,
+         v.name as vet_name,
+         v.phone as vet_phone,
+         v.clinic_name as vet_clinic,
          p.created_at,
          o.first_name as owner_first_name,
          o.last_name as owner_last_name,
@@ -1660,14 +1660,16 @@ async function handleExportPets(tenantId, queryParams) {
          COUNT(DISTINCT b.id) as booking_count,
          MAX(b.created_at) as last_visit
        FROM "Pet" p
-       LEFT JOIN "Owner" o ON p.owner_id = o.id
+       LEFT JOIN "PetOwner" po ON p.id = po.pet_id
+       LEFT JOIN "Owner" o ON po.owner_id = o.id
+       LEFT JOIN "Veterinarian" v ON p.vet_id = v.id
        LEFT JOIN "Booking" b ON p.id = ANY(b.pet_ids)
-       WHERE p.tenant_id = $1 AND p.deleted_at IS NULL
-       GROUP BY p.id, o.id
+       WHERE p.tenant_id = $1
+       GROUP BY p.id, o.id, v.id
        ORDER BY p.name`,
       [tenantId]
     );
-    
+
     const columns = [
       'pet_id', 'name', 'breed', 'species', 'weight', 'birth_date', 'gender', 'color',
       'microchip_number', 'special_needs', 'dietary_requirements',
@@ -1675,7 +1677,7 @@ async function handleExportPets(tenantId, queryParams) {
       'owner_first_name', 'owner_last_name', 'owner_email', 'owner_phone',
       'booking_count', 'last_visit', 'created_at'
     ];
-    
+
     const rows = result.rows.map(row => ({
       pet_id: row.pet_id,
       name: row.name || '',
@@ -1767,14 +1769,15 @@ async function handleExportVaccinations(tenantId, queryParams) {
          o.last_name as owner_last_name,
          o.email as owner_email,
          o.phone as owner_phone,
-         CASE 
+         CASE
            WHEN v.expiration_date < NOW() THEN 'Expired'
            WHEN v.expiration_date <= NOW() + INTERVAL '30 days' THEN 'Expiring Soon'
            ELSE 'Valid'
          END as status
        FROM "Vaccination" v
        LEFT JOIN "Pet" p ON v.pet_id = p.id
-       LEFT JOIN "Owner" o ON p.owner_id = o.id
+       LEFT JOIN "PetOwner" po ON p.id = po.pet_id
+       LEFT JOIN "Owner" o ON po.owner_id = o.id
        WHERE ${whereClause}
        ORDER BY v.expiration_date ASC`,
       params
@@ -1853,35 +1856,24 @@ async function handleExportVaccinations(tenantId, queryParams) {
  */
 async function handleGetSegments(tenantId) {
   console.log('[Segments][list] tenantId:', tenantId);
-  console.log('[Segments][list] env DB_NAME:', process.env.DB_NAME || process.env.DB_DATABASE);
 
   try {
     await getPoolAsync();
 
-    // Diagnostic: count for THIS tenant only (tenant-scoped for security)
-    try {
-      const diagCount = await query(
-        `SELECT COUNT(*) as cnt FROM "Segment" WHERE tenant_id = $1 AND deleted_at IS NULL`,
-        [tenantId]
-      );
-      console.log('[Segments][diag] count for tenant', tenantId, ':', diagCount.rows[0]?.cnt || 0);
-    } catch (diagErr) {
-      console.warn('[Segments][diag] count query failed:', diagErr.message);
-    }
-
-    // Main query - use actual schema columns (no is_active, no SegmentCampaign)
+    // Query segments with member counts
     const result = await query(
       `SELECT
          s.id,
          s.name,
          s.description,
          s.criteria,
-         s.is_dynamic,
-         s.member_count,
+         s.is_automatic,
+         s.is_active,
          s.created_at,
-         s.updated_at
+         s.updated_at,
+         (SELECT COUNT(*) FROM "SegmentMember" sm WHERE sm.segment_id = s.id) as member_count
        FROM "Segment" s
-       WHERE s.tenant_id = $1 AND s.deleted_at IS NULL
+       WHERE s.tenant_id = $1
        ORDER BY s.name ASC`,
       [tenantId]
     );
@@ -1890,18 +1882,18 @@ async function handleGetSegments(tenantId) {
 
     const segments = result.rows.map(row => ({
       id: row.id,
-      recordId: row.id, // Alias for frontend compatibility
+      recordId: row.id,
       name: row.name,
       description: row.description,
       criteria: row.criteria || {},
-      isDynamic: row.is_dynamic ?? true,
-      isActive: true, // Schema has no is_active - assume all non-deleted are active
-      isAutomatic: row.is_dynamic ?? true, // Alias for frontend (isAutomatic = isDynamic)
+      isDynamic: row.is_automatic ?? false,
+      isActive: row.is_active ?? true,
+      isAutomatic: row.is_automatic ?? false,
       _count: {
         members: parseInt(row.member_count || 0),
-        campaigns: 0, // No SegmentCampaign table exists
+        campaigns: 0,
       },
-      memberCount: parseInt(row.member_count || 0), // Backwards compatibility
+      memberCount: parseInt(row.member_count || 0),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));
@@ -1949,7 +1941,7 @@ async function handleGetSegmentMembers(tenantId, segmentId, queryParams) {
 
     // Verify segment belongs to tenant
     const segmentCheck = await query(
-      `SELECT id FROM "Segment" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT id FROM "Segment" WHERE id = $1 AND tenant_id = $2 `,
       [segmentId, tenantId]
     );
 
@@ -2145,6 +2137,44 @@ async function handleGetMessages(tenantId, conversationId) {
 }
 
 /**
+ * Mark conversation as read
+ */
+async function handleMarkConversationRead(tenantId, conversationId) {
+  try {
+    await getPoolAsync();
+
+    // Update conversation unread count and mark messages as read
+    await query(
+      `UPDATE "Conversation"
+       SET unread_count = 0, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2`,
+      [conversationId, tenantId]
+    );
+
+    await query(
+      `UPDATE "Message"
+       SET is_read = true, read_at = NOW()
+       WHERE conversation_id = $1 AND tenant_id = $2 AND is_read = false`,
+      [conversationId, tenantId]
+    );
+
+    console.log('[ANALYTICS-SERVICE] Marked conversation as read:', conversationId);
+
+    return createResponse(200, {
+      success: true,
+      message: 'Conversation marked as read',
+    });
+
+  } catch (error) {
+    console.error('[ANALYTICS-SERVICE] Failed to mark conversation as read:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to mark conversation as read',
+    });
+  }
+}
+
+/**
  * Get unread message count
  */
 async function handleGetUnreadCount(tenantId) {
@@ -2281,11 +2311,10 @@ async function handleGetUSDAForm7001(tenantId, queryParams) {
          b.check_in as date_received
        FROM "Pet" p
        JOIN "Booking" b ON p.id = ANY(b.pet_ids)
-       JOIN "Owner" o ON p.owner_id = o.id
+       JOIN "PetOwner" po ON p.id = po.pet_id
+       JOIN "Owner" o ON po.owner_id = o.id
        WHERE b.tenant_id = $1
          AND b.status = 'CHECKED_IN'
-         AND b.deleted_at IS NULL
-         AND p.deleted_at IS NULL
        ORDER BY p.id, b.check_in DESC`,
       [tenantId]
     );
@@ -2324,11 +2353,10 @@ async function handleGetUSDAForm7001PDF(tenantId, queryParams) {
          b.check_in as date_received
        FROM "Pet" p
        JOIN "Booking" b ON p.id = ANY(b.pet_ids)
-       JOIN "Owner" o ON p.owner_id = o.id
+       JOIN "PetOwner" po ON p.id = po.pet_id
+       JOIN "Owner" o ON po.owner_id = o.id
        WHERE b.tenant_id = $1
          AND b.status = 'CHECKED_IN'
-         AND b.deleted_at IS NULL
-         AND p.deleted_at IS NULL
        ORDER BY p.id, b.check_in DESC`,
       [tenantId]
     );
@@ -2392,8 +2420,7 @@ async function handleGetUSDAForm7002(tenantId, queryParams) {
        CROSS JOIN LATERAL unnest(b.pet_ids) AS pid
        JOIN "Pet" p ON p.id = pid
        WHERE b.tenant_id = $1
-         AND b.deleted_at IS NULL
-         AND (
+                 AND (
            (DATE(COALESCE(b.actual_check_in, b.check_in)) BETWEEN $2 AND $3)
            OR (DATE(COALESCE(b.actual_check_out, b.check_out)) BETWEEN $2 AND $3)
          )
@@ -2478,8 +2505,7 @@ async function handleGetUSDAForm7002PDF(tenantId, queryParams) {
        JOIN "Owner" o ON b.owner_id = o.id
        CROSS JOIN LATERAL unnest(b.pet_ids) AS pid
        JOIN "Pet" p ON p.id = pid
-       WHERE b.tenant_id = $1 AND b.deleted_at IS NULL
-         AND ((DATE(COALESCE(b.actual_check_in, b.check_in)) BETWEEN $2 AND $3)
+       WHERE b.tenant_id = $1         AND ((DATE(COALESCE(b.actual_check_in, b.check_in)) BETWEEN $2 AND $3)
            OR (DATE(COALESCE(b.actual_check_out, b.check_out)) BETWEEN $2 AND $3))`,
       [tenantId, start, end]
     );
@@ -2549,8 +2575,7 @@ async function handleGetUSDAForm7005(tenantId, queryParams) {
        WHERE i.tenant_id = $1
          AND i.vet_contacted = true
          AND DATE(i.incident_date) BETWEEN $2 AND $3
-         AND i.deleted_at IS NULL
-       UNION ALL
+               UNION ALL
        SELECT
          v.id, v.administered_date as date,
          p.id as pet_id, p.name as pet_name, p.species, p.breed,
@@ -2562,8 +2587,7 @@ async function handleGetUSDAForm7005(tenantId, queryParams) {
        JOIN "Pet" p ON v.pet_id = p.id
        WHERE v.tenant_id = $1
          AND DATE(v.administered_date) BETWEEN $2 AND $3
-         AND v.deleted_at IS NULL
-       ORDER BY date DESC`,
+               ORDER BY date DESC`,
       [tenantId, start, end]
     );
 
@@ -2602,14 +2626,12 @@ async function handleGetUSDAForm7005PDF(tenantId, queryParams) {
               i.medical_treatment as medication, i.vet_recommendations as notes
        FROM "Incident" i JOIN "Pet" p ON i.pet_id = p.id
        WHERE i.tenant_id = $1 AND i.vet_contacted = true
-         AND DATE(i.incident_date) BETWEEN $2 AND $3 AND i.deleted_at IS NULL
-       UNION ALL
+         AND DATE(i.incident_date) BETWEEN $2 AND $3       UNION ALL
        SELECT v.id, v.administered_date as date, p.id as pet_id, p.name as pet_name,
               p.species, p.breed, 'vaccination' as type, v.vaccine_name as description,
               NULL as medication, v.notes
        FROM "Vaccination" v JOIN "Pet" p ON v.pet_id = p.id
-       WHERE v.tenant_id = $1 AND DATE(v.administered_date) BETWEEN $2 AND $3 AND v.deleted_at IS NULL
-       ORDER BY date DESC`,
+       WHERE v.tenant_id = $1 AND DATE(v.administered_date) BETWEEN $2 AND $3       ORDER BY date DESC`,
       [tenantId, start, end]
     );
 
@@ -2651,15 +2673,16 @@ async function handleGetVaccinationCompliance(tenantId) {
       `SELECT p.id, p.name, p.species, p.breed,
               o.first_name || ' ' || o.last_name as owner_name
        FROM "Pet" p
-       JOIN "Owner" o ON p.owner_id = o.id
-       WHERE p.tenant_id = $1 AND p.deleted_at IS NULL`,
+       LEFT JOIN "PetOwner" po ON p.id = po.pet_id
+       LEFT JOIN "Owner" o ON po.owner_id = o.id
+       WHERE p.tenant_id = $1`,
       [tenantId]
     );
 
     const vaccinationsResult = await query(
       `SELECT pet_id, vaccine_name, administered_date, expiration_date
        FROM "Vaccination"
-       WHERE tenant_id = $1 AND deleted_at IS NULL`,
+       WHERE tenant_id = $1 `,
       [tenantId]
     );
 

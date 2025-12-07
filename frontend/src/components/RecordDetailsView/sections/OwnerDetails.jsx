@@ -104,6 +104,7 @@ export default function OwnerDetails({ data, avatar, actionButtons = [] }) {
           </div>
         </div>
       </DetailsGrid>
+      </div>
     </OwnerInfoSection>
   );
 }

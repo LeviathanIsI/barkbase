@@ -1,7 +1,9 @@
 import { Bell, Mail, Smartphone, Monitor } from 'lucide-react';
 import Card from '@/components/ui/Card';
+import { useAuthStore } from '@/stores/auth';
 
 const SecurityNotifications = () => {
+  const user = useAuthStore((state) => state.user);
   return (
     <Card title="Security Notifications" icon={Bell}>
       <div className="space-y-6">
@@ -13,7 +15,7 @@ const SecurityNotifications = () => {
         <div>
           <h3 className="font-medium text-gray-900 dark:text-text-primary mb-3 flex items-center gap-2">
             <Mail className="w-4 h-4" />
-            Email Notifications (joshua.r.bradford1@gmail.com)
+            Email Notifications ({user?.email})
           </h3>
           <div className="space-y-2">
             {[

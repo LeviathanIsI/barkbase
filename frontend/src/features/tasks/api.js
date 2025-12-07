@@ -127,8 +127,10 @@ const normalizeTask = (task) => {
     assigneeName: task.assigneeName || null,
     // Computed title for calendar events
     title,
-    // Priority normalization (backend uses MEDIUM, LOW, HIGH)
-    priority: task.priority?.toUpperCase() || 'MEDIUM',
+    // Priority normalization - backend uses integers (1=low, 2=medium, 3=high, 4=urgent)
+    priority: typeof task.priority === 'number'
+      ? ['LOW', 'LOW', 'MEDIUM', 'HIGH', 'URGENT'][task.priority] || 'MEDIUM'
+      : (typeof task.priority === 'string' ? task.priority.toUpperCase() : 'MEDIUM'),
   };
 };
 

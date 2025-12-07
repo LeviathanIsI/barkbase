@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Database, Download, Trash2, AlertTriangle, FileText, Clock } from 'lucide-react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import { useAuthStore } from '@/stores/auth';
 
 const PrivacyControls = () => {
+  const user = useAuthStore((state) => state.user);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState({ email: '', confirmation: '' });
 
@@ -12,7 +14,7 @@ const PrivacyControls = () => {
   };
 
   const handleAccountDeletion = () => {
-    if (deleteConfirm.email !== 'joshua.r.bradford1@gmail.com' ||
+    if (deleteConfirm.email !== user?.email ||
         deleteConfirm.confirmation !== 'DELETE') {
       // TODO: Show error
       return;
@@ -139,7 +141,7 @@ const PrivacyControls = () => {
                     type="email"
                     value={deleteConfirm.email}
                     onChange={(e) => setDeleteConfirm(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="joshua.r.bradford1@gmail.com"
+                    placeholder={user?.email || 'your-email@example.com'}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
                   />
                 </div>
@@ -167,7 +169,7 @@ const PrivacyControls = () => {
                 className="bg-red-600 hover:bg-red-700"
                 onClick={handleAccountDeletion}
                 disabled={
-                  deleteConfirm.email !== 'joshua.r.bradford1@gmail.com' ||
+                  deleteConfirm.email !== user?.email ||
                   deleteConfirm.confirmation !== 'DELETE'
                 }
               >

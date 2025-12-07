@@ -32,7 +32,7 @@ try {
   sharedLayer = require('../../layers/shared-layer/nodejs/index');
 }
 
-const { getPoolAsync, query } = dbLayer;
+const { getPoolAsync, query, softDelete, softDeleteBatch } = dbLayer;
 const {
   authenticateRequest,
   createResponse,
@@ -127,19 +127,19 @@ exports.handler = async (event, context) => {
     // Booking bulk actions
     if (path === '/api/v1/operations/bookings/bulk/delete') {
       if (method === 'POST') {
-        return handleBulkDeleteBookings(tenantId, parseBody(event));
+        return handleBulkDeleteBookings(tenantId, user, parseBody(event));
       }
     }
 
     if (path === '/api/v1/operations/bookings/bulk/update') {
       if (method === 'POST') {
-        return handleBulkUpdateBookings(tenantId, parseBody(event));
+        return handleBulkUpdateBookings(tenantId, user, parseBody(event));
       }
     }
 
     if (path === '/api/v1/operations/bookings/bulk/export') {
       if (method === 'POST') {
-        return handleBulkExportBookings(tenantId, parseBody(event));
+        return handleBulkExportBookings(tenantId, user, parseBody(event));
       }
     }
 
@@ -185,7 +185,7 @@ exports.handler = async (event, context) => {
           return handleUpdateRecurringBooking(tenantId, user, recurringId, parseBody(event));
         }
         if (method === 'DELETE') {
-          return handleDeleteRecurringBooking(tenantId, recurringId);
+          return handleDeleteRecurringBooking(tenantId, user, recurringId);
         }
       }
     }
@@ -242,7 +242,7 @@ exports.handler = async (event, context) => {
           return handleUpdateTask(tenantId, taskId, parseBody(event));
         }
         if (method === 'DELETE') {
-          return handleDeleteTask(tenantId, taskId);
+          return handleDeleteTask(tenantId, user, taskId);
         }
       }
     }
@@ -347,7 +347,7 @@ exports.handler = async (event, context) => {
           return handleUpdateTimeEntry(tenantId, user, entryId, parseBody(event));
         }
         if (method === 'DELETE') {
-          return handleDeleteTimeEntry(tenantId, entryId);
+          return handleDeleteTimeEntry(tenantId, user, entryId);
         }
       }
     }
@@ -750,7 +750,7 @@ async function handleGetBookings(tenantId, queryParams) {
     // Diagnostic: count for THIS tenant only (tenant-scoped for security)
     try {
       const diagCount = await query(
-        `SELECT COUNT(*) as cnt FROM "Booking" WHERE tenant_id = $1 AND deleted_at IS NULL`,
+        `SELECT COUNT(*) as cnt FROM "Booking" WHERE tenant_id = $1 `,
         [tenantId]
       );
       console.log('[Bookings][diag] count for tenant', tenantId, ':', diagCount.rows[0]?.cnt || 0);
@@ -861,8 +861,7 @@ async function handleGetBookings(tenantId, queryParams) {
        LEFT JOIN "Service" s ON b.service_id = s.id
        LEFT JOIN "Owner" o ON b.owner_id = o.id
        LEFT JOIN "BookingPet" bp ON bp.booking_id = b.id
-       WHERE ${whereClause} AND b.deleted_at IS NULL
-       GROUP BY b.id, k.id, k.name, s.id, s.name, o.id, o.first_name, o.last_name, o.email, o.phone
+       WHERE ${whereClause}       GROUP BY b.id, k.id, k.name, s.id, s.name, o.id, o.first_name, o.last_name, o.email, o.phone
        ORDER BY b.check_in DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
       [...params, parseInt(limit), parseInt(offset)]
@@ -873,6 +872,7 @@ async function handleGetBookings(tenantId, queryParams) {
     let petsMap = {};
 
     if (bookingIds.length > 0) {
+      // First, try to get pets from BookingPet join table
       const petsResult = await query(
         `SELECT
            bp.booking_id,
@@ -897,6 +897,37 @@ async function handleGetBookings(tenantId, queryParams) {
           breed: pet.breed,
         });
       });
+
+      // Fallback: For bookings with pet_id but no BookingPet entries, lookup pet directly
+      const bookingsWithDirectPetId = result.rows.filter(
+        row => row.pet_id && (!petsMap[row.id] || petsMap[row.id].length === 0)
+      );
+
+      if (bookingsWithDirectPetId.length > 0) {
+        const directPetIds = bookingsWithDirectPetId.map(b => b.pet_id);
+        const directPetsResult = await query(
+          `SELECT id, name, species, breed FROM "Pet" WHERE id = ANY($1)`,
+          [directPetIds]
+        );
+
+        const directPetsById = {};
+        directPetsResult.rows.forEach(pet => {
+          directPetsById[pet.id] = {
+            id: pet.id,
+            name: pet.name,
+            species: pet.species,
+            breed: pet.breed,
+          };
+        });
+
+        // Add direct pets to petsMap for bookings that don't have BookingPet entries
+        bookingsWithDirectPetId.forEach(booking => {
+          const pet = directPetsById[booking.pet_id];
+          if (pet) {
+            petsMap[booking.id] = [pet];
+          }
+        });
+      }
     }
 
     console.log('[Bookings][diag] count:', result.rows.length);
@@ -997,7 +1028,7 @@ async function handleGetBooking(tenantId, bookingId) {
        LEFT JOIN "Kennel" k ON b.kennel_id = k.id
        LEFT JOIN "Service" s ON b.service_id = s.id
        LEFT JOIN "Owner" o ON b.owner_id = o.id
-       WHERE b.id = $1 AND b.tenant_id = $2 AND b.deleted_at IS NULL`,
+       WHERE b.id = $1 AND b.tenant_id = $2`,
       [bookingId, tenantId]
     );
 
@@ -1010,7 +1041,7 @@ async function handleGetBooking(tenantId, bookingId) {
 
     const booking = result.rows[0];
 
-    // Get pets for this booking
+    // Get pets for this booking from BookingPet join table
     const petsResult = await query(
       `SELECT p.id, p.name, p.species, p.breed
        FROM "BookingPet" bp
@@ -1018,6 +1049,19 @@ async function handleGetBooking(tenantId, bookingId) {
        WHERE bp.booking_id = $1`,
       [bookingId]
     );
+
+    let pets = petsResult.rows;
+
+    // Fallback: If no BookingPet entries but pet_id is set, lookup pet directly
+    if (pets.length === 0 && booking.pet_id) {
+      const directPetResult = await query(
+        `SELECT id, name, species, breed FROM "Pet" WHERE id = $1`,
+        [booking.pet_id]
+      );
+      if (directPetResult.rows.length > 0) {
+        pets = directPetResult.rows;
+      }
+    }
 
     return createResponse(200, {
       id: booking.id,
@@ -1047,7 +1091,7 @@ async function handleGetBooking(tenantId, bookingId) {
         email: booking.owner_email,
         phone: booking.owner_phone,
       } : null,
-      pets: petsResult.rows,
+      pets: pets,
       cancelledAt: booking.cancelled_at,
       cancellationReason: booking.cancellation_reason,
       createdAt: booking.created_at,
@@ -1207,7 +1251,7 @@ async function checkBookingCapacity(tenantId, kennelId, startDate, endDate) {
       const kennelResult = await query(
         `SELECT k.id, k.name, k.capacity
          FROM "Kennel" k
-         WHERE k.id = $1 AND k.tenant_id = $2 AND k.is_active = true AND k.deleted_at IS NULL`,
+         WHERE k.id = $1 AND k.tenant_id = $2 AND k.is_active = true`,
         [kennelId, tenantId]
       );
 
@@ -1230,8 +1274,7 @@ async function checkBookingCapacity(tenantId, kennelId, startDate, endDate) {
          FROM "Booking" b
          WHERE b.tenant_id = $1
            AND b.kennel_id = $2
-           AND b.deleted_at IS NULL
-           AND b.status NOT IN ('CANCELLED', 'NO_SHOW', 'CHECKED_OUT')
+                     AND b.status NOT IN ('CANCELLED', 'NO_SHOW', 'CHECKED_OUT')
            AND b.check_in < $4::timestamptz
            AND b.check_out > $3::timestamptz`,
         [tenantId, kennelId, startDate, endDate]
@@ -1259,7 +1302,7 @@ async function checkBookingCapacity(tenantId, kennelId, startDate, endDate) {
          COALESCE(SUM(k.capacity), 0) as total_capacity,
          COUNT(k.id) as kennel_count
        FROM "Kennel" k
-       WHERE k.tenant_id = $1 AND k.is_active = true AND k.deleted_at IS NULL`,
+       WHERE k.tenant_id = $1 AND k.is_active = true`,
       [tenantId]
     );
 
@@ -1293,8 +1336,7 @@ async function checkBookingCapacity(tenantId, kennelId, startDate, endDate) {
       `SELECT COUNT(*) as count
        FROM "Booking" b
        WHERE b.tenant_id = $1
-         AND b.deleted_at IS NULL
-         AND b.status NOT IN ('CANCELLED', 'NO_SHOW', 'CHECKED_OUT')
+                 AND b.status NOT IN ('CANCELLED', 'NO_SHOW', 'CHECKED_OUT')
          AND b.check_in < $3::timestamptz
          AND b.check_out > $2::timestamptz`,
       [tenantId, startDate, endDate]
@@ -1477,8 +1519,7 @@ async function handleUpdateBooking(tenantId, bookingId, body) {
     const result = await query(
       `UPDATE "Booking"
        SET ${updates.join(', ')}
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING *`,
+       WHERE id = $1 AND tenant_id = $2       RETURNING *`,
       values
     );
 
@@ -1781,7 +1822,11 @@ async function handleCheckOut(tenantId, bookingId, body) {
  * Bulk delete bookings (soft delete by setting status to CANCELLED)
  * Body: { ids: string[] }
  */
-async function handleBulkDeleteBookings(tenantId, body) {
+async function handleBulkDeleteBookings(tenantId, user, body) {
+  // Check permission
+  const permError = checkPermission(user, PERMISSIONS.BOOKINGS_DELETE, createResponse);
+  if (permError) return permError;
+
   const { ids } = body;
 
   console.log('[Bookings][bulkDelete] tenantId:', tenantId, 'count:', ids?.length);
@@ -1803,21 +1848,24 @@ async function handleBulkDeleteBookings(tenantId, body) {
   try {
     await getPoolAsync();
 
-    const result = await query(
+    // First update status to CANCELLED for all bookings
+    await query(
       `UPDATE "Booking"
-       SET status = 'CANCELLED', deleted_at = NOW(), updated_at = NOW()
-       WHERE id = ANY($1) AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING id`,
+       SET status = 'CANCELLED', updated_at = NOW()
+       WHERE id = ANY($1) AND tenant_id = $2`,
       [ids, tenantId]
     );
 
-    console.log('[Bookings][bulkDelete] cancelled:', result.rowCount);
+    // Then soft delete them using the new archive pattern
+    const deletedCount = await softDeleteBatch('Booking', ids, tenantId, user.userId);
+
+    console.log('[Bookings][bulkDelete] cancelled:', deletedCount);
 
     return createResponse(200, {
       success: true,
-      deletedCount: result.rowCount,
-      deletedIds: result.rows.map(r => r.id),
-      message: `${result.rowCount} booking(s) cancelled successfully`,
+      deletedCount: deletedCount,
+      deletedIds: ids.slice(0, deletedCount),
+      message: `${deletedCount} booking(s) cancelled successfully`,
     });
   } catch (error) {
     console.error('[OPERATIONS-SERVICE] bulkDeleteBookings error:', error);
@@ -1832,7 +1880,11 @@ async function handleBulkDeleteBookings(tenantId, body) {
  * Bulk update bookings status
  * Body: { ids: string[], updates: { status?: string } }
  */
-async function handleBulkUpdateBookings(tenantId, body) {
+async function handleBulkUpdateBookings(tenantId, user, body) {
+  // Check permission
+  const permError = checkPermission(user, PERMISSIONS.BOOKINGS_EDIT, createResponse);
+  if (permError) return permError;
+
   const { ids, updates } = body;
 
   console.log('[Bookings][bulkUpdate] tenantId:', tenantId, 'count:', ids?.length);
@@ -1891,8 +1943,7 @@ async function handleBulkUpdateBookings(tenantId, body) {
     const result = await query(
       `UPDATE "Booking"
        SET ${setClauses.join(', ')}
-       WHERE id = ANY($1) AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING id`,
+       WHERE id = ANY($1) AND tenant_id = $2       RETURNING id`,
       values
     );
 
@@ -1917,7 +1968,11 @@ async function handleBulkUpdateBookings(tenantId, body) {
  * Bulk export bookings
  * Body: { ids?: string[] } - if empty/missing, exports all
  */
-async function handleBulkExportBookings(tenantId, body) {
+async function handleBulkExportBookings(tenantId, user, body) {
+  // Check permission
+  const permError = checkPermission(user, PERMISSIONS.BOOKINGS_VIEW, createResponse);
+  if (permError) return permError;
+
   const { ids, startDate, endDate } = body;
 
   console.log('[Bookings][bulkExport] tenantId:', tenantId, 'count:', ids?.length || 'all');
@@ -1948,8 +2003,7 @@ async function handleBulkExportBookings(tenantId, body) {
       FROM "Booking" b
       LEFT JOIN "Owner" o ON b.owner_id = o.id
       LEFT JOIN "Service" s ON b.service_id = s.id
-      WHERE b.tenant_id = $1 AND b.deleted_at IS NULL
-    `;
+      WHERE b.tenant_id = $1    `;
     const params = [tenantId];
     let paramIndex = 2;
 
@@ -2088,7 +2142,7 @@ async function handleGetTasks(tenantId, queryParams) {
   try {
     await getPoolAsync();
 
-    let whereClause = 't.tenant_id = $1 AND t.deleted_at IS NULL';
+    let whereClause = 't.tenant_id = $1';
     const params = [tenantId];
     let paramIndex = 2;
 
@@ -2123,39 +2177,34 @@ async function handleGetTasks(tenantId, queryParams) {
       params.push(due_date);
     }
 
-    // Schema: id, tenant_id, pet_id, owner_id, booking_id, assigned_to, type, status,
-    //         priority, title, description, notes, scheduled_for, due_at, completed_at, completed_by
+    // Schema: id, tenant_id, pet_id, booking_id, assigned_to, task_type, status,
+    //         priority, title, description, notes, due_at, completed_at, completed_by
     const result = await query(
       `SELECT
          t.id,
          t.tenant_id,
-         t.type,
+         t.task_type,
          t.title,
          t.description,
          t.notes,
          t.status,
          t.priority,
-         t.scheduled_for,
          t.due_at,
          t.completed_at,
          t.completed_by,
          t.assigned_to,
          t.booking_id,
          t.pet_id,
-         t.owner_id,
          t.created_at,
          t.updated_at,
          u.first_name as assignee_first_name,
          u.last_name as assignee_last_name,
-         p.name as pet_name,
-         o.first_name as owner_first_name,
-         o.last_name as owner_last_name
+         p.name as pet_name
        FROM "Task" t
        LEFT JOIN "User" u ON t.assigned_to = u.id
        LEFT JOIN "Pet" p ON t.pet_id = p.id
-       LEFT JOIN "Owner" o ON t.owner_id = o.id
        WHERE ${whereClause}
-       ORDER BY t.due_at ASC NULLS LAST, t.scheduled_for ASC NULLS LAST, t.priority DESC
+       ORDER BY t.due_at ASC NULLS LAST, t.priority DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
       [...params, parseInt(limit), parseInt(offset)]
     );
@@ -2164,14 +2213,16 @@ async function handleGetTasks(tenantId, queryParams) {
 
     const tasks = result.rows.map(row => ({
       id: row.id,
+      recordId: row.id,
       tenantId: row.tenant_id,
-      type: row.type,
+      type: row.task_type,  // Column is task_type, expose as type for frontend
+      taskType: row.task_type,
       title: row.title,
       description: row.description,
       notes: row.notes,
       status: row.status,
       priority: row.priority,
-      scheduledFor: row.scheduled_for,
+      scheduledFor: row.due_at,  // Use due_at as scheduledFor for frontend compatibility
       dueDate: row.due_at,  // Alias for frontend compatibility
       dueAt: row.due_at,
       completedAt: row.completed_at,
@@ -2183,10 +2234,6 @@ async function handleGetTasks(tenantId, queryParams) {
       bookingId: row.booking_id,
       petId: row.pet_id,
       petName: row.pet_name,
-      ownerId: row.owner_id,
-      ownerName: row.owner_first_name
-        ? `${row.owner_first_name} ${row.owner_last_name || ''}`.trim()
-        : null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));
@@ -2233,7 +2280,7 @@ async function handleGetTask(tenantId, taskId) {
       `SELECT t.*, u.first_name, u.last_name
        FROM "Task" t
        LEFT JOIN "User" u ON t.assigned_to = u.id
-       WHERE t.id = $1 AND t.tenant_id = $2 AND t.deleted_at IS NULL`,
+       WHERE t.id = $1 AND t.tenant_id = $2`,
       [taskId, tenantId]
     );
 
@@ -2249,7 +2296,8 @@ async function handleGetTask(tenantId, taskId) {
     return createResponse(200, {
       id: row.id,
       tenantId: row.tenant_id,
-      type: row.type,
+      type: row.task_type,  // Column is task_type, expose as type for frontend
+      taskType: row.task_type,
       title: row.title,
       description: row.description,
       notes: row.notes,
@@ -2283,7 +2331,7 @@ async function handleGetTask(tenantId, taskId) {
  * Schema: due_at (not due_date)
  */
 async function handleCreateTask(tenantId, user, body) {
-  const { title, description, priority, dueDate, dueAt, assignedTo, bookingId, petId, scheduledFor, type } = body;
+  const { title, description, priority, dueDate, dueAt, assignedTo, bookingId, petId, scheduledFor, type, taskType } = body;
 
   if (!title) {
     return createResponse(400, {
@@ -2297,12 +2345,14 @@ async function handleCreateTask(tenantId, user, body) {
 
     // Support both dueDate (frontend) and dueAt (schema)
     const dueDateValue = dueAt || dueDate || null;
+    // Support both type (frontend) and taskType - column is task_type
+    const taskTypeValue = taskType || type || 'OTHER';
 
     const result = await query(
-      `INSERT INTO "Task" (tenant_id, title, description, priority, due_at, scheduled_for, type, assigned_to, booking_id, pet_id, status, created_at, updated_at)
+      `INSERT INTO "Task" (tenant_id, title, description, priority, due_at, scheduled_for, task_type, assigned_to, booking_id, pet_id, status, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'PENDING', NOW(), NOW())
        RETURNING *`,
-      [tenantId, title, description, priority || 'NORMAL', dueDateValue, scheduledFor || null, type || 'OTHER', assignedTo, bookingId, petId]
+      [tenantId, title, description, priority || 'NORMAL', dueDateValue, scheduledFor || null, taskTypeValue, assignedTo, bookingId, petId]
     );
 
     const task = result.rows[0];
@@ -2311,7 +2361,9 @@ async function handleCreateTask(tenantId, user, body) {
       success: true,
       task: {
         ...task,
-        dueDate: task.due_at, // Alias for frontend
+        type: task.task_type,  // Alias for frontend
+        taskType: task.task_type,
+        dueDate: task.due_at,
         dueAt: task.due_at,
       },
     });
@@ -2327,10 +2379,10 @@ async function handleCreateTask(tenantId, user, body) {
 
 /**
  * Update task
- * Schema: due_at (not due_date)
+ * Schema: due_at (not due_date), task_type (not type)
  */
 async function handleUpdateTask(tenantId, taskId, body) {
-  const { title, description, status, priority, dueDate, dueAt, assignedTo, scheduledFor, type } = body;
+  const { title, description, status, priority, dueDate, dueAt, assignedTo, scheduledFor, type, taskType } = body;
 
   try {
     await getPoolAsync();
@@ -2364,9 +2416,10 @@ async function handleUpdateTask(tenantId, taskId, body) {
       updates.push(`scheduled_for = $${paramIndex++}`);
       values.push(scheduledFor);
     }
-    if (type) {
-      updates.push(`type = $${paramIndex++}`);
-      values.push(type.toUpperCase());
+    // Support both type (frontend) and taskType - column is task_type
+    if (type || taskType) {
+      updates.push(`task_type = $${paramIndex++}`);
+      values.push((taskType || type).toUpperCase());
     }
     if (assignedTo !== undefined) {
       updates.push(`assigned_to = $${paramIndex++}`);
@@ -2385,8 +2438,7 @@ async function handleUpdateTask(tenantId, taskId, body) {
     const result = await query(
       `UPDATE "Task"
        SET ${updates.join(', ')}
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING *`,
+       WHERE id = $1 AND tenant_id = $2       RETURNING *`,
       values
     );
 
@@ -2403,7 +2455,9 @@ async function handleUpdateTask(tenantId, taskId, body) {
       success: true,
       task: {
         ...task,
-        dueDate: task.due_at, // Alias for frontend
+        type: task.task_type,  // Alias for frontend
+        taskType: task.task_type,
+        dueDate: task.due_at,
         dueAt: task.due_at,
       },
     });
@@ -2457,7 +2511,11 @@ async function handleCompleteTask(tenantId, taskId) {
 /**
  * Delete task
  */
-async function handleDeleteTask(tenantId, taskId) {
+async function handleDeleteTask(tenantId, user, taskId) {
+  // Check permission
+  const permError = checkPermission(user, PERMISSIONS.TASKS_DELETE, createResponse);
+  if (permError) return permError;
+
   try {
     await getPoolAsync();
 
@@ -2573,40 +2631,22 @@ async function handleGetRunTemplates(tenantId, queryParams) {
   try {
     await getPoolAsync();
 
-    // Check if RunTemplate table exists
-    const tableCheck = await query(
-      `SELECT EXISTS (
-        SELECT FROM information_schema.tables
-        WHERE table_name = 'RunTemplate'
-      ) as exists`
-    );
-
-    if (!tableCheck.rows[0]?.exists) {
-      console.log('[RunTemplates] Table does not exist, returning empty array');
-      return createResponse(200, {
-        data: [],
-        runTemplates: [],
-        total: 0,
-        message: 'Run templates retrieved (table not initialized)',
-      });
-    }
-
     const result = await query(
       `SELECT
          rt.id,
          rt.name,
          rt.description,
-         rt.time_period_minutes,
-         rt.max_capacity,
-         rt.capacity_type,
-         rt.species_allowed,
+         rt.capacity,
+         rt.start_time,
+         rt.end_time,
+         rt.days_of_week,
+         rt.run_type,
          rt.is_active,
-         rt.sort_order,
          rt.created_at,
          rt.updated_at
        FROM "RunTemplate" rt
-       WHERE rt.tenant_id = $1 AND rt.deleted_at IS NULL
-       ORDER BY rt.sort_order ASC, rt.name ASC`,
+       WHERE rt.tenant_id = $1
+       ORDER BY rt.name ASC`,
       [tenantId]
     );
 
@@ -2615,15 +2655,16 @@ async function handleGetRunTemplates(tenantId, queryParams) {
     // Map to frontend expected shape
     const templates = result.rows.map(row => ({
       id: row.id,
-      recordId: row.id, // Frontend uses recordId for mutations
+      recordId: row.id,
       name: row.name,
       description: row.description,
-      timePeriodMinutes: row.time_period_minutes,
-      maxCapacity: row.max_capacity,
-      capacityType: row.capacity_type,
-      speciesAllowed: row.species_allowed || ['Dog'],
+      capacity: row.capacity,
+      startTime: row.start_time,
+      endTime: row.end_time,
+      daysOfWeek: row.days_of_week || [1, 2, 3, 4, 5],
+      runType: row.run_type,
       isActive: row.is_active,
-      sortOrder: row.sort_order,
+      status: row.is_active ? 'active' : 'inactive',
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));
@@ -2666,16 +2707,16 @@ async function handleGetRunTemplate(tenantId, templateId) {
          rt.id,
          rt.name,
          rt.description,
-         rt.time_period_minutes,
-         rt.max_capacity,
-         rt.capacity_type,
-         rt.species_allowed,
+         rt.capacity,
+         rt.start_time,
+         rt.end_time,
+         rt.days_of_week,
+         rt.run_type,
          rt.is_active,
-         rt.sort_order,
          rt.created_at,
          rt.updated_at
        FROM "RunTemplate" rt
-       WHERE rt.id = $1 AND rt.tenant_id = $2 AND rt.deleted_at IS NULL`,
+       WHERE rt.id = $1 AND rt.tenant_id = $2`,
       [templateId, tenantId]
     );
 
@@ -2693,12 +2734,13 @@ async function handleGetRunTemplate(tenantId, templateId) {
       recordId: row.id,
       name: row.name,
       description: row.description,
-      timePeriodMinutes: row.time_period_minutes,
-      maxCapacity: row.max_capacity,
-      capacityType: row.capacity_type,
-      speciesAllowed: row.species_allowed || ['Dog'],
+      capacity: row.capacity,
+      startTime: row.start_time,
+      endTime: row.end_time,
+      daysOfWeek: row.days_of_week || [1, 2, 3, 4, 5],
+      runType: row.run_type,
       isActive: row.is_active,
-      sortOrder: row.sort_order,
+      status: row.is_active ? 'active' : 'inactive',
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     });
@@ -2715,7 +2757,7 @@ async function handleGetRunTemplate(tenantId, templateId) {
 async function handleCreateRunTemplate(tenantId, body) {
   console.log('[RunTemplates][create] tenantId:', tenantId, 'payload:', JSON.stringify(body));
 
-  const { name, description, timePeriodMinutes, maxCapacity, capacityType, speciesAllowed } = body;
+  const { name, description, capacity, startTime, endTime, daysOfWeek, runType } = body;
 
   if (!name) {
     return createResponse(400, {
@@ -2727,31 +2769,22 @@ async function handleCreateRunTemplate(tenantId, body) {
   try {
     await getPoolAsync();
 
-    // Get next sort order
-    const sortOrderResult = await query(
-      `SELECT COALESCE(MAX(sort_order), 0) + 1 as next_order
-       FROM "RunTemplate"
-       WHERE tenant_id = $1 AND deleted_at IS NULL`,
-      [tenantId]
-    );
-    const nextSortOrder = sortOrderResult.rows[0]?.next_order || 1;
-
     const result = await query(
       `INSERT INTO "RunTemplate" (
-         tenant_id, name, description, time_period_minutes, max_capacity,
-         capacity_type, species_allowed, is_active, sort_order, created_at, updated_at
+         tenant_id, name, description, capacity, start_time, end_time,
+         days_of_week, run_type, is_active, created_at, updated_at
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, true, $8, NOW(), NOW())
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, NOW(), NOW())
        RETURNING *`,
       [
         tenantId,
         name,
         description || null,
-        timePeriodMinutes || 30,
-        maxCapacity || 10,
-        capacityType || 'total',
-        speciesAllowed || ['Dog'],
-        nextSortOrder,
+        capacity || 10,
+        startTime || '08:00',
+        endTime || '18:00',
+        daysOfWeek || [1, 2, 3, 4, 5],
+        runType || 'SOCIAL',
       ]
     );
 
@@ -2765,12 +2798,13 @@ async function handleCreateRunTemplate(tenantId, body) {
       recordId: row.id,
       name: row.name,
       description: row.description,
-      timePeriodMinutes: row.time_period_minutes,
-      maxCapacity: row.max_capacity,
-      capacityType: row.capacity_type,
-      speciesAllowed: row.species_allowed,
+      capacity: row.capacity,
+      startTime: row.start_time,
+      endTime: row.end_time,
+      daysOfWeek: row.days_of_week,
+      runType: row.run_type,
       isActive: row.is_active,
-      sortOrder: row.sort_order,
+      status: 'active',
       createdAt: row.created_at,
       message: 'Run template created successfully',
     });
@@ -2787,7 +2821,7 @@ async function handleCreateRunTemplate(tenantId, body) {
 async function handleUpdateRunTemplate(tenantId, templateId, body) {
   console.log('[RunTemplates][update] tenantId:', tenantId, 'templateId:', templateId, 'payload:', JSON.stringify(body));
 
-  const { name, description, timePeriodMinutes, maxCapacity, capacityType, speciesAllowed, isActive, sortOrder } = body;
+  const { name, description, capacity, startTime, endTime, daysOfWeek, runType, isActive } = body;
 
   try {
     await getPoolAsync();
@@ -2804,29 +2838,29 @@ async function handleUpdateRunTemplate(tenantId, templateId, body) {
       updates.push(`description = $${paramIndex++}`);
       values.push(description);
     }
-    if (timePeriodMinutes !== undefined) {
-      updates.push(`time_period_minutes = $${paramIndex++}`);
-      values.push(timePeriodMinutes);
+    if (capacity !== undefined) {
+      updates.push(`capacity = $${paramIndex++}`);
+      values.push(capacity);
     }
-    if (maxCapacity !== undefined) {
-      updates.push(`max_capacity = $${paramIndex++}`);
-      values.push(maxCapacity);
+    if (startTime !== undefined) {
+      updates.push(`start_time = $${paramIndex++}`);
+      values.push(startTime);
     }
-    if (capacityType !== undefined) {
-      updates.push(`capacity_type = $${paramIndex++}`);
-      values.push(capacityType);
+    if (endTime !== undefined) {
+      updates.push(`end_time = $${paramIndex++}`);
+      values.push(endTime);
     }
-    if (speciesAllowed !== undefined) {
-      updates.push(`species_allowed = $${paramIndex++}`);
-      values.push(speciesAllowed);
+    if (daysOfWeek !== undefined) {
+      updates.push(`days_of_week = $${paramIndex++}`);
+      values.push(daysOfWeek);
+    }
+    if (runType !== undefined) {
+      updates.push(`run_type = $${paramIndex++}`);
+      values.push(runType);
     }
     if (isActive !== undefined) {
       updates.push(`is_active = $${paramIndex++}`);
       values.push(isActive);
-    }
-    if (sortOrder !== undefined) {
-      updates.push(`sort_order = $${paramIndex++}`);
-      values.push(sortOrder);
     }
 
     if (updates.length === 0) {
@@ -2841,7 +2875,7 @@ async function handleUpdateRunTemplate(tenantId, templateId, body) {
     const result = await query(
       `UPDATE "RunTemplate"
        SET ${updates.join(', ')}
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
+       WHERE id = $1 AND tenant_id = $2
        RETURNING *`,
       values
     );
@@ -2863,12 +2897,13 @@ async function handleUpdateRunTemplate(tenantId, templateId, body) {
       recordId: row.id,
       name: row.name,
       description: row.description,
-      timePeriodMinutes: row.time_period_minutes,
-      maxCapacity: row.max_capacity,
-      capacityType: row.capacity_type,
-      speciesAllowed: row.species_allowed,
+      capacity: row.capacity,
+      startTime: row.start_time,
+      endTime: row.end_time,
+      daysOfWeek: row.days_of_week || [1, 2, 3, 4, 5],
+      runType: row.run_type,
       isActive: row.is_active,
-      sortOrder: row.sort_order,
+      status: row.is_active ? 'active' : 'inactive',
       updatedAt: row.updated_at,
       message: 'Run template updated successfully',
     });
@@ -2886,18 +2921,10 @@ async function handleDeleteRunTemplate(tenantId, templateId) {
   console.log('[RunTemplates][delete] tenantId:', tenantId, 'templateId:', templateId);
 
   try {
-    await getPoolAsync();
+    // Soft delete using archive pattern
+    const deletedRecord = await softDelete('RunTemplate', templateId, tenantId);
 
-    // Soft delete
-    const result = await query(
-      `UPDATE "RunTemplate"
-       SET deleted_at = NOW(), updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING id`,
-      [templateId, tenantId]
-    );
-
-    if (result.rows.length === 0) {
+    if (!deletedRecord) {
       return createResponse(404, {
         error: 'Not Found',
         message: 'Run template not found',
@@ -2975,56 +3002,45 @@ async function handleDeleteRunTemplate(tenantId, templateId) {
 /**
  * Get all runs for tenant
  *
- * Schema (Run table - NEW):
- *   id, tenant_id, facility_id, template_id, name, code, size, species,
- *   sort_order, is_active, created_at, updated_at, deleted_at
+ * Schema (Run table):
+ *   id, tenant_id, name, description, capacity, run_type, is_active
  */
 async function handleGetRuns(tenantId, queryParams) {
-  const { isActive, facilityId } = queryParams;
-  console.log('[Runs][list] tenantId:', tenantId, 'isActive:', isActive, 'facilityId:', facilityId);
+  const { isActive } = queryParams;
+  console.log('[Runs][list] tenantId:', tenantId, 'isActive:', isActive);
 
   try {
     await getPoolAsync();
 
-    let whereClause = 'r.tenant_id = $1 AND r.deleted_at IS NULL';
+    let whereClause = 'r.tenant_id = $1';
     const params = [tenantId];
     let paramIndex = 2;
 
     // Filter by active status (default to active only)
+    // Note: is_active may be boolean, string, or NULL - be lenient
     if (isActive !== undefined) {
-      whereClause += ` AND r.is_active = $${paramIndex++}`;
-      params.push(isActive === 'true' || isActive === true);
+      if (isActive === 'true' || isActive === true) {
+        whereClause += ` AND (r.is_active = true OR r.is_active::text = 'true' OR r.is_active IS NULL)`;
+      } else {
+        whereClause += ` AND r.is_active = false`;
+      }
     } else {
-      whereClause += ' AND r.is_active = true';
-    }
-
-    // Filter by facility
-    if (facilityId) {
-      whereClause += ` AND r.facility_id = $${paramIndex++}`;
-      params.push(facilityId);
+      // Default: show active runs (or runs where is_active is not explicitly false)
+      whereClause += ` AND (r.is_active = true OR r.is_active::text = 'true' OR r.is_active IS NULL)`;
     }
 
     const result = await query(
       `SELECT
          r.id,
-         r.template_id,
-         r.facility_id,
          r.name,
-         r.code,
-         r.size,
-         r.species,
-         r.sort_order,
+         r.description,
+         r.capacity,
+         r.run_type,
          r.is_active,
-         r.created_at,
-         r.updated_at,
-         rt.name as template_name,
-         rt.max_capacity,
-         rt.time_period_minutes,
-         (SELECT COUNT(*) FROM "RunAssignment" ra WHERE ra.run_id = r.id AND ra.deleted_at IS NULL) as assignment_count
+         (SELECT COUNT(*) FROM "RunAssignment" ra WHERE ra.run_id = r.id) as assignment_count
        FROM "Run" r
-       LEFT JOIN "RunTemplate" rt ON r.template_id = rt.id AND rt.tenant_id = r.tenant_id
        WHERE ${whereClause}
-       ORDER BY r.sort_order ASC, r.name ASC`,
+       ORDER BY r.name ASC`,
       params
     );
 
@@ -3032,20 +3048,13 @@ async function handleGetRuns(tenantId, queryParams) {
 
     const runs = result.rows.map(row => ({
       id: row.id,
-      templateId: row.template_id,
-      facilityId: row.facility_id,
-      templateName: row.template_name,
       name: row.name,
-      code: row.code,
-      size: row.size,
-      species: row.species,
-      sortOrder: row.sort_order,
+      description: row.description,
+      capacity: row.capacity || 10,
+      maxCapacity: row.capacity || 10,
+      runType: row.run_type,
       isActive: row.is_active,
-      maxCapacity: row.max_capacity || 10,
-      timePeriodMinutes: row.time_period_minutes,
       assignmentCount: parseInt(row.assignment_count || 0),
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
     }));
 
     return createResponse(200, {
@@ -3127,61 +3136,56 @@ async function handleGetRunAssignments(tenantId, queryParams) {
 
     // Debug: Check total assignments for tenant first
     const debugCount = await query(
-      `SELECT COUNT(*) as total FROM "RunAssignment" WHERE tenant_id = $1 AND deleted_at IS NULL`,
+      `SELECT COUNT(*) as total FROM "RunAssignment" WHERE tenant_id = $1`,
       [tenantId]
     );
     console.log('[RunAssignments][debug] Total assignments for tenant:', debugCount.rows[0]?.total);
 
     // Debug: Check assignments in date range without other filters
+    // RunAssignment schema: id, tenant_id, run_id, booking_id, pet_id, assigned_date, start_time, end_time, is_individual
     const debugRangeCount = await query(
       `SELECT COUNT(*) as total FROM "RunAssignment"
        WHERE tenant_id = $1
-         AND deleted_at IS NULL
-         AND DATE(start_at) >= $2::date
-         AND DATE(start_at) <= $3::date`,
+         AND assigned_date >= $2::date
+         AND assigned_date <= $3::date`,
       [tenantId, rangeStart, rangeEnd]
     );
     console.log('[RunAssignments][debug] Assignments in date range:', debugRangeCount.rows[0]?.total);
 
-    // Query run assignments with joins to Run, RunTemplate, Pet, Booking
-    // Using the NEW schema: start_at/end_at (timestamptz), booking_id
-    // Use LEFT JOINs for Pet to avoid losing rows if pet is missing
-    // Date range: include all assignments where start_at falls within the range (inclusive)
+    // Query run assignments with joins to Run, Pet, Booking, Kennel
+    // RunAssignment schema: id, tenant_id, run_id, booking_id, pet_id, assigned_date, start_time, end_time, is_individual
+    // Run schema: id, tenant_id, name, description, capacity, run_type, is_active
     const result = await query(
       `SELECT
          ra.id,
          ra.run_id,
          ra.booking_id,
          ra.pet_id,
-         ra.start_at,
-         ra.end_at,
-         ra.status,
-         ra.notes,
+         ra.assigned_date,
+         ra.start_time,
+         ra.end_time,
+         ra.is_individual,
          r.name as run_name,
-         r.code as run_code,
-         r.size as run_size,
-         r.species as run_species,
-         r.sort_order as run_sort_order,
-         rt.id as template_id,
-         rt.name as template_name,
-         rt.max_capacity,
-         rt.time_period_minutes,
+         r.description as run_description,
+         r.capacity as run_capacity,
+         r.run_type,
          p.name as pet_name,
          p.species as pet_species,
          p.breed as pet_breed,
          p.photo_url as pet_photo_url,
          o.first_name as owner_first_name,
          o.last_name as owner_last_name,
+         o.phone as owner_phone,
          b.status as booking_status,
-         b.service_type,
-         b.service_name
+         b.check_in as booking_check_in,
+         b.check_out as booking_check_out,
+         b.total_price_cents as booking_total_cents,
+         b.kennel_id,
+         k.name as kennel_name
        FROM "RunAssignment" ra
        JOIN "Run" r
          ON r.id = ra.run_id
         AND r.tenant_id = ra.tenant_id
-       LEFT JOIN "RunTemplate" rt
-         ON rt.id = r.template_id
-        AND rt.tenant_id = r.tenant_id
        LEFT JOIN "Pet" p
          ON p.id = ra.pet_id
        LEFT JOIN "Booking" b
@@ -3190,82 +3194,103 @@ async function handleGetRunAssignments(tenantId, queryParams) {
        LEFT JOIN "Owner" o
          ON o.id = b.owner_id
         AND o.tenant_id = ra.tenant_id
+       LEFT JOIN "Kennel" k
+         ON k.id = b.kennel_id
+        AND k.tenant_id = ra.tenant_id
        WHERE ra.tenant_id = $1
-         AND ra.deleted_at IS NULL
-         AND r.deleted_at IS NULL
-         AND r.is_active = true
-         AND DATE(ra.start_at) >= $2::date
-         AND DATE(ra.start_at) <= $3::date
-         AND UPPER(ra.status) IN ('SCHEDULED', 'CHECKED_IN', 'CHECKED_OUT', 'CONFIRMED', 'PENDING')
-       ORDER BY r.sort_order ASC, r.name ASC, ra.start_at ASC`,
+         AND (r.is_active = true OR r.is_active::text = 'true' OR r.is_active IS NULL)
+         AND ra.assigned_date >= $2::date
+         AND ra.assigned_date <= $3::date
+       ORDER BY r.name ASC, ra.start_time ASC`,
       [tenantId, rangeStart, rangeEnd]
     );
 
     console.log('[RunAssignments][list] Found:', result.rows.length, 'assignments after JOINs');
 
     // Transform to frontend-friendly format
-    const assignments = result.rows.map(row => ({
-      id: row.id,
-      runId: row.run_id,
-      runName: row.run_name,
-      runCode: row.run_code,
-      runSize: row.run_size,
-      runSpecies: row.run_species,
-      runSortOrder: row.run_sort_order,
-      templateId: row.template_id,
-      templateName: row.template_name,
-      maxCapacity: row.max_capacity,
-      timePeriodMinutes: row.time_period_minutes,
-      bookingId: row.booking_id,
-      bookingStatus: row.booking_status,
-      serviceType: row.service_type,
-      serviceName: row.service_name,
-      petId: row.pet_id,
-      petName: row.pet_name,
-      petSpecies: row.pet_species,
-      petBreed: row.pet_breed,
-      petPhotoUrl: row.pet_photo_url,
-      ownerName: row.owner_first_name && row.owner_last_name
-        ? `${row.owner_first_name} ${row.owner_last_name}`
-        : row.owner_first_name || row.owner_last_name || null,
-      startAt: row.start_at,
-      endAt: row.end_at,
-      // Also provide camelCase aliases for frontend compatibility
-      startTime: row.start_at,
-      endTime: row.end_at,
-      status: row.status,
-      notes: row.notes,
-    }));
+    const assignments = result.rows.map(row => {
+      // Format assigned_date as YYYY-MM-DD string
+      const dateStr = row.assigned_date instanceof Date
+        ? row.assigned_date.toISOString().split('T')[0]
+        : (typeof row.assigned_date === 'string' ? row.assigned_date.split('T')[0] : null);
+
+      // Combine date + time for full datetime (frontend expects ISO strings)
+      const startAt = dateStr && row.start_time
+        ? `${dateStr}T${row.start_time}`
+        : dateStr;
+      const endAt = dateStr && row.end_time
+        ? `${dateStr}T${row.end_time}`
+        : dateStr;
+
+      return {
+        id: row.id,
+        runId: row.run_id,
+        runName: row.run_name,
+        runDescription: row.run_description,
+        runCapacity: row.run_capacity,
+        runType: row.run_type,
+        bookingId: row.booking_id,
+        bookingStatus: row.booking_status,
+        bookingCheckIn: row.booking_check_in,
+        bookingCheckOut: row.booking_check_out,
+        bookingTotalCents: row.booking_total_cents || 0,
+        kennelId: row.kennel_id,
+        kennelName: row.kennel_name,
+        petId: row.pet_id,
+        petName: row.pet_name,
+        petSpecies: row.pet_species,
+        petBreed: row.pet_breed,
+        petPhotoUrl: row.pet_photo_url,
+        ownerName: row.owner_first_name && row.owner_last_name
+          ? `${row.owner_first_name} ${row.owner_last_name}`
+          : row.owner_first_name || row.owner_last_name || null,
+        ownerPhone: row.owner_phone,
+        assignedDate: dateStr,
+        startAt: startAt,
+        endAt: endAt,
+        startTime: row.start_time?.toString().slice(0, 5),  // Format as HH:MM
+        endTime: row.end_time?.toString().slice(0, 5),      // Format as HH:MM
+        isIndividual: row.is_individual,
+      };
+    });
 
     // Also get runs for utilization calculation
+    // First, debug: get ALL runs for this tenant regardless of is_active
+    const debugAllRuns = await query(
+      `SELECT r.id, r.name, r.is_active, r.tenant_id FROM "Run" r WHERE r.tenant_id = $1`,
+      [tenantId]
+    );
+    console.log('[RunAssignments][DEBUG] ALL runs for tenant:', tenantId, ':', debugAllRuns.rows.length, debugAllRuns.rows);
+
+    // Also try without tenant filter to see if data exists at all
+    const debugAnyRuns = await query(`SELECT r.id, r.name, r.tenant_id FROM "Run" r LIMIT 5`);
+    console.log('[RunAssignments][DEBUG] ANY runs in table:', debugAnyRuns.rows);
+
+    // Note: is_active may be boolean true, string 'true', or 1
     const runsResult = await query(
       `SELECT
          r.id,
          r.name,
-         r.code,
-         r.size,
-         r.species,
-         r.sort_order,
-         rt.max_capacity,
-         rt.name as template_name
+         r.description,
+         r.capacity,
+         r.run_type,
+         r.is_active
        FROM "Run" r
-       LEFT JOIN "RunTemplate" rt ON rt.id = r.template_id AND rt.tenant_id = r.tenant_id
        WHERE r.tenant_id = $1
-         AND r.deleted_at IS NULL
-         AND r.is_active = true
-       ORDER BY r.sort_order ASC, r.name ASC`,
+         AND (r.is_active = true OR r.is_active::text = 'true' OR r.is_active IS NULL)
+       ORDER BY r.name ASC`,
       [tenantId]
     );
+
+    console.log('[RunAssignments] Found runs:', runsResult.rows.length, runsResult.rows.map(r => ({ id: r.id, name: r.name, is_active: r.is_active })));
 
     const runs = runsResult.rows.map(row => ({
       id: row.id,
       name: row.name,
-      code: row.code,
-      size: row.size,
-      species: row.species,
-      sortOrder: row.sort_order,
-      maxCapacity: row.max_capacity || 10,
-      templateName: row.template_name,
+      description: row.description,
+      capacity: row.capacity || 10,
+      maxCapacity: row.capacity || 10,
+      runType: row.run_type,
     }));
 
     return createResponse(200, {
@@ -3339,15 +3364,38 @@ async function handleSaveRunAssignments(tenantId, body) {
     await query('BEGIN');
 
     try {
-      // First, soft delete all existing assignments for this date
-      await query(
-        `UPDATE "RunAssignment"
-         SET deleted_at = NOW(), updated_at = NOW()
+      // First, get IDs of existing assignments for this date to archive them
+      const existingAssignments = await query(
+        `SELECT id FROM "RunAssignment"
          WHERE tenant_id = $1
-           AND DATE(start_at) = $2::date
-           AND deleted_at IS NULL`,
+           AND DATE(start_at) = $2::date`,
         [tenantId, date]
       );
+
+      // Archive and delete existing assignments if any
+      if (existingAssignments.rows.length > 0) {
+        const idsToDelete = existingAssignments.rows.map(r => r.id);
+        // Archive each record before deletion
+        for (const row of existingAssignments.rows) {
+          const record = await query(
+            `SELECT * FROM "RunAssignment" WHERE id = $1 AND tenant_id = $2`,
+            [row.id, tenantId]
+          );
+          if (record.rows[0]) {
+            await query(
+              `INSERT INTO "DeletedRecord" (tenant_id, original_table, original_id, data, deleted_at)
+               VALUES ($1, $2, $3, $4, NOW())`,
+              [tenantId, 'RunAssignment', row.id, JSON.stringify(record.rows[0])]
+            );
+          }
+        }
+        // Hard delete the assignments
+        await query(
+          `DELETE FROM "RunAssignment"
+           WHERE tenant_id = $1 AND id = ANY($2)`,
+          [tenantId, idsToDelete]
+        );
+      }
 
       const created = [];
       const errors = [];
@@ -3439,10 +3487,10 @@ async function handleGetRunAssignmentsForRun(tenantId, runId, queryParams) {
          ra.id,
          ra.booking_id,
          ra.pet_id,
-         ra.start_at,
-         ra.end_at,
-         ra.status,
-         ra.notes,
+         ra.assigned_date,
+         ra.start_time,
+         ra.end_time,
+         ra.is_individual,
          p.name as pet_name,
          p.species as pet_species,
          p.breed as pet_breed
@@ -3450,27 +3498,39 @@ async function handleGetRunAssignmentsForRun(tenantId, runId, queryParams) {
        LEFT JOIN "Pet" p ON p.id = ra.pet_id
        WHERE ra.run_id = $1
          AND ra.tenant_id = $2
-         AND ra.deleted_at IS NULL
-         AND DATE(ra.start_at) >= $3::date
-         AND DATE(ra.start_at) <= $4::date
-       ORDER BY ra.start_at ASC`,
+         AND ra.assigned_date >= $3::date
+         AND ra.assigned_date <= $4::date
+       ORDER BY ra.start_time ASC`,
       [runId, tenantId, rangeStart, rangeEnd]
     );
 
-    const assignments = result.rows.map(row => ({
-      id: row.id,
-      bookingId: row.booking_id,
-      petId: row.pet_id,
-      petName: row.pet_name,
-      petSpecies: row.pet_species,
-      petBreed: row.pet_breed,
-      startAt: row.start_at,
-      endAt: row.end_at,
-      startTime: row.start_at,
-      endTime: row.end_at,
-      status: row.status,
-      notes: row.notes,
-    }));
+    const assignments = result.rows.map(row => {
+      const dateStr = row.assigned_date instanceof Date
+        ? row.assigned_date.toISOString().split('T')[0]
+        : (typeof row.assigned_date === 'string' ? row.assigned_date.split('T')[0] : null);
+
+      const startAt = dateStr && row.start_time
+        ? `${dateStr}T${row.start_time}`
+        : dateStr;
+      const endAt = dateStr && row.end_time
+        ? `${dateStr}T${row.end_time}`
+        : dateStr;
+
+      return {
+        id: row.id,
+        bookingId: row.booking_id,
+        petId: row.pet_id,
+        petName: row.pet_name,
+        petSpecies: row.pet_species,
+        petBreed: row.pet_breed,
+        assignedDate: dateStr,
+        startAt: startAt,
+        endAt: endAt,
+        startTime: row.start_time?.toString().slice(0, 5),
+        endTime: row.end_time?.toString().slice(0, 5),
+        isIndividual: row.is_individual,
+      };
+    });
 
     return createResponse(200, {
       data: assignments,
@@ -3517,7 +3577,7 @@ async function handleAssignPetsToRun(tenantId, runId, body) {
 
     // Verify run exists and belongs to tenant
     const runCheck = await query(
-      `SELECT id FROM "Run" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT id FROM "Run" WHERE id = $1 AND tenant_id = $2 `,
       [runId, tenantId]
     );
 
@@ -3544,7 +3604,7 @@ async function handleAssignPetsToRun(tenantId, runId, body) {
         const result = await query(
           `INSERT INTO "RunAssignment" (tenant_id, run_id, pet_id, booking_id, start_at, end_at, status)
            VALUES ($1, $2, $3, $4, $5::timestamptz, $6::timestamptz, 'SCHEDULED')
-           ON CONFLICT (run_id, pet_id, start_at) WHERE deleted_at IS NULL
+           ON CONFLICT (run_id, pet_id, start_at)
            DO UPDATE SET end_at = EXCLUDED.end_at, booking_id = EXCLUDED.booking_id, updated_at = NOW()
            RETURNING id`,
           [tenantId, runId, petId, bookingId, startAt, endAt]
@@ -3590,37 +3650,63 @@ async function handleClearRunAssignments(tenantId, runId, body) {
   try {
     await getPoolAsync();
 
-    let deleteQuery = `
-      UPDATE "RunAssignment"
-      SET deleted_at = NOW(), updated_at = NOW()
-      WHERE run_id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-    `;
+    // Build query to find assignments to delete
+    let selectQuery = `
+      SELECT * FROM "RunAssignment"
+      WHERE run_id = $1 AND tenant_id = $2`;
     const params = [runId, tenantId];
     let paramIndex = 3;
 
     if (date) {
-      deleteQuery += ` AND DATE(start_at) = $${paramIndex++}::date`;
+      selectQuery += ` AND DATE(start_at) = $${paramIndex++}::date`;
       params.push(date);
     }
 
     if (Array.isArray(petIds) && petIds.length > 0) {
-      deleteQuery += ` AND pet_id = ANY($${paramIndex++})`;
+      selectQuery += ` AND pet_id = ANY($${paramIndex++})`;
       params.push(petIds);
     }
 
     if (Array.isArray(assignmentIds) && assignmentIds.length > 0) {
-      deleteQuery += ` AND id = ANY($${paramIndex++})`;
+      selectQuery += ` AND id = ANY($${paramIndex++})`;
       params.push(assignmentIds);
     }
 
-    const result = await query(deleteQuery, params);
+    // Fetch records to archive
+    const recordsToDelete = await query(selectQuery, params);
 
-    console.log('[RunAssignments][clear] Cleared:', result.rowCount);
+    if (recordsToDelete.rows.length === 0) {
+      return createResponse(200, {
+        success: true,
+        clearedCount: 0,
+        message: '0 assignment(s) cleared',
+      });
+    }
+
+    const idsToDelete = recordsToDelete.rows.map(r => r.id);
+
+    // Archive each record
+    for (const record of recordsToDelete.rows) {
+      await query(
+        `INSERT INTO "DeletedRecord" (tenant_id, original_table, original_id, data, deleted_at)
+         VALUES ($1, $2, $3, $4, NOW())`,
+        [tenantId, 'RunAssignment', record.id, JSON.stringify(record)]
+      );
+    }
+
+    // Hard delete the assignments
+    await query(
+      `DELETE FROM "RunAssignment"
+       WHERE tenant_id = $1 AND id = ANY($2)`,
+      [tenantId, idsToDelete]
+    );
+
+    console.log('[RunAssignments][clear] Cleared:', idsToDelete.length);
 
     return createResponse(200, {
       success: true,
-      clearedCount: result.rowCount,
-      message: `${result.rowCount} assignment(s) cleared`,
+      clearedCount: idsToDelete.length,
+      message: `${idsToDelete.length} assignment(s) cleared`,
     });
 
   } catch (error) {
@@ -3638,26 +3724,19 @@ async function handleGetRun(tenantId, runId) {
   try {
     await getPoolAsync();
 
-    // NEW schema: Run has template_id, facility_id, code, size, species, sort_order, is_active
+    // Schema: Run has id, tenant_id, name, description, capacity, run_type, is_active
     const result = await query(
       `SELECT
          r.id,
-         r.template_id,
-         r.facility_id,
          r.name,
-         r.code,
-         r.size,
-         r.species,
-         r.sort_order,
+         r.description,
+         r.capacity,
+         r.run_type,
          r.is_active,
          r.created_at,
-         r.updated_at,
-         rt.name as template_name,
-         rt.max_capacity,
-         rt.time_period_minutes
+         r.updated_at
        FROM "Run" r
-       LEFT JOIN "RunTemplate" rt ON r.template_id = rt.id AND rt.tenant_id = r.tenant_id
-       WHERE r.id = $1 AND r.tenant_id = $2 AND r.deleted_at IS NULL`,
+       WHERE r.id = $1 AND r.tenant_id = $2`,
       [runId, tenantId]
     );
 
@@ -3670,50 +3749,60 @@ async function handleGetRun(tenantId, runId) {
 
     const row = result.rows[0];
 
-    // Get assignments for this run (NEW schema: start_at, end_at, booking_id)
+    // Get assignments for this run
     const assignmentsResult = await query(
       `SELECT
          ra.id,
          ra.booking_id,
          ra.pet_id,
-         ra.start_at,
-         ra.end_at,
-         ra.status,
+         ra.assigned_date,
+         ra.start_time,
+         ra.end_time,
+         ra.is_individual,
          p.name as pet_name,
          p.species as pet_species
        FROM "RunAssignment" ra
-       JOIN "Pet" p ON ra.pet_id = p.id
-       WHERE ra.run_id = $1 AND ra.deleted_at IS NULL
-       ORDER BY ra.start_at ASC`,
+       LEFT JOIN "Pet" p ON ra.pet_id = p.id
+       WHERE ra.run_id = $1
+       ORDER BY ra.assigned_date ASC, ra.start_time ASC`,
       [runId]
     );
 
-    const assignments = assignmentsResult.rows.map(a => ({
-      id: a.id,
-      bookingId: a.booking_id,
-      petId: a.pet_id,
-      petName: a.pet_name,
-      petSpecies: a.pet_species,
-      startAt: a.start_at,
-      endAt: a.end_at,
-      startTime: a.start_at,  // Alias for compatibility
-      endTime: a.end_at,      // Alias for compatibility
-      status: a.status,
-    }));
+    const assignments = assignmentsResult.rows.map(a => {
+      const dateStr = a.assigned_date instanceof Date
+        ? a.assigned_date.toISOString().split('T')[0]
+        : (typeof a.assigned_date === 'string' ? a.assigned_date.split('T')[0] : null);
+
+      const startAt = dateStr && a.start_time
+        ? `${dateStr}T${a.start_time}`
+        : dateStr;
+      const endAt = dateStr && a.end_time
+        ? `${dateStr}T${a.end_time}`
+        : dateStr;
+
+      return {
+        id: a.id,
+        bookingId: a.booking_id,
+        petId: a.pet_id,
+        petName: a.pet_name,
+        petSpecies: a.pet_species,
+        assignedDate: dateStr,
+        startAt: startAt,
+        endAt: endAt,
+        startTime: a.start_time?.toString().slice(0, 5),
+        endTime: a.end_time?.toString().slice(0, 5),
+        isIndividual: a.is_individual,
+      };
+    });
 
     return createResponse(200, {
       id: row.id,
-      templateId: row.template_id,
-      facilityId: row.facility_id,
-      templateName: row.template_name,
       name: row.name,
-      code: row.code,
-      size: row.size,
-      species: row.species,
-      sortOrder: row.sort_order,
+      description: row.description,
+      capacity: row.capacity || 10,
+      maxCapacity: row.capacity || 10,
+      runType: row.run_type,
       isActive: row.is_active,
-      maxCapacity: row.max_capacity || 10,
-      timePeriodMinutes: row.time_period_minutes,
       assignments: assignments,
       assignmentCount: assignments.length,
       createdAt: row.created_at,
@@ -3848,8 +3937,7 @@ async function handleUpdateRun(tenantId, runId, body) {
     const result = await query(
       `UPDATE "Run"
        SET ${updates.join(', ')}
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING *`,
+       WHERE id = $1 AND tenant_id = $2       RETURNING *`,
       values
     );
 
@@ -3889,18 +3977,10 @@ async function handleDeleteRun(tenantId, runId) {
   console.log('[Runs][delete] tenantId:', tenantId, 'runId:', runId);
 
   try {
-    await getPoolAsync();
+    // Soft delete using archive pattern
+    const deletedRecord = await softDelete('Run', runId, tenantId);
 
-    // Soft delete
-    const result = await query(
-      `UPDATE "Run"
-       SET deleted_at = NOW(), updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING id`,
-      [runId, tenantId]
-    );
-
-    if (result.rows.length === 0) {
+    if (!deletedRecord) {
       return createResponse(404, {
         error: 'Not Found',
         message: 'Run not found',
@@ -3929,12 +4009,11 @@ async function handleGetAvailableSlots(tenantId, runId, queryParams) {
   try {
     await getPoolAsync();
 
-    // Get run details with template info (NEW schema: template_id instead of run_template_id)
+    // Get run details - Run table has: id, tenant_id, name, description, capacity, run_type, is_active
     const runResult = await query(
-      `SELECT r.*, rt.time_period_minutes, rt.capacity_type, rt.max_capacity
+      `SELECT r.id, r.name, r.description, r.capacity, r.run_type, r.is_active
        FROM "Run" r
-       LEFT JOIN "RunTemplate" rt ON r.template_id = rt.id AND rt.tenant_id = r.tenant_id
-       WHERE r.id = $1 AND r.tenant_id = $2 AND r.deleted_at IS NULL`,
+       WHERE r.id = $1 AND r.tenant_id = $2`,
       [runId, tenantId]
     );
 
@@ -3947,26 +4026,23 @@ async function handleGetAvailableSlots(tenantId, runId, queryParams) {
 
     const run = runResult.rows[0];
 
-    // Get existing assignments (NEW schema: start_at, end_at)
+    // Get existing assignments
     const assignmentsResult = await query(
-      `SELECT start_at, end_at FROM "RunAssignment"
-       WHERE run_id = $1 AND deleted_at IS NULL`,
+      `SELECT assigned_date, start_time, end_time FROM "RunAssignment"
+       WHERE run_id = $1`,
       [runId]
     );
 
-    // For the new schema, Run doesn't have start_time/end_time anymore
-    // Slots are based on the template's time_period_minutes
-    const slotDuration = run.time_period_minutes || 30;
-    const maxCapacity = run.max_capacity || 10;
-    const capacityType = run.capacity_type || 'total';
+    // Use run's capacity directly
+    const maxCapacity = run.capacity || 10;
 
     return createResponse(200, {
       data: [],
       slots: [],
       runId: runId,
       maxCapacity: maxCapacity,
-      capacityType: capacityType,
-      timePeriodMinutes: slotDuration,
+      capacity: maxCapacity,
+      runType: run.run_type,
       currentAssignments: assignmentsResult.rows.length,
       message: 'Available slots retrieved successfully',
     });
@@ -4088,8 +4164,7 @@ async function handleGetCalendarEvents(tenantId, queryParams) {
          LEFT JOIN "Kennel" k ON b.kennel_id = k.id
          LEFT JOIN "Owner" o ON b.owner_id = o.id
          WHERE b.tenant_id = $1
-           AND b.deleted_at IS NULL
-           AND DATE(b.check_in) <= $3::date
+                     AND DATE(b.check_in) <= $3::date
            AND DATE(b.check_out) >= $2::date
          ORDER BY b.check_in ASC`,
         [tenantId, start, end]
@@ -4148,6 +4223,7 @@ async function handleGetCalendarEvents(tenantId, queryParams) {
     }
 
     // Fetch tasks as calendar events
+    // Schema: task_type (not type)
     if (typeFilter.includes('task') || typeFilter.includes('tasks')) {
       const tasksResult = await query(
         `SELECT
@@ -4156,7 +4232,7 @@ async function handleGetCalendarEvents(tenantId, queryParams) {
            t.description,
            t.status,
            t.priority,
-           t.type,
+           t.task_type,
            t.scheduled_for,
            t.due_at,
            u.first_name as assignee_first_name,
@@ -4166,8 +4242,7 @@ async function handleGetCalendarEvents(tenantId, queryParams) {
          LEFT JOIN "User" u ON t.assigned_to = u.id
          LEFT JOIN "Pet" p ON t.pet_id = p.id
          WHERE t.tenant_id = $1
-           AND t.deleted_at IS NULL
-           AND (
+                     AND (
              (t.scheduled_for IS NOT NULL AND DATE(t.scheduled_for) BETWEEN $2::date AND $3::date)
              OR (t.due_at IS NOT NULL AND DATE(t.due_at) BETWEEN $2::date AND $3::date)
            )
@@ -4185,7 +4260,7 @@ async function handleGetCalendarEvents(tenantId, queryParams) {
           end: row.scheduled_for || row.due_at,
           status: row.status,
           priority: row.priority,
-          taskType: row.type,
+          taskType: row.task_type,
           assigneeName: row.assignee_first_name
             ? `${row.assignee_first_name} ${row.assignee_last_name || ''}`.trim()
             : null,
@@ -4202,12 +4277,13 @@ async function handleGetCalendarEvents(tenantId, queryParams) {
            ra.id,
            ra.run_id,
            ra.pet_id,
-           ra.start_at,
-           ra.end_at,
-           ra.status,
-           ra.notes,
+           ra.assigned_date,
+           ra.start_time,
+           ra.end_time,
+           ra.is_individual,
            r.name as run_name,
-           r.code as run_code,
+           r.description as run_description,
+           r.run_type,
            p.name as pet_name,
            p.species as pet_species,
            p.photo_url as pet_photo_url
@@ -4215,29 +4291,40 @@ async function handleGetCalendarEvents(tenantId, queryParams) {
          JOIN "Run" r ON ra.run_id = r.id AND r.tenant_id = ra.tenant_id
          LEFT JOIN "Pet" p ON ra.pet_id = p.id
          WHERE ra.tenant_id = $1
-           AND ra.deleted_at IS NULL
-           AND r.deleted_at IS NULL
-           AND DATE(ra.start_at) BETWEEN $2::date AND $3::date
-         ORDER BY ra.start_at ASC`,
+           AND ra.assigned_date BETWEEN $2::date AND $3::date
+         ORDER BY ra.assigned_date ASC, ra.start_time ASC`,
         [tenantId, start, end]
       );
 
       runsResult.rows.forEach(row => {
+        // Combine assigned_date with start_time/end_time for calendar display
+        // assigned_date could be a Date object or ISO string
+        const dateStr = row.assigned_date instanceof Date
+          ? row.assigned_date.toISOString().split('T')[0]
+          : (typeof row.assigned_date === 'string' ? row.assigned_date.split('T')[0] : null);
+
+        const startDateTime = dateStr && row.start_time
+          ? `${dateStr}T${row.start_time}`
+          : dateStr;
+        const endDateTime = dateStr && row.end_time
+          ? `${dateStr}T${row.end_time}`
+          : dateStr;
+
         events.push({
           id: row.id,
           type: 'run',
           title: `${row.pet_name || 'Pet'} - ${row.run_name || 'Run'}`,
-          start: row.start_at,
-          end: row.end_at,
-          status: row.status,
+          start: startDateTime,
+          end: endDateTime,
           runId: row.run_id,
           runName: row.run_name,
-          runCode: row.run_code,
+          runDescription: row.run_description,
+          runType: row.run_type,
           petId: row.pet_id,
           petName: row.pet_name,
           petSpecies: row.pet_species,
           petPhotoUrl: row.pet_photo_url,
-          notes: row.notes,
+          isIndividual: row.is_individual,
           color: '#10B981', // Green for runs
         });
       });
@@ -4308,7 +4395,7 @@ async function handleGetOccupancy(tenantId, queryParams) {
          COUNT(*) as total_kennels,
          SUM(CASE WHEN is_active = true THEN 1 ELSE 0 END) as active_kennels
        FROM "Kennel"
-       WHERE tenant_id = $1 AND deleted_at IS NULL`,
+       WHERE tenant_id = $1 `,
       [tenantId]
     );
 
@@ -4327,8 +4414,7 @@ async function handleGetOccupancy(tenantId, queryParams) {
          FROM date_series ds
          LEFT JOIN "Booking" b ON
            b.tenant_id = $1
-           AND b.deleted_at IS NULL
-           AND b.status NOT IN ('CANCELLED', 'NO_SHOW')
+                     AND b.status NOT IN ('CANCELLED', 'NO_SHOW')
            AND ds.date >= DATE(b.check_in)
            AND ds.date < DATE(b.check_out)
          GROUP BY ds.date
@@ -4916,8 +5002,7 @@ async function handleBulkVaccinationReminders(tenantId, user, body) {
        LEFT JOIN "PetOwner" po ON po.pet_id = p.id AND po.is_primary = true
        LEFT JOIN "Owner" o ON po.owner_id = o.id
        WHERE v.tenant_id = $1
-         AND v.deleted_at IS NULL
-         AND o.email IS NOT NULL
+                 AND o.email IS NOT NULL
          AND (
            DATE(v.expires_at) = CURRENT_DATE + INTERVAL '30 days'
            OR DATE(v.expires_at) = CURRENT_DATE + INTERVAL '14 days'
@@ -5659,7 +5744,7 @@ async function handleGetIncidents(tenantId, queryParams) {
   try {
     await getPoolAsync();
 
-    let whereClause = 'i.tenant_id = $1 AND i.deleted_at IS NULL';
+    let whereClause = 'i.tenant_id = $1';
     const params = [tenantId];
     let paramIndex = 2;
 
@@ -5806,7 +5891,7 @@ async function handleGetIncident(tenantId, incidentId) {
        LEFT JOIN "Owner" o ON i.owner_id = o.id
        LEFT JOIN "User" u ON i.created_by = u.id
        LEFT JOIN "User" ru ON i.resolved_by = ru.id
-       WHERE i.id = $1 AND i.tenant_id = $2 AND i.deleted_at IS NULL`,
+       WHERE i.id = $1 AND i.tenant_id = $2`,
       [incidentId, tenantId]
     );
 
@@ -6037,8 +6122,7 @@ async function handleUpdateIncident(tenantId, user, incidentId, body) {
     const result = await query(
       `UPDATE "Incident"
        SET ${updates.join(', ')}
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING *`,
+       WHERE id = $1 AND tenant_id = $2       RETURNING *`,
       values
     );
 
@@ -6078,17 +6162,10 @@ async function handleDeleteIncident(tenantId, user, incidentId) {
   if (permError) return permError;
 
   try {
-    await getPoolAsync();
+    // Soft delete using archive pattern
+    const deletedRecord = await softDelete('Incident', incidentId, tenantId, user.userId);
 
-    const result = await query(
-      `UPDATE "Incident"
-       SET deleted_at = NOW(), updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING id`,
-      [incidentId, tenantId]
-    );
-
-    if (result.rows.length === 0) {
+    if (!deletedRecord) {
       return createResponse(404, {
         error: 'Not Found',
         message: 'Incident not found',
@@ -6145,8 +6222,7 @@ async function handleResolveIncident(tenantId, user, incidentId, body) {
     const result = await query(
       `UPDATE "Incident"
        SET ${updates.join(', ')}
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING *`,
+       WHERE id = $1 AND tenant_id = $2       RETURNING *`,
       values
     );
 
@@ -6194,7 +6270,7 @@ async function handleNotifyOwnerOfIncident(tenantId, user, incidentId, body) {
        FROM "Incident" i
        LEFT JOIN "Owner" o ON i.owner_id = o.id
        LEFT JOIN "Pet" p ON i.pet_id = p.id
-       WHERE i.id = $1 AND i.tenant_id = $2 AND i.deleted_at IS NULL`,
+       WHERE i.id = $1 AND i.tenant_id = $2`,
       [incidentId, tenantId]
     );
 
@@ -6218,8 +6294,7 @@ async function handleNotifyOwnerOfIncident(tenantId, user, incidentId, body) {
     const result = await query(
       `UPDATE "Incident"
        SET owner_notified = true, owner_notified_at = NOW(), owner_notified_by = $3, updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING *`,
+       WHERE id = $1 AND tenant_id = $2       RETURNING *`,
       [incidentId, tenantId, user?.id]
     );
 
@@ -6266,8 +6341,7 @@ async function getStaffIdForUser(tenantId, userId) {
     const result = await query(
       `SELECT s.id FROM "Staff" s
        JOIN "User" u ON s.user_id = u.id OR s.email = u.email
-       WHERE s.tenant_id = $1 AND u.id = $2 AND s.deleted_at IS NULL
-       LIMIT 1`,
+       WHERE s.tenant_id = $1 AND u.id = $2       LIMIT 1`,
       [tenantId, userId]
     );
     return result.rows[0]?.id || null;
@@ -6301,8 +6375,7 @@ async function handleClockIn(tenantId, user, body) {
     // Check if already clocked in (has active entry without clock_out)
     const activeResult = await query(
       `SELECT id, clock_in FROM "TimeEntry"
-       WHERE tenant_id = $1 AND staff_id = $2 AND clock_out IS NULL AND deleted_at IS NULL
-       LIMIT 1`,
+       WHERE tenant_id = $1 AND staff_id = $2 AND clock_out IS NULL       LIMIT 1`,
       [tenantId, staffId]
     );
 
@@ -6372,14 +6445,13 @@ async function handleClockOut(tenantId, user, body) {
     if (entryId) {
       activeResult = await query(
         `SELECT * FROM "TimeEntry"
-         WHERE id = $1 AND tenant_id = $2 AND clock_out IS NULL AND deleted_at IS NULL`,
+         WHERE id = $1 AND tenant_id = $2 AND clock_out IS NULL `,
         [entryId, tenantId]
       );
     } else {
       activeResult = await query(
         `SELECT * FROM "TimeEntry"
-         WHERE tenant_id = $1 AND staff_id = $2 AND clock_out IS NULL AND deleted_at IS NULL
-         ORDER BY clock_in DESC LIMIT 1`,
+         WHERE tenant_id = $1 AND staff_id = $2 AND clock_out IS NULL         ORDER BY clock_in DESC LIMIT 1`,
         [tenantId, staffId]
       );
     }
@@ -6455,7 +6527,7 @@ async function handleStartBreak(tenantId, user, body) {
     const staffId = bodyStaffId || await getStaffIdForUser(tenantId, user?.id);
 
     // Find active entry
-    let whereClause = 'tenant_id = $1 AND clock_out IS NULL AND deleted_at IS NULL';
+    let whereClause = 'tenant_id = $1 AND clock_out IS NULL ';
     const params = [tenantId];
 
     if (entryId) {
@@ -6526,7 +6598,7 @@ async function handleEndBreak(tenantId, user, body) {
     const staffId = bodyStaffId || await getStaffIdForUser(tenantId, user?.id);
 
     // Find active entry on break
-    let whereClause = 'tenant_id = $1 AND clock_out IS NULL AND is_on_break = true AND deleted_at IS NULL';
+    let whereClause = 'tenant_id = $1 AND clock_out IS NULL AND is_on_break = true ';
     const params = [tenantId];
 
     if (entryId) {
@@ -6604,8 +6676,7 @@ async function handleGetTimeStatus(tenantId, user, queryParams) {
       `SELECT te.*, s.first_name, s.last_name
        FROM "TimeEntry" te
        JOIN "Staff" s ON te.staff_id = s.id
-       WHERE te.tenant_id = $1 AND te.staff_id = $2 AND te.clock_out IS NULL AND te.deleted_at IS NULL
-       LIMIT 1`,
+       WHERE te.tenant_id = $1 AND te.staff_id = $2 AND te.clock_out IS NULL       LIMIT 1`,
       [tenantId, staffId]
     );
 
@@ -6661,7 +6732,7 @@ async function handleGetTimeEntries(tenantId, queryParams) {
   try {
     await getPoolAsync();
 
-    let whereClause = 'te.tenant_id = $1 AND te.deleted_at IS NULL';
+    let whereClause = 'te.tenant_id = $1';
     const params = [tenantId];
     let paramIndex = 2;
 
@@ -6757,7 +6828,7 @@ async function handleGetTimeEntry(tenantId, entryId) {
          s.first_name, s.last_name, s.email as staff_email
        FROM "TimeEntry" te
        JOIN "Staff" s ON te.staff_id = s.id
-       WHERE te.id = $1 AND te.tenant_id = $2 AND te.deleted_at IS NULL`,
+       WHERE te.id = $1 AND te.tenant_id = $2`,
       [entryId, tenantId]
     );
 
@@ -6812,7 +6883,7 @@ async function handleUpdateTimeEntry(tenantId, user, entryId, body) {
 
     // Get current entry
     const currentResult = await query(
-      `SELECT * FROM "TimeEntry" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT * FROM "TimeEntry" WHERE id = $1 AND tenant_id = $2 `,
       [entryId, tenantId]
     );
 
@@ -6879,20 +6950,18 @@ async function handleUpdateTimeEntry(tenantId, user, entryId, body) {
 /**
  * Delete time entry
  */
-async function handleDeleteTimeEntry(tenantId, entryId) {
+async function handleDeleteTimeEntry(tenantId, user, entryId) {
+  // Check permission
+  const permError = checkPermission(user, PERMISSIONS.TIMECLOCK_EDIT, createResponse);
+  if (permError) return permError;
+
   console.log('[TimeClock][delete] id:', entryId);
 
   try {
-    await getPoolAsync();
+    // Soft delete using archive pattern
+    const deletedRecord = await softDelete('TimeEntry', entryId, tenantId, user.userId);
 
-    const result = await query(
-      `UPDATE "TimeEntry" SET deleted_at = NOW(), updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING id`,
-      [entryId, tenantId]
-    );
-
-    if (result.rows.length === 0) {
+    if (!deletedRecord) {
       return createResponse(404, {
         error: 'Not Found',
         message: 'Time entry not found',
@@ -6927,8 +6996,7 @@ async function handleApproveTimeEntry(tenantId, user, entryId, body) {
     const result = await query(
       `UPDATE "TimeEntry"
        SET approved_by = $3, approved_at = NOW(), approval_notes = $4, updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING *`,
+       WHERE id = $1 AND tenant_id = $2       RETURNING *`,
       [entryId, tenantId, user?.id, approvalNotes || null]
     );
 
@@ -6970,7 +7038,7 @@ async function handleGetShifts(tenantId, queryParams) {
   try {
     await getPoolAsync();
 
-    let whereClause = 'sh.tenant_id = $1 AND sh.deleted_at IS NULL';
+    let whereClause = 'sh.tenant_id = $1';
     const params = [tenantId];
     let paramIndex = 2;
 
@@ -7068,7 +7136,7 @@ async function handleGetShift(tenantId, shiftId) {
          s.first_name, s.last_name, s.email as staff_email
        FROM "Shift" sh
        JOIN "Staff" s ON sh.staff_id = s.id
-       WHERE sh.id = $1 AND sh.tenant_id = $2 AND sh.deleted_at IS NULL`,
+       WHERE sh.id = $1 AND sh.tenant_id = $2`,
       [shiftId, tenantId]
     );
 
@@ -7196,7 +7264,7 @@ async function handleUpdateShift(tenantId, user, shiftId, body) {
     updates.push('updated_at = NOW()');
 
     const result = await query(
-      `UPDATE "Shift" SET ${updates.join(', ')} WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL RETURNING *`,
+      `UPDATE "Shift" SET ${updates.join(', ')} WHERE id = $1 AND tenant_id = $2  RETURNING *`,
       values
     );
 
@@ -7233,16 +7301,10 @@ async function handleDeleteShift(tenantId, user, shiftId) {
   if (permError) return permError;
 
   try {
-    await getPoolAsync();
+    // Soft delete using archive pattern
+    const deletedRecord = await softDelete('Shift', shiftId, tenantId, user.userId);
 
-    const result = await query(
-      `UPDATE "Shift" SET deleted_at = NOW(), updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING id`,
-      [shiftId, tenantId]
-    );
-
-    if (result.rows.length === 0) {
+    if (!deletedRecord) {
       return createResponse(404, {
         error: 'Not Found',
         message: 'Shift not found',
@@ -7275,8 +7337,7 @@ async function handleConfirmShift(tenantId, user, shiftId) {
     const result = await query(
       `UPDATE "Shift"
        SET status = 'CONFIRMED', updated_by = $3, updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING *`,
+       WHERE id = $1 AND tenant_id = $2       RETURNING *`,
       [shiftId, tenantId, user?.id]
     );
 
@@ -7399,8 +7460,7 @@ async function handleGetWeeklySchedule(tenantId, queryParams) {
        WHERE sh.tenant_id = $1
          AND sh.start_time >= $2
          AND sh.start_time < $3
-         AND sh.deleted_at IS NULL
-       ORDER BY s.first_name, s.last_name, sh.start_time`,
+               ORDER BY s.first_name, s.last_name, sh.start_time`,
       [tenantId, startDate.toISOString(), endDate.toISOString()]
     );
 
@@ -7408,7 +7468,7 @@ async function handleGetWeeklySchedule(tenantId, queryParams) {
     const staffResult = await query(
       `SELECT id, first_name, last_name, role, email
        FROM "Staff"
-       WHERE tenant_id = $1 AND deleted_at IS NULL AND is_active = true
+       WHERE tenant_id = $1  AND is_active = true
        ORDER BY first_name, last_name`,
       [tenantId]
     );
@@ -7577,7 +7637,7 @@ async function handleGetRecurringBookings(tenantId, queryParams) {
   try {
     await getPoolAsync();
 
-    let whereClause = 'rb.tenant_id = $1 AND rb.deleted_at IS NULL';
+    let whereClause = 'rb.tenant_id = $1';
     const params = [tenantId];
     let paramIndex = 2;
 
@@ -7668,7 +7728,7 @@ async function handleGetRecurringBooking(tenantId, recurringId) {
       `SELECT rb.*, o.first_name as owner_first_name, o.last_name as owner_last_name
        FROM "RecurringBooking" rb
        LEFT JOIN "Owner" o ON rb.owner_id = o.id
-       WHERE rb.id = $1 AND rb.tenant_id = $2 AND rb.deleted_at IS NULL`,
+       WHERE rb.id = $1 AND rb.tenant_id = $2`,
       [recurringId, tenantId]
     );
 
@@ -7835,8 +7895,7 @@ async function handleUpdateRecurringBooking(tenantId, user, recurringId, body) {
 
     const result = await query(
       `UPDATE "RecurringBooking" SET ${updates.join(', ')}
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING *`,
+       WHERE id = $1 AND tenant_id = $2       RETURNING *`,
       values
     );
 
@@ -7865,20 +7924,27 @@ async function handleUpdateRecurringBooking(tenantId, user, recurringId, body) {
 /**
  * Delete recurring booking
  */
-async function handleDeleteRecurringBooking(tenantId, recurringId) {
+async function handleDeleteRecurringBooking(tenantId, user, recurringId) {
+  // Check permission
+  const permError = checkPermission(user, PERMISSIONS.BOOKINGS_DELETE, createResponse);
+  if (permError) return permError;
+
   console.log('[RecurringBookings][delete] id:', recurringId);
 
   try {
     await getPoolAsync();
 
-    const result = await query(
-      `UPDATE "RecurringBooking" SET deleted_at = NOW(), is_active = false, updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING id`,
+    // First set is_active to false before archiving
+    await query(
+      `UPDATE "RecurringBooking" SET is_active = false, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2`,
       [recurringId, tenantId]
     );
 
-    if (result.rows.length === 0) {
+    // Soft delete using archive pattern
+    const deletedRecord = await softDelete('RecurringBooking', recurringId, tenantId, user.userId);
+
+    if (!deletedRecord) {
       return createResponse(404, {
         error: 'Not Found',
         message: 'Recurring booking not found',
@@ -7913,8 +7979,7 @@ async function handlePauseRecurringBooking(tenantId, recurringId, body) {
     const result = await query(
       `UPDATE "RecurringBooking"
        SET is_active = false, paused_at = NOW(), pause_reason = $3, updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING *`,
+       WHERE id = $1 AND tenant_id = $2       RETURNING *`,
       [recurringId, tenantId, reason || null]
     );
 
@@ -7952,7 +8017,7 @@ async function handleResumeRecurringBooking(tenantId, recurringId) {
 
     // Get current recurring booking to recalculate next occurrence
     const current = await query(
-      `SELECT * FROM "RecurringBooking" WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT * FROM "RecurringBooking" WHERE id = $1 AND tenant_id = $2 `,
       [recurringId, tenantId]
     );
 
@@ -8006,7 +8071,7 @@ async function handleGenerateRecurringInstances(tenantId, recurringId, body) {
     // Get recurring booking
     const rbResult = await query(
       `SELECT * FROM "RecurringBooking"
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL AND is_active = true`,
+       WHERE id = $1 AND tenant_id = $2  AND is_active = true`,
       [recurringId, tenantId]
     );
 
@@ -8041,53 +8106,63 @@ async function handleGenerateRecurringInstances(tenantId, recurringId, body) {
       );
 
       if (existingCheck.rows.length === 0) {
-        // Create booking for each pet
-        for (const petId of rb.pet_ids) {
-          try {
-            const checkIn = rb.start_time
-              ? `${occurrenceDateStr}T${rb.start_time}`
-              : occurrenceDateStr;
-            
-            let checkOut;
-            if (rb.service_type === 'daycare' && rb.end_time) {
-              checkOut = `${occurrenceDateStr}T${rb.end_time}`;
-            } else {
-              const coDate = new Date(currentDate);
-              coDate.setDate(coDate.getDate() + (rb.duration_days || 1));
-              checkOut = coDate.toISOString().split('T')[0];
-            }
+        // Create one booking for all pets (use BookingPet junction table)
+        // Schema: Booking has NO pet_id column - use BookingPet junction
+        try {
+          const checkIn = rb.start_time
+            ? `${occurrenceDateStr}T${rb.start_time}`
+            : occurrenceDateStr;
 
-            const bookingResult = await query(
-              `INSERT INTO "Booking" (
-                 tenant_id, pet_id, owner_id, kennel_id, service_id, check_in, check_out,
-                 notes, special_instructions, total_price_in_cents, service_type, status
-               )
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'PENDING')
-               RETURNING id`,
-              [
-                tenantId, petId, rb.owner_id, rb.preferred_kennel_id,
-                rb.service_id, checkIn, checkOut, rb.notes,
-                rb.special_instructions, rb.price_per_occurrence_cents,
-                rb.service_type || 'boarding'
-              ]
-            );
-
-            // Record instance
-            await query(
-              `INSERT INTO "RecurringBookingInstance" (recurring_booking_id, booking_id, occurrence_date)
-               VALUES ($1, $2, $3)`,
-              [recurringId, bookingResult.rows[0].id, occurrenceDateStr]
-            );
-
-            generatedBookings.push({
-              bookingId: bookingResult.rows[0].id,
-              petId,
-              occurrenceDate: occurrenceDateStr,
-            });
-
-          } catch (err) {
-            errors.push({ petId, date: occurrenceDateStr, error: err.message });
+          let checkOut;
+          if (rb.service_type === 'daycare' && rb.end_time) {
+            checkOut = `${occurrenceDateStr}T${rb.end_time}`;
+          } else {
+            const coDate = new Date(currentDate);
+            coDate.setDate(coDate.getDate() + (rb.duration_days || 1));
+            checkOut = coDate.toISOString().split('T')[0];
           }
+
+          // Create single booking (Schema: total_price_cents not total_price_in_cents)
+          const bookingResult = await query(
+            `INSERT INTO "Booking" (
+               tenant_id, owner_id, kennel_id, service_id, check_in, check_out,
+               notes, special_instructions, total_price_cents, status
+             )
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'PENDING')
+             RETURNING id`,
+            [
+              tenantId, rb.owner_id, rb.preferred_kennel_id,
+              rb.service_id, checkIn, checkOut, rb.notes,
+              rb.special_instructions, rb.price_per_occurrence_cents
+            ]
+          );
+
+          const bookingId = bookingResult.rows[0].id;
+
+          // Insert pets into BookingPet junction table
+          for (const petId of rb.pet_ids) {
+            await query(
+              `INSERT INTO "BookingPet" (booking_id, pet_id, tenant_id, created_at)
+               VALUES ($1, $2, $3, NOW())`,
+              [bookingId, petId, tenantId]
+            );
+          }
+
+          // Record instance
+          await query(
+            `INSERT INTO "RecurringBookingInstance" (recurring_booking_id, booking_id, occurrence_date)
+             VALUES ($1, $2, $3)`,
+            [recurringId, bookingId, occurrenceDateStr]
+          );
+
+          generatedBookings.push({
+            bookingId: bookingId,
+            petIds: rb.pet_ids,
+            occurrenceDate: occurrenceDateStr,
+          });
+
+        } catch (err) {
+          errors.push({ petIds: rb.pet_ids, date: occurrenceDateStr, error: err.message });
         }
       }
 
@@ -8208,12 +8283,13 @@ async function handleCustomerCheckAvailability(tenantId, queryParams) {
     await getPoolAsync();
 
     // Get total kennel capacity
+    // Schema: Kennel has max_occupancy (not capacity)
     const capacityResult = await query(
-      `SELECT 
-         COALESCE(SUM(capacity), 0) as total_capacity,
+      `SELECT
+         COALESCE(SUM(max_occupancy), 0) as total_capacity,
          COUNT(*) as kennel_count
-       FROM "Kennel" 
-       WHERE tenant_id = $1 AND is_active = true AND deleted_at IS NULL`,
+       FROM "Kennel"
+       WHERE tenant_id = $1 AND is_active = true`,
       [tenantId]
     );
 
@@ -8221,16 +8297,18 @@ async function handleCustomerCheckAvailability(tenantId, queryParams) {
     const kennelCount = parseInt(capacityResult.rows[0]?.kennel_count || 0);
 
     // Get current bookings in the date range
+    // Schema: check_in, check_out (not start_date/end_date)
+    // Count pets via BookingPet junction table
     const occupancyResult = await query(
-      `SELECT 
+      `SELECT
          COUNT(DISTINCT b.id) as active_bookings,
-         COALESCE(SUM(array_length(b.pet_ids, 1)), 0) as pets_booked
+         COUNT(DISTINCT bp.pet_id) as pets_booked
        FROM "Booking" b
+       LEFT JOIN "BookingPet" bp ON bp.booking_id = b.id
        WHERE b.tenant_id = $1
        AND b.status IN ('CONFIRMED', 'CHECKED_IN')
-       AND b.start_date <= $3
-       AND b.end_date >= $2
-       AND b.deleted_at IS NULL`,
+       AND b.check_in <= $3
+       AND b.check_out >= $2`,
       [tenantId, startDate, endDate]
     );
 
@@ -8238,21 +8316,20 @@ async function handleCustomerCheckAvailability(tenantId, queryParams) {
     const availableSlots = totalCapacity - petsBooked;
 
     // Get available kennels
+    // Schema: Kennel has max_occupancy (not capacity), size (not kennel_type)
     const availableKennelsResult = await query(
-      `SELECT k.id, k.name, k.capacity, k.kennel_type, k.daily_rate
+      `SELECT k.id, k.name, k.max_occupancy, k.size, k.location
        FROM "Kennel" k
-       WHERE k.tenant_id = $1 
-       AND k.is_active = true 
-       AND k.deleted_at IS NULL
+       WHERE k.tenant_id = $1
+       AND k.is_active = true
        AND k.id NOT IN (
-         SELECT DISTINCT b.kennel_id 
-         FROM "Booking" b 
+         SELECT DISTINCT b.kennel_id
+         FROM "Booking" b
          WHERE b.tenant_id = $1
          AND b.status IN ('CONFIRMED', 'CHECKED_IN')
-         AND b.start_date <= $3
-         AND b.end_date >= $2
+         AND b.check_in <= $3
+         AND b.check_out >= $2
          AND b.kennel_id IS NOT NULL
-         AND b.deleted_at IS NULL
        )
        ORDER BY k.name`,
       [tenantId, startDate, endDate]
@@ -8269,9 +8346,10 @@ async function handleCustomerCheckAvailability(tenantId, queryParams) {
       availableKennels: availableKennelsResult.rows.map(k => ({
         id: k.id,
         name: k.name,
-        capacity: k.capacity,
-        type: k.kennel_type,
-        dailyRate: parseFloat(k.daily_rate || 0),
+        capacity: k.max_occupancy,
+        maxOccupancy: k.max_occupancy,
+        size: k.size,
+        location: k.location,
       })),
       period: { startDate, endDate },
       message: isAvailable 
@@ -8297,21 +8375,21 @@ async function handleCustomerGetServices(tenantId) {
   try {
     await getPoolAsync();
 
+    // Schema: price_in_cents (not price)
     const result = await query(
-      `SELECT 
+      `SELECT
          s.id,
          s.name,
          s.description,
          s.service_type,
          s.duration_minutes,
-         s.price,
+         s.price_in_cents,
          s.is_active,
          s.requires_vaccination,
          s.max_pets_per_session
        FROM "Service" s
-       WHERE s.tenant_id = $1 
-       AND s.is_active = true 
-       AND s.deleted_at IS NULL
+       WHERE s.tenant_id = $1
+       AND s.is_active = true
        ORDER BY s.name`,
       [tenantId]
     );
@@ -8323,7 +8401,8 @@ async function handleCustomerGetServices(tenantId) {
       description: row.description,
       serviceType: row.service_type,
       durationMinutes: row.duration_minutes,
-      price: parseFloat(row.price || 0),
+      price: row.price_in_cents ? row.price_in_cents / 100 : 0,
+      priceInCents: row.price_in_cents,
       requiresVaccination: row.requires_vaccination,
       maxPetsPerSession: row.max_pets_per_session,
     }));
@@ -8355,7 +8434,7 @@ async function handleCustomerGetPets(tenantId, user) {
 
     // Find owner record for this user
     const ownerResult = await query(
-      `SELECT id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 `,
       [user.id, tenantId]
     );
 
@@ -8385,8 +8464,7 @@ async function handleCustomerGetPets(tenantId, user) {
          p.is_neutered,
          p.created_at
        FROM "Pet" p
-       WHERE p.owner_id = $1 AND p.tenant_id = $2 AND p.deleted_at IS NULL
-       ORDER BY p.name`,
+       WHERE p.owner_id = $1 AND p.tenant_id = $2       ORDER BY p.name`,
       [ownerId, tenantId]
     );
 
@@ -8435,7 +8513,7 @@ async function handleCustomerGetBookings(tenantId, user, queryParams) {
 
     // Find owner record for this user
     const ownerResult = await query(
-      `SELECT id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 `,
       [user.id, tenantId]
     );
 
@@ -8450,7 +8528,7 @@ async function handleCustomerGetBookings(tenantId, user, queryParams) {
 
     const ownerId = ownerResult.rows[0].id;
 
-    let whereClause = 'b.owner_id = $1 AND b.tenant_id = $2 AND b.deleted_at IS NULL';
+    let whereClause = 'b.owner_id = $1 AND b.tenant_id = $2';
     const params = [ownerId, tenantId];
 
     if (status) {
@@ -8459,16 +8537,18 @@ async function handleCustomerGetBookings(tenantId, user, queryParams) {
     }
 
     if (upcoming === 'true') {
-      whereClause += ` AND b.end_date >= CURRENT_DATE`;
+      whereClause += ` AND b.check_out >= CURRENT_DATE`;
     }
 
+    // Schema: check_in, check_out (not start_date/end_date), total_price_cents (not total_price)
+    // Use BookingPet junction table instead of pet_ids array
     const result = await query(
-      `SELECT 
+      `SELECT
          b.id,
-         b.start_date,
-         b.end_date,
+         b.check_in,
+         b.check_out,
          b.status,
-         b.total_price,
+         b.total_price_cents,
          b.notes,
          b.created_at,
          b.checked_in_at,
@@ -8476,24 +8556,28 @@ async function handleCustomerGetBookings(tenantId, user, queryParams) {
          s.name as service_name,
          s.service_type,
          k.name as kennel_name,
-         array_agg(p.name) as pet_names
+         COALESCE(array_agg(p.name) FILTER (WHERE p.name IS NOT NULL), ARRAY[]::text[]) as pet_names
        FROM "Booking" b
        LEFT JOIN "Service" s ON b.service_id = s.id
        LEFT JOIN "Kennel" k ON b.kennel_id = k.id
-       LEFT JOIN "Pet" p ON p.id = ANY(b.pet_ids)
+       LEFT JOIN "BookingPet" bp ON bp.booking_id = b.id
+       LEFT JOIN "Pet" p ON p.id = bp.pet_id
        WHERE ${whereClause}
        GROUP BY b.id, s.id, k.id
-       ORDER BY b.start_date DESC`,
+       ORDER BY b.check_in DESC`,
       params
     );
 
     const bookings = result.rows.map(row => ({
       id: row.id,
       recordId: row.id,
-      startDate: row.start_date,
-      endDate: row.end_date,
+      startDate: row.check_in,  // Alias for frontend
+      endDate: row.check_out,   // Alias for frontend
+      checkIn: row.check_in,
+      checkOut: row.check_out,
       status: row.status,
-      totalPrice: parseFloat(row.total_price || 0),
+      totalPrice: row.total_price_cents ? row.total_price_cents / 100 : 0,
+      totalPriceCents: row.total_price_cents,
       notes: row.notes,
       createdAt: row.created_at,
       checkedInAt: row.checked_in_at,
@@ -8555,7 +8639,7 @@ async function handleCustomerCreateBooking(tenantId, user, body) {
 
     // Find owner record for this user
     const ownerResult = await query(
-      `SELECT id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 `,
       [user.id, tenantId]
     );
 
@@ -8570,7 +8654,7 @@ async function handleCustomerCreateBooking(tenantId, user, body) {
 
     // Verify pets belong to this owner
     const petsResult = await query(
-      `SELECT id FROM "Pet" WHERE id = ANY($1::uuid[]) AND owner_id = $2 AND tenant_id = $3 AND deleted_at IS NULL`,
+      `SELECT id FROM "Pet" WHERE id = ANY($1::uuid[]) AND owner_id = $2 AND tenant_id = $3 `,
       [petIds, ownerId, tenantId]
     );
 
@@ -8597,42 +8681,53 @@ async function handleCustomerCreateBooking(tenantId, user, body) {
     }
 
     // Calculate price if service is specified
-    let totalPrice = 0;
+    // Schema: price_in_cents (not price)
+    let totalPriceCents = 0;
     if (serviceId) {
       const serviceResult = await query(
-        `SELECT price FROM "Service" WHERE id = $1 AND tenant_id = $2 AND is_active = true`,
+        `SELECT price_in_cents FROM "Service" WHERE id = $1 AND tenant_id = $2 AND is_active = true`,
         [serviceId, tenantId]
       );
 
       if (serviceResult.rows.length > 0) {
-        const pricePerDay = parseFloat(serviceResult.rows[0].price || 0);
+        const pricePerDayCents = parseInt(serviceResult.rows[0].price_in_cents || 0);
         const days = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) || 1;
-        totalPrice = pricePerDay * days * petIds.length;
+        totalPriceCents = pricePerDayCents * days * petIds.length;
       }
     }
 
     // Create booking with PENDING status (requires staff approval)
+    // Schema: check_in, check_out (not start_date/end_date), total_price_cents (not total_price)
+    // Use BookingPet junction table instead of pet_ids array
     const bookingResult = await query(
       `INSERT INTO "Booking" (
-         tenant_id, owner_id, pet_ids, service_id, kennel_id,
-         start_date, end_date, status, total_price, notes,
-         booking_source, created_at, updated_at
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING', $8, $9, 'customer_portal', NOW(), NOW())
+         tenant_id, owner_id, service_id, kennel_id,
+         check_in, check_out, status, total_price_cents, notes,
+         created_at, updated_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, 'PENDING', $7, $8, NOW(), NOW())
        RETURNING *`,
       [
         tenantId,
         ownerId,
-        petIds,
         serviceId || null,
         kennelId || null,
         startDate,
         endDate,
-        totalPrice,
+        totalPriceCents,
         notes || null,
       ]
     );
 
     const booking = bookingResult.rows[0];
+
+    // Insert pets into BookingPet junction table
+    for (const petId of petIds) {
+      await query(
+        `INSERT INTO "BookingPet" (booking_id, pet_id, tenant_id, created_at)
+         VALUES ($1, $2, $3, NOW())`,
+        [booking.id, petId, tenantId]
+      );
+    }
 
     // Send confirmation email to customer
     try {
@@ -8659,10 +8754,13 @@ async function handleCustomerCreateBooking(tenantId, user, body) {
       data: {
         id: booking.id,
         recordId: booking.id,
-        startDate: booking.start_date,
-        endDate: booking.end_date,
+        startDate: booking.check_in,   // Alias for frontend
+        endDate: booking.check_out,    // Alias for frontend
+        checkIn: booking.check_in,
+        checkOut: booking.check_out,
         status: booking.status,
-        totalPrice: parseFloat(booking.total_price || 0),
+        totalPrice: booking.total_price_cents ? booking.total_price_cents / 100 : 0,
+        totalPriceCents: booking.total_price_cents,
         notes: booking.notes,
         createdAt: booking.created_at,
       },
@@ -8689,7 +8787,7 @@ async function handleCustomerGetBooking(tenantId, user, bookingId) {
 
     // Find owner record for this user
     const ownerResult = await query(
-      `SELECT id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 `,
       [user.id, tenantId]
     );
 
@@ -8702,13 +8800,15 @@ async function handleCustomerGetBooking(tenantId, user, bookingId) {
 
     const ownerId = ownerResult.rows[0].id;
 
+    // Schema: check_in, check_out (not start_date/end_date), total_price_cents (not total_price)
+    // Use BookingPet junction table instead of pet_ids array
     const result = await query(
-      `SELECT 
+      `SELECT
          b.id,
-         b.start_date,
-         b.end_date,
+         b.check_in,
+         b.check_out,
          b.status,
-         b.total_price,
+         b.total_price_cents,
          b.notes,
          b.created_at,
          b.checked_in_at,
@@ -8717,13 +8817,13 @@ async function handleCustomerGetBooking(tenantId, user, bookingId) {
          s.service_type,
          s.description as service_description,
          k.name as kennel_name,
-         array_agg(json_build_object('id', p.id, 'name', p.name, 'breed', p.breed)) as pets
+         COALESCE(array_agg(json_build_object('id', p.id, 'name', p.name, 'breed', p.breed)) FILTER (WHERE p.id IS NOT NULL), ARRAY[]::json[]) as pets
        FROM "Booking" b
        LEFT JOIN "Service" s ON b.service_id = s.id
        LEFT JOIN "Kennel" k ON b.kennel_id = k.id
-       LEFT JOIN "Pet" p ON p.id = ANY(b.pet_ids)
-       WHERE b.id = $1 AND b.owner_id = $2 AND b.tenant_id = $3 AND b.deleted_at IS NULL
-       GROUP BY b.id, s.id, k.id`,
+       LEFT JOIN "BookingPet" bp ON bp.booking_id = b.id
+       LEFT JOIN "Pet" p ON p.id = bp.pet_id
+       WHERE b.id = $1 AND b.owner_id = $2 AND b.tenant_id = $3       GROUP BY b.id, s.id, k.id`,
       [bookingId, ownerId, tenantId]
     );
 
@@ -8740,10 +8840,13 @@ async function handleCustomerGetBooking(tenantId, user, bookingId) {
       data: {
         id: row.id,
         recordId: row.id,
-        startDate: row.start_date,
-        endDate: row.end_date,
+        startDate: row.check_in,   // Alias for frontend
+        endDate: row.check_out,    // Alias for frontend
+        checkIn: row.check_in,
+        checkOut: row.check_out,
         status: row.status,
-        totalPrice: parseFloat(row.total_price || 0),
+        totalPrice: row.total_price_cents ? row.total_price_cents / 100 : 0,
+        totalPriceCents: row.total_price_cents,
         notes: row.notes,
         createdAt: row.created_at,
         checkedInAt: row.checked_in_at,
@@ -8779,7 +8882,7 @@ async function handleCustomerCancelBooking(tenantId, user, bookingId) {
 
     // Find owner record for this user
     const ownerResult = await query(
-      `SELECT id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 AND deleted_at IS NULL`,
+      `SELECT id FROM "Owner" WHERE user_id = $1 AND tenant_id = $2 `,
       [user.id, tenantId]
     );
 
@@ -8793,9 +8896,10 @@ async function handleCustomerCancelBooking(tenantId, user, bookingId) {
     const ownerId = ownerResult.rows[0].id;
 
     // Verify booking exists and belongs to this owner
+    // Schema: check_in (not start_date)
     const bookingResult = await query(
-      `SELECT id, status, start_date FROM "Booking" 
-       WHERE id = $1 AND owner_id = $2 AND tenant_id = $3 AND deleted_at IS NULL`,
+      `SELECT id, status, check_in FROM "Booking"
+       WHERE id = $1 AND owner_id = $2 AND tenant_id = $3`,
       [bookingId, ownerId, tenantId]
     );
 
@@ -8817,7 +8921,7 @@ async function handleCustomerCancelBooking(tenantId, user, bookingId) {
     }
 
     // Check cancellation policy (e.g., must be at least 24 hours before start)
-    const hoursUntilStart = (new Date(booking.start_date) - new Date()) / (1000 * 60 * 60);
+    const hoursUntilStart = (new Date(booking.check_in) - new Date()) / (1000 * 60 * 60);
     if (hoursUntilStart < 24 && hoursUntilStart > 0) {
       return createResponse(400, {
         error: 'Bad Request',
@@ -8843,7 +8947,7 @@ async function handleCustomerCancelBooking(tenantId, user, bookingId) {
         user.email,
         {
           firstName: user.firstName || user.first_name,
-          startDate: booking.start_date,
+          startDate: booking.check_in,  // Schema: check_in
         }
       );
     } catch (emailErr) {
@@ -8896,7 +9000,7 @@ async function handleCustomerGetProfile(tenantId, user) {
          u.email as account_email
        FROM "Owner" o
        LEFT JOIN "User" u ON o.user_id = u.id
-       WHERE o.user_id = $1 AND o.tenant_id = $2 AND o.deleted_at IS NULL`,
+       WHERE o.user_id = $1 AND o.tenant_id = $2`,
       [user.id, tenantId]
     );
 
@@ -8995,8 +9099,7 @@ async function handleCustomerUpdateProfile(tenantId, user, body) {
     const result = await query(
       `UPDATE "Owner"
        SET ${updates.join(', ')}
-       WHERE user_id = $${paramIndex++} AND tenant_id = $${paramIndex} AND deleted_at IS NULL
-       RETURNING *`,
+       WHERE user_id = $${paramIndex++} AND tenant_id = $${paramIndex}       RETURNING *`,
       values
     );
 
@@ -9051,7 +9154,7 @@ async function handleGetStaffMembers(tenantId, queryParams) {
   try {
     await getPoolAsync();
 
-    let whereClause = 's.tenant_id = $1 AND s.deleted_at IS NULL';
+    let whereClause = 's.tenant_id = $1';
     const params = [tenantId];
     let paramIndex = 2;
 
@@ -9152,7 +9255,7 @@ async function handleGetStaffMember(tenantId, staffId) {
          u.phone
        FROM "Staff" s
        LEFT JOIN "User" u ON s.user_id = u.id
-       WHERE s.id = $1 AND s.tenant_id = $2 AND s.deleted_at IS NULL`,
+       WHERE s.id = $1 AND s.tenant_id = $2`,
       [staffId, tenantId]
     );
 
@@ -9324,8 +9427,7 @@ async function handleUpdateStaffMember(tenantId, user, staffId, body) {
     const result = await query(
       `UPDATE "Staff"
        SET ${updates.join(', ')}
-       WHERE id = $${paramIndex++} AND tenant_id = $${paramIndex} AND deleted_at IS NULL
-       RETURNING *`,
+       WHERE id = $${paramIndex++} AND tenant_id = $${paramIndex}       RETURNING *`,
       values
     );
 
@@ -9377,15 +9479,17 @@ async function handleDeleteStaffMember(tenantId, user, staffId) {
   try {
     await getPoolAsync();
 
-    const result = await query(
-      `UPDATE "Staff"
-       SET deleted_at = NOW(), is_active = false, updated_at = NOW()
-       WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL
-       RETURNING id`,
+    // First set is_active to false before archiving
+    await query(
+      `UPDATE "Staff" SET is_active = false, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2`,
       [staffId, tenantId]
     );
 
-    if (result.rows.length === 0) {
+    // Soft delete using archive pattern
+    const deletedRecord = await softDelete('Staff', staffId, tenantId, user.userId);
+
+    if (!deletedRecord) {
       return createResponse(404, {
         error: 'Not Found',
         message: 'Staff member not found',
