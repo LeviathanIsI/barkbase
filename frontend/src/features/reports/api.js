@@ -7,9 +7,228 @@ import { useAuthStore } from '@/stores/auth';
 
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
+// =============================================================================
+// ANALYTICS DASHBOARD HOOKS
+// =============================================================================
+
+/**
+ * Fetch KPI summary data
+ * Uses analytics service /api/v1/analytics/dashboard/kpis endpoint
+ */
+export const useKPIsQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+
+  return useQuery({
+    queryKey: [tenantKey, 'analytics', 'kpis'],
+    queryFn: async () => {
+      const response = await apiClient.get(canonicalEndpoints.reports.dashboardKpis);
+      return response.data;
+    },
+    enabled: isAuthenticated,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    ...options,
+  });
+};
+
+/**
+ * Fetch dashboard summary (combined metrics)
+ */
+export const useDashboardSummaryQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+
+  return useQuery({
+    queryKey: [tenantKey, 'analytics', 'dashboard-summary'],
+    queryFn: async () => {
+      const response = await apiClient.get(canonicalEndpoints.reports.dashboardSummary);
+      return response.data;
+    },
+    enabled: isAuthenticated,
+    staleTime: 2 * 60 * 1000,
+    ...options,
+  });
+};
+
+/**
+ * Fetch service analytics (breakdown by service type)
+ */
+export const useServiceAnalyticsQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+
+  return useQuery({
+    queryKey: [tenantKey, 'analytics', 'services'],
+    queryFn: async () => {
+      const response = await apiClient.get(canonicalEndpoints.reports.petServices);
+      return response.data;
+    },
+    enabled: isAuthenticated,
+    staleTime: 5 * 60 * 1000,
+    ...options,
+  });
+};
+
+/**
+ * Fetch customer analytics
+ */
+export const useCustomerAnalyticsQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+
+  return useQuery({
+    queryKey: [tenantKey, 'analytics', 'customers'],
+    queryFn: async () => {
+      const response = await apiClient.get(canonicalEndpoints.reports.customers);
+      return response.data;
+    },
+    enabled: isAuthenticated,
+    staleTime: 5 * 60 * 1000,
+    ...options,
+  });
+};
+
+/**
+ * Fetch current occupancy
+ */
+export const useCurrentOccupancyQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+
+  return useQuery({
+    queryKey: [tenantKey, 'analytics', 'occupancy-current'],
+    queryFn: async () => {
+      const response = await apiClient.get(canonicalEndpoints.reports.occupancyCurrent);
+      return response.data;
+    },
+    enabled: isAuthenticated,
+    staleTime: 1 * 60 * 1000, // 1 minute for real-time data
+    ...options,
+  });
+};
+
+/**
+ * Fetch live/today analytics data
+ * Used for the Live Analytics tab - pulls today's metrics
+ */
+export const useLiveAnalyticsQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+
+  // Get today's date range
+  const today = new Date().toISOString().split('T')[0];
+
+  return useQuery({
+    queryKey: [tenantKey, 'analytics', 'live', today],
+    queryFn: async () => {
+      const response = await apiClient.get(canonicalEndpoints.reports.dashboard, {
+        params: { startDate: today, endDate: today }
+      });
+      return response.data;
+    },
+    enabled: isAuthenticated,
+    staleTime: 30 * 1000, // 30 seconds for live data
+    refetchInterval: 60 * 1000, // Auto-refresh every minute
+    ...options,
+  });
+};
+
+/**
+ * Fetch recent activity/events for live feed
+ */
+export const useRecentActivityQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+
+  return useQuery({
+    queryKey: [tenantKey, 'analytics', 'recent-activity'],
+    queryFn: async () => {
+      // Fetch recent bookings and payments to build activity feed
+      const [bookingsRes, paymentsRes] = await Promise.all([
+        apiClient.get(canonicalEndpoints.bookings.list, { params: { limit: 10 } }).catch(() => ({ data: { bookings: [] } })),
+        apiClient.get(canonicalEndpoints.payments.list, { params: { limit: 10 } }).catch(() => ({ data: { payments: [] } })),
+      ]);
+
+      const bookings = bookingsRes.data?.bookings || bookingsRes.data || [];
+      const payments = paymentsRes.data?.payments || paymentsRes.data || [];
+
+      // Build activity feed from bookings and payments
+      const activities = [];
+
+      bookings.forEach(b => {
+        // Get pet name from pets array or pet object
+        const petName = b.pets?.[0]?.name || b.pet?.name || b.petName || 'Unknown pet';
+        // Get service name from service object
+        const serviceName = b.service?.name || b.serviceName || b.serviceType || 'Service';
+        // Get owner name
+        const ownerName = b.owner ? `${b.owner.firstName || ''} ${b.owner.lastName || ''}`.trim() : '';
+
+        if (b.status === 'CHECKED_IN') {
+          activities.push({
+            type: 'checkin',
+            event: `${petName} checked in for ${serviceName}${ownerName ? ` (${ownerName})` : ''}`,
+            time: b.updatedAt || b.updated_at || b.createdAt || b.created_at,
+          });
+        } else if (b.status === 'CHECKED_OUT') {
+          activities.push({
+            type: 'checkout',
+            event: `${petName} checked out${ownerName ? ` (${ownerName})` : ''}`,
+            time: b.updatedAt || b.updated_at || b.createdAt || b.created_at,
+          });
+        } else if (b.status === 'CONFIRMED' || b.status === 'PENDING') {
+          activities.push({
+            type: 'booking',
+            event: `New booking: ${petName} - ${serviceName}${ownerName ? ` (${ownerName})` : ''}`,
+            time: b.createdAt || b.created_at,
+          });
+        }
+      });
+
+      payments.forEach(p => {
+        if (p.status === 'SUCCEEDED' || p.status === 'CAPTURED') {
+          const amount = (p.amount_cents || p.amount || 0) / 100;
+          activities.push({
+            type: 'payment',
+            event: `Payment received - $${amount.toFixed(2)}`,
+            time: p.processed_at || p.created_at,
+          });
+        }
+      });
+
+      // Sort by time (most recent first) and take top 10
+      activities.sort((a, b) => new Date(b.time) - new Date(a.time));
+      return activities.slice(0, 10);
+    },
+    enabled: isAuthenticated,
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
+    ...options,
+  });
+};
+
+/**
+ * Fetch daily revenue data
+ */
+export const useDailyRevenueQuery = (params = {}, options = {}) => {
+  const tenantKey = useTenantKey();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+
+  return useQuery({
+    queryKey: [tenantKey, 'analytics', 'revenue-daily', params],
+    queryFn: async () => {
+      const response = await apiClient.get(canonicalEndpoints.reports.revenueDaily, { params });
+      return response.data;
+    },
+    enabled: isAuthenticated,
+    staleTime: 5 * 60 * 1000,
+    ...options,
+  });
+};
+
 /**
  * Fetch main dashboard report metrics
  * Uses analytics service /api/v1/analytics/dashboard endpoint
+ * @param {object} params - Query parameters including startDate, endDate, compareStartDate, compareEndDate
  */
 export const useReportDashboard = (params = {}, options = {}) => {
   const tenantKey = useTenantKey();
@@ -18,7 +237,14 @@ export const useReportDashboard = (params = {}, options = {}) => {
   return useQuery({
     queryKey: queryKeys.reports.dashboard(tenantKey, params),
     queryFn: async () => {
-      const response = await apiClient.get(canonicalEndpoints.reports.dashboard);
+      // Build query params for date filtering
+      const queryParams = {};
+      if (params.startDate) queryParams.startDate = params.startDate;
+      if (params.endDate) queryParams.endDate = params.endDate;
+      if (params.compareStartDate) queryParams.compareStartDate = params.compareStartDate;
+      if (params.compareEndDate) queryParams.compareEndDate = params.compareEndDate;
+
+      const response = await apiClient.get(canonicalEndpoints.reports.dashboard, { params: queryParams });
       return response.data;
     },
     enabled: isAuthenticated,

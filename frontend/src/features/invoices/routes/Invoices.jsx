@@ -5,7 +5,7 @@
 
 import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { format, isPast, isToday, differenceInDays } from 'date-fns';
+import { format, isPast } from 'date-fns';
 import {
   FileText,
   Mail,
@@ -101,7 +101,7 @@ const KPITile = ({ icon: Icon, label, value, subtext, variant, onClick }) => (
 
 // Invoice Row Component
 const InvoiceRow = ({ invoice, isSelected, onSelect, onClick }) => {
-  // Determine effective status (check for overdue)
+  // Determine effective status (check for overdue) - status is already normalized to lowercase
   const isOverdue = invoice.status !== 'paid' && invoice.status !== 'void' && invoice.dueDate && isPast(new Date(invoice.dueDate));
   const effectiveStatus = isOverdue ? 'overdue' : invoice.status;
   const status = STATUS_CONFIG[effectiveStatus] || STATUS_CONFIG.draft;
@@ -233,6 +233,19 @@ const InvoiceDrawer = ({ invoice, isOpen, onClose, onSendEmail, onMarkPaid }) =>
   const [showPaymentInput, setShowPaymentInput] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
 
+  // Parse line items - must be called before any early return to maintain hook order
+  const lineItems = useMemo(() => {
+    if (!invoice) return [];
+    try {
+      return typeof invoice.lineItems === 'string'
+        ? JSON.parse(invoice.lineItems)
+        : invoice.lineItems || [];
+    } catch {
+      return [];
+    }
+  }, [invoice]);
+
+  // Early return AFTER all hooks
   if (!invoice) return null;
 
   const totalAmount = (invoice.totalCents || 0) / 100;
@@ -243,17 +256,6 @@ const InvoiceDrawer = ({ invoice, isOpen, onClose, onSendEmail, onMarkPaid }) =>
   const effectiveStatus = isOverdue ? 'overdue' : invoice.status;
   const status = STATUS_CONFIG[effectiveStatus] || STATUS_CONFIG.draft;
   const StatusIcon = status.icon;
-
-  // Parse line items
-  const lineItems = useMemo(() => {
-    try {
-      return typeof invoice.lineItems === 'string'
-        ? JSON.parse(invoice.lineItems)
-        : invoice.lineItems || [];
-    } catch {
-      return [];
-    }
-  }, [invoice.lineItems]);
 
   const handleApplyPayment = () => {
     const cents = Math.round(parseFloat(paymentAmount) * 100);
@@ -519,9 +521,13 @@ const Invoices = () => {
   const markPaidMutation = useMarkInvoicePaidMutation();
 
   // Process invoices data from normalized response { invoices, total }
+  // Normalize status to lowercase for consistent comparison (DB may return UPPERCASE)
   const invoices = useMemo(() => {
     const rawInvoices = invoicesData?.invoices ?? [];
-    return rawInvoices;
+    return rawInvoices.map(inv => ({
+      ...inv,
+      status: (inv.status || 'draft').toLowerCase(),
+    }));
   }, [invoicesData]);
 
   // Calculate stats

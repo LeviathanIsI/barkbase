@@ -1691,22 +1691,30 @@ async function getStaff(event) {
 
   try {
     await getPoolAsync();
-    // User.role doesn't exist - roles come from UserRole junction table
+    // Query User table directly - no separate Staff table needed
+    // Users with tenant_id are staff/admin accounts for that tenant
     const result = await query(
-      `SELECT s.id, s.tenant_id, s.user_id, s.title, s.department, s.hire_date,
-              s.is_active, s.permissions, s.created_at, s.updated_at,
+      `SELECT u.id, u.tenant_id, u.id as user_id,
               u.first_name, u.last_name, u.email, u.phone, u.avatar_url,
-              COALESCE(r.name, 'user') AS role
-       FROM "Staff" s
-       LEFT JOIN "User" u ON s.user_id = u.id
+              u.is_active, u.created_at, u.updated_at,
+              COALESCE(r.name, 'user') AS role,
+              r.name as title
+       FROM "User" u
        LEFT JOIN "UserRole" ur ON u.id = ur.user_id
        LEFT JOIN "Role" r ON ur.role_id = r.id
-       WHERE s.tenant_id = $1
+       WHERE u.tenant_id = $1
        ORDER BY u.last_name, u.first_name`,
       [tenantId]
     );
-    console.log('[Staff][diag] count:', result.rows.length);
-    return createResponse(200, { data: result.rows });
+
+    // Transform to include name field for frontend compatibility
+    const staff = result.rows.map(row => ({
+      ...row,
+      name: [row.first_name, row.last_name].filter(Boolean).join(' ') || row.email,
+    }));
+
+    console.log('[Staff][diag] count:', staff.length);
+    return createResponse(200, { data: staff });
   } catch (error) {
     console.error('[ENTITY-SERVICE] getStaff error:', error);
     return createResponse(200, { data: [] });
@@ -1726,23 +1734,27 @@ async function getStaffMember(event) {
 
   try {
     await getPoolAsync();
-    // User.role doesn't exist - roles come from UserRole junction table
+    // Query User table directly
     const result = await query(
-      `SELECT s.id, s.tenant_id, s.user_id, s.title, s.department, s.hire_date,
-              s.is_active, s.permissions, s.created_at, s.updated_at,
+      `SELECT u.id, u.tenant_id, u.id as user_id,
               u.first_name, u.last_name, u.email, u.phone, u.avatar_url,
-              COALESCE(r.name, 'user') AS role
-       FROM "Staff" s
-       LEFT JOIN "User" u ON s.user_id = u.id
+              u.is_active, u.created_at, u.updated_at,
+              COALESCE(r.name, 'user') AS role,
+              r.name as title
+       FROM "User" u
        LEFT JOIN "UserRole" ur ON u.id = ur.user_id
        LEFT JOIN "Role" r ON ur.role_id = r.id
-       WHERE s.id = $1 AND s.tenant_id = $2`,
+       WHERE u.id = $1 AND u.tenant_id = $2`,
       [id, tenantId]
     );
     if (result.rows.length === 0) {
       return createResponse(404, { error: 'NotFound', message: 'Staff member not found' });
     }
-    return createResponse(200, result.rows[0]);
+    const row = result.rows[0];
+    return createResponse(200, {
+      ...row,
+      name: [row.first_name, row.last_name].filter(Boolean).join(' ') || row.email,
+    });
   } catch (error) {
     console.error('[ENTITY-SERVICE] getStaffMember error:', error);
     return createResponse(500, { error: 'InternalServerError', message: 'Failed to get staff member' });

@@ -586,9 +586,9 @@ async function handleGetInvoices(tenantId, queryParams) {
       params.push(customerId);
     }
 
-    // Schema: id, tenant_id, booking_id, owner_id, invoice_number, status,
+    // Actual schema: id, tenant_id, invoice_number, owner_id, booking_id, status,
     //         subtotal_cents, tax_cents, discount_cents, total_cents, paid_cents,
-    //         due_date, issued_at, sent_at, paid_at, notes, line_items
+    //         due_date, issued_at, paid_at, notes, created_at, updated_at, created_by
     const result = await query(
       `SELECT
          i.id,
@@ -601,14 +601,13 @@ async function handleGetInvoices(tenantId, queryParams) {
          i.paid_cents,
          i.due_date,
          i.issued_at,
-         i.sent_at,
          i.paid_at,
          i.notes,
-         i.line_items,
          i.booking_id,
          i.owner_id,
          i.created_at,
          i.updated_at,
+         i.created_by,
          o.first_name as owner_first_name,
          o.last_name as owner_last_name,
          o.email as owner_email
@@ -620,34 +619,49 @@ async function handleGetInvoices(tenantId, queryParams) {
       [...params, parseInt(limit), parseInt(offset)]
     );
 
-    console.log('[Invoices][diag] count:', result.rows.length);
+    console.log('[Invoices][list] query returned:', result.rows.length, 'rows');
 
-    const invoices = result.rows.map(row => ({
-      id: row.id,
-      invoiceNumber: row.invoice_number,
-      status: row.status,
-      amount: row.total_cents ? row.total_cents / 100 : 0,  // Convert cents to dollars for frontend
-      subtotalCents: row.subtotal_cents,
-      taxCents: row.tax_cents,
-      discountCents: row.discount_cents,
-      totalCents: row.total_cents,
-      paidCents: row.paid_cents,
-      dueDate: row.due_date,
-      issuedAt: row.issued_at,
-      sentAt: row.sent_at,
-      paidAt: row.paid_at,
-      notes: row.notes,
-      lineItems: row.line_items,
-      bookingId: row.booking_id,
-      ownerId: row.owner_id,
-      customer: row.owner_first_name ? {
-        firstName: row.owner_first_name,
-        lastName: row.owner_last_name,
-        email: row.owner_email,
-      } : null,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    }));
+    const invoices = result.rows.map(row => {
+      const totalCents = parseInt(row.total_cents, 10) || 0;
+      const paidCents = parseInt(row.paid_cents, 10) || 0;
+      const balanceDue = totalCents - paidCents;
+
+      // Compute effective status: if fully paid, status is 'paid' regardless of DB value
+      let effectiveStatus = (row.status || 'draft').toLowerCase();
+      if (paidCents >= totalCents && totalCents > 0) {
+        effectiveStatus = 'paid';
+      }
+
+      return {
+        id: row.id,
+        recordId: row.id,
+        invoiceNumber: row.invoice_number,
+        status: effectiveStatus,
+        amount: totalCents / 100,  // Convert cents to dollars
+        subtotalCents: parseInt(row.subtotal_cents, 10) || 0,
+        taxCents: parseInt(row.tax_cents, 10) || 0,
+        discountCents: parseInt(row.discount_cents, 10) || 0,
+        totalCents,
+        paidCents,
+        balanceDue,
+        dueDate: row.due_date,
+        issuedAt: row.issued_at,
+        paidAt: row.paid_at,
+        notes: row.notes,
+        bookingId: row.booking_id,
+        ownerId: row.owner_id,
+        createdBy: row.created_by,
+        customer: row.owner_first_name ? {
+          firstName: row.owner_first_name,
+          lastName: row.owner_last_name,
+          email: row.owner_email,
+          name: `${row.owner_first_name} ${row.owner_last_name}`.trim(),
+        } : null,
+        customerName: row.owner_first_name ? `${row.owner_first_name} ${row.owner_last_name}`.trim() : null,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      };
+    });
 
     return createResponse(200, {
       data: { invoices },

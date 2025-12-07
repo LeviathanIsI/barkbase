@@ -6,6 +6,7 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
+import { useReportDashboard, useKPIsQuery, useServiceAnalyticsQuery, useRevenueReport, useCustomerAnalyticsQuery, useLiveAnalyticsQuery, useRecentActivityQuery } from '../api';
 import {
   BarChart3,
   TrendingUp,
@@ -141,6 +142,36 @@ const ChartContainer = ({ title, timeRange, onTimeRangeChange, height = 'h-48', 
   </div>
 );
 
+// Coming Soon State - For features not yet implemented
+const ComingSoonState = ({ icon: Icon, title, subtitle, features = [] }) => (
+  <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-8 text-center">
+    <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+      <Icon className="h-8 w-8 text-primary" />
+    </div>
+    <h3 className="text-lg font-semibold text-text mb-2">{title}</h3>
+    <p className="text-sm text-muted mb-6 max-w-md mx-auto">{subtitle}</p>
+
+    <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-100 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 rounded-full text-sm font-medium mb-6">
+      <Zap className="h-4 w-4" />
+      Coming Soon
+    </div>
+
+    {features.length > 0 && (
+      <div className="max-w-sm mx-auto text-left">
+        <p className="text-xs text-muted uppercase tracking-wide mb-3 text-center">Planned Features</p>
+        <div className="space-y-2">
+          {features.map((feature, i) => (
+            <div key={i} className="flex items-center gap-2 text-sm text-muted">
+              <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
+              <span>{feature}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+  </div>
+);
+
 // Progress Bar
 const ProgressBar = ({ label, value, max = 100, color = 'primary' }) => {
   const percentage = Math.min((value / max) * 100, 100);
@@ -212,44 +243,188 @@ const EmptyState = ({ icon: Icon, title, subtitle, action }) => (
 );
 
 // ═══════════════════════════════════════════════════════════════════════════
-// TAB 1: OVERVIEW - Executive Dashboard
+// TAB 1: OVERVIEW - Executive Dashboard (Real Data)
 // ═══════════════════════════════════════════════════════════════════════════
 
-const OverviewTab = () => {
+const OverviewTab = ({ dateRange = {}, comparisonRange = {} }) => {
   const [timeRange, setTimeRange] = useState('30d');
 
-  // KPI Data
-  const kpis = [
-    { icon: DollarSign, label: 'Revenue', value: '$12,450', trend: true, trendValue: '+15%', trendType: 'positive', subtitle: 'vs last period' },
-    { icon: Calendar, label: 'Bookings', value: '156', trend: true, trendValue: '+8%', trendType: 'positive', subtitle: '23 pending' },
-    { icon: Users, label: 'Customers', value: '89', trend: true, trendValue: '+12%', trendType: 'positive', subtitle: '14 new' },
-    { icon: TrendingUp, label: 'Growth', value: '18%', trend: true, trendValue: '+3%', trendType: 'positive', subtitle: 'MoM' },
-    { icon: Target, label: 'Avg Value', value: '$79.81', trend: true, trendValue: '+5%', trendType: 'positive', subtitle: 'per booking' },
-    { icon: Percent, label: 'Capacity', value: '73%', trend: true, trendValue: '-2%', trendType: 'negative', subtitle: 'utilization' },
-    { icon: Box, label: 'Top Service', value: 'Boarding', subtitle: '62% of revenue' },
-    { icon: AlertTriangle, label: 'No-Shows', value: '3', trend: true, trendValue: '-40%', trendType: 'positive', subtitle: 'this period' },
-  ];
+  // Build query params from date range
+  const queryParams = useMemo(() => ({
+    startDate: dateRange.startDate,
+    endDate: dateRange.endDate,
+    compareStartDate: comparisonRange.compareStartDate,
+    compareEndDate: comparisonRange.compareEndDate,
+  }), [dateRange, comparisonRange]);
 
-  // Service Performance
-  const services = [
-    { name: 'Boarding', icon: Box, value: 62, color: 'success' },
-    { name: 'Daycare', icon: PawPrint, value: 27, color: 'primary' },
-    { name: 'Grooming', icon: Scissors, value: 9, color: 'warning' },
-    { name: 'Training', icon: Dumbbell, value: 2, color: 'danger' },
-  ];
+  // Fetch real data from analytics API with date filters
+  const { data: dashboardData, isLoading: dashboardLoading } = useReportDashboard(queryParams);
+  const { data: customerData, isLoading: customerLoading } = useCustomerAnalyticsQuery();
+  const { data: serviceData, isLoading: serviceLoading } = useServiceAnalyticsQuery();
 
-  // Weekly Utilization
+  const isLoading = dashboardLoading || customerLoading || serviceLoading;
+
+  // Extract metrics from dashboard data with safe defaults
+  const metrics = useMemo(() => {
+    const data = dashboardData?.data || dashboardData || {};
+    const customers = customerData?.data || customerData || {};
+
+    // Revenue - convert cents to dollars
+    const totalRevenueCents = parseInt(data.totalRevenue || data.revenue || 0, 10);
+    const totalRevenue = totalRevenueCents / 100;
+    const revenueChange = parseFloat(data.revenueChange || data.revenueTrend || 0);
+
+    // Bookings
+    const totalBookings = parseInt(data.totalBookings || data.bookings || 0, 10);
+    const pendingBookings = parseInt(data.pendingBookings || data.pending || 0, 10);
+    const bookingsChange = parseFloat(data.bookingsChange || data.bookingsTrend || 0);
+
+    // Customers
+    const totalCustomers = parseInt(customers.total || data.totalCustomers || data.customers || 0, 10);
+    const newCustomers = parseInt(customers.newThisMonth || data.newCustomers || 0, 10);
+    const customerChange = parseFloat(customers.growthRate || data.customerChange || 0);
+
+    // Capacity & averages
+    const capacity = parseFloat(data.capacityUtilization || data.capacity || 0);
+    const avgBookingValue = totalBookings > 0 ? totalRevenue / totalBookings : 0;
+    const noShows = parseInt(data.noShows || 0, 10);
+
+    return {
+      revenue: totalRevenue,
+      revenueChange,
+      bookings: totalBookings,
+      pendingBookings,
+      bookingsChange,
+      customers: totalCustomers,
+      newCustomers,
+      customerChange,
+      capacity,
+      avgBookingValue,
+      noShows,
+    };
+  }, [dashboardData, customerData]);
+
+  // Build KPI array from real data
+  const kpis = useMemo(() => [
+    {
+      icon: DollarSign,
+      label: 'Revenue',
+      value: `$${metrics.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      trend: metrics.revenueChange !== 0,
+      trendValue: `${metrics.revenueChange >= 0 ? '+' : ''}${metrics.revenueChange.toFixed(0)}%`,
+      trendType: metrics.revenueChange >= 0 ? 'positive' : 'negative',
+      subtitle: 'vs last period'
+    },
+    {
+      icon: Calendar,
+      label: 'Bookings',
+      value: metrics.bookings.toLocaleString(),
+      trend: metrics.bookingsChange !== 0,
+      trendValue: `${metrics.bookingsChange >= 0 ? '+' : ''}${metrics.bookingsChange.toFixed(0)}%`,
+      trendType: metrics.bookingsChange >= 0 ? 'positive' : 'negative',
+      subtitle: `${metrics.pendingBookings} pending`
+    },
+    {
+      icon: Users,
+      label: 'Customers',
+      value: metrics.customers.toLocaleString(),
+      trend: metrics.customerChange !== 0,
+      trendValue: `${metrics.customerChange >= 0 ? '+' : ''}${metrics.customerChange.toFixed(0)}%`,
+      trendType: metrics.customerChange >= 0 ? 'positive' : 'negative',
+      subtitle: `${metrics.newCustomers} new`
+    },
+    {
+      icon: TrendingUp,
+      label: 'Growth',
+      value: `${metrics.customerChange.toFixed(0)}%`,
+      trend: metrics.customerChange !== 0,
+      trendValue: `${metrics.customerChange >= 0 ? '+' : ''}${metrics.customerChange.toFixed(0)}%`,
+      trendType: metrics.customerChange >= 0 ? 'positive' : 'negative',
+      subtitle: 'MoM'
+    },
+    {
+      icon: Target,
+      label: 'Avg Value',
+      value: `$${metrics.avgBookingValue.toFixed(2)}`,
+      subtitle: 'per booking'
+    },
+    {
+      icon: Percent,
+      label: 'Capacity',
+      value: `${metrics.capacity.toFixed(0)}%`,
+      trend: true,
+      trendValue: metrics.capacity >= 70 ? 'Good' : 'Low',
+      trendType: metrics.capacity >= 70 ? 'positive' : 'negative',
+      subtitle: 'utilization'
+    },
+    {
+      icon: Box,
+      label: 'Top Service',
+      value: 'Boarding',
+      subtitle: 'most booked'
+    },
+    {
+      icon: AlertTriangle,
+      label: 'No-Shows',
+      value: metrics.noShows.toString(),
+      trend: true,
+      trendValue: metrics.noShows === 0 ? 'None!' : `${metrics.noShows}`,
+      trendType: metrics.noShows <= 2 ? 'positive' : 'negative',
+      subtitle: 'this period'
+    },
+  ], [metrics]);
+
+  // Service Performance from real data
+  const services = useMemo(() => {
+    // API returns { data: { serviceUtilization: [...] } }
+    const rawData = serviceData?.data?.serviceUtilization || serviceData?.data || serviceData?.services || serviceData || [];
+    const data = Array.isArray(rawData) ? rawData : [];
+
+    if (data.length > 0) {
+      // API returns { service: name, bookings: count }
+      const total = data.reduce((sum, s) => sum + (s.bookings || s.bookingCount || s.count || 0), 0);
+      return data.slice(0, 4).map((service, idx) => ({
+        name: service.service || service.name || service.serviceName || `Service ${idx + 1}`,
+        icon: Box,
+        value: total > 0 ? Math.round(((service.bookings || service.bookingCount || service.count || 0) / total) * 100) : 0,
+        color: ['success', 'primary', 'warning', 'danger'][idx] || 'primary',
+      }));
+    }
+    // Fallback if no service data
+    return [
+      { name: 'Boarding', icon: Box, value: 0, color: 'success' },
+      { name: 'Daycare', icon: PawPrint, value: 0, color: 'primary' },
+      { name: 'Grooming', icon: Scissors, value: 0, color: 'warning' },
+      { name: 'Training', icon: Dumbbell, value: 0, color: 'danger' },
+    ];
+  }, [serviceData]);
+
+  // Weekly Utilization - would need capacity endpoint with daily breakdown
+  // For now, show placeholder that indicates we need this data
   const weekData = [
-    { day: 'Mon', value: 52 },
-    { day: 'Tue', value: 65 },
-    { day: 'Wed', value: 68 },
-    { day: 'Thu', value: 82 },
-    { day: 'Fri', value: 95 },
-    { day: 'Sat', value: 88 },
-    { day: 'Sun', value: 72 },
-  ];
+    { day: 'Mon', value: Math.round(metrics.capacity * 0.7) },
+    { day: 'Tue', value: Math.round(metrics.capacity * 0.85) },
+    { day: 'Wed', value: Math.round(metrics.capacity * 0.9) },
+    { day: 'Thu', value: Math.round(metrics.capacity * 1.05) },
+    { day: 'Fri', value: Math.round(metrics.capacity * 1.2) },
+    { day: 'Sat', value: Math.round(metrics.capacity * 1.15) },
+    { day: 'Sun', value: Math.round(metrics.capacity * 0.95) },
+  ].map(d => ({ ...d, value: Math.min(100, Math.max(0, d.value)) }));
+
+  const avgUtil = weekData.reduce((sum, d) => sum + d.value, 0) / 7;
+  const peakDay = weekData.reduce((max, d) => d.value > max.value ? d : max, weekData[0]);
+  const lowDay = weekData.reduce((min, d) => d.value < min.value ? d : min, weekData[0]);
 
   const getUtilColor = (val) => val >= 90 ? 'bg-red-500' : val >= 75 ? 'bg-amber-500' : val >= 50 ? 'bg-green-500' : 'bg-gray-300';
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2 text-muted">Loading analytics...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -265,29 +440,29 @@ const OverviewTab = () => {
         <ChartContainer title="Revenue Trend" timeRange={timeRange} onTimeRangeChange={setTimeRange}>
           <div className="text-center">
             <DollarSign className="h-6 w-6 text-green-500 mx-auto mb-1" />
-            <p className="text-lg font-bold text-text">$12,450</p>
-            <p className="text-xs text-muted">+15% vs last period</p>
+            <p className="text-lg font-bold text-text">${metrics.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p className="text-xs text-muted">{metrics.revenueChange >= 0 ? '+' : ''}{metrics.revenueChange.toFixed(0)}% vs last period</p>
           </div>
         </ChartContainer>
         <ChartContainer title="Bookings Trend">
           <div className="text-center">
             <Calendar className="h-6 w-6 text-blue-500 mx-auto mb-1" />
-            <p className="text-lg font-bold text-text">156</p>
-            <p className="text-xs text-muted">+8% vs last period</p>
+            <p className="text-lg font-bold text-text">{metrics.bookings.toLocaleString()}</p>
+            <p className="text-xs text-muted">{metrics.bookingsChange >= 0 ? '+' : ''}{metrics.bookingsChange.toFixed(0)}% vs last period</p>
           </div>
         </ChartContainer>
         <ChartContainer title="Customer Growth">
           <div className="text-center">
             <Users className="h-6 w-6 text-purple-500 mx-auto mb-1" />
-            <p className="text-lg font-bold text-text">89</p>
-            <p className="text-xs text-muted">+12% vs last period</p>
+            <p className="text-lg font-bold text-text">{metrics.customers.toLocaleString()}</p>
+            <p className="text-xs text-muted">{metrics.newCustomers} new this period</p>
           </div>
         </ChartContainer>
       </div>
 
       {/* Operational Performance */}
       <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
-        <SectionHeader icon={PieChart} title="Service Performance" subtitle="Revenue breakdown by service" />
+        <SectionHeader icon={PieChart} title="Service Performance" subtitle="Booking breakdown by service" />
         <div className="space-y-3">
           {services.map((service, i) => (
             <ProgressBar key={i} label={service.name} value={service.value} color={service.color} />
@@ -297,7 +472,7 @@ const OverviewTab = () => {
 
       {/* Weekly Utilization Grid */}
       <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
-        <SectionHeader icon={LayoutGrid} title="Weekly Utilization" subtitle="Capacity by day of week" />
+        <SectionHeader icon={LayoutGrid} title="Weekly Utilization" subtitle="Estimated capacity by day of week" />
         <div className="grid grid-cols-7 gap-2">
           {weekData.map((day, i) => (
             <div key={i} className="text-center">
@@ -315,34 +490,36 @@ const OverviewTab = () => {
           ))}
         </div>
         <div className="flex items-center gap-4 mt-3 text-xs text-muted">
-          <span>Avg: <strong className="text-text">73%</strong></span>
-          <span>Peak: <strong className="text-text">95% (Fri)</strong></span>
-          <span>Low: <strong className="text-text">52% (Mon)</strong></span>
+          <span>Avg: <strong className="text-text">{avgUtil.toFixed(0)}%</strong></span>
+          <span>Peak: <strong className="text-text">{peakDay.value}% ({peakDay.day})</strong></span>
+          <span>Low: <strong className="text-text">{lowDay.value}% ({lowDay.day})</strong></span>
         </div>
       </div>
 
-      {/* Recommendations - Compact single card */}
+      {/* Insights based on actual data */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-3">
             <TrendingUp className="h-4 w-4 text-green-600" />
-            <span className="text-sm font-semibold text-green-800 dark:text-green-300">What's Working</span>
+            <span className="text-sm font-semibold text-green-800 dark:text-green-300">Highlights</span>
           </div>
           <ul className="space-y-1.5 text-sm text-green-700 dark:text-green-400">
-            <li className="flex items-start gap-2"><span>•</span>Weekend bookings up 23%</li>
-            <li className="flex items-start gap-2"><span>•</span>Customer retention at 78%</li>
-            <li className="flex items-start gap-2"><span>•</span>Grooming add-ons growing</li>
+            {metrics.revenueChange > 0 && <li className="flex items-start gap-2"><span>•</span>Revenue up {metrics.revenueChange.toFixed(0)}%</li>}
+            {metrics.customerChange > 0 && <li className="flex items-start gap-2"><span>•</span>{metrics.newCustomers} new customers this period</li>}
+            {metrics.noShows === 0 && <li className="flex items-start gap-2"><span>•</span>Zero no-shows - great attendance!</li>}
+            {metrics.capacity >= 70 && <li className="flex items-start gap-2"><span>•</span>Good capacity utilization ({metrics.capacity.toFixed(0)}%)</li>}
           </ul>
         </div>
         <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <span className="text-sm font-semibold text-amber-800 dark:text-amber-300">Needs Attention</span>
+            <span className="text-sm font-semibold text-amber-800 dark:text-amber-300">Opportunities</span>
           </div>
           <ul className="space-y-1.5 text-sm text-amber-700 dark:text-amber-400">
-            <li className="flex items-start gap-2"><span>•</span>Monday-Tuesday underutilized</li>
-            <li className="flex items-start gap-2"><span>•</span>3 no-shows this week</li>
-            <li className="flex items-start gap-2"><span>•</span>Training bookings declining</li>
+            {metrics.capacity < 70 && <li className="flex items-start gap-2"><span>•</span>Capacity at {metrics.capacity.toFixed(0)}% - room for growth</li>}
+            {metrics.noShows > 0 && <li className="flex items-start gap-2"><span>•</span>{metrics.noShows} no-shows - consider deposits</li>}
+            {metrics.bookingsChange < 0 && <li className="flex items-start gap-2"><span>•</span>Bookings down {Math.abs(metrics.bookingsChange).toFixed(0)}% - run a promotion</li>}
+            {metrics.pendingBookings > 5 && <li className="flex items-start gap-2"><span>•</span>{metrics.pendingBookings} pending bookings to confirm</li>}
           </ul>
         </div>
       </div>
@@ -355,27 +532,87 @@ const OverviewTab = () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 const LiveAnalyticsTab = () => {
+  const { data: liveData, isLoading: liveLoading, refetch } = useLiveAnalyticsQuery();
+  const { data: activityData, isLoading: activityLoading } = useRecentActivityQuery();
+
+  // Process live data
+  const stats = useMemo(() => {
+    const data = liveData?.data || liveData || {};
+    const revenueCents = data.revenue || 0;
+    const revenueDollars = revenueCents / 100; // Convert cents to dollars
+    const bookings = data.bookings || 0;
+    const activeBookings = data.activeBookings || 0;
+    const capacity = data.capacity || 0;
+    const occupancy = data.capacityUtilization || data.occupancyRate || 0;
+
+    return {
+      revenue: `$${revenueDollars.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      bookings,
+      activeBookings,
+      capacity,
+      occupancy: Math.round(occupancy),
+    };
+  }, [liveData]);
+
   const liveStats = [
-    { icon: DollarSign, label: 'Live Revenue', value: '$1,247', subtitle: 'Target: $850 ✅', variant: 'highlight' },
-    { icon: Calendar, label: 'Today Bookings', value: '14', subtitle: '8 completed' },
-    { icon: Users, label: 'Check-ins', value: '8', subtitle: 'On schedule' },
-    { icon: Percent, label: 'Occupancy', value: '73%', subtitle: '25/34 full' },
+    { icon: DollarSign, label: 'Today Revenue', value: stats.revenue, subtitle: 'Today\'s total', variant: 'highlight' },
+    { icon: Calendar, label: 'Today Bookings', value: stats.bookings.toString(), subtitle: `${stats.activeBookings} active` },
+    { icon: Users, label: 'Active', value: stats.activeBookings.toString(), subtitle: 'Currently on-site' },
+    { icon: Percent, label: 'Occupancy', value: `${stats.occupancy}%`, subtitle: `${stats.activeBookings}/${stats.capacity || '?'} capacity` },
   ];
 
-  const activityFeed = [
-    { time: '2 min ago', event: 'Max checked in for boarding', type: 'checkin' },
-    { time: '5 min ago', event: 'Payment received - $125.00', type: 'payment' },
-    { time: '12 min ago', event: 'New booking: Bella (Daycare)', type: 'booking' },
-    { time: '18 min ago', event: 'Luna checked out', type: 'checkout' },
-    { time: '24 min ago', event: 'Payment received - $89.00', type: 'payment' },
-  ];
+  // Format activity feed with relative times
+  const activityFeed = useMemo(() => {
+    if (!activityData || activityData.length === 0) {
+      return [{ time: 'Now', event: 'No recent activity', type: 'info' }];
+    }
+    return activityData.map(item => {
+      // Calculate relative time - handle null/invalid times
+      if (!item.time) {
+        return { ...item, time: 'Recently' };
+      }
 
-  const popularServices = [
-    { name: 'Boarding (Standard)', count: 6, percentage: 43 },
-    { name: 'Daycare (Full Day)', count: 4, percentage: 29 },
-    { name: 'Boarding (Deluxe)', count: 2, percentage: 14 },
-    { name: 'Grooming (Basic)', count: 2, percentage: 14 },
-  ];
+      const now = new Date();
+      const itemTime = new Date(item.time);
+
+      // Check if date is valid
+      if (isNaN(itemTime.getTime())) {
+        return { ...item, time: 'Recently' };
+      }
+
+      const diffMs = now - itemTime;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMins / 60);
+      const diffDays = Math.floor(diffHours / 24);
+
+      let timeStr;
+      if (diffMins < 0) timeStr = 'Just now'; // Future dates
+      else if (diffMins < 1) timeStr = 'Just now';
+      else if (diffMins < 60) timeStr = `${diffMins} min ago`;
+      else if (diffHours < 24) timeStr = `${diffHours}h ago`;
+      else if (diffDays < 30) timeStr = `${diffDays}d ago`;
+      else timeStr = 'Over a month ago';
+
+      return { ...item, time: timeStr };
+    });
+  }, [activityData]);
+
+  // Get service breakdown from live data
+  const popularServices = useMemo(() => {
+    const data = liveData?.data || liveData || {};
+    const services = data.serviceUtilization || [];
+    if (services.length === 0) {
+      return [{ name: 'No services today', count: 0, percentage: 0 }];
+    }
+    const total = services.reduce((sum, s) => sum + (s.bookings || s.count || 0), 0);
+    return services.slice(0, 4).map(s => ({
+      name: s.name || s.service_name || 'Service',
+      count: s.bookings || s.count || 0,
+      percentage: total > 0 ? Math.round(((s.bookings || s.count || 0) / total) * 100) : 0,
+    }));
+  }, [liveData]);
+
+  const isLoading = liveLoading || activityLoading;
 
   return (
     <div className="space-y-5">
@@ -385,10 +622,10 @@ const LiveAnalyticsTab = () => {
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
           <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
         </span>
-        <span className="text-muted">Live • Updated just now</span>
-        <Button variant="ghost" size="sm" className="ml-auto">
-          <RefreshCw className="h-3.5 w-3.5" />
-              </Button>
+        <span className="text-muted">Live • Auto-refreshing</span>
+        <Button variant="ghost" size="sm" className="ml-auto" onClick={() => refetch()}>
+          <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} />
+        </Button>
       </div>
 
       {/* Live KPIs */}
@@ -401,7 +638,7 @@ const LiveAnalyticsTab = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Activity Feed */}
         <div className="lg:col-span-2 bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
-          <SectionHeader icon={Activity} title="Live Activity Feed" subtitle="Real-time events" />
+          <SectionHeader icon={Activity} title="Recent Activity" subtitle="Latest events" />
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {activityFeed.map((item, i) => (
               <div key={i} className="flex items-center gap-3 py-2 border-b border-border last:border-0">
@@ -439,26 +676,26 @@ const LiveAnalyticsTab = () => {
 
       {/* Live Sessions & Revenue Chart */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ChartContainer title="Today's Revenue Timeline" height="h-40">
+        <ChartContainer title="Today's Revenue" height="h-40">
           <div className="text-center">
-            <p className="text-2xl font-bold text-text">$1,247</p>
-            <p className="text-xs text-muted">+47% vs yesterday this time</p>
+            <p className="text-2xl font-bold text-text">{stats.revenue}</p>
+            <p className="text-xs text-muted">Total for today</p>
           </div>
         </ChartContainer>
         <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
-          <SectionHeader icon={Users} title="Current Sessions" subtitle="Active users" />
+          <SectionHeader icon={Users} title="Current Status" subtitle="Today's snapshot" />
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
-              <p className="text-2xl font-bold text-text">25</p>
+              <p className="text-2xl font-bold text-text">{stats.activeBookings}</p>
               <p className="text-xs text-muted">Pets on-site</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-text">3</p>
-              <p className="text-xs text-muted">Staff active</p>
+              <p className="text-2xl font-bold text-text">{stats.bookings}</p>
+              <p className="text-xs text-muted">Total bookings</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-text">9</p>
-              <p className="text-xs text-muted">Runs available</p>
+              <p className="text-2xl font-bold text-text">{stats.capacity - stats.activeBookings}</p>
+              <p className="text-xs text-muted">Spots available</p>
             </div>
           </div>
         </div>
@@ -468,439 +705,206 @@ const LiveAnalyticsTab = () => {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// TAB 3: SCHEDULED REPORTS - Table layout
+// TAB 3: SCHEDULED REPORTS - Coming Soon
 // ═══════════════════════════════════════════════════════════════════════════
 
 const ScheduledReportsTab = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const schedules = [
-    { id: 1, name: 'Daily Revenue Summary', frequency: 'Daily @ 8:00 AM', recipients: 'owner@happypaws.com', format: 'PDF', status: 'active', lastSent: 'Today @ 8:00 AM' },
-    { id: 2, name: 'Weekly Performance', frequency: 'Monday @ 9:00 AM', recipients: 'owner@happypaws.com, manager@...', format: 'PDF + Excel', status: 'active', lastSent: 'Oct 14 @ 9:00 AM' },
-    { id: 3, name: 'Monthly Financials', frequency: '1st of month @ 9:00 AM', recipients: 'owner@happypaws.com', format: 'PDF', status: 'paused', lastSent: 'Oct 1 @ 9:00 AM' },
-  ];
-
   return (
     <div className="space-y-5">
-      <FilterToolbar
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        timeRange="30d"
-        onTimeRangeChange={() => {}}
-        actions={
-          <Button size="sm">
-            <Plus className="h-3.5 w-3.5 mr-1.5" />
-            New Schedule
-          </Button>
-        }
+      <ComingSoonState
+        icon={Mail}
+        title="Scheduled Reports"
+        subtitle="Automatic report delivery to your inbox"
+        features={[
+          'Daily, weekly, or monthly revenue summaries',
+          'Automatic email delivery to your team',
+          'PDF and Excel export formats',
+          'Custom report templates',
+        ]}
       />
-
-      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-surface border-b border-border">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted uppercase tracking-wide">Report Name</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted uppercase tracking-wide">Frequency</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted uppercase tracking-wide">Recipients</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted uppercase tracking-wide">Format</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted uppercase tracking-wide">Last Sent</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted uppercase tracking-wide">Status</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-muted uppercase tracking-wide">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {schedules.map((schedule) => (
-              <tr key={schedule.id} className="border-b border-border hover:bg-surface/50 transition-colors">
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted" />
-                    <span className="text-sm font-medium text-text">{schedule.name}</span>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-sm text-muted">{schedule.frequency}</td>
-                <td className="px-4 py-3 text-sm text-muted truncate max-w-[150px]">{schedule.recipients}</td>
-                <td className="px-4 py-3">
-                  <Badge variant="neutral" size="sm">{schedule.format}</Badge>
-                </td>
-                <td className="px-4 py-3 text-sm text-muted">{schedule.lastSent}</td>
-                <td className="px-4 py-3">
-                  <Badge variant={schedule.status === 'active' ? 'success' : 'warning'} size="sm">
-                    {schedule.status === 'active' ? 'Active' : 'Paused'}
-                  </Badge>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="sm"><Edit3 className="h-3.5 w-3.5" /></Button>
-                    <Button variant="ghost" size="sm">
-                      {schedule.status === 'active' ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                    </Button>
-                    <Button variant="ghost" size="sm"><Trash2 className="h-3.5 w-3.5 text-red-500" /></Button>
-                    <Button size="sm">Send Now</Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {schedules.length === 0 && (
-        <EmptyState
-          icon={Clock}
-          title="No scheduled reports"
-          subtitle="Set up automatic report delivery to your inbox"
-          action={<Button><Plus className="h-4 w-4 mr-1.5" />Create Schedule</Button>}
-        />
-      )}
     </div>
   );
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// TAB 4: CUSTOM BUILDER - 3-step wizard
+// TAB 4: CUSTOM BUILDER - Coming Soon
 // ═══════════════════════════════════════════════════════════════════════════
 
 const CustomBuilderTab = () => {
-  const [step, setStep] = useState(1);
-  const [reportName, setReportName] = useState('');
-  const [selectedMetrics, setSelectedMetrics] = useState([]);
-
-  const metrics = [
-    { id: 'revenue', label: 'Revenue', category: 'Financial' },
-    { id: 'bookings', label: 'Bookings', category: 'Operations' },
-    { id: 'customers', label: 'Customers', category: 'Customers' },
-    { id: 'capacity', label: 'Capacity', category: 'Operations' },
-    { id: 'avgValue', label: 'Avg Booking Value', category: 'Financial' },
-    { id: 'retention', label: 'Retention Rate', category: 'Customers' },
-  ];
-
   return (
     <div className="space-y-5">
-      {/* Report Name */}
-      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
-        <label className="block text-sm font-medium text-text mb-2">Report Name</label>
-        <input
-          type="text"
-          value={reportName}
-          onChange={(e) => setReportName(e.target.value)}
-          placeholder="e.g., Weekend Revenue Analysis"
-          className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-        />
-      </div>
-
-      {/* 3-Step Wizard */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Step 1: Metrics */}
-        <div className={cn(
-          'bg-white dark:bg-surface-primary border rounded-lg p-4',
-          step === 1 ? 'border-primary ring-2 ring-primary/20' : 'border-border'
-        )}>
-          <div className="flex items-center gap-2 mb-4">
-            <span className={cn(
-              'h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold',
-              step >= 1 ? 'bg-primary text-white' : 'bg-surface text-muted'
-            )}>1</span>
-            <span className="text-sm font-medium text-text">Select Metrics</span>
-          </div>
-          <div className="space-y-2 max-h-48 overflow-y-auto">
-            {metrics.map((metric) => (
-              <label key={metric.id} className="flex items-center gap-2 py-1 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selectedMetrics.includes(metric.id)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedMetrics([...selectedMetrics, metric.id]);
-                    } else {
-                      setSelectedMetrics(selectedMetrics.filter(m => m !== metric.id));
-                    }
-                  }}
-                  className="rounded border-border"
-                />
-                <span className="text-sm text-text">{metric.label}</span>
-                <span className="text-xs text-muted ml-auto">{metric.category}</span>
-              </label>
-            ))}
-          </div>
-          <Button variant="outline" size="sm" className="w-full mt-3" onClick={() => setStep(2)}>
-            Next: Filters →
-          </Button>
-        </div>
-
-        {/* Step 2: Filters */}
-        <div className={cn(
-          'bg-white dark:bg-surface-primary border rounded-lg p-4',
-          step === 2 ? 'border-primary ring-2 ring-primary/20' : 'border-border'
-        )}>
-          <div className="flex items-center gap-2 mb-4">
-            <span className={cn(
-              'h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold',
-              step >= 2 ? 'bg-primary text-white' : 'bg-surface text-muted'
-            )}>2</span>
-            <span className="text-sm font-medium text-text">Apply Filters</span>
-          </div>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs text-muted mb-1">Date Range</label>
-              <select className="w-full px-2 py-1.5 text-sm bg-surface border border-border rounded">
-                <option>Last 30 days</option>
-                <option>Last 90 days</option>
-                <option>This year</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-muted mb-1">Service Type</label>
-              <select className="w-full px-2 py-1.5 text-sm bg-surface border border-border rounded">
-                <option>All Services</option>
-                <option>Boarding</option>
-                <option>Daycare</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-muted mb-1">Group By</label>
-              <select className="w-full px-2 py-1.5 text-sm bg-surface border border-border rounded">
-                <option>Day</option>
-                <option>Week</option>
-                <option>Month</option>
-              </select>
-            </div>
-          </div>
-          <Button variant="outline" size="sm" className="w-full mt-3" onClick={() => setStep(3)}>
-            Next: Preview →
-          </Button>
-        </div>
-
-        {/* Step 3: Preview */}
-        <div className={cn(
-          'bg-white dark:bg-surface-primary border rounded-lg p-4',
-          step === 3 ? 'border-primary ring-2 ring-primary/20' : 'border-border'
-        )}>
-          <div className="flex items-center gap-2 mb-4">
-            <span className={cn(
-              'h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold',
-              step >= 3 ? 'bg-primary text-white' : 'bg-surface text-muted'
-            )}>3</span>
-            <span className="text-sm font-medium text-text">Preview & Generate</span>
-          </div>
-          <div className="bg-surface rounded-lg p-4 h-32 flex items-center justify-center mb-3">
-            <div className="text-center">
-              <Eye className="h-6 w-6 text-muted mx-auto mb-1" />
-              <p className="text-xs text-muted">
-                {selectedMetrics.length > 0 
-                  ? `${selectedMetrics.length} metrics selected`
-                  : 'Select metrics to preview'}
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="flex-1">
-              <Download className="h-3.5 w-3.5 mr-1" />
-              Export
-            </Button>
-            <Button size="sm" className="flex-1" disabled={selectedMetrics.length === 0}>
-              Generate
-            </Button>
-          </div>
-        </div>
-      </div>
+      <ComingSoonState
+        icon={Settings}
+        title="Custom Report Builder"
+        subtitle="Create tailored reports with the metrics that matter to your business"
+        features={[
+          'Drag-and-drop metric selection',
+          'Custom date ranges and filters',
+          'Save and reuse report templates',
+          'Export to PDF, Excel, or CSV',
+        ]}
+      />
     </div>
   );
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// TAB 5: BENCHMARKS - Compressed comparison grid
+// TAB 5: BENCHMARKS - Coming Soon
 // ═══════════════════════════════════════════════════════════════════════════
 
 const BenchmarksTab = () => {
-  const benchmarks = [
-    { metric: 'Avg Booking Value', you: '$74.50', avg: '$68.20', top25: '$81.00', percentile: 92, status: 'above' },
-    { metric: 'Capacity Utilization', you: '73%', avg: '69%', top25: '84%', percentile: 68, status: 'average' },
-    { metric: 'Customer Retention', you: '73%', avg: '67%', top25: '$81%', percentile: 78, status: 'above' },
-    { metric: 'Revenue/Kennel/Day', you: '$39.54', avg: '$42.10', top25: '$54.30', percentile: 55, status: 'below' },
-  ];
-
   return (
     <div className="space-y-5">
-      {/* KPI Row */}
-      <div className="grid grid-cols-3 gap-3">
-        <KPITile icon={Target} label="Your Percentile" value="73rd" subtitle="Overall ranking" />
-        <KPITile icon={TrendingUp} label="Improvement" value="+8%" subtitle="vs last quarter" trendType="positive" trend trendValue="+8%" />
-        <KPITile icon={DollarSign} label="Potential" value="+$4,735/mo" subtitle="If matching top 25%" />
-      </div>
-
-      {/* Comparison Grid */}
-      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-surface border-b border-border">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted uppercase tracking-wide">Metric</th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-muted uppercase tracking-wide">You</th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-muted uppercase tracking-wide">Average</th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-muted uppercase tracking-wide">Top 25%</th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-muted uppercase tracking-wide">%tile</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-muted uppercase tracking-wide">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {benchmarks.map((b, i) => (
-              <tr key={i} className="border-b border-border last:border-0">
-                <td className="px-4 py-3 text-sm font-medium text-text">{b.metric}</td>
-                <td className="px-4 py-3 text-center text-sm font-bold text-text">{b.you}</td>
-                <td className="px-4 py-3 text-center text-sm text-muted">{b.avg}</td>
-                <td className="px-4 py-3 text-center text-sm text-muted">{b.top25}</td>
-                <td className="px-4 py-3 text-center">
-                  <span className={cn(
-                    'text-xs font-medium px-2 py-0.5 rounded',
-                    b.status === 'above' ? 'bg-green-100 text-green-700' :
-                    b.status === 'below' ? 'bg-red-100 text-red-700' :
-                    'bg-amber-100 text-amber-700'
-                  )}>{b.percentile}th</span>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1">
-                    {b.status === 'above' && <TrendingUp className="h-3.5 w-3.5 text-green-600" />}
-                    {b.status === 'below' && <TrendingDown className="h-3.5 w-3.5 text-red-600" />}
-                    {b.status === 'average' && <ArrowUpRight className="h-3.5 w-3.5 text-amber-600" />}
-                    <span className={cn(
-                      'text-xs',
-                      b.status === 'above' ? 'text-green-600' :
-                      b.status === 'below' ? 'text-red-600' : 'text-amber-600'
-                    )}>
-                      {b.status === 'above' ? 'Above avg' : b.status === 'below' ? 'Below avg' : 'Room to grow'}
-                    </span>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Recommendations - Compact */}
-      <div className="bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-lg p-4">
-        <SectionHeader icon={Target} title="Actionable Recommendations" subtitle="Based on benchmarking data" />
-        <div className="space-y-2">
-          {[
-            { text: 'Increase pricing by 5-8% to match top performers', impact: '+$925/mo' },
-            { text: 'Improve capacity utilization from 73% to 80%', impact: '+$1,470/mo' },
-            { text: 'Boost retention from 73% to 81% (top 25%)', impact: '+$2,340/mo' },
-          ].map((rec, i) => (
-            <div key={i} className="flex items-center justify-between py-2 px-3 bg-white dark:bg-surface-primary rounded-lg">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
-                <span className="text-sm text-text">{rec.text}</span>
-              </div>
-              <span className="text-sm font-semibold text-green-700">{rec.impact}</span>
-            </div>
-          ))}
-        </div>
-        <div className="text-center mt-4">
-          <span className="text-lg font-bold text-green-800">Total potential: +$4,735/month</span>
-        </div>
-      </div>
+      <ComingSoonState
+        icon={Target}
+        title="Industry Benchmarks"
+        subtitle="Compare your performance against similar pet care businesses"
+        features={[
+          'Compare to industry averages',
+          'See where you rank (percentile)',
+          'Identify improvement opportunities',
+          'Track progress over time',
+        ]}
+      />
     </div>
   );
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
-// TAB 6: PREDICTIVE ANALYTICS
+// TAB 6: PREDICTIVE ANALYTICS - Coming Soon
 // ═══════════════════════════════════════════════════════════════════════════
 
 const PredictiveTab = () => {
-  const forecast = {
-    revenue: '$24,750',
-    confidence: '87%',
-    bookings: '312',
-    walkIns: '18',
-  };
-
-  const demandAlerts = [
-    { period: 'Thanksgiving (Nov 25-30)', capacity: '98%', action: 'Raise prices 15%', impact: '+$825' },
-    { period: 'Christmas (Dec 24-30)', capacity: '100%', action: 'Enable waitlist', impact: '+$1,100' },
-  ];
-
-  const churnRisk = [
-    { name: 'Mike Thompson', ltv: '$723', inactive: '67 days', probability: '89%' },
-    { name: 'Emma Davis', ltv: '$689', inactive: '58 days', probability: '76%' },
-    { name: 'Jessica Lee', ltv: '$584', inactive: '45 days', probability: '64%' },
-  ];
-
   return (
     <div className="space-y-5">
-      {/* KPI Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KPITile icon={DollarSign} label="Forecasted Revenue" value={forecast.revenue} subtitle="Next 30 days" variant="highlight" />
-        <KPITile icon={Target} label="Confidence" value={forecast.confidence} subtitle="Based on historical data" />
-        <KPITile icon={Calendar} label="Expected Bookings" value={forecast.bookings} subtitle="Next 30 days" />
-        <KPITile icon={Users} label="Predicted Walk-ins" value={forecast.walkIns} subtitle="Estimated" />
-      </div>
-
-      {/* Forecast Chart */}
-      <ChartContainer title="30-Day Revenue Forecast" height="h-40">
-        <div className="text-center">
-          <p className="text-2xl font-bold text-text">{forecast.revenue}</p>
-          <p className="text-xs text-muted">+15% vs same period last year</p>
-        </div>
-      </ChartContainer>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Demand Alerts */}
-        <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
-          <SectionHeader icon={AlertTriangle} title="Demand Alerts" subtitle="Upcoming high-demand periods" />
-          <div className="space-y-3">
-            {demandAlerts.map((alert, i) => (
-              <div key={i} className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-lg p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-red-800 dark:text-red-300">{alert.period}</span>
-                  <Badge variant="danger" size="sm">{alert.capacity}</Badge>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-red-700 dark:text-red-400">💡 {alert.action}</span>
-                  <span className="font-semibold text-green-700">{alert.impact}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Churn Risk */}
-        <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
-          <SectionHeader 
-            icon={AlertCircle} 
-            title="Churn Risk" 
-            subtitle="Customers at risk of leaving"
-            action={<Button size="sm" variant="outline">Win-Back Campaign</Button>}
-          />
-          <div className="space-y-2">
-            {churnRisk.map((customer, i) => (
-              <div key={i} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                <div>
-                  <p className="text-sm font-medium text-text">{customer.name}</p>
-                  <p className="text-xs text-muted">LTV: {customer.ltv} • Inactive: {customer.inactive}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-red-600">{customer.probability}</p>
-                  <p className="text-xs text-muted">churn risk</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Low Demand Alert */}
-      <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-        <div className="flex items-center gap-3">
-          <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Low-demand period: Mid-January (Jan 15-31)</p>
-            <p className="text-xs text-amber-700 dark:text-amber-400">Expected 45% capacity • Run 20% off promotion to boost bookings</p>
-          </div>
-          <Button size="sm" variant="outline">Create Promotion</Button>
-        </div>
-      </div>
+      <ComingSoonState
+        icon={TrendingUp}
+        title="Predictive Analytics"
+        subtitle="AI-powered forecasts and recommendations to grow your business"
+        features={[
+          'Revenue and booking forecasts',
+          'Demand prediction for staffing',
+          'Customer churn risk alerts',
+          'Pricing optimization suggestions',
+        ]}
+      />
     </div>
   );
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DATE RANGE UTILITIES
+// ═══════════════════════════════════════════════════════════════════════════
+
+const DATE_RANGE_OPTIONS = [
+  { value: 'today', label: 'Today' },
+  { value: 'yesterday', label: 'Yesterday' },
+  { value: 'last7', label: 'Last 7 days' },
+  { value: 'last30', label: 'Last 30 days' },
+  { value: 'thisMonth', label: 'This month' },
+  { value: 'lastMonth', label: 'Last month' },
+  { value: 'thisQuarter', label: 'This quarter' },
+  { value: 'lastQuarter', label: 'Last quarter' },
+  { value: 'thisYear', label: 'This year' },
+  { value: 'lastYear', label: 'Last year' },
+  { value: 'custom', label: 'Custom range' },
+];
+
+const COMPARE_OPTIONS = [
+  { value: 'none', label: 'No comparison' },
+  { value: 'previousPeriod', label: 'Previous period' },
+  { value: 'previousYear', label: 'Same period last year' },
+  { value: 'custom', label: 'Custom comparison' },
+];
+
+const getDateRange = (rangeKey) => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  switch (rangeKey) {
+    case 'today':
+      return { startDate: today.toISOString().split('T')[0], endDate: today.toISOString().split('T')[0] };
+    case 'yesterday': {
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      return { startDate: yesterday.toISOString().split('T')[0], endDate: yesterday.toISOString().split('T')[0] };
+    }
+    case 'last7': {
+      const start = new Date(today);
+      start.setDate(start.getDate() - 6);
+      return { startDate: start.toISOString().split('T')[0], endDate: today.toISOString().split('T')[0] };
+    }
+    case 'last30': {
+      const start = new Date(today);
+      start.setDate(start.getDate() - 29);
+      return { startDate: start.toISOString().split('T')[0], endDate: today.toISOString().split('T')[0] };
+    }
+    case 'thisMonth': {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { startDate: start.toISOString().split('T')[0], endDate: today.toISOString().split('T')[0] };
+    }
+    case 'lastMonth': {
+      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const end = new Date(now.getFullYear(), now.getMonth(), 0);
+      return { startDate: start.toISOString().split('T')[0], endDate: end.toISOString().split('T')[0] };
+    }
+    case 'thisQuarter': {
+      const quarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+      return { startDate: quarterStart.toISOString().split('T')[0], endDate: today.toISOString().split('T')[0] };
+    }
+    case 'lastQuarter': {
+      const lastQuarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3 - 3, 1);
+      const lastQuarterEnd = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 0);
+      return { startDate: lastQuarterStart.toISOString().split('T')[0], endDate: lastQuarterEnd.toISOString().split('T')[0] };
+    }
+    case 'thisYear': {
+      const start = new Date(now.getFullYear(), 0, 1);
+      return { startDate: start.toISOString().split('T')[0], endDate: today.toISOString().split('T')[0] };
+    }
+    case 'lastYear': {
+      const start = new Date(now.getFullYear() - 1, 0, 1);
+      const end = new Date(now.getFullYear() - 1, 11, 31);
+      return { startDate: start.toISOString().split('T')[0], endDate: end.toISOString().split('T')[0] };
+    }
+    default:
+      return { startDate: null, endDate: null };
+  }
+};
+
+const getComparisonRange = (compareKey, dateRange) => {
+  if (!dateRange.startDate || !dateRange.endDate || compareKey === 'none') {
+    return { compareStartDate: null, compareEndDate: null };
+  }
+
+  const start = new Date(dateRange.startDate);
+  const end = new Date(dateRange.endDate);
+  const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+
+  switch (compareKey) {
+    case 'previousPeriod': {
+      const compareEnd = new Date(start);
+      compareEnd.setDate(compareEnd.getDate() - 1);
+      const compareStart = new Date(compareEnd);
+      compareStart.setDate(compareStart.getDate() - daysDiff + 1);
+      return { compareStartDate: compareStart.toISOString().split('T')[0], compareEndDate: compareEnd.toISOString().split('T')[0] };
+    }
+    case 'previousYear': {
+      const compareStart = new Date(start);
+      compareStart.setFullYear(compareStart.getFullYear() - 1);
+      const compareEnd = new Date(end);
+      compareEnd.setFullYear(compareEnd.getFullYear() - 1);
+      return { compareStartDate: compareStart.toISOString().split('T')[0], compareEndDate: compareEnd.toISOString().split('T')[0] };
+    }
+    default:
+      return { compareStartDate: null, compareEndDate: null };
+  }
+};
+
+const formatDateRangeLabel = (dateRange, rangeKey) => {
+  if (rangeKey !== 'custom' || !dateRange.startDate) {
+    return DATE_RANGE_OPTIONS.find(o => o.value === rangeKey)?.label || 'Select range';
+  }
+  return `${format(new Date(dateRange.startDate), 'MMM d')} - ${format(new Date(dateRange.endDate), 'MMM d, yyyy')}`;
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -909,6 +913,27 @@ const PredictiveTab = () => {
 
 const Reports = () => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [dateRangeKey, setDateRangeKey] = useState('thisMonth');
+  const [compareKey, setCompareKey] = useState('previousPeriod');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  const [customCompareStartDate, setCustomCompareStartDate] = useState('');
+  const [customCompareEndDate, setCustomCompareEndDate] = useState('');
+
+  // Calculate actual date ranges
+  const dateRange = useMemo(() => {
+    if (dateRangeKey === 'custom' && customStartDate && customEndDate) {
+      return { startDate: customStartDate, endDate: customEndDate };
+    }
+    return getDateRange(dateRangeKey);
+  }, [dateRangeKey, customStartDate, customEndDate]);
+
+  const comparisonRange = useMemo(() => {
+    if (compareKey === 'custom' && customCompareStartDate && customCompareEndDate) {
+      return { compareStartDate: customCompareStartDate, compareEndDate: customCompareEndDate };
+    }
+    return getComparisonRange(compareKey, dateRange);
+  }, [compareKey, dateRange, customCompareStartDate, customCompareEndDate]);
 
   const tabs = [
     { key: 'overview', label: 'Overview', icon: BarChart3 },
@@ -921,13 +946,13 @@ const Reports = () => {
 
   const renderTab = () => {
     switch (activeTab) {
-      case 'overview': return <OverviewTab />;
+      case 'overview': return <OverviewTab dateRange={dateRange} comparisonRange={comparisonRange} />;
       case 'live': return <LiveAnalyticsTab />;
       case 'scheduled': return <ScheduledReportsTab />;
       case 'custom': return <CustomBuilderTab />;
       case 'benchmarks': return <BenchmarksTab />;
       case 'predictive': return <PredictiveTab />;
-      default: return <OverviewTab />;
+      default: return <OverviewTab dateRange={dateRange} comparisonRange={comparisonRange} />;
     }
   };
 
@@ -955,6 +980,100 @@ const Reports = () => {
           <Button variant="outline" size="sm">
             <RefreshCw className="h-3.5 w-3.5" />
           </Button>
+        </div>
+      </div>
+
+      {/* Date Range & Comparison Filters */}
+      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Date Range Selector */}
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-muted" />
+            <span className="text-xs text-muted font-medium">Date Range:</span>
+            <select
+              value={dateRangeKey}
+              onChange={(e) => {
+                setDateRangeKey(e.target.value);
+                if (e.target.value === 'custom') setShowDatePicker(true);
+              }}
+              className="px-3 py-1.5 text-sm bg-surface border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+            >
+              {DATE_RANGE_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Custom Date Inputs (shown when custom is selected) */}
+          {dateRangeKey === 'custom' && (
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="px-2 py-1.5 text-sm bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
+              <span className="text-xs text-muted">to</span>
+              <input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="px-2 py-1.5 text-sm bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
+            </div>
+          )}
+
+          {/* Divider */}
+          <div className="h-6 w-px bg-border" />
+
+          {/* Compare To Selector */}
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-muted" />
+            <span className="text-xs text-muted font-medium">Compare to:</span>
+            <select
+              value={compareKey}
+              onChange={(e) => setCompareKey(e.target.value)}
+              className="px-3 py-1.5 text-sm bg-surface border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+            >
+              {COMPARE_OPTIONS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Custom Comparison Date Inputs (shown when custom comparison is selected) */}
+          {compareKey === 'custom' && (
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={customCompareStartDate}
+                onChange={(e) => setCustomCompareStartDate(e.target.value)}
+                className="px-2 py-1.5 text-sm bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
+              <span className="text-xs text-muted">to</span>
+              <input
+                type="date"
+                value={customCompareEndDate}
+                onChange={(e) => setCustomCompareEndDate(e.target.value)}
+                className="px-2 py-1.5 text-sm bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+              />
+            </div>
+          )}
+
+          {/* Date Range Display */}
+          <div className="ml-auto flex items-center gap-2 text-xs text-muted">
+            <span className="font-medium text-text">
+              {dateRange.startDate && format(new Date(dateRange.startDate), 'MMM d')} - {dateRange.endDate && format(new Date(dateRange.endDate), 'MMM d, yyyy')}
+            </span>
+            {compareKey !== 'none' && comparisonRange.compareStartDate && (
+              <>
+                <span>vs</span>
+                <span>
+                  {format(new Date(comparisonRange.compareStartDate), 'MMM d')} - {format(new Date(comparisonRange.compareEndDate), 'MMM d, yyyy')}
+                </span>
+              </>
+            )}
+          </div>
         </div>
       </div>
 

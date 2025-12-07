@@ -153,7 +153,7 @@ exports.handler = async (event, context) => {
     // ==========================================================================
     // Dashboard routes
     if (path === '/api/v1/analytics/dashboard' || path === '/analytics/dashboard') {
-      return handleGetDashboard(tenantId);
+      return handleGetDashboard(tenantId, queryParams);
     }
     if (path === '/api/v1/analytics/dashboard/summary' || path === '/analytics/dashboard/summary') {
       return handleGetDashboardSummary(tenantId);
@@ -392,9 +392,36 @@ async function getTenantIdForUser(cognitoSub) {
 
 /**
  * Get main dashboard data
+ * @param {string} tenantId - Tenant ID
+ * @param {object} queryParams - Query parameters including startDate, endDate, compareStartDate, compareEndDate
  */
-async function handleGetDashboard(tenantId) {
-  console.log('[Dashboard][get] tenantId:', tenantId);
+async function handleGetDashboard(tenantId, queryParams = {}) {
+  const { startDate, endDate, compareStartDate, compareEndDate } = queryParams;
+
+  // Default to this month if no dates provided
+  const now = new Date();
+  const defaultStartDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  const defaultEndDate = now.toISOString().split('T')[0];
+
+  const start = startDate || defaultStartDate;
+  const end = endDate || defaultEndDate;
+
+  // Calculate comparison dates if not provided
+  let compStart = compareStartDate;
+  let compEnd = compareEndDate;
+  if (!compStart || !compEnd) {
+    const startD = new Date(start);
+    const endD = new Date(end);
+    const daysDiff = Math.ceil((endD - startD) / (1000 * 60 * 60 * 24)) + 1;
+    const compEndDate = new Date(startD);
+    compEndDate.setDate(compEndDate.getDate() - 1);
+    const compStartDate = new Date(compEndDate);
+    compStartDate.setDate(compStartDate.getDate() - daysDiff + 1);
+    compStart = compStartDate.toISOString().split('T')[0];
+    compEnd = compEndDate.toISOString().split('T')[0];
+  }
+
+  console.log('[Dashboard][get] tenantId:', tenantId, 'range:', start, 'to', end, 'compare:', compStart, 'to', compEnd);
 
   try {
     await getPoolAsync();
@@ -403,6 +430,31 @@ async function handleGetDashboard(tenantId) {
     const activeBookingsResult = await query(
       `SELECT COUNT(*) as count FROM "Booking"
        WHERE tenant_id = $1 AND status = 'CHECKED_IN' `,
+      [tenantId]
+    );
+
+    // Get total bookings in date range
+    const totalBookingsResult = await query(
+      `SELECT COUNT(*) as count FROM "Booking"
+       WHERE tenant_id = $1
+       AND created_at >= $2::date
+       AND created_at <= ($3::date + INTERVAL '1 day')`,
+      [tenantId, start, end]
+    );
+
+    // Get bookings in comparison period
+    const compareBookingsResult = await query(
+      `SELECT COUNT(*) as count FROM "Booking"
+       WHERE tenant_id = $1
+       AND created_at >= $2::date
+       AND created_at <= ($3::date + INTERVAL '1 day')`,
+      [tenantId, compStart, compEnd]
+    );
+
+    // Get pending bookings
+    const pendingBookingsResult = await query(
+      `SELECT COUNT(*) as count FROM "Booking"
+       WHERE tenant_id = $1 AND status IN ('PENDING', 'CONFIRMED')`,
       [tenantId]
     );
 
@@ -422,9 +474,9 @@ async function handleGetDashboard(tenantId) {
       [tenantId]
     );
 
-    // Get total capacity (kennels)
+    // Get total capacity (kennels) - Kennel table uses max_occupancy column
     const capacityResult = await query(
-      `SELECT COALESCE(SUM(capacity), 0) as capacity, COUNT(*) as count FROM "Kennel"
+      `SELECT COALESCE(SUM(max_occupancy), 0) as capacity, COUNT(*) as count FROM "Kennel"
        WHERE tenant_id = $1 AND is_active = true `,
       [tenantId]
     );
@@ -436,10 +488,28 @@ async function handleGetDashboard(tenantId) {
       [tenantId]
     );
 
-    // Get total customers (owners)
+    // Get total customers (owners) created in date range
     const customersResult = await query(
+      `SELECT COUNT(*) as count FROM "Owner"
+       WHERE tenant_id = $1
+       AND created_at >= $2::date
+       AND created_at <= ($3::date + INTERVAL '1 day')`,
+      [tenantId, start, end]
+    );
+
+    // Get total customers overall
+    const totalCustomersResult = await query(
       `SELECT COUNT(*) as count FROM "Owner" WHERE tenant_id = $1 `,
       [tenantId]
+    );
+
+    // Get customers in comparison period
+    const compareCustomersResult = await query(
+      `SELECT COUNT(*) as count FROM "Owner"
+       WHERE tenant_id = $1
+       AND created_at >= $2::date
+       AND created_at <= ($3::date + INTERVAL '1 day')`,
+      [tenantId, compStart, compEnd]
     );
 
     // Get total pets
@@ -448,26 +518,114 @@ async function handleGetDashboard(tenantId) {
       [tenantId]
     );
 
+    // Get total revenue in date range (from successful payments) - amount_cents is in cents
+    const revenueResult = await query(
+      `SELECT COALESCE(SUM(amount_cents), 0) as total FROM "Payment"
+       WHERE tenant_id = $1
+       AND status IN ('SUCCEEDED', 'CAPTURED')
+       AND processed_at >= $2::date
+       AND processed_at <= ($3::date + INTERVAL '1 day')`,
+      [tenantId, start, end]
+    );
+
+    // Get revenue in comparison period
+    const compareRevenueResult = await query(
+      `SELECT COALESCE(SUM(amount_cents), 0) as total FROM "Payment"
+       WHERE tenant_id = $1
+       AND status IN ('SUCCEEDED', 'CAPTURED')
+       AND processed_at >= $2::date
+       AND processed_at <= ($3::date + INTERVAL '1 day')`,
+      [tenantId, compStart, compEnd]
+    );
+
+    // Get no-shows in date range
+    const noShowsResult = await query(
+      `SELECT COUNT(*) as count FROM "Booking"
+       WHERE tenant_id = $1
+       AND status = 'NO_SHOW'
+       AND check_in >= $2::date
+       AND check_in <= ($3::date + INTERVAL '1 day')`,
+      [tenantId, start, end]
+    );
+
     const activeBookings = parseInt(activeBookingsResult.rows[0]?.count || 0);
     const totalCapacity = parseInt(capacityResult.rows[0]?.capacity || 0);
     const kennelCount = parseInt(capacityResult.rows[0]?.count || 0);
     const capacity = totalCapacity > 0 ? totalCapacity : kennelCount;
     const occupancyRate = capacity > 0 ? Math.round((activeBookings / capacity) * 100) : 0;
 
-    console.log('[Dashboard][diag] active:', activeBookings, 'capacity:', capacity);
+    // Current period metrics
+    const totalBookings = parseInt(totalBookingsResult.rows[0]?.count || 0);
+    const pendingBookings = parseInt(pendingBookingsResult.rows[0]?.count || 0);
+    const newCustomers = parseInt(customersResult.rows[0]?.count || 0);
+    const totalCustomersOverall = parseInt(totalCustomersResult.rows[0]?.count || 0);
+    const totalRevenue = parseInt(revenueResult.rows[0]?.total || 0);
+    const noShows = parseInt(noShowsResult.rows[0]?.count || 0);
+
+    // Comparison period metrics
+    const compareBookings = parseInt(compareBookingsResult.rows[0]?.count || 0);
+    const compareCustomers = parseInt(compareCustomersResult.rows[0]?.count || 0);
+    const compareRevenue = parseInt(compareRevenueResult.rows[0]?.total || 0);
+
+    // Calculate percentage changes
+    const revenueChange = compareRevenue > 0
+      ? Math.round(((totalRevenue - compareRevenue) / compareRevenue) * 100)
+      : (totalRevenue > 0 ? 100 : 0);
+
+    const bookingsChange = compareBookings > 0
+      ? Math.round(((totalBookings - compareBookings) / compareBookings) * 100)
+      : (totalBookings > 0 ? 100 : 0);
+
+    const customersChange = compareCustomers > 0
+      ? Math.round(((newCustomers - compareCustomers) / compareCustomers) * 100)
+      : (newCustomers > 0 ? 100 : 0);
+
+    console.log('[Dashboard][diag] active:', activeBookings, 'capacity:', capacity, 'revenue:', totalRevenue, 'bookings:', totalBookings, 'revenueChange:', revenueChange);
 
     return createResponse(200, {
       data: {
+        // Revenue metrics
+        totalRevenue: totalRevenue,
+        revenue: totalRevenue,
+        revenueChange: revenueChange,
+        compareRevenue: compareRevenue,
+
+        // Booking metrics
+        totalBookings: totalBookings,
+        bookings: totalBookings,
+        bookingsChange: bookingsChange,
+        compareBookings: compareBookings,
+        pendingBookings: pendingBookings,
+        activeBookings: activeBookings,
+
+        // Customer metrics
+        totalCustomers: totalCustomersOverall,
+        customers: totalCustomersOverall,
+        newCustomers: newCustomers,
+        customerChange: customersChange,
+        compareCustomers: compareCustomers,
+
+        // Capacity metrics
+        capacityUtilization: occupancyRate,
+        capacity: capacity,
+
+        // Other metrics
+        noShows: noShows,
+        totalPets: parseInt(petsResult.rows[0]?.count || 0),
+        todayArrivals: parseInt(arrivalsResult.rows[0]?.count || 0),
+        todayDepartures: parseInt(departuresResult.rows[0]?.count || 0),
+        pendingTasks: parseInt(pendingTasksResult.rows[0]?.count || 0),
+
+        // Date range info
+        dateRange: { startDate: start, endDate: end },
+        comparisonRange: { startDate: compStart, endDate: compEnd },
+
+        // Legacy occupancy object for backwards compatibility
         occupancy: {
           current: activeBookings,
           capacity: capacity,
           rate: occupancyRate,
         },
-        todayArrivals: parseInt(arrivalsResult.rows[0]?.count || 0),
-        todayDepartures: parseInt(departuresResult.rows[0]?.count || 0),
-        pendingTasks: parseInt(pendingTasksResult.rows[0]?.count || 0),
-        totalCustomers: parseInt(customersResult.rows[0]?.count || 0),
-        totalPets: parseInt(petsResult.rows[0]?.count || 0),
         alerts: [],
       },
       message: 'Dashboard data retrieved successfully',
@@ -589,11 +747,11 @@ async function handleGetCapacity(tenantId, queryParams) {
   try {
     await getPoolAsync();
 
-    // Get total kennel capacity
+    // Get total kennel capacity - Kennel table uses max_occupancy column
     const capacityResult = await query(
       `SELECT
          COUNT(*) as kennel_count,
-         COALESCE(SUM(capacity), COUNT(*)) as total_capacity
+         COALESCE(SUM(max_occupancy), COUNT(*)) as total_capacity
        FROM "Kennel"
        WHERE tenant_id = $1 AND is_active = true `,
       [tenantId]
@@ -1560,7 +1718,7 @@ async function handleExportOccupancy(tenantId, queryParams) {
     
     // Get total kennel capacity
     const capacityResult = await query(
-      `SELECT COALESCE(SUM(capacity), 0) as total_capacity FROM "Kennel" WHERE tenant_id = $1`,
+      `SELECT COALESCE(SUM(max_occupancy), 0) as total_capacity FROM "Kennel" WHERE tenant_id = $1`,
       [tenantId]
     );
     const totalCapacity = parseInt(capacityResult.rows[0]?.total_capacity || 0);
