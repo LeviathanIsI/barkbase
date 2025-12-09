@@ -3,7 +3,7 @@
  * Simplified version of the booking wizard for quick actions
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { format, addDays } from 'date-fns';
 import Button from '@/components/ui/Button';
@@ -48,11 +48,14 @@ const BookingSlideoutForm = ({
   const services = servicesData?.services || servicesData || [];
   
   // Filter pets by selected owner
+  // Handle both camelCase and snake_case owner IDs from API
   const ownerPets = useMemo(() => {
     if (!selectedOwner) return [];
-    return pets.filter(p => 
-      p.ownerId === selectedOwner.recordId || 
-      p.owners?.some(o => o.recordId === selectedOwner.recordId)
+    const ownerRecordId = selectedOwner.recordId || selectedOwner.id;
+    return pets.filter(p =>
+      p.ownerId === ownerRecordId ||
+      p.owner_id === ownerRecordId ||
+      p.owners?.some(o => (o.recordId || o.id) === ownerRecordId)
     );
   }, [selectedOwner, pets]);
   
@@ -73,13 +76,24 @@ const BookingSlideoutForm = ({
     },
   });
   
-  // Initialize from initial props
-  useState(() => {
-    if (initialPet && initialPet.owners?.[0]) {
-      setSelectedOwner(initialPet.owners[0]);
+  // Initialize from initial props when initialPet loads
+  useEffect(() => {
+    if (initialPet && !selectedOwner) {
+      // Get owner from nested owners array or flat owner fields
+      const owner = initialPet.owners?.[0] || (initialPet.owner_id ? {
+        id: initialPet.owner_id,
+        recordId: initialPet.owner_id,
+        firstName: initialPet.owner_first_name,
+        lastName: initialPet.owner_last_name,
+        email: initialPet.owner_email,
+      } : null);
+
+      if (owner) {
+        setSelectedOwner(owner);
+      }
       setSelectedPets([initialPet]);
     }
-  });
+  }, [initialPet]);
   
   const onSubmit = async (data) => {
     if (!selectedOwner) {
@@ -213,14 +227,15 @@ const BookingSlideoutForm = ({
           ownerPets.length > 0 ? (
             <div className="grid grid-cols-2 gap-2">
               {ownerPets.map(pet => {
-                const isSelected = selectedPets.some(p => p.recordId === pet.recordId);
+                const petId = pet.recordId || pet.id;
+                const isSelected = selectedPets.some(p => (p.recordId || p.id) === petId);
                 return (
                   <button
-                    key={pet.recordId}
+                    key={petId}
                     type="button"
                     onClick={() => {
                       if (isSelected) {
-                        setSelectedPets(prev => prev.filter(p => p.recordId !== pet.recordId));
+                        setSelectedPets(prev => prev.filter(p => (p.recordId || p.id) !== petId));
                       } else {
                         setSelectedPets(prev => [...prev, pet]);
                       }
