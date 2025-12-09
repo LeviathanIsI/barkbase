@@ -1025,7 +1025,8 @@ const StatusBadgeDropdown = ({ pet, onStatusChange }) => {
 const VaccinationHoverCard = ({ pet, expiringVaccinations, navigate, children }) => {
   const [isHovering, setIsHovering] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
-  const hoverTimeoutRef = useRef(null);
+  const openTimeoutRef = useRef(null);
+  const closeTimeoutRef = useRef(null);
   const triggerRef = useRef(null);
 
   // Filter vaccinations for this pet
@@ -1033,26 +1034,68 @@ const VaccinationHoverCard = ({ pet, expiringVaccinations, navigate, children })
     return (expiringVaccinations || []).filter(v => v.petId === pet.recordId || v.petId === pet.id);
   }, [expiringVaccinations, pet.recordId, pet.id]);
 
-  const handleMouseEnter = () => {
-    hoverTimeoutRef.current = setTimeout(() => {
-      // Calculate position relative to viewport for portal
-      if (triggerRef.current) {
-        const rect = triggerRef.current.getBoundingClientRect();
-        setPosition({
-          top: rect.bottom + window.scrollY + 8,
-          left: rect.left + rect.width / 2 + window.scrollX,
-        });
-      }
-      setIsHovering(true);
-    }, 300);
+  const openPopover = useCallback(() => {
+    // Clear any pending close
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    // Calculate position relative to viewport for portal
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPosition({
+        top: rect.bottom + window.scrollY + 4,
+        left: rect.left + rect.width / 2 + window.scrollX,
+      });
+    }
+    setIsHovering(true);
+  }, []);
+
+  const closePopover = useCallback(() => {
+    // Delay close to allow mouse to move from trigger to popup
+    closeTimeoutRef.current = setTimeout(() => {
+      setIsHovering(false);
+    }, 150);
+  }, []);
+
+  const handleTriggerEnter = () => {
+    // Clear any pending close
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    // Delay open for initial hover
+    openTimeoutRef.current = setTimeout(openPopover, 300);
   };
 
-  const handleMouseLeave = () => {
-    if (hoverTimeoutRef.current) {
-      clearTimeout(hoverTimeoutRef.current);
+  const handleTriggerLeave = () => {
+    // Clear pending open
+    if (openTimeoutRef.current) {
+      clearTimeout(openTimeoutRef.current);
+      openTimeoutRef.current = null;
     }
-    setIsHovering(false);
+    closePopover();
   };
+
+  const handlePopoverEnter = () => {
+    // Cancel any pending close when entering popover
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+  };
+
+  const handlePopoverLeave = () => {
+    closePopover();
+  };
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (openTimeoutRef.current) clearTimeout(openTimeoutRef.current);
+      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+    };
+  }, []);
 
   // Only show hover card for non-current vaccinations
   if (pet.vaccinationStatus === 'current' || petVaccinations.length === 0) {
@@ -1070,11 +1113,8 @@ const VaccinationHoverCard = ({ pet, expiringVaccinations, navigate, children })
         backgroundColor: 'var(--bb-color-bg-surface)',
         borderColor: 'var(--bb-color-border-subtle)',
       }}
-      onMouseEnter={() => {
-        if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-        setIsHovering(true);
-      }}
-      onMouseLeave={handleMouseLeave}
+      onMouseEnter={handlePopoverEnter}
+      onMouseLeave={handlePopoverLeave}
     >
       <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
         <p className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">
@@ -1082,7 +1122,8 @@ const VaccinationHoverCard = ({ pet, expiringVaccinations, navigate, children })
         </p>
       </div>
 
-      <div className="max-h-48 overflow-y-auto py-1">
+      {/* Show all vaccinations - only scroll if more than 5 items */}
+      <div className={cn('py-1', petVaccinations.length > 5 && 'max-h-64 overflow-y-auto')}>
         {petVaccinations.map((vacc, idx) => {
           const isExpired = vacc.status === 'expired' || new Date(vacc.expiresAt) < new Date();
           const expiresDate = vacc.expiresAt ? new Date(vacc.expiresAt) : null;
@@ -1116,6 +1157,7 @@ const VaccinationHoverCard = ({ pet, expiringVaccinations, navigate, children })
           type="button"
           onClick={(e) => {
             e.stopPropagation();
+            setIsHovering(false);
             navigate(`/pets/${pet.recordId || pet.id}`);
           }}
           className="w-full flex items-center justify-center gap-1.5 text-sm font-medium text-[color:var(--bb-color-accent)] hover:underline"
@@ -1132,8 +1174,8 @@ const VaccinationHoverCard = ({ pet, expiringVaccinations, navigate, children })
   return (
     <div
       className="inline-block"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      onMouseEnter={handleTriggerEnter}
+      onMouseLeave={handleTriggerLeave}
       ref={triggerRef}
     >
       <div className="cursor-pointer">
