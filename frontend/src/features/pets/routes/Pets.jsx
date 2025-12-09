@@ -26,8 +26,9 @@ import { useExpiringVaccinationsQuery } from '../api-vaccinations';
 import { useOwnersQuery } from '@/features/owners/api';
 import { PetFormModal } from '../components';
 import { cn } from '@/lib/cn';
-import { getBirthdateFromAge, getAgeFromBirthdate, formatAgeFromBirthdate } from '../utils/pet-date-utils';
+import { getBirthdateFromAge, getAgeFromBirthdate, formatAgeFromBirthdate, getBirthdateFromPet, getFormattedAgeFromPet } from '../utils/pet-date-utils';
 import { formatDistanceToNow } from 'date-fns';
+import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
 
 // Saved views - persisted in localStorage
 const DEFAULT_VIEWS = [
@@ -350,8 +351,9 @@ const Pets = () => {
       const vaccinationStatus = petVaccinationStatus.get(pet.recordId) || petVaccinationStatus.get(pet.id) || 'current';
       const hasExpiringVaccinations = vaccinationStatus !== 'current';
 
-      // Derive age from birthdate (API returns birthdate, not age)
-      const age = getAgeFromBirthdate(pet.birthdate);
+      // Derive age from birthdate - check multiple property names
+      const birthdate = getBirthdateFromPet(pet);
+      const age = getAgeFromBirthdate(birthdate);
 
       return {
         ...pet,
@@ -362,6 +364,7 @@ const Pets = () => {
         inFacility,
         hasExpiringVaccinations,
         age,
+        birthdate, // Normalized birthdate for display
       };
     });
   }, [pets, petVaccinationStatus]);
@@ -1022,6 +1025,7 @@ const StatusBadgeDropdown = ({ pet, onStatusChange }) => {
 
 // Vaccination Hover Card Component - Shows details for non-current vaccinations
 // Uses createPortal with flip positioning to render above table stacking context
+// Click on a vaccination row to open the edit slideout
 const VaccinationHoverCard = ({ pet, expiringVaccinations, navigate, children }) => {
   const [isHovering, setIsHovering] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0, placement: 'bottom' });
@@ -1029,6 +1033,7 @@ const VaccinationHoverCard = ({ pet, expiringVaccinations, navigate, children })
   const closeTimeoutRef = useRef(null);
   const triggerRef = useRef(null);
   const popoverRef = useRef(null);
+  const { openSlideout } = useSlideout();
 
   // Filter vaccinations for this pet
   const petVaccinations = useMemo(() => {
@@ -1149,15 +1154,27 @@ const VaccinationHoverCard = ({ pet, expiringVaccinations, navigate, children })
       </div>
 
       {/* Show all vaccinations - only scroll if more than 6 items */}
+      {/* Click a vaccination to open edit slideout */}
       <div className={cn('py-1', petVaccinations.length > 6 && 'max-h-80 overflow-y-auto')}>
         {petVaccinations.map((vacc, idx) => {
           const isExpired = vacc.status === 'expired' || new Date(vacc.expiresAt) < new Date();
           const expiresDate = vacc.expiresAt ? new Date(vacc.expiresAt) : null;
 
           return (
-            <div
+            <button
+              type="button"
               key={vacc.id || vacc.recordId || idx}
-              className="px-3 py-2 hover:bg-[var(--bb-color-bg-elevated)] transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsHovering(false);
+                openSlideout(SLIDEOUT_TYPES.VACCINATION_EDIT, {
+                  vaccination: vacc,
+                  petId: pet.recordId || pet.id,
+                  petName: pet.name,
+                  title: `Update ${vacc.type || vacc.name || 'Vaccination'}`,
+                });
+              }}
+              className="w-full text-left px-3 py-2 hover:bg-[var(--bb-color-bg-elevated)] transition-colors cursor-pointer rounded"
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)] truncate">
@@ -1173,7 +1190,7 @@ const VaccinationHoverCard = ({ pet, expiringVaccinations, navigate, children })
                   ? formatDistanceToNow(expiresDate, { addSuffix: true })
                   : 'date unknown'}
               </p>
-            </div>
+            </button>
           );
         })}
       </div>

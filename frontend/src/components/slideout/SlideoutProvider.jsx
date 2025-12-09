@@ -18,6 +18,8 @@ export const SLIDEOUT_TYPES = {
   TASK_EDIT: 'taskEdit',
   COMMUNICATION_CREATE: 'communicationCreate',
   NOTE_CREATE: 'noteCreate',
+  ACTIVITY_LOG: 'activityLog',
+  VACCINATION_EDIT: 'vaccinationEdit',
 };
 
 // Slideout configuration for each type
@@ -70,6 +72,16 @@ export const SLIDEOUT_CONFIG = {
   [SLIDEOUT_TYPES.NOTE_CREATE]: {
     title: 'Add Note',
     description: 'Add a note to this record',
+    width: 'max-w-xl',
+  },
+  [SLIDEOUT_TYPES.ACTIVITY_LOG]: {
+    title: 'Log Activity',
+    description: 'Log a manual activity or interaction',
+    width: 'max-w-xl',
+  },
+  [SLIDEOUT_TYPES.VACCINATION_EDIT]: {
+    title: 'Update Vaccination',
+    description: 'Update vaccination record',
     width: 'max-w-xl',
   },
 };

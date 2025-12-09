@@ -3,7 +3,7 @@
  * Place this once in the app layout to enable global slideouts
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import SlideoutPanel from '@/components/SlideoutPanel';
@@ -15,9 +15,10 @@ import { cn } from '@/lib/cn';
 import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
 
 // API hooks
-import { useCreatePetMutation, useUpdatePetMutation } from '@/features/pets/api';
+import { useCreatePetMutation, useUpdatePetMutation, useUpdateVaccinationMutation } from '@/features/pets/api';
 import { useCreateOwnerMutation, useUpdateOwnerMutation } from '@/features/owners/api';
 import { useCreateNote } from '@/features/communications/api';
+import { format, addDays } from 'date-fns';
 
 // Form components for complex flows
 import BookingSlideoutForm from '@/features/bookings/components/BookingSlideoutForm';
@@ -66,13 +67,23 @@ export function SlideoutHost() {
       
       case SLIDEOUT_TYPES.COMMUNICATION_CREATE:
       case SLIDEOUT_TYPES.NOTE_CREATE:
+      case SLIDEOUT_TYPES.ACTIVITY_LOG:
         return [
           ['communications'],
           state?.props?.ownerId ? ['owner', state.props.ownerId] : null,
           state?.props?.ownerId ? ['customerTimeline', state.props.ownerId] : null,
           ['notes'],
+          ['activities'],
         ].filter(Boolean);
-      
+
+      case SLIDEOUT_TYPES.VACCINATION_EDIT:
+        return [
+          ['petVaccinations', { tenantId, petId: state?.props?.petId }],
+          ['vaccinations'],
+          ['vaccinations', 'expiring'],
+          state?.props?.petId ? ['pets', { tenantId }, state.props.petId] : null,
+        ].filter(Boolean);
+
       default:
         return [];
     }
@@ -101,6 +112,8 @@ export function SlideoutHost() {
       case SLIDEOUT_TYPES.TASK_EDIT: return 'Task updated successfully';
       case SLIDEOUT_TYPES.COMMUNICATION_CREATE: return 'Message sent successfully';
       case SLIDEOUT_TYPES.NOTE_CREATE: return 'Note added successfully';
+      case SLIDEOUT_TYPES.ACTIVITY_LOG: return 'Activity logged successfully';
+      case SLIDEOUT_TYPES.VACCINATION_EDIT: return 'Vaccination updated successfully';
       default: return 'Saved successfully';
     }
   };
@@ -208,6 +221,27 @@ export function SlideoutHost() {
             ownerId={props?.ownerId}
             petId={props?.petId}
             bookingId={props?.bookingId}
+            onSuccess={onFormSuccess}
+            onCancel={closeSlideout}
+          />
+        );
+
+      case SLIDEOUT_TYPES.ACTIVITY_LOG:
+        return (
+          <ActivityLogForm
+            ownerId={props?.ownerId}
+            petId={props?.petId}
+            onSuccess={onFormSuccess}
+            onCancel={closeSlideout}
+          />
+        );
+
+      case SLIDEOUT_TYPES.VACCINATION_EDIT:
+        return (
+          <VaccinationEditForm
+            vaccination={props?.vaccination}
+            petId={props?.petId}
+            petName={props?.petName}
             onSuccess={onFormSuccess}
             onCancel={closeSlideout}
           />
@@ -517,6 +551,250 @@ function NoteForm({ ownerId, petId, bookingId, onSuccess, onCancel }) {
         <Button type="button" variant="ghost" onClick={onCancel} disabled={isLoading}>Cancel</Button>
         <Button type="submit" disabled={isLoading || !content.trim()}>
           {isLoading ? 'Adding...' : 'Add Note'}
+        </Button>
+      </FormActions>
+    </form>
+  );
+}
+
+// Activity Log Form
+const ACTIVITY_TYPES = [
+  { value: 'call', label: 'Phone Call', icon: '📞' },
+  { value: 'email', label: 'Email', icon: '📧' },
+  { value: 'note', label: 'Note', icon: '📝' },
+  { value: 'visit', label: 'Visit', icon: '🏠' },
+  { value: 'other', label: 'Other', icon: '📋' },
+];
+
+function ActivityLogForm({ ownerId, petId, onSuccess, onCancel }) {
+  const createMutation = useCreateNote();
+  const [activityType, setActivityType] = useState('note');
+  const [content, setContent] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!content.trim()) return;
+
+    try {
+      const result = await createMutation.mutateAsync({
+        ownerId,
+        petId,
+        type: activityType,
+        content,
+        entityType: ownerId ? 'owner' : 'pet',
+        entityId: ownerId || petId,
+      });
+      onSuccess?.(result);
+    } catch (error) {
+      toast.error(error?.message || 'Failed to log activity');
+    }
+  };
+
+  const isLoading = createMutation.isPending;
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <FormSection title="Activity Type">
+        <div className="grid grid-cols-5 gap-2">
+          {ACTIVITY_TYPES.map((type) => (
+            <button
+              key={type.value}
+              type="button"
+              onClick={() => setActivityType(type.value)}
+              className={cn(
+                'flex flex-col items-center gap-1 p-3 rounded-lg border text-sm transition-colors',
+                activityType === type.value
+                  ? 'border-[color:var(--bb-color-accent)] bg-[color:var(--bb-color-accent-soft)]'
+                  : 'border-[color:var(--bb-color-border-subtle)] hover:bg-[color:var(--bb-color-bg-surface)]'
+              )}
+            >
+              <span className="text-lg">{type.icon}</span>
+              <span style={{ color: 'var(--bb-color-text-primary)' }}>{type.label}</span>
+            </button>
+          ))}
+        </div>
+      </FormSection>
+
+      <FormSection title="Details">
+        <div className="space-y-2">
+          <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+            Description <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+          </label>
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            rows={5}
+            className={cn(inputClass, 'resize-y')}
+            style={inputStyles}
+            placeholder="Describe the activity..."
+          />
+        </div>
+      </FormSection>
+
+      <FormActions>
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={isLoading}>Cancel</Button>
+        <Button type="submit" disabled={isLoading || !content.trim()}>
+          {isLoading ? 'Logging...' : 'Log Activity'}
+        </Button>
+      </FormActions>
+    </form>
+  );
+}
+
+// Vaccination Edit Form
+function VaccinationEditForm({ vaccination, petId, petName, onSuccess, onCancel }) {
+  const updateMutation = useUpdateVaccinationMutation(petId);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isDirty, isSubmitting },
+  } = useForm({
+    defaultValues: {
+      type: vaccination?.type || vaccination?.name || vaccination?.vaccineName || '',
+      dateAdministered: vaccination?.dateAdministered
+        ? format(new Date(vaccination.dateAdministered), 'yyyy-MM-dd')
+        : vaccination?.administeredAt
+          ? format(new Date(vaccination.administeredAt), 'yyyy-MM-dd')
+          : format(new Date(), 'yyyy-MM-dd'),
+      expirationDate: vaccination?.expirationDate
+        ? format(new Date(vaccination.expirationDate), 'yyyy-MM-dd')
+        : vaccination?.expiresAt
+          ? format(new Date(vaccination.expiresAt), 'yyyy-MM-dd')
+          : format(addDays(new Date(), 365), 'yyyy-MM-dd'),
+      veterinarian: vaccination?.veterinarian || vaccination?.administeredBy || '',
+      notes: vaccination?.notes || '',
+    },
+  });
+
+  useEffect(() => {
+    if (vaccination) {
+      reset({
+        type: vaccination?.type || vaccination?.name || vaccination?.vaccineName || '',
+        dateAdministered: vaccination?.dateAdministered
+          ? format(new Date(vaccination.dateAdministered), 'yyyy-MM-dd')
+          : vaccination?.administeredAt
+            ? format(new Date(vaccination.administeredAt), 'yyyy-MM-dd')
+            : format(new Date(), 'yyyy-MM-dd'),
+        expirationDate: vaccination?.expirationDate
+          ? format(new Date(vaccination.expirationDate), 'yyyy-MM-dd')
+          : vaccination?.expiresAt
+            ? format(new Date(vaccination.expiresAt), 'yyyy-MM-dd')
+            : format(addDays(new Date(), 365), 'yyyy-MM-dd'),
+        veterinarian: vaccination?.veterinarian || vaccination?.administeredBy || '',
+        notes: vaccination?.notes || '',
+      });
+    }
+  }, [vaccination, reset]);
+
+  const onSubmit = async (data) => {
+    try {
+      const vaccinationId = vaccination?.id || vaccination?.recordId;
+      const result = await updateMutation.mutateAsync({
+        vaccinationId,
+        payload: {
+          type: data.type,
+          dateAdministered: data.dateAdministered,
+          expirationDate: data.expirationDate,
+          veterinarian: data.veterinarian || null,
+          notes: data.notes || null,
+        },
+      });
+      onSuccess?.(result || data);
+    } catch (error) {
+      console.error('Failed to update vaccination:', error);
+      toast.error(error?.message || 'Failed to update vaccination');
+    }
+  };
+
+  const isLoading = updateMutation.isPending;
+  const vaccinationType = vaccination?.type || vaccination?.name || vaccination?.vaccineName || 'Vaccination';
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      {/* Pet Info Header */}
+      {petName && (
+        <div
+          className="p-3 rounded-lg border"
+          style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+        >
+          <p className="text-sm text-[color:var(--bb-color-text-muted)]">Updating vaccination for</p>
+          <p className="font-medium text-[color:var(--bb-color-text-primary)]">{petName}</p>
+        </div>
+      )}
+
+      <FormSection title="Vaccination Details">
+        <div className="space-y-2">
+          <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+            Vaccine Type <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+          </label>
+          <input
+            type="text"
+            {...register('type', { required: 'Vaccine type is required' })}
+            className={inputClass}
+            style={{ ...inputStyles, borderColor: errors.type ? 'var(--bb-color-status-negative)' : inputStyles.borderColor }}
+            placeholder="e.g., Rabies, DHPP, Bordetella"
+          />
+          {errors.type && <p className="text-xs" style={{ color: 'var(--bb-color-status-negative)' }}>{errors.type.message}</p>}
+        </div>
+
+        <FormGrid cols={2}>
+          <div className="space-y-2">
+            <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+              Date Administered <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+            </label>
+            <input
+              type="date"
+              {...register('dateAdministered', { required: 'Date is required' })}
+              className={inputClass}
+              style={inputStyles}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+              Expiration Date <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+            </label>
+            <input
+              type="date"
+              {...register('expirationDate', { required: 'Expiration date is required' })}
+              className={inputClass}
+              style={inputStyles}
+            />
+          </div>
+        </FormGrid>
+
+        <div className="space-y-2">
+          <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+            Veterinarian / Clinic
+          </label>
+          <input
+            type="text"
+            {...register('veterinarian')}
+            className={inputClass}
+            style={inputStyles}
+            placeholder="e.g., Dr. Smith at ABC Vet Clinic"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+            Notes
+          </label>
+          <textarea
+            {...register('notes')}
+            rows={3}
+            className={cn(inputClass, 'resize-y')}
+            style={inputStyles}
+            placeholder="Any additional notes..."
+          />
+        </div>
+      </FormSection>
+
+      <FormActions>
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={isLoading}>Cancel</Button>
+        <Button type="submit" disabled={isLoading || !isDirty}>
+          {isLoading ? 'Updating...' : 'Update Vaccination'}
         </Button>
       </FormActions>
     </form>

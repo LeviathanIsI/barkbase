@@ -59,6 +59,7 @@ import { queryKeys } from '@/lib/queryKeys';
 import { VaccinationFormModal } from '../components';
 import { cn, formatCurrency } from '@/lib/utils';
 import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
+import { getBirthdateFromPet, getFormattedAgeFromPet, formatAgeFromBirthdate } from '../utils/pet-date-utils';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -86,22 +87,8 @@ const safeFormatDistance = (dateStr) => {
   }
 };
 
-const calculateAge = (dob) => {
-  if (!dob) return null;
-  const birth = new Date(dob);
-  if (isNaN(birth.getTime())) return null;
-  const now = new Date();
-  let years = now.getFullYear() - birth.getFullYear();
-  const monthDiff = now.getMonth() - birth.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) {
-    years--;
-  }
-  if (years < 1) {
-    const months = (now.getFullYear() - birth.getFullYear()) * 12 + now.getMonth() - birth.getMonth();
-    return `${months} months`;
-  }
-  return `${years} ${years === 1 ? 'year' : 'years'} old`;
-};
+// calculateAge uses the shared utility from pet-date-utils
+const calculateAge = (dob) => formatAgeFromBirthdate(dob);
 
 const getStatusVariant = (status) => {
   const statusMap = {
@@ -381,7 +368,7 @@ const PetDetail = () => {
   const primaryOwner = pet.owners?.[0];
   const currentBooking = pet.currentBooking || petBookings?.find(b => b.status === 'CHECKED_IN');
   const petDescription = [pet.breed, pet.species].filter(Boolean).join(' • ');
-  const petAge = calculateAge(pet.dateOfBirth) || pet.age;
+  const petAge = getFormattedAgeFromPet(pet) || pet.age;
   const hasAlerts = pet.medicalNotes || pet.behaviorNotes || pet.dietaryNotes;
 
   return (
@@ -658,7 +645,7 @@ function MetricCard({ label, value, variant = 'neutral' }) {
 // ============================================================================
 
 function PetSummaryCard({ pet, currentBooking }) {
-  const petAge = calculateAge(pet.dateOfBirth) || pet.age;
+  const petAge = getFormattedAgeFromPet(pet) || pet.age;
 
   const fields = [
     { label: 'Breed', value: pet.breed },
