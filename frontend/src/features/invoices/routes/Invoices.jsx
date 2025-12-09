@@ -3,8 +3,11 @@
  * Modeled after QuickBooks Online, Stripe Invoicing, and HubSpot Billing
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTour } from '@/contexts/TourContext';
+import { invoicesTourConfig, INVOICES_TOUR_ID, invoicesTourSteps } from '../tours';
+import { TourIconButton } from '@/components/ui/TourHelpButton';
 import { format, isPast } from 'date-fns';
 import {
   FileText,
@@ -52,10 +55,16 @@ import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import SlidePanel from '@/components/ui/SlidePanel';
+import SlideOutDrawer from '@/components/ui/SlideOutDrawer';
+import Input from '@/components/ui/Input';
+import Select from '@/components/ui/Select';
+import Textarea from '@/components/ui/Textarea';
 // Unified loader: replaced inline loading with LoadingState
 import LoadingState from '@/components/ui/LoadingState';
 // Business invoices = tenant billing pet owners (NOT platform billing)
-import { useBusinessInvoicesQuery, useSendInvoiceEmailMutation, useMarkInvoicePaidMutation } from '../api';
+import { useBusinessInvoicesQuery, useSendInvoiceEmailMutation, useMarkInvoicePaidMutation, useCreateInvoiceMutation } from '../api';
+import { useOwnersQuery } from '@/features/owners/api';
+import { usePetsQuery } from '@/features/pets/api';
 import { formatCurrency } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
@@ -225,6 +234,296 @@ const InvoiceRow = ({ invoice, isSelected, onSelect, onClick }) => {
         </button>
       </td>
     </tr>
+  );
+};
+
+// Create Invoice Drawer
+const CreateInvoiceDrawer = ({ isOpen, onClose, onSuccess }) => {
+  const [form, setForm] = useState({
+    ownerId: '',
+    dueDate: '',
+    notes: '',
+    lineItems: [{ description: '', quantity: 1, unitPriceCents: 0 }],
+  });
+  const [lineItemErrors, setLineItemErrors] = useState([]);
+
+  const { data: ownersData } = useOwnersQuery();
+  const owners = ownersData?.owners ?? ownersData ?? [];
+  const createMutation = useCreateInvoiceMutation();
+
+  const handleAddLineItem = () => {
+    setForm(prev => ({
+      ...prev,
+      lineItems: [...prev.lineItems, { description: '', quantity: 1, unitPriceCents: 0 }],
+    }));
+  };
+
+  const handleRemoveLineItem = (idx) => {
+    setForm(prev => ({
+      ...prev,
+      lineItems: prev.lineItems.filter((_, i) => i !== idx),
+    }));
+  };
+
+  const handleLineItemChange = (idx, field, value) => {
+    setForm(prev => ({
+      ...prev,
+      lineItems: prev.lineItems.map((item, i) =>
+        i === idx ? { ...item, [field]: value } : item
+      ),
+    }));
+  };
+
+  const subtotalCents = form.lineItems.reduce(
+    (sum, item) => sum + (item.quantity || 0) * (item.unitPriceCents || 0),
+    0
+  );
+
+  // Validate line items and return errors array
+  const validateLineItems = () => {
+    const errors = [];
+    let hasValidItem = false;
+
+    form.lineItems.forEach((item, idx) => {
+      const itemErrors = {};
+      const quantity = parseInt(item.quantity, 10);
+      const price = item.unitPriceCents;
+
+      // Check if this item has any content (description or price)
+      const hasContent = item.description?.trim() || price > 0;
+
+      if (hasContent) {
+        // Validate quantity - must be > 0
+        if (isNaN(quantity) || quantity <= 0) {
+          itemErrors.quantity = 'Quantity must be greater than 0';
+        }
+
+        // Validate price - must be >= 0 and a valid number
+        if (isNaN(price) || price < 0) {
+          itemErrors.price = 'Price must be a valid number >= 0';
+        }
+
+        // Description required if price > 0
+        if (price > 0 && !item.description?.trim()) {
+          itemErrors.description = 'Description required when price is set';
+        }
+
+        hasValidItem = true;
+      }
+
+      errors[idx] = itemErrors;
+    });
+
+    return { errors, hasValidItem };
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    // Clear previous errors
+    setLineItemErrors([]);
+
+    // Validate owner
+    if (!form.ownerId) {
+      toast.error('Please select a customer');
+      return;
+    }
+
+    // Validate line items
+    const { errors, hasValidItem } = validateLineItems();
+    const hasErrors = errors.some(e => Object.keys(e).length > 0);
+
+    if (hasErrors) {
+      setLineItemErrors(errors);
+      toast.error('Please fix the errors in line items');
+      return;
+    }
+
+    if (!hasValidItem) {
+      toast.error('Please add at least one line item with a description');
+      return;
+    }
+
+    // Filter to only valid items (with description)
+    const validLineItems = form.lineItems.filter(i => i.description?.trim());
+
+    try {
+      await createMutation.mutateAsync({
+        ownerId: form.ownerId,
+        dueDate: form.dueDate || null,
+        notes: form.notes || null,
+        lineItems: validLineItems,
+        subtotalCents,
+        totalCents: subtotalCents,
+        status: 'DRAFT',
+      });
+      toast.success('Invoice created');
+      onSuccess?.();
+      onClose();
+      // Reset form
+      setForm({
+        ownerId: '',
+        dueDate: '',
+        notes: '',
+        lineItems: [{ description: '', quantity: 1, unitPriceCents: 0 }],
+      });
+      setLineItemErrors([]);
+    } catch (error) {
+      toast.error(error?.message || 'Failed to create invoice');
+    }
+  };
+
+  return (
+    <SlideOutDrawer
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Create Invoice"
+      subtitle="Create a new invoice for a customer"
+      size="lg"
+      footerContent={
+        <div className="flex justify-end gap-3">
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button
+            form="create-invoice-form"
+            type="submit"
+            disabled={createMutation.isPending}
+          >
+            {createMutation.isPending ? 'Creating...' : 'Create Invoice'}
+          </Button>
+        </div>
+      }
+    >
+      <form id="create-invoice-form" onSubmit={handleSubmit} className="p-[var(--bb-space-6)] space-y-6">
+        {/* Customer Selection */}
+        <div>
+          <label className="block text-sm font-medium text-text mb-1.5">Customer *</label>
+          <Select
+            value={form.ownerId}
+            onChange={(e) => setForm(prev => ({ ...prev, ownerId: e.target.value }))}
+            required
+          >
+            <option value="">Select a customer...</option>
+            {owners.map((owner) => (
+              <option key={owner.recordId || owner.id} value={owner.recordId || owner.id}>
+                {owner.firstName} {owner.lastName} {owner.email ? `(${owner.email})` : ''}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        {/* Due Date */}
+        <div>
+          <label className="block text-sm font-medium text-text mb-1.5">Due Date</label>
+          <Input
+            type="date"
+            value={form.dueDate}
+            onChange={(e) => setForm(prev => ({ ...prev, dueDate: e.target.value }))}
+          />
+        </div>
+
+        {/* Line Items */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <label className="text-sm font-medium text-text">Line Items</label>
+            <Button type="button" variant="outline" size="sm" onClick={handleAddLineItem}>
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Add Item
+            </Button>
+          </div>
+          <div className="space-y-3">
+            {form.lineItems.map((item, idx) => {
+              const itemErrors = lineItemErrors[idx] || {};
+              const hasItemErrors = Object.keys(itemErrors).length > 0;
+
+              return (
+                <div key={idx} className={cn(
+                  'flex flex-col gap-2 p-3 bg-surface rounded-lg',
+                  hasItemErrors && 'ring-1 ring-red-500'
+                )}>
+                  <div className="flex gap-3 items-start">
+                    <div className="flex-1">
+                      <Input
+                        placeholder="Description"
+                        value={item.description}
+                        onChange={(e) => handleLineItemChange(idx, 'description', e.target.value)}
+                        className={itemErrors.description ? 'border-red-500' : ''}
+                      />
+                    </div>
+                    <div className="w-20">
+                      <Input
+                        type="number"
+                        min="1"
+                        placeholder="Qty"
+                        value={item.quantity}
+                        onChange={(e) => handleLineItemChange(idx, 'quantity', parseInt(e.target.value) || 0)}
+                        className={itemErrors.quantity ? 'border-red-500' : ''}
+                      />
+                    </div>
+                    <div className="w-28">
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-sm">$</span>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="Price"
+                          className={cn('pl-7', itemErrors.price ? 'border-red-500' : '')}
+                          value={(item.unitPriceCents / 100).toFixed(2)}
+                          onChange={(e) => handleLineItemChange(idx, 'unitPriceCents', Math.round(parseFloat(e.target.value || 0) * 100))}
+                        />
+                      </div>
+                    </div>
+                    <div className="w-24 text-right pt-2">
+                      <span className="text-sm font-medium text-text">
+                        ${((item.quantity || 0) * (item.unitPriceCents || 0) / 100).toFixed(2)}
+                      </span>
+                    </div>
+                    {form.lineItems.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveLineItem(idx)}
+                        className="text-red-500 hover:text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  {/* Field-level error messages */}
+                  {hasItemErrors && (
+                    <div className="flex flex-wrap gap-2 text-xs text-red-600">
+                      {itemErrors.description && <span>{itemErrors.description}</span>}
+                      {itemErrors.quantity && <span>{itemErrors.quantity}</span>}
+                      {itemErrors.price && <span>{itemErrors.price}</span>}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Totals */}
+        <div className="border-t border-border pt-4">
+          <div className="flex justify-between text-lg font-semibold">
+            <span>Total</span>
+            <span>${(subtotalCents / 100).toFixed(2)}</span>
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div>
+          <label className="block text-sm font-medium text-text mb-1.5">Notes (optional)</label>
+          <Textarea
+            value={form.notes}
+            onChange={(e) => setForm(prev => ({ ...prev, notes: e.target.value }))}
+            placeholder="Add any notes for this invoice..."
+            rows={3}
+          />
+        </div>
+      </form>
+    </SlideOutDrawer>
   );
 };
 
@@ -501,7 +800,12 @@ const Invoices = () => {
   const [selectedInvoices, setSelectedInvoices] = useState(new Set());
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [showDrawer, setShowDrawer] = useState(false);
+  const [showCreateDrawer, setShowCreateDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
+
+  // Tour integration
+  const { startTour, isTourSeen } = useTour();
+  const tourStartedRef = useRef(false);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -519,6 +823,17 @@ const Invoices = () => {
   const { data: invoicesData, isLoading, error, refetch } = useBusinessInvoicesQuery();
   const sendEmailMutation = useSendInvoiceEmailMutation();
   const markPaidMutation = useMarkInvoicePaidMutation();
+
+  // Auto-start tour for first-time visitors
+  useEffect(() => {
+    if (!isLoading && !tourStartedRef.current && !isTourSeen(INVOICES_TOUR_ID)) {
+      tourStartedRef.current = true;
+      const timer = setTimeout(() => {
+        startTour(INVOICES_TOUR_ID, invoicesTourSteps);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, startTour, isTourSeen]);
 
   // Process invoices data from normalized response { invoices, total }
   // Normalize status to lowercase for consistent comparison (DB may return UPPERCASE)
@@ -716,7 +1031,7 @@ const Invoices = () => {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between" data-tour="invoices-header">
         <div>
           <nav className="mb-1">
             <ol className="flex items-center gap-1 text-xs text-muted">
@@ -730,10 +1045,18 @@ const Invoices = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <div data-tour="invoices-help-button">
+            <TourIconButton
+              tourConfig={invoicesTourConfig}
+              variant="ghost"
+              icon="play"
+              label="Start Page Tour"
+            />
+          </div>
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCw className="h-3.5 w-3.5" />
           </Button>
-          <Button size="sm" onClick={() => navigate('/invoices/create')}>
+          <Button size="sm" onClick={() => setShowCreateDrawer(true)} data-tour="invoices-create">
             <Plus className="h-3.5 w-3.5 mr-1.5" />
             Create Invoice
           </Button>
@@ -741,7 +1064,7 @@ const Invoices = () => {
       </div>
 
       {/* KPI Tiles */}
-      <div className="flex gap-3 overflow-x-auto pb-1">
+      <div className="flex gap-3 overflow-x-auto pb-1" data-tour="invoices-kpis">
         <KPITile
           icon={FileText}
           label="Draft"
@@ -776,7 +1099,7 @@ const Invoices = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 overflow-x-auto pb-1 border-b border-border">
+      <div className="flex items-center gap-1 overflow-x-auto pb-1 border-b border-border" data-tour="invoices-tabs">
         {[
           { key: 'all', label: 'All' },
           { key: 'draft', label: 'Draft' },
@@ -811,7 +1134,7 @@ const Invoices = () => {
       </div>
 
       {/* Filters Toolbar */}
-      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-3">
+      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-3" data-tour="invoices-filters">
         <div className="flex flex-wrap items-center gap-3">
           {/* Search */}
           <div className="relative flex-1 min-w-[200px] max-w-sm">
@@ -874,7 +1197,7 @@ const Invoices = () => {
       </div>
 
       {/* Invoice Table */}
-      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg overflow-hidden">
+      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg overflow-hidden" data-tour="invoices-table">
         {isLoading ? (
           <div className="p-8 text-center">
             <LoadingState label="Loading invoices…" variant="spinner" />
@@ -899,7 +1222,7 @@ const Invoices = () => {
                 : 'Try adjusting your filters or search term'}
             </p>
             {invoices.length === 0 ? (
-              <Button onClick={() => navigate('/invoices/create')}>
+              <Button onClick={() => setShowCreateDrawer(true)}>
                 <Plus className="h-4 w-4 mr-1.5" />
                 Create Your First Invoice
               </Button>
@@ -1036,6 +1359,13 @@ const Invoices = () => {
         onClose={() => setShowDrawer(false)}
         onSendEmail={handleSendEmail}
         onMarkPaid={handleMarkPaid}
+      />
+
+      {/* Create Invoice Drawer */}
+      <CreateInvoiceDrawer
+        isOpen={showCreateDrawer}
+        onClose={() => setShowCreateDrawer(false)}
+        onSuccess={() => refetch()}
       />
     </div>
   );
