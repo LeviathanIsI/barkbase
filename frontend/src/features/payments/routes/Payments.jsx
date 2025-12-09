@@ -1,6 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import { useTour } from '@/contexts/TourContext';
+import { TourIconButton } from '@/components/ui';
+import { paymentsTourConfig } from '../tours';
 import {
   CreditCard,
   TrendingUp,
@@ -389,7 +392,16 @@ const ManualPaymentDrawer = ({ isOpen, onClose, outstandingItems = [], owners = 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.amount || parseFloat(formData.amount) <= 0) {
+
+    // Validate owner is selected
+    if (!formData.ownerId) {
+      toast.error('Please select a customer');
+      return;
+    }
+
+    // Validate amount
+    const amount = parseFloat(formData.amount);
+    if (!formData.amount || isNaN(amount) || amount <= 0) {
       toast.error('Please enter a valid amount');
       return;
     }
@@ -442,8 +454,9 @@ const ManualPaymentDrawer = ({ isOpen, onClose, outstandingItems = [], owners = 
                   key={item.id}
                   type="button"
                   onClick={() => handleSelectOutstanding(item)}
+                  disabled={isSubmitting}
                   className={cn(
-                    'w-full p-3 rounded-lg border text-left transition-colors',
+                    'w-full p-3 rounded-lg border text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
                     formData.outstandingItemId === item.id
                       ? 'border-primary bg-primary/5'
                       : 'border-border hover:border-primary/50 bg-surface'
@@ -475,10 +488,11 @@ const ManualPaymentDrawer = ({ isOpen, onClose, outstandingItems = [], owners = 
               placeholder="Search customers..."
               value={ownerSearch}
               onChange={(e) => setOwnerSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              disabled={isSubmitting}
+              className="w-full pl-9 pr-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
-          {(ownerSearch || !formData.ownerId) && filteredOwners.length > 0 && (
+          {(ownerSearch || !formData.ownerId) && filteredOwners.length > 0 && !isSubmitting && (
             <div className="mt-2 max-h-40 overflow-y-auto border border-border rounded-lg">
               {filteredOwners.map(owner => (
                 <button
@@ -488,8 +502,9 @@ const ManualPaymentDrawer = ({ isOpen, onClose, outstandingItems = [], owners = 
                     setFormData(prev => ({ ...prev, ownerId: owner.recordId || owner.id }));
                     setOwnerSearch('');
                   }}
+                  disabled={isSubmitting}
                   className={cn(
-                    'w-full p-2 text-left hover:bg-surface/80 flex items-center gap-2',
+                    'w-full p-2 text-left hover:bg-surface/80 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed',
                     formData.ownerId === (owner.recordId || owner.id) && 'bg-primary/5'
                   )}
                 >
@@ -522,7 +537,8 @@ const ManualPaymentDrawer = ({ isOpen, onClose, outstandingItems = [], owners = 
               <button
                 type="button"
                 onClick={() => setFormData(prev => ({ ...prev, ownerId: '' }))}
-                className="p-1 hover:bg-surface rounded"
+                disabled={isSubmitting}
+                className="p-1 hover:bg-surface rounded disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <X className="h-4 w-4 text-muted" />
               </button>
@@ -544,7 +560,8 @@ const ManualPaymentDrawer = ({ isOpen, onClose, outstandingItems = [], owners = 
               placeholder="0.00"
               value={formData.amount}
               onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
-              className="w-full pl-9 pr-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+              disabled={isSubmitting}
+              className="w-full pl-9 pr-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:cursor-not-allowed"
               required
             />
           </div>
@@ -566,8 +583,9 @@ const ManualPaymentDrawer = ({ isOpen, onClose, outstandingItems = [], owners = 
                 key={method.value}
                 type="button"
                 onClick={() => setFormData(prev => ({ ...prev, method: method.value }))}
+                disabled={isSubmitting}
                 className={cn(
-                  'p-3 rounded-lg border flex items-center gap-2 transition-colors',
+                  'p-3 rounded-lg border flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
                   formData.method === method.value
                     ? 'border-primary bg-primary/5 text-primary'
                     : 'border-border hover:border-primary/50 text-muted'
@@ -590,7 +608,8 @@ const ManualPaymentDrawer = ({ isOpen, onClose, outstandingItems = [], owners = 
             onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
             placeholder="Add payment notes..."
             rows={3}
-            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
+            disabled={isSubmitting}
+            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none disabled:opacity-50 disabled:cursor-not-allowed"
           />
         </div>
 
@@ -601,13 +620,14 @@ const ManualPaymentDrawer = ({ isOpen, onClose, outstandingItems = [], owners = 
             variant="outline"
             className="flex-1"
             onClick={() => { resetForm(); onClose(); }}
+            disabled={isSubmitting}
           >
             Cancel
           </Button>
           <Button
             type="submit"
             className="flex-1"
-            disabled={isSubmitting || !formData.amount}
+            disabled={isSubmitting || !formData.amount || !formData.ownerId}
           >
             {isSubmitting ? (
               <>
@@ -773,6 +793,10 @@ const Payments = () => {
   const [showManualPayment, setShowManualPayment] = useState(false);
   const [showStripeSettings, setShowStripeSettings] = useState(false);
 
+  // Tour integration
+  const { startTour, isTourSeen } = useTour();
+  const tourStartedRef = useRef(false);
+
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -790,6 +814,19 @@ const Payments = () => {
   const { data: paymentsData, isLoading, error, refetch } = usePaymentsQuery();
   const { data: summaryData } = usePaymentSummaryQuery();
   const { data: ownersData } = useOwnersQuery();
+
+  // Auto-start tour for first-time visitors
+  useEffect(() => {
+    if (tourStartedRef.current || isLoading) return;
+    const hasSeenTour = isTourSeen(paymentsTourConfig.id);
+    if (!hasSeenTour) {
+      tourStartedRef.current = true;
+      const timer = setTimeout(() => {
+        startTour(paymentsTourConfig);
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [startTour, isTourSeen, isLoading]);
 
   // Process payments data - normalize backend response
   const payments = useMemo(() => {
@@ -985,7 +1022,7 @@ const Payments = () => {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between" data-tour="payments-header">
         <div>
           <nav className="mb-1">
             <ol className="flex items-center gap-1 text-xs text-muted">
@@ -999,8 +1036,15 @@ const Payments = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <div data-tour="payments-help-button">
+            <TourIconButton
+              tourConfig={paymentsTourConfig}
+              variant="ghost"
+              label="Start Page Tour"
+            />
+          </div>
           {/* Navigation Tabs */}
-          <div className="flex items-center bg-surface border border-border rounded-lg p-1">
+          <div className="flex items-center bg-surface border border-border rounded-lg p-1" data-tour="payments-tabs">
             {[
               { key: 'overview', label: 'Overview', icon: CreditCard },
               { key: 'analytics', label: 'Analytics', icon: BarChart3 },
@@ -1028,10 +1072,12 @@ const Payments = () => {
             ))}
           </div>
 
-          <Button size="sm" onClick={() => setShowManualPayment(true)}>
-            <Plus className="h-3.5 w-3.5 mr-1.5" />
-            Record Payment
-          </Button>
+          <div data-tour="payments-record">
+            <Button size="sm" onClick={() => setShowManualPayment(true)}>
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              Record Payment
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -1039,7 +1085,7 @@ const Payments = () => {
       {currentView === 'overview' && (
         <>
           {/* Tier 1: KPI Tiles */}
-          <div className="space-y-3">
+          <div className="space-y-3" data-tour="payments-kpis">
             {/* Row 1: Big metrics */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <KPITile
@@ -1114,7 +1160,7 @@ const Payments = () => {
       {currentView === 'overview' && (
         <>
           {/* Tier 2: Processor Status */}
-          <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
+          <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4" data-tour="payments-processor">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className={cn(
@@ -1193,7 +1239,7 @@ const Payments = () => {
       {currentView === 'overview' && (
         <>
           {/* Tier 2: Filters Toolbar */}
-          <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-3">
+          <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-3" data-tour="payments-filters">
         <div className="flex flex-wrap items-center gap-3">
           {/* Search */}
           <div className="relative flex-1 min-w-[200px] max-w-sm">
@@ -1286,7 +1332,7 @@ const Payments = () => {
       </div>
 
       {/* Tier 3: Transactions Table */}
-      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg overflow-hidden">
+      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg overflow-hidden" data-tour="payments-transactions">
         {isLoading ? (
           <div className="p-8 text-center">
             <LoadingState label="Loading payments…" variant="spinner" />
