@@ -699,12 +699,21 @@ const OwnerRow = ({ owner, columns, isSelected, onSelect, onView, isEven, onStat
         return (
           <td key={column.id} className={cn(cellPadding, 'text-center')}>
             <BookingsHoverCard ownerId={ownerIdForBookings} bookingsCount={owner.totalBookings} navigate={navigate}>
-              <span className={cn(
-                "font-semibold cursor-pointer hover:text-[color:var(--bb-color-accent)] transition-colors",
-                owner.totalBookings > 0 ? "text-[color:var(--bb-color-text-primary)]" : "text-[color:var(--bb-color-text-muted)]"
-              )}>
-                {owner.totalBookings}
-              </span>
+              {owner.totalBookings > 0 ? (
+                <div className="inline-flex items-center gap-2 cursor-pointer group">
+                  <div
+                    className="flex h-7 w-7 items-center justify-center rounded-full border-2 transition-colors group-hover:border-[var(--bb-color-accent)] group-hover:bg-[var(--bb-color-accent-soft)]"
+                    style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-bg-surface)', color: 'var(--bb-color-text-muted)' }}
+                  >
+                    <Calendar className="h-3.5 w-3.5 group-hover:text-[var(--bb-color-accent)]" />
+                  </div>
+                  <span className="text-sm font-semibold text-[color:var(--bb-color-text-primary)] group-hover:text-[var(--bb-color-accent)] transition-colors">
+                    {owner.totalBookings}
+                  </span>
+                </div>
+              ) : (
+                <span className="text-[color:var(--bb-color-text-muted)]">—</span>
+              )}
             </BookingsHoverCard>
           </td>
         );
