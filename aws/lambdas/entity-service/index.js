@@ -17,6 +17,7 @@ try {
 
 const { getPoolAsync, query, softDelete, softDeleteBatch } = dbLayer;
 const { createResponse, authenticateRequest, parseBody, getQueryParams, getPathParams } = sharedLayer;
+const { enforceLimit, getLimit, getTenantPlan, createTierErrorResponse } = sharedLayer;
 
 /**
  * Extract tenant ID from X-Tenant-Id header (case-insensitive)
@@ -552,6 +553,25 @@ async function createFacility(event) {
 
   try {
     await getPoolAsync();
+
+    // Tier enforcement: Check kennels limit
+    const plan = getTenantPlan(event);
+    const countResult = await query(
+      `SELECT COUNT(*) as count FROM "Kennel" WHERE tenant_id = $1`,
+      [tenantId]
+    );
+    const currentKennelCount = parseInt(countResult.rows[0]?.count || '0', 10);
+
+    try {
+      enforceLimit(plan, 'kennels', currentKennelCount);
+    } catch (tierError) {
+      if (tierError.tierError) {
+        console.warn('[Facilities][create] Tier limit exceeded:', tierError.tierError);
+        return createTierErrorResponse(tierError.tierError);
+      }
+      throw tierError;
+    }
+
     // Schema: id, tenant_id, name, size, location, max_occupancy, is_active, created_at, updated_at
     // size must be: SMALL, MEDIUM, LARGE, XLARGE or null
     const result = await query(
@@ -713,6 +733,7 @@ async function getPets(event) {
     //         date_of_birth, microchip_number, photo_url, medical_notes, dietary_notes,
     //         behavior_notes, behavior_flags, status, is_active, created_at, updated_at
     // Vet info comes from Veterinarian table via vet_id FK
+    // Owner info comes from PetOwner junction table (get primary owner)
     const result = await query(
       `SELECT DISTINCT p.id, p.tenant_id, p.name, p.species, p.breed, p.gender, p.color,
               p.weight, p.date_of_birth, p.microchip_number,
@@ -722,9 +743,16 @@ async function getPets(event) {
               v.clinic_name AS vet_clinic, v.vet_name, v.phone AS vet_phone,
               v.email AS vet_email, v.notes AS vet_notes,
               v.address_street AS vet_address_street, v.address_city AS vet_address_city,
-              v.address_state AS vet_address_state, v.address_zip AS vet_address_zip
+              v.address_state AS vet_address_state, v.address_zip AS vet_address_zip,
+              primary_owner.id AS owner_id,
+              primary_owner.first_name AS owner_first_name,
+              primary_owner.last_name AS owner_last_name,
+              primary_owner.email AS owner_email,
+              primary_owner.phone AS owner_phone
        FROM "Pet" p
        LEFT JOIN "Veterinarian" v ON p.vet_id = v.id
+       LEFT JOIN "PetOwner" primary_po ON primary_po.pet_id = p.id AND primary_po.is_primary = true
+       LEFT JOIN "Owner" primary_owner ON primary_owner.id = primary_po.owner_id
        ${joinClause}
        WHERE ${whereClause}
        ORDER BY p.name
@@ -797,6 +825,24 @@ async function createPet(event) {
 
   try {
     await getPoolAsync();
+
+    // Tier enforcement: Check active pets limit
+    const plan = getTenantPlan(event);
+    const countResult = await query(
+      `SELECT COUNT(*) as count FROM "Pet" WHERE tenant_id = $1 AND is_active = true`,
+      [tenantId]
+    );
+    const currentPetCount = parseInt(countResult.rows[0]?.count || '0', 10);
+
+    try {
+      enforceLimit(plan, 'activePets', currentPetCount);
+    } catch (tierError) {
+      if (tierError.tierError) {
+        console.warn('[Pets][create] Tier limit exceeded:', tierError.tierError);
+        return createTierErrorResponse(tierError.tierError);
+      }
+      throw tierError;
+    }
 
     // Handle vet_id - can be provided directly or we can create/find a Veterinarian record
     let vetId = body.vetId || body.vet_id || null;
@@ -1089,14 +1135,22 @@ async function getOwners(event) {
 
     // Schema: Owner has address_street, address_city, address_state, address_zip, address_country
     // Also has tags (TEXT[]), stripe_customer_id, created_by, updated_by
+    // Pet count comes from PetOwner junction table
     const result = await query(
       `SELECT o.id, o.tenant_id, o.first_name, o.last_name, o.email, o.phone,
               o.address_street, o.address_city, o.address_state,
               o.address_zip, o.address_country,
               o.emergency_contact_name, o.emergency_contact_phone, o.notes,
               o.tags, o.stripe_customer_id,
-              o.is_active, o.created_at, o.updated_at, o.created_by, o.updated_by
+              o.is_active, o.created_at, o.updated_at, o.created_by, o.updated_by,
+              COALESCE(pet_counts.pet_count, 0) AS pet_count
        FROM "Owner" o
+       LEFT JOIN (
+         SELECT owner_id, COUNT(*) AS pet_count
+         FROM "PetOwner"
+         WHERE tenant_id = $1
+         GROUP BY owner_id
+       ) pet_counts ON pet_counts.owner_id = o.id
        WHERE ${whereClause}
        ORDER BY o.last_name, o.first_name
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
