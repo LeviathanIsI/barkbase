@@ -1136,6 +1136,7 @@ async function getOwners(event) {
     // Schema: Owner has address_street, address_city, address_state, address_zip, address_country
     // Also has tags (TEXT[]), stripe_customer_id, created_by, updated_by
     // Pet count comes from PetOwner junction table
+    // Bookings count, last visit, lifetime value, and pending balance calculated from related tables
     const result = await query(
       `SELECT o.id, o.tenant_id, o.first_name, o.last_name, o.email, o.phone,
               o.address_street, o.address_city, o.address_state,
@@ -1143,7 +1144,11 @@ async function getOwners(event) {
               o.emergency_contact_name, o.emergency_contact_phone, o.notes,
               o.tags, o.stripe_customer_id,
               o.is_active, o.created_at, o.updated_at, o.created_by, o.updated_by,
-              COALESCE(pet_counts.pet_count, 0) AS pet_count
+              COALESCE(pet_counts.pet_count, 0) AS pet_count,
+              COALESCE(booking_stats.bookings_count, 0) AS bookings_count,
+              booking_stats.last_visit,
+              COALESCE(invoice_stats.lifetime_value, 0) AS lifetime_value,
+              COALESCE(invoice_stats.pending_balance, 0) AS pending_balance
        FROM "Owner" o
        LEFT JOIN (
          SELECT owner_id, COUNT(*) AS pet_count
@@ -1151,6 +1156,22 @@ async function getOwners(event) {
          WHERE tenant_id = $1
          GROUP BY owner_id
        ) pet_counts ON pet_counts.owner_id = o.id
+       LEFT JOIN (
+         SELECT b.owner_id,
+                COUNT(*) AS bookings_count,
+                MAX(CASE WHEN b.status IN ('CHECKED_OUT', 'COMPLETED', 'checked_out', 'completed') THEN b.check_out ELSE NULL END) AS last_visit
+         FROM "Booking" b
+         WHERE b.tenant_id = $1
+         GROUP BY b.owner_id
+       ) booking_stats ON booking_stats.owner_id = o.id
+       LEFT JOIN (
+         SELECT i.owner_id,
+                SUM(CASE WHEN LOWER(i.status) = 'paid' THEN i.total_cents ELSE 0 END) AS lifetime_value,
+                SUM(CASE WHEN LOWER(i.status) NOT IN ('paid', 'cancelled', 'void') THEN i.total_cents ELSE 0 END) AS pending_balance
+         FROM "Invoice" i
+         WHERE i.tenant_id = $1
+         GROUP BY i.owner_id
+       ) invoice_stats ON invoice_stats.owner_id = o.id
        WHERE ${whereClause}
        ORDER BY o.last_name, o.first_name
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,

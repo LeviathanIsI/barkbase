@@ -5,7 +5,7 @@ import {
   ChevronLeft, ChevronRight, Download, Columns, MoreHorizontal,
   MessageSquare, Eye, Check, X, Star, SlidersHorizontal,
   BookmarkPlus, PawPrint, ArrowUpDown, ArrowUp, ArrowDown, GripVertical,
-  Calendar, Loader2, ShieldCheck, ShieldOff, Crown, Ban,
+  Calendar, Loader2, ShieldCheck, ShieldOff, Crown, Ban, Clock,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import EntityToolbar from '@/components/EntityToolbar';
@@ -39,6 +39,7 @@ const ALL_COLUMNS = [
   { id: 'bookings', label: 'Bookings', minWidth: 100, maxWidth: 120, align: 'center', sortable: true, sortKey: 'totalBookings' },
   { id: 'lastVisit', label: 'Last Visit', minWidth: 120, maxWidth: 140, align: 'center', sortable: true, sortKey: 'lastBooking' },
   { id: 'lifetimeValue', label: 'Lifetime Value', minWidth: 130, maxWidth: 150, align: 'right', sortable: true, sortKey: 'lifetimeValue' },
+  { id: 'pendingBalance', label: 'Pending', minWidth: 110, maxWidth: 130, align: 'right', sortable: true, sortKey: 'pendingBalance' },
   { id: 'actions', label: '', minWidth: 100, maxWidth: 100, align: 'right', sortable: false, hideable: false },
 ];
 
@@ -134,6 +135,8 @@ const Owners = () => {
       const totalBookings = owner.bookings_count ?? owner.totalBookings ?? 0;
       // Use lifetime_value from API (in cents) or fallback
       const lifetimeValue = owner.lifetime_value ?? owner.lifetimeValue ?? 0;
+      // Use pending_balance from API (in cents) - unpaid invoices
+      const pendingBalance = owner.pending_balance ?? owner.pendingBalance ?? 0;
       // Use last_visit from API (new field) or fallback
       const lastBooking = owner.last_visit || owner.lastBooking || null;
       const pets = owner.pets || (owner.petNames ? owner.petNames.map((name) => ({ name })) : []);
@@ -145,7 +148,7 @@ const Owners = () => {
       // Use pet_count from API if available, otherwise fall back to pets array length
       const petCount = owner.pet_count ?? owner.petCount ?? pets.length;
 
-      return { ...owner, fullName, totalBookings, lifetimeValue, lastBooking, pets, status, isActive, petCount };
+      return { ...owner, fullName, totalBookings, lifetimeValue, pendingBalance, lastBooking, pets, status, isActive, petCount };
     });
   }, [owners]);
 
@@ -215,6 +218,7 @@ const Owners = () => {
     active: ownersWithMetrics.filter(o => o.status === 'ACTIVE').length,
     highValue: ownersWithMetrics.filter(o => o.lifetimeValue >= 100000).length,
     totalRevenue: ownersWithMetrics.reduce((sum, o) => sum + o.lifetimeValue, 0),
+    totalPending: ownersWithMetrics.reduce((sum, o) => sum + o.pendingBalance, 0),
   }), [owners, ownersWithMetrics]);
 
   // Get ordered and visible columns
@@ -314,6 +318,9 @@ const Owners = () => {
             <StatBadge icon={Star} value={stats.active} label="Active" variant="success" />
             <StatBadge icon={DollarSign} value={stats.highValue} label="High Value" variant="purple" />
             <StatBadge icon={DollarSign} value={formatCurrency(stats.totalRevenue)} label="Revenue" variant="warning" />
+            {stats.totalPending > 0 && (
+              <StatBadge icon={Clock} value={formatCurrency(stats.totalPending)} label="Pending" variant="amber" />
+            )}
           </div>
         </div>
 
@@ -561,6 +568,7 @@ const StatBadge = ({ icon: Icon, value, label, variant = 'default' }) => {
     success: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400',
     warning: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400',
     purple: 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400',
+    amber: 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-400',
   };
 
   return (
@@ -701,6 +709,19 @@ const OwnerRow = ({ owner, columns, isSelected, onSelect, onView, isEven, onStat
               owner.lifetimeValue > 0 ? "text-[color:var(--bb-color-text-primary)]" : "text-[color:var(--bb-color-text-muted)]"
             )}>
               {formatCurrency(owner.lifetimeValue)}
+            </span>
+          </td>
+        );
+      case 'pendingBalance':
+        return (
+          <td key={column.id} className={cn(cellPadding, 'text-right')}>
+            <span className={cn(
+              "font-semibold",
+              owner.pendingBalance > 0
+                ? "text-amber-600 dark:text-amber-400"
+                : "text-[color:var(--bb-color-text-muted)]"
+            )}>
+              {formatCurrency(owner.pendingBalance)}
             </span>
           </td>
         );
