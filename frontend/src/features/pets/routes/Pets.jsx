@@ -5,7 +5,8 @@ import {
   Download, Columns, MoreHorizontal, Eye, Edit, Trash2, Check, X,
   SlidersHorizontal, BookmarkPlus, ArrowUpDown, ArrowUp, ArrowDown,
   GripVertical, Syringe, ShieldAlert, Calendar, Star, Dog, Cat,
-  AlertCircle, CheckCircle2, Clock, User,
+  AlertCircle, CheckCircle2, Clock, User, Loader2, ShieldCheck, ShieldOff,
+  Crown, Ban, ExternalLink,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import EntityToolbar from '@/components/EntityToolbar';
@@ -17,14 +18,15 @@ import LoadingState from '@/components/ui/LoadingState';
 import { UpdateChip } from '@/components/PageLoader';
 import InlineEditableCell from '@/components/table/InlineEditableCell';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { usePetsQuery, useCreatePetMutation, useDeletePetMutation } from '../api';
+import { usePetsQuery, useCreatePetMutation, useDeletePetMutation, useUpdatePetStatusMutation, usePetVaccinationsQuery } from '../api';
 import apiClient from '@/lib/apiClient';
 import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import { useExpiringVaccinationsQuery } from '../api-vaccinations';
 import { useOwnersQuery } from '@/features/owners/api';
 import { PetFormModal } from '../components';
 import { cn } from '@/lib/cn';
-import { getBirthdateFromAge, getAgeFromBirthdate } from '../utils/pet-date-utils';
+import { getBirthdateFromAge, getAgeFromBirthdate, formatAgeFromBirthdate } from '../utils/pet-date-utils';
+import { formatDistanceToNow } from 'date-fns';
 
 // Saved views - persisted in localStorage
 const DEFAULT_VIEWS = [
@@ -173,7 +175,13 @@ const Pets = () => {
   const pets = petsResult?.pets ?? [];
   const createPetMutation = useCreatePetMutation();
   const deletePetMutation = useDeletePetMutation();
-  
+  const updateStatusMutation = useUpdatePetStatusMutation();
+
+  // Status change handler for clickable status badge
+  const handleStatusChange = useCallback(async (petId, newStatus) => {
+    await updateStatusMutation.mutateAsync({ petId, status: newStatus });
+  }, [updateStatusMutation]);
+
   // Owners for relationship lookup
   const { data: ownersResult, isLoading: ownersLoading } = useOwnersQuery();
   const owners = ownersResult?.items ?? ownersResult ?? [];
@@ -749,8 +757,11 @@ const Pets = () => {
                         onDelete={() => deletePetMutation.mutate(pet.id || pet.recordId)}
                         isEven={index % 2 === 0}
                         onUpdateField={handleInlineUpdateField}
+                        onStatusChange={handleStatusChange}
                         owners={owners}
                         ownersLoading={ownersLoading}
+                        expiringVaccinations={expiringVaccsData}
+                        navigate={navigate}
                       />
                     ))}
                   </tbody>
@@ -866,11 +877,12 @@ const FilterTag = ({ label, onRemove }) => (
   </span>
 );
 
-// Vaccination Badge Component
+// Vaccination Badge Component (simple, non-hoverable)
 const VaccinationBadge = ({ status }) => {
   const configs = {
     current: { variant: 'success', icon: CheckCircle2, label: 'Current' },
     expiring: { variant: 'warning', icon: Clock, label: 'Expiring Soon' },
+    expired: { variant: 'danger', icon: AlertCircle, label: 'Expired' },
     missing: { variant: 'danger', icon: AlertCircle, label: 'Missing' },
   };
 
@@ -885,19 +897,219 @@ const VaccinationBadge = ({ status }) => {
   );
 };
 
+// Status Badge Dropdown Component - Clickable status change (like Owners)
+const StatusBadgeDropdown = ({ pet, onStatusChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleStatusChange = async (newStatus) => {
+    setIsLoading(true);
+    try {
+      await onStatusChange(pet.recordId || pet.id, newStatus);
+      toast.success(`Pet marked as ${newStatus === 'active' ? 'Active' : 'Inactive'}`);
+    } catch (error) {
+      toast.error('Failed to update status');
+    } finally {
+      setIsLoading(false);
+      setIsOpen(false);
+    }
+  };
+
+  const isActive = pet.status === 'active';
+
+  return (
+    <div className="relative inline-block" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+        className="group inline-flex items-center gap-1.5 cursor-pointer"
+        disabled={isLoading}
+      >
+        <Badge
+          variant={isActive ? 'success' : 'neutral'}
+          className="transition-all group-hover:ring-2 group-hover:ring-[var(--bb-color-accent)] group-hover:ring-offset-1"
+        >
+          {isLoading ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : isActive ? (
+            <ShieldCheck className="h-3 w-3" />
+          ) : (
+            <ShieldOff className="h-3 w-3" />
+          )}
+          {isActive ? 'Active' : 'Inactive'}
+          <ChevronDown className={cn('h-3 w-3 transition-transform', isOpen && 'rotate-180')} />
+        </Badge>
+      </button>
+
+      {isOpen && (
+        <div
+          className="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 w-36 rounded-lg border shadow-lg py-1"
+          style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+        >
+          <button
+            type="button"
+            onClick={() => handleStatusChange('active')}
+            className={cn(
+              'flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors',
+              isActive
+                ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400'
+                : 'hover:bg-[var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-primary)]'
+            )}
+          >
+            <ShieldCheck className="h-4 w-4" />
+            Active
+            {isActive && <Check className="h-4 w-4 ml-auto" />}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleStatusChange('inactive')}
+            className={cn(
+              'flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors',
+              !isActive
+                ? 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                : 'hover:bg-[var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-primary)]'
+            )}
+          >
+            <ShieldOff className="h-4 w-4" />
+            Inactive
+            {!isActive && <Check className="h-4 w-4 ml-auto" />}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Vaccination Hover Card Component - Shows details for non-current vaccinations
+const VaccinationHoverCard = ({ pet, expiringVaccinations, navigate, children }) => {
+  const [isHovering, setIsHovering] = useState(false);
+  const hoverTimeoutRef = useRef(null);
+  const cardRef = useRef(null);
+
+  // Filter vaccinations for this pet
+  const petVaccinations = useMemo(() => {
+    return (expiringVaccinations || []).filter(v => v.petId === pet.recordId || v.petId === pet.id);
+  }, [expiringVaccinations, pet.recordId, pet.id]);
+
+  const handleMouseEnter = () => {
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsHovering(true);
+    }, 300);
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    setIsHovering(false);
+  };
+
+  // Only show hover card for non-current vaccinations
+  if (pet.vaccinationStatus === 'current' || petVaccinations.length === 0) {
+    return children;
+  }
+
+  return (
+    <div
+      className="relative inline-block"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      ref={cardRef}
+    >
+      <div className="cursor-pointer">
+        {children}
+      </div>
+
+      {isHovering && (
+        <div
+          className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 w-72 rounded-lg border shadow-lg animate-in fade-in-0 zoom-in-95 duration-150"
+          style={{
+            backgroundColor: 'var(--bb-color-bg-surface)',
+            borderColor: 'var(--bb-color-border-subtle)',
+          }}
+        >
+          <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+            <p className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">
+              Vaccination Alerts ({petVaccinations.length})
+            </p>
+          </div>
+
+          <div className="max-h-48 overflow-y-auto py-1">
+            {petVaccinations.map((vacc, idx) => {
+              const isExpired = vacc.status === 'expired' || new Date(vacc.expiresAt) < new Date();
+              const expiresDate = vacc.expiresAt ? new Date(vacc.expiresAt) : null;
+
+              return (
+                <div
+                  key={vacc.id || idx}
+                  className="px-3 py-2 hover:bg-[var(--bb-color-bg-elevated)] transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">
+                      {vacc.type || vacc.name || 'Vaccination'}
+                    </span>
+                    <Badge variant={isExpired ? 'danger' : 'warning'} size="sm">
+                      {isExpired ? 'Expired' : 'Expiring'}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-[color:var(--bb-color-text-muted)] mt-0.5">
+                    {isExpired ? 'Expired ' : 'Expires '}
+                    {expiresDate
+                      ? formatDistanceToNow(expiresDate, { addSuffix: true })
+                      : 'date unknown'}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="px-3 py-2 border-t" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/pets/${pet.recordId || pet.id}`);
+              }}
+              className="w-full flex items-center justify-center gap-1.5 text-sm font-medium text-[color:var(--bb-color-accent)] hover:underline"
+            >
+              <Syringe className="h-3.5 w-3.5" />
+              Update Vaccinations
+              <ExternalLink className="h-3 w-3" />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Pet Row Component
-const PetRow = ({ 
-  pet, 
-  columns, 
-  isSelected, 
-  onSelect, 
-  onView, 
-  onEdit, 
-  onDelete, 
+const PetRow = ({
+  pet,
+  columns,
+  isSelected,
+  onSelect,
+  onView,
+  onEdit,
+  onDelete,
   isEven,
   onUpdateField,
+  onStatusChange,
   owners = [],
   ownersLoading = false,
+  expiringVaccinations = [],
+  navigate,
 }) => {
   const [showActions, setShowActions] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
@@ -987,28 +1199,21 @@ const PetRow = ({
         );
       case 'status':
         return (
-          <td key={column.id} className={cn(cellPadding, 'text-center')}>
-            <InlineEditableCell
-              row={pet}
-              column={column}
-              value={pet.status || 'active'}
-              onCommit={(newStatus) => onUpdateField(pet.recordId, 'status', newStatus)}
-            >
-              <span className="inline-flex items-center gap-1.5">
-                <Badge variant={pet.status === 'active' ? 'success' : 'neutral'}>
-                  {pet.status === 'active' ? 'Active' : 'Inactive'}
-                </Badge>
-                {pet.inFacility && (
-                  <Badge variant="info">In Facility</Badge>
-                )}
-              </span>
-            </InlineEditableCell>
+          <td key={column.id} className={cn(cellPadding, 'text-center')} onClick={(e) => e.stopPropagation()}>
+            <span className="inline-flex items-center gap-1.5">
+              <StatusBadgeDropdown pet={pet} onStatusChange={onStatusChange} />
+              {pet.inFacility && (
+                <Badge variant="info">In Facility</Badge>
+              )}
+            </span>
           </td>
         );
       case 'vaccinations':
         return (
           <td key={column.id} className={cn(cellPadding, 'text-center')}>
-            <VaccinationBadge status={pet.vaccinationStatus} />
+            <VaccinationHoverCard pet={pet} expiringVaccinations={expiringVaccinations} navigate={navigate}>
+              <VaccinationBadge status={pet.vaccinationStatus} />
+            </VaccinationHoverCard>
           </td>
         );
       case 'species':
@@ -1028,6 +1233,8 @@ const PetRow = ({
           </td>
         );
       case 'age':
+        // Use formatAgeFromBirthdate for better display (e.g., "8 months" for < 1 year)
+        const ageDisplay = formatAgeFromBirthdate(pet.birthdate);
         return (
           <td key={column.id} className={cn(cellPadding, 'text-center')}>
             <InlineEditableCell
@@ -1036,7 +1243,11 @@ const PetRow = ({
               value={pet.age}
               onCommit={(newAge) => onUpdateField(pet.recordId, 'age', newAge)}
             >
-              {pet.age ? `${pet.age} yr${pet.age !== 1 ? 's' : ''}` : '—'}
+              {ageDisplay ? (
+                <span className="text-[color:var(--bb-color-text-primary)]">{ageDisplay}</span>
+              ) : (
+                <span className="text-[color:var(--bb-color-text-muted)]">—</span>
+              )}
             </InlineEditableCell>
           </td>
         );

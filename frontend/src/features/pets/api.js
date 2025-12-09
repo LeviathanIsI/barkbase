@@ -242,6 +242,50 @@ export const useUpdatePetMutation = (petId) => {
 };
 
 /**
+ * Update pet status (inline mutation without pre-specifying petId)
+ * Takes { petId, ...payload } as the mutation argument
+ */
+export const useUpdatePetStatusMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantId = useTenantId();
+  const listKey = queryKeys.pets(tenantId);
+
+  return useMutation({
+    mutationFn: async ({ petId, ...payload }) => {
+      const res = await apiClient.put(canonicalEndpoints.pets.detail(petId), payload);
+      return res.data;
+    },
+    onMutate: async ({ petId, ...payload }) => {
+      await queryClient.cancelQueries({ queryKey: listKey });
+      const previous = queryClient.getQueryData(listKey);
+      if (previous) {
+        queryClient.setQueryData(listKey, (oldValue) => {
+          const current = shapePetsCache(oldValue);
+          return {
+            ...current,
+            pets: current.pets.map((pet) =>
+              (pet.recordId === petId || pet.id === petId)
+                ? { ...pet, ...payload }
+                : pet
+            ),
+          };
+        });
+      }
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(listKey, context.previous);
+      }
+    },
+    onSettled: (_, __, { petId }) => {
+      queryClient.invalidateQueries({ queryKey: listKey });
+      queryClient.invalidateQueries({ queryKey: ['pets', { tenantId }, petId] });
+    },
+  });
+};
+
+/**
  * Delete a pet
  */
 export const useDeletePetMutation = () => {
