@@ -1,22 +1,25 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   Users, Phone, DollarSign, Plus, Mail, ChevronDown,
   ChevronLeft, ChevronRight, Download, Columns, MoreHorizontal,
   MessageSquare, Eye, Check, X, Star, SlidersHorizontal,
   BookmarkPlus, PawPrint, ArrowUpDown, ArrowUp, ArrowDown, GripVertical,
+  Calendar, Loader2, ShieldCheck, ShieldOff, Crown, Ban,
 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 import EntityToolbar from '@/components/EntityToolbar';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 // Replaced with LoadingState (mascot) for page-level loading
 import LoadingState from '@/components/ui/LoadingState';
 import { UpdateChip } from '@/components/PageLoader';
-import { useOwnersQuery, useCreateOwnerMutation } from '../api';
+import { useOwnersQuery, useCreateOwnerMutation, useUpdateOwnerStatusMutation } from '../api';
 import OwnerFormModal from '../components/OwnerFormModal';
 import PetHoverCard from '../components/PetHoverCard';
 import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/cn';
+import toast from 'react-hot-toast';
 
 // Saved views - persisted in localStorage
 const DEFAULT_VIEWS = [
@@ -94,7 +97,13 @@ const Owners = () => {
   // Data fetching
   const { data: ownersData, isLoading, isFetching, error } = useOwnersQuery();
   const createOwnerMutation = useCreateOwnerMutation();
+  const updateStatusMutation = useUpdateOwnerStatusMutation();
   const owners = useMemo(() => Array.isArray(ownersData) ? ownersData : (ownersData?.data ?? []), [ownersData]);
+
+  // Status change handler
+  const handleStatusChange = useCallback(async (ownerId, isActive) => {
+    await updateStatusMutation.mutateAsync({ ownerId, is_active: isActive });
+  }, [updateStatusMutation]);
   
   // Show skeleton only on initial load when there's no cached data
   const showSkeleton = isLoading && !ownersData;
@@ -121,17 +130,22 @@ const Owners = () => {
   // Calculate enhanced owner data with metrics
   const ownersWithMetrics = useMemo(() => {
     return owners.map((owner) => {
-      const totalBookings = owner.totalBookings ?? 0;
-      const lifetimeValue = owner.lifetimeValue ?? 0;
-      const lastBooking = owner.lastBooking || null;
+      // Use bookings_count from API (new field) or fallback
+      const totalBookings = owner.bookings_count ?? owner.totalBookings ?? 0;
+      // Use lifetime_value from API (in cents) or fallback
+      const lifetimeValue = owner.lifetime_value ?? owner.lifetimeValue ?? 0;
+      // Use last_visit from API (new field) or fallback
+      const lastBooking = owner.last_visit || owner.lastBooking || null;
       const pets = owner.pets || (owner.petNames ? owner.petNames.map((name) => ({ name })) : []);
       const nameFromParts = `${owner.firstName || owner.first_name || ''} ${owner.lastName || owner.last_name || ''}`.trim();
       const fullName = nameFromParts || owner.name || owner.fullName || owner.email || 'Owner';
-      const status = totalBookings > 0 ? 'ACTIVE' : 'INACTIVE';
+      // Status based on is_active field from API, fallback to booking count
+      const isActive = owner.is_active !== undefined ? owner.is_active : totalBookings > 0;
+      const status = isActive ? 'ACTIVE' : 'INACTIVE';
       // Use pet_count from API if available, otherwise fall back to pets array length
       const petCount = owner.pet_count ?? owner.petCount ?? pets.length;
 
-      return { ...owner, fullName, totalBookings, lifetimeValue, lastBooking, pets, status, petCount };
+      return { ...owner, fullName, totalBookings, lifetimeValue, lastBooking, pets, status, isActive, petCount };
     });
   }, [owners]);
 
@@ -471,6 +485,7 @@ const Owners = () => {
                       isSelected={selectedRows.has(owner.id || owner.recordId)}
                       onSelect={() => handleSelectRow(owner.id || owner.recordId)}
                       onView={() => navigate(`/customers/${owner.id || owner.recordId}`)}
+                      onStatusChange={handleStatusChange}
                       isEven={index % 2 === 0}
                     />
                   ))}
@@ -564,9 +579,10 @@ const SortIcon = ({ active, direction }) => {
 };
 
 // Owner Row Component
-const OwnerRow = ({ owner, columns, isSelected, onSelect, onView, isEven }) => {
+const OwnerRow = ({ owner, columns, isSelected, onSelect, onView, isEven, onStatusChange }) => {
   const [showActions, setShowActions] = useState(false);
   const cellPadding = 'px-4 lg:px-6 py-3';
+  const navigate = useNavigate();
 
   const renderCell = (column) => {
     switch (column.id) {
@@ -644,21 +660,34 @@ const OwnerRow = ({ owner, columns, isSelected, onSelect, onView, isEven }) => {
         );
       case 'status':
         return (
-          <td key={column.id} className={cn(cellPadding, 'text-center')}>
-            <Badge variant={owner.status === 'ACTIVE' ? 'success' : 'neutral'}>{owner.status === 'ACTIVE' ? 'Active' : 'Inactive'}</Badge>
+          <td key={column.id} className={cn(cellPadding, 'text-center')} onClick={(e) => e.stopPropagation()}>
+            <StatusBadgeDropdown owner={owner} onStatusChange={onStatusChange} />
           </td>
         );
       case 'bookings':
+        const ownerIdForBookings = owner.id || owner.recordId;
         return (
           <td key={column.id} className={cn(cellPadding, 'text-center')}>
-            <span className="font-semibold text-[color:var(--bb-color-text-primary)]">{owner.totalBookings}</span>
+            <BookingsHoverCard ownerId={ownerIdForBookings} bookingsCount={owner.totalBookings} navigate={navigate}>
+              <span className={cn(
+                "font-semibold cursor-pointer hover:text-[color:var(--bb-color-accent)] transition-colors",
+                owner.totalBookings > 0 ? "text-[color:var(--bb-color-text-primary)]" : "text-[color:var(--bb-color-text-muted)]"
+              )}>
+                {owner.totalBookings}
+              </span>
+            </BookingsHoverCard>
           </td>
         );
       case 'lastVisit':
         return (
           <td key={column.id} className={cn(cellPadding, 'text-center')}>
             {owner.lastBooking ? (
-              <span className="text-[color:var(--bb-color-text-primary)]">{new Date(owner.lastBooking).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}</span>
+              <span
+                className="text-[color:var(--bb-color-text-primary)]"
+                title={new Date(owner.lastBooking).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              >
+                {formatDistanceToNow(new Date(owner.lastBooking), { addSuffix: true })}
+              </span>
             ) : (
               <span className="text-[color:var(--bb-color-text-muted)]">Never</span>
             )}
@@ -667,7 +696,12 @@ const OwnerRow = ({ owner, columns, isSelected, onSelect, onView, isEven }) => {
       case 'lifetimeValue':
         return (
           <td key={column.id} className={cn(cellPadding, 'text-right')}>
-            <span className="font-semibold text-[color:var(--bb-color-text-primary)]">{formatCurrency(owner.lifetimeValue)}</span>
+            <span className={cn(
+              "font-semibold",
+              owner.lifetimeValue > 0 ? "text-[color:var(--bb-color-text-primary)]" : "text-[color:var(--bb-color-text-muted)]"
+            )}>
+              {formatCurrency(owner.lifetimeValue)}
+            </span>
           </td>
         );
       case 'actions':
@@ -825,5 +859,241 @@ const EmptyState = ({ hasFilters, onClearFilters, onAddOwner }) => (
     </div>
   </div>
 );
+
+// Status Badge Dropdown Component - Clickable to change status
+const STATUS_OPTIONS = [
+  { value: true, label: 'Active', icon: ShieldCheck, variant: 'success', color: 'text-emerald-600' },
+  { value: false, label: 'Inactive', icon: ShieldOff, variant: 'neutral', color: 'text-gray-500' },
+];
+
+const StatusBadgeDropdown = ({ owner, onStatusChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  const currentStatus = STATUS_OPTIONS.find(s => s.value === owner.isActive) || STATUS_OPTIONS[1];
+  const StatusIcon = currentStatus.icon;
+
+  const handleStatusSelect = async (newStatus) => {
+    if (newStatus.value === owner.isActive) {
+      setIsOpen(false);
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      await onStatusChange(owner.id || owner.recordId, newStatus.value);
+      toast.success(`Status changed to ${newStatus.label}`);
+    } catch (error) {
+      toast.error('Failed to update status');
+    } finally {
+      setIsUpdating(false);
+      setIsOpen(false);
+    }
+  };
+
+  return (
+    <div className="relative inline-block" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        disabled={isUpdating}
+        className="inline-flex items-center gap-1 transition-all hover:opacity-80"
+      >
+        <Badge variant={currentStatus.variant} className="cursor-pointer gap-1">
+          {isUpdating ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <StatusIcon className="h-3 w-3" />
+          )}
+          {currentStatus.label}
+          <ChevronDown className={cn('h-3 w-3 transition-transform', isOpen && 'rotate-180')} />
+        </Badge>
+      </button>
+
+      {isOpen && (
+        <div
+          className="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 w-36 rounded-lg border shadow-lg py-1 animate-in fade-in-0 zoom-in-95 duration-150"
+          style={{
+            backgroundColor: 'var(--bb-color-bg-surface)',
+            borderColor: 'var(--bb-color-border-subtle)',
+          }}
+        >
+          {STATUS_OPTIONS.map((option) => {
+            const OptionIcon = option.icon;
+            const isSelected = option.value === owner.isActive;
+            return (
+              <button
+                key={option.label}
+                type="button"
+                onClick={() => handleStatusSelect(option)}
+                className={cn(
+                  'w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-[var(--bb-color-bg-elevated)]',
+                  isSelected && 'bg-[var(--bb-color-accent-soft)]'
+                )}
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                <OptionIcon className={cn('h-4 w-4', option.color)} />
+                <span>{option.label}</span>
+                {isSelected && <Check className="h-3.5 w-3.5 ml-auto text-[color:var(--bb-color-accent)]" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Bookings Hover Card Component - Shows recent bookings on hover
+const BookingsHoverCard = ({ ownerId, bookingsCount, navigate, children }) => {
+  const [isHovering, setIsHovering] = useState(false);
+  const [bookings, setBookings] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const hoverTimeoutRef = useRef(null);
+  const cardRef = useRef(null);
+
+  // Fetch bookings on hover using apiClient for auth
+  useEffect(() => {
+    if (isHovering && bookingsCount > 0 && !bookings) {
+      setIsLoading(true);
+      const fetchBookings = async () => {
+        try {
+          // Dynamic import apiClient to avoid circular deps
+          const { default: apiClient } = await import('@/lib/apiClient');
+          const response = await apiClient.get('/api/v1/operations/bookings', {
+            params: { owner_id: ownerId, limit: 5 }
+          });
+          // API returns { data: bookings[], bookings: bookings[] }
+          const bookingsData = response?.data?.data || response?.data?.bookings || response?.data || [];
+          setBookings(Array.isArray(bookingsData) ? bookingsData : []);
+        } catch (error) {
+          console.error('Failed to fetch bookings:', error);
+          setBookings([]);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchBookings();
+    }
+  }, [isHovering, bookingsCount, bookings, ownerId]);
+
+  const handleMouseEnter = () => {
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsHovering(true);
+    }, 300);
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    setIsHovering(false);
+  };
+
+  if (bookingsCount === 0) {
+    return children;
+  }
+
+  return (
+    <div
+      className="relative inline-block"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      ref={cardRef}
+    >
+      {children}
+
+      {isHovering && (
+        <div
+          className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 w-72 rounded-lg border shadow-lg animate-in fade-in-0 zoom-in-95 duration-150"
+          style={{
+            backgroundColor: 'var(--bb-color-bg-surface)',
+            borderColor: 'var(--bb-color-border-subtle)',
+          }}
+        >
+          <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+            <p className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">
+              Recent Bookings ({bookingsCount})
+            </p>
+          </div>
+
+          <div className="max-h-60 overflow-y-auto">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="h-5 w-5 animate-spin text-[color:var(--bb-color-text-muted)]" />
+              </div>
+            ) : bookings && bookings.length > 0 ? (
+              <div className="py-1">
+                {bookings.slice(0, 5).map((booking, idx) => {
+                  // Get pet name from pets array or fallbacks
+                  const petName = booking.pets?.[0]?.name || booking.pet?.name || booking.petName || 'Pet';
+                  // Get date from startDate (API returns check_in as startDate)
+                  const checkInDate = booking.startDate || booking.checkIn || booking.check_in;
+                  // Get service name
+                  const serviceName = booking.serviceName || booking.service?.name || 'Boarding';
+
+                  return (
+                    <div
+                      key={booking.id || booking.recordId || idx}
+                      className="px-3 py-2 hover:bg-[var(--bb-color-bg-elevated)] transition-colors cursor-pointer"
+                      onClick={() => navigate(`/bookings/${booking.id || booking.recordId}`)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">
+                          {petName}
+                        </span>
+                        <Badge variant={booking.status === 'CHECKED_IN' ? 'success' : booking.status === 'CONFIRMED' ? 'info' : 'neutral'} size="sm">
+                          {booking.status || 'Pending'}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 text-xs text-[color:var(--bb-color-text-muted)]">
+                        <span>{serviceName}</span>
+                        <span>•</span>
+                        <span>
+                          {checkInDate ? new Date(checkInDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="py-4 text-center text-sm text-[color:var(--bb-color-text-muted)]">
+                No booking details available
+              </div>
+            )}
+          </div>
+
+          <div
+            className="px-3 py-2 border-t"
+            style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+          >
+            <button
+              type="button"
+              onClick={() => navigate(`/customers/${ownerId}?tab=bookings`)}
+              className="w-full text-sm font-medium text-[color:var(--bb-color-accent)] hover:underline"
+            >
+              View all bookings →
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default Owners;
