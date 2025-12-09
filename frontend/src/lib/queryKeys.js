@@ -20,6 +20,7 @@ export const queryKeys = {
     incidentAnalytics: (tenantKey) => [tenantKey, 'dashboard', 'incident-analytics'],
   },
   bookings: (tenantKey, filters = {}) => [tenantKey, 'bookings', filters],
+  bookingConflicts: (tenantKey, params = {}) => [tenantKey, 'bookings', 'conflicts', params],
   pets: (tenantId) => ['pets', { tenantId }],
   userProfile: (userId, tenantId) => ['userProfile', { userId, tenantId }],
   kennels: (tenantKey, params = {}) => [tenantKey, 'kennels', params],

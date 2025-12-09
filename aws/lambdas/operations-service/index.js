@@ -39,6 +39,9 @@ const {
   parseBody,
   checkPermission,
   PERMISSIONS,
+  enforceLimit,
+  getTenantPlan,
+  createTierErrorResponse,
 } = sharedLayer;
 
 /**
@@ -147,6 +150,13 @@ exports.handler = async (event, context) => {
     if (path === '/api/v1/operations/bookings/availability' || path === '/operations/bookings/availability') {
       if (method === 'GET' || method === 'POST') {
         return handleCheckAvailability(tenantId, method === 'POST' ? parseBody(event) : event.queryStringParameters || {});
+      }
+    }
+
+    // Booking conflicts endpoint - check for conflicting bookings
+    if (path === '/api/v1/operations/bookings/conflicts' || path === '/operations/bookings/conflicts') {
+      if (method === 'GET') {
+        return handleGetBookingConflicts(tenantId, event.queryStringParameters || {});
       }
     }
 
@@ -590,7 +600,7 @@ exports.handler = async (event, context) => {
         return handleGetRunAssignments(tenantId, event.queryStringParameters || {});
       }
       if (method === 'POST') {
-        return handleSaveRunAssignments(tenantId, parseBody(event));
+        return handleSaveRunAssignments(tenantId, parseBody(event), user);
       }
     }
 
@@ -1095,6 +1105,34 @@ async function handleCreateBooking(tenantId, user, body) {
     await getPoolAsync();
 
     // ==========================================================================
+    // TIER ENFORCEMENT - Check monthly booking limit
+    // ==========================================================================
+    const plan = user?.tenant?.plan || user?.plan || 'FREE';
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const monthEnd = new Date(monthStart);
+    monthEnd.setMonth(monthEnd.getMonth() + 1);
+
+    const bookingCountResult = await query(
+      `SELECT COUNT(*) as count FROM "Booking"
+       WHERE tenant_id = $1
+       AND created_at >= $2 AND created_at < $3`,
+      [tenantId, monthStart.toISOString(), monthEnd.toISOString()]
+    );
+    const currentBookingCount = parseInt(bookingCountResult.rows[0]?.count || '0', 10);
+
+    try {
+      enforceLimit(plan, 'bookingsPerMonth', currentBookingCount);
+    } catch (tierError) {
+      if (tierError.tierError) {
+        console.warn('[Bookings][create] Tier limit exceeded:', tierError.tierError);
+        return createTierErrorResponse(tierError.tierError);
+      }
+      throw tierError;
+    }
+
+    // ==========================================================================
     // CAPACITY ENFORCEMENT
     // Check if there's available capacity before creating the booking
     // ==========================================================================
@@ -1336,6 +1374,123 @@ async function checkBookingCapacity(tenantId, kennelId, startDate, endDate) {
       message: 'Capacity check failed, allowing booking',
       error: error.message,
     };
+  }
+}
+
+/**
+ * Handle booking conflicts check
+ * GET /api/v1/operations/bookings/conflicts
+ *
+ * Returns conflicting bookings for a given kennel and date range
+ */
+async function handleGetBookingConflicts(tenantId, params) {
+  const { kennelId, startDate, endDate, excludeBookingId } = params;
+
+  console.log('[Bookings][conflicts] Checking:', { tenantId, kennelId, startDate, endDate, excludeBookingId });
+
+  if (!kennelId || !startDate || !endDate) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'kennelId, startDate, and endDate are required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Build query to find overlapping bookings for this kennel
+    let conflictsQuery = `
+      SELECT
+        b.id,
+        b.status,
+        b.check_in as "startDate",
+        b.check_out as "endDate",
+        b.notes,
+        b.created_at as "createdAt",
+        k.id as kennel_id,
+        k.name as kennel_name,
+        s.id as service_id,
+        s.name as service_name,
+        o.id as owner_id,
+        o.first_name as owner_first_name,
+        o.last_name as owner_last_name,
+        o.email as owner_email
+      FROM "Booking" b
+      LEFT JOIN "Kennel" k ON b.kennel_id = k.id
+      LEFT JOIN "Service" s ON b.service_id = s.id
+      LEFT JOIN "Owner" o ON b.owner_id = o.id
+      WHERE b.tenant_id = $1
+        AND b.kennel_id = $2
+        AND b.status NOT IN ('CANCELLED', 'NO_SHOW', 'CHECKED_OUT')
+        AND b.check_in < $4::timestamptz
+        AND b.check_out > $3::timestamptz
+    `;
+
+    const queryParams = [tenantId, kennelId, startDate, endDate];
+
+    // Exclude a specific booking (for editing existing bookings)
+    if (excludeBookingId) {
+      conflictsQuery += ` AND b.id != $5`;
+      queryParams.push(excludeBookingId);
+    }
+
+    conflictsQuery += ` ORDER BY b.check_in ASC`;
+
+    const result = await query(conflictsQuery, queryParams);
+
+    // Transform rows to full booking objects with nested entities
+    const conflicts = await Promise.all(result.rows.map(async (row) => {
+      // Get pets for this booking
+      const petsResult = await query(
+        `SELECT p.id, p.name, p.species, p.breed
+         FROM "BookingPet" bp
+         JOIN "Pet" p ON bp.pet_id = p.id
+         WHERE bp.booking_id = $1`,
+        [row.id]
+      );
+
+      return {
+        id: row.id,
+        status: row.status,
+        startDate: row.startDate,
+        endDate: row.endDate,
+        notes: row.notes,
+        createdAt: row.createdAt,
+        kennel: row.kennel_id ? {
+          id: row.kennel_id,
+          name: row.kennel_name,
+        } : null,
+        service: row.service_id ? {
+          id: row.service_id,
+          name: row.service_name,
+        } : null,
+        owner: row.owner_id ? {
+          id: row.owner_id,
+          firstName: row.owner_first_name,
+          lastName: row.owner_last_name,
+          email: row.owner_email,
+        } : null,
+        pets: petsResult.rows,
+      };
+    }));
+
+    console.log('[Bookings][conflicts] Found:', conflicts.length, 'conflicting bookings');
+
+    return createResponse(200, {
+      conflicts,
+      hasConflicts: conflicts.length > 0,
+      count: conflicts.length,
+      kennelId,
+      startDate,
+      endDate,
+    });
+
+  } catch (error) {
+    console.error('[Bookings][conflicts] Error:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to check booking conflicts',
+    });
   }
 }
 
@@ -3314,10 +3469,11 @@ async function handleGetRunAssignments(tenantId, queryParams) {
  * Save run assignments - bulk create/update assignments for a date
  * Body: { date: string, assignments: { runId, petId, startTime, endTime }[] }
  */
-async function handleSaveRunAssignments(tenantId, body) {
+async function handleSaveRunAssignments(tenantId, body, user) {
   const { date, assignments } = body;
+  const userId = user?.userId || user?.id || null;
 
-  console.log('[RunAssignments][save] tenantId:', tenantId, 'date:', date, 'count:', assignments?.length);
+  console.log('[RunAssignments][save] tenantId:', tenantId, 'date:', date, 'count:', assignments?.length, 'userId:', userId);
 
   if (!date) {
     return createResponse(400, {
@@ -3348,36 +3504,16 @@ async function handleSaveRunAssignments(tenantId, body) {
     await query('BEGIN');
 
     try {
-      // First, get IDs of existing assignments for this date to archive them
-      const existingAssignments = await query(
-        `SELECT id FROM "RunAssignment"
-         WHERE tenant_id = $1
-           AND DATE(start_at) = $2::date`,
-        [tenantId, date]
-      );
-
-      // Archive and delete existing assignments if any
-      if (existingAssignments.rows.length > 0) {
-        const idsToDelete = existingAssignments.rows.map(r => r.id);
-        // Archive each record before deletion
-        for (const row of existingAssignments.rows) {
-          const record = await query(
-            `SELECT * FROM "RunAssignment" WHERE id = $1 AND tenant_id = $2`,
-            [row.id, tenantId]
-          );
-          if (record.rows[0]) {
-            await query(
-              `INSERT INTO "DeletedRecord" (tenant_id, original_table, original_id, data, deleted_at)
-               VALUES ($1, $2, $3, $4, NOW())`,
-              [tenantId, 'RunAssignment', row.id, JSON.stringify(record.rows[0])]
-            );
-          }
-        }
-        // Hard delete the assignments
+      // Delete existing assignments for this date for these specific pets (not all assignments)
+      // This allows incremental updates without wiping all assignments for the day
+      const petIds = assignments.map(a => a.petId).filter(Boolean);
+      if (petIds.length > 0) {
         await query(
           `DELETE FROM "RunAssignment"
-           WHERE tenant_id = $1 AND id = ANY($2)`,
-          [tenantId, idsToDelete]
+           WHERE tenant_id = $1
+             AND assigned_date = $2::date
+             AND pet_id = ANY($3::uuid[])`,
+          [tenantId, date, petIds]
         );
       }
 
@@ -3393,32 +3529,48 @@ async function handleSaveRunAssignments(tenantId, body) {
           continue;
         }
 
-        // Parse start and end times
-        let startAt, endAt;
-        if (startTime && endTime) {
-          // If times are provided, combine with date
-          startAt = `${date}T${startTime}:00`;
-          endAt = `${date}T${endTime}:00`;
-        } else {
-          // Default to full day
-          startAt = `${date}T00:00:00`;
-          endAt = `${date}T23:59:59`;
+        // Schema uses: assigned_date (DATE), start_time (TIME), end_time (TIME)
+        // booking_id is required in schema, so we need to handle that
+        let finalBookingId = bookingId;
+
+        // If no bookingId provided, try to find an active booking for this pet on this date
+        if (!finalBookingId) {
+          const bookingResult = await query(
+            `SELECT id FROM "Booking"
+             WHERE tenant_id = $1
+               AND pet_id = $2
+               AND status IN ('CONFIRMED', 'CHECKED_IN')
+               AND start_date <= $3::date
+               AND end_date >= $3::date
+             LIMIT 1`,
+            [tenantId, petId, date]
+          );
+          if (bookingResult.rows.length > 0) {
+            finalBookingId = bookingResult.rows[0].id;
+          }
+        }
+
+        if (!finalBookingId) {
+          errors.push({ assignment, error: 'No active booking found for this pet on this date' });
+          continue;
         }
 
         try {
           const result = await query(
-            `INSERT INTO "RunAssignment" (tenant_id, run_id, pet_id, booking_id, start_at, end_at, status, notes)
-             VALUES ($1, $2, $3, $4, $5::timestamptz, $6::timestamptz, 'SCHEDULED', $7)
+            `INSERT INTO "RunAssignment" (tenant_id, run_id, pet_id, booking_id, assigned_date, start_time, end_time, notes, created_by)
+             VALUES ($1, $2, $3, $4, $5::date, $6::time, $7::time, $8, $9)
              RETURNING id`,
-            [tenantId, runId, petId, bookingId || null, startAt, endAt, notes || null]
+            [tenantId, runId, petId, finalBookingId, date, startTime || null, endTime || null, notes || null, userId]
           );
 
           created.push({
             id: result.rows[0].id,
             runId,
             petId,
-            startAt,
-            endAt,
+            bookingId: finalBookingId,
+            assignedDate: date,
+            startTime,
+            endTime,
           });
         } catch (insertError) {
           console.error('[RunAssignments] Insert failed:', insertError.message);
@@ -3449,6 +3601,7 @@ async function handleSaveRunAssignments(tenantId, body) {
     return createResponse(500, {
       error: 'Internal Server Error',
       message: 'Failed to save run assignments',
+      details: error.message, // Include actual error for debugging
     });
   }
 }
@@ -3629,75 +3782,55 @@ async function handleAssignPetsToRun(tenantId, runId, body) {
 async function handleClearRunAssignments(tenantId, runId, body) {
   const { date, petIds, assignmentIds } = body;
 
-  console.log('[RunAssignments][clear] runId:', runId, 'date:', date, 'petIds:', petIds?.length);
+  console.log('[RunAssignments][clear] runId:', runId, 'date:', date, 'petIds:', petIds?.length, 'assignmentIds:', assignmentIds?.length);
 
   try {
     await getPoolAsync();
 
-    // Build query to find assignments to delete
-    let selectQuery = `
-      SELECT * FROM "RunAssignment"
+    // Build DELETE query with conditions
+    // Schema: assigned_date (DATE), start_time (TIME), end_time (TIME)
+    let deleteQuery = `
+      DELETE FROM "RunAssignment"
       WHERE run_id = $1 AND tenant_id = $2`;
     const params = [runId, tenantId];
     let paramIndex = 3;
 
     if (date) {
-      selectQuery += ` AND DATE(start_at) = $${paramIndex++}::date`;
+      deleteQuery += ` AND assigned_date = $${paramIndex++}::date`;
       params.push(date);
     }
 
     if (Array.isArray(petIds) && petIds.length > 0) {
-      selectQuery += ` AND pet_id = ANY($${paramIndex++})`;
+      deleteQuery += ` AND pet_id = ANY($${paramIndex++}::uuid[])`;
       params.push(petIds);
     }
 
     if (Array.isArray(assignmentIds) && assignmentIds.length > 0) {
-      selectQuery += ` AND id = ANY($${paramIndex++})`;
+      deleteQuery += ` AND id = ANY($${paramIndex++}::uuid[])`;
       params.push(assignmentIds);
     }
 
-    // Fetch records to archive
-    const recordsToDelete = await query(selectQuery, params);
+    deleteQuery += ' RETURNING id, pet_id';
 
-    if (recordsToDelete.rows.length === 0) {
-      return createResponse(200, {
-        success: true,
-        clearedCount: 0,
-        message: '0 assignment(s) cleared',
-      });
-    }
+    // Execute delete directly (no archiving to avoid schema issues)
+    const result = await query(deleteQuery, params);
+    const deletedCount = result.rows.length;
 
-    const idsToDelete = recordsToDelete.rows.map(r => r.id);
-
-    // Archive each record
-    for (const record of recordsToDelete.rows) {
-      await query(
-        `INSERT INTO "DeletedRecord" (tenant_id, original_table, original_id, data, deleted_at)
-         VALUES ($1, $2, $3, $4, NOW())`,
-        [tenantId, 'RunAssignment', record.id, JSON.stringify(record)]
-      );
-    }
-
-    // Hard delete the assignments
-    await query(
-      `DELETE FROM "RunAssignment"
-       WHERE tenant_id = $1 AND id = ANY($2)`,
-      [tenantId, idsToDelete]
-    );
-
-    console.log('[RunAssignments][clear] Cleared:', idsToDelete.length);
+    console.log('[RunAssignments][clear] Cleared:', deletedCount, 'assignments');
 
     return createResponse(200, {
       success: true,
-      clearedCount: idsToDelete.length,
-      message: `${idsToDelete.length} assignment(s) cleared`,
+      clearedCount: deletedCount,
+      deletedIds: result.rows.map(r => r.id),
+      message: `${deletedCount} assignment(s) cleared`,
     });
 
   } catch (error) {
-    console.error('[RunAssignments][clear] Error:', error.message);
+    console.error('[RunAssignments][clear] Error:', error.message, error.stack);
     return createResponse(500, {
       error: 'Internal Server Error',
       message: 'Failed to clear run assignments',
+      details: error.message,
     });
   }
 }

@@ -350,6 +350,63 @@ export const useBookingCheckOutMutation = () => {
 };
 
 // ============================================================================
+// BOOKING CONFLICTS QUERY
+// ============================================================================
+
+/**
+ * Query hook to check for booking conflicts
+ * Returns conflicting bookings for a given kennel and date range
+ *
+ * @param {object} params - Query parameters
+ * @param {string} params.kennelId - Kennel ID to check
+ * @param {string} params.startDate - Start date (ISO string)
+ * @param {string} params.endDate - End date (ISO string)
+ * @param {string} [params.excludeBookingId] - Booking ID to exclude (for edits)
+ */
+export const useBookingConflictsQuery = (params = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  const { kennelId, startDate, endDate, excludeBookingId } = params;
+  const enabled = isTenantReady && !!kennelId && !!startDate && !!endDate;
+
+  return useQuery({
+    queryKey: queryKeys.bookingConflicts(tenantKey, { kennelId, startDate, endDate }),
+    queryFn: async () => {
+      if (!enabled) return { conflicts: [], hasConflicts: false };
+
+      try {
+        const queryParams = new URLSearchParams({
+          kennelId,
+          startDate,
+          endDate,
+        });
+        if (excludeBookingId) {
+          queryParams.append('excludeBookingId', excludeBookingId);
+        }
+
+        const res = await apiClient.get(
+          `${canonicalEndpoints.OPERATIONS_BOOKINGS}/conflicts?${queryParams.toString()}`
+        );
+
+        const conflicts = res?.data?.conflicts || [];
+        return {
+          conflicts: conflicts.map(normalizeBooking),
+          hasConflicts: conflicts.length > 0,
+          count: conflicts.length,
+        };
+      } catch (e) {
+        console.warn('[Bookings] Conflicts check failed:', e?.message || e);
+        return { conflicts: [], hasConflicts: false, count: 0 };
+      }
+    },
+    enabled,
+    staleTime: 30 * 1000, // 30 seconds - conflicts should be relatively fresh
+    gcTime: 60 * 1000, // 1 minute
+  });
+};
+
+// ============================================================================
 // CONVENIENCE ALIASES
 // ============================================================================
 
