@@ -610,6 +610,8 @@ const OwnerRow = ({ owner, columns, isSelected, onSelect, onView, isEven }) => {
           </td>
         );
       case 'pets':
+        // Use petCount (from API pet_count) when pets array not available
+        const displayPetCount = owner.petCount ?? owner.pets?.length ?? 0;
         return (
           <td key={column.id} className={cellPadding}>
             {owner.pets?.length > 0 ? (
@@ -623,6 +625,13 @@ const OwnerRow = ({ owner, columns, isSelected, onSelect, onView, isEven }) => {
                 </div>
                 <span className="text-sm text-[color:var(--bb-color-text-primary)]">{owner.pets.length}</span>
                 {owner.pets.length > 3 && <span className="text-xs text-[color:var(--bb-color-text-muted)]">(+{owner.pets.length - 3})</span>}
+              </div>
+            ) : displayPetCount > 0 ? (
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full border-2" style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-bg-surface)', color: 'var(--bb-color-text-muted)' }}>
+                  <PawPrint className="h-3.5 w-3.5" />
+                </div>
+                <span className="text-sm text-[color:var(--bb-color-text-primary)]">{displayPetCount}</span>
               </div>
             ) : (
               <span className="text-[color:var(--bb-color-text-muted)]">—</span>
