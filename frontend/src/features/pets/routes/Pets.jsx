@@ -287,8 +287,22 @@ const Pets = () => {
   // Calculate enhanced pet data with metrics
   const petsWithMetrics = useMemo(() => {
     return pets.map((pet) => {
+      // API returns flat owner fields: owner_id, owner_first_name, owner_last_name, owner_email
+      // Also check legacy nested owners array for backwards compatibility
       const primaryOwner = pet.owners?.[0];
-      const ownerName = primaryOwner?.name || primaryOwner?.email || 'No owner';
+      let ownerName = 'No owner';
+      let ownerId = null;
+
+      if (pet.owner_first_name || pet.owner_last_name) {
+        // New flat field format from API
+        ownerName = `${pet.owner_first_name || ''} ${pet.owner_last_name || ''}`.trim() || pet.owner_email || 'No owner';
+        ownerId = pet.owner_id;
+      } else if (primaryOwner) {
+        // Legacy nested format
+        ownerName = primaryOwner?.name || primaryOwner?.email || 'No owner';
+        ownerId = primaryOwner?.id || primaryOwner?.recordId;
+      }
+
       const status = pet.status || 'active';
       const hasExpiringVaccinations = expiringPetIds.has(pet.recordId);
       const inFacility = pet.bookings?.some(b =>
@@ -306,7 +320,7 @@ const Pets = () => {
       return {
         ...pet,
         ownerName,
-        ownerId: primaryOwner?.id || primaryOwner?.recordId,
+        ownerId,
         status,
         vaccinationStatus,
         inFacility,

@@ -124,10 +124,11 @@ const Owners = () => {
       const lifetimeValue = owner.lifetimeValue ?? 0;
       const lastBooking = owner.lastBooking || null;
       const pets = owner.pets || (owner.petNames ? owner.petNames.map((name) => ({ name })) : []);
-      const nameFromParts = `${owner.firstName || ''} ${owner.lastName || ''}`.trim();
+      const nameFromParts = `${owner.firstName || owner.first_name || ''} ${owner.lastName || owner.last_name || ''}`.trim();
       const fullName = nameFromParts || owner.name || owner.fullName || owner.email || 'Owner';
       const status = totalBookings > 0 ? 'ACTIVE' : 'INACTIVE';
-      const petCount = pets.length;
+      // Use pet_count from API if available, otherwise fall back to pets array length
+      const petCount = owner.pet_count ?? owner.petCount ?? pets.length;
 
       return { ...owner, fullName, totalBookings, lifetimeValue, lastBooking, pets, status, petCount };
     });
