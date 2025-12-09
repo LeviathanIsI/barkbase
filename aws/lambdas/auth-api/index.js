@@ -108,6 +108,13 @@ exports.handler = async (event, context) => {
       return handleSessions(event, method);
     }
 
+    // Contact form submission (public endpoint - no auth required)
+    if (path === '/api/v1/contact' || path === '/contact') {
+      if (method === 'POST') {
+        return handleContactSubmission(event);
+      }
+    }
+
     // Default response for unmatched routes
     return createResponse(404, {
       error: 'Not Found',
@@ -695,5 +702,167 @@ async function handleSessions(event, method) {
     error: 'Method Not Allowed',
     message: `Method ${method} not allowed on this endpoint`,
   });
+}
+
+/**
+ * Handle contact form submission (public endpoint)
+ * Sends email via SES and stores submission in database
+ */
+async function handleContactSubmission(event) {
+  const body = parseBody(event);
+
+  // Validate required fields
+  const { name, email, subject, message, company } = body;
+
+  if (!name || !email || !message) {
+    return createResponse(400, {
+      error: 'Validation Error',
+      message: 'Name, email, and message are required',
+    });
+  }
+
+  // Basic email validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return createResponse(400, {
+      error: 'Validation Error',
+      message: 'Invalid email address',
+    });
+  }
+
+  // Rate limiting by IP (simple in-memory, WAF handles more robust rate limiting)
+  const sourceIp = event.requestContext?.identity?.sourceIp ||
+                   event.headers?.['x-forwarded-for']?.split(',')[0] ||
+                   'unknown';
+
+  try {
+    // Store contact submission in database
+    await getPoolAsync();
+
+    // Create ContactSubmission table if it doesn't exist (safe to run multiple times)
+    await query(`
+      CREATE TABLE IF NOT EXISTS "ContactSubmission" (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        company VARCHAR(255),
+        subject VARCHAR(100) DEFAULT 'general',
+        message TEXT NOT NULL,
+        ip_address VARCHAR(45),
+        user_agent TEXT,
+        status VARCHAR(50) DEFAULT 'new',
+        created_at TIMESTAMP DEFAULT NOW(),
+        responded_at TIMESTAMP,
+        notes TEXT
+      )
+    `);
+
+    // Insert the submission
+    const result = await query(`
+      INSERT INTO "ContactSubmission" (name, email, company, subject, message, ip_address, user_agent)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id, created_at
+    `, [
+      name,
+      email,
+      company || null,
+      subject || 'general',
+      message,
+      sourceIp,
+      event.headers?.['user-agent'] || null,
+    ]);
+
+    const submissionId = result.rows[0]?.id;
+    console.log('[AUTH-API] Contact submission stored:', submissionId);
+
+    // Send notification email via SES
+    try {
+      const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
+      const ses = new SESClient({ region: process.env.AWS_REGION_DEPLOY || 'us-east-2' });
+
+      const subjectLabels = {
+        general: 'General Inquiry',
+        demo: 'Demo Request',
+        support: 'Support Question',
+        feedback: 'Feedback',
+      };
+      const subjectLabel = subjectLabels[subject] || 'General Inquiry';
+
+      const emailParams = {
+        Source: process.env.SES_FROM_EMAIL || 'noreply@barkbase.app',
+        Destination: {
+          ToAddresses: [process.env.CONTACT_EMAIL || 'hello@barkbase.com'],
+        },
+        Message: {
+          Subject: {
+            Data: `[BarkBase Contact] ${subjectLabel} from ${name}`,
+            Charset: 'UTF-8',
+          },
+          Body: {
+            Text: {
+              Data: `
+New contact form submission received:
+
+Name: ${name}
+Email: ${email}
+Company: ${company || 'Not provided'}
+Subject: ${subjectLabel}
+
+Message:
+${message}
+
+---
+Submission ID: ${submissionId}
+IP Address: ${sourceIp}
+Submitted at: ${new Date().toISOString()}
+              `.trim(),
+              Charset: 'UTF-8',
+            },
+            Html: {
+              Data: `
+<!DOCTYPE html>
+<html>
+<head><style>body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }</style></head>
+<body>
+  <h2>New Contact Form Submission</h2>
+  <table style="border-collapse: collapse; width: 100%; max-width: 600px;">
+    <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Name:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${name}</td></tr>
+    <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Email:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;"><a href="mailto:${email}">${email}</a></td></tr>
+    <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Company:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${company || 'Not provided'}</td></tr>
+    <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Subject:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">${subjectLabel}</td></tr>
+  </table>
+  <h3>Message:</h3>
+  <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; white-space: pre-wrap;">${message}</div>
+  <hr style="margin-top: 20px; border: none; border-top: 1px solid #eee;">
+  <p style="font-size: 12px; color: #666;">Submission ID: ${submissionId}<br>IP: ${sourceIp}<br>Time: ${new Date().toISOString()}</p>
+</body>
+</html>
+              `.trim(),
+              Charset: 'UTF-8',
+            },
+          },
+        },
+      };
+
+      await ses.send(new SendEmailCommand(emailParams));
+      console.log('[AUTH-API] Contact notification email sent');
+    } catch (sesError) {
+      // Log but don't fail - the submission is already stored
+      console.error('[AUTH-API] Failed to send notification email:', sesError.message);
+    }
+
+    return createResponse(200, {
+      success: true,
+      message: 'Thank you for your message! We\'ll get back to you within 24-48 hours.',
+      submissionId,
+    });
+
+  } catch (error) {
+    console.error('[AUTH-API] Contact submission error:', error);
+    return createResponse(500, {
+      error: 'Server Error',
+      message: 'Failed to submit contact form. Please try again or email us directly at hello@barkbase.com',
+    });
+  }
 }
 
