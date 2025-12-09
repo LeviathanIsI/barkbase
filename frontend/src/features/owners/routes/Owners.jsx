@@ -154,11 +154,11 @@ const Owners = () => {
   const ownersWithMetrics = useMemo(() => {
     return owners.map((owner) => {
       // Use bookings_count from API (new field) or fallback
-      const totalBookings = owner.bookings_count ?? owner.totalBookings ?? 0;
-      // Use lifetime_value from API (in cents) or fallback
-      const lifetimeValue = owner.lifetime_value ?? owner.lifetimeValue ?? 0;
-      // Use pending_balance from API (in cents) - unpaid invoices
-      const pendingBalance = owner.pending_balance ?? owner.pendingBalance ?? 0;
+      const totalBookings = parseInt(owner.bookings_count ?? owner.totalBookings ?? 0, 10) || 0;
+      // Use lifetime_value from API (in cents) or fallback - ensure numeric
+      const lifetimeValue = parseInt(owner.lifetime_value ?? owner.lifetimeValue ?? 0, 10) || 0;
+      // Use pending_balance from API (in cents) - unpaid invoices - ensure numeric
+      const pendingBalance = parseInt(owner.pending_balance ?? owner.pendingBalance ?? 0, 10) || 0;
       // Use last_visit from API (new field) or fallback
       const lastBooking = owner.last_visit || owner.lastBooking || null;
       const pets = owner.pets || (owner.petNames ? owner.petNames.map((name) => ({ name })) : []);
