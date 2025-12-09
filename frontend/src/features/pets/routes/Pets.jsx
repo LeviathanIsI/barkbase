@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   PawPrint, Plus, ChevronDown, ChevronLeft, ChevronRight,
@@ -1020,10 +1021,12 @@ const StatusBadgeDropdown = ({ pet, onStatusChange }) => {
 };
 
 // Vaccination Hover Card Component - Shows details for non-current vaccinations
+// Uses createPortal to render above table stacking context
 const VaccinationHoverCard = ({ pet, expiringVaccinations, navigate, children }) => {
   const [isHovering, setIsHovering] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
   const hoverTimeoutRef = useRef(null);
-  const cardRef = useRef(null);
+  const triggerRef = useRef(null);
 
   // Filter vaccinations for this pet
   const petVaccinations = useMemo(() => {
@@ -1032,6 +1035,14 @@ const VaccinationHoverCard = ({ pet, expiringVaccinations, navigate, children })
 
   const handleMouseEnter = () => {
     hoverTimeoutRef.current = setTimeout(() => {
+      // Calculate position relative to viewport for portal
+      if (triggerRef.current) {
+        const rect = triggerRef.current.getBoundingClientRect();
+        setPosition({
+          top: rect.bottom + window.scrollY + 8,
+          left: rect.left + rect.width / 2 + window.scrollX,
+        });
+      }
       setIsHovering(true);
     }, 300);
   };
@@ -1048,76 +1059,87 @@ const VaccinationHoverCard = ({ pet, expiringVaccinations, navigate, children })
     return children;
   }
 
+  const popoverContent = isHovering && createPortal(
+    <div
+      className="fixed w-72 rounded-lg border shadow-xl animate-in fade-in-0 zoom-in-95 duration-150"
+      style={{
+        top: position.top,
+        left: position.left,
+        transform: 'translateX(-50%)',
+        zIndex: 9999,
+        backgroundColor: 'var(--bb-color-bg-surface)',
+        borderColor: 'var(--bb-color-border-subtle)',
+      }}
+      onMouseEnter={() => {
+        if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+        setIsHovering(true);
+      }}
+      onMouseLeave={handleMouseLeave}
+    >
+      <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+        <p className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">
+          Vaccination Alerts ({petVaccinations.length})
+        </p>
+      </div>
+
+      <div className="max-h-48 overflow-y-auto py-1">
+        {petVaccinations.map((vacc, idx) => {
+          const isExpired = vacc.status === 'expired' || new Date(vacc.expiresAt) < new Date();
+          const expiresDate = vacc.expiresAt ? new Date(vacc.expiresAt) : null;
+
+          return (
+            <div
+              key={vacc.id || idx}
+              className="px-3 py-2 hover:bg-[var(--bb-color-bg-elevated)] transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">
+                  {vacc.type || vacc.name || 'Vaccination'}
+                </span>
+                <Badge variant={isExpired ? 'danger' : 'warning'} size="sm">
+                  {isExpired ? 'Expired' : 'Expiring'}
+                </Badge>
+              </div>
+              <p className="text-xs text-[color:var(--bb-color-text-muted)] mt-0.5">
+                {isExpired ? 'Expired ' : 'Expires '}
+                {expiresDate
+                  ? formatDistanceToNow(expiresDate, { addSuffix: true })
+                  : 'date unknown'}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="px-3 py-2 border-t" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/pets/${pet.recordId || pet.id}`);
+          }}
+          className="w-full flex items-center justify-center gap-1.5 text-sm font-medium text-[color:var(--bb-color-accent)] hover:underline"
+        >
+          <Syringe className="h-3.5 w-3.5" />
+          Update Vaccinations
+          <ExternalLink className="h-3 w-3" />
+        </button>
+      </div>
+    </div>,
+    document.body
+  );
+
   return (
     <div
-      className="relative inline-block"
+      className="inline-block"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      ref={cardRef}
+      ref={triggerRef}
     >
       <div className="cursor-pointer">
         {children}
       </div>
-
-      {isHovering && (
-        <div
-          className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 w-72 rounded-lg border shadow-lg animate-in fade-in-0 zoom-in-95 duration-150"
-          style={{
-            backgroundColor: 'var(--bb-color-bg-surface)',
-            borderColor: 'var(--bb-color-border-subtle)',
-          }}
-        >
-          <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-            <p className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">
-              Vaccination Alerts ({petVaccinations.length})
-            </p>
-          </div>
-
-          <div className="max-h-48 overflow-y-auto py-1">
-            {petVaccinations.map((vacc, idx) => {
-              const isExpired = vacc.status === 'expired' || new Date(vacc.expiresAt) < new Date();
-              const expiresDate = vacc.expiresAt ? new Date(vacc.expiresAt) : null;
-
-              return (
-                <div
-                  key={vacc.id || idx}
-                  className="px-3 py-2 hover:bg-[var(--bb-color-bg-elevated)] transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">
-                      {vacc.type || vacc.name || 'Vaccination'}
-                    </span>
-                    <Badge variant={isExpired ? 'danger' : 'warning'} size="sm">
-                      {isExpired ? 'Expired' : 'Expiring'}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-[color:var(--bb-color-text-muted)] mt-0.5">
-                    {isExpired ? 'Expired ' : 'Expires '}
-                    {expiresDate
-                      ? formatDistanceToNow(expiresDate, { addSuffix: true })
-                      : 'date unknown'}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="px-3 py-2 border-t" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/pets/${pet.recordId || pet.id}`);
-              }}
-              className="w-full flex items-center justify-center gap-1.5 text-sm font-medium text-[color:var(--bb-color-accent)] hover:underline"
-            >
-              <Syringe className="h-3.5 w-3.5" />
-              Update Vaccinations
-              <ExternalLink className="h-3 w-3" />
-            </button>
-          </div>
-        </div>
-      )}
+      {popoverContent}
     </div>
   );
 };
