@@ -277,10 +277,38 @@ const Pets = () => {
     }
   }, [showSkeleton, petsResult?.pets, hasLoaded]);
 
-  // Get expiring vaccinations data
-  const { data: expiringVaccsData } = useExpiringVaccinationsQuery(30);
-  const expiringPetIds = useMemo(() => {
-    return new Set((expiringVaccsData || []).map(v => v.petId));
+  // Get expiring vaccinations data - use 365 days to catch all statuses like Vaccinations page
+  const { data: expiringVaccsData } = useExpiringVaccinationsQuery(365);
+
+  // Calculate vaccination status per pet (matching Vaccinations page logic)
+  const petVaccinationStatus = useMemo(() => {
+    const statusMap = new Map();
+    const vaccinations = expiringVaccsData || [];
+
+    vaccinations.forEach(v => {
+      const petId = v.petId;
+      if (!petId) return;
+
+      const now = new Date();
+      const expiresAt = v.expiresAt ? new Date(v.expiresAt) : null;
+      const daysRemaining = expiresAt ? Math.ceil((expiresAt - now) / (1000 * 60 * 60 * 24)) : null;
+
+      let vaccStatus = 'current';
+      if (daysRemaining !== null) {
+        if (daysRemaining < 0) vaccStatus = 'expired';
+        else if (daysRemaining <= 7) vaccStatus = 'critical';
+        else if (daysRemaining <= 30) vaccStatus = 'expiring';
+      }
+
+      // Keep worst status per pet: expired > critical > expiring > current
+      const currentStatus = statusMap.get(petId) || 'current';
+      const priority = { expired: 0, critical: 1, expiring: 2, current: 3 };
+      if (priority[vaccStatus] < priority[currentStatus]) {
+        statusMap.set(petId, vaccStatus);
+      }
+    });
+
+    return statusMap;
   }, [expiringVaccsData]);
 
   // Save preferences to localStorage
@@ -312,15 +340,14 @@ const Pets = () => {
       }
 
       const status = pet.status || 'active';
-      const hasExpiringVaccinations = expiringPetIds.has(pet.recordId);
       const inFacility = pet.bookings?.some(b =>
         new Date(b.checkIn) <= new Date() && new Date(b.checkOut) >= new Date()
       );
 
-      // Vaccination status: 'current', 'expiring', 'missing'
-      let vaccinationStatus = 'current';
-      if (hasExpiringVaccinations) vaccinationStatus = 'expiring';
-      // Could add logic for 'missing' if no vaccinations recorded
+      // Vaccination status from calculated map (matches Vaccinations page logic)
+      // Status priority: expired > critical > expiring > current
+      const vaccinationStatus = petVaccinationStatus.get(pet.recordId) || petVaccinationStatus.get(pet.id) || 'current';
+      const hasExpiringVaccinations = vaccinationStatus !== 'current';
 
       // Derive age from birthdate (API returns birthdate, not age)
       const age = getAgeFromBirthdate(pet.birthdate);
@@ -336,7 +363,7 @@ const Pets = () => {
         age,
       };
     });
-  }, [pets, expiringPetIds]);
+  }, [pets, petVaccinationStatus]);
 
   // Get active view filters
   const activeViewFilters = useMemo(() => {
@@ -882,6 +909,7 @@ const VaccinationBadge = ({ status }) => {
   const configs = {
     current: { variant: 'success', icon: CheckCircle2, label: 'Current' },
     expiring: { variant: 'warning', icon: Clock, label: 'Expiring Soon' },
+    critical: { variant: 'danger', icon: AlertCircle, label: 'Critical' },
     expired: { variant: 'danger', icon: AlertCircle, label: 'Expired' },
     missing: { variant: 'danger', icon: AlertCircle, label: 'Missing' },
   };
