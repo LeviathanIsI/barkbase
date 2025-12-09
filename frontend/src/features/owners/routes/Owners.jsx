@@ -14,6 +14,7 @@ import LoadingState from '@/components/ui/LoadingState';
 import { UpdateChip } from '@/components/PageLoader';
 import { useOwnersQuery, useCreateOwnerMutation } from '../api';
 import OwnerFormModal from '../components/OwnerFormModal';
+import PetHoverCard from '../components/PetHoverCard';
 import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/cn';
 
@@ -612,30 +613,33 @@ const OwnerRow = ({ owner, columns, isSelected, onSelect, onView, isEven }) => {
       case 'pets':
         // Use petCount (from API pet_count) when pets array not available
         const displayPetCount = owner.petCount ?? owner.pets?.length ?? 0;
+        const ownerId = owner.id || owner.recordId;
         return (
           <td key={column.id} className={cellPadding}>
-            {owner.pets?.length > 0 ? (
-              <div className="flex items-center gap-2">
-                <div className="flex -space-x-1.5">
-                  {owner.pets.slice(0, 3).map((pet, i) => (
-                    <div key={i} className="flex h-7 w-7 items-center justify-center rounded-full border-2 text-[0.65rem] font-semibold" style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-bg-surface)', color: 'var(--bb-color-text-muted)' }} title={pet.name}>
-                      {pet.name?.[0]?.toUpperCase() || <PawPrint className="h-3 w-3" />}
-                    </div>
-                  ))}
+            <PetHoverCard ownerId={ownerId} petCount={displayPetCount}>
+              {owner.pets?.length > 0 ? (
+                <div className="flex items-center gap-2">
+                  <div className="flex -space-x-1.5">
+                    {owner.pets.slice(0, 3).map((pet, i) => (
+                      <div key={i} className="flex h-7 w-7 items-center justify-center rounded-full border-2 text-[0.65rem] font-semibold" style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-bg-surface)', color: 'var(--bb-color-text-muted)' }} title={pet.name}>
+                        {pet.name?.[0]?.toUpperCase() || <PawPrint className="h-3 w-3" />}
+                      </div>
+                    ))}
+                  </div>
+                  <span className="text-sm text-[color:var(--bb-color-text-primary)]">{owner.pets.length}</span>
+                  {owner.pets.length > 3 && <span className="text-xs text-[color:var(--bb-color-text-muted)]">(+{owner.pets.length - 3})</span>}
                 </div>
-                <span className="text-sm text-[color:var(--bb-color-text-primary)]">{owner.pets.length}</span>
-                {owner.pets.length > 3 && <span className="text-xs text-[color:var(--bb-color-text-muted)]">(+{owner.pets.length - 3})</span>}
-              </div>
-            ) : displayPetCount > 0 ? (
-              <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full border-2" style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-bg-surface)', color: 'var(--bb-color-text-muted)' }}>
-                  <PawPrint className="h-3.5 w-3.5" />
+              ) : displayPetCount > 0 ? (
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full border-2" style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-bg-surface)', color: 'var(--bb-color-text-muted)' }}>
+                    <PawPrint className="h-3.5 w-3.5" />
+                  </div>
+                  <span className="text-sm text-[color:var(--bb-color-text-primary)]">{displayPetCount}</span>
                 </div>
-                <span className="text-sm text-[color:var(--bb-color-text-primary)]">{displayPetCount}</span>
-              </div>
-            ) : (
-              <span className="text-[color:var(--bb-color-text-muted)]">—</span>
-            )}
+              ) : (
+                <span className="text-[color:var(--bb-color-text-muted)]">—</span>
+              )}
+            </PetHoverCard>
           </td>
         );
       case 'status':
