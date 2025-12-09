@@ -204,15 +204,29 @@ export const useBookingDetailQuery = (bookingId, options = {}) => {
 /**
  * Create a new booking
  * Invalidates bookings, calendar, and dashboard queries
+ *
+ * Backend returns 409 Conflict if capacity is exceeded with details:
+ * { error: 'Conflict', message: '...', details: { totalCapacity, currentOccupancy, availableSlots } }
  */
 export const useCreateBookingMutation = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
-  
+
   return useMutation({
     mutationFn: async (payload) => {
-      const res = await apiClient.post(canonicalEndpoints.bookings.list, payload);
-      return normalizeBooking(res.data);
+      try {
+        const res = await apiClient.post(canonicalEndpoints.bookings.list, payload);
+        return normalizeBooking(res.data);
+      } catch (error) {
+        // Extract capacity error details from 409 response
+        if (error.response?.status === 409) {
+          const capacityError = new Error(error.response.data?.message || 'No available capacity');
+          capacityError.isCapacityError = true;
+          capacityError.details = error.response.data?.details;
+          throw capacityError;
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       // Invalidate all booking-related queries
