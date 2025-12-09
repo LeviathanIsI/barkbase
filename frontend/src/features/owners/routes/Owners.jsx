@@ -62,11 +62,33 @@ const Owners = () => {
   const [sortConfig, setSortConfig] = useState({ key: 'fullName', direction: 'asc' });
   const [visibleColumns, setVisibleColumns] = useState(() => {
     const saved = localStorage.getItem('owners-visible-columns');
-    return saved ? JSON.parse(saved) : ALL_COLUMNS.map(c => c.id);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Add any new columns that aren't in saved preferences
+      const allColumnIds = ALL_COLUMNS.map(c => c.id);
+      const newColumns = allColumnIds.filter(id => !parsed.includes(id));
+      return [...parsed, ...newColumns];
+    }
+    return ALL_COLUMNS.map(c => c.id);
   });
   const [columnOrder, setColumnOrder] = useState(() => {
     const saved = localStorage.getItem('owners-column-order');
-    return saved ? JSON.parse(saved) : ALL_COLUMNS.map(c => c.id);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Add any new columns that aren't in saved order (insert before 'actions')
+      const allColumnIds = ALL_COLUMNS.map(c => c.id);
+      const newColumns = allColumnIds.filter(id => !parsed.includes(id));
+      if (newColumns.length > 0) {
+        const actionsIndex = parsed.indexOf('actions');
+        if (actionsIndex !== -1) {
+          // Insert new columns before actions
+          return [...parsed.slice(0, actionsIndex), ...newColumns, ...parsed.slice(actionsIndex)];
+        }
+        return [...parsed, ...newColumns];
+      }
+      return parsed;
+    }
+    return ALL_COLUMNS.map(c => c.id);
   });
   
   // Pagination state
