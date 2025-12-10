@@ -115,23 +115,39 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
   const balance = displayBooking.totalCents - displayBooking.amountPaidCents;
 
   // DAFE: Open Pet slideout instead of navigating
+  // Passes returnTo context so user can navigate back to booking
   const handleViewPet = useCallback(() => {
     const petId = displayBooking.pet?.id || displayBooking.pet?.recordId;
     if (petId) {
       openSlideout(SLIDEOUT_TYPES.PET_EDIT, {
         pet: displayBooking.pet,
         title: `${displayBooking.pet.name || 'Pet'} Profile`,
+        returnTo: {
+          label: 'Booking',
+          onBack: () => {
+            // Booking inspector will reopen since isOpen is controlled externally
+            // No action needed here - the inspector stays in its open state
+          },
+        },
       });
     }
   }, [displayBooking.pet, openSlideout]);
 
   // DAFE: Open Owner slideout instead of navigating
+  // Passes returnTo context so user can navigate back to booking
   const handleViewOwner = useCallback(() => {
     const ownerId = displayBooking.owner?.id || displayBooking.owner?.recordId;
     if (ownerId) {
       openSlideout(SLIDEOUT_TYPES.OWNER_EDIT, {
         owner: displayBooking.owner,
         title: `${displayBooking.owner.firstName || ''} ${displayBooking.owner.lastName || 'Owner'}`.trim(),
+        returnTo: {
+          label: 'Booking',
+          onBack: () => {
+            // Booking inspector will reopen since isOpen is controlled externally
+            // No action needed here - the inspector stays in its open state
+          },
+        },
       });
     }
   }, [displayBooking.owner, openSlideout]);
@@ -171,37 +187,32 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
     }
   }, [displayBooking.id, deleteBookingMutation, onClose]);
 
+  // Check if booking has a valid ID for operations
+  const hasValidBookingId = displayBooking.id && displayBooking.id !== 'Unknown';
+
   // Check In handler
   const handleCheckIn = useCallback(async () => {
-    const bookingId = displayBooking.id;
-    if (!bookingId || bookingId === 'Unknown') {
-      toast.error('Cannot check in: booking ID not found');
-      return;
-    }
+    if (!hasValidBookingId) return;
 
     try {
-      await checkInMutation.mutateAsync({ bookingId });
+      await checkInMutation.mutateAsync({ bookingId: displayBooking.id });
       toast.success('Checked in successfully');
     } catch (error) {
       toast.error(error?.message || 'Failed to check in');
     }
-  }, [displayBooking.id, checkInMutation]);
+  }, [displayBooking.id, checkInMutation, hasValidBookingId]);
 
   // Check Out handler
   const handleCheckOut = useCallback(async () => {
-    const bookingId = displayBooking.id;
-    if (!bookingId || bookingId === 'Unknown') {
-      toast.error('Cannot check out: booking ID not found');
-      return;
-    }
+    if (!hasValidBookingId) return;
 
     try {
-      await checkOutMutation.mutateAsync({ bookingId });
+      await checkOutMutation.mutateAsync({ bookingId: displayBooking.id });
       toast.success('Checked out successfully');
     } catch (error) {
       toast.error(error?.message || 'Failed to check out');
     }
-  }, [displayBooking.id, checkOutMutation]);
+  }, [displayBooking.id, checkOutMutation, hasValidBookingId]);
 
   // DAFE: Add note
   const handleAddNote = useCallback(() => {
@@ -483,8 +494,8 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
         {/* Footer Actions */}
         <InspectorFooter>
           <div className="flex items-center justify-between w-full">
-            {/* Left: Cancel booking */}
-            {displayBooking.status !== 'CANCELLED' && displayBooking.status !== 'CHECKED_OUT' && (
+            {/* Left: Cancel booking (only if we have a valid ID) */}
+            {displayBooking.status !== 'CANCELLED' && displayBooking.status !== 'CHECKED_OUT' && hasValidBookingId && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -495,14 +506,15 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
                 Cancel Booking
               </Button>
             )}
-            {(displayBooking.status === 'CANCELLED' || displayBooking.status === 'CHECKED_OUT') && <div />}
+            {(displayBooking.status === 'CANCELLED' || displayBooking.status === 'CHECKED_OUT' || !hasValidBookingId) && <div />}
 
             {/* Right: Primary actions */}
             <div className="flex gap-2">
               <Button variant="secondary" onClick={onClose}>
                 Close
               </Button>
-              {displayBooking.status === 'CONFIRMED' && (
+              {/* Show Check In only if booking has valid ID */}
+              {displayBooking.status === 'CONFIRMED' && hasValidBookingId && (
                 <Button
                   variant="primary"
                   onClick={handleCheckIn}
@@ -512,7 +524,17 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
                   {checkInMutation.isPending ? 'Checking In...' : 'Check In'}
                 </Button>
               )}
-              {displayBooking.status === 'CHECKED_IN' && (
+              {/* Show Complete Booking if ID is missing */}
+              {displayBooking.status === 'CONFIRMED' && !hasValidBookingId && onEdit && (
+                <Button
+                  variant="primary"
+                  onClick={onEdit}
+                >
+                  <Edit2 className="w-4 h-4 mr-[var(--bb-space-2)]" />
+                  Complete Booking
+                </Button>
+              )}
+              {displayBooking.status === 'CHECKED_IN' && hasValidBookingId && (
                 <Button
                   variant="primary"
                   onClick={handleCheckOut}
@@ -522,7 +544,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
                   {checkOutMutation.isPending ? 'Checking Out...' : 'Check Out'}
                 </Button>
               )}
-              {onEdit && displayBooking.status !== 'CANCELLED' && (
+              {onEdit && displayBooking.status !== 'CANCELLED' && hasValidBookingId && (
                 <Button variant="outline" onClick={onEdit}>
                   <Edit2 className="w-4 h-4 mr-[var(--bb-space-2)]" />
                   Edit

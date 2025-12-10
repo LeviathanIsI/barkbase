@@ -30,7 +30,7 @@ import CommunicationSlideoutForm from '@/features/communications/components/Comm
  * Renders the appropriate form based on slideout state
  */
 export function SlideoutHost() {
-  const { state, isOpen, closeSlideout, handleSuccess, hasHistory, goBack, previousSlideoutLabel } = useSlideout();
+  const { state, isOpen, closeSlideout, handleSuccess, hasBackAction, goBack, previousSlideoutLabel } = useSlideout();
   const queryClient = useQueryClient();
   const tenantId = useTenantStore((s) => s.tenant?.recordId ?? 'unknown');
 
@@ -263,7 +263,7 @@ export function SlideoutHost() {
     <SlideoutPanel
       isOpen={isOpen}
       onClose={closeSlideout}
-      onBack={hasHistory ? goBack : undefined}
+      onBack={hasBackAction ? goBack : undefined}
       backLabel={previousSlideoutLabel}
       title={state?.title}
       description={state?.description}

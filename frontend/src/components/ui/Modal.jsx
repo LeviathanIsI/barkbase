@@ -104,7 +104,7 @@ const Modal = ({
   };
 
   const content = (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-[var(--bb-space-4)]">
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-[var(--bb-space-4)]">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-[var(--bb-color-overlay-scrim)] backdrop-blur-sm animate-fade-in" 
@@ -121,7 +121,7 @@ const Modal = ({
         aria-describedby={description ? descriptionId : undefined}
         aria-label={!title ? ariaLabel : undefined}
         className={cn(
-          'relative z-[101] w-full rounded-[var(--bb-radius-lg)]',
+          'relative z-[301] w-full rounded-[var(--bb-radius-lg)]',
           'bg-[var(--bb-color-bg-surface)] border border-[var(--bb-color-border-subtle)]',
           'shadow-[var(--bb-elevation-card)]',
           'focus:outline-none animate-scale-in',

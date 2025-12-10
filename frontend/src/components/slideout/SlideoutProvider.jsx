@@ -121,10 +121,16 @@ export function SlideoutProvider({ children }) {
   const isOpen = stack.length > 0;
   const hasHistory = stack.length > 1;
 
-  // Get label for back button (previous slideout in stack)
-  const previousSlideoutLabel = hasHistory
-    ? SLIDEOUT_LABELS[stack[stack.length - 2]?.type] || 'Previous'
-    : null;
+  // Get label for back button
+  // Priority: returnTo label (external context) > previous slideout in stack
+  const previousSlideoutLabel = state?.props?.returnTo?.label
+    ? state.props.returnTo.label
+    : hasHistory
+      ? SLIDEOUT_LABELS[stack[stack.length - 2]?.type] || 'Previous'
+      : null;
+
+  // Check if we have a back action (either stack history or external returnTo)
+  const hasBackAction = hasHistory || !!state?.props?.returnTo?.onBack;
 
   const openSlideout = useCallback((type, props = {}) => {
     const config = SLIDEOUT_CONFIG[type] || {};
@@ -140,12 +146,24 @@ export function SlideoutProvider({ children }) {
   }, []);
 
   // Close current slideout and go back to previous (if any)
+  // Also handles external returnTo callback for panels opened from non-slideout contexts
   const goBack = useCallback(() => {
-    setStack(currentStack => {
-      if (currentStack.length <= 1) return [];
-      return currentStack.slice(0, -1);
-    });
-  }, []);
+    // Check if current state has an external returnTo callback
+    const currentState = stack.length > 0 ? stack[stack.length - 1] : null;
+    const returnToCallback = currentState?.props?.returnTo?.onBack;
+
+    if (returnToCallback) {
+      // Close this slideout and call the external return callback
+      setStack([]);
+      returnToCallback();
+    } else {
+      // Normal stack navigation
+      setStack(currentStack => {
+        if (currentStack.length <= 1) return [];
+        return currentStack.slice(0, -1);
+      });
+    }
+  }, [stack]);
 
   // Close all slideouts
   const closeSlideout = useCallback(() => {
@@ -183,6 +201,7 @@ export function SlideoutProvider({ children }) {
     state,
     isOpen,
     hasHistory,
+    hasBackAction,
     previousSlideoutLabel,
     openSlideout,
     closeSlideout,
