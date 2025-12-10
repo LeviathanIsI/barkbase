@@ -4,7 +4,7 @@ import {
   Shield, RefreshCw, Search, Trash2, ChevronDown, ChevronLeft, ChevronRight,
   Download, SlidersHorizontal, BookmarkPlus, Check, X, Mail, FileCheck,
   Calendar, Syringe, AlertTriangle, CheckCircle2, Clock, AlertCircle,
-  LayoutList, LayoutGrid, MoreHorizontal, ExternalLink, Dog, Cat, User,
+  LayoutList, LayoutGrid, MoreHorizontal, Dog, Cat, User,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -12,6 +12,7 @@ import { PageHeader } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useExpiringVaccinationsQuery } from '@/features/pets/api-vaccinations';
+import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
 import apiClient from '@/lib/apiClient';
 import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -45,6 +46,7 @@ const PAGE_SIZE_OPTIONS = [25, 50, 100];
 
 const Vaccinations = () => {
   const queryClient = useQueryClient();
+  const { openSlideout } = useSlideout();
 
   // View and filter state
   const [activeView, setActiveView] = useState('all');
@@ -324,6 +326,17 @@ const Vaccinations = () => {
     // Future: implement actual mark reviewed functionality
   };
 
+  // Open vaccination edit drawer
+  const handleEditVaccination = useCallback((record) => {
+    openSlideout(SLIDEOUT_TYPES.VACCINATION_EDIT, {
+      vaccinations: [record],
+      initialIndex: 0,
+      petId: record.petId,
+      petName: record.petName,
+      title: `Update ${record.type || 'Vaccination'}`,
+    });
+  }, [openSlideout]);
+
   const hasActiveFilters = searchTerm || Object.keys(customFilters).length > 0 || activeView !== 'all';
 
   return (
@@ -593,6 +606,7 @@ const Vaccinations = () => {
                 isSelected={selectedRows.has(record.recordId ?? record.id)}
                 onSelect={() => handleSelectRow(record.recordId ?? record.id)}
                 onDelete={() => handleDeleteClick(record)}
+                onEdit={() => handleEditVaccination(record)}
               />
             ))}
           </div>
@@ -685,7 +699,7 @@ const FilterTag = ({ label, onRemove }) => (
 );
 
 // Vaccination Row Component
-const VaccinationRow = ({ record, viewMode, isSelected, onSelect, onDelete }) => {
+const VaccinationRow = ({ record, viewMode, isSelected, onSelect, onDelete, onEdit }) => {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef(null);
 
@@ -718,13 +732,23 @@ const VaccinationRow = ({ record, viewMode, isSelected, onSelect, onDelete }) =>
 
   const isCompact = viewMode === 'compact';
 
+  // Handle row click (edit vaccination)
+  const handleRowClick = (e) => {
+    // Don't trigger if clicking on checkbox or menu
+    if (e.target.closest('input[type="checkbox"]') || e.target.closest('[data-menu]')) {
+      return;
+    }
+    onEdit?.();
+  };
+
   return (
     <div
+      onClick={handleRowClick}
       className={cn(
-        'group rounded-lg border transition-all',
+        'group rounded-lg border transition-all cursor-pointer',
         isCompact ? 'p-2' : 'p-4',
         isSelected && 'ring-2 ring-[var(--bb-color-accent)] bg-[color:var(--bb-color-accent-soft)]',
-        'hover:border-[color:var(--bb-color-accent)]/50'
+        'hover:bg-slate-800/50 hover:border-[color:var(--bb-color-accent)]/50'
       )}
       style={{
         backgroundColor: isSelected ? undefined : 'var(--bb-color-bg-surface)',
@@ -737,6 +761,7 @@ const VaccinationRow = ({ record, viewMode, isSelected, onSelect, onDelete }) =>
           type="checkbox"
           checked={isSelected}
           onChange={onSelect}
+          onClick={(e) => e.stopPropagation()}
           className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)] shrink-0"
         />
 
@@ -755,12 +780,9 @@ const VaccinationRow = ({ record, viewMode, isSelected, onSelect, onDelete }) =>
         {/* Left: Pet Info */}
         <div className={cn('min-w-0', isCompact ? 'flex-1' : 'flex-[2]')}>
           <div className="flex items-center gap-2 flex-wrap">
-            <Link
-              to={`/pets/${record.petId}`}
-              className="font-semibold text-[color:var(--bb-color-text-primary)] hover:text-[color:var(--bb-color-accent)] hover:underline"
-            >
+            <span className="font-semibold text-[color:var(--bb-color-text-primary)]">
               {record.petName || 'Unknown Pet'}
-            </Link>
+            </span>
             <Badge variant="accent" size="sm">{record.type || 'Vaccine'}</Badge>
             {!record.isAppropriate && (
               <Badge variant="danger" size="sm" title="This vaccine is not typically given to this species">
@@ -813,21 +835,12 @@ const VaccinationRow = ({ record, viewMode, isSelected, onSelect, onDelete }) =>
           )}
         </div>
 
-        {/* Right: Actions */}
-        <div className="flex items-center gap-2 shrink-0">
-          <Link
-            to={`/pets/${record.petId}`}
-            className="text-xs text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-accent)] hover:underline whitespace-nowrap hidden sm:inline-flex items-center gap-1"
-          >
-            <span>Manage from</span>
-            <span className="font-medium">pet record</span>
-            <ExternalLink className="h-3 w-3" />
-          </Link>
-
+        {/* Right: Actions (Menu only) */}
+        <div className="flex items-center gap-2 shrink-0" data-menu>
           <div className="relative" ref={menuRef}>
             <button
               type="button"
-              onClick={() => setShowMenu(!showMenu)}
+              onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
               className="p-2 rounded-lg hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
             >
               <MoreHorizontal className="h-4 w-4" />
@@ -835,15 +848,16 @@ const VaccinationRow = ({ record, viewMode, isSelected, onSelect, onDelete }) =>
             {showMenu && (
               <div className="absolute right-0 top-full mt-1 w-40 rounded-lg border shadow-lg z-30" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
                 <div className="py-1">
-                  <Link
-                    to={`/pets/${record.petId}`}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-primary)]"
-                  >
-                    <ExternalLink className="h-4 w-4" />View Pet
-                  </Link>
                   <button
                     type="button"
-                    onClick={() => { onDelete(); setShowMenu(false); }}
+                    onClick={(e) => { e.stopPropagation(); onEdit?.(); setShowMenu(false); }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-primary)]"
+                  >
+                    <Syringe className="h-4 w-4" />Edit Vaccination
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onDelete(); setShowMenu(false); }}
                     className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-[color:var(--bb-color-bg-elevated)] text-red-500"
                   >
                     <Trash2 className="h-4 w-4" />Delete
