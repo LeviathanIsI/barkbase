@@ -7,17 +7,19 @@ import SettingsPage from '../components/SettingsPage';
 import apiClient from '@/lib/apiClient';
 import { useTenantStore } from '@/stores/tenant';
 import { useAuthStore } from '@/stores/auth';
-import { 
-  Upload, 
-  Download, 
-  FileText, 
-  AlertCircle, 
-  CheckCircle, 
+import { ImportWizard } from '../components/import';
+import {
+  Upload,
+  Download,
+  FileText,
+  AlertCircle,
+  CheckCircle,
   Clock,
   RefreshCw,
   FileJson,
   FileSpreadsheet,
   File,
+  Plus,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
@@ -40,10 +42,8 @@ const ImportExport = () => {
   const tenant = useTenantStore((state) => state.tenant);
   const accessToken = useAuthStore((state) => state.accessToken);
 
-  // Import state
-  const [importFile, setImportFile] = useState(null);
-  const [isImporting, setIsImporting] = useState(false);
-  const [importError, setImportError] = useState(null);
+  // Import wizard state
+  const [showImportWizard, setShowImportWizard] = useState(false);
   const [importSuccess, setImportSuccess] = useState(null);
 
   // Export state
@@ -75,66 +75,14 @@ const ImportExport = () => {
     fetchJobs();
   }, [fetchJobs]);
 
-  // Handle file selection
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    setImportFile(file);
-    setImportError(null);
-    setImportSuccess(null);
-  };
-
-  // Handle import
-  const handleImport = async () => {
-    if (!importFile) {
-      setImportError('Please select a file to import');
-      return;
-    }
-
-    setIsImporting(true);
-    setImportError(null);
-    setImportSuccess(null);
-
-    try {
-      // Read file content
-      const fileContent = await readFileAsText(importFile);
-      
-      // Determine format from extension
-      const ext = importFile.name.split('.').pop().toLowerCase();
-      let data;
-      
-      if (ext === 'json') {
-        data = JSON.parse(fileContent);
-      } else if (ext === 'csv') {
-        data = parseCSV(fileContent);
-      } else {
-        throw new Error('Unsupported file format. Please use CSV or JSON.');
-      }
-
-      // Send to API
-      const response = await apiClient.post('/api/v1/import-export/import', {
-        data,
-        format: ext,
-        filename: importFile.name,
-      });
-
-      if (response.data?.success) {
-        setImportSuccess(`Successfully imported ${response.data.recordCount || 0} record(s)`);
-        setImportFile(null);
-        // Reset file input
-        const fileInput = document.getElementById('import-file-input');
-        if (fileInput) fileInput.value = '';
-        // Refresh jobs list
-        fetchJobs();
-      } else {
-        setImportError(response.data?.message || 'Import failed');
-      }
-    } catch (err) {
-      console.error('Import failed:', err);
-      setImportError(err.message || 'Failed to import file');
-    } finally {
-      setIsImporting(false);
-    }
-  };
+  // Handle import complete
+  const handleImportComplete = useCallback((result) => {
+    setShowImportWizard(false);
+    setImportSuccess(`Successfully imported ${result?.recordCount || 0} record(s)`);
+    fetchJobs();
+    // Clear success message after 5 seconds
+    setTimeout(() => setImportSuccess(null), 5000);
+  }, [fetchJobs]);
 
   // Handle export
   const handleExport = async () => {
@@ -193,59 +141,21 @@ const ImportExport = () => {
       title="Import & Export" 
       description="Move your data in and out of the system"
     >
+      {/* Import Wizard Modal */}
+      {showImportWizard && (
+        <ImportWizard
+          onClose={() => setShowImportWizard(false)}
+          onImportComplete={handleImportComplete}
+        />
+      )}
+
       {/* Import Section */}
-      <Card 
-        title="Import Data" 
-        description="Upload data from external sources"
+      <Card
+        title="Import Data"
+        description="Upload data from external sources using our guided wizard"
       >
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              Select File to Import
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                id="import-file-input"
-                type="file"
-                accept=".csv,.xlsx,.xls,.json"
-                onChange={handleFileChange}
-                className="block w-full text-sm text-muted
-                  file:mr-4 file:py-2 file:px-4
-                  file:rounded-md file:border-0
-                  file:text-sm file:font-semibold
-                  file:bg-primary/10 file:text-primary
-                  hover:file:bg-primary/20
-                  dark:file:bg-primary/20"
-              />
-            </div>
-            {importFile && (
-              <p className="mt-2 text-sm text-muted">
-                Selected: <span className="font-medium text-text">{importFile.name}</span> ({(importFile.size / 1024).toFixed(2)} KB)
-              </p>
-            )}
-          </div>
-
-          <div className="bg-info/10 border border-info/30 rounded-lg p-3">
-            <div className="flex">
-              <AlertCircle className="h-5 w-5 text-info mr-2 flex-shrink-0" />
-              <div className="text-sm text-info">
-                <p className="font-medium">Supported formats:</p>
-                <ul className="list-disc list-inside mt-1 space-y-0.5">
-                  <li>CSV - Comma separated values</li>
-                  <li>Excel - .xlsx or .xls files</li>
-                  <li>JSON - JavaScript Object Notation</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          {importError && (
-            <div className="bg-danger/10 border border-danger/30 rounded-lg p-3 flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-danger flex-shrink-0" />
-              <p className="text-sm text-danger">{importError}</p>
-            </div>
-          )}
-
+          {/* Success message */}
           {importSuccess && (
             <div className="bg-success/10 border border-success/30 rounded-lg p-3 flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-success flex-shrink-0" />
@@ -253,14 +163,41 @@ const ImportExport = () => {
             </div>
           )}
 
-          <div className="flex justify-end">
-            <Button onClick={handleImport} disabled={!importFile || isImporting}>
-              {isImporting ? (
-                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Upload className="w-4 h-4 mr-2" />
-              )}
-              {isImporting ? 'Importing...' : 'Import Data'}
+          {/* Info panel */}
+          <div
+            className="rounded-xl p-6 text-center border-2 border-dashed"
+            style={{
+              borderColor: 'var(--bb-color-border-subtle)',
+              backgroundColor: 'var(--bb-color-bg-elevated)',
+            }}
+          >
+            <div
+              className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4"
+              style={{ backgroundColor: 'var(--bb-color-accent-soft)' }}
+            >
+              <Upload className="w-6 h-6" style={{ color: 'var(--bb-color-accent)' }} />
+            </div>
+            <h3 className="text-base font-semibold text-text mb-2">
+              Import your data in 4 easy steps
+            </h3>
+            <p className="text-sm text-muted mb-4 max-w-md mx-auto">
+              Our guided wizard will help you select your data type, upload your file,
+              map columns to BarkBase fields, and review before importing.
+            </p>
+            <div className="flex flex-wrap justify-center gap-3 text-xs text-muted mb-6">
+              <span className="flex items-center gap-1">
+                <FileSpreadsheet className="w-4 h-4" /> CSV
+              </span>
+              <span className="flex items-center gap-1">
+                <FileSpreadsheet className="w-4 h-4" /> Excel
+              </span>
+              <span className="flex items-center gap-1">
+                <FileJson className="w-4 h-4" /> JSON
+              </span>
+            </div>
+            <Button onClick={() => setShowImportWizard(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Start Import Wizard
             </Button>
           </div>
         </div>
@@ -391,61 +328,6 @@ const ImportExport = () => {
 };
 
 // Helper functions
-
-function readFileAsText(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => resolve(e.target.result);
-    reader.onerror = (e) => reject(new Error('Failed to read file'));
-    reader.readAsText(file);
-  });
-}
-
-function parseCSV(text) {
-  const lines = text.trim().split('\n');
-  if (lines.length < 2) return [];
-
-  const headers = parseCSVLine(lines[0]);
-  const data = [];
-
-  for (let i = 1; i < lines.length; i++) {
-    const values = parseCSVLine(lines[i]);
-    const row = {};
-    headers.forEach((header, idx) => {
-      row[header.trim()] = values[idx]?.trim() || '';
-    });
-    data.push(row);
-  }
-
-  return data;
-}
-
-function parseCSVLine(line) {
-  const result = [];
-  let current = '';
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    
-    if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        current += '"';
-        i++;
-      } else {
-        inQuotes = !inQuotes;
-      }
-    } else if (char === ',' && !inQuotes) {
-      result.push(current);
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-  
-  result.push(current);
-  return result;
-}
 
 function formatDate(dateString) {
   if (!dateString) return 'Unknown date';
