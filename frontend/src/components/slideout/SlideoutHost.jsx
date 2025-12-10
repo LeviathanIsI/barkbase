@@ -733,7 +733,23 @@ function VaccinationEditForm({ vaccinations = [], initialIndex = 0, petId, petNa
 
   const isLoading = updateMutation.isPending;
   const vaccinationType = vaccination?.type || vaccination?.name || vaccination?.vaccineName || 'Vaccination';
-  const isExpired = vaccination?.status === 'expired' || (vaccination?.expiresAt && new Date(vaccination.expiresAt) < new Date());
+
+  // Calculate vaccination status based on days until expiry
+  const getVaccinationStatus = () => {
+    const expirationDate = vaccination?.expirationDate || vaccination?.expiresAt;
+    if (!expirationDate) return null;
+
+    const now = new Date();
+    const expiry = new Date(expirationDate);
+    const daysLeft = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+
+    if (daysLeft < 0) return 'expired';      // Past expiration
+    if (daysLeft <= 7) return 'critical';    // Within 7 days
+    if (daysLeft <= 30) return 'expiring';   // Within 30 days
+    return 'current';                         // More than 30 days out
+  };
+
+  const vaccinationStatus = vaccination?.status || getVaccinationStatus();
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -833,16 +849,26 @@ function VaccinationEditForm({ vaccinations = [], initialIndex = 0, petId, petNa
 
       {/* Status badge for current vaccination */}
       <div className="flex items-center gap-2">
-        <span
-          className={cn(
-            'inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium',
-            isExpired
-              ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
-              : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400'
-          )}
-        >
-          {isExpired ? '⚠️ Expired' : '⏰ Expiring Soon'}
-        </span>
+        {vaccinationStatus === 'expired' && (
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400">
+            ⚠️ Expired
+          </span>
+        )}
+        {vaccinationStatus === 'critical' && (
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400">
+            🚨 Critical
+          </span>
+        )}
+        {vaccinationStatus === 'expiring' && (
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400">
+            ⏰ Expiring Soon
+          </span>
+        )}
+        {vaccinationStatus === 'current' && (
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400">
+            ✓ Current
+          </span>
+        )}
         <span className="text-sm text-[color:var(--bb-color-text-muted)]">
           {vaccinationType}
         </span>
