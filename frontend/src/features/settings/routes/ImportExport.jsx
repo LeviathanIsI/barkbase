@@ -6,6 +6,7 @@ import Select from '@/components/ui/Select';
 import SettingsPage from '../components/SettingsPage';
 import apiClient from '@/lib/apiClient';
 import { useTenantStore } from '@/stores/tenant';
+import { useAuthStore } from '@/stores/auth';
 import { 
   Upload, 
   Download, 
@@ -37,6 +38,7 @@ const FORMAT_OPTIONS = [
 
 const ImportExport = () => {
   const tenant = useTenantStore((state) => state.tenant);
+  const accessToken = useAuthStore((state) => state.accessToken);
 
   // Import state
   const [importFile, setImportFile] = useState(null);
@@ -146,7 +148,7 @@ const ImportExport = () => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('accessToken') || ''}`,
+            ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
             'X-Tenant-Id': tenant?.recordId || '',
           },
           body: JSON.stringify({ scope: exportScope, format: exportFormat }),
