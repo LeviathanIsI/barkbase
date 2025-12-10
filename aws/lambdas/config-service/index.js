@@ -8462,7 +8462,6 @@ async function handleCreateExport(user, body) {
     // Generate export data
     let data = [];
     let recordCount = 0;
-    const filename = `barkbase_${scope}_export_${new Date().toISOString().split('T')[0]}.${format}`;
 
     try {
       switch (scope) {
@@ -8559,6 +8558,7 @@ async function handleCreateExport(user, body) {
     // Format the data based on requested format
     let exportContent;
     let contentType;
+    let actualFormat = format; // Track actual format for filename
 
     if (format === 'json') {
       exportContent = JSON.stringify(data, null, 2);
@@ -8566,18 +8566,61 @@ async function handleCreateExport(user, body) {
     } else if (format === 'csv') {
       // Convert to CSV
       if (scope === 'all') {
-        // For "all" scope, we'll export as JSON since CSV can't handle nested data
-        exportContent = JSON.stringify(data, null, 2);
-        contentType = 'application/json';
+        // For "all" scope, create a multi-section CSV with each entity type
+        const sections = [];
+
+        // Pets section
+        if (data.pets && data.pets.length > 0) {
+          sections.push('# PETS');
+          sections.push(arrayToCSV(data.pets));
+        }
+
+        // Owners section
+        if (data.owners && data.owners.length > 0) {
+          sections.push('');
+          sections.push('# OWNERS');
+          sections.push(arrayToCSV(data.owners));
+        }
+
+        // Bookings section
+        if (data.bookings && data.bookings.length > 0) {
+          sections.push('');
+          sections.push('# BOOKINGS');
+          sections.push(arrayToCSV(data.bookings));
+        }
+
+        // Vaccinations section
+        if (data.vaccinations && data.vaccinations.length > 0) {
+          sections.push('');
+          sections.push('# VACCINATIONS');
+          sections.push(arrayToCSV(data.vaccinations));
+        }
+
+        exportContent = sections.join('\n');
+        contentType = 'text/csv';
       } else {
         exportContent = arrayToCSV(data);
         contentType = 'text/csv';
       }
+    } else if (format === 'xlsx') {
+      // XLSX would require a library - fall back to CSV for now
+      if (scope === 'all') {
+        exportContent = JSON.stringify(data, null, 2);
+        contentType = 'application/json';
+        actualFormat = 'json';
+      } else {
+        exportContent = arrayToCSV(data);
+        contentType = 'text/csv';
+        actualFormat = 'csv';
+      }
     } else {
-      // XLSX would require a library - for now, fall back to JSON
       exportContent = JSON.stringify(data, null, 2);
       contentType = 'application/json';
+      actualFormat = 'json';
     }
+
+    // Update filename with actual format
+    const finalFilename = `barkbase_${scope}_export_${new Date().toISOString().split('T')[0]}.${actualFormat}`;
 
     // Try to record the job if the table exists
     let jobId = null;
@@ -8591,7 +8634,7 @@ async function handleCreateExport(user, body) {
           `INSERT INTO "ImportExportJob" (tenant_id, user_id, type, status, scope, format, filename, record_count, completed_at)
            VALUES ($1, $2, 'export', 'completed', $3, $4, $5, $6, NOW())
            RETURNING id`,
-          [ctx.tenantId, user.id, scope, format, filename, recordCount]
+          [ctx.tenantId, user.id, scope, actualFormat, finalFilename, recordCount]
         );
         jobId = jobResult.rows[0]?.id;
       }
@@ -8604,7 +8647,7 @@ async function handleCreateExport(user, body) {
       statusCode: 200,
       headers: {
         'Content-Type': contentType,
-        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Content-Disposition': `attachment; filename="${finalFilename}"`,
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': '*',
         'Access-Control-Expose-Headers': 'Content-Disposition',
@@ -8623,14 +8666,53 @@ async function handleCreateExport(user, body) {
 function arrayToCSV(data) {
   if (!data || data.length === 0) return '';
 
+  // Ensure data is an array
+  if (!Array.isArray(data)) {
+    console.error('[arrayToCSV] Expected array but got:', typeof data);
+    return '';
+  }
+
+  // Ensure first element is an object
+  if (typeof data[0] !== 'object' || data[0] === null) {
+    console.error('[arrayToCSV] Expected array of objects but first element is:', typeof data[0]);
+    return '';
+  }
+
   // Get headers from first row
   const headers = Object.keys(data[0]);
 
-  // Escape CSV values
-  const escapeCSV = (value) => {
+  // Convert a value to a string suitable for CSV
+  const valueToString = (value) => {
     if (value === null || value === undefined) return '';
-    const str = String(value);
-    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+
+    // Handle arrays - join with semicolons to avoid comma conflicts
+    if (Array.isArray(value)) {
+      return value.map(v => valueToString(v)).join(';');
+    }
+
+    // Handle objects - convert to JSON string
+    if (typeof value === 'object' && value !== null) {
+      // Check if it's a Date
+      if (value instanceof Date) {
+        return value.toISOString();
+      }
+      // For other objects, stringify them
+      return JSON.stringify(value);
+    }
+
+    // Handle booleans explicitly
+    if (typeof value === 'boolean') {
+      return value ? 'true' : 'false';
+    }
+
+    return String(value);
+  };
+
+  // Escape CSV values - wrap in quotes if needed
+  const escapeCSV = (value) => {
+    const str = valueToString(value);
+    // Always quote if contains comma, quote, newline, or semicolon
+    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r') || str.includes(';')) {
       return `"${str.replace(/"/g, '""')}"`;
     }
     return str;
