@@ -118,6 +118,24 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit, onCheckIn, onChe
     });
   };
 
+  // Helper: Open create booking flow with pre-filled data
+  // Used when booking ID is missing but user wants to take action
+  const openCreateBookingWithPrefill = useCallback((extraPrefill = {}) => {
+    onClose(); // Close the inspector first
+    openSlideout(SLIDEOUT_TYPES.BOOKING_CREATE, {
+      title: 'Complete Booking',
+      description: 'Save this booking to enable all actions',
+      prefill: {
+        petId: displayBooking.pet?.id || displayBooking.pet?.recordId,
+        ownerId: displayBooking.owner?.id || displayBooking.owner?.recordId,
+        checkIn: displayBooking.checkIn,
+        checkOut: displayBooking.checkOut,
+        notes: displayBooking.notes,
+        ...extraPrefill,
+      },
+    });
+  }, [displayBooking, openSlideout, onClose]);
+
   // DAFE: Open Pet slideout instead of navigating
   // Passes returnTo context so user can navigate back to booking
   const handleViewPet = useCallback(() => {
@@ -157,48 +175,59 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit, onCheckIn, onChe
   }, [displayBooking.owner, openSlideout]);
 
   // DAFE: Inline kennel assignment
+  // If no booking ID, open create booking flow with kennel pre-selected
   const handleAssignKennel = useCallback(async (kennelId) => {
-    const bookingId = displayBooking.id;
-    if (!bookingId || bookingId === 'Unknown') {
-      toast.error('Cannot assign kennel: booking ID not found');
+    if (!hasValidBookingId) {
+      // No booking exists - open create booking flow with kennel pre-selected
+      openCreateBookingWithPrefill({ kennelId });
       return;
     }
 
     try {
-      await assignKennelMutation.mutateAsync({ bookingId, kennelId });
+      await assignKennelMutation.mutateAsync({ bookingId: displayBooking.id, kennelId });
       toast.success('Kennel assigned successfully');
       setShowKennelDropdown(false);
     } catch (error) {
       toast.error(error?.message || 'Failed to assign kennel');
     }
-  }, [displayBooking.id, assignKennelMutation]);
+  }, [hasValidBookingId, displayBooking.id, assignKennelMutation, openCreateBookingWithPrefill]);
 
   // DAFE: Cancel booking
+  // If no booking ID, just close (nothing to cancel)
   const handleCancelBooking = useCallback(async () => {
-    const bookingId = displayBooking.id;
-    if (!bookingId || bookingId === 'Unknown') {
-      toast.error('Cannot cancel: booking ID not found');
+    if (!hasValidBookingId) {
+      // Nothing to cancel - just close
+      setShowCancelDialog(false);
+      onClose();
       return;
     }
 
     try {
-      await deleteBookingMutation.mutateAsync(bookingId);
+      await deleteBookingMutation.mutateAsync(displayBooking.id);
       toast.success('Booking cancelled');
       setShowCancelDialog(false);
       onClose();
     } catch (error) {
       toast.error(error?.message || 'Failed to cancel booking');
     }
-  }, [displayBooking.id, deleteBookingMutation, onClose]);
+  }, [hasValidBookingId, displayBooking.id, deleteBookingMutation, onClose]);
 
   // DAFE: Add note
+  // If no booking ID, open create booking flow with the note pre-filled
   const handleAddNote = useCallback(() => {
     if (!noteText.trim()) return;
+
+    if (!hasValidBookingId) {
+      // No booking - open create flow with the note
+      openCreateBookingWithPrefill({ notes: noteText });
+      return;
+    }
+
     // For now, show toast - actual note creation would go through API
     toast.success('Note added');
     setNoteText('');
     setAddingNote(false);
-  }, [noteText]);
+  }, [noteText, hasValidBookingId, openCreateBookingWithPrefill]);
 
   // Metrics for header
   const metrics = [
@@ -518,11 +547,11 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit, onCheckIn, onChe
                   Check In
                 </Button>
               )}
-              {/* Show Complete Booking if ID is missing */}
-              {displayBooking.status === 'CONFIRMED' && !hasValidBookingId && onEdit && (
-                <Button variant="primary" onClick={onEdit}>
-                  <Edit2 className="w-4 h-4 mr-[var(--bb-space-2)]" />
-                  Complete Booking
+              {/* Show Save Booking if ID is missing - opens create flow */}
+              {!hasValidBookingId && (
+                <Button variant="primary" onClick={() => openCreateBookingWithPrefill()}>
+                  <CheckCircle className="w-4 h-4 mr-[var(--bb-space-2)]" />
+                  Save Booking
                 </Button>
               )}
               {displayBooking.status === 'CHECKED_IN' && onCheckOut && hasValidBookingId && (
