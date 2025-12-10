@@ -1,6 +1,7 @@
 /**
  * SlideoutProvider - Global slideout state management
  * Provides context for opening slideout panels from anywhere in the app
+ * Supports nested slideouts with back navigation
  */
 
 import { createContext, useContext, useState, useCallback } from 'react';
@@ -86,30 +87,69 @@ export const SLIDEOUT_CONFIG = {
   },
 };
 
+// Human-readable labels for back button
+const SLIDEOUT_LABELS = {
+  [SLIDEOUT_TYPES.BOOKING_CREATE]: 'Booking',
+  [SLIDEOUT_TYPES.BOOKING_EDIT]: 'Booking',
+  [SLIDEOUT_TYPES.OWNER_CREATE]: 'Customer',
+  [SLIDEOUT_TYPES.OWNER_EDIT]: 'Customer',
+  [SLIDEOUT_TYPES.PET_CREATE]: 'Pet',
+  [SLIDEOUT_TYPES.PET_EDIT]: 'Pet',
+  [SLIDEOUT_TYPES.TASK_CREATE]: 'Task',
+  [SLIDEOUT_TYPES.TASK_EDIT]: 'Task',
+  [SLIDEOUT_TYPES.COMMUNICATION_CREATE]: 'Message',
+  [SLIDEOUT_TYPES.NOTE_CREATE]: 'Note',
+  [SLIDEOUT_TYPES.ACTIVITY_LOG]: 'Activity',
+  [SLIDEOUT_TYPES.VACCINATION_EDIT]: 'Vaccination',
+};
+
 // Context
 const SlideoutContext = createContext(null);
 
 /**
  * SlideoutProvider component
  * Wraps the app to provide slideout state management
+ * Now supports a stack of slideouts for nested navigation
  */
 export function SlideoutProvider({ children }) {
   const queryClient = useQueryClient();
-  const [state, setState] = useState(null);
+  // Stack of slideout states - current is last item
+  const [stack, setStack] = useState([]);
+
+  // Current state is the top of the stack
+  const state = stack.length > 0 ? stack[stack.length - 1] : null;
+  const isOpen = stack.length > 0;
+  const hasHistory = stack.length > 1;
+
+  // Get label for back button (previous slideout in stack)
+  const previousSlideoutLabel = hasHistory
+    ? SLIDEOUT_LABELS[stack[stack.length - 2]?.type] || 'Previous'
+    : null;
 
   const openSlideout = useCallback((type, props = {}) => {
     const config = SLIDEOUT_CONFIG[type] || {};
-    setState({
+    const newState = {
       type,
       props,
       title: props.title || config.title || 'Panel',
       description: props.description || config.description,
       width: props.width || config.width || 'max-w-xl',
+    };
+
+    setStack(currentStack => [...currentStack, newState]);
+  }, []);
+
+  // Close current slideout and go back to previous (if any)
+  const goBack = useCallback(() => {
+    setStack(currentStack => {
+      if (currentStack.length <= 1) return [];
+      return currentStack.slice(0, -1);
     });
   }, []);
 
+  // Close all slideouts
   const closeSlideout = useCallback(() => {
-    setState(null);
+    setStack([]);
   }, []);
 
   // Invalidate queries after successful operations
@@ -121,8 +161,6 @@ export function SlideoutProvider({ children }) {
 
   // Handle successful form submission
   const handleSuccess = useCallback((result, options = {}) => {
-    closeSlideout();
-    
     // Invalidate relevant queries based on the slideout type
     if (options.invalidate) {
       invalidateQueries(options.invalidate);
@@ -132,13 +170,23 @@ export function SlideoutProvider({ children }) {
     if (options.onSuccess) {
       options.onSuccess(result);
     }
-  }, [closeSlideout, invalidateQueries]);
+
+    // Go back to previous slideout if there is one, otherwise close all
+    if (stack.length > 1) {
+      goBack();
+    } else {
+      closeSlideout();
+    }
+  }, [invalidateQueries, goBack, closeSlideout, stack.length]);
 
   const value = {
     state,
-    isOpen: state !== null,
+    isOpen,
+    hasHistory,
+    previousSlideoutLabel,
     openSlideout,
     closeSlideout,
+    goBack,
     handleSuccess,
     invalidateQueries,
   };
@@ -163,4 +211,3 @@ export function useSlideout() {
 }
 
 export default SlideoutProvider;
-

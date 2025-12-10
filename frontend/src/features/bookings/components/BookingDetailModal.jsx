@@ -4,7 +4,7 @@
  * Used in Bookings list view
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Calendar, PawPrint, User, CheckCircle, Clock, DollarSign, Phone, Edit2, X, MessageSquare, Home, ChevronDown } from 'lucide-react';
 import {
   InspectorRoot,
@@ -36,6 +36,21 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [addingNote, setAddingNote] = useState(false);
   const [noteText, setNoteText] = useState('');
+  const kennelDropdownRef = useRef(null);
+
+  // Click outside to close kennel dropdown
+  useEffect(() => {
+    if (!showKennelDropdown) return;
+
+    const handleClickOutside = (e) => {
+      if (kennelDropdownRef.current && !kennelDropdownRef.current.contains(e.target)) {
+        setShowKennelDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showKennelDropdown]);
 
   if (!isOpen || !booking) return null;
 
@@ -314,7 +329,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
             </div>
           </div>
           {/* Kennel Assignment - Inline Dropdown */}
-          <div className="mt-[var(--bb-space-3)] pt-[var(--bb-space-3)] border-t border-[var(--bb-color-border-subtle)] relative">
+          <div className="mt-[var(--bb-space-3)] pt-[var(--bb-space-3)] border-t border-[var(--bb-color-border-subtle)] relative" ref={kennelDropdownRef}>
             <InspectorField label="Assigned Kennel" icon={Home}>
               <button
                 type="button"

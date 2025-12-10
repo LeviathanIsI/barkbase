@@ -4,7 +4,7 @@
  * Optimized for calendar context with inline editing and quick actions
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Calendar, Phone, User, PawPrint, CheckCircle, Clock, DollarSign, Edit2, X, MessageSquare, Home, ChevronDown } from 'lucide-react';
 import {
   InspectorRoot,
@@ -34,6 +34,21 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit, onCheckIn, onChe
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [addingNote, setAddingNote] = useState(false);
   const [noteText, setNoteText] = useState('');
+  const kennelDropdownRef = useRef(null);
+
+  // Click outside to close kennel dropdown
+  useEffect(() => {
+    if (!showKennelDropdown) return;
+
+    const handleClickOutside = (e) => {
+      if (kennelDropdownRef.current && !kennelDropdownRef.current.contains(e.target)) {
+        setShowKennelDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showKennelDropdown]);
 
   if (!isOpen || !booking) return null;
 
@@ -303,7 +318,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit, onCheckIn, onChe
               </InspectorField>
             </div>
             {/* Kennel Assignment - Inline Dropdown */}
-            <div className="relative">
+            <div className="relative" ref={kennelDropdownRef}>
               <InspectorField label="Assigned Kennel" layout="stacked" icon={Home}>
                 <button
                   type="button"

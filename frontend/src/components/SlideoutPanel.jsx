@@ -1,16 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { X, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import Button from '@/components/ui/Button';
 
 /**
  * SlideoutPanel - Token-based slideout panel for edit/create flows
  * Slides in from the right with smooth animations
+ * Supports back navigation for nested slideouts
  */
 const SlideoutPanel = ({
   isOpen,
   onClose,
+  onBack,
+  backLabel,
   title,
   description,
   children,
@@ -70,6 +73,8 @@ const SlideoutPanel = ({
     return null;
   }
 
+  const hasBackButton = Boolean(onBack && backLabel);
+
   return createPortal(
     <div className="fixed inset-0 z-[200] flex">
       {/* Backdrop */}
@@ -81,7 +86,7 @@ const SlideoutPanel = ({
         onClick={onClose}
         aria-hidden="true"
       />
-      
+
       {/* Panel */}
       <section
         role="dialog"
@@ -96,6 +101,23 @@ const SlideoutPanel = ({
           widthClass,
         )}
       >
+        {/* Back Button (when nested) */}
+        {hasBackButton && (
+          <button
+            type="button"
+            onClick={onBack}
+            className={cn(
+              'flex items-center gap-1.5 px-[var(--bb-space-6)] py-[var(--bb-space-2)]',
+              'text-[var(--bb-font-size-sm)] text-[var(--bb-color-accent)]',
+              'hover:text-[var(--bb-color-accent-hover)] hover:bg-[var(--bb-color-bg-elevated)]',
+              'transition-colors border-b border-[var(--bb-color-border-subtle)]'
+            )}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Back to {backLabel}</span>
+          </button>
+        )}
+
         {/* Header */}
         <div className="flex items-start justify-between gap-[var(--bb-space-4)] border-b border-[var(--bb-color-border-subtle)] px-[var(--bb-space-6)] py-[var(--bb-space-4)]">
           <div className="flex-1 min-w-0">
@@ -121,12 +143,12 @@ const SlideoutPanel = ({
             <X className="h-5 w-5" />
           </Button>
         </div>
-        
+
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-[var(--bb-space-6)] py-[var(--bb-space-6)]">
           {children}
         </div>
-        
+
         {/* Footer (optional) */}
         {footer && (
           <div className="flex items-center justify-end gap-[var(--bb-space-3)] border-t border-[var(--bb-color-border-subtle)] px-[var(--bb-space-6)] py-[var(--bb-space-4)] bg-[var(--bb-color-bg-surface)]">
