@@ -239,7 +239,8 @@ export function SlideoutHost() {
       case SLIDEOUT_TYPES.VACCINATION_EDIT:
         return (
           <VaccinationEditForm
-            vaccination={props?.vaccination}
+            vaccinations={props?.vaccinations || (props?.vaccination ? [props.vaccination] : [])}
+            initialIndex={props?.initialIndex || 0}
             petId={props?.petId}
             petName={props?.petName}
             onSuccess={onFormSuccess}
@@ -641,52 +642,55 @@ function ActivityLogForm({ ownerId, petId, onSuccess, onCancel }) {
   );
 }
 
-// Vaccination Edit Form
-function VaccinationEditForm({ vaccination, petId, petName, onSuccess, onCancel }) {
+// Vaccination Edit Form with navigation between multiple vaccinations
+function VaccinationEditForm({ vaccinations = [], initialIndex = 0, petId, petName, onSuccess, onCancel }) {
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [updatedIndices, setUpdatedIndices] = useState(new Set());
   const updateMutation = useUpdateVaccinationMutation(petId);
+
+  // Get current vaccination
+  const vaccination = vaccinations[currentIndex];
+  const totalCount = vaccinations.length;
+  const hasMultiple = totalCount > 1;
+
+  // Helper to get form defaults from a vaccination object
+  const getDefaultsFromVaccination = (vacc) => ({
+    type: vacc?.type || vacc?.name || vacc?.vaccineName || '',
+    dateAdministered: vacc?.dateAdministered
+      ? format(new Date(vacc.dateAdministered), 'yyyy-MM-dd')
+      : vacc?.administeredAt
+        ? format(new Date(vacc.administeredAt), 'yyyy-MM-dd')
+        : format(new Date(), 'yyyy-MM-dd'),
+    expirationDate: vacc?.expirationDate
+      ? format(new Date(vacc.expirationDate), 'yyyy-MM-dd')
+      : vacc?.expiresAt
+        ? format(new Date(vacc.expiresAt), 'yyyy-MM-dd')
+        : format(addDays(new Date(), 365), 'yyyy-MM-dd'),
+    veterinarian: vacc?.veterinarian || vacc?.administeredBy || '',
+    notes: vacc?.notes || '',
+  });
 
   const {
     register,
     handleSubmit,
     reset,
-    formState: { errors, isDirty, isSubmitting },
+    formState: { errors, isDirty },
   } = useForm({
-    defaultValues: {
-      type: vaccination?.type || vaccination?.name || vaccination?.vaccineName || '',
-      dateAdministered: vaccination?.dateAdministered
-        ? format(new Date(vaccination.dateAdministered), 'yyyy-MM-dd')
-        : vaccination?.administeredAt
-          ? format(new Date(vaccination.administeredAt), 'yyyy-MM-dd')
-          : format(new Date(), 'yyyy-MM-dd'),
-      expirationDate: vaccination?.expirationDate
-        ? format(new Date(vaccination.expirationDate), 'yyyy-MM-dd')
-        : vaccination?.expiresAt
-          ? format(new Date(vaccination.expiresAt), 'yyyy-MM-dd')
-          : format(addDays(new Date(), 365), 'yyyy-MM-dd'),
-      veterinarian: vaccination?.veterinarian || vaccination?.administeredBy || '',
-      notes: vaccination?.notes || '',
-    },
+    defaultValues: getDefaultsFromVaccination(vaccination),
   });
 
+  // Reset form when current vaccination changes
   useEffect(() => {
     if (vaccination) {
-      reset({
-        type: vaccination?.type || vaccination?.name || vaccination?.vaccineName || '',
-        dateAdministered: vaccination?.dateAdministered
-          ? format(new Date(vaccination.dateAdministered), 'yyyy-MM-dd')
-          : vaccination?.administeredAt
-            ? format(new Date(vaccination.administeredAt), 'yyyy-MM-dd')
-            : format(new Date(), 'yyyy-MM-dd'),
-        expirationDate: vaccination?.expirationDate
-          ? format(new Date(vaccination.expirationDate), 'yyyy-MM-dd')
-          : vaccination?.expiresAt
-            ? format(new Date(vaccination.expiresAt), 'yyyy-MM-dd')
-            : format(addDays(new Date(), 365), 'yyyy-MM-dd'),
-        veterinarian: vaccination?.veterinarian || vaccination?.administeredBy || '',
-        notes: vaccination?.notes || '',
-      });
+      reset(getDefaultsFromVaccination(vaccination));
     }
-  }, [vaccination, reset]);
+  }, [vaccination, reset, currentIndex]);
+
+  const navigateTo = (index) => {
+    if (index >= 0 && index < totalCount) {
+      setCurrentIndex(index);
+    }
+  };
 
   const onSubmit = async (data) => {
     try {
@@ -701,7 +705,26 @@ function VaccinationEditForm({ vaccination, petId, petName, onSuccess, onCancel 
           notes: data.notes || null,
         },
       });
-      onSuccess?.(result || data);
+
+      // Mark this vaccination as updated
+      setUpdatedIndices(prev => new Set([...prev, currentIndex]));
+
+      // If there are more vaccinations, navigate to next; otherwise close
+      if (hasMultiple && currentIndex < totalCount - 1) {
+        toast.success(`${data.type} updated! Moving to next vaccination...`);
+        setCurrentIndex(currentIndex + 1);
+      } else if (hasMultiple && updatedIndices.size + 1 < totalCount) {
+        // Find first non-updated vaccination
+        const nextUnupdated = vaccinations.findIndex((_, idx) => !updatedIndices.has(idx) && idx !== currentIndex);
+        if (nextUnupdated !== -1) {
+          toast.success(`${data.type} updated! ${totalCount - updatedIndices.size - 1} remaining...`);
+          setCurrentIndex(nextUnupdated);
+        } else {
+          onSuccess?.(result || data);
+        }
+      } else {
+        onSuccess?.(result || data);
+      }
     } catch (error) {
       console.error('Failed to update vaccination:', error);
       toast.error(error?.message || 'Failed to update vaccination');
@@ -710,19 +733,120 @@ function VaccinationEditForm({ vaccination, petId, petName, onSuccess, onCancel 
 
   const isLoading = updateMutation.isPending;
   const vaccinationType = vaccination?.type || vaccination?.name || vaccination?.vaccineName || 'Vaccination';
+  const isExpired = vaccination?.status === 'expired' || (vaccination?.expiresAt && new Date(vaccination.expiresAt) < new Date());
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Pet Info Header */}
-      {petName && (
-        <div
-          className="p-3 rounded-lg border"
-          style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+      {/* Pet Info Header with Navigation */}
+      <div
+        className="p-3 rounded-lg border"
+        style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+      >
+        {petName && (
+          <>
+            <p className="text-sm text-[color:var(--bb-color-text-muted)]">Updating vaccinations for</p>
+            <p className="font-medium text-[color:var(--bb-color-text-primary)]">{petName}</p>
+          </>
+        )}
+
+        {/* Navigation UI when multiple vaccinations */}
+        {hasMultiple && (
+          <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => navigateTo(currentIndex - 1)}
+                disabled={currentIndex === 0 || isLoading}
+                className={cn(
+                  'flex items-center gap-1 px-2 py-1 rounded text-sm transition-colors',
+                  currentIndex === 0
+                    ? 'opacity-40 cursor-not-allowed text-[color:var(--bb-color-text-muted)]'
+                    : 'hover:bg-[var(--bb-color-bg-elevated)] text-[color:var(--bb-color-accent)]'
+                )}
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Previous
+              </button>
+
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">
+                  {currentIndex + 1} of {totalCount}
+                </span>
+                {updatedIndices.size > 0 && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400">
+                    {updatedIndices.size} updated
+                  </span>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => navigateTo(currentIndex + 1)}
+                disabled={currentIndex === totalCount - 1 || isLoading}
+                className={cn(
+                  'flex items-center gap-1 px-2 py-1 rounded text-sm transition-colors',
+                  currentIndex === totalCount - 1
+                    ? 'opacity-40 cursor-not-allowed text-[color:var(--bb-color-text-muted)]'
+                    : 'hover:bg-[var(--bb-color-bg-elevated)] text-[color:var(--bb-color-accent)]'
+                )}
+              >
+                Next
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Vaccination pills/tabs */}
+            <div className="mt-2 flex flex-wrap gap-1">
+              {vaccinations.map((vacc, idx) => {
+                const vaccName = vacc?.type || vacc?.name || vacc?.vaccineName || `Vacc ${idx + 1}`;
+                const isActive = idx === currentIndex;
+                const isUpdated = updatedIndices.has(idx);
+
+                return (
+                  <button
+                    key={vacc?.id || vacc?.recordId || idx}
+                    type="button"
+                    onClick={() => navigateTo(idx)}
+                    disabled={isLoading}
+                    className={cn(
+                      'px-2 py-1 rounded-full text-xs font-medium transition-all',
+                      isActive
+                        ? 'bg-[var(--bb-color-accent)] text-white'
+                        : isUpdated
+                          ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-900/60'
+                          : 'bg-[var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)] hover:bg-[var(--bb-color-border-subtle)]'
+                    )}
+                  >
+                    {isUpdated && !isActive && '✓ '}
+                    {vaccName}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Status badge for current vaccination */}
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            'inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium',
+            isExpired
+              ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
+              : 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400'
+          )}
         >
-          <p className="text-sm text-[color:var(--bb-color-text-muted)]">Updating vaccination for</p>
-          <p className="font-medium text-[color:var(--bb-color-text-primary)]">{petName}</p>
-        </div>
-      )}
+          {isExpired ? '⚠️ Expired' : '⏰ Expiring Soon'}
+        </span>
+        <span className="text-sm text-[color:var(--bb-color-text-muted)]">
+          {vaccinationType}
+        </span>
+      </div>
 
       <FormSection title="Vaccination Details">
         <div className="space-y-2">
@@ -792,9 +916,11 @@ function VaccinationEditForm({ vaccination, petId, petName, onSuccess, onCancel 
       </FormSection>
 
       <FormActions>
-        <Button type="button" variant="ghost" onClick={onCancel} disabled={isLoading}>Cancel</Button>
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={isLoading}>
+          {updatedIndices.size > 0 ? 'Done' : 'Cancel'}
+        </Button>
         <Button type="submit" disabled={isLoading || !isDirty}>
-          {isLoading ? 'Updating...' : 'Update Vaccination'}
+          {isLoading ? 'Updating...' : hasMultiple ? 'Update & Continue' : 'Update Vaccination'}
         </Button>
       </FormActions>
     </form>

@@ -1168,10 +1168,11 @@ const VaccinationHoverCard = ({ pet, expiringVaccinations, navigate, children })
                 e.stopPropagation();
                 setIsHovering(false);
                 openSlideout(SLIDEOUT_TYPES.VACCINATION_EDIT, {
-                  vaccination: vacc,
+                  vaccinations: petVaccinations,
+                  initialIndex: idx,
                   petId: pet.recordId || pet.id,
                   petName: pet.name,
-                  title: `Update ${vacc.type || vacc.name || 'Vaccination'}`,
+                  title: `Update Vaccinations (${petVaccinations.length})`,
                 });
               }}
               className="w-full text-left px-3 py-2 hover:bg-[var(--bb-color-bg-elevated)] transition-colors cursor-pointer rounded"
