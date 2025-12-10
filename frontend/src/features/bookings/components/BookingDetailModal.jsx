@@ -119,8 +119,8 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
 
   // Helper: Open create booking flow with pre-filled data
   // Used when booking ID is missing but user wants to take action
+  // Includes returnTo so user can go back to the booking inspector
   const openCreateBookingWithPrefill = useCallback((extraPrefill = {}) => {
-    onClose(); // Close the inspector first
     openSlideout(SLIDEOUT_TYPES.BOOKING_CREATE, {
       title: 'Complete Booking',
       description: 'Save this booking to enable all actions',
@@ -132,8 +132,14 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
         notes: displayBooking.notes,
         ...extraPrefill,
       },
+      returnTo: {
+        label: 'Booking',
+        onBack: () => {
+          // Inspector is still open (controlled by parent), just close slideout
+        },
+      },
     });
-  }, [displayBooking, openSlideout, onClose]);
+  }, [displayBooking, openSlideout]);
 
   // DAFE: Open Pet slideout instead of navigating
   // Passes returnTo context so user can navigate back to booking
