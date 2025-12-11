@@ -4,7 +4,7 @@
  * Optimized for calendar context with inline editing and quick actions
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Calendar, Phone, User, PawPrint, CheckCircle, Clock, DollarSign, Edit2, X, MessageSquare, Home, ChevronDown } from 'lucide-react';
 import {
   InspectorRoot,

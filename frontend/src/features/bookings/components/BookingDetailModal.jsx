@@ -4,7 +4,7 @@
  * Used in Bookings list view
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Calendar, PawPrint, User, CheckCircle, Clock, DollarSign, Phone, Edit2, X, MessageSquare, Home, ChevronDown } from 'lucide-react';
 import {
   InspectorRoot,
