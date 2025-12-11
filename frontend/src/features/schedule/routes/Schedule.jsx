@@ -4,7 +4,7 @@ import { format, addDays, startOfWeek } from 'date-fns';
 import {
   Plus, Home, Users, Settings, ChevronLeft, ChevronRight,
   Clock, PawPrint, UserCheck, UserX, CheckCircle,
-  TrendingUp, Brain, CheckSquare, Square, LogIn, LogOut,
+  TrendingUp, Brain, CheckSquare,
   AlertTriangle, BarChart3, Zap, Info,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
@@ -364,9 +364,6 @@ const Schedule = () => {
             <SmartSchedulingAssistant stats={stats} />
           </div>
         </div>
-
-        {/* Daily Operations Checklist - Full width */}
-        <DailyChecklist bookings={processedBookings} stats={stats} />
       </div>
 
       {/* Modals */}
@@ -849,124 +846,6 @@ const SmartSchedulingAssistant = ({ stats }) => {
           );
         })}
       </div>
-    </div>
-  );
-};
-
-// Daily Checklist
-const DailyChecklist = ({ bookings, stats }) => {
-  const [completedTasks, setCompletedTasks] = useState(new Set());
-  const today = new Date().toISOString().split('T')[0];
-
-  const tasks = useMemo(() => {
-    const list = [];
-
-    // Check-ins
-    bookings
-      .filter(b => b.checkInDate?.toISOString().split('T')[0] === today && b.status !== 'CHECKED_IN')
-      .forEach(b => {
-        list.push({
-          id: `checkin-${b.id}`,
-          icon: LogIn,
-          label: `Check in ${b.petName} (${b.ownerName})`,
-          priority: 'high',
-        });
-      });
-
-    // Check-outs
-    bookings
-      .filter(b => b.checkOutDate?.toISOString().split('T')[0] === today && b.status !== 'CHECKED_OUT')
-      .forEach(b => {
-        list.push({
-          id: `checkout-${b.id}`,
-          icon: LogOut,
-          label: `Check out ${b.petName} (${b.ownerName})`,
-          priority: 'high',
-        });
-      });
-
-    // Routine tasks
-    if (stats.petsToday > 0) {
-      list.push({ id: 'morning-feed', icon: Clock, label: 'Complete morning feeding round', priority: 'medium' });
-      list.push({ id: 'facility-check', icon: CheckSquare, label: 'Inspect all kennels', priority: 'medium' });
-    }
-
-    return list;
-  }, [bookings, stats, today]);
-
-  const toggleTask = (id) => {
-    setCompletedTasks(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const completedCount = tasks.filter(t => completedTasks.has(t.id)).length;
-  const progressPct = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 100;
-
-  return (
-    <div className="rounded-xl border p-4" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <CheckSquare className="h-5 w-5 text-emerald-600" />
-          <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Daily Operations Checklist</h3>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-[color:var(--bb-color-text-muted)]">{completedCount}/{tasks.length} done</span>
-          <span className="text-lg font-bold text-emerald-600">{progressPct}%</span>
-        </div>
-      </div>
-
-      {/* Progress Bar */}
-      <div className="h-2 rounded-full mb-4" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
-        <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${progressPct}%` }} />
-      </div>
-
-      {tasks.length === 0 ? (
-        <div className="text-center py-6 text-[color:var(--bb-color-text-muted)]">
-          <CheckCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p className="text-sm">No tasks scheduled for today</p>
-        </div>
-      ) : (
-        <div className="space-y-1">
-          {tasks.map((task) => {
-            const Icon = task.icon;
-            const done = completedTasks.has(task.id);
-            return (
-              <button
-                key={task.id}
-                type="button"
-                onClick={() => toggleTask(task.id)}
-                className={cn(
-                  'w-full flex items-center gap-3 rounded-lg p-2 transition-colors',
-                  done ? 'opacity-60' : 'hover:bg-[color:var(--bb-color-bg-elevated)]'
-                )}
-              >
-                {done ? (
-                  <CheckSquare className="h-4 w-4 text-emerald-600 shrink-0" />
-                ) : (
-                  <Square className="h-4 w-4 text-[color:var(--bb-color-text-muted)] shrink-0" />
-                )}
-                <Icon className="h-4 w-4 text-[color:var(--bb-color-text-muted)] shrink-0" />
-                <span className={cn('text-sm text-left flex-1', done && 'line-through text-[color:var(--bb-color-text-muted)]')}>
-                  {task.label}
-                </span>
-                {task.priority === 'high' && !done && (
-                  <Badge variant="danger" size="sm">Priority</Badge>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Add Task CTA */}
-      <Button variant="ghost" size="sm" className="w-full mt-3 text-xs">
-        <Plus className="h-3 w-3 mr-1" />
-        Add Task
-      </Button>
     </div>
   );
 };
