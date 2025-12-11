@@ -2,9 +2,9 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import {
   Calendar, Plus, List, ChevronLeft, ChevronRight, Search,
-  SlidersHorizontal, RefreshCw, ChevronDown, ChevronUp, X,
+  SlidersHorizontal, RefreshCw, X,
   PawPrint, User, CheckCircle2, Mail, Info,
-  Edit, Trash2, Eye, ArrowUpDown, ArrowUp, ArrowDown, Settings,
+  Edit, Trash2, Eye, ArrowUpDown, ArrowUp, ArrowDown,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -71,9 +71,6 @@ const Bookings = () => {
   const [sortConfig, setSortConfig] = useState({ key: 'checkIn', direction: 'asc' });
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
-
-  // Legend state
-  const [showLegend, setShowLegend] = useState(true);
 
   // Refs
   const filterRef = useRef(null);
@@ -632,35 +629,40 @@ const Bookings = () => {
         )}
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col mt-4">
-        {/* Calendar Legend - only show in calendar view modes */}
-        {viewMode === VIEW_MODES.CALENDAR && (
-          <CalendarLegend
-            isExpanded={showLegend}
-            onToggle={() => setShowLegend(!showLegend)}
-          />
-        )}
+      {/* Main Content - Two-column layout for calendar views */}
+      <div className="flex-1 mt-4">
+        {viewMode === VIEW_MODES.CALENDAR ? (
+          <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+            {/* Left: Calendar */}
+            <div className="flex flex-col">
+              {periodMode === PERIOD_MODES.MONTH ? (
+                <MonthCalendarView
+                  currentDate={currentDate}
+                  dateRange={dateRange}
+                  bookingsByDate={bookingsByDate}
+                  isLoading={isLoading}
+                  onDayClick={handleDayClick}
+                  onNewBooking={() => setShowNewBooking(true)}
+                />
+              ) : (
+                <WeeklyCalendarView
+                  bookings={filteredBookings}
+                  dateRange={dateRange}
+                  bookingsByDate={bookingsByDate}
+                  isLoading={isLoading}
+                  onBookingClick={handleBookingClick}
+                  onNewBooking={() => setShowNewBooking(true)}
+                />
+              )}
+            </div>
 
-        {periodMode === PERIOD_MODES.MONTH ? (
-          <MonthCalendarView
-            currentDate={currentDate}
-            dateRange={dateRange}
-            bookingsByDate={bookingsByDate}
-            isLoading={isLoading}
-            onDayClick={handleDayClick}
-            onNewBooking={() => setShowNewBooking(true)}
-          />
-        ) : viewMode === VIEW_MODES.CALENDAR ? (
-          <WeeklyCalendarView
-            bookings={filteredBookings}
-            dateRange={dateRange}
-            bookingsByDate={bookingsByDate}
-            isLoading={isLoading}
-            onBookingClick={handleBookingClick}
-            onNewBooking={() => setShowNewBooking(true)}
-          />
+            {/* Right: Legend Sidebar */}
+            <div className="space-y-6">
+              <LegendSidebar />
+            </div>
+          </div>
         ) : (
+          /* List view - full width, no sidebar */
           <ListView
             bookings={paginatedBookings}
             sortedBookings={sortedBookings}
@@ -715,120 +717,95 @@ const Bookings = () => {
   );
 };
 
-// Calendar Legend Component - Collapsible panel explaining the calendar UI
-const CalendarLegend = ({ isExpanded, onToggle }) => {
+// Legend Sidebar Component - Always visible sidebar with legend info
+const LegendSidebar = () => {
   return (
     <div
-      className="rounded-xl border mb-4 overflow-hidden"
+      className="rounded-xl border p-4"
       style={{
         backgroundColor: 'var(--bb-color-bg-surface)',
         borderColor: 'var(--bb-color-border-subtle)'
       }}
     >
-      {/* Toggle Header */}
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] hover:bg-[color:var(--bb-color-bg-elevated)] transition-colors"
-      >
-        <div className="flex items-center gap-2">
-          <Info className="h-4 w-4" />
-          <span>Calendar Legend</span>
-        </div>
-        {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-      </button>
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-4">
+        <Info className="h-5 w-5 text-[color:var(--bb-color-text-muted)]" />
+        <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Legend</h3>
+      </div>
 
-      {/* Expandable Content */}
-      {isExpanded && (
-        <div
-          className="px-6 py-4 border-t grid grid-cols-1 md:grid-cols-3 gap-6"
-          style={{ borderColor: 'var(--bb-color-border-subtle)' }}
-        >
-          {/* Card Border Colors */}
-          <div>
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] mb-3">
-              Card Border Colors
-            </h4>
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center gap-2">
-                <span className="w-1 h-4 rounded-full bg-blue-500" />
-                <span className="text-[color:var(--bb-color-text-primary)]">Confirmed</span>
-                <span className="text-[color:var(--bb-color-text-muted)]">— Reservation confirmed, not yet arrived</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-1 h-4 rounded-full bg-emerald-500" />
-                <span className="text-[color:var(--bb-color-text-primary)]">Checked In</span>
-                <span className="text-[color:var(--bb-color-text-muted)]">— Pet is currently at facility</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-1 h-4 rounded-full bg-orange-500" />
-                <span className="text-[color:var(--bb-color-text-primary)]">Checkout Today</span>
-                <span className="text-[color:var(--bb-color-text-muted)]">— Scheduled to leave today</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-1 h-4 rounded-full bg-red-500" />
-                <span className="text-[color:var(--bb-color-text-primary)]">Overdue</span>
-                <span className="text-[color:var(--bb-color-text-muted)]">— Past checkout date, still here</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-1 h-4 rounded-full bg-purple-500" />
-                <span className="text-[color:var(--bb-color-text-primary)]">No Show</span>
-                <span className="text-[color:var(--bb-color-text-muted)]">— Never checked in, booking date passed</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-1 h-4 rounded-full bg-gray-300 dark:bg-gray-600" />
-                <span className="text-[color:var(--bb-color-text-primary)]">Pending / Checked Out</span>
-                <span className="text-[color:var(--bb-color-text-muted)]">— Awaiting confirmation or completed</span>
-              </div>
-            </div>
+      {/* Card Border Colors */}
+      <div className="mb-5">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] mb-3">
+          Card Border Colors
+        </h4>
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center gap-2">
+            <span className="w-1 h-4 rounded-full bg-blue-500 shrink-0" />
+            <span className="text-[color:var(--bb-color-text-primary)]">Confirmed</span>
           </div>
-
-          {/* Badges */}
-          <div>
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] mb-3">
-              Badges
-            </h4>
-            <div className="space-y-3 text-sm">
-              <div className="flex items-center gap-3">
-                <Badge variant="success" size="sm">Check In</Badge>
-                <span className="text-[color:var(--bb-color-text-muted)]">Pet's arrival day</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Badge variant="warning" size="sm">Check Out</Badge>
-                <span className="text-[color:var(--bb-color-text-muted)]">Pet's departure day</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-[color:var(--bb-color-text-secondary)] italic">No badge</span>
-                <span className="text-[color:var(--bb-color-text-muted)]">Mid-stay day (pet is just staying)</span>
-              </div>
-            </div>
+          <div className="flex items-center gap-2">
+            <span className="w-1 h-4 rounded-full bg-emerald-500 shrink-0" />
+            <span className="text-[color:var(--bb-color-text-primary)]">Checked In</span>
           </div>
-
-          {/* Interactions */}
-          <div>
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] mb-3">
-              Interactions
-            </h4>
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center gap-2">
-                <Plus className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
-                <span className="text-[color:var(--bb-color-text-muted)]">Click to add booking on empty day</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div
-                  className="w-4 h-4 rounded"
-                  style={{ backgroundColor: 'var(--bb-color-accent-soft)' }}
-                />
-                <span className="text-[color:var(--bb-color-text-muted)]">Today's column (highlighted)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Settings className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
-                <span className="text-[color:var(--bb-color-text-muted)]">Click any card to view booking details</span>
-              </div>
-            </div>
+          <div className="flex items-center gap-2">
+            <span className="w-1 h-4 rounded-full bg-orange-500 shrink-0" />
+            <span className="text-[color:var(--bb-color-text-primary)]">Checkout Today</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-1 h-4 rounded-full bg-red-500 shrink-0" />
+            <span className="text-[color:var(--bb-color-text-primary)]">Overdue</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-1 h-4 rounded-full bg-purple-500 shrink-0" />
+            <span className="text-[color:var(--bb-color-text-primary)]">No Show</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-1 h-4 rounded-full bg-gray-400 shrink-0" />
+            <span className="text-[color:var(--bb-color-text-primary)]">Pending / Checked Out</span>
           </div>
         </div>
-      )}
+      </div>
+
+      {/* Badges */}
+      <div className="mb-5">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] mb-3">
+          Badges
+        </h4>
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center gap-2">
+            <Badge variant="success" size="sm">Check In</Badge>
+            <span className="text-[color:var(--bb-color-text-muted)]">Arrival day</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="warning" size="sm">Check Out</Badge>
+            <span className="text-[color:var(--bb-color-text-muted)]">Departure day</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Interactions */}
+      <div>
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] mb-3">
+          Interactions
+        </h4>
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center gap-2">
+            <Plus className="h-4 w-4 text-[color:var(--bb-color-text-muted)] shrink-0" />
+            <span className="text-[color:var(--bb-color-text-muted)]">Add booking on empty day</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div
+              className="w-4 h-4 rounded shrink-0"
+              style={{ backgroundColor: 'var(--bb-color-accent-soft)' }}
+            />
+            <span className="text-[color:var(--bb-color-text-muted)]">Today (highlighted)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <PawPrint className="h-4 w-4 text-[color:var(--bb-color-text-muted)] shrink-0" />
+            <span className="text-[color:var(--bb-color-text-muted)]">Click card for details</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
