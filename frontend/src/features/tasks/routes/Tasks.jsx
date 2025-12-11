@@ -382,9 +382,25 @@ const StaffWorkload = ({ staff, tasks, onStaffClick, activeStaffFilter }) => {
   // Format name as "Sarah M." or just first name if no last name
   const formatName = (s) => {
     if (!s) return 'Unassigned';
+    // Check for direct name field first
+    if (s.name) {
+      const parts = s.name.trim().split(' ');
+      if (parts.length >= 2) {
+        return `${parts[0]} ${parts[parts.length - 1].charAt(0)}.`;
+      }
+      return s.name;
+    }
+    // Fall back to firstName/lastName
     const first = s.firstName || '';
     const lastInitial = s.lastName ? ` ${s.lastName.charAt(0)}.` : '';
-    return `${first}${lastInitial}`;
+    if (first || lastInitial) {
+      return `${first}${lastInitial}`.trim();
+    }
+    // Last resort: email prefix
+    if (s.email) {
+      return s.email.split('@')[0];
+    }
+    return 'Staff';
   };
 
   return (
