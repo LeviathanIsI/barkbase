@@ -31,6 +31,10 @@ import {
   Loader2,
   CheckCircle2,
   PartyPopper,
+  TrendingUp,
+  BarChart3,
+  Users,
+  Zap,
 } from 'lucide-react';
 import { format, isToday, isTomorrow, isAfter, isBefore, addDays, startOfDay, endOfDay } from 'date-fns';
 import Button from '@/components/ui/Button';
@@ -42,6 +46,55 @@ import { usePetsQuery } from '@/features/pets/api';
 import { useStaffQuery } from '@/features/staff/api';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
+
+// Stat Card Component - Matching Schedule/Run Assignment style
+const StatCard = ({ icon: Icon, label, value, variant = 'primary', tooltip }) => {
+  const variantStyles = {
+    primary: {
+      bg: 'bg-blue-50 dark:bg-blue-900/20',
+      iconBg: 'bg-blue-100 dark:bg-blue-900/40',
+      icon: 'text-blue-600 dark:text-blue-400',
+      border: 'border-blue-200 dark:border-blue-800/50',
+    },
+    success: {
+      bg: 'bg-emerald-50 dark:bg-emerald-900/20',
+      iconBg: 'bg-emerald-100 dark:bg-emerald-900/40',
+      icon: 'text-emerald-600 dark:text-emerald-400',
+      border: 'border-emerald-200 dark:border-emerald-800/50',
+    },
+    warning: {
+      bg: 'bg-amber-50 dark:bg-amber-900/20',
+      iconBg: 'bg-amber-100 dark:bg-amber-900/40',
+      icon: 'text-amber-600 dark:text-amber-400',
+      border: 'border-amber-200 dark:border-amber-800/50',
+    },
+    danger: {
+      bg: 'bg-red-50 dark:bg-red-900/20',
+      iconBg: 'bg-red-100 dark:bg-red-900/40',
+      icon: 'text-red-600 dark:text-red-400',
+      border: 'border-red-200 dark:border-red-800/50',
+    },
+  };
+
+  const styles = variantStyles[variant] || variantStyles.primary;
+
+  return (
+    <div
+      className={cn('relative flex items-center gap-3 rounded-xl border p-4', styles.bg, styles.border)}
+      title={tooltip}
+    >
+      <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', styles.iconBg)}>
+        <Icon className={cn('h-5 w-5', styles.icon)} />
+      </div>
+      <div className="min-w-0 text-left">
+        <p className="text-[0.7rem] font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]">
+          {label}
+        </p>
+        <p className="text-2xl font-bold text-[color:var(--bb-color-text-primary)] leading-tight">{value}</p>
+      </div>
+    </div>
+  );
+};
 
 // Task type configurations
 const TASK_TYPES = {
@@ -276,6 +329,251 @@ const TaskCard = ({
   );
 };
 
+// Today's Summary Sidebar Card
+const TodaysSummary = ({ categoryCounts, taskTypes }) => {
+  const maxCount = Math.max(...Object.values(categoryCounts).filter(v => typeof v === 'number' && v !== categoryCounts.all), 1);
+
+  return (
+    <div
+      className="rounded-xl border p-4"
+      style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+    >
+      <div className="flex items-center gap-2 mb-4">
+        <BarChart3 className="h-5 w-5 text-[color:var(--bb-color-text-muted)]" />
+        <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Today's Summary</h3>
+      </div>
+
+      <div className="space-y-3">
+        {Object.entries(taskTypes).map(([key, config]) => {
+          const count = categoryCounts[key] || 0;
+          const percentage = maxCount > 0 ? (count / maxCount) * 100 : 0;
+          const Icon = config.icon;
+
+          return (
+            <div key={key} className="flex items-center gap-3">
+              <div className={cn('h-8 w-8 rounded-lg flex items-center justify-center shrink-0', config.bg)}>
+                <Icon className={cn('h-4 w-4', config.color)} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm text-[color:var(--bb-color-text-primary)]">{config.label}</span>
+                  <span className="text-sm font-bold text-[color:var(--bb-color-text-primary)]">{count}</span>
+                </div>
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+                  <div
+                    className={cn('h-full rounded-full transition-all', config.bg.replace('100', '500').replace('/30', ''))}
+                    style={{ width: `${percentage}%`, backgroundColor: config.color.replace('text-', '').replace('-500', '') }}
+                  />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// Staff Workload Sidebar Card
+const StaffWorkload = ({ staff, tasks, onStaffClick, activeStaffFilter }) => {
+  const staffList = Array.isArray(staff) ? staff : (staff?.data || []);
+
+  const staffTaskCounts = useMemo(() => {
+    const counts = {};
+    staffList.forEach(s => {
+      const id = s.id || s.recordId;
+      counts[id] = tasks.filter(t => t.assignedTo === id && !t.completedAt).length;
+    });
+    return counts;
+  }, [staffList, tasks]);
+
+  const maxTasks = Math.max(...Object.values(staffTaskCounts), 1);
+
+  if (staffList.length === 0) return null;
+
+  return (
+    <div
+      className="rounded-xl border p-4"
+      style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+    >
+      <div className="flex items-center gap-2 mb-4">
+        <Users className="h-5 w-5 text-[color:var(--bb-color-text-muted)]" />
+        <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Staff Workload</h3>
+      </div>
+
+      <div className="space-y-2">
+        {staffList.slice(0, 6).map(s => {
+          const id = s.id || s.recordId;
+          const count = staffTaskCounts[id] || 0;
+          const percentage = maxTasks > 0 ? (count / maxTasks) * 100 : 0;
+          const isActive = activeStaffFilter === id;
+          const isOverloaded = count >= 5;
+
+          return (
+            <button
+              key={id}
+              onClick={() => onStaffClick(isActive ? 'all' : id)}
+              className={cn(
+                'w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left',
+                isActive
+                  ? 'bg-[color:var(--bb-color-accent-soft)] ring-1 ring-[color:var(--bb-color-accent)]'
+                  : 'hover:bg-[color:var(--bb-color-bg-elevated)]'
+              )}
+            >
+              <div className="h-8 w-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+                <User className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)] truncate">
+                    {s.firstName} {s.lastName}
+                  </span>
+                  <span className={cn(
+                    'text-sm font-bold',
+                    isOverloaded ? 'text-amber-600' : 'text-[color:var(--bb-color-text-primary)]'
+                  )}>
+                    {count}
+                  </span>
+                </div>
+                <div className="h-1 rounded-full mt-1 overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+                  <div
+                    className={cn('h-full rounded-full transition-all', isOverloaded ? 'bg-amber-500' : 'bg-emerald-500')}
+                    style={{ width: `${percentage}%` }}
+                  />
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// Quick Add Task Sidebar Card
+const QuickAddTask = ({ taskTypes, priorityConfig, pets, staff, onCreateTask, isCreating }) => {
+  const [form, setForm] = useState({
+    type: 'FEEDING',
+    priority: 'NORMAL',
+    petId: '',
+    assignedTo: '',
+    scheduledFor: '',
+  });
+
+  const staffList = Array.isArray(staff) ? staff : (staff?.data || []);
+  const petList = pets?.pets || [];
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onCreateTask({
+      title: `${form.type} Task`,
+      type: form.type,
+      priority: form.priority,
+      scheduledFor: form.scheduledFor || null,
+      dueAt: form.scheduledFor || null,
+      assignedTo: form.assignedTo || null,
+      petId: form.petId || null,
+    });
+    setForm({
+      type: 'FEEDING',
+      priority: 'NORMAL',
+      petId: '',
+      assignedTo: '',
+      scheduledFor: '',
+    });
+  };
+
+  return (
+    <div
+      className="rounded-xl border p-4"
+      style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+    >
+      <div className="flex items-center gap-2 mb-4">
+        <Zap className="h-5 w-5 text-[color:var(--bb-color-accent)]" />
+        <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Quick Add Task</h3>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-3">
+        {/* Task Type */}
+        <div className="grid grid-cols-5 gap-1">
+          {Object.entries(taskTypes).map(([key, config]) => {
+            const Icon = config.icon;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setForm({ ...form, type: key })}
+                className={cn(
+                  'flex flex-col items-center gap-1 p-2 rounded-lg border transition-all',
+                  form.type === key
+                    ? 'border-[color:var(--bb-color-accent)] bg-[color:var(--bb-color-accent-soft)]'
+                    : 'border-transparent hover:bg-[color:var(--bb-color-bg-elevated)]'
+                )}
+                title={config.label}
+              >
+                <Icon className={cn('h-4 w-4', config.color)} />
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Pet Selector */}
+        <select
+          value={form.petId}
+          onChange={(e) => setForm({ ...form, petId: e.target.value })}
+          className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
+          style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
+        >
+          <option value="">Select pet...</option>
+          {petList.map(p => (
+            <option key={p.id || p.recordId} value={p.id || p.recordId}>{p.name}</option>
+          ))}
+        </select>
+
+        {/* Time */}
+        <input
+          type="datetime-local"
+          value={form.scheduledFor}
+          onChange={(e) => setForm({ ...form, scheduledFor: e.target.value })}
+          className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
+          style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
+        />
+
+        {/* Assign To */}
+        {staffList.length > 0 && (
+          <select
+            value={form.assignedTo}
+            onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}
+            className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
+            style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
+          >
+            <option value="">Assign to...</option>
+            {staffList.map(s => (
+              <option key={s.id || s.recordId} value={s.id || s.recordId}>
+                {s.firstName} {s.lastName}
+              </option>
+            ))}
+          </select>
+        )}
+
+        <Button type="submit" className="w-full" disabled={isCreating || !form.petId}>
+          {isCreating ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Adding...
+            </>
+          ) : (
+            <>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Task
+            </>
+          )}
+        </Button>
+      </form>
+    </div>
+  );
+};
+
 const Tasks = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [filterType, setFilterType] = useState('all');
@@ -503,8 +801,21 @@ const Tasks = () => {
   };
 
   const overdueCount = taskBuckets.overdue.length;
+  const completedCount = taskBuckets.completed.length;
+  const totalTodayTasks = sortedTasks.length;
   const totalPendingTasks = sortedTasks.filter(t => !t.completedAt).length;
   const allCompleted = totalPendingTasks === 0 && sortedTasks.length > 0;
+  const completionRate = totalTodayTasks > 0 ? Math.round((completedCount / totalTodayTasks) * 100) : 0;
+
+  // Handle quick add task from sidebar
+  const handleQuickAddTask = async (payload) => {
+    try {
+      await createMutation.mutateAsync(payload);
+      toast.success('Task created successfully');
+    } catch (error) {
+      toast.error('Failed to create task');
+    }
+  };
 
   // Loading state
   if (isLoading) {
@@ -520,25 +831,28 @@ const Tasks = () => {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <nav className="mb-2">
-            <ol className="flex items-center gap-1 text-xs text-muted">
-              <li><Link to="/operations" className="hover:text-primary">Operations</Link></li>
+            <ol className="flex items-center gap-1 text-xs text-[color:var(--bb-color-text-muted)]">
+              <li><Link to="/operations" className="hover:text-[color:var(--bb-color-accent)]">Operations</Link></li>
               <li><ChevronRight className="h-3 w-3" /></li>
-              <li className="text-text font-medium">Tasks</li>
+              <li className="text-[color:var(--bb-color-text-primary)] font-medium">Tasks</li>
             </ol>
           </nav>
-          <h1 className="text-xl font-semibold text-text">Tasks & Reminders</h1>
-          <p className="text-sm text-muted mt-1">Manage daily tasks and care schedules</p>
+          <h1 className="text-xl font-semibold text-[color:var(--bb-color-text-primary)]">Tasks & Reminders</h1>
+          <p className="text-sm text-[color:var(--bb-color-text-muted)] mt-1">Manage daily tasks and care schedules</p>
         </div>
 
         {/* Header Actions */}
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-2 px-3 py-2 bg-surface border border-border rounded-lg">
-            <Calendar className="h-4 w-4 text-muted" />
+          <div
+            className="flex items-center gap-2 px-3 py-2 rounded-lg border"
+            style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+          >
+            <Calendar className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-transparent text-sm border-none focus:outline-none cursor-pointer"
+              className="bg-transparent text-sm border-none focus:outline-none cursor-pointer text-[color:var(--bb-color-text-primary)]"
             />
           </div>
           <Button onClick={() => setShowCreateModal(true)}>
@@ -548,186 +862,204 @@ const Tasks = () => {
         </div>
       </div>
 
-      {/* Category Filter Tabs - Sticky */}
-      <div className="sticky top-0 z-20 px-4 py-3 bg-[var(--bb-color-bg-base)] border-b border-border rounded-lg">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
-          {[
-            { key: 'all', label: 'All Tasks' },
-            ...Object.entries(TASK_TYPES).map(([key, config]) => ({ key, label: config.label }))
-          ].map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setFilterType(key)}
-              className={cn(
-                'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all',
-                filterType === key
-                  ? 'bg-primary text-white shadow-sm'
-                  : 'bg-surface border border-border text-muted hover:text-text hover:bg-white dark:hover:bg-surface-secondary'
-              )}
-            >
-              {label}
-              {categoryCounts[key] > 0 && (
-                <span className={cn(
-                  'px-1.5 py-0.5 rounded text-xs font-medium',
-                  filterType === key
-                    ? 'bg-white/20 text-white'
-                    : 'bg-surface-secondary text-muted'
-                )}>
-                  {categoryCounts[key]}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+      {/* Stats Bar */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          icon={ClipboardList}
+          label="Total Tasks Today"
+          value={totalTodayTasks}
+          variant="primary"
+          tooltip="All tasks scheduled for today"
+        />
+        <StatCard
+          icon={CheckCircle}
+          label="Completed"
+          value={completedCount}
+          variant="success"
+          tooltip="Tasks completed today"
+        />
+        <StatCard
+          icon={AlertTriangle}
+          label="Overdue"
+          value={overdueCount}
+          variant={overdueCount > 0 ? 'danger' : 'success'}
+          tooltip="Tasks past their due time"
+        />
+        <StatCard
+          icon={TrendingUp}
+          label="Completion Rate"
+          value={`${completionRate}%`}
+          variant={completionRate >= 80 ? 'success' : completionRate >= 50 ? 'warning' : 'danger'}
+          tooltip="Percentage of tasks completed"
+        />
       </div>
 
-      {/* Overdue Alert Banner */}
-      {overdueCount > 0 && (
-        <div className="flex items-center justify-between px-4 py-2.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-red-500" />
-            <span className="font-medium text-red-700 dark:text-red-300">
-              {overdueCount} Overdue Task{overdueCount === 1 ? '' : 's'}
-            </span>
-          </div>
-          <button
-            onClick={() => {
-              setShowOverdueOnly(true);
-              setExpandedBuckets(prev => ({ ...prev, overdue: true }));
-            }}
-            className="text-sm font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-colors"
+      {/* Two-Column Layout: Task List (left) + Sidebar (right) */}
+      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+        {/* Left: Task List */}
+        <div className="space-y-4">
+          {/* Filter Bar - includes type filters, sort, search */}
+          <div
+            className="rounded-xl border p-4"
+            style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
           >
-            View Overdue →
-          </button>
-        </div>
-      )}
-
-      {/* Sorting & Filtering Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 py-3 border-b border-border">
-        <div className="flex items-center gap-3">
-          {/* Sort Dropdown */}
-          <div className="flex items-center gap-2">
-            <ArrowUpDown className="h-4 w-4 text-muted" />
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="text-sm bg-transparent border-none focus:outline-none cursor-pointer text-text"
-            >
-              {SORT_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>Sort: {opt.label}</option>
+            {/* Type Filter Chips + Sort */}
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              {[
+                { key: 'all', label: 'All', icon: ClipboardList },
+                ...Object.entries(TASK_TYPES).map(([key, config]) => ({ key, label: config.label, icon: config.icon, color: config.color }))
+              ].map(({ key, label, icon: TypeIcon, color }) => (
+                <button
+                  key={key}
+                  onClick={() => setFilterType(key)}
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all',
+                    filterType === key
+                      ? 'bg-[color:var(--bb-color-accent)] text-white'
+                      : 'hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)]'
+                  )}
+                >
+                  <TypeIcon className={cn('h-3.5 w-3.5', filterType === key ? 'text-white' : color)} />
+                  {label}
+                  {categoryCounts[key] > 0 && (
+                    <span className={cn(
+                      'px-1.5 py-0.5 rounded text-xs',
+                      filterType === key ? 'bg-white/20' : 'bg-[color:var(--bb-color-bg-elevated)]'
+                    )}>
+                      {categoryCounts[key]}
+                    </span>
+                  )}
+                </button>
               ))}
-            </select>
+            </div>
+
+            {/* Sort + Quick Filters + Search */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <ArrowUpDown className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="text-sm bg-transparent border-none focus:outline-none cursor-pointer text-[color:var(--bb-color-text-primary)]"
+                  >
+                    {SORT_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>Sort: {opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="h-5 w-px" style={{ backgroundColor: 'var(--bb-color-border-subtle)' }} />
+
+                <button
+                  onClick={() => setShowDueToday(!showDueToday)}
+                  className={cn(
+                    'px-3 py-1.5 text-sm rounded-lg transition-colors',
+                    showDueToday
+                      ? 'bg-[color:var(--bb-color-accent)] text-white'
+                      : 'hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)]'
+                  )}
+                >
+                  Due Today
+                </button>
+
+                <button
+                  onClick={() => setShowOverdueOnly(!showOverdueOnly)}
+                  className={cn(
+                    'px-3 py-1.5 text-sm rounded-lg transition-colors',
+                    showOverdueOnly
+                      ? 'bg-red-500 text-white'
+                      : 'hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-muted)]'
+                  )}
+                >
+                  Overdue
+                </button>
+
+                {staffList.length > 0 && (
+                  <select
+                    value={staffFilter}
+                    onChange={(e) => setStaffFilter(e.target.value)}
+                    className="px-3 py-1.5 text-sm rounded-lg border focus:outline-none"
+                    style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
+                  >
+                    <option value="all">All Staff</option>
+                    {staffList.map(s => (
+                      <option key={s.id || s.recordId} value={s.id || s.recordId}>
+                        {s.firstName} {s.lastName}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+                <input
+                  type="text"
+                  placeholder="Search tasks..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 pr-4 py-2 text-sm rounded-lg border focus:outline-none w-48"
+                  style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
+                />
+              </div>
+            </div>
+
+            {/* Active Filter Tags */}
+            {(showDueToday || showOverdueOnly || staffFilter !== 'all' || searchTerm) && (
+              <div className="flex items-center gap-2 flex-wrap mt-3 pt-3" style={{ borderTop: '1px solid var(--bb-color-border-subtle)' }}>
+                <span className="text-xs text-[color:var(--bb-color-text-muted)]">Active:</span>
+                {showDueToday && (
+                  <button
+                    onClick={() => setShowDueToday(false)}
+                    className="flex items-center gap-1 px-2 py-1 text-xs bg-[color:var(--bb-color-accent-soft)] text-[color:var(--bb-color-accent)] rounded-full"
+                  >
+                    Due Today <X className="h-3 w-3" />
+                  </button>
+                )}
+                {showOverdueOnly && (
+                  <button
+                    onClick={() => setShowOverdueOnly(false)}
+                    className="flex items-center gap-1 px-2 py-1 text-xs bg-red-100 text-red-600 rounded-full"
+                  >
+                    Overdue <X className="h-3 w-3" />
+                  </button>
+                )}
+                {staffFilter !== 'all' && (
+                  <button
+                    onClick={() => setStaffFilter('all')}
+                    className="flex items-center gap-1 px-2 py-1 text-xs rounded-full"
+                    style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+                  >
+                    {staffList.find(s => (s.id || s.recordId) === staffFilter)?.firstName || 'Staff'} <X className="h-3 w-3" />
+                  </button>
+                )}
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="flex items-center gap-1 px-2 py-1 text-xs rounded-full"
+                    style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+                  >
+                    "{searchTerm}" <X className="h-3 w-3" />
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setShowDueToday(false);
+                    setShowOverdueOnly(false);
+                    setStaffFilter('all');
+                    setSearchTerm('');
+                  }}
+                  className="text-xs text-[color:var(--bb-color-accent)] hover:underline"
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* Filters */}
-          <div className="h-5 w-px bg-border" />
-          
-          <button
-            onClick={() => setShowDueToday(!showDueToday)}
-            className={cn(
-              'px-3 py-1.5 text-sm rounded-lg transition-colors',
-              showDueToday
-                ? 'bg-primary text-white'
-                : 'bg-surface border border-border text-muted hover:text-text'
-            )}
-          >
-            Due Today
-          </button>
-
-          <button
-            onClick={() => setShowOverdueOnly(!showOverdueOnly)}
-            className={cn(
-              'px-3 py-1.5 text-sm rounded-lg transition-colors',
-              showOverdueOnly
-                ? 'bg-red-500 text-white'
-                : 'bg-surface border border-border text-muted hover:text-text'
-            )}
-          >
-            Overdue
-          </button>
-
-          {/* Staff Filter */}
-          {staffList.length > 0 && (
-            <select
-              value={staffFilter}
-              onChange={(e) => setStaffFilter(e.target.value)}
-              className="px-3 py-1.5 text-sm bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
-            >
-              <option value="all">All Staff</option>
-              {staffList.map(s => (
-                <option key={s.id || s.recordId} value={s.id || s.recordId}>
-                  {s.firstName} {s.lastName}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
-          <input
-            type="text"
-            placeholder="Search tasks..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 pr-4 py-2 text-sm bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 w-64"
-          />
-        </div>
-      </div>
-
-      {/* Active Filter Tags */}
-      {(showDueToday || showOverdueOnly || staffFilter !== 'all' || searchTerm) && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-muted">Filters:</span>
-          {showDueToday && (
-            <button
-              onClick={() => setShowDueToday(false)}
-              className="flex items-center gap-1 px-2 py-1 text-xs bg-primary/10 text-primary rounded-full hover:bg-primary/20"
-            >
-              Due Today <X className="h-3 w-3" />
-            </button>
-          )}
-          {showOverdueOnly && (
-            <button
-              onClick={() => setShowOverdueOnly(false)}
-              className="flex items-center gap-1 px-2 py-1 text-xs bg-red-100 text-red-600 rounded-full hover:bg-red-200"
-            >
-              Overdue <X className="h-3 w-3" />
-            </button>
-          )}
-          {staffFilter !== 'all' && (
-            <button
-              onClick={() => setStaffFilter('all')}
-              className="flex items-center gap-1 px-2 py-1 text-xs bg-surface border border-border rounded-full hover:bg-surface-secondary"
-            >
-              Staff: {staffList.find(s => (s.id || s.recordId) === staffFilter)?.firstName || 'Unknown'} <X className="h-3 w-3" />
-            </button>
-          )}
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm('')}
-              className="flex items-center gap-1 px-2 py-1 text-xs bg-surface border border-border rounded-full hover:bg-surface-secondary"
-            >
-              Search: "{searchTerm}" <X className="h-3 w-3" />
-            </button>
-          )}
-          <button
-            onClick={() => {
-              setShowDueToday(false);
-              setShowOverdueOnly(false);
-              setStaffFilter('all');
-              setSearchTerm('');
-            }}
-            className="text-xs text-primary hover:underline"
-          >
-            Clear all
-          </button>
-        </div>
-      )}
-
-      {/* Task List with Time Buckets */}
-      <div className="space-y-4">
+          {/* Task Buckets */}
+          <div className="space-y-4">
         {/* All Tasks Complete State */}
         {allCompleted && (
           <Card className="border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-900/10">
@@ -885,6 +1217,32 @@ const Tasks = () => {
             </div>
           </TimeBucket>
         )}
+          </div>
+        </div>
+
+        {/* Right: Sidebar */}
+        <div className="space-y-6">
+          <TodaysSummary
+            categoryCounts={categoryCounts}
+            taskTypes={TASK_TYPES}
+          />
+
+          <StaffWorkload
+            staff={staff}
+            tasks={combinedTasks}
+            onStaffClick={setStaffFilter}
+            activeStaffFilter={staffFilter}
+          />
+
+          <QuickAddTask
+            taskTypes={TASK_TYPES}
+            priorityConfig={PRIORITY_CONFIG}
+            pets={pets}
+            staff={staff}
+            onCreateTask={handleQuickAddTask}
+            isCreating={createMutation.isPending}
+          />
+        </div>
       </div>
 
       {/* Task Creation Modal */}
