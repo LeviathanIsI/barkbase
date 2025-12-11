@@ -16,13 +16,13 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { 
-  Clock, 
-  Printer, 
-  Save, 
-  ExternalLink, 
-  AlertTriangle, 
-  X, 
+import {
+  Clock,
+  Printer,
+  Save,
+  ExternalLink,
+  AlertTriangle,
+  X,
   ChevronLeft,
   ChevronRight,
   Check,
@@ -37,6 +37,11 @@ import {
   Users,
   Settings,
   Loader2,
+  TrendingUp,
+  BarChart3,
+  Zap,
+  Info,
+  UserCheck,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format, addDays, subDays } from 'date-fns';
@@ -50,6 +55,66 @@ import { useBookingsQuery } from '@/features/bookings/api';
 import TimeSlotPicker from '../components/TimeSlotPicker';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
+
+// Stat Card Component - Matching Schedule page style
+const StatCard = ({ icon: Icon, label, value, delta, variant = 'primary', tooltip }) => {
+  const variantStyles = {
+    primary: {
+      bg: 'bg-blue-50 dark:bg-blue-900/20',
+      iconBg: 'bg-blue-100 dark:bg-blue-900/40',
+      icon: 'text-blue-600 dark:text-blue-400',
+      border: 'border-blue-200 dark:border-blue-800/50',
+    },
+    success: {
+      bg: 'bg-emerald-50 dark:bg-emerald-900/20',
+      iconBg: 'bg-emerald-100 dark:bg-emerald-900/40',
+      icon: 'text-emerald-600 dark:text-emerald-400',
+      border: 'border-emerald-200 dark:border-emerald-800/50',
+    },
+    warning: {
+      bg: 'bg-amber-50 dark:bg-amber-900/20',
+      iconBg: 'bg-amber-100 dark:bg-amber-900/40',
+      icon: 'text-amber-600 dark:text-amber-400',
+      border: 'border-amber-200 dark:border-amber-800/50',
+    },
+    danger: {
+      bg: 'bg-red-50 dark:bg-red-900/20',
+      iconBg: 'bg-red-100 dark:bg-red-900/40',
+      icon: 'text-red-600 dark:text-red-400',
+      border: 'border-red-200 dark:border-red-800/50',
+    },
+  };
+
+  const styles = variantStyles[variant] || variantStyles.primary;
+
+  return (
+    <div
+      className={cn(
+        'relative flex items-center gap-3 rounded-xl border p-4',
+        styles.bg,
+        styles.border
+      )}
+      title={tooltip}
+    >
+      <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', styles.iconBg)}>
+        <Icon className={cn('h-5 w-5', styles.icon)} />
+      </div>
+      <div className="min-w-0 text-left">
+        <p className="text-[0.7rem] font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]">
+          {label}
+        </p>
+        <p className="text-2xl font-bold text-[color:var(--bb-color-text-primary)] leading-tight">
+          {value}
+        </p>
+        {delta !== undefined && delta !== 0 && (
+          <p className={cn('text-xs font-medium', delta > 0 ? 'text-emerald-600' : 'text-red-600')}>
+            {delta > 0 ? '+' : ''}{delta} vs yesterday
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
 
 // Sortable Pet Card for assigned pets (can be reordered)
 const SortablePetCard = ({ 
@@ -322,11 +387,11 @@ const DraggablePetCard = ({
 };
 
 // Run Column with drop zone
-const RunColumn = ({ 
-  run, 
-  assignments, 
-  selectedPets, 
-  onSelect, 
+const RunColumn = ({
+  run,
+  assignments,
+  selectedPets,
+  onSelect,
   onRemove,
   onReorder,
 }) => {
@@ -343,40 +408,63 @@ const RunColumn = ({
   // Get sortable IDs for pets in this run
   const sortableIds = assignments.map(a => `pet-${a.pet.recordId}`);
 
+  // Capacity color based on utilization
+  const capacityColor = isOverCapacity
+    ? 'text-red-600 dark:text-red-400'
+    : utilizationPercent >= 90
+    ? 'text-red-600 dark:text-red-400'
+    : utilizationPercent >= 70
+    ? 'text-amber-600 dark:text-amber-400'
+    : 'text-emerald-600 dark:text-emerald-400';
+
+  const barColor = isOverCapacity
+    ? 'bg-red-500'
+    : utilizationPercent >= 90
+    ? 'bg-red-500'
+    : utilizationPercent >= 70
+    ? 'bg-amber-500'
+    : 'bg-emerald-500';
+
   return (
-    <div className="flex flex-col h-full min-w-[300px] w-[300px] flex-shrink-0">
+    <div className="flex flex-col h-full min-w-[280px] flex-shrink-0">
       {/* Run Header */}
-      <div className="bg-white dark:bg-surface-primary border border-border rounded-t-lg p-4 border-b-0">
+      <div
+        className="rounded-t-lg p-4 border border-b-0"
+        style={{
+          backgroundColor: 'var(--bb-color-bg-surface)',
+          borderColor: 'var(--bb-color-border-subtle)',
+        }}
+      >
         <div className="flex items-center justify-between mb-2">
-          <h3 className="font-semibold text-text truncate">{run.name}</h3>
-          <Badge 
-            variant={isOverCapacity ? 'danger' : utilizationPercent > 80 ? 'warning' : utilizationPercent > 50 ? 'info' : 'success'}
-            className="flex-shrink-0"
-          >
+          <h3 className="font-semibold text-[color:var(--bb-color-text-primary)] truncate">{run.name}</h3>
+          <span className={cn('text-lg font-bold', capacityColor)}>
             {currentCount}/{maxCapacity}
-          </Badge>
+          </span>
         </div>
 
-        <div className="flex items-center gap-3 text-xs text-muted">
-          <span className="px-2 py-0.5 bg-surface rounded capitalize">{run.type || 'Standard'}</span>
+        <div className="flex items-center gap-2 text-xs text-[color:var(--bb-color-text-muted)]">
+          <span className="px-2 py-0.5 rounded capitalize" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+            {run.type || 'Standard'}
+          </span>
           {run.timePeriodMinutes && (
             <span className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              {run.timePeriodMinutes}min slots
+              {run.timePeriodMinutes}min
             </span>
           )}
         </div>
 
         {/* Utilization bar */}
         <div className="mt-3">
-          <div className="w-full bg-surface rounded-full h-1.5 overflow-hidden">
+          <div className="w-full rounded-full h-2 overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
             <div
-              className={cn(
-                'h-full rounded-full transition-all duration-300',
-                isOverCapacity ? 'bg-danger' : utilizationPercent > 80 ? 'bg-amber-500' : 'bg-primary'
-              )}
+              className={cn('h-full rounded-full transition-all duration-300', barColor)}
               style={{ width: `${Math.min(utilizationPercent, 100)}%` }}
             />
+          </div>
+          <div className="flex justify-between mt-1 text-[10px] text-[color:var(--bb-color-text-muted)]">
+            <span>{utilizationPercent}% full</span>
+            <span>{maxCapacity - currentCount} spots left</span>
           </div>
         </div>
       </div>
@@ -385,11 +473,14 @@ const RunColumn = ({
       <div
         ref={setNodeRef}
         className={cn(
-          'flex-1 border-2 border-dashed rounded-b-lg p-3 transition-all min-h-[300px] overflow-y-auto',
-          isOver 
-            ? 'border-primary bg-primary/5 dark:bg-primary/10' 
-            : 'border-border bg-surface/50'
+          'flex-1 border-2 border-dashed rounded-b-lg p-3 transition-all min-h-[250px] max-h-[500px] overflow-y-auto',
+          isOver
+            ? 'border-[color:var(--bb-color-accent)] bg-[color:var(--bb-color-accent-soft)]'
+            : 'border-[color:var(--bb-color-border-subtle)]'
         )}
+        style={{
+          backgroundColor: isOver ? undefined : 'var(--bb-color-bg-body)',
+        }}
       >
         <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
           <div className="space-y-2">
@@ -404,13 +495,13 @@ const RunColumn = ({
             ))}
           </div>
         </SortableContext>
-        
+
         {assignments.length === 0 && (
           <div className={cn(
             'flex flex-col items-center justify-center h-full text-center py-8',
-            isOver ? 'text-primary' : 'text-muted'
+            isOver ? 'text-[color:var(--bb-color-accent)]' : 'text-[color:var(--bb-color-text-muted)]'
           )}>
-            <PawPrint className={cn('h-8 w-8 mb-2', isOver ? 'text-primary' : 'text-gray-300 dark:text-gray-600')} />
+            <PawPrint className={cn('h-8 w-8 mb-2', isOver ? 'text-[color:var(--bb-color-accent)]' : 'opacity-30')} />
             <p className="text-sm font-medium">
               {isOver ? 'Drop pet here' : 'No pets assigned'}
             </p>
@@ -422,30 +513,91 @@ const RunColumn = ({
   );
 };
 
-// Unassigned Pets Column (droppable for returning pets)
-const UnassignedColumn = ({ pets, selectedPets, onSelect, onSelectAll }) => {
+// Assignment Overview Card for sidebar
+const AssignmentOverview = ({ unassignedCount, runsCount, totalAssigned, totalCapacity }) => {
+  const utilizationPercent = totalCapacity > 0 ? Math.round((totalAssigned / totalCapacity) * 100) : 0;
+
+  const getThresholdColor = (pct) => {
+    if (pct >= 90) return 'text-red-600 dark:text-red-400';
+    if (pct >= 70) return 'text-amber-600 dark:text-amber-400';
+    return 'text-emerald-600 dark:text-emerald-400';
+  };
+
+  const barColor = utilizationPercent >= 90 ? 'bg-red-500' : utilizationPercent >= 70 ? 'bg-amber-500' : 'bg-emerald-500';
+
+  return (
+    <div
+      className="rounded-xl border p-4"
+      style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+    >
+      <div className="flex items-center gap-2 mb-4">
+        <BarChart3 className="h-5 w-5 text-[color:var(--bb-color-text-muted)]" />
+        <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Assignment Overview</h3>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="text-center p-2 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+          <p className={cn('text-xl font-bold', unassignedCount > 0 ? 'text-amber-600' : 'text-emerald-600')}>
+            {unassignedCount}
+          </p>
+          <p className="text-xs text-[color:var(--bb-color-text-muted)]">Unassigned</p>
+        </div>
+        <div className="text-center p-2 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+          <p className="text-xl font-bold text-[color:var(--bb-color-text-primary)]">{runsCount}</p>
+          <p className="text-xs text-[color:var(--bb-color-text-muted)]">Runs Available</p>
+        </div>
+      </div>
+
+      {/* Utilization Bar */}
+      <div className="mb-2">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm text-[color:var(--bb-color-text-muted)]">Overall Utilization</span>
+          <span className={cn('text-lg font-bold', getThresholdColor(utilizationPercent))}>{utilizationPercent}%</span>
+        </div>
+        <div className="h-3 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+          <div
+            className={cn('h-full rounded-full transition-all', barColor)}
+            style={{ width: `${Math.min(utilizationPercent, 100)}%` }}
+          />
+        </div>
+        <div className="flex justify-between mt-1 text-[10px] text-[color:var(--bb-color-text-muted)]">
+          <span>{totalAssigned} assigned</span>
+          <span>{totalCapacity - totalAssigned} spots left</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Unassigned Pets Sidebar Card (droppable for returning pets)
+const UnassignedPetsSidebar = ({ pets, selectedPets, onSelect, onSelectAll }) => {
   const { isOver, setNodeRef } = useDroppable({
     id: 'unassigned',
     data: { isUnassigned: true },
   });
 
   const allSelected = pets.length > 0 && pets.every(p => selectedPets.has(p.recordId));
-  const someSelected = pets.some(p => selectedPets.has(p.recordId));
 
   return (
-    <div className="flex flex-col h-full min-w-[320px] w-[320px] flex-shrink-0 bg-white dark:bg-surface-primary border border-border rounded-lg overflow-hidden">
+    <div
+      className="rounded-xl border overflow-hidden"
+      style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+    >
       {/* Header */}
-      <div className="p-4 border-b border-border">
+      <div className="p-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
         <div className="flex items-center justify-between mb-1">
-          <h3 className="font-semibold text-text">Unassigned Pets</h3>
-          <Badge variant="neutral">{pets.length}</Badge>
+          <div className="flex items-center gap-2">
+            <PawPrint className="h-5 w-5 text-[color:var(--bb-color-text-muted)]" />
+            <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Unassigned Pets</h3>
+          </div>
+          <Badge variant={pets.length > 0 ? 'warning' : 'success'}>{pets.length}</Badge>
         </div>
-        <p className="text-xs text-muted">Drag pets to assign to runs</p>
+        <p className="text-xs text-[color:var(--bb-color-text-muted)]">Drag pets to assign to runs</p>
 
         {pets.length > 0 && (
           <button
             onClick={() => onSelectAll(pets.map(p => p.recordId))}
-            className="mt-3 flex items-center gap-2 text-xs text-primary hover:text-primary-dark transition-colors"
+            className="mt-3 flex items-center gap-2 text-xs text-[color:var(--bb-color-accent)] hover:opacity-80 transition-colors"
           >
             {allSelected ? (
               <>
@@ -466,8 +618,8 @@ const UnassignedColumn = ({ pets, selectedPets, onSelect, onSelectAll }) => {
       <div
         ref={setNodeRef}
         className={cn(
-          'flex-1 p-3 overflow-y-auto transition-colors',
-          isOver && 'bg-primary/5'
+          'p-3 max-h-[400px] overflow-y-auto transition-colors',
+          isOver && 'bg-[color:var(--bb-color-accent-soft)]'
         )}
       >
         <div className="space-y-2">
@@ -482,13 +634,96 @@ const UnassignedColumn = ({ pets, selectedPets, onSelect, onSelectAll }) => {
         </div>
 
         {pets.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-center py-12 text-muted">
-            <Check className="h-10 w-10 text-green-500 mb-3" />
-            <p className="font-medium text-green-600 dark:text-green-400">All pets assigned!</p>
-            <p className="text-xs mt-1">No unassigned pets for this date</p>
+          <div className="flex flex-col items-center justify-center text-center py-8">
+            <Check className="h-10 w-10 text-emerald-500 mb-3" />
+            <p className="font-medium text-emerald-600 dark:text-emerald-400">All pets assigned!</p>
+            <p className="text-xs text-[color:var(--bb-color-text-muted)] mt-1">No unassigned pets for this date</p>
           </div>
         )}
       </div>
+    </div>
+  );
+};
+
+// Smart Suggestions Card for sidebar
+const SmartSuggestions = ({ unassignedPets, runs }) => {
+  // Generate simple suggestions based on pet size/breed matching run type
+  const suggestions = useMemo(() => {
+    if (!unassignedPets || unassignedPets.length === 0 || !runs || runs.length === 0) return [];
+
+    const result = [];
+    unassignedPets.slice(0, 3).forEach(pet => {
+      // Simple matching logic - could be enhanced
+      const breed = pet.breed?.toLowerCase() || '';
+      const species = pet.species?.toLowerCase() || 'dog';
+
+      // Try to find a matching run
+      const matchingRun = runs.find(run => {
+        const runType = run.type?.toLowerCase() || '';
+        const runName = run.name?.toLowerCase() || '';
+
+        // Big dogs
+        if ((breed.includes('lab') || breed.includes('retriever') || breed.includes('shepherd')) &&
+            (runName.includes('big') || runType.includes('large'))) {
+          return true;
+        }
+        // Small dogs
+        if ((breed.includes('chihuahua') || breed.includes('terrier') || breed.includes('poodle')) &&
+            (runName.includes('small') || runType.includes('small'))) {
+          return true;
+        }
+        return false;
+      });
+
+      if (matchingRun) {
+        result.push({
+          pet,
+          run: matchingRun,
+          reason: 'size match',
+        });
+      }
+    });
+
+    return result;
+  }, [unassignedPets, runs]);
+
+  return (
+    <div
+      className="rounded-xl border p-4"
+      style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <Zap className="h-5 w-5 text-[color:var(--bb-color-accent)]" />
+        <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Smart Suggestions</h3>
+      </div>
+
+      {suggestions.length > 0 ? (
+        <div className="space-y-2">
+          {suggestions.map((s, idx) => (
+            <div
+              key={idx}
+              className="flex items-center gap-2 rounded-lg border p-2 text-sm"
+              style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
+            >
+              <PawPrint className="h-4 w-4 text-[color:var(--bb-color-accent)]" />
+              <span className="font-medium text-[color:var(--bb-color-text-primary)]">{s.pet.name}</span>
+              <span className="text-[color:var(--bb-color-text-muted)]">→</span>
+              <span className="text-[color:var(--bb-color-text-secondary)]">{s.run.name}</span>
+              <span className="text-xs text-[color:var(--bb-color-text-muted)]">({s.reason})</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-4">
+          <Info className="h-6 w-6 text-[color:var(--bb-color-text-muted)] mx-auto mb-2 opacity-50" />
+          <p className="text-sm text-[color:var(--bb-color-text-muted)]">
+            {unassignedPets?.length === 0 ? 'All pets are assigned' : 'No suggestions available'}
+          </p>
+          <p className="text-xs text-[color:var(--bb-color-text-muted)] mt-1">
+            Drag pets manually to assign
+          </p>
+        </div>
+      )}
     </div>
   );
 };
@@ -924,29 +1159,51 @@ const RunAssignment = () => {
   const formattedDate = format(new Date(selectedDate), 'EEEE, MMMM d, yyyy');
   const isToday = selectedDate === new Date().toISOString().split('T')[0];
 
+  // Calculate stats for the stat cards
+  const stats = useMemo(() => {
+    const totalAssigned = Object.values(assignmentState).flat().length;
+    const totalCapacity = runs?.reduce((sum, run) => sum + (run.maxCapacity || run.capacity || 10), 0) || 0;
+    const utilizationPercent = totalCapacity > 0 ? Math.round((totalAssigned / totalCapacity) * 100) : 0;
+
+    return {
+      petsCheckedIn: checkedInPets.length,
+      unassigned: unassignedPets.length,
+      totalAssigned,
+      totalCapacity,
+      utilization: utilizationPercent,
+    };
+  }, [checkedInPets.length, unassignedPets.length, assignmentState, runs]);
+
   return (
     <div className="space-y-6 pb-20">
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <nav className="mb-2">
-            <ol className="flex items-center gap-1 text-xs text-muted">
-              <li><Link to="/operations" className="hover:text-primary">Operations</Link></li>
+            <ol className="flex items-center gap-1 text-xs text-[color:var(--bb-color-text-muted)]">
+              <li><Link to="/operations" className="hover:text-[color:var(--bb-color-accent)]">Operations</Link></li>
               <li><ChevronLeft className="h-3 w-3 rotate-180" /></li>
-              <li className="text-text font-medium">Run Assignment</li>
+              <li className="text-[color:var(--bb-color-text-primary)] font-medium">Run Assignment</li>
             </ol>
           </nav>
-          <h1 className="text-xl font-semibold text-text">Run Assignment</h1>
-          <p className="text-sm text-muted mt-1">Drag and drop to assign checked-in pets to daycare runs</p>
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-semibold text-[color:var(--bb-color-text-primary)]">Run Assignment</h1>
+            <span className="text-sm text-[color:var(--bb-color-text-muted)]">{formattedDate}</span>
+            {isToday && <Badge variant="success" size="sm">Today</Badge>}
+          </div>
+          <p className="text-sm text-[color:var(--bb-color-text-muted)] mt-1">Drag and drop to assign checked-in pets to daycare runs</p>
         </div>
 
         {/* Header Actions */}
         <div className="flex items-center gap-2 flex-wrap">
           {/* Date Navigation */}
-          <div className="flex items-center gap-1 bg-surface border border-border rounded-lg p-1">
+          <div
+            className="flex items-center gap-1 rounded-lg p-1 border"
+            style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+          >
             <button
               onClick={() => navigateDate('prev')}
-              className="p-1.5 hover:bg-white dark:hover:bg-surface-secondary rounded transition-colors"
+              className="p-1.5 hover:bg-[color:var(--bb-color-bg-elevated)] rounded transition-colors"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -954,21 +1211,24 @@ const RunAssignment = () => {
               onClick={goToToday}
               className={cn(
                 'px-2 py-1 text-sm rounded transition-colors',
-                isToday ? 'bg-primary text-white' : 'hover:bg-white dark:hover:bg-surface-secondary'
+                isToday ? 'bg-[color:var(--bb-color-accent)] text-white' : 'hover:bg-[color:var(--bb-color-bg-elevated)]'
               )}
             >
               Today
             </button>
             <button
               onClick={() => navigateDate('next')}
-              className="p-1.5 hover:bg-white dark:hover:bg-surface-secondary rounded transition-colors"
+              className="p-1.5 hover:bg-[color:var(--bb-color-bg-elevated)] rounded transition-colors"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
 
-          <div className="flex items-center gap-2 px-3 py-2 bg-surface border border-border rounded-lg">
-            <Calendar className="h-4 w-4 text-muted" />
+          <div
+            className="flex items-center gap-2 px-3 py-2 rounded-lg border"
+            style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+          >
+            <Calendar className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
             <input
               type="date"
               value={selectedDate}
@@ -976,7 +1236,7 @@ const RunAssignment = () => {
                 setSelectedDate(e.target.value);
                 setInitializedDate(null);
               }}
-              className="bg-transparent text-sm border-none focus:outline-none cursor-pointer"
+              className="bg-transparent text-sm border-none focus:outline-none cursor-pointer text-[color:var(--bb-color-text-primary)]"
             />
           </div>
 
@@ -999,61 +1259,99 @@ const RunAssignment = () => {
         </div>
       </div>
 
-      {/* Date Display */}
-      <div className="flex items-center gap-4">
-        <h2 className="text-lg font-medium text-text">{formattedDate}</h2>
-        {isToday && (
-          <Badge variant="success" size="sm">Today</Badge>
-        )}
-        <Badge variant="neutral" size="sm">
-          {checkedInPets.length} pets checked in
-        </Badge>
+      {/* Stats Bar */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          icon={UserCheck}
+          label="Pets Checked In"
+          value={stats.petsCheckedIn}
+          variant="primary"
+          tooltip="Total pets checked in today"
+        />
+        <StatCard
+          icon={AlertTriangle}
+          label="Unassigned"
+          value={stats.unassigned}
+          variant={stats.unassigned > 0 ? 'warning' : 'success'}
+          tooltip="Pets waiting to be assigned to a run"
+        />
+        <StatCard
+          icon={Users}
+          label="Total Capacity"
+          value={`${stats.totalAssigned}/${stats.totalCapacity}`}
+          variant="primary"
+          tooltip="Assigned pets across all runs"
+        />
+        <StatCard
+          icon={TrendingUp}
+          label="Utilization"
+          value={`${stats.utilization}%`}
+          variant={stats.utilization >= 90 ? 'danger' : stats.utilization >= 70 ? 'warning' : 'success'}
+          tooltip="Overall run utilization"
+        />
       </div>
 
-      {/* Drag Board */}
-      <DndContext 
-        sensors={sensors} 
+      {/* Two-Column Layout: Runs (left) + Sidebar (right) */}
+      <DndContext
+        sensors={sensors}
         collisionDetection={closestCenter}
-        onDragStart={handleDragStart} 
+        onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {/* Unassigned Pets Column - Frozen on left */}
-          <div className="sticky left-0 z-10 bg-[var(--bb-color-bg-base)]">
-            <UnassignedColumn
+        <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+          {/* Left: Run Columns */}
+          <div className="flex gap-4 overflow-x-auto pb-4">
+            {runs?.length > 0 ? (
+              runs.map((run) => (
+                <RunColumn
+                  key={run.recordId}
+                  run={run}
+                  assignments={assignmentState[run.recordId] || []}
+                  selectedPets={selectedPets}
+                  onSelect={handleSelectPet}
+                  onRemove={(petId) => handleRemovePet(petId, run.recordId)}
+                  onReorder={() => {}}
+                />
+              ))
+            ) : (
+              <div
+                className="flex-1 flex items-center justify-center min-h-[400px] border-2 border-dashed rounded-lg"
+                style={{ borderColor: 'var(--bb-color-border-subtle)', backgroundColor: 'var(--bb-color-bg-surface)' }}
+              >
+                <div className="text-center max-w-md px-4">
+                  <div className="mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+                    <Clock className="h-8 w-8 text-[color:var(--bb-color-text-muted)]" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-[color:var(--bb-color-text-primary)] mb-2">No Runs for This Date</h3>
+                  <p className="text-sm text-[color:var(--bb-color-text-muted)]">
+                    Runs are created based on your run templates. Make sure you have templates configured.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right: Sidebar */}
+          <div className="space-y-6">
+            <AssignmentOverview
+              unassignedCount={stats.unassigned}
+              runsCount={runs?.length || 0}
+              totalAssigned={stats.totalAssigned}
+              totalCapacity={stats.totalCapacity}
+            />
+
+            <UnassignedPetsSidebar
               pets={unassignedPets}
               selectedPets={selectedPets}
               onSelect={handleSelectPet}
               onSelectAll={handleSelectAll}
             />
-          </div>
 
-          {/* Run Columns */}
-          {runs?.length > 0 ? (
-            runs.map((run) => (
-              <RunColumn
-                key={run.recordId}
-                run={run}
-                assignments={assignmentState[run.recordId] || []}
-                selectedPets={selectedPets}
-                onSelect={handleSelectPet}
-                onRemove={(petId) => handleRemovePet(petId, run.recordId)}
-                onReorder={() => {}}
-              />
-            ))
-          ) : (
-            <div className="flex-1 flex items-center justify-center min-h-[400px] bg-surface border-2 border-dashed border-border rounded-lg">
-              <div className="text-center max-w-md px-4">
-                <div className="mx-auto w-16 h-16 bg-gray-100 dark:bg-surface-secondary rounded-full flex items-center justify-center mb-4">
-                  <Clock className="h-8 w-8 text-gray-400" />
-                </div>
-                <h3 className="text-lg font-semibold text-text mb-2">No Runs for This Date</h3>
-                <p className="text-sm text-muted">
-                  Runs are created based on your run templates. Make sure you have templates configured.
-                </p>
-              </div>
-            </div>
-          )}
+            <SmartSuggestions
+              unassignedPets={unassignedPets}
+              runs={runs}
+            />
+          </div>
         </div>
 
         {/* Drag Overlay */}
