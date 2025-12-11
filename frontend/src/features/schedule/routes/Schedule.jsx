@@ -1,17 +1,15 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { format, addDays, startOfWeek, differenceInDays } from 'date-fns';
+import { Link } from 'react-router-dom';
+import { format, addDays, startOfWeek } from 'date-fns';
 import {
-  Calendar, Plus, Home, Users, Settings, ChevronLeft, ChevronRight,
-  RefreshCw, Clock, PawPrint, UserCheck, UserX, AlertCircle, CheckCircle,
-  TrendingUp, Brain, CheckSquare, Square, LogIn, LogOut, DollarSign,
-  AlertTriangle, BarChart3, Zap, Info, ArrowUpRight, Loader2,
+  Plus, Home, Users, Settings, ChevronLeft, ChevronRight,
+  Clock, PawPrint, UserCheck, UserX, CheckCircle,
+  TrendingUp, Brain, CheckSquare, Square, LogIn, LogOut,
+  AlertTriangle, BarChart3, Zap, Info,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/Card';
-import { Skeleton } from '@/components/ui/skeleton';
 // Unified loader: replaced inline loading with LoadingState
 import LoadingState from '@/components/ui/LoadingState';
 import SlidePanel from '@/components/ui/SlidePanel';
@@ -27,10 +25,7 @@ import { useTodayStats } from '../hooks/useTodayStats';
 import { cn } from '@/lib/cn';
 
 const Schedule = () => {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [lastRefreshed, setLastRefreshed] = useState(new Date());
 
   // Modals & panels
   const [showNewBookingModal, setShowNewBookingModal] = useState(false);
@@ -206,14 +201,6 @@ const Schedule = () => {
   }, []);
 
   // Handlers
-  const handleRefresh = useCallback(() => {
-    refetchRuns();
-    refetchBookings();
-    refetchAssignments();
-    queryClient.invalidateQueries({ queryKey: ['dashboard', 'stats'] });
-    setLastRefreshed(new Date());
-  }, [refetchRuns, refetchBookings, refetchAssignments, queryClient]);
-
   const handleBookingClick = useCallback((bookingOrAssignment) => {
     // Transform run assignment to booking-like shape for the detail modal
     // Run assignments have flat fields (petName, ownerName), bookings have nested objects (pet, owner)
@@ -267,12 +254,6 @@ const Schedule = () => {
   const goToToday = useCallback(() => {
     setCurrentDate(new Date());
   }, []);
-
-  const formatLastRefreshed = () => {
-    const mins = Math.floor((new Date() - lastRefreshed) / 60000);
-    if (mins < 1) return 'just now';
-    return `${mins} min${mins > 1 ? 's' : ''} ago`;
-  };
 
   return (
     <div className="flex flex-col flex-grow w-full min-h-[calc(100vh-180px)]">
@@ -360,38 +341,31 @@ const Schedule = () => {
           />
         </div>
 
-        {/* Today's Dashboard - Compact insights block */}
-        <TodayDashboard stats={stats} lastRefreshed={formatLastRefreshed()} onRefresh={handleRefresh} isLoading={isLoading} />
+        {/* Two-column layout: Grid (left ~70%) + Capacity/Assistant (right ~30%) */}
+        <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+          {/* Left: Today's Hourly Grid */}
+          <DailyHourlyGrid
+            runs={runs}
+            bookings={processedBookings}
+            assignments={processedAssignments}
+            currentDate={currentDate}
+            isLoading={isLoading}
+            onBookingClick={handleBookingClick}
+            onNewBooking={(runId, date) => {
+              setShowNewBookingModal(true);
+            }}
+            onNavigateDay={navigateDay}
+            onGoToToday={goToToday}
+          />
 
-        {/* Capacity Alerts - Horizontal card */}
-        <CapacityAlerts stats={stats} lastRefreshed={formatLastRefreshed()} />
-
-        {/* Today's Hourly Grid - Shows which pet is WHERE at each HOUR */}
-        <DailyHourlyGrid
-          runs={runs}
-          bookings={processedBookings}
-          assignments={processedAssignments}
-          currentDate={currentDate}
-          isLoading={isLoading}
-          onBookingClick={handleBookingClick}
-          onNewBooking={(runId, date) => {
-            // Could pre-fill the modal here
-            setShowNewBookingModal(true);
-          }}
-          onNavigateDay={navigateDay}
-          onGoToToday={goToToday}
-        />
-
-        {/* Two-column layout for remaining modules */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          {/* Capacity Overview Widget */}
-          <CapacityOverview stats={stats} />
-
-          {/* Smart Scheduling Assistant */}
-          <SmartSchedulingAssistant stats={stats} />
+          {/* Right: Stacked widgets */}
+          <div className="space-y-6">
+            <CapacityOverview stats={stats} />
+            <SmartSchedulingAssistant stats={stats} />
+          </div>
         </div>
 
-        {/* Daily Operations Checklist */}
+        {/* Daily Operations Checklist - Full width */}
         <DailyChecklist bookings={processedBookings} stats={stats} />
       </div>
 
@@ -519,98 +493,6 @@ const StatCard = ({ icon: Icon, label, value, delta, variant, isActive, onClick,
         </div>
       )}
     </button>
-  );
-};
-
-// Today's Dashboard - Compact 2-row insights block
-const TodayDashboard = ({ stats, lastRefreshed, onRefresh, isLoading }) => {
-  const today = new Date();
-
-  return (
-    <div
-      className="rounded-xl border p-4 shadow-sm"
-      style={{ backgroundColor: 'var(--bb-color-accent-soft)', borderColor: 'var(--bb-color-accent)' }}
-    >
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Calendar className="h-5 w-5 text-[color:var(--bb-color-accent)]" />
-          <h2 className="font-semibold text-[color:var(--bb-color-text-primary)]">
-            Today's Dashboard
-          </h2>
-          <span className="text-sm text-[color:var(--bb-color-text-muted)]">
-            {format(today, 'EEEE, MMMM d')}
-          </span>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-[color:var(--bb-color-text-muted)]">
-          <Clock className="h-3 w-3" />
-          <span>Updated {lastRefreshed}</span>
-          <button type="button" onClick={onRefresh} className="p-1 rounded hover:bg-[color:var(--bb-color-bg-elevated)]">
-            <RefreshCw className={cn('h-3 w-3', isLoading && 'animate-spin')} />
-          </button>
-        </div>
-      </div>
-
-      {/* Metrics Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <MetricPill label="Total Bookings" value={stats.petsToday} icon={Calendar} />
-        <MetricPill label="Capacity" value={`${stats.occupancy}%`} icon={TrendingUp} />
-        <MetricPill label="Check-ins" value={stats.checkIns} icon={UserCheck} />
-        <MetricPill label="Available" value={stats.availableSpots} icon={Home} />
-      </div>
-    </div>
-  );
-};
-
-// Metric Pill - Compact inline metric
-const MetricPill = ({ label, value, icon: Icon }) => (
-  <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ backgroundColor: 'var(--bb-color-bg-surface)' }}>
-    <Icon className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
-    <div>
-      <p className="text-xs text-[color:var(--bb-color-text-muted)]">{label}</p>
-      <p className="text-sm font-bold text-[color:var(--bb-color-text-primary)]">{value}</p>
-    </div>
-  </div>
-);
-
-// Capacity Alerts - Horizontal alert card
-const CapacityAlerts = ({ stats, lastRefreshed }) => {
-  const hasAlert = stats.occupancy >= 90;
-
-  return (
-    <div
-      className="rounded-xl border p-3"
-      style={{
-        backgroundColor: hasAlert ? 'var(--bb-color-status-warning-soft)' : 'var(--bb-color-status-positive-soft)',
-        borderColor: hasAlert ? 'var(--bb-color-status-warning)' : 'var(--bb-color-status-positive)',
-      }}
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {hasAlert ? (
-            <>
-              <AlertTriangle className="h-5 w-5 text-amber-600" />
-              <div>
-                <p className="font-medium text-amber-800 dark:text-amber-200">High Capacity Alert</p>
-                <p className="text-sm text-amber-700 dark:text-amber-300">
-                  Facility at {stats.occupancy}% — consider limiting new bookings
-                </p>
-              </div>
-            </>
-          ) : (
-            <>
-              <CheckCircle className="h-5 w-5 text-emerald-600" />
-              <div>
-                <p className="font-medium text-emerald-800 dark:text-emerald-200">No Capacity Alerts</p>
-                <p className="text-sm text-emerald-700 dark:text-emerald-300">
-                  {stats.availableSpots} spots available — good availability
-                </p>
-              </div>
-            </>
-          )}
-        </div>
-        <span className="text-xs text-[color:var(--bb-color-text-muted)]">Updated {lastRefreshed}</span>
-      </div>
-    </div>
   );
 };
 
