@@ -2,9 +2,9 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import {
   Calendar, Plus, List, ChevronLeft, ChevronRight, Search,
-  SlidersHorizontal, RefreshCw, ChevronDown, X,
-  PawPrint, User, CheckCircle2, Mail,
-  Edit, Trash2, Eye, ArrowUpDown, ArrowUp, ArrowDown,
+  SlidersHorizontal, RefreshCw, ChevronDown, ChevronUp, X,
+  PawPrint, User, CheckCircle2, Mail, Info,
+  Edit, Trash2, Eye, ArrowUpDown, ArrowUp, ArrowDown, Settings,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -31,15 +31,16 @@ const PERIOD_MODES = {
   MONTH: 'month',
 };
 
-// Status color configurations
+// Status color configurations - LEFT BORDER colors only, dark card background
 const STATUS_CONFIG = {
-  PENDING: { label: 'Pending', variant: 'neutral', color: 'bg-gray-100 dark:bg-gray-800 border-gray-300 text-gray-700' },
-  CONFIRMED: { label: 'Reserved', variant: 'info', color: 'bg-blue-100 dark:bg-blue-900/40 border-blue-300 text-blue-700' },
-  CHECKED_IN: { label: 'Checked In', variant: 'success', color: 'bg-emerald-100 dark:bg-emerald-900/40 border-emerald-300 text-emerald-700' },
-  CHECKED_OUT: { label: 'Checked Out', variant: 'neutral', color: 'bg-gray-100 dark:bg-gray-800 border-gray-300 text-gray-500' },
-  CANCELLED: { label: 'Cancelled', variant: 'danger', color: 'bg-red-100 dark:bg-red-900/40 border-red-300 text-red-700' },
-  CHECKOUT_TODAY: { label: 'Checkout Today', variant: 'warning', color: 'bg-orange-100 dark:bg-orange-900/40 border-orange-300 text-orange-700' },
-  OVERDUE: { label: 'Overdue', variant: 'danger', color: 'bg-red-100 dark:bg-red-900/40 border-red-300 text-red-700' },
+  PENDING: { label: 'Pending', variant: 'neutral', borderColor: 'border-l-gray-400' },
+  CONFIRMED: { label: 'Reserved', variant: 'info', borderColor: 'border-l-blue-500' },
+  CHECKED_IN: { label: 'Checked In', variant: 'success', borderColor: 'border-l-emerald-500' },
+  CHECKED_OUT: { label: 'Checked Out', variant: 'neutral', borderColor: 'border-l-gray-500' },
+  CANCELLED: { label: 'Cancelled', variant: 'danger', borderColor: 'border-l-red-500' },
+  CHECKOUT_TODAY: { label: 'Checkout Today', variant: 'warning', borderColor: 'border-l-yellow-500' },
+  OVERDUE: { label: 'Overdue', variant: 'danger', borderColor: 'border-l-red-500' },
+  NO_SHOW: { label: 'No Show', variant: 'neutral', borderColor: 'border-l-purple-500' },
 };
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
@@ -70,6 +71,9 @@ const Bookings = () => {
   const [sortConfig, setSortConfig] = useState({ key: 'checkIn', direction: 'asc' });
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+
+  // Legend state
+  const [showLegend, setShowLegend] = useState(true);
 
   // Refs
   const filterRef = useRef(null);
@@ -162,6 +166,10 @@ const Bookings = () => {
       // Check if checking out today
       else if (displayStatus === 'CHECKED_IN' && checkOut && checkOut.toDateString() === today.toDateString()) {
         displayStatus = 'CHECKOUT_TODAY';
+      }
+      // Check if no-show (check-in date passed but never checked in, still CONFIRMED)
+      else if (displayStatus === 'CONFIRMED' && checkIn && checkIn < today) {
+        displayStatus = 'NO_SHOW';
       }
 
       const petName = booking.pet?.name || 'Unknown Pet';
@@ -626,6 +634,14 @@ const Bookings = () => {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col mt-4">
+        {/* Calendar Legend - only show in calendar view modes */}
+        {viewMode === VIEW_MODES.CALENDAR && (
+          <CalendarLegend
+            isExpanded={showLegend}
+            onToggle={() => setShowLegend(!showLegend)}
+          />
+        )}
+
         {periodMode === PERIOD_MODES.MONTH ? (
           <MonthCalendarView
             currentDate={currentDate}
@@ -694,6 +710,124 @@ const Bookings = () => {
             setSelectedBooking(null);
           }}
         />
+      )}
+    </div>
+  );
+};
+
+// Calendar Legend Component - Collapsible panel explaining the calendar UI
+const CalendarLegend = ({ isExpanded, onToggle }) => {
+  return (
+    <div
+      className="rounded-xl border mb-4 overflow-hidden"
+      style={{
+        backgroundColor: 'var(--bb-color-bg-surface)',
+        borderColor: 'var(--bb-color-border-subtle)'
+      }}
+    >
+      {/* Toggle Header */}
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] hover:bg-[color:var(--bb-color-bg-elevated)] transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Info className="h-4 w-4" />
+          <span>Calendar Legend</span>
+        </div>
+        {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+      </button>
+
+      {/* Expandable Content */}
+      {isExpanded && (
+        <div
+          className="px-6 py-4 border-t grid grid-cols-1 md:grid-cols-3 gap-6"
+          style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+        >
+          {/* Card Border Colors */}
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] mb-3">
+              Card Border Colors
+            </h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="w-1 h-4 rounded-full bg-blue-500" />
+                <span className="text-[color:var(--bb-color-text-primary)]">Confirmed</span>
+                <span className="text-[color:var(--bb-color-text-muted)]">— Reservation confirmed, not yet arrived</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-1 h-4 rounded-full bg-emerald-500" />
+                <span className="text-[color:var(--bb-color-text-primary)]">Checked In</span>
+                <span className="text-[color:var(--bb-color-text-muted)]">— Pet is currently at facility</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-1 h-4 rounded-full bg-orange-500" />
+                <span className="text-[color:var(--bb-color-text-primary)]">Checkout Today</span>
+                <span className="text-[color:var(--bb-color-text-muted)]">— Scheduled to leave today</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-1 h-4 rounded-full bg-red-500" />
+                <span className="text-[color:var(--bb-color-text-primary)]">Overdue</span>
+                <span className="text-[color:var(--bb-color-text-muted)]">— Past checkout date, still here</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-1 h-4 rounded-full bg-purple-500" />
+                <span className="text-[color:var(--bb-color-text-primary)]">No Show</span>
+                <span className="text-[color:var(--bb-color-text-muted)]">— Never checked in, booking date passed</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-1 h-4 rounded-full bg-gray-300 dark:bg-gray-600" />
+                <span className="text-[color:var(--bb-color-text-primary)]">Pending / Checked Out</span>
+                <span className="text-[color:var(--bb-color-text-muted)]">— Awaiting confirmation or completed</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Badges */}
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] mb-3">
+              Badges
+            </h4>
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center gap-3">
+                <Badge variant="success" size="sm">Check In</Badge>
+                <span className="text-[color:var(--bb-color-text-muted)]">Pet's arrival day</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Badge variant="warning" size="sm">Check Out</Badge>
+                <span className="text-[color:var(--bb-color-text-muted)]">Pet's departure day</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-[color:var(--bb-color-text-secondary)] italic">No badge</span>
+                <span className="text-[color:var(--bb-color-text-muted)]">Mid-stay day (pet is just staying)</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Interactions */}
+          <div>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] mb-3">
+              Interactions
+            </h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center gap-2">
+                <Plus className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+                <span className="text-[color:var(--bb-color-text-muted)]">Click to add booking on empty day</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-4 h-4 rounded"
+                  style={{ backgroundColor: 'var(--bb-color-accent-soft)' }}
+                />
+                <span className="text-[color:var(--bb-color-text-muted)]">Today's column (highlighted)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Settings className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+                <span className="text-[color:var(--bb-color-text-muted)]">Click any card to view booking details</span>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -978,15 +1112,17 @@ const WeeklyCalendarView = ({
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Get bookings that span a specific date
+  // Get bookings for a specific date, sorted by check-in date
   const getBookingsForDate = (date) => {
     const dateStr = date.toISOString().split('T')[0];
-    return bookings.filter(b => {
-      if (!b.checkInDate || !b.checkOutDate) return false;
-      const checkInStr = b.checkInDate.toISOString().split('T')[0];
-      const checkOutStr = b.checkOutDate.toISOString().split('T')[0];
-      return dateStr >= checkInStr && dateStr <= checkOutStr;
-    });
+    return bookings
+      .filter(b => {
+        if (!b.checkInDate || !b.checkOutDate) return false;
+        const checkInStr = b.checkInDate.toISOString().split('T')[0];
+        const checkOutStr = b.checkOutDate.toISOString().split('T')[0];
+        return dateStr >= checkInStr && dateStr <= checkOutStr;
+      })
+      .sort((a, b) => a.checkInDate - b.checkInDate);
   };
 
   if (isLoading) {
@@ -1013,8 +1149,8 @@ const WeeklyCalendarView = ({
       {/* Weekly Grid */}
       <div className="flex-1 rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
         {/* Day Headers */}
-        <div 
-          className="grid gap-px border-b" 
+        <div
+          className="grid gap-px border-b"
           style={{
             gridTemplateColumns: `repeat(${dateRange.length}, 1fr)`,
             borderColor: 'var(--bb-color-border-subtle)',
@@ -1025,12 +1161,12 @@ const WeeklyCalendarView = ({
             const isToday = date.toDateString() === today.toDateString();
             const dateStr = date.toISOString().split('T')[0];
             const dayData = bookingsByDate[dateStr] || { count: 0 };
-            
+
             return (
               <div
                 key={idx}
-                className={cn('p-3 text-center')}
-                style={{ 
+                className="p-3 text-center"
+                style={{
                   backgroundColor: isToday ? 'var(--bb-color-accent-soft)' : 'var(--bb-color-bg-elevated)',
                 }}
               >
@@ -1057,8 +1193,8 @@ const WeeklyCalendarView = ({
         </div>
 
         {/* Booking Cards Grid */}
-        <div 
-          className="grid gap-px flex-1" 
+        <div
+          className="grid gap-px flex-1"
           style={{
             gridTemplateColumns: `repeat(${dateRange.length}, 1fr)`,
             backgroundColor: 'var(--bb-color-border-subtle)',
@@ -1068,18 +1204,18 @@ const WeeklyCalendarView = ({
           {dateRange.map((date, idx) => {
             const isToday = date.toDateString() === today.toDateString();
             const dayBookings = getBookingsForDate(date);
-            
+
             return (
               <div
                 key={idx}
                 className="p-2 flex flex-col gap-1.5 overflow-y-auto"
-                style={{ 
+                style={{
                   backgroundColor: isToday ? 'var(--bb-color-accent-soft)' : 'var(--bb-color-bg-body)',
                   maxHeight: '500px'
                 }}
               >
                 {dayBookings.length === 0 ? (
-                  <div 
+                  <div
                     className="flex-1 flex items-center justify-center min-h-[100px] rounded-lg border-2 border-dashed cursor-pointer hover:border-[color:var(--bb-color-accent)] hover:bg-[color:var(--bb-color-bg-elevated)] transition-colors"
                     style={{ borderColor: 'var(--bb-color-border-subtle)' }}
                     onClick={onNewBooking}
@@ -1094,27 +1230,30 @@ const WeeklyCalendarView = ({
                     const statusConfig = STATUS_CONFIG[booking.displayStatus] || STATUS_CONFIG.PENDING;
                     const isCheckIn = booking.checkInDate?.toDateString() === date.toDateString();
                     const isCheckOut = booking.checkOutDate?.toDateString() === date.toDateString();
-                    
+
                     return (
                       <div
                         key={booking.id}
                         className={cn(
                           'rounded-lg border-l-4 p-2.5 cursor-pointer transition-all hover:shadow-md',
-                          statusConfig.color
+                          statusConfig.borderColor
                         )}
+                        style={{
+                          backgroundColor: 'var(--bb-color-bg-elevated)',
+                        }}
                         onClick={() => onBookingClick(booking)}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5">
-                              <PawPrint className="h-3.5 w-3.5 flex-shrink-0" />
-                              <span className="font-medium text-sm truncate">{booking.petName}</span>
+                              <PawPrint className="h-3.5 w-3.5 flex-shrink-0 text-[color:var(--bb-color-text-muted)]" />
+                              <span className="font-medium text-sm truncate text-[color:var(--bb-color-text-primary)]">{booking.petName}</span>
                             </div>
-                            <p className="text-xs opacity-75 truncate mt-0.5">{booking.ownerName}</p>
+                            <p className="text-xs text-[color:var(--bb-color-text-muted)] truncate mt-0.5">{booking.ownerName}</p>
                           </div>
                         </div>
-                        <div className="mt-1.5 flex items-center gap-2 text-[10px] opacity-75">
-                          <span>{booking.serviceName}</span>
+                        <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] text-[color:var(--bb-color-text-muted)]">{booking.serviceName}</span>
                           {isCheckIn && <Badge variant="success" size="xs">Check In</Badge>}
                           {isCheckOut && <Badge variant="warning" size="xs">Check Out</Badge>}
                         </div>
@@ -1433,6 +1572,7 @@ const FilterPanel = ({ statusFilter, onStatusChange, onClose, onClear }) => (
           <option value="CHECKED_IN">Checked In</option>
           <option value="CHECKOUT_TODAY">Checking Out Today</option>
           <option value="OVERDUE">Overdue</option>
+          <option value="NO_SHOW">No Show</option>
           <option value="CHECKED_OUT">Checked Out</option>
           <option value="CANCELLED">Cancelled</option>
         </select>
