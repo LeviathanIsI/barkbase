@@ -333,15 +333,15 @@ const TaskCard = ({
 const TodaysSummary = ({ categoryCounts, taskTypes }) => {
   return (
     <div
-      className="rounded-xl border p-3"
+      className="rounded-xl border p-4"
       style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
     >
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center gap-2 mb-3">
         <BarChart3 className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
         <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Today's Summary</h3>
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-2">
         {Object.entries(taskTypes).map(([key, config]) => {
           const count = categoryCounts[key] || 0;
           const Icon = config.icon;
@@ -349,7 +349,7 @@ const TodaysSummary = ({ categoryCounts, taskTypes }) => {
           return (
             <div
               key={key}
-              className={cn('flex items-center gap-1.5 px-2 py-1 rounded-lg', config.bg)}
+              className={cn('flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg', config.bg)}
               title={config.label}
             >
               <Icon className={cn('h-3.5 w-3.5', config.color)} />
@@ -362,7 +362,7 @@ const TodaysSummary = ({ categoryCounts, taskTypes }) => {
   );
 };
 
-// Staff Workload Sidebar Card - Compact with names
+// Staff Workload Sidebar Card - Shows actual staff names
 const StaffWorkload = ({ staff, tasks, onStaffClick, activeStaffFilter }) => {
   const staffList = Array.isArray(staff) ? staff : (staff?.data || []);
 
@@ -389,15 +389,15 @@ const StaffWorkload = ({ staff, tasks, onStaffClick, activeStaffFilter }) => {
 
   return (
     <div
-      className="rounded-xl border p-3"
+      className="rounded-xl border p-4"
       style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
     >
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center gap-2 mb-3">
         <Users className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
         <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Staff Workload</h3>
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-2">
         {staffList.slice(0, 5).map(s => {
           const id = s.id || s.recordId;
           const count = staffTaskCounts[id] || 0;
@@ -410,23 +410,23 @@ const StaffWorkload = ({ staff, tasks, onStaffClick, activeStaffFilter }) => {
               key={id}
               onClick={() => onStaffClick(isActive ? 'all' : id)}
               className={cn(
-                'w-full flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors text-left',
+                'w-full flex items-center gap-3 px-2 py-1.5 rounded-lg transition-colors text-left',
                 isActive
                   ? 'bg-[color:var(--bb-color-accent-soft)] ring-1 ring-[color:var(--bb-color-accent)]'
                   : 'hover:bg-[color:var(--bb-color-bg-elevated)]'
               )}
             >
-              <span className="text-xs font-medium text-[color:var(--bb-color-text-primary)] w-20 truncate">
+              <span className="text-xs font-medium text-[color:var(--bb-color-text-primary)] min-w-[80px]">
                 {formatName(s)}
               </span>
-              <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+              <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
                 <div
                   className={cn('h-full rounded-full transition-all', isOverloaded ? 'bg-amber-500' : 'bg-emerald-500')}
                   style={{ width: `${percentage}%` }}
                 />
               </div>
               <span className={cn(
-                'text-xs font-bold w-5 text-right',
+                'text-xs font-bold min-w-[20px] text-right',
                 isOverloaded ? 'text-amber-600' : 'text-[color:var(--bb-color-text-muted)]'
               )}>
                 {count}
@@ -437,15 +437,15 @@ const StaffWorkload = ({ staff, tasks, onStaffClick, activeStaffFilter }) => {
 
         {/* Unassigned row */}
         {staffTaskCounts['unassigned'] > 0 && (
-          <div className="flex items-center gap-2 px-2 py-1.5 text-[color:var(--bb-color-text-muted)]">
-            <span className="text-xs w-20 truncate italic">Unassigned</span>
-            <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+          <div className="flex items-center gap-3 px-2 py-1.5 text-[color:var(--bb-color-text-muted)]">
+            <span className="text-xs min-w-[80px] italic">Unassigned</span>
+            <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
               <div
                 className="h-full rounded-full bg-gray-400"
                 style={{ width: `${(staffTaskCounts['unassigned'] / maxTasks) * 100}%` }}
               />
             </div>
-            <span className="text-xs font-bold w-5 text-right">{staffTaskCounts['unassigned']}</span>
+            <span className="text-xs font-bold min-w-[20px] text-right">{staffTaskCounts['unassigned']}</span>
           </div>
         )}
       </div>
@@ -453,7 +453,7 @@ const StaffWorkload = ({ staff, tasks, onStaffClick, activeStaffFilter }) => {
   );
 };
 
-// Quick Add Task Sidebar Card - Compact form
+// Quick Add Task Sidebar Card
 const QuickAddTask = ({ taskTypes, priorityConfig, pets, staff, onCreateTask, isCreating }) => {
   const [form, setForm] = useState({
     type: 'FEEDING',
@@ -488,17 +488,17 @@ const QuickAddTask = ({ taskTypes, priorityConfig, pets, staff, onCreateTask, is
 
   return (
     <div
-      className="rounded-xl border p-3"
+      className="rounded-xl border p-4"
       style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
     >
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center gap-2 mb-3">
         <Zap className="h-4 w-4 text-[color:var(--bb-color-accent)]" />
         <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Quick Add</h3>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-2">
+      <form onSubmit={handleSubmit} className="space-y-3">
         {/* Task Type - inline */}
-        <div className="flex gap-1">
+        <div className="flex gap-1.5">
           {Object.entries(taskTypes).map(([key, config]) => {
             const Icon = config.icon;
             return (
@@ -507,14 +507,14 @@ const QuickAddTask = ({ taskTypes, priorityConfig, pets, staff, onCreateTask, is
                 type="button"
                 onClick={() => setForm({ ...form, type: key })}
                 className={cn(
-                  'flex-1 flex items-center justify-center p-1.5 rounded-lg transition-all',
+                  'flex-1 flex items-center justify-center p-2 rounded-lg transition-all',
                   form.type === key
                     ? 'bg-[color:var(--bb-color-accent-soft)] ring-1 ring-[color:var(--bb-color-accent)]'
                     : 'hover:bg-[color:var(--bb-color-bg-elevated)]'
                 )}
                 title={config.label}
               >
-                <Icon className={cn('h-3.5 w-3.5', config.color)} />
+                <Icon className={cn('h-4 w-4', config.color)} />
               </button>
             );
           })}
@@ -1214,7 +1214,7 @@ const Tasks = () => {
         </div>
 
         {/* Right: Sidebar */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           <TodaysSummary
             categoryCounts={categoryCounts}
             taskTypes={TASK_TYPES}
