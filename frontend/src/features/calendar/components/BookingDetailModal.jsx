@@ -4,7 +4,7 @@
  * Optimized for calendar context with inline editing and quick actions
  */
 
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Calendar, Phone, User, PawPrint, CheckCircle, Clock, DollarSign, Edit2, X, MessageSquare, Home, ChevronDown } from 'lucide-react';
 import {
   InspectorRoot,
@@ -248,12 +248,10 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit, onCheckIn, onChe
   const availableKennels = kennels.filter(k => k.isActive !== false);
 
   // Get full kennel data (with building/floor) by looking up from availableKennels
-  const fullKennelData = useMemo(() => {
-    const kennelId = displayBooking.kennel?.id || displayBooking.kennel?.recordId;
-    if (!kennelId) return displayBooking.kennel;
-    const found = availableKennels.find(k => (k.id || k.recordId) === kennelId);
-    return found || displayBooking.kennel;
-  }, [displayBooking.kennel, availableKennels]);
+  const kennelId = displayBooking.kennel?.id || displayBooking.kennel?.recordId;
+  const fullKennelData = kennelId
+    ? (availableKennels.find(k => (k.id || k.recordId) === kennelId) || displayBooking.kennel)
+    : displayBooking.kennel;
 
   return (
     <>

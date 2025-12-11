@@ -329,43 +329,31 @@ const TaskCard = ({
   );
 };
 
-// Today's Summary Sidebar Card
+// Today's Summary Sidebar Card - Compact horizontal layout
 const TodaysSummary = ({ categoryCounts, taskTypes }) => {
-  const maxCount = Math.max(...Object.values(categoryCounts).filter(v => typeof v === 'number' && v !== categoryCounts.all), 1);
-
   return (
     <div
-      className="rounded-xl border p-4"
+      className="rounded-xl border p-3"
       style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
     >
-      <div className="flex items-center gap-2 mb-4">
-        <BarChart3 className="h-5 w-5 text-[color:var(--bb-color-text-muted)]" />
-        <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Today's Summary</h3>
+      <div className="flex items-center gap-2 mb-2">
+        <BarChart3 className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+        <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Today's Summary</h3>
       </div>
 
-      <div className="space-y-3">
+      <div className="flex flex-wrap gap-1.5">
         {Object.entries(taskTypes).map(([key, config]) => {
           const count = categoryCounts[key] || 0;
-          const percentage = maxCount > 0 ? (count / maxCount) * 100 : 0;
           const Icon = config.icon;
 
           return (
-            <div key={key} className="flex items-center gap-3">
-              <div className={cn('h-8 w-8 rounded-lg flex items-center justify-center shrink-0', config.bg)}>
-                <Icon className={cn('h-4 w-4', config.color)} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm text-[color:var(--bb-color-text-primary)]">{config.label}</span>
-                  <span className="text-sm font-bold text-[color:var(--bb-color-text-primary)]">{count}</span>
-                </div>
-                <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
-                  <div
-                    className={cn('h-full rounded-full transition-all', config.bg.replace('100', '500').replace('/30', ''))}
-                    style={{ width: `${percentage}%`, backgroundColor: config.color.replace('text-', '').replace('-500', '') }}
-                  />
-                </div>
-              </div>
+            <div
+              key={key}
+              className={cn('flex items-center gap-1.5 px-2 py-1 rounded-lg', config.bg)}
+              title={config.label}
+            >
+              <Icon className={cn('h-3.5 w-3.5', config.color)} />
+              <span className="text-xs font-medium text-[color:var(--bb-color-text-primary)]">{count}</span>
             </div>
           );
         })}
@@ -374,7 +362,7 @@ const TodaysSummary = ({ categoryCounts, taskTypes }) => {
   );
 };
 
-// Staff Workload Sidebar Card
+// Staff Workload Sidebar Card - Compact with names
 const StaffWorkload = ({ staff, tasks, onStaffClick, activeStaffFilter }) => {
   const staffList = Array.isArray(staff) ? staff : (staff?.data || []);
 
@@ -384,25 +372,33 @@ const StaffWorkload = ({ staff, tasks, onStaffClick, activeStaffFilter }) => {
       const id = s.id || s.recordId;
       counts[id] = tasks.filter(t => t.assignedTo === id && !t.completedAt).length;
     });
+    // Count unassigned tasks
+    counts['unassigned'] = tasks.filter(t => !t.assignedTo && !t.completedAt).length;
     return counts;
   }, [staffList, tasks]);
 
   const maxTasks = Math.max(...Object.values(staffTaskCounts), 1);
 
-  if (staffList.length === 0) return null;
+  // Format name as "Sarah M." or just first name if no last name
+  const formatName = (s) => {
+    if (!s) return 'Unassigned';
+    const first = s.firstName || '';
+    const lastInitial = s.lastName ? ` ${s.lastName.charAt(0)}.` : '';
+    return `${first}${lastInitial}`;
+  };
 
   return (
     <div
-      className="rounded-xl border p-4"
+      className="rounded-xl border p-3"
       style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
     >
-      <div className="flex items-center gap-2 mb-4">
-        <Users className="h-5 w-5 text-[color:var(--bb-color-text-muted)]" />
-        <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Staff Workload</h3>
+      <div className="flex items-center gap-2 mb-2">
+        <Users className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+        <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Staff Workload</h3>
       </div>
 
-      <div className="space-y-2">
-        {staffList.slice(0, 6).map(s => {
+      <div className="space-y-1">
+        {staffList.slice(0, 5).map(s => {
           const id = s.id || s.recordId;
           const count = staffTaskCounts[id] || 0;
           const percentage = maxTasks > 0 ? (count / maxTasks) * 100 : 0;
@@ -414,43 +410,50 @@ const StaffWorkload = ({ staff, tasks, onStaffClick, activeStaffFilter }) => {
               key={id}
               onClick={() => onStaffClick(isActive ? 'all' : id)}
               className={cn(
-                'w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left',
+                'w-full flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors text-left',
                 isActive
                   ? 'bg-[color:var(--bb-color-accent-soft)] ring-1 ring-[color:var(--bb-color-accent)]'
                   : 'hover:bg-[color:var(--bb-color-bg-elevated)]'
               )}
             >
-              <div className="h-8 w-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
-                <User className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+              <span className="text-xs font-medium text-[color:var(--bb-color-text-primary)] w-20 truncate">
+                {formatName(s)}
+              </span>
+              <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+                <div
+                  className={cn('h-full rounded-full transition-all', isOverloaded ? 'bg-amber-500' : 'bg-emerald-500')}
+                  style={{ width: `${percentage}%` }}
+                />
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)] truncate">
-                    {s.firstName} {s.lastName}
-                  </span>
-                  <span className={cn(
-                    'text-sm font-bold',
-                    isOverloaded ? 'text-amber-600' : 'text-[color:var(--bb-color-text-primary)]'
-                  )}>
-                    {count}
-                  </span>
-                </div>
-                <div className="h-1 rounded-full mt-1 overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
-                  <div
-                    className={cn('h-full rounded-full transition-all', isOverloaded ? 'bg-amber-500' : 'bg-emerald-500')}
-                    style={{ width: `${percentage}%` }}
-                  />
-                </div>
-              </div>
+              <span className={cn(
+                'text-xs font-bold w-5 text-right',
+                isOverloaded ? 'text-amber-600' : 'text-[color:var(--bb-color-text-muted)]'
+              )}>
+                {count}
+              </span>
             </button>
           );
         })}
+
+        {/* Unassigned row */}
+        {staffTaskCounts['unassigned'] > 0 && (
+          <div className="flex items-center gap-2 px-2 py-1.5 text-[color:var(--bb-color-text-muted)]">
+            <span className="text-xs w-20 truncate italic">Unassigned</span>
+            <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+              <div
+                className="h-full rounded-full bg-gray-400"
+                style={{ width: `${(staffTaskCounts['unassigned'] / maxTasks) * 100}%` }}
+              />
+            </div>
+            <span className="text-xs font-bold w-5 text-right">{staffTaskCounts['unassigned']}</span>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-// Quick Add Task Sidebar Card
+// Quick Add Task Sidebar Card - Compact form
 const QuickAddTask = ({ taskTypes, priorityConfig, pets, staff, onCreateTask, isCreating }) => {
   const [form, setForm] = useState({
     type: 'FEEDING',
@@ -485,17 +488,17 @@ const QuickAddTask = ({ taskTypes, priorityConfig, pets, staff, onCreateTask, is
 
   return (
     <div
-      className="rounded-xl border p-4"
+      className="rounded-xl border p-3"
       style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
     >
-      <div className="flex items-center gap-2 mb-4">
-        <Zap className="h-5 w-5 text-[color:var(--bb-color-accent)]" />
-        <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Quick Add Task</h3>
+      <div className="flex items-center gap-2 mb-2">
+        <Zap className="h-4 w-4 text-[color:var(--bb-color-accent)]" />
+        <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Quick Add</h3>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-3">
-        {/* Task Type */}
-        <div className="grid grid-cols-5 gap-1">
+      <form onSubmit={handleSubmit} className="space-y-2">
+        {/* Task Type - inline */}
+        <div className="flex gap-1">
           {Object.entries(taskTypes).map(([key, config]) => {
             const Icon = config.icon;
             return (
@@ -504,71 +507,61 @@ const QuickAddTask = ({ taskTypes, priorityConfig, pets, staff, onCreateTask, is
                 type="button"
                 onClick={() => setForm({ ...form, type: key })}
                 className={cn(
-                  'flex flex-col items-center gap-1 p-2 rounded-lg border transition-all',
+                  'flex-1 flex items-center justify-center p-1.5 rounded-lg transition-all',
                   form.type === key
-                    ? 'border-[color:var(--bb-color-accent)] bg-[color:var(--bb-color-accent-soft)]'
-                    : 'border-transparent hover:bg-[color:var(--bb-color-bg-elevated)]'
+                    ? 'bg-[color:var(--bb-color-accent-soft)] ring-1 ring-[color:var(--bb-color-accent)]'
+                    : 'hover:bg-[color:var(--bb-color-bg-elevated)]'
                 )}
                 title={config.label}
               >
-                <Icon className={cn('h-4 w-4', config.color)} />
+                <Icon className={cn('h-3.5 w-3.5', config.color)} />
               </button>
             );
           })}
         </div>
 
-        {/* Pet Selector */}
-        <select
-          value={form.petId}
-          onChange={(e) => setForm({ ...form, petId: e.target.value })}
-          className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
-          style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
-        >
-          <option value="">Select pet...</option>
-          {petList.map(p => (
-            <option key={p.id || p.recordId} value={p.id || p.recordId}>{p.name}</option>
-          ))}
-        </select>
+        {/* Pet + Staff in 2 columns */}
+        <div className="grid grid-cols-2 gap-2">
+          <select
+            value={form.petId}
+            onChange={(e) => setForm({ ...form, petId: e.target.value })}
+            className="w-full px-2 py-1.5 text-xs rounded-lg border focus:outline-none"
+            style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
+          >
+            <option value="">Pet...</option>
+            {petList.map(p => (
+              <option key={p.id || p.recordId} value={p.id || p.recordId}>{p.name}</option>
+            ))}
+          </select>
 
-        {/* Time */}
-        <input
-          type="datetime-local"
-          value={form.scheduledFor}
-          onChange={(e) => setForm({ ...form, scheduledFor: e.target.value })}
-          className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
-          style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
-        />
-
-        {/* Assign To */}
-        {staffList.length > 0 && (
           <select
             value={form.assignedTo}
             onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}
-            className="w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
+            className="w-full px-2 py-1.5 text-xs rounded-lg border focus:outline-none"
             style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
           >
-            <option value="">Assign to...</option>
+            <option value="">Staff...</option>
             {staffList.map(s => (
               <option key={s.id || s.recordId} value={s.id || s.recordId}>
-                {s.firstName} {s.lastName}
+                {s.firstName} {s.lastName?.charAt(0)}.
               </option>
             ))}
           </select>
-        )}
+        </div>
 
-        <Button type="submit" className="w-full" disabled={isCreating || !form.petId}>
-          {isCreating ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Adding...
-            </>
-          ) : (
-            <>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Task
-            </>
-          )}
-        </Button>
+        {/* Time + Button in row */}
+        <div className="flex gap-2">
+          <input
+            type="datetime-local"
+            value={form.scheduledFor}
+            onChange={(e) => setForm({ ...form, scheduledFor: e.target.value })}
+            className="flex-1 px-2 py-1.5 text-xs rounded-lg border focus:outline-none"
+            style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
+          />
+          <Button type="submit" size="sm" disabled={isCreating || !form.petId} className="px-3">
+            {isCreating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+          </Button>
+        </div>
       </form>
     </div>
   );
