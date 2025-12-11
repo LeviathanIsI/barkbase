@@ -159,7 +159,7 @@ export const useUpdateOwnerMutation = (ownerId) => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
   const listKey = queryKeys.owners(tenantKey, {});
-  
+
   return useMutation({
     mutationFn: async (payload) => {
       const res = await apiClient.put(canonicalEndpoints.owners.detail(ownerId), payload);
@@ -185,6 +185,46 @@ export const useUpdateOwnerMutation = (ownerId) => {
       }
     },
     onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: listKey });
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.owners(tenantKey), ownerId] });
+    },
+  });
+};
+
+/**
+ * Update owner status (inline mutation without pre-specifying ownerId)
+ * Takes { ownerId, ...payload } as the mutation argument
+ */
+export const useUpdateOwnerStatusMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+  const listKey = queryKeys.owners(tenantKey, {});
+
+  return useMutation({
+    mutationFn: async ({ ownerId, ...payload }) => {
+      const res = await apiClient.put(canonicalEndpoints.owners.detail(ownerId), payload);
+      return res.data;
+    },
+    onMutate: async ({ ownerId, ...payload }) => {
+      await queryClient.cancelQueries({ queryKey: listKey });
+      const previous = queryClient.getQueryData(listKey);
+      if (previous) {
+        queryClient.setQueryData(listKey, (old = []) =>
+          old.map((owner) =>
+            (owner.recordId === ownerId || owner.id === ownerId)
+              ? { ...owner, ...payload }
+              : owner
+          )
+        );
+      }
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(listKey, context.previous);
+      }
+    },
+    onSettled: (_, __, { ownerId }) => {
       queryClient.invalidateQueries({ queryKey: listKey });
       queryClient.invalidateQueries({ queryKey: [...queryKeys.owners(tenantKey), ownerId] });
     },

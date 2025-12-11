@@ -89,6 +89,14 @@ router.delete('/memberships/:membershipId', routeHandler(deleteMembership));
 
 router.get('/user-permissions', routeHandler(getUserPermissions));
 
+// ========================================
+// IMPORT-EXPORT HANDLERS
+// ========================================
+
+router.get('/import-export/jobs', routeHandler(getImportExportJobs));
+router.post('/import-export/export', routeHandler(handleExport, { includeUser: true }));
+router.post('/import-export/import', routeHandler(handleImport, { includeUser: true }));
+
 module.exports = router;
 
 // ========================================
@@ -686,4 +694,286 @@ async function getUserPermissions(event) {
         READONLY: ['*:read']
     };
     return ok(event, 200, permissions);
+}
+
+// ========================================
+// IMPORT-EXPORT HANDLERS
+// ========================================
+
+async function getImportExportJobs(event, tenantId) {
+    const pool = getPool();
+    try {
+        const tableCheck = await pool.query(
+            `SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'ImportExportJob') as exists`
+        );
+
+        if (!tableCheck.rows[0]?.exists) {
+            return ok(event, 200, { jobs: [] });
+        }
+
+        const result = await pool.query(
+            `SELECT id, type, status, scope, format, filename, record_count as "recordCount",
+                    error_message as "errorMessage", created_at as "createdAt", completed_at as "completedAt"
+             FROM "ImportExportJob"
+             WHERE tenant_id = $1
+             ORDER BY created_at DESC
+             LIMIT 50`,
+            [tenantId]
+        );
+        return ok(event, 200, { jobs: result.rows });
+    } catch (error) {
+        console.error('[import-export] getJobs error:', error);
+        return fail(event, 500, { message: error.message });
+    }
+}
+
+async function handleExport(event, tenantId, user) {
+    // For now, just return a stub - full export logic can be added later
+    return fail(event, 501, { message: 'Export not implemented in local backend. Use production API.' });
+}
+
+async function handleImport(event, tenantId, user) {
+    const pool = getPool();
+
+    let body;
+    try {
+        body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+    } catch (e) {
+        return fail(event, 400, { message: 'Invalid request body' });
+    }
+
+    console.log('[import] Received payload:', JSON.stringify({
+        entityTypes: body.entityTypes,
+        dataLength: body.data?.length,
+        mappings: body.mappings,
+        sampleData: body.data?.slice(0, 2)
+    }));
+
+    const {
+        entityTypes = [],
+        data = [],
+        mappings = {},
+        importModes = {},
+        options = {},
+        filename = 'import',
+    } = body;
+
+    if (!data || data.length === 0) {
+        return fail(event, 400, { message: 'No data provided for import' });
+    }
+
+    if (!entityTypes || entityTypes.length === 0) {
+        return fail(event, 400, { message: 'No entity types specified' });
+    }
+
+    let recordCount = 0;
+    const errors = [];
+
+    try {
+        for (const entityType of entityTypes) {
+            const mode = importModes[entityType] || 'create_update';
+
+            switch (entityType) {
+                case 'owners': {
+                    const result = await importOwners(pool, tenantId, data, mode);
+                    recordCount += result.count;
+                    errors.push(...result.errors);
+                    break;
+                }
+                case 'pets': {
+                    const result = await importPets(pool, tenantId, data, mode);
+                    recordCount += result.count;
+                    errors.push(...result.errors);
+                    break;
+                }
+                default:
+                    errors.push(`Import for ${entityType} not yet implemented`);
+            }
+        }
+
+        return ok(event, 200, {
+            success: errors.length === 0,
+            recordCount,
+            errors: errors.length > 0 ? errors : undefined,
+            message: errors.length > 0
+                ? `Import completed with ${errors.length} error(s). ${recordCount} record(s) imported.`
+                : `Successfully imported ${recordCount} record(s)`,
+        });
+    } catch (error) {
+        console.error('[import] Import failed:', error.message, error.stack);
+        return fail(event, 500, {
+            message: 'Import failed: ' + error.message,
+            debugStack: error.stack
+        });
+    }
+}
+
+async function importOwners(pool, tenantId, owners, mode) {
+    const errors = [];
+    let count = 0;
+
+    for (const owner of owners) {
+        try {
+            if (!owner.email) {
+                errors.push(`Owner skipped: missing required field 'email'`);
+                continue;
+            }
+
+            // Check if owner exists by email
+            const existing = await pool.query(
+                `SELECT "recordId" FROM "Owner" WHERE "tenantId" = $1 AND "email" = $2`,
+                [tenantId, owner.email]
+            );
+
+            if (existing.rows.length > 0) {
+                if (mode === 'create_only') continue;
+
+                // Update existing - use correct column names for local DB
+                await pool.query(
+                    `UPDATE "Owner" SET
+                        "firstName" = COALESCE($3, "firstName"),
+                        "lastName" = COALESCE($4, "lastName"),
+                        "phone" = COALESCE($5, "phone"),
+                        "addressStreet" = COALESCE($6, "addressStreet"),
+                        "addressCity" = COALESCE($7, "addressCity"),
+                        "addressState" = COALESCE($8, "addressState"),
+                        "addressZip" = COALESCE($9, "addressZip"),
+                        "updatedAt" = NOW()
+                    WHERE "recordId" = $1 AND "tenantId" = $2`,
+                    [
+                        existing.rows[0].recordId,
+                        tenantId,
+                        owner.first_name || null,
+                        owner.last_name || null,
+                        owner.phone || null,
+                        owner.address_street || null,
+                        owner.address_city || null,
+                        owner.address_state || null,
+                        owner.address_zip || null
+                    ]
+                );
+                count++;
+            } else {
+                if (mode === 'update_only') continue;
+
+                // Insert new
+                await pool.query(
+                    `INSERT INTO "Owner" ("tenantId", "firstName", "lastName", "email", "phone",
+                                          "addressStreet", "addressCity", "addressState", "addressZip", "isActive")
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true)`,
+                    [
+                        tenantId,
+                        owner.first_name || null,
+                        owner.last_name || null,
+                        owner.email,
+                        owner.phone || null,
+                        owner.address_street || null,
+                        owner.address_city || null,
+                        owner.address_state || null,
+                        owner.address_zip || null
+                    ]
+                );
+                count++;
+            }
+        } catch (e) {
+            console.error('[import] Owner error:', e.message, 'Data:', JSON.stringify(owner));
+            errors.push(`Owner "${owner.email || 'unknown'}": ${e.message}`);
+        }
+    }
+
+    return { count, errors };
+}
+
+async function importPets(pool, tenantId, pets, mode) {
+    const errors = [];
+    let count = 0;
+
+    // First resolve owner emails to IDs
+    const ownerEmails = [...new Set(pets.filter(p => p.owner_email).map(p => p.owner_email))];
+    const emailToId = {};
+
+    if (ownerEmails.length > 0) {
+        const placeholders = ownerEmails.map((_, i) => `$${i + 2}`).join(', ');
+        const result = await pool.query(
+            `SELECT "recordId", "email" FROM "Owner" WHERE "tenantId" = $1 AND "email" IN (${placeholders})`,
+            [tenantId, ...ownerEmails]
+        );
+        result.rows.forEach(row => {
+            emailToId[row.email.toLowerCase()] = row.recordId;
+        });
+    }
+
+    for (const pet of pets) {
+        try {
+            if (!pet.name) {
+                errors.push(`Pet skipped: missing required field 'name'`);
+                continue;
+            }
+
+            const ownerId = pet.owner_id || (pet.owner_email ? emailToId[pet.owner_email.toLowerCase()] : null);
+
+            if (!ownerId) {
+                errors.push(`Pet "${pet.name}" skipped: could not resolve owner`);
+                continue;
+            }
+
+            // Check if pet exists
+            const existing = await pool.query(
+                `SELECT "recordId" FROM "Pet" WHERE "tenantId" = $1 AND "name" = $2 AND "ownerId" = $3`,
+                [tenantId, pet.name, ownerId]
+            );
+
+            if (existing.rows.length > 0) {
+                if (mode === 'create_only') continue;
+
+                await pool.query(
+                    `UPDATE "Pet" SET
+                        "species" = COALESCE($3, "species"),
+                        "breed" = COALESCE($4, "breed"),
+                        "weight" = COALESCE($5, "weight"),
+                        "dateOfBirth" = COALESCE($6, "dateOfBirth"),
+                        "gender" = COALESCE($7, "gender"),
+                        "color" = COALESCE($8, "color"),
+                        "updatedAt" = NOW()
+                    WHERE "recordId" = $1 AND "tenantId" = $2`,
+                    [
+                        existing.rows[0].recordId,
+                        tenantId,
+                        pet.species || null,
+                        pet.breed || null,
+                        pet.weight || null,
+                        pet.date_of_birth || null,
+                        pet.gender || null,
+                        pet.color || null
+                    ]
+                );
+                count++;
+            } else {
+                if (mode === 'update_only') continue;
+
+                await pool.query(
+                    `INSERT INTO "Pet" ("tenantId", "ownerId", "name", "species", "breed", "weight",
+                                        "dateOfBirth", "gender", "color", "isActive")
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true)`,
+                    [
+                        tenantId,
+                        ownerId,
+                        pet.name,
+                        pet.species || null,
+                        pet.breed || null,
+                        pet.weight || null,
+                        pet.date_of_birth || null,
+                        pet.gender || null,
+                        pet.color || null
+                    ]
+                );
+                count++;
+            }
+        } catch (e) {
+            console.error('[import] Pet error:', e.message, 'Data:', JSON.stringify(pet));
+            errors.push(`Pet "${pet.name || 'unknown'}": ${e.message}`);
+        }
+    }
+
+    return { count, errors };
 }

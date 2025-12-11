@@ -1,146 +1,293 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Outlet, useLocation, useNavigate, NavLink } from "react-router-dom";
 import {
-  User, Building, Database, Bell, CreditCard, Users, Shield, Tag, Plug,
-  ChevronRight, ChevronDown, ArrowLeft, Menu, X, Calendar, Mail, FileText,
-  Settings, Palette, Globe, ToggleLeft, ClipboardList
+  User,
+  Building,
+  Building2,
+  Database,
+  Bell,
+  BellRing,
+  CreditCard,
+  Users,
+  Shield,
+  ShieldCheck,
+  Tag,
+  ChevronRight,
+  ChevronDown,
+  ArrowLeft,
+  Menu,
+  X,
+  Calendar,
+  Mail,
+  MessageSquare,
+  FileText,
+  Palette,
+  Globe,
+  ClipboardList,
+  ListTree,
+  ArrowLeftRight,
+  Landmark,
+  Package,
+  ScrollText,
+  History,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
-import Badge from "@/components/ui/Badge";
 
 const NAV_SECTIONS = [
   {
     id: "personal",
     title: "Your Preferences",
     items: [
-      { id: 'profile', label: 'Profile', icon: User, path: '/settings/profile', description: 'Manage your personal account' },
-      { id: 'notifications', label: 'Notifications', icon: Bell, path: '/settings/notifications', description: 'Email and alert preferences' },
-      { id: 'security', label: 'Security', icon: Shield, path: '/settings/security', description: 'Password and login settings' },
+      { id: "profile", label: "Profile", icon: User, path: "/settings/profile", description: "Manage your personal account" },
+      { id: "notifications", label: "Notifications", icon: Bell, path: "/settings/notifications", description: "Email and alert preferences" },
+      { id: "security", label: "Security", icon: Shield, path: "/settings/security", description: "Password and login settings" },
     ],
   },
   {
     id: "account",
     title: "Account Management",
     items: [
-      { id: 'account', label: 'Account Defaults', icon: Settings, path: '/settings/account', description: 'Business info and operating hours' },
-      { id: 'team', label: 'Users & Teams', icon: Users, path: '/settings/team', description: 'Manage staff and permissions' },
-      { id: 'integrations', label: 'Integrations', icon: Plug, path: '/settings/integrations', description: 'Third-party connections' },
-      { id: 'branding', label: 'Branding', icon: Palette, path: '/settings/branding', description: 'Logo and brand colors' },
-      { id: 'domain', label: 'Domain & SSL', icon: Globe, path: '/settings/domain', description: 'Custom domain settings' },
-      { id: 'features', label: 'Feature Toggles', icon: ToggleLeft, path: '/settings/feature-toggles', description: 'Enable or disable features' },
-    ],
-  },
-  {
-    id: "facility",
-    title: "Facility & Services",
-    items: [
-      { id: 'facility', label: 'Facility Setup', icon: Building, path: '/settings/facility', description: 'Locations and accommodations' },
-      { id: 'services', label: 'Services & Pricing', icon: Tag, path: '/settings/services', description: 'Service offerings and rates' },
-      { id: 'online-booking', label: 'Online Booking', icon: Calendar, path: '/settings/online-booking', description: 'Customer booking portal' },
-    ],
-  },
-  {
-    id: "scheduling",
-    title: "Scheduling",
-    items: [
-      { id: 'calendar', label: 'Calendar Settings', icon: Calendar, path: '/settings/calendar-settings', description: 'Calendar display options' },
-      { id: 'booking-rules', label: 'Booking Rules', icon: ClipboardList, path: '/settings/booking-config', description: 'Booking policies and limits' },
-    ],
-  },
-  {
-    id: "billing",
-    title: "Billing & Payments",
-    items: [
-      { id: 'subscription', label: 'Subscription', icon: CreditCard, path: '/settings/billing', description: 'Your plan and usage' },
-      { id: 'payment-processing', label: 'Payment Processing', icon: CreditCard, path: '/settings/payment-processing', description: 'Payment gateway settings' },
-      { id: 'invoicing', label: 'Invoicing', icon: FileText, path: '/settings/invoicing', description: 'Invoice templates and settings' },
-      { id: 'products', label: 'Packages & Add-Ons', icon: Tag, path: '/settings/products-services', description: 'Prepaid packages and extra services' },
-    ],
-  },
-  {
-    id: "communication",
-    title: "Communication",
-    items: [
-      { id: 'email', label: 'Email Templates', icon: Mail, path: '/settings/email', description: 'Customize email content' },
-      { id: 'sms', label: 'SMS Settings', icon: Bell, path: '/settings/sms', description: 'Text message configuration' },
-      { id: 'triggers', label: 'Notification Triggers', icon: Bell, path: '/settings/communication-notifications', description: 'Automated alerts' },
+      { id: "account", label: "Business Info", icon: Building2, path: "/settings/account", description: "Business info and operating hours" },
+      { id: "team", label: "Users & Teams", icon: Users, path: "/settings/team", description: "Manage staff and permissions" },
+      { id: "branding", label: "Branding", icon: Palette, path: "/settings/branding", description: "Logo and brand colors" },
     ],
   },
   {
     id: "data",
     title: "Data Management",
     items: [
-      { id: 'properties', label: 'Properties', icon: Database, path: '/settings/properties', description: 'Custom fields and attributes' },
-      { id: 'forms', label: 'Forms', icon: FileText, path: '/settings/forms', description: 'Intake and custom forms' },
-      { id: 'documents', label: 'Documents', icon: FileText, path: '/settings/documents', description: 'Received customer files' },
-      { id: 'files', label: 'Files', icon: FileText, path: '/settings/files', description: 'Templates to send' },
-      { id: 'import-export', label: 'Import & Export', icon: Database, path: '/settings/import-export', description: 'Data migration tools' },
+      {
+        id: "objects",
+        label: "Objects",
+        icon: Database,
+        expandable: true,
+        description: "Configure data objects",
+        children: [
+          { id: "objects-owners", label: "Owners", path: "/settings/objects/owners" },
+          { id: "objects-pets", label: "Pets", path: "/settings/objects/pets" },
+          { id: "objects-bookings", label: "Bookings", path: "/settings/objects/bookings" },
+          { id: "objects-services", label: "Services", path: "/settings/objects/services" },
+          { id: "objects-facilities", label: "Facilities", path: "/settings/objects/facilities" },
+          { id: "objects-packages", label: "Packages", path: "/settings/objects/packages" },
+          { id: "objects-invoices", label: "Invoices", path: "/settings/objects/invoices" },
+          { id: "objects-payments", label: "Payments", path: "/settings/objects/payments" },
+          { id: "objects-tickets", label: "Tickets", path: "/settings/objects/tickets" },
+        ],
+      },
+      { id: "properties", label: "Properties", icon: ListTree, path: "/settings/properties", description: "Custom fields and attributes" },
+      { id: "import-export", label: "Import & Export", icon: ArrowLeftRight, path: "/settings/import-export", description: "Data migration tools" },
+    ],
+  },
+  {
+    id: "operations",
+    title: "Kennel Operations",
+    items: [
+      { id: "facility", label: "Facility Setup", icon: Building, path: "/settings/facility", description: "Locations and accommodations" },
+      { id: "services", label: "Services & Pricing", icon: Tag, path: "/settings/services", description: "Service offerings and rates" },
+      { id: "booking-rules", label: "Booking Rules", icon: ClipboardList, path: "/settings/booking-config", description: "Booking policies and limits" },
+      { id: "online-booking", label: "Online Booking", icon: Globe, path: "/settings/online-booking", description: "Customer booking portal" },
+      { id: "calendar", label: "Calendar Settings", icon: Calendar, path: "/settings/calendar-settings", description: "Calendar display options" },
+    ],
+  },
+  {
+    id: "billing",
+    title: "Billing & Payments",
+    items: [
+      { id: "subscription", label: "Subscription", icon: CreditCard, path: "/settings/billing", description: "Your plan and usage" },
+      { id: "payment-processing", label: "Payment Processing", icon: Landmark, path: "/settings/payment-processing", description: "Payment gateway settings" },
+      { id: "invoicing", label: "Invoicing", icon: FileText, path: "/settings/invoicing", description: "Invoice templates and settings" },
+      { id: "products", label: "Packages & Add-Ons", icon: Package, path: "/settings/products-services", description: "Prepaid packages and extra services" },
+    ],
+  },
+  {
+    id: "communication",
+    title: "Communication",
+    items: [
+      { id: "email", label: "Email Templates", icon: Mail, path: "/settings/email", description: "Customize email content" },
+      { id: "sms", label: "SMS Settings", icon: MessageSquare, path: "/settings/sms", description: "Text message configuration" },
+      { id: "triggers", label: "Notification Triggers", icon: BellRing, path: "/settings/communication-notifications", description: "Automated alerts" },
     ],
   },
   {
     id: "compliance",
-    title: "Compliance",
+    title: "Compliance & Legal",
     items: [
-      { id: 'audit', label: 'Audit Log', icon: FileText, path: '/settings/audit-log', description: 'Activity history' },
-      { id: 'privacy', label: 'Privacy Settings', icon: Shield, path: '/settings/privacy', description: 'Data privacy controls' },
-      { id: 'terms', label: 'Terms & Policies', icon: FileText, path: '/settings/terms-policies', description: 'Legal documents' },
+      { id: "privacy", label: "Privacy Settings", icon: ShieldCheck, path: "/settings/privacy", description: "Data privacy controls" },
+      { id: "terms", label: "Terms & Policies", icon: ScrollText, path: "/settings/terms-policies", description: "Legal documents" },
+      { id: "audit", label: "Audit Log", icon: History, path: "/settings/audit-log", description: "Activity history" },
     ],
   },
 ];
 
-// Flatten for easy lookup
-const ALL_ITEMS = NAV_SECTIONS.flatMap(section => section.items);
+// Flatten all items including children for easy lookup
+const getAllItems = () => {
+  const items = [];
+  NAV_SECTIONS.forEach((section) => {
+    section.items.forEach((item) => {
+      if (item.expandable && item.children) {
+        items.push(item);
+        item.children.forEach((child) => items.push(child));
+      } else {
+        items.push(item);
+      }
+    });
+  });
+  return items;
+};
+
+const ALL_ITEMS = getAllItems();
+
+// Helper to find which section contains a path
+const findSectionForPath = (pathname) => {
+  for (const section of NAV_SECTIONS) {
+    const hasMatch = section.items.some((item) => {
+      if (item.path === pathname) return true;
+      if (item.path && pathname.startsWith(item.path + "/")) return true;
+      if (item.children) {
+        return item.children.some(
+          (child) => child.path === pathname || pathname.startsWith(child.path)
+        );
+      }
+      return false;
+    });
+    if (hasMatch) return section.id;
+  }
+  return null;
+};
 
 export default function SettingsLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [collapsedSections, setCollapsedSections] = useState({});
+
+  // Start with all sections collapsed
+  const [collapsedSections, setCollapsedSections] = useState(() => {
+    const initial = {};
+    NAV_SECTIONS.forEach((section) => {
+      initial[section.id] = true; // collapsed by default
+    });
+    return initial;
+  });
+
+  const [expandedItems, setExpandedItems] = useState([]); // Objects NOT expanded by default
 
   const toggleSection = (sectionId) => {
-    setCollapsedSections(prev => ({
+    setCollapsedSections((prev) => ({
       ...prev,
-      [sectionId]: !prev[sectionId]
+      [sectionId]: !prev[sectionId],
     }));
+  };
+
+  const toggleExpandItem = (label) => {
+    setExpandedItems((prev) =>
+      prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label]
+    );
   };
 
   const getActiveItem = () => {
     const currentPath = location.pathname;
 
-    // Handle special cases - redirect paths
-    if (currentPath === '/settings/members') {
-      return ALL_ITEMS.find(item => item.id === 'team');
+    // Handle special cases - hidden routes that map to visible nav items
+    if (currentPath === "/settings/members") {
+      return ALL_ITEMS.find((item) => item.id === "team");
     }
-    if (currentPath === '/settings/business') {
-      return ALL_ITEMS.find(item => item.id === 'account');
+    if (currentPath === "/settings/business") {
+      return ALL_ITEMS.find((item) => item.id === "account");
+    }
+    if (currentPath === "/settings/account-security") {
+      return ALL_ITEMS.find((item) => item.id === "security");
+    }
+    if (currentPath === "/settings/custom-fields") {
+      return ALL_ITEMS.find((item) => item.id === "properties");
+    }
+    if (currentPath === "/settings/exports") {
+      return ALL_ITEMS.find((item) => item.id === "import-export");
     }
 
     // Handle sub-routes
-    if (currentPath.startsWith('/settings/facility')) {
-      return ALL_ITEMS.find(item => item.id === 'facility');
+    if (currentPath.startsWith("/settings/facility")) {
+      return ALL_ITEMS.find((item) => item.id === "facility");
     }
-    if (currentPath.startsWith('/settings/team')) {
-      return ALL_ITEMS.find(item => item.id === 'team');
+    if (currentPath.startsWith("/settings/team")) {
+      return ALL_ITEMS.find((item) => item.id === "team");
     }
-    if (currentPath.startsWith('/settings/objects')) {
-      return ALL_ITEMS.find(item => item.id === 'properties');
+    if (currentPath.startsWith("/settings/imports")) {
+      return ALL_ITEMS.find((item) => item.id === "import-export");
+    }
+    if (currentPath.startsWith("/settings/properties")) {
+      return ALL_ITEMS.find((item) => item.id === "properties");
+    }
+
+    // Handle objects sub-routes
+    if (currentPath.startsWith("/settings/objects/owners")) {
+      return ALL_ITEMS.find((item) => item.id === "objects-owners");
+    }
+    if (currentPath.startsWith("/settings/objects/pets")) {
+      return ALL_ITEMS.find((item) => item.id === "objects-pets");
+    }
+    if (currentPath.startsWith("/settings/objects/bookings")) {
+      return ALL_ITEMS.find((item) => item.id === "objects-bookings");
+    }
+    if (currentPath.startsWith("/settings/objects/services")) {
+      return ALL_ITEMS.find((item) => item.id === "objects-services");
+    }
+    if (currentPath.startsWith("/settings/objects/facilities")) {
+      return ALL_ITEMS.find((item) => item.id === "objects-facilities");
+    }
+    if (currentPath.startsWith("/settings/objects/packages")) {
+      return ALL_ITEMS.find((item) => item.id === "objects-packages");
+    }
+    if (currentPath.startsWith("/settings/objects/invoices")) {
+      return ALL_ITEMS.find((item) => item.id === "objects-invoices");
+    }
+    if (currentPath.startsWith("/settings/objects/payments")) {
+      return ALL_ITEMS.find((item) => item.id === "objects-payments");
+    }
+    if (currentPath.startsWith("/settings/objects/tickets")) {
+      return ALL_ITEMS.find((item) => item.id === "objects-tickets");
     }
 
     // Find exact or prefix match
-    const activeItem = ALL_ITEMS.find(item => currentPath === item.path || currentPath.startsWith(item.path + '/'));
-    return activeItem || ALL_ITEMS[0];
+    const activeItem = ALL_ITEMS.find(
+      (item) => item.path && (currentPath === item.path || currentPath.startsWith(item.path + "/"))
+    );
+    return activeItem || ALL_ITEMS.find((item) => item.id === "profile");
   };
 
   const activeItem = getActiveItem();
 
-  // Sidebar content - rendered inline to preserve scroll position across navigations
+  // Check if any object child is active
+  const isObjectChildActive = activeItem?.id?.startsWith("objects-");
+
+  // Auto-expand section containing active item on mount and route change
+  useEffect(() => {
+    const currentPath = location.pathname;
+    const activeSectionId = findSectionForPath(currentPath);
+
+    if (activeSectionId) {
+      // Expand the section containing the active item
+      setCollapsedSections((prev) => ({
+        ...prev,
+        [activeSectionId]: false,
+      }));
+
+      // If active item is an object child, expand Objects
+      if (currentPath.startsWith("/settings/objects/")) {
+        setExpandedItems((prev) =>
+          prev.includes("Objects") ? prev : [...prev, "Objects"]
+        );
+      }
+    }
+  }, [location.pathname]);
+
+  // Sidebar content
   const sidebarContent = (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-4 border-b border-border/60">
         <button
           type="button"
-          onClick={() => navigate('/')}
+          onClick={() => navigate("/")}
           className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-primary/40 hover:text-primary"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
@@ -168,20 +315,101 @@ export default function SettingsLayout() {
                 <button
                   type="button"
                   onClick={() => toggleSection(section.id)}
-                  className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 hover:text-muted-foreground transition-colors"
+                  className={cn(
+                    "w-full flex items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors",
+                    isCollapsed
+                      ? "text-gray-600 hover:text-gray-500"
+                      : "text-gray-500 hover:text-gray-400"
+                  )}
                 >
                   <span>{section.title}</span>
-                  <ChevronDown className={cn(
-                    "h-3 w-3 transition-transform",
-                    isCollapsed && "-rotate-90"
-                  )} />
+                  <ChevronDown
+                    className={cn(
+                      "h-3.5 w-3.5 transition-transform",
+                      isCollapsed && "-rotate-90"
+                    )}
+                  />
                 </button>
 
-                {/* Section Items */}
+                {/* Section Items - only show when not collapsed */}
                 {!isCollapsed && (
                   <div className="space-y-0.5 mb-3">
                     {section.items.map((item) => {
                       const Icon = item.icon;
+
+                      // Expandable item (Objects)
+                      if (item.expandable) {
+                        const isExpanded = expandedItems.includes(item.label) || isObjectChildActive;
+
+                        return (
+                          <div key={item.id}>
+                            {/* Expandable parent row */}
+                            <button
+                              type="button"
+                              onClick={() => toggleExpandItem(item.label)}
+                              className={cn(
+                                "group w-full flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                                isObjectChildActive
+                                  ? "text-primary-500"
+                                  : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                              )}
+                            >
+                              <span className="flex items-center gap-2.5">
+                                <Icon
+                                  className={cn(
+                                    "h-[18px] w-[18px] flex-shrink-0",
+                                    isObjectChildActive
+                                      ? "text-primary-500"
+                                      : "text-white/70 group-hover:text-white"
+                                  )}
+                                />
+                                <span>{item.label}</span>
+                              </span>
+                              <ChevronDown
+                                className={cn(
+                                  "h-4 w-4 transition-transform",
+                                  isExpanded ? "rotate-180" : ""
+                                )}
+                              />
+                            </button>
+
+                            {/* Expandable children */}
+                            {isExpanded && item.children && (
+                              <div className="ml-4 mt-0.5 space-y-0.5">
+                                {item.children.map((child) => {
+                                  const isChildActive = activeItem?.id === child.id;
+
+                                  return (
+                                    <NavLink
+                                      key={child.id}
+                                      to={child.path}
+                                      onClick={() => setMobileMenuOpen(false)}
+                                      className={cn(
+                                        "group flex items-center justify-between rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors",
+                                        isChildActive
+                                          ? "bg-primary-500/10 text-primary-500 border-l-2 border-primary-500"
+                                          : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                                      )}
+                                    >
+                                      <span>{child.label}</span>
+                                      <ChevronRight
+                                        className={cn(
+                                          "h-3 w-3 transition-opacity",
+                                          isChildActive
+                                            ? "opacity-100 text-primary-500"
+                                            : "opacity-0 group-hover:opacity-60"
+                                        )}
+                                      />
+                                    </NavLink>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+
+                      // Regular nav item
                       const isActive = activeItem?.id === item.id;
 
                       return (
@@ -192,21 +420,29 @@ export default function SettingsLayout() {
                           className={cn(
                             "group flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors",
                             isActive
-                              ? "text-primary-500 bg-transparent"
-                              : "text-white hover:text-primary-400"
+                              ? "bg-primary-500/10 text-primary-500 border-l-2 border-primary-500"
+                              : "text-gray-300 hover:bg-gray-800 hover:text-white"
                           )}
                         >
                           <span className="flex items-center gap-2.5">
-                            <Icon className={cn(
-                              "h-4 w-4 flex-shrink-0",
-                              isActive ? "text-primary-500" : "text-white/70 group-hover:text-primary-400"
-                            )} />
+                            <Icon
+                              className={cn(
+                                "h-[18px] w-[18px] flex-shrink-0",
+                                isActive
+                                  ? "text-primary-500"
+                                  : "text-white/70 group-hover:text-white"
+                              )}
+                            />
                             <span>{item.label}</span>
                           </span>
-                          <ChevronRight className={cn(
-                            "h-3.5 w-3.5 transition-opacity",
-                            isActive ? "opacity-100 text-primary-500" : "opacity-0 group-hover:opacity-60"
-                          )} />
+                          <ChevronRight
+                            className={cn(
+                              "h-3.5 w-3.5 transition-opacity",
+                              isActive
+                                ? "opacity-100 text-primary-500"
+                                : "opacity-0 group-hover:opacity-60"
+                            )}
+                          />
                         </NavLink>
                       );
                     })}
@@ -222,7 +458,7 @@ export default function SettingsLayout() {
 
   return (
     <div className="flex w-full h-[calc(100vh-4rem)] bg-background rounded-lg border border-border overflow-hidden">
-      {/* Desktop Sidebar - scrolls independently */}
+      {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 flex-shrink-0 flex-col border-r border-border bg-card h-full overflow-hidden">
         {sidebarContent}
       </aside>
@@ -232,7 +468,7 @@ export default function SettingsLayout() {
         <div className="flex items-center justify-between">
           <button
             type="button"
-            onClick={() => navigate('/')}
+            onClick={() => navigate("/")}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -247,7 +483,7 @@ export default function SettingsLayout() {
             {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
-        
+
         {/* Current section indicator */}
         <button
           type="button"
@@ -255,33 +491,37 @@ export default function SettingsLayout() {
           className="mt-2 w-full flex items-center justify-between rounded-md bg-primary-600 px-3 py-2 text-sm"
         >
           <span className="flex items-center gap-2 text-white">
-            {activeItem && <activeItem.icon className="h-4 w-4 text-white" />}
+            {activeItem?.icon && <activeItem.icon className="h-4 w-4 text-white" />}
             <span className="font-medium">{activeItem?.label}</span>
           </span>
-          <ChevronDown className={cn(
-            "h-4 w-4 text-white/70 transition-transform",
-            mobileMenuOpen && "rotate-180"
-          )} />
+          <ChevronDown
+            className={cn(
+              "h-4 w-4 text-white/70 transition-transform",
+              mobileMenuOpen && "rotate-180"
+            )}
+          />
         </button>
       </div>
 
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
-        <div 
+        <div
           className="md:hidden fixed inset-0 z-30 bg-black/50"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
       {/* Mobile Sidebar */}
-      <aside className={cn(
-        "md:hidden fixed top-0 left-0 bottom-0 z-40 w-72 bg-card border-r border-border transform transition-transform duration-200",
-        mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
+      <aside
+        className={cn(
+          "md:hidden fixed top-0 left-0 bottom-0 z-40 w-72 bg-card border-r border-border transform transition-transform duration-200",
+          mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
         {sidebarContent}
       </aside>
 
-      {/* Main Content Area - scrolls independently */}
+      {/* Main Content Area */}
       <div className="flex-1 h-full overflow-y-auto md:pt-0 pt-24">
         <div className="w-full p-6 md:p-8">
           {/* Page Title */}
@@ -290,9 +530,11 @@ export default function SettingsLayout() {
               <h1 className="text-2xl font-semibold text-foreground">
                 {activeItem.label}
               </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {activeItem.description}
-              </p>
+              {activeItem.description && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {activeItem.description}
+                </p>
+              )}
             </div>
           )}
 

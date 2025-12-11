@@ -7,7 +7,7 @@ import {
   SlidersHorizontal, BookmarkPlus, ArrowUpDown, ArrowUp, ArrowDown,
   GripVertical, Syringe, ShieldAlert, Calendar, Star, Dog, Cat,
   AlertCircle, CheckCircle2, Clock, User, Loader2, ShieldCheck, ShieldOff,
-  Crown, Ban, ExternalLink,
+  Crown, Ban, ExternalLink, Mail, Phone,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import EntityToolbar from '@/components/EntityToolbar';
@@ -23,8 +23,9 @@ import { usePetsQuery, useCreatePetMutation, useDeletePetMutation, useUpdatePetS
 import apiClient from '@/lib/apiClient';
 import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import { useExpiringVaccinationsQuery } from '../api-vaccinations';
-import { useOwnersQuery } from '@/features/owners/api';
+import { useOwnersQuery, useOwnerQuery } from '@/features/owners/api';
 import { PetFormModal } from '../components';
+import SlideOutDrawer from '@/components/ui/SlideOutDrawer';
 import { cn } from '@/lib/cn';
 import { getBirthdateFromAge, getAgeFromBirthdate, formatAgeFromBirthdate, getBirthdateFromPet, getFormattedAgeFromPet } from '../utils/pet-date-utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -124,6 +125,7 @@ const PAGE_SIZE_OPTIONS = [25, 50, 100];
 const Pets = () => {
   const navigate = useNavigate();
   const [petFormModalOpen, setPetFormModalOpen] = useState(false);
+  const [selectedOwnerId, setSelectedOwnerId] = useState(null);
 
   // Search, filter, and view state
   const [searchTerm, setSearchTerm] = useState('');
@@ -793,6 +795,7 @@ const Pets = () => {
                         ownersLoading={ownersLoading}
                         expiringVaccinations={expiringVaccsData}
                         navigate={navigate}
+                        onOwnerClick={setSelectedOwnerId}
                       />
                     ))}
                   </tbody>
@@ -870,6 +873,25 @@ const Pets = () => {
         }}
         isLoading={createPetMutation.isPending}
       />
+
+      {/* Owner Preview Slideout - DEFA pattern: stay on /pets */}
+      <SlideOutDrawer
+        isOpen={!!selectedOwnerId}
+        onClose={() => setSelectedOwnerId(null)}
+        title="Owner Details"
+        size="md"
+      >
+        {selectedOwnerId && (
+          <OwnerPreviewContent
+            ownerId={selectedOwnerId}
+            onClose={() => setSelectedOwnerId(null)}
+            onViewFullProfile={() => {
+              setSelectedOwnerId(null);
+              navigate(`/customers/${selectedOwnerId}`);
+            }}
+          />
+        )}
+      </SlideOutDrawer>
     </>
   );
 };
@@ -1246,6 +1268,7 @@ const PetRow = ({
   ownersLoading = false,
   expiringVaccinations = [],
   navigate,
+  onOwnerClick,
 }) => {
   const [showActions, setShowActions] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
@@ -1317,16 +1340,19 @@ const PetRow = ({
               lookupLoading={ownersLoading}
             >
               {pet.ownerId ? (
-                <Link
-                  to={`/customers/${pet.ownerId}`}
-                  className="flex items-center gap-2 hover:text-[color:var(--bb-color-accent)] transition-colors"
-                  onClick={(e) => e.stopPropagation()}
+                <button
+                  type="button"
+                  className="flex items-center gap-2 hover:text-[color:var(--bb-color-accent)] transition-colors text-left"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOwnerClick?.(pet.ownerId);
+                  }}
                 >
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold" style={{ backgroundColor: 'var(--bb-color-bg-elevated)', color: 'var(--bb-color-text-muted)' }}>
                     <User className="h-4 w-4" />
                   </div>
                   <span className="text-[color:var(--bb-color-text-primary)]">{pet.ownerName}</span>
-                </Link>
+                </button>
               ) : (
                 <span className="text-[color:var(--bb-color-text-muted)]">{pet.ownerName || 'No owner'}</span>
               )}
@@ -1656,5 +1682,145 @@ const EmptyState = ({ hasFilters, onClearFilters, onAddPet }) => (
     </div>
   </div>
 );
+
+// Owner Preview Content Component - DEFA slideout for owner details
+const OwnerPreviewContent = ({ ownerId, onClose, onViewFullProfile }) => {
+  const { data: ownerData, isLoading, error } = useOwnerQuery(ownerId);
+  const owner = ownerData?.owner || ownerData;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-[color:var(--bb-color-accent)]" />
+      </div>
+    );
+  }
+
+  if (error || !owner) {
+    return (
+      <div className="text-center py-12">
+        <User className="h-12 w-12 mx-auto mb-3 text-[color:var(--bb-color-text-muted)]" />
+        <p className="text-[color:var(--bb-color-text-muted)]">Unable to load owner details</p>
+      </div>
+    );
+  }
+
+  const ownerName = owner.name || `${owner.firstName || ''} ${owner.lastName || ''}`.trim() || 'Unknown';
+  const pets = owner.pets || [];
+
+  return (
+    <div className="space-y-6">
+      {/* Owner Header */}
+      <div className="flex items-start gap-4">
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white text-xl font-bold">
+          {ownerName.charAt(0).toUpperCase()}
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-lg font-semibold text-[color:var(--bb-color-text-primary)]">{ownerName}</h3>
+          {owner.email && (
+            <p className="text-sm text-[color:var(--bb-color-text-muted)] truncate">{owner.email}</p>
+          )}
+          <Badge variant={owner.status === 'active' ? 'success' : 'neutral'} className="mt-1">
+            {owner.status === 'active' ? 'Active' : 'Inactive'}
+          </Badge>
+        </div>
+      </div>
+
+      {/* Contact Info */}
+      <div className="space-y-3">
+        <h4 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Contact Information</h4>
+        <div className="space-y-2">
+          {owner.email && (
+            <a
+              href={`mailto:${owner.email}`}
+              className="flex items-center gap-3 p-3 rounded-lg border border-[color:var(--bb-color-border-subtle)] bg-[color:var(--bb-color-bg-surface)] hover:border-[color:var(--bb-color-accent)] transition-colors"
+            >
+              <Mail className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+              <span className="text-sm text-[color:var(--bb-color-text-primary)]">{owner.email}</span>
+            </a>
+          )}
+          {owner.phone && (
+            <a
+              href={`tel:${owner.phone}`}
+              className="flex items-center gap-3 p-3 rounded-lg border border-[color:var(--bb-color-border-subtle)] bg-[color:var(--bb-color-bg-surface)] hover:border-[color:var(--bb-color-accent)] transition-colors"
+            >
+              <Phone className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+              <span className="text-sm text-[color:var(--bb-color-text-primary)]">{owner.phone}</span>
+            </a>
+          )}
+          {!owner.email && !owner.phone && (
+            <p className="text-sm text-[color:var(--bb-color-text-muted)] italic">No contact information</p>
+          )}
+        </div>
+      </div>
+
+      {/* Pets List */}
+      {pets.length > 0 && (
+        <div className="space-y-3">
+          <h4 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">
+            Pets ({pets.length})
+          </h4>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {pets.map((pet) => (
+              <div
+                key={pet.id || pet.recordId}
+                className="flex items-center gap-3 p-2 rounded-lg border border-[color:var(--bb-color-border-subtle)] bg-[color:var(--bb-color-bg-surface)]"
+              >
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/50">
+                  {pet.species?.toLowerCase() === 'cat' ? (
+                    <Cat className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  ) : (
+                    <Dog className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-[color:var(--bb-color-text-primary)] truncate">
+                    {pet.name}
+                  </p>
+                  <p className="text-xs text-[color:var(--bb-color-text-muted)]">
+                    {pet.species || 'Dog'} {pet.breed && `• ${pet.breed}`}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="pt-4 border-t border-[color:var(--bb-color-border-subtle)] space-y-2">
+        <Button
+          className="w-full gap-2"
+          onClick={onViewFullProfile}
+        >
+          <ExternalLink className="h-4 w-4" />
+          View Full Profile
+        </Button>
+        <div className="flex gap-2">
+          {owner.email && (
+            <Button
+              variant="outline"
+              className="flex-1 gap-2"
+              onClick={() => window.location.href = `mailto:${owner.email}`}
+            >
+              <Mail className="h-4 w-4" />
+              Email
+            </Button>
+          )}
+          {owner.phone && (
+            <Button
+              variant="outline"
+              className="flex-1 gap-2"
+              onClick={() => window.location.href = `tel:${owner.phone}`}
+            >
+              <Phone className="h-4 w-4" />
+              Call
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default Pets;

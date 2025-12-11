@@ -62,12 +62,13 @@ import Textarea from '@/components/ui/Textarea';
 // Unified loader: replaced inline loading with LoadingState
 import LoadingState from '@/components/ui/LoadingState';
 // Business invoices = tenant billing pet owners (NOT platform billing)
-import { useBusinessInvoicesQuery, useSendInvoiceEmailMutation, useMarkInvoicePaidMutation, useCreateInvoiceMutation } from '../api';
+import { useBusinessInvoicesQuery, useSendInvoiceEmailMutation, useMarkInvoicePaidMutation, useCreateInvoiceMutation, useVoidInvoiceMutation } from '../api';
 import { useOwnersQuery } from '@/features/owners/api';
 import { usePetsQuery } from '@/features/pets/api';
 import { formatCurrency } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
+import PetQuickActionsDrawer from '@/features/owners/components/PetQuickActionsDrawer';
 
 // Status configurations
 const STATUS_CONFIG = {
@@ -78,6 +79,130 @@ const STATUS_CONFIG = {
   paid: { label: 'Paid', variant: 'success', icon: CheckCircle },
   overdue: { label: 'Overdue', variant: 'danger', icon: AlertTriangle },
   void: { label: 'Void', variant: 'neutral', icon: Ban },
+};
+
+// Status actions based on current status
+const getStatusActions = (status) => {
+  switch (status) {
+    case 'draft':
+      return [
+        { action: 'send', label: 'Send to Customer', icon: Send },
+        { action: 'edit', label: 'Edit Invoice', icon: Edit3 },
+        { action: 'void', label: 'Delete Draft', icon: Trash2 },
+      ];
+    case 'sent':
+    case 'viewed':
+    case 'overdue':
+      return [
+        { action: 'markPaid', label: 'Mark as Paid', icon: CheckCircle },
+        { action: 'sendReminder', label: 'Send Reminder', icon: Mail },
+        { action: 'view', label: 'View Invoice', icon: Eye },
+        { action: 'void', label: 'Void Invoice', icon: Ban },
+      ];
+    case 'paid':
+      return [
+        { action: 'sendReceipt', label: 'Send Receipt', icon: Receipt },
+        { action: 'view', label: 'View Invoice', icon: Eye },
+        { action: 'refund', label: 'Process Refund', icon: RefreshCw },
+      ];
+    case 'void':
+      return [
+        { action: 'view', label: 'View Invoice', icon: Eye },
+      ];
+    default:
+      return [{ action: 'view', label: 'View Invoice', icon: Eye }];
+  }
+};
+
+// Clickable Status Badge with Dropdown
+const StatusBadgeDropdown = ({ invoice, effectiveStatus, onAction }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const status = STATUS_CONFIG[effectiveStatus] || STATUS_CONFIG.draft;
+  const StatusIcon = status.icon;
+  const actions = getStatusActions(effectiveStatus);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  const handleAction = (action) => {
+    setIsOpen(false);
+    onAction(action, invoice);
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
+        className="group/badge"
+      >
+        <Badge
+          variant={status.variant}
+          size="sm"
+          className={cn(
+            'gap-1 cursor-pointer transition-all',
+            'hover:ring-2 hover:ring-offset-1 hover:ring-primary/30',
+            isOpen && 'ring-2 ring-offset-1 ring-primary/30'
+          )}
+        >
+          <StatusIcon className="h-3 w-3" />
+          {status.label}
+          <ChevronDown className={cn(
+            'h-3 w-3 ml-0.5 transition-transform',
+            isOpen && 'rotate-180'
+          )} />
+        </Badge>
+      </button>
+
+      {isOpen && (
+        <div
+          className="absolute left-0 top-full mt-1 z-50 w-44 rounded-lg border shadow-lg py-1 animate-in fade-in-0 zoom-in-95 duration-150 bg-white dark:bg-surface-primary"
+          style={{ borderColor: 'var(--bb-color-border-subtle, #e5e7eb)' }}
+        >
+          <div className="px-3 py-1.5 border-b" style={{ borderColor: 'var(--bb-color-border-subtle, #e5e7eb)' }}>
+            <p className="text-xs font-medium text-muted">Quick Actions</p>
+          </div>
+          {actions.map((item) => {
+            const ActionIcon = item.icon;
+            return (
+              <button
+                key={item.action}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAction(item.action);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text hover:bg-surface transition-colors"
+              >
+                <ActionIcon className={cn(
+                  'h-4 w-4',
+                  item.action === 'markPaid' && 'text-green-600',
+                  item.action === 'void' && 'text-red-500',
+                  item.action === 'send' && 'text-blue-500',
+                  item.action === 'sendReminder' && 'text-amber-500'
+                )} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 };
 
 // KPI Tile Component
@@ -109,12 +234,10 @@ const KPITile = ({ icon: Icon, label, value, subtext, variant, onClick }) => (
 );
 
 // Invoice Row Component
-const InvoiceRow = ({ invoice, isSelected, onSelect, onClick }) => {
+const InvoiceRow = ({ invoice, isSelected, onSelect, onClick, onStatusAction }) => {
   // Determine effective status (check for overdue) - status is already normalized to lowercase
   const isOverdue = invoice.status !== 'paid' && invoice.status !== 'void' && invoice.dueDate && isPast(new Date(invoice.dueDate));
   const effectiveStatus = isOverdue ? 'overdue' : invoice.status;
-  const status = STATUS_CONFIG[effectiveStatus] || STATUS_CONFIG.draft;
-  const StatusIcon = status.icon;
 
   // Backend returns 'customer' object, frontend may also use 'owner'
   const ownerData = invoice.customer || invoice.owner;
@@ -208,10 +331,11 @@ const InvoiceRow = ({ invoice, isSelected, onSelect, onClick }) => {
         </span>
       </td>
       <td className="px-3 py-3">
-        <Badge variant={status.variant} size="sm" className="gap-1">
-          <StatusIcon className="h-3 w-3" />
-          {status.label}
-        </Badge>
+        <StatusBadgeDropdown
+          invoice={invoice}
+          effectiveStatus={effectiveStatus}
+          onAction={onStatusAction}
+        />
       </td>
       <td className="px-3 py-3">
         {invoice.dueDate ? (
@@ -1002,6 +1126,78 @@ const Invoices = () => {
     }
   };
 
+  // Add the void mutation
+  const voidMutation = useVoidInvoiceMutation();
+
+  // Handler for status badge dropdown actions
+  const handleStatusAction = async (action, invoice) => {
+    const invoiceId = invoice.id || invoice.recordId;
+    const balanceDue = ((invoice.totalCents || 0) - (invoice.paidCents || 0));
+
+    switch (action) {
+      case 'send':
+      case 'sendReminder':
+        try {
+          await sendEmailMutation.mutateAsync(invoiceId);
+          toast.success(`Invoice ${action === 'sendReminder' ? 'reminder ' : ''}sent to ${invoice.owner?.email || invoice.customer?.email || 'customer'}`);
+          refetch();
+        } catch (error) {
+          toast.error(`Failed to send ${action === 'sendReminder' ? 'reminder' : 'invoice'}`);
+        }
+        break;
+
+      case 'markPaid':
+        try {
+          await markPaidMutation.mutateAsync({ invoiceId, paymentCents: balanceDue });
+          toast.success('Invoice marked as paid');
+          refetch();
+        } catch (error) {
+          toast.error('Failed to mark invoice as paid');
+        }
+        break;
+
+      case 'void':
+        try {
+          await voidMutation.mutateAsync(invoiceId);
+          toast.success('Invoice voided');
+          refetch();
+        } catch (error) {
+          toast.error('Failed to void invoice');
+        }
+        break;
+
+      case 'edit':
+        // Open the invoice drawer for editing
+        setSelectedInvoice(invoice);
+        setShowDrawer(true);
+        break;
+
+      case 'view':
+        setSelectedInvoice(invoice);
+        setShowDrawer(true);
+        break;
+
+      case 'sendReceipt':
+        try {
+          await sendEmailMutation.mutateAsync(invoiceId);
+          toast.success('Receipt sent');
+        } catch (error) {
+          toast.error('Failed to send receipt');
+        }
+        break;
+
+      case 'refund':
+        // For now, just open the invoice drawer - full refund flow would be more complex
+        toast.info('Refund processing - open invoice for details');
+        setSelectedInvoice(invoice);
+        setShowDrawer(true);
+        break;
+
+      default:
+        console.warn('Unknown action:', action);
+    }
+  };
+
   const handleExport = () => {
     const toExport = selectedInvoices.size > 0
       ? invoices.filter(i => selectedInvoices.has(i.id || i.recordId))
@@ -1306,6 +1502,7 @@ const Invoices = () => {
                       isSelected={selectedInvoices.has(invoice.id || invoice.recordId)}
                       onSelect={handleSelectInvoice}
                       onClick={() => handleViewInvoice(invoice)}
+                      onStatusAction={handleStatusAction}
                     />
                   ))}
                 </tbody>

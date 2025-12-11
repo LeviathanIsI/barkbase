@@ -15,9 +15,12 @@ import ImportTypeStep from './ImportTypeStep';
 import ImportUploadStep from './ImportUploadStep';
 import ImportMapStep from './ImportMapStep';
 import ImportDetailsStep from './ImportDetailsStep';
+import ImportProcessing from './ImportProcessing';
 import {
   autoMapColumns,
   getUnmappedRequiredFields,
+  validateMappings,
+  transformRowWithMappings,
   ENTITY_TYPES,
 } from './importFieldDefinitions';
 
@@ -61,6 +64,7 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
   // Import state
   const [isImporting, setIsImporting] = useState(false);
   const [importError, setImportError] = useState(null);
+  const [importStage, setImportStage] = useState('validating'); // 'validating', 'checking', 'creating', 'associations'
 
   // Parse file when uploaded
   const handleFileChange = useCallback(
@@ -110,12 +114,9 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
         });
 
         // Auto-map columns if we have selected types
+        // New mapping structure: { header: { importAs, property, entityType, field } }
         if (selectedTypes.length > 0) {
-          const autoMappings = {};
-          selectedTypes.forEach((typeId) => {
-            const typeMappings = autoMapColumns(headers, typeId);
-            Object.assign(autoMappings, typeMappings);
-          });
+          const autoMappings = autoMapColumns(headers, selectedTypes);
           setMappings(autoMappings);
         }
       } catch (err) {
@@ -142,12 +143,9 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
       });
       setImportModes(newImportModes);
 
+      // Re-run auto-mapping with new type selection
       if (parsedData?.headers) {
-        const autoMappings = {};
-        newTypes.forEach((typeId) => {
-          const typeMappings = autoMapColumns(parsedData.headers, typeId);
-          Object.assign(autoMappings, typeMappings);
-        });
+        const autoMappings = autoMapColumns(parsedData.headers, newTypes);
         setMappings(autoMappings);
       }
     },
@@ -162,13 +160,10 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
       case 1: // Upload
         return file && parsedData && !parseError && !isParsing;
       case 2: // Map
-        // Check all required fields are mapped
-        let allMapped = true;
-        selectedTypes.forEach((typeId) => {
-          const unmapped = getUnmappedRequiredFields(mappings, typeId);
-          if (unmapped.length > 0) allMapped = false;
-        });
-        return allMapped;
+        // Only check required fields for PRIMARY type (first selected)
+        // Using new mapping structure: { header: { importAs, property, entityType, field } }
+        const validation = validateMappings(mappings, selectedTypes);
+        return validation.isValid;
       case 3: // Details
         return true;
       default:
@@ -184,35 +179,41 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
     mappings,
   ]);
 
-  // Handle import
+  // Handle import with stage updates
   const handleImport = useCallback(async () => {
     if (!parsedData?.allData) return;
 
+    const primaryType = selectedTypes[0];
     setIsImporting(true);
     setImportError(null);
+    setImportStage('validating');
 
     try {
-      // Transform data based on mappings
+      // Transform data based on NEW mapping structure
+      // Each mapping is: { importAs, property, entityType, field }
+      // We need to separate properties from associations
       const transformedData = parsedData.allData.map((row) => {
-        const transformed = {};
-        Object.entries(mappings).forEach(([header, fieldKey]) => {
-          if (fieldKey && row[header] !== undefined) {
-            transformed[fieldKey] = row[header];
-          }
-        });
-        return transformed;
+        const { record, associations } = transformRowWithMappings(row, mappings, primaryType);
+        return { record, associations };
       });
 
-      // Build the import request payload
+      // Simulate stage progression for UX
+      setImportStage('checking');
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Build the import request payload with new structure
       const payload = {
         entityTypes: selectedTypes,
-        data: transformedData,
-        mappings,
+        primaryType,
+        data: transformedData, // Now contains { record, associations } per row
+        mappings, // New structure with importAs, property, etc.
         importModes,
         overwriteSettings,
         options: importOptions,
         filename: file.name,
       };
+
+      setImportStage('creating');
 
       // Call the import API
       const response = await fetch(`${apiBaseUrl}/api/v1/import-export/import`, {
@@ -227,12 +228,14 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('Import API error response:', errorData);
-        // Include debug info if available
         const errorMsg = errorData.debugStack
           ? `${errorData.message}\n\nDebug: ${errorData.debugStack}`
           : errorData.message || `Import failed with status ${response.status}`;
         throw new Error(errorMsg);
       }
+
+      setImportStage('associations');
+      await new Promise(resolve => setTimeout(resolve, 200));
 
       const result = await response.json();
 
@@ -241,11 +244,10 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
       }
     } catch (err) {
       console.error('Import error:', err);
-      // Show full error including any debug stack
       setImportError(err.message || 'Failed to import data');
-    } finally {
       setIsImporting(false);
     }
+    // Note: We don't set isImporting=false on success because we redirect
   }, [
     parsedData,
     mappings,
@@ -263,15 +265,23 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
   const isLastStep = currentStep === STEPS.length - 1;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0"
-        style={{ backgroundColor: 'var(--bb-color-overlay-scrim)' }}
-        onClick={onClose}
+    <>
+      {/* Import Processing Overlay */}
+      <ImportProcessing
+        isVisible={isImporting}
+        currentStage={importStage}
+        error={importError}
       />
 
-      {/* Modal */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        {/* Backdrop */}
+        <div
+          className="absolute inset-0"
+          style={{ backgroundColor: 'var(--bb-color-overlay-scrim)' }}
+          onClick={isImporting ? undefined : onClose}
+        />
+
+        {/* Modal */}
       <div
         className="relative w-full max-w-5xl max-h-[90vh] mx-4 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
         style={{ backgroundColor: 'var(--bb-color-bg-surface)' }}
@@ -472,7 +482,8 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 

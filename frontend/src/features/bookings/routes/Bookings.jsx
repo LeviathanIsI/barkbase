@@ -1,11 +1,10 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import {
-  Calendar, Plus, List, LayoutGrid, ChevronLeft, ChevronRight, Search,
-  SlidersHorizontal, Download, RefreshCw, Printer, ChevronDown, Check, X,
-  PawPrint, User, Clock, AlertCircle, CheckCircle2, XCircle, Phone, Mail,
-  MoreHorizontal, Edit, Trash2, Eye, ArrowUpDown, ArrowUp, ArrowDown,
-  Home, AlertTriangle, Loader2,
+  Calendar, Plus, List, ChevronLeft, ChevronRight, Search,
+  SlidersHorizontal, RefreshCw, ChevronDown, X,
+  PawPrint, User, CheckCircle2, Mail,
+  Edit, Trash2, Eye, ArrowUpDown, ArrowUp, ArrowDown,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -16,14 +15,12 @@ import LoadingState from '@/components/ui/LoadingState';
 import SinglePageBookingWizard from '../components/SinglePageBookingWizard';
 import BookingDetailModal from '../components/BookingDetailModal';
 import { useBookingsQuery, useDeleteBookingMutation } from '../api';
-import { useRunTemplatesQuery } from '@/features/daycare/api-templates';
-import { useRunAssignmentsQuery } from '@/features/daycare/api';
 import { cn } from '@/lib/cn';
 import toast from 'react-hot-toast';
 
-// View modes - only Run Board and List View
+// View modes - Calendar and List (NO Run Board - that belongs on Schedule page)
 const VIEW_MODES = {
-  RUN_BOARD: 'run-board',
+  CALENDAR: 'calendar',
   LIST: 'list',
 };
 
@@ -52,7 +49,7 @@ const Bookings = () => {
   const [searchParams] = useSearchParams();
 
   // View state
-  const [viewMode, setViewMode] = useState(VIEW_MODES.RUN_BOARD);
+  const [viewMode, setViewMode] = useState(VIEW_MODES.CALENDAR);
   const [showNewBooking, setShowNewBooking] = useState(searchParams.get('action') === 'new');
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showBookingDetail, setShowBookingDetail] = useState(false);
@@ -142,41 +139,10 @@ const Bookings = () => {
     };
   }, [currentDate, periodMode, dateRange]);
 
-  // Data fetching
-  const { data: runTemplates = [], isLoading: runsLoading, refetch: refetchRuns } = useRunTemplatesQuery();
+  // Data fetching - only bookings for the Bookings page
   const { data: apiBookings = [], isLoading: bookingsLoading, refetch: refetchBookings } = useBookingsQuery(queryDateRange);
 
-  // Fetch run assignments for the Run Board view (from RunAssignment table)
-  const { data: runAssignmentsData, isLoading: assignmentsLoading, refetch: refetchAssignments } = useRunAssignmentsQuery(queryDateRange);
-
-  const isLoading = runsLoading || bookingsLoading || assignmentsLoading;
-
-  // Transform runs - prefer actual Run records from assignments API if available
-  const runs = useMemo(() => {
-    const apiRuns = runAssignmentsData?.runs || [];
-    if (apiRuns.length > 0) {
-      return apiRuns.map(run => ({
-        id: run.id,
-        name: run.name,
-        type: run.type || 'Standard',
-        capacity: run.maxCapacity || 1,
-        floor: run.floor || '1',
-      }));
-    }
-    // Fall back to run templates
-    return runTemplates.map(template => ({
-      id: template.recordId,
-      name: template.name,
-      type: template.type || 'Standard',
-      capacity: template.maxCapacity || 1,
-      floor: template.floor || '1',
-    }));
-  }, [runTemplates, runAssignmentsData]);
-
-  // Total capacity across all runs
-  const totalCapacity = useMemo(() => {
-    return runs.reduce((sum, run) => sum + (run.capacity || 1), 0);
-  }, [runs]);
+  const isLoading = bookingsLoading;
 
   // Process bookings with computed fields
   const processedBookings = useMemo(() => {
@@ -223,42 +189,6 @@ const Bookings = () => {
       };
     });
   }, [apiBookings]);
-
-  // Process run assignments for the Run Board (from RunAssignment table)
-  const processedAssignments = useMemo(() => {
-    const assignments = runAssignmentsData?.assignments || [];
-    return assignments.map(assignment => {
-      // Parse the date from startAt to get the assignment date
-      const startDate = assignment.startAt ? new Date(assignment.startAt) : null;
-      const dateStr = startDate ? startDate.toISOString().split('T')[0] : null;
-
-      return {
-        id: assignment.id,
-        runId: assignment.runId,
-        runName: assignment.runName,
-        petId: assignment.petId,
-        petName: assignment.petName || 'Unknown',
-        petBreed: assignment.petBreed,
-        petSpecies: assignment.petSpecies,
-        petPhotoUrl: assignment.petPhotoUrl,
-        ownerName: assignment.ownerName || 'Unknown',
-        ownerPhone: assignment.ownerPhone,
-        bookingId: assignment.bookingId,
-        bookingStatus: assignment.bookingStatus,
-        bookingCheckIn: assignment.bookingCheckIn,
-        bookingCheckOut: assignment.bookingCheckOut,
-        bookingTotalCents: assignment.bookingTotalCents || 0,
-        kennelId: assignment.kennelId,
-        kennelName: assignment.kennelName,
-        startAt: assignment.startAt,
-        endAt: assignment.endAt,
-        startTime: assignment.startTime,
-        endTime: assignment.endTime,
-        status: assignment.status,
-        dateStr, // The date this assignment is for
-      };
-    }).filter(a => a.dateStr); // Only include valid assignments with dates
-  }, [runAssignmentsData]);
 
   // Filter bookings
   const filteredBookings = useMemo(() => {
@@ -315,15 +245,14 @@ const Bookings = () => {
 
   const totalPages = Math.ceil(sortedBookings.length / pageSize);
 
-  // Calculate booking data per date (for month view and occupancy)
-  // Uses run assignments for occupancy in Run Board view
+  // Calculate booking data per date (for calendar views)
   const bookingsByDate = useMemo(() => {
     const map = {};
 
     dateRange.forEach(date => {
       const dateStr = date.toISOString().split('T')[0];
 
-      // Get bookings that span this date (for month calendar view)
+      // Get bookings that span this date
       const bookingsOnDate = filteredBookings.filter(b => {
         if (!b.checkInDate || !b.checkOutDate) return false;
         const checkInStr = b.checkInDate.toISOString().split('T')[0];
@@ -331,33 +260,16 @@ const Bookings = () => {
         return dateStr >= checkInStr && dateStr <= checkOutStr;
       });
 
-      // Get run assignments for this date (for Run Board utilization)
-      const assignmentsOnDate = processedAssignments.filter(a => a.dateStr === dateStr);
-
-      // Use assignments count for Run Board, bookings for month view
-      const count = assignmentsOnDate.length || bookingsOnDate.length;
-      const percent = totalCapacity > 0 ? Math.round((count / totalCapacity) * 100) : 0;
-
-      let colorLevel = 'gray';
-      if (count > 0) {
-        if (percent < 50) colorLevel = 'green';
-        else if (percent < 85) colorLevel = 'amber';
-        else colorLevel = 'red';
-      }
+      const count = bookingsOnDate.length;
 
       map[dateStr] = {
         bookings: bookingsOnDate,
-        assignments: assignmentsOnDate,
         count,
-        total: totalCapacity,
-        percent,
-        label: percent === 0 ? '0%' : percent >= 100 ? 'Full' : `${percent}%`,
-        colorLevel,
       };
     });
 
     return map;
-  }, [dateRange, filteredBookings, processedAssignments, totalCapacity]);
+  }, [dateRange, filteredBookings]);
 
   // Calculate stats
   const stats = useMemo(() => ({
@@ -370,11 +282,9 @@ const Bookings = () => {
 
   // Handlers
   const handleRefresh = useCallback(() => {
-    refetchRuns();
     refetchBookings();
-    refetchAssignments();
     toast.success('Refreshed');
-  }, [refetchRuns, refetchBookings, refetchAssignments]);
+  }, [refetchBookings]);
 
   const navigatePeriod = useCallback((direction) => {
     const newDate = new Date(currentDate);
@@ -530,28 +440,28 @@ const Bookings = () => {
             { label: 'Operations', href: '/bookings' },
             { label: 'Bookings' }
           ]}
-          title="Bookings & Availability"
+          title="Bookings"
         />
         <p className="mt-1 text-sm text-[color:var(--bb-color-text-muted)]">
-          Manage reservations, run capacity, and facility utilization
+          Manage reservations and view booking schedules over time
         </p>
 
         {/* View Toggle + New Booking */}
         <div className="flex items-center justify-between mt-4">
-          {/* View Mode Tabs - Only Run Board and List View */}
+          {/* View Mode Tabs - Calendar and List View */}
           <div className="flex items-center rounded-lg border overflow-hidden" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
             <button
               type="button"
-              onClick={() => setViewMode(VIEW_MODES.RUN_BOARD)}
+              onClick={() => setViewMode(VIEW_MODES.CALENDAR)}
               className={cn(
                 'flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors',
-                viewMode === VIEW_MODES.RUN_BOARD
+                viewMode === VIEW_MODES.CALENDAR
                   ? 'bg-[color:var(--bb-color-accent)] text-white'
                   : 'bg-[color:var(--bb-color-bg-surface)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]'
               )}
             >
-              <LayoutGrid className="h-4 w-4" />
-              Run Board
+              <Calendar className="h-4 w-4" />
+              Calendar
             </button>
             <button
               type="button"
@@ -725,17 +635,14 @@ const Bookings = () => {
             onDayClick={handleDayClick}
             onNewBooking={() => setShowNewBooking(true)}
           />
-        ) : viewMode === VIEW_MODES.RUN_BOARD ? (
-          <RunBoardView
-            runs={runs}
+        ) : viewMode === VIEW_MODES.CALENDAR ? (
+          <WeeklyCalendarView
             bookings={filteredBookings}
-            assignments={processedAssignments}
             dateRange={dateRange}
             bookingsByDate={bookingsByDate}
             isLoading={isLoading}
             onBookingClick={handleBookingClick}
-            onEmptyCellClick={handleEmptyCellClick}
-            scrollRef={scrollRef}
+            onNewBooking={() => setShowNewBooking(true)}
           />
         ) : (
           <ListView
@@ -1059,32 +966,22 @@ const MonthCalendarSkeleton = () => (
   </div>
 );
 
-// Run Board View Component
-const RunBoardView = ({
-  runs,
+// Weekly Calendar View Component - Shows bookings as cards across days
+const WeeklyCalendarView = ({
   bookings,
-  assignments = [],
   dateRange,
   bookingsByDate,
   isLoading,
   onBookingClick,
-  onEmptyCellClick,
-  scrollRef,
+  onNewBooking,
 }) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Get assignments for a specific run and date (from RunAssignment table)
-  const getAssignmentsForCell = (runId, date) => {
-    const dateStr = date.toISOString().split('T')[0];
-    return assignments.filter(a => a.runId === runId && a.dateStr === dateStr);
-  };
-
-  // Get bookings for a specific run and date (fallback when no assignments)
-  const getBookingsForCell = (runId, date) => {
+  // Get bookings that span a specific date
+  const getBookingsForDate = (date) => {
     const dateStr = date.toISOString().split('T')[0];
     return bookings.filter(b => {
-      if (!b.runId || b.runId !== runId) return false;
       if (!b.checkInDate || !b.checkOutDate) return false;
       const checkInStr = b.checkInDate.toISOString().split('T')[0];
       const checkOutStr = b.checkOutDate.toISOString().split('T')[0];
@@ -1092,35 +989,20 @@ const RunBoardView = ({
     });
   };
 
-  // Get unassigned bookings for a date (no runId set)
-  const getUnassignedBookingsForDate = (date) => {
-    const dateStr = date.toISOString().split('T')[0];
-    return bookings.filter(b => {
-      if (b.runId) return false; // Skip if assigned to a run
-      if (!b.checkInDate || !b.checkOutDate) return false;
-      const checkInStr = b.checkInDate.toISOString().split('T')[0];
-      const checkOutStr = b.checkOutDate.toISOString().split('T')[0];
-      return dateStr >= checkInStr && dateStr <= checkOutStr;
-    });
-  };
-
-  // Check if there are any unassigned bookings in the date range
-  const hasUnassignedBookings = bookings.some(b => !b.runId && b.checkInDate && b.checkOutDate);
-
-  if (runs.length === 0 && !isLoading) {
+  if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full mx-auto mb-4" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
-            <Home className="h-10 w-10 text-[color:var(--bb-color-text-muted)]" />
+      <div className="flex-1">
+        <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
+          <div className="grid gap-px" style={{ gridTemplateColumns: `repeat(${dateRange.length}, 1fr)` }}>
+            {dateRange.map((_, idx) => (
+              <div key={idx} className="p-4">
+                <Skeleton className="h-6 w-12 mb-2" />
+                <Skeleton className="h-4 w-24 mb-4" />
+                <Skeleton className="h-20 w-full mb-2" />
+                <Skeleton className="h-20 w-full" />
+              </div>
+            ))}
           </div>
-          <h3 className="text-lg font-semibold text-[color:var(--bb-color-text-primary)] mb-2">No runs configured</h3>
-          <p className="text-sm text-[color:var(--bb-color-text-muted)] mb-4">
-            Add kennel runs in Settings → Facility Setup to start managing bookings on the run board.
-          </p>
-          <Button variant="outline" asChild>
-            <Link to="/settings/objects/facilities">Configure Runs</Link>
-          </Button>
         </div>
       </div>
     );
@@ -1128,321 +1010,123 @@ const RunBoardView = ({
 
   return (
     <div className="flex-1 flex flex-col">
-      {/* Occupancy Indicators */}
-      <div
-        className="grid gap-px py-2"
-        style={{
-          gridTemplateColumns: `180px repeat(${dateRange.length}, minmax(120px, 1fr))`,
-          backgroundColor: 'var(--bb-color-bg-surface)',
-          borderBottom: '1px solid var(--bb-color-border-subtle)',
-        }}
-      >
-        <div className="px-3 text-xs font-medium text-[color:var(--bb-color-text-muted)] uppercase tracking-wide flex items-center">
-          Run Utilization
-        </div>
-        {dateRange.map((date, idx) => {
-          const dateStr = date.toISOString().split('T')[0];
-          const occ = bookingsByDate[dateStr] || { label: '0%', colorLevel: 'gray', count: 0, total: 0 };
-
-          const colorClasses = {
-            gray: 'bg-gray-100 dark:bg-gray-800 text-gray-600',
-            green: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700',
-            amber: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700',
-            red: 'bg-red-100 dark:bg-red-900/40 text-red-700',
-          };
-
-          return (
-            <div key={idx} className="flex items-center justify-center">
-              <span
-                className={cn('text-xs font-medium px-2 py-0.5 rounded-full', colorClasses[occ.colorLevel])}
-                title={`${occ.count} of ${occ.total} runs booked`}
+      {/* Weekly Grid */}
+      <div className="flex-1 rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
+        {/* Day Headers */}
+        <div 
+          className="grid gap-px border-b" 
+          style={{
+            gridTemplateColumns: `repeat(${dateRange.length}, 1fr)`,
+            borderColor: 'var(--bb-color-border-subtle)',
+            backgroundColor: 'var(--bb-color-border-subtle)'
+          }}
+        >
+          {dateRange.map((date, idx) => {
+            const isToday = date.toDateString() === today.toDateString();
+            const dateStr = date.toISOString().split('T')[0];
+            const dayData = bookingsByDate[dateStr] || { count: 0 };
+            
+            return (
+              <div
+                key={idx}
+                className={cn('p-3 text-center')}
+                style={{ 
+                  backgroundColor: isToday ? 'var(--bb-color-accent-soft)' : 'var(--bb-color-bg-elevated)',
+                }}
               >
-                {occ.label} Full
-              </span>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Grid */}
-      <div className="flex-1 overflow-auto" ref={scrollRef}>
-        <div className="w-full" style={{ minWidth: `${180 + dateRange.length * 120}px` }}>
-          {/* Header Row */}
-          <div
-            className="grid gap-px sticky top-0 z-10"
-            style={{
-              gridTemplateColumns: `180px repeat(${dateRange.length}, minmax(120px, 1fr))`,
-              backgroundColor: 'var(--bb-color-border-subtle)',
-            }}
-          >
-            <div
-              className="p-3 font-medium text-sm text-[color:var(--bb-color-text-primary)]"
-              style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
-            >
-              Run / Room
-            </div>
-            {dateRange.map((date, idx) => {
-              const isToday = date.toDateString() === today.toDateString();
-              return (
-                <div
-                  key={idx}
-                  className={cn('p-3 text-center', isToday && 'ring-2 ring-inset ring-[var(--bb-color-accent)]')}
-                  style={{ backgroundColor: isToday ? 'var(--bb-color-accent-soft)' : 'var(--bb-color-bg-elevated)' }}
-                >
-                  <div className="text-xs text-[color:var(--bb-color-text-muted)]">
-                    {date.toLocaleDateString('en-US', { weekday: 'short' })}
-                  </div>
-                  <div className={cn('text-lg font-semibold', isToday ? 'text-[color:var(--bb-color-accent)]' : 'text-[color:var(--bb-color-text-primary)]')}>
-                    {date.getDate()}
-                  </div>
+                <div className="text-xs text-[color:var(--bb-color-text-muted)] font-medium uppercase">
+                  {date.toLocaleDateString('en-US', { weekday: 'short' })}
                 </div>
-              );
-            })}
-          </div>
+                <div className={cn(
+                  'text-2xl font-bold',
+                  isToday ? 'text-[color:var(--bb-color-accent)]' : 'text-[color:var(--bb-color-text-primary)]'
+                )}>
+                  {date.getDate()}
+                </div>
+                <div className="text-xs text-[color:var(--bb-color-text-muted)]">
+                  {date.toLocaleDateString('en-US', { month: 'short' })}
+                </div>
+                {dayData.count > 0 && (
+                  <div className="mt-1 text-xs font-medium text-[color:var(--bb-color-accent)]">
+                    {dayData.count} booking{dayData.count !== 1 ? 's' : ''}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
 
-          {/* Loading State */}
-          {isLoading ? (
-            <div className="p-8 text-center">
-              <LoadingState label="Loading bookings…" variant="skeleton" />
-            </div>
-          ) : (
-            <>
-              {/* Run Rows */}
-              {runs.map((run) => (
-                <div
-                  key={run.id}
-                  className="grid gap-px"
-                  style={{
-                    gridTemplateColumns: `180px repeat(${dateRange.length}, minmax(120px, 1fr))`,
-                    backgroundColor: 'var(--bb-color-border-subtle)',
-                  }}
-                >
-                  {/* Run Label */}
-                  <div
-                    className="p-3 flex flex-col justify-center"
-                    style={{ backgroundColor: 'var(--bb-color-bg-surface)' }}
+        {/* Booking Cards Grid */}
+        <div 
+          className="grid gap-px flex-1" 
+          style={{
+            gridTemplateColumns: `repeat(${dateRange.length}, 1fr)`,
+            backgroundColor: 'var(--bb-color-border-subtle)',
+            minHeight: '400px'
+          }}
+        >
+          {dateRange.map((date, idx) => {
+            const isToday = date.toDateString() === today.toDateString();
+            const dayBookings = getBookingsForDate(date);
+            
+            return (
+              <div
+                key={idx}
+                className="p-2 flex flex-col gap-1.5 overflow-y-auto"
+                style={{ 
+                  backgroundColor: isToday ? 'var(--bb-color-accent-soft)' : 'var(--bb-color-bg-body)',
+                  maxHeight: '500px'
+                }}
+              >
+                {dayBookings.length === 0 ? (
+                  <div 
+                    className="flex-1 flex items-center justify-center min-h-[100px] rounded-lg border-2 border-dashed cursor-pointer hover:border-[color:var(--bb-color-accent)] hover:bg-[color:var(--bb-color-bg-elevated)] transition-colors"
+                    style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+                    onClick={onNewBooking}
                   >
-                    <div className="font-medium text-sm text-[color:var(--bb-color-text-primary)]">{run.name}</div>
-                    <div className="text-xs text-[color:var(--bb-color-text-muted)]">
-                      {run.type} • Cap: {run.capacity}
+                    <div className="text-center">
+                      <Plus className="h-5 w-5 mx-auto mb-1 text-[color:var(--bb-color-text-muted)]" />
+                      <span className="text-xs text-[color:var(--bb-color-text-muted)]">Add booking</span>
                     </div>
                   </div>
-
-                  {/* Date Cells */}
-                  {dateRange.map((date, dateIdx) => {
-                    const cellAssignments = getAssignmentsForCell(run.id, date);
-                    const cellBookings = getBookingsForCell(run.id, date);
-                    const isToday = date.toDateString() === today.toDateString();
-                    // Use assignments if available, otherwise fall back to bookings
-                    const hasContent = cellAssignments.length > 0 || cellBookings.length > 0;
-                    const useAssignments = cellAssignments.length > 0;
-
+                ) : (
+                  dayBookings.map((booking) => {
+                    const statusConfig = STATUS_CONFIG[booking.displayStatus] || STATUS_CONFIG.PENDING;
+                    const isCheckIn = booking.checkInDate?.toDateString() === date.toDateString();
+                    const isCheckOut = booking.checkOutDate?.toDateString() === date.toDateString();
+                    
                     return (
                       <div
-                        key={dateIdx}
+                        key={booking.id}
                         className={cn(
-                          'min-h-[80px] relative transition-colors',
-                          !hasContent && 'hover:bg-[color:var(--bb-color-bg-elevated)] cursor-pointer'
+                          'rounded-lg border-l-4 p-2.5 cursor-pointer transition-all hover:shadow-md',
+                          statusConfig.color
                         )}
-                        style={{ backgroundColor: isToday ? 'var(--bb-color-accent-soft)' : 'var(--bb-color-bg-body)' }}
-                        onClick={() => !hasContent && onEmptyCellClick(run.id, date)}
+                        onClick={() => onBookingClick(booking)}
                       >
-                        {useAssignments ? (
-                          <div className="p-1 space-y-0.5 overflow-hidden">
-                            {cellAssignments.slice(0, 3).map((assignment, aIdx) => (
-                              <AssignmentCell
-                                key={assignment.id || aIdx}
-                                assignment={assignment}
-                                onClick={() => onBookingClick(assignment)}
-                              />
-                            ))}
-                            {cellAssignments.length > 3 && (
-                              <p className="text-[9px] text-center text-blue-600 dark:text-blue-300 font-medium">
-                                +{cellAssignments.length - 3} more
-                              </p>
-                            )}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <PawPrint className="h-3.5 w-3.5 flex-shrink-0" />
+                              <span className="font-medium text-sm truncate">{booking.petName}</span>
+                            </div>
+                            <p className="text-xs opacity-75 truncate mt-0.5">{booking.ownerName}</p>
                           </div>
-                        ) : cellBookings.length > 0 ? (
-                          <div className="p-1 space-y-0.5 overflow-hidden">
-                            {cellBookings.slice(0, 3).map((booking, bIdx) => (
-                              <BookingCellCompact
-                                key={booking.id || bIdx}
-                                booking={booking}
-                                onClick={() => onBookingClick(booking)}
-                              />
-                            ))}
-                            {cellBookings.length > 3 && (
-                              <p className="text-[9px] text-center text-blue-600 dark:text-blue-300 font-medium">
-                                +{cellBookings.length - 3} more
-                              </p>
-                            )}
-                          </div>
-                        ) : null}
+                        </div>
+                        <div className="mt-1.5 flex items-center gap-2 text-[10px] opacity-75">
+                          <span>{booking.serviceName}</span>
+                          {isCheckIn && <Badge variant="success" size="xs">Check In</Badge>}
+                          {isCheckOut && <Badge variant="warning" size="xs">Check Out</Badge>}
+                        </div>
                       </div>
                     );
-                  })}
-                </div>
-              ))}
-
-              {/* Unassigned Bookings Row - Show bookings without a kennel/run assignment */}
-              {hasUnassignedBookings && (
-                <div
-                  className="grid gap-px"
-                  style={{
-                    gridTemplateColumns: `180px repeat(${dateRange.length}, minmax(120px, 1fr))`,
-                    backgroundColor: 'var(--bb-color-border-subtle)',
-                  }}
-                >
-                  {/* Unassigned Label */}
-                  <div
-                    className="p-3 flex flex-col justify-center"
-                    style={{ backgroundColor: 'var(--bb-color-bg-surface)' }}
-                  >
-                    <div className="font-medium text-sm text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                      <AlertTriangle className="h-4 w-4" />
-                      Unassigned
-                    </div>
-                    <div className="text-xs text-[color:var(--bb-color-text-muted)]">
-                      Needs run assignment
-                    </div>
-                  </div>
-
-                  {/* Date Cells for Unassigned */}
-                  {dateRange.map((date, dateIdx) => {
-                    const unassignedBookings = getUnassignedBookingsForDate(date);
-                    const isToday = date.toDateString() === today.toDateString();
-
-                    return (
-                      <div
-                        key={dateIdx}
-                        className="min-h-[80px] relative transition-colors"
-                        style={{ backgroundColor: isToday ? 'var(--bb-color-accent-soft)' : 'var(--bb-color-bg-body)' }}
-                      >
-                        {unassignedBookings.length > 0 && (
-                          <div className="p-1 space-y-0.5 overflow-hidden">
-                            {unassignedBookings.slice(0, 3).map((booking, bIdx) => (
-                              <BookingCellCompact
-                                key={booking.id || bIdx}
-                                booking={booking}
-                                onClick={() => onBookingClick(booking)}
-                              />
-                            ))}
-                            {unassignedBookings.length > 3 && (
-                              <p className="text-[9px] text-center text-amber-600 dark:text-amber-300 font-medium">
-                                +{unassignedBookings.length - 3} more
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          )}
+                  })
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
-    </div>
-  );
-};
-
-// Booking Cell Component (for legacy booking-based rendering)
-const BookingCell = ({ booking, span, onClick }) => {
-  const statusConfig = STATUS_CONFIG[booking.displayStatus] || STATUS_CONFIG.PENDING;
-
-  return (
-    <div
-      className={cn(
-        'absolute inset-1 rounded border-l-4 p-2 cursor-pointer transition-shadow hover:shadow-md overflow-hidden',
-        statusConfig.color
-      )}
-      style={{
-        width: span > 1 ? `calc(${span * 100}% + ${(span - 1) * 1}px - 8px)` : undefined,
-        zIndex: 5,
-      }}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-    >
-      <div className="flex items-start justify-between gap-1">
-        <div className="min-w-0 flex-1">
-          <p className="font-medium text-sm truncate">{booking.petName}</p>
-          <p className="text-xs opacity-75 truncate">{booking.ownerName}</p>
-        </div>
-        <Badge variant={statusConfig.variant} size="sm" className="shrink-0">
-          {statusConfig.label}
-        </Badge>
-      </div>
-    </div>
-  );
-};
-
-// Assignment Cell Component (for run assignment-based rendering)
-const AssignmentCell = ({ assignment, onClick }) => {
-  // Map assignment status to display config
-  const statusKey = assignment.status?.toUpperCase() || 'PENDING';
-  const statusConfig = STATUS_CONFIG[statusKey] || STATUS_CONFIG.PENDING;
-
-  return (
-    <div
-      className="rounded bg-blue-100 dark:bg-blue-900/40 border-l-2 border-blue-500 px-1.5 py-1 cursor-pointer hover:shadow-sm transition-shadow overflow-hidden"
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-    >
-      <p className="text-[11px] font-medium text-blue-800 dark:text-blue-200 truncate">
-        {assignment.petName}
-      </p>
-      {assignment.startTime && (
-        <p className="text-[9px] text-blue-600 dark:text-blue-300 truncate">
-          {typeof assignment.startTime === 'string' && assignment.startTime.includes('T')
-            ? new Date(assignment.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-            : assignment.startTime}
-        </p>
-      )}
-      {assignment.ownerName && (
-        <p className="text-[9px] text-blue-600 dark:text-blue-300 truncate opacity-75">
-          {assignment.ownerName}
-        </p>
-      )}
-    </div>
-  );
-};
-
-// Compact Booking Cell Component (for booking-based rendering in Run Board)
-const BookingCellCompact = ({ booking, onClick }) => {
-  const statusKey = booking.displayStatus?.toUpperCase() || 'PENDING';
-  const statusColors = {
-    PENDING: 'bg-gray-100 dark:bg-gray-800 border-gray-400 text-gray-700 dark:text-gray-300',
-    CONFIRMED: 'bg-blue-100 dark:bg-blue-900/40 border-blue-500 text-blue-800 dark:text-blue-200',
-    CHECKED_IN: 'bg-emerald-100 dark:bg-emerald-900/40 border-emerald-500 text-emerald-800 dark:text-emerald-200',
-    CHECKOUT_TODAY: 'bg-orange-100 dark:bg-orange-900/40 border-orange-500 text-orange-800 dark:text-orange-200',
-    OVERDUE: 'bg-red-100 dark:bg-red-900/40 border-red-500 text-red-800 dark:text-red-200',
-    CHECKED_OUT: 'bg-gray-100 dark:bg-gray-800 border-gray-400 text-gray-500 dark:text-gray-400',
-    CANCELLED: 'bg-red-100 dark:bg-red-900/40 border-red-400 text-red-700 dark:text-red-300',
-  };
-  const colorClass = statusColors[statusKey] || statusColors.PENDING;
-
-  return (
-    <div
-      className={cn('rounded border-l-2 px-1.5 py-1 cursor-pointer hover:shadow-sm transition-shadow overflow-hidden', colorClass)}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-    >
-      <p className="text-[11px] font-medium truncate">
-        {booking.petName}
-      </p>
-      <p className="text-[9px] truncate opacity-75">
-        {booking.ownerName}
-      </p>
-      <p className="text-[9px] truncate opacity-60">
-        {booking.serviceName}
-      </p>
     </div>
   );
 };

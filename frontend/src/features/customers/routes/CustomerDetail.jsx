@@ -4,7 +4,7 @@
  * Designed for kennel operations staff to quickly access all customer data
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -31,6 +31,10 @@ import {
   Send,
   Star,
   Shield,
+  Edit,
+  Trash2,
+  UserX,
+  UserCheck,
 } from 'lucide-react';
 import { format, formatDistanceToNow, isAfter, isBefore, startOfToday } from 'date-fns';
 import Button from '@/components/ui/Button';
@@ -38,11 +42,12 @@ import Badge from '@/components/ui/Badge';
 import { Card, MetricCard } from '@/components/ui/Card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useOwner } from '@/features/owners/api';
+import { useOwner, useDeleteOwnerMutation, useUpdateOwnerMutation } from '@/features/owners/api';
 import { useBookingsQuery } from '@/features/bookings/api';
 import { useCommunicationStats, useCustomerTimeline } from '@/features/communications/api';
 import CommunicationForm from '@/features/communications/components/CommunicationForm';
 import NotesPanel from '@/features/communications/components/NotesPanel';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import toast from 'react-hot-toast';
 import { cn, formatCurrency } from '@/lib/utils';
 import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
@@ -100,11 +105,78 @@ export default function CustomerDetail() {
   const { openSlideout } = useSlideout();
   const [activeTab, setActiveTab] = useState('overview');
   const [showCommunicationForm, setShowCommunicationForm] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const moreMenuRef = useRef(null);
 
   // Data fetching
-  const { data: owner, isLoading: ownerLoading } = useOwner(ownerId);
+  const { data: owner, isLoading: ownerLoading, refetch: refetchOwner } = useOwner(ownerId);
   const { data: stats } = useCommunicationStats(ownerId);
   const { data: allBookings } = useBookingsQuery({ ownerId });
+
+  // Mutations
+  const deleteMutation = useDeleteOwnerMutation();
+  const updateMutation = useUpdateOwnerMutation(ownerId);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target)) {
+        setShowMoreMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Handle edit owner
+  const handleEditOwner = () => {
+    openSlideout(SLIDEOUT_TYPES.OWNER_EDIT, {
+      owner,
+      onSuccess: () => refetchOwner(),
+    });
+  };
+
+  // Handle new booking
+  const handleNewBooking = () => {
+    openSlideout(SLIDEOUT_TYPES.BOOKING_CREATE, { ownerId });
+  };
+
+  // Handle send message
+  const handleSendMessage = () => {
+    openSlideout(SLIDEOUT_TYPES.COMMUNICATION_CREATE, { ownerId });
+    setShowMoreMenu(false);
+  };
+
+  // Handle toggle active status
+  const handleToggleStatus = async () => {
+    const newStatus = owner?.status === 'active' ? 'inactive' : 'active';
+    try {
+      await updateMutation.mutateAsync({ status: newStatus });
+      toast.success(`Customer ${newStatus === 'active' ? 'activated' : 'deactivated'}`);
+      refetchOwner();
+    } catch (error) {
+      toast.error('Failed to update status');
+    }
+    setShowMoreMenu(false);
+  };
+
+  // Handle delete owner
+  const handleDeleteOwner = async () => {
+    try {
+      await deleteMutation.mutateAsync(ownerId);
+      toast.success('Customer deleted');
+      navigate('/owners');
+    } catch (error) {
+      toast.error('Failed to delete customer');
+    }
+    setShowDeleteConfirm(false);
+  };
+
+  // Handle log activity
+  const handleLogActivity = () => {
+    openSlideout(SLIDEOUT_TYPES.ACTIVITY_LOG, { ownerId });
+  };
 
   // Derived data
   const ownerBookings = useMemo(() => {
@@ -245,16 +317,76 @@ export default function CustomerDetail() {
 
             {/* Right: Actions */}
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="md" onClick={() => toast.info('Edit coming soon')}>
+              <Button variant="outline" size="md" onClick={handleEditOwner}>
+                <Edit className="w-4 h-4" />
                 Edit Owner
               </Button>
-              <Button size="md" onClick={() => openSlideout(SLIDEOUT_TYPES.BOOKING_CREATE, { ownerId })}>
+              <Button size="md" onClick={handleNewBooking}>
                 <Plus className="w-4 h-4" />
                 New Booking
               </Button>
-              <Button variant="ghost" size="icon">
-                <MoreHorizontal className="w-5 h-5" />
-              </Button>
+              {/* More Actions Dropdown */}
+              <div className="relative" ref={moreMenuRef}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowMoreMenu(!showMoreMenu)}
+                >
+                  <MoreHorizontal className="w-5 h-5" />
+                </Button>
+                {showMoreMenu && (
+                  <div
+                    className="absolute right-0 mt-2 w-48 rounded-lg shadow-lg border z-50 py-1"
+                    style={{
+                      backgroundColor: 'var(--bb-color-bg-elevated)',
+                      borderColor: 'var(--bb-color-border-subtle)',
+                    }}
+                  >
+                    <button
+                      onClick={handleSendMessage}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-left hover:bg-[color:var(--bb-color-bg-surface)] transition-colors"
+                      style={{ color: 'var(--bb-color-text-primary)' }}
+                    >
+                      <Send className="w-4 h-4" />
+                      Send Message
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('billing'); setShowMoreMenu(false); }}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-left hover:bg-[color:var(--bb-color-bg-surface)] transition-colors"
+                      style={{ color: 'var(--bb-color-text-primary)' }}
+                    >
+                      <CreditCard className="w-4 h-4" />
+                      View Billing
+                    </button>
+                    <div className="border-t my-1" style={{ borderColor: 'var(--bb-color-border-subtle)' }} />
+                    <button
+                      onClick={handleToggleStatus}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-left hover:bg-[color:var(--bb-color-bg-surface)] transition-colors"
+                      style={{ color: owner?.status === 'active' ? 'var(--bb-color-status-warning-text)' : 'var(--bb-color-status-positive-text)' }}
+                    >
+                      {owner?.status === 'active' ? (
+                        <>
+                          <UserX className="w-4 h-4" />
+                          Deactivate Customer
+                        </>
+                      ) : (
+                        <>
+                          <UserCheck className="w-4 h-4" />
+                          Activate Customer
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => { setShowDeleteConfirm(true); setShowMoreMenu(false); }}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-left hover:bg-[color:var(--bb-color-bg-surface)] transition-colors"
+                      style={{ color: 'var(--bb-color-status-negative)' }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete Customer
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -325,7 +457,7 @@ export default function CustomerDetail() {
                   recentBookings={recentBookings}
                   stats={stats}
                   onTabChange={setActiveTab}
-                  onNewCommunication={() => setShowCommunicationForm(true)}
+                  onLogActivity={handleLogActivity}
                 />
               </TabsContent>
 
@@ -383,6 +515,19 @@ export default function CustomerDetail() {
           </div>
         </div>
       </main>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        title="Delete Customer"
+        description={`Are you sure you want to delete ${fullName}? This action cannot be undone and will remove all associated data.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={handleDeleteOwner}
+        loading={deleteMutation.isPending}
+      />
     </div>
   );
 }
@@ -626,7 +771,7 @@ function ContactRow({ icon: Icon, value, href, onCopy }) {
 // OVERVIEW TAB
 // ============================================================================
 
-function OverviewTab({ ownerId, owner, pets, upcomingBookings, recentBookings, stats, onTabChange, onNewCommunication }) {
+function OverviewTab({ ownerId, owner, pets, upcomingBookings, recentBookings, stats, onTabChange, onLogActivity }) {
   const { openSlideout } = useSlideout();
   const { data: timelineData, isLoading: timelineLoading } = useCustomerTimeline(ownerId);
   const timeline = timelineData?.pages?.flatMap(page => page?.data || []) || [];
@@ -642,7 +787,7 @@ function OverviewTab({ ownerId, owner, pets, upcomingBookings, recentBookings, s
           >
             Activity
           </h3>
-          <Button variant="ghost" size="sm" onClick={onNewCommunication}>
+          <Button variant="ghost" size="sm" onClick={onLogActivity}>
             <Plus className="w-4 h-4" />
             Log Activity
           </Button>
@@ -666,7 +811,7 @@ function OverviewTab({ ownerId, owner, pets, upcomingBookings, recentBookings, s
             title="No activity yet"
             description="Activity will appear here when bookings are made or communications are logged."
             action={
-              <Button size="sm" onClick={onNewCommunication}>
+              <Button size="sm" onClick={onLogActivity}>
                 <Plus className="w-4 h-4" />
                 Log First Activity
               </Button>

@@ -1,13 +1,21 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { AlertCircle, Clock, Home, Plus, RefreshCw, UserCheck, UserX } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import TodayCard from './TodayCard';
 import { UpdateChip } from '@/components/PageLoader';
 import { cn } from '@/lib/utils';
 
-const TodayHeroCard = ({ kennelName, formattedDate, stats, isUpdating, onRefresh, lastRefreshed, onNewBooking }) => {
-  const navigate = useNavigate();
+const TodayHeroCard = ({
+  kennelName,
+  formattedDate,
+  stats,
+  isUpdating,
+  onRefresh,
+  lastRefreshed,
+  onNewBooking,
+  onInFacilityClick,
+  onAttentionClick,
+}) => {
 
   const formatLastRefreshed = () => {
     if (!lastRefreshed) return null;
@@ -86,7 +94,7 @@ const TodayHeroCard = ({ kennelName, formattedDate, stats, isUpdating, onRefresh
             value={stats.inFacility}
             variant="primary"
             tooltip="Click to view all pets currently in facility"
-            onClick={() => navigate('/kennels')}
+            onClick={onInFacilityClick}
             emptyMessage="Facility is empty"
           />
           {stats.attentionItems > 0 && (
@@ -96,7 +104,7 @@ const TodayHeroCard = ({ kennelName, formattedDate, stats, isUpdating, onRefresh
               value={stats.attentionItems}
               variant="error"
               tooltip="Click to view items requiring attention"
-              onClick={() => navigate('/tasks?filter=urgent')}
+              onClick={onAttentionClick}
             />
           )}
         </div>

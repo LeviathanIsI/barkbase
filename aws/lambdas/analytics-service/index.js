@@ -109,9 +109,45 @@ exports.handler = async (event, context) => {
     // ==========================================================================
     // Segments routes - /api/v1/segments/*
     // ==========================================================================
+    // Get database user for segment operations that need to track who made changes
+    const dbUser = await getUserIdFromCognitoSub(user.id);
+    const userId = dbUser?.id || null;
+
     if (path === '/api/v1/segments') {
       if (method === 'GET') {
         return handleGetSegments(tenantId);
+      }
+      if (method === 'POST') {
+        return handleCreateSegment(tenantId, parseBody(event), userId);
+      }
+    }
+
+    // Segment preview (for builder)
+    if (path === '/api/v1/segments/preview') {
+      if (method === 'POST') {
+        return handlePreviewSegment(tenantId, parseBody(event));
+      }
+    }
+
+    // Segment refresh all
+    if (path === '/api/v1/segments/refresh') {
+      if (method === 'POST') {
+        return handleRefreshAllSegments(tenantId);
+      }
+    }
+
+    // Single segment by ID
+    const segmentIdMatch = path.match(/\/api\/v1\/segments\/([a-f0-9-]+)$/i);
+    if (segmentIdMatch) {
+      const segmentId = segmentIdMatch[1];
+      if (method === 'GET') {
+        return handleGetSegment(tenantId, segmentId);
+      }
+      if (method === 'PUT') {
+        return handleUpdateSegment(tenantId, segmentId, parseBody(event), userId);
+      }
+      if (method === 'DELETE') {
+        return handleDeleteSegment(tenantId, segmentId);
       }
     }
 
@@ -121,6 +157,42 @@ exports.handler = async (event, context) => {
       if (method === 'GET') {
         return handleGetSegmentMembers(tenantId, segmentMembersMatch[1], queryParams);
       }
+      if (method === 'POST') {
+        return handleAddSegmentMembers(tenantId, segmentMembersMatch[1], parseBody(event));
+      }
+      if (method === 'DELETE') {
+        return handleRemoveSegmentMembers(tenantId, segmentMembersMatch[1], parseBody(event));
+      }
+    }
+
+    // Segment clone
+    const segmentCloneMatch = path.match(/\/api\/v1\/segments\/([a-f0-9-]+)\/clone$/i);
+    if (segmentCloneMatch && method === 'POST') {
+      return handleCloneSegment(tenantId, segmentCloneMatch[1]);
+    }
+
+    // Segment convert
+    const segmentConvertMatch = path.match(/\/api\/v1\/segments\/([a-f0-9-]+)\/convert$/i);
+    if (segmentConvertMatch && method === 'POST') {
+      return handleConvertSegment(tenantId, segmentConvertMatch[1], parseBody(event));
+    }
+
+    // Segment refresh single
+    const segmentRefreshMatch = path.match(/\/api\/v1\/segments\/([a-f0-9-]+)\/refresh$/i);
+    if (segmentRefreshMatch && method === 'POST') {
+      return handleRefreshSegment(tenantId, segmentRefreshMatch[1]);
+    }
+
+    // Segment activity
+    const segmentActivityMatch = path.match(/\/api\/v1\/segments\/([a-f0-9-]+)\/activity$/i);
+    if (segmentActivityMatch && method === 'GET') {
+      return handleGetSegmentActivity(tenantId, segmentActivityMatch[1], queryParams);
+    }
+
+    // Segment export
+    const segmentExportMatch = path.match(/\/api\/v1\/segments\/([a-f0-9-]+)\/export$/i);
+    if (segmentExportMatch && method === 'GET') {
+      return handleExportSegmentMembers(tenantId, segmentExportMatch[1]);
     }
 
     // ==========================================================================
@@ -382,6 +454,23 @@ async function getTenantIdForUser(cognitoSub) {
     return result.rows[0]?.tenant_id || null;
   } catch (error) {
     console.error('[ANALYTICS-SERVICE] Failed to get tenant ID:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Helper: Get database User ID from cognito_sub
+ */
+async function getUserIdFromCognitoSub(cognitoSub) {
+  try {
+    await getPoolAsync();
+    const result = await query(
+      `SELECT id, first_name, last_name, email FROM "User" WHERE cognito_sub = $1`,
+      [cognitoSub]
+    );
+    return result.rows[0] || null;
+  } catch (error) {
+    console.error('[ANALYTICS-SERVICE] Failed to get user ID:', error.message);
     return null;
   }
 }
@@ -2018,21 +2107,27 @@ async function handleGetSegments(tenantId) {
   try {
     await getPoolAsync();
 
-    // Query segments with member counts
+    // Query segments with member counts and enhanced fields
     const result = await query(
       `SELECT
          s.id,
          s.name,
          s.description,
          s.criteria,
+         s.filters,
+         s.object_type,
+         s.segment_type,
          s.is_automatic,
          s.is_active,
+         s.member_count,
+         s.percent_of_total,
+         s.seven_day_change,
          s.created_at,
          s.updated_at,
-         (SELECT COUNT(*) FROM "SegmentMember" sm WHERE sm.segment_id = s.id) as member_count
+         COALESCE(s.member_count, (SELECT COUNT(*) FROM "SegmentMember" sm WHERE sm.segment_id = s.id)) as computed_member_count
        FROM "Segment" s
        WHERE s.tenant_id = $1
-       ORDER BY s.name ASC`,
+       ORDER BY s.updated_at DESC NULLS LAST, s.name ASC`,
       [tenantId]
     );
 
@@ -2044,16 +2139,29 @@ async function handleGetSegments(tenantId) {
       name: row.name,
       description: row.description,
       criteria: row.criteria || {},
-      isDynamic: row.is_automatic ?? false,
+      filters: row.filters || { groups: [], groupLogic: 'OR' },
+      object_type: row.object_type || 'owners',
+      objectType: row.object_type || 'owners',
+      segment_type: row.segment_type || 'active',
+      segmentType: row.segment_type || 'active',
+      isDynamic: row.is_automatic ?? (row.segment_type === 'active'),
       isActive: row.is_active ?? true,
       isAutomatic: row.is_automatic ?? false,
       _count: {
-        members: parseInt(row.member_count || 0),
+        members: parseInt(row.computed_member_count || row.member_count || 0),
         campaigns: 0,
       },
-      memberCount: parseInt(row.member_count || 0),
+      memberCount: parseInt(row.computed_member_count || row.member_count || 0),
+      member_count: parseInt(row.computed_member_count || row.member_count || 0),
+      percentOfTotal: parseFloat(row.percent_of_total || 0),
+      percent_of_total: parseFloat(row.percent_of_total || 0),
+      change7d: parseInt(row.seven_day_change || 0),
+      sevenDayChange: parseInt(row.seven_day_change || 0),
+      seven_day_change: parseInt(row.seven_day_change || 0),
       createdAt: row.created_at,
+      created_at: row.created_at,
       updatedAt: row.updated_at,
+      updated_at: row.updated_at,
     }));
 
     console.log('[ANALYTICS-SERVICE] Fetched segments:', { tenantId, count: segments.length });
@@ -2089,7 +2197,205 @@ async function handleGetSegments(tenantId) {
 }
 
 /**
+ * Build SQL WHERE clause from segment filters
+ * @param {object} filters - Filters object with groups and groupLogic
+ * @param {string} objectType - 'owners', 'pets', or 'bookings'
+ * @param {string} tableAlias - Table alias for column references
+ * @returns {{ whereClause: string, params: any[], paramIndex: number }}
+ */
+function buildFilterWhereClause(filters, objectType, tableAlias = 'o', startParamIndex = 1) {
+  if (!filters || !filters.groups || filters.groups.length === 0) {
+    return { whereClause: '', params: [], paramIndex: startParamIndex };
+  }
+
+  // Map frontend field names to database columns
+  const fieldMap = {
+    owners: {
+      status: 'status',
+      email: 'email',
+      phone: 'phone',
+      firstName: 'first_name',
+      lastName: 'last_name',
+      createdAt: 'created_at',
+      lastBookingDate: 'last_booking_date',
+      totalBookings: 'total_bookings',
+      totalSpend: 'total_spend',
+      petCount: 'pet_count',
+      tags: 'tags',
+    },
+    pets: {
+      status: 'status',
+      name: 'name',
+      species: 'species',
+      breed: 'breed',
+      sex: 'sex',
+      isFixed: 'is_fixed',
+      createdAt: 'created_at',
+      birthdate: 'birthdate',
+      weight: 'weight',
+      vaccinationStatus: 'vaccination_status',
+      lastBookingDate: 'last_booking_date',
+      totalBookings: 'total_bookings',
+    },
+    bookings: {
+      status: 'status',
+      serviceType: 'service_type',
+      startDate: 'start_date',
+      endDate: 'end_date',
+      createdAt: 'created_at',
+      totalAmount: 'total_amount',
+      isPaid: 'is_paid',
+    },
+  };
+
+  const params = [];
+  let paramIndex = startParamIndex;
+  const groupClauses = [];
+
+  for (const group of filters.groups) {
+    if (!group.filters || group.filters.length === 0) continue;
+
+    const filterClauses = [];
+    for (const filter of group.filters) {
+      const dbColumn = fieldMap[objectType]?.[filter.field] || filter.field;
+      const fullColumn = `${tableAlias}.${dbColumn}`;
+      const op = filter.operator;
+      const val = filter.value;
+
+      let clause = '';
+
+      switch (op) {
+        case 'is':
+        case 'equals':
+          clause = `${fullColumn} = $${paramIndex}`;
+          params.push(val);
+          paramIndex++;
+          break;
+        case 'is_not':
+        case 'not_equals':
+          clause = `${fullColumn} != $${paramIndex}`;
+          params.push(val);
+          paramIndex++;
+          break;
+        case 'contains':
+          clause = `${fullColumn} ILIKE $${paramIndex}`;
+          params.push(`%${val}%`);
+          paramIndex++;
+          break;
+        case 'not_contains':
+          clause = `${fullColumn} NOT ILIKE $${paramIndex}`;
+          params.push(`%${val}%`);
+          paramIndex++;
+          break;
+        case 'starts_with':
+          clause = `${fullColumn} ILIKE $${paramIndex}`;
+          params.push(`${val}%`);
+          paramIndex++;
+          break;
+        case 'ends_with':
+          clause = `${fullColumn} ILIKE $${paramIndex}`;
+          params.push(`%${val}`);
+          paramIndex++;
+          break;
+        case 'is_empty':
+          clause = `(${fullColumn} IS NULL OR ${fullColumn} = '')`;
+          break;
+        case 'is_not_empty':
+          clause = `(${fullColumn} IS NOT NULL AND ${fullColumn} != '')`;
+          break;
+        case 'greater_than':
+          clause = `${fullColumn} > $${paramIndex}`;
+          params.push(parseFloat(val) || 0);
+          paramIndex++;
+          break;
+        case 'less_than':
+          clause = `${fullColumn} < $${paramIndex}`;
+          params.push(parseFloat(val) || 0);
+          paramIndex++;
+          break;
+        case 'greater_or_equal':
+          clause = `${fullColumn} >= $${paramIndex}`;
+          params.push(parseFloat(val) || 0);
+          paramIndex++;
+          break;
+        case 'less_or_equal':
+          clause = `${fullColumn} <= $${paramIndex}`;
+          params.push(parseFloat(val) || 0);
+          paramIndex++;
+          break;
+        case 'between':
+          if (Array.isArray(val) && val.length === 2) {
+            clause = `${fullColumn} BETWEEN $${paramIndex} AND $${paramIndex + 1}`;
+            params.push(val[0], val[1]);
+            paramIndex += 2;
+          }
+          break;
+        case 'is_before':
+          clause = `${fullColumn} < $${paramIndex}`;
+          params.push(val);
+          paramIndex++;
+          break;
+        case 'is_after':
+          clause = `${fullColumn} > $${paramIndex}`;
+          params.push(val);
+          paramIndex++;
+          break;
+        case 'in_last_days':
+          clause = `${fullColumn} >= NOW() - INTERVAL '${parseInt(val) || 30} days'`;
+          break;
+        case 'more_than_days_ago':
+          clause = `${fullColumn} < NOW() - INTERVAL '${parseInt(val) || 30} days'`;
+          break;
+        case 'is_any_of':
+          if (Array.isArray(val) && val.length > 0) {
+            const placeholders = val.map(() => `$${paramIndex++}`).join(', ');
+            clause = `${fullColumn} IN (${placeholders})`;
+            params.push(...val);
+          }
+          break;
+        case 'is_none_of':
+          if (Array.isArray(val) && val.length > 0) {
+            const placeholders = val.map(() => `$${paramIndex++}`).join(', ');
+            clause = `${fullColumn} NOT IN (${placeholders})`;
+            params.push(...val);
+          }
+          break;
+        case 'is_true':
+          clause = `${fullColumn} = true`;
+          break;
+        case 'is_false':
+          clause = `${fullColumn} = false`;
+          break;
+        default:
+          // Skip unknown operators
+          continue;
+      }
+
+      if (clause) {
+        filterClauses.push(clause);
+      }
+    }
+
+    if (filterClauses.length > 0) {
+      const groupLogic = group.logic === 'OR' ? ' OR ' : ' AND ';
+      groupClauses.push(`(${filterClauses.join(groupLogic)})`);
+    }
+  }
+
+  if (groupClauses.length === 0) {
+    return { whereClause: '', params: [], paramIndex };
+  }
+
+  const groupLogic = filters.groupLogic === 'AND' ? ' AND ' : ' OR ';
+  const whereClause = groupClauses.join(groupLogic);
+
+  return { whereClause, params, paramIndex };
+}
+
+/**
  * Get segment members
+ * For ACTIVE segments: executes filter query against the object table
+ * For STATIC segments: returns records from SegmentMember table
  */
 async function handleGetSegmentMembers(tenantId, segmentId, queryParams) {
   const { limit = 50, offset = 0 } = queryParams;
@@ -2097,51 +2403,124 @@ async function handleGetSegmentMembers(tenantId, segmentId, queryParams) {
   try {
     await getPoolAsync();
 
-    // Verify segment belongs to tenant
-    const segmentCheck = await query(
-      `SELECT id FROM "Segment" WHERE id = $1 AND tenant_id = $2 `,
+    // Get segment with filters and type
+    const segmentResult = await query(
+      `SELECT id, filters, segment_type, object_type FROM "Segment" WHERE id = $1 AND tenant_id = $2`,
       [segmentId, tenantId]
     );
 
-    if (segmentCheck.rows.length === 0) {
+    if (segmentResult.rows.length === 0) {
       return createResponse(404, {
         error: 'Not Found',
         message: 'Segment not found',
       });
     }
 
-    const result = await query(
-      `SELECT
-         o.id,
-         o.first_name,
-         o.last_name,
-         o.email,
-         o.phone,
-         sm.added_at
-       FROM "SegmentMember" sm
-       JOIN "Owner" o ON sm.owner_id = o.id
-       WHERE sm.segment_id = $1
-       ORDER BY o.last_name, o.first_name
-       LIMIT $2 OFFSET $3`,
-      [segmentId, parseInt(limit), parseInt(offset)]
-    );
+    const segment = segmentResult.rows[0];
+    const segmentType = segment.segment_type || 'active';
+    const objectType = segment.object_type || 'owners';
+    const filters = segment.filters || { groups: [], groupLogic: 'OR' };
 
-    // Get total count
-    const countResult = await query(
-      `SELECT COUNT(*) as count FROM "SegmentMember" WHERE segment_id = $1`,
-      [segmentId]
-    );
+    let members = [];
+    let total = 0;
 
-    const members = result.rows.map(row => ({
-      id: row.id,
-      firstName: row.first_name,
-      lastName: row.last_name,
-      email: row.email,
-      phone: row.phone,
-      addedAt: row.added_at,
-    }));
+    if (segmentType === 'active' && filters.groups && filters.groups.length > 0) {
+      // ACTIVE segment: get members from SegmentMember table (populated by refresh)
+      let tableName = '"Owner"';
+      let idColumn = 'owner_id';
+      let selectFields = 'o.id, o.first_name, o.last_name, o.email, o.phone';
 
-    const total = parseInt(countResult.rows[0]?.count || 0);
+      if (objectType === 'pets') {
+        tableName = '"Pet"';
+        idColumn = 'pet_id';
+        selectFields = 'o.id, o.name, o.species, o.breed, o.owner_id';
+      } else if (objectType === 'bookings') {
+        tableName = '"Booking"';
+        idColumn = 'booking_id';
+        selectFields = 'o.id, o.pet_id, o.start_date, o.end_date, o.status';
+      }
+
+      // Query from SegmentMember joined with object table
+      const result = await query(
+        `SELECT ${selectFields}, sm.added_at
+         FROM "SegmentMember" sm
+         JOIN ${tableName} o ON sm.${idColumn} = o.id
+         WHERE sm.segment_id = $1
+         ORDER BY sm.added_at DESC
+         LIMIT $2 OFFSET $3`,
+        [segmentId, parseInt(limit), parseInt(offset)]
+      );
+
+      const countResult = await query(
+        `SELECT COUNT(*) as count FROM "SegmentMember" WHERE segment_id = $1`,
+        [segmentId]
+      );
+
+      total = parseInt(countResult.rows[0]?.count || 0);
+
+      // Map results based on object type
+      if (objectType === 'owners') {
+        members = result.rows.map(row => ({
+          id: row.id,
+          firstName: row.first_name,
+          lastName: row.last_name,
+          email: row.email,
+          phone: row.phone,
+          addedAt: row.added_at,
+        }));
+      } else if (objectType === 'pets') {
+        members = result.rows.map(row => ({
+          id: row.id,
+          name: row.name,
+          species: row.species,
+          breed: row.breed,
+          ownerId: row.owner_id,
+          addedAt: row.added_at,
+        }));
+      } else {
+        members = result.rows.map(row => ({
+          id: row.id,
+          petId: row.pet_id,
+          startDate: row.start_date,
+          endDate: row.end_date,
+          status: row.status,
+          addedAt: row.added_at,
+        }));
+      }
+    } else {
+      // STATIC segment or no filters: use SegmentMember table
+      const result = await query(
+        `SELECT
+           o.id,
+           o.first_name,
+           o.last_name,
+           o.email,
+           o.phone,
+           sm.added_at
+         FROM "SegmentMember" sm
+         JOIN "Owner" o ON sm.owner_id = o.id
+         WHERE sm.segment_id = $1
+         ORDER BY o.last_name, o.first_name
+         LIMIT $2 OFFSET $3`,
+        [segmentId, parseInt(limit), parseInt(offset)]
+      );
+
+      const countResult = await query(
+        `SELECT COUNT(*) as count FROM "SegmentMember" WHERE segment_id = $1`,
+        [segmentId]
+      );
+
+      total = parseInt(countResult.rows[0]?.count || 0);
+      members = result.rows.map(row => ({
+        id: row.id,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        email: row.email,
+        phone: row.phone,
+        addedAt: row.added_at,
+      }));
+    }
+
     const hasMore = (parseInt(offset) + members.length) < total;
 
     return createResponse(200, {
@@ -2154,11 +2533,832 @@ async function handleGetSegmentMembers(tenantId, segmentId, queryParams) {
     });
 
   } catch (error) {
-    console.error('[ANALYTICS-SERVICE] Failed to get segment members:', error.message);
+    console.error('[ANALYTICS-SERVICE] Failed to get segment members:', error.message, error.stack);
     return createResponse(500, {
       error: 'Internal Server Error',
       message: 'Failed to retrieve segment members',
     });
+  }
+}
+
+/**
+ * Get single segment by ID
+ */
+async function handleGetSegment(tenantId, segmentId) {
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `SELECT
+         s.id,
+         s.name,
+         s.description,
+         s.criteria,
+         s.filters,
+         s.object_type,
+         s.segment_type,
+         s.is_automatic,
+         s.is_active,
+         s.member_count,
+         s.percent_of_total,
+         s.seven_day_change,
+         s.created_by,
+         s.created_at,
+         s.updated_at,
+         COALESCE(s.member_count, (SELECT COUNT(*) FROM "SegmentMember" sm WHERE sm.segment_id = s.id)) as computed_member_count
+       FROM "Segment" s
+       WHERE s.id = $1 AND s.tenant_id = $2`,
+      [segmentId, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Segment not found' });
+    }
+
+    const row = result.rows[0];
+    const segment = {
+      id: row.id,
+      recordId: row.id,
+      name: row.name,
+      description: row.description,
+      criteria: row.criteria || {},
+      filters: row.filters || { groups: [], groupLogic: 'OR' },
+      object_type: row.object_type || 'owners',
+      objectType: row.object_type || 'owners',
+      segment_type: row.segment_type || 'active',
+      segmentType: row.segment_type || 'active',
+      isDynamic: row.is_automatic ?? (row.segment_type === 'active'),
+      isActive: row.is_active ?? true,
+      isAutomatic: row.is_automatic ?? false,
+      _count: {
+        members: parseInt(row.computed_member_count || row.member_count || 0),
+        campaigns: 0,
+      },
+      memberCount: parseInt(row.computed_member_count || row.member_count || 0),
+      member_count: parseInt(row.computed_member_count || row.member_count || 0),
+      percentOfTotal: parseFloat(row.percent_of_total || 0),
+      percent_of_total: parseFloat(row.percent_of_total || 0),
+      change7d: parseInt(row.seven_day_change || 0),
+      sevenDayChange: parseInt(row.seven_day_change || 0),
+      seven_day_change: parseInt(row.seven_day_change || 0),
+      createdBy: row.created_by,
+      created_by: row.created_by,
+      createdAt: row.created_at,
+      created_at: row.created_at,
+      updatedAt: row.updated_at,
+      updated_at: row.updated_at,
+    };
+
+    return createResponse(200, { segment, data: segment });
+  } catch (error) {
+    console.error('[ANALYTICS-SERVICE] Failed to get segment:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to retrieve segment' });
+  }
+}
+
+/**
+ * Create new segment
+ */
+async function handleCreateSegment(tenantId, body, userId = null) {
+  const { name, description, object_type = 'owners', segment_type = 'active', filters } = body;
+
+  if (!name?.trim()) {
+    return createResponse(400, { error: 'Bad Request', message: 'Segment name is required' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Calculate initial member count and percentage
+    let memberCount = 0;
+    let percentOfTotal = 0;
+    const parsedFilters = filters || { groups: [], groupLogic: 'OR' };
+
+    // Get total count for object type
+    let totalTableName = '"Owner"';
+    if (object_type === 'pets') totalTableName = '"Pet"';
+    else if (object_type === 'bookings') totalTableName = '"Booking"';
+
+    const totalResult = await query(
+      `SELECT COUNT(*) as count FROM ${totalTableName} WHERE tenant_id = $1`,
+      [tenantId]
+    );
+    const totalCount = parseInt(totalResult.rows[0]?.count || 0);
+
+    // For active segments with filters, calculate member count
+    if (segment_type === 'active' && parsedFilters.groups && parsedFilters.groups.length > 0) {
+      const { whereClause, params } = buildFilterWhereClause(parsedFilters, object_type, 'o', 2);
+      let countQuery = `SELECT COUNT(*) as count FROM ${totalTableName} o WHERE o.tenant_id = $1`;
+      let queryParams = [tenantId];
+
+      if (whereClause) {
+        countQuery += ` AND (${whereClause})`;
+        queryParams = [tenantId, ...params];
+      }
+
+      const countResult = await query(countQuery, queryParams);
+      memberCount = parseInt(countResult.rows[0]?.count || 0);
+    }
+
+    percentOfTotal = totalCount > 0 ? ((memberCount / totalCount) * 100).toFixed(2) : 0;
+
+    const result = await query(
+      `INSERT INTO "Segment" (tenant_id, name, description, object_type, segment_type, filters, member_count, percent_of_total, seven_day_change, created_by, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, $9, NOW(), NOW())
+       RETURNING id`,
+      [tenantId, name.trim(), description?.trim() || null, object_type, segment_type, JSON.stringify(parsedFilters), memberCount, percentOfTotal, userId]
+    );
+
+    const segmentId = result.rows[0].id;
+
+    // Store initial snapshot
+    try {
+      await query(
+        `INSERT INTO "SegmentSnapshot" (id, segment_id, member_count, snapshot_date)
+         VALUES (gen_random_uuid(), $1, $2, CURRENT_DATE)
+         ON CONFLICT (segment_id, snapshot_date) DO UPDATE SET member_count = $2`,
+        [segmentId, memberCount]
+      );
+    } catch (e) {
+      // SegmentSnapshot table might not exist - ignore
+    }
+
+    // Log activity with user ID
+    await query(
+      `INSERT INTO "SegmentActivity" (segment_id, activity_type, description, created_by, created_at)
+       VALUES ($1, 'segment_created', 'Segment created', $2, NOW())`,
+      [segmentId, userId]
+    ).catch(() => {}); // Ignore if table doesn't exist
+
+    return createResponse(201, {
+      segment: { id: segmentId, recordId: segmentId, name: name.trim(), memberCount, percentOfTotal: parseFloat(percentOfTotal), sevenDayChange: 0 },
+      message: 'Segment created successfully',
+    });
+  } catch (error) {
+    console.error('[ANALYTICS-SERVICE] Failed to create segment:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to create segment' });
+  }
+}
+
+/**
+ * Update segment
+ */
+async function handleUpdateSegment(tenantId, segmentId, body, userId = null) {
+  const { name, description, object_type, segment_type, filters } = body;
+
+  try {
+    await getPoolAsync();
+
+    // Verify segment exists and belongs to tenant
+    const checkResult = await query(
+      `SELECT id, is_automatic FROM "Segment" WHERE id = $1 AND tenant_id = $2`,
+      [segmentId, tenantId]
+    );
+
+    if (checkResult.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Segment not found' });
+    }
+
+    // Don't allow editing auto segments
+    if (checkResult.rows[0].is_automatic) {
+      return createResponse(403, { error: 'Forbidden', message: 'Cannot edit automatic segments' });
+    }
+
+    const updates = [];
+    const values = [segmentId];
+    let paramIndex = 2;
+
+    if (name !== undefined) {
+      updates.push(`name = $${paramIndex++}`);
+      values.push(name.trim());
+    }
+    if (description !== undefined) {
+      updates.push(`description = $${paramIndex++}`);
+      values.push(description?.trim() || null);
+    }
+    if (object_type !== undefined) {
+      updates.push(`object_type = $${paramIndex++}`);
+      values.push(object_type);
+    }
+    if (segment_type !== undefined) {
+      updates.push(`segment_type = $${paramIndex++}`);
+      values.push(segment_type);
+    }
+    if (filters !== undefined) {
+      updates.push(`filters = $${paramIndex++}`);
+      values.push(JSON.stringify(filters));
+    }
+    updates.push('updated_at = NOW()');
+
+    await query(
+      `UPDATE "Segment" SET ${updates.join(', ')} WHERE id = $1`,
+      values
+    );
+
+    // Log activity with user ID
+    await query(
+      `INSERT INTO "SegmentActivity" (segment_id, activity_type, description, created_by, created_at)
+       VALUES ($1, 'segment_updated', 'Segment updated', $2, NOW())`,
+      [segmentId, userId]
+    ).catch(() => {});
+
+    return createResponse(200, { message: 'Segment updated successfully' });
+  } catch (error) {
+    console.error('[ANALYTICS-SERVICE] Failed to update segment:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update segment' });
+  }
+}
+
+/**
+ * Delete segment
+ */
+async function handleDeleteSegment(tenantId, segmentId) {
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `DELETE FROM "Segment" WHERE id = $1 AND tenant_id = $2 RETURNING id`,
+      [segmentId, tenantId]
+    );
+
+    if (result.rowCount === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Segment not found' });
+    }
+
+    return createResponse(200, { message: 'Segment deleted successfully' });
+  } catch (error) {
+    console.error('[ANALYTICS-SERVICE] Failed to delete segment:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to delete segment' });
+  }
+}
+
+/**
+ * Add members to segment
+ */
+async function handleAddSegmentMembers(tenantId, segmentId, body) {
+  const { ownerIds = [], recordIds = [] } = body;
+  const idsToAdd = [...new Set([...ownerIds, ...recordIds])];
+
+  if (idsToAdd.length === 0) {
+    return createResponse(400, { error: 'Bad Request', message: 'No member IDs provided' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Verify segment
+    const segmentCheck = await query(
+      `SELECT id FROM "Segment" WHERE id = $1 AND tenant_id = $2`,
+      [segmentId, tenantId]
+    );
+    if (segmentCheck.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Segment not found' });
+    }
+
+    // Insert members - use owner_id (existing column name)
+    const placeholders = idsToAdd.map((_, i) => `($1, $${i + 2}, NOW())`).join(', ');
+    await query(
+      `INSERT INTO "SegmentMember" (segment_id, owner_id, added_at)
+       VALUES ${placeholders}
+       ON CONFLICT (segment_id, owner_id) DO NOTHING`,
+      [segmentId, ...idsToAdd]
+    );
+
+    // Update member count
+    await query(
+      `UPDATE "Segment" SET member_count = (SELECT COUNT(*) FROM "SegmentMember" WHERE segment_id = $1), updated_at = NOW() WHERE id = $1`,
+      [segmentId]
+    );
+
+    return createResponse(200, { message: `Added ${idsToAdd.length} members` });
+  } catch (error) {
+    console.error('[ANALYTICS-SERVICE] Failed to add segment members:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to add members' });
+  }
+}
+
+/**
+ * Remove members from segment
+ */
+async function handleRemoveSegmentMembers(tenantId, segmentId, body) {
+  const { ownerIds = [], recordIds = [] } = body;
+  const idsToRemove = [...new Set([...ownerIds, ...recordIds])];
+
+  if (idsToRemove.length === 0) {
+    return createResponse(400, { error: 'Bad Request', message: 'No member IDs provided' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const placeholders = idsToRemove.map((_, i) => `$${i + 2}`).join(', ');
+    await query(
+      `DELETE FROM "SegmentMember" WHERE segment_id = $1 AND owner_id IN (${placeholders})`,
+      [segmentId, ...idsToRemove]
+    );
+
+    // Update member count
+    await query(
+      `UPDATE "Segment" SET member_count = (SELECT COUNT(*) FROM "SegmentMember" WHERE segment_id = $1), updated_at = NOW() WHERE id = $1`,
+      [segmentId]
+    );
+
+    return createResponse(200, { message: `Removed ${idsToRemove.length} members` });
+  } catch (error) {
+    console.error('[ANALYTICS-SERVICE] Failed to remove segment members:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to remove members' });
+  }
+}
+
+/**
+ * Clone segment
+ */
+async function handleCloneSegment(tenantId, segmentId) {
+  try {
+    await getPoolAsync();
+
+    const original = await query(
+      `SELECT * FROM "Segment" WHERE id = $1 AND tenant_id = $2`,
+      [segmentId, tenantId]
+    );
+
+    if (original.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Segment not found' });
+    }
+
+    const row = original.rows[0];
+    const result = await query(
+      `INSERT INTO "Segment" (tenant_id, name, description, object_type, segment_type, filters, is_automatic, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, FALSE, NOW(), NOW())
+       RETURNING id`,
+      [tenantId, `${row.name} (Copy)`, row.description, row.object_type, row.segment_type, JSON.stringify(row.filters)]
+    );
+
+    return createResponse(201, {
+      segment: { id: result.rows[0].id, recordId: result.rows[0].id },
+      message: 'Segment cloned successfully',
+    });
+  } catch (error) {
+    console.error('[ANALYTICS-SERVICE] Failed to clone segment:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to clone segment' });
+  }
+}
+
+/**
+ * Convert segment type (active <-> static)
+ */
+async function handleConvertSegment(tenantId, segmentId, body) {
+  const { targetType } = body;
+
+  if (!['active', 'static'].includes(targetType)) {
+    return createResponse(400, { error: 'Bad Request', message: 'Invalid target type' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    await query(
+      `UPDATE "Segment" SET segment_type = $1, updated_at = NOW() WHERE id = $2 AND tenant_id = $3`,
+      [targetType, segmentId, tenantId]
+    );
+
+    return createResponse(200, { message: `Converted to ${targetType} segment` });
+  } catch (error) {
+    console.error('[ANALYTICS-SERVICE] Failed to convert segment:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to convert segment' });
+  }
+}
+
+/**
+ * Refresh single segment member count
+ * - For ACTIVE segments: executes filter query
+ * - Stores daily snapshot
+ * - Calculates 7-day change
+ */
+async function handleRefreshSegment(tenantId, segmentId) {
+  try {
+    await getPoolAsync();
+
+    // Get segment details
+    const segmentResult = await query(
+      `SELECT id, filters, segment_type, object_type FROM "Segment" WHERE id = $1 AND tenant_id = $2`,
+      [segmentId, tenantId]
+    );
+
+    if (segmentResult.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Segment not found' });
+    }
+
+    const segment = segmentResult.rows[0];
+    const segmentType = segment.segment_type || 'active';
+    const objectType = segment.object_type || 'owners';
+    const filters = segment.filters || { groups: [], groupLogic: 'OR' };
+
+    let count = 0;
+
+    if (segmentType === 'active' && filters.groups && filters.groups.length > 0) {
+      // Active segment: execute filter and sync SegmentMember table
+      let tableName = '"Owner"';
+      let idColumn = 'owner_id';
+      if (objectType === 'pets') {
+        tableName = '"Pet"';
+        idColumn = 'pet_id';
+      } else if (objectType === 'bookings') {
+        tableName = '"Booking"';
+        idColumn = 'booking_id';
+      }
+
+      const { whereClause, params } = buildFilterWhereClause(filters, objectType, 'o', 2);
+
+      // Get all matching IDs
+      let idsQuery = `SELECT o.id FROM ${tableName} o WHERE o.tenant_id = $1`;
+      let queryParams = [tenantId];
+
+      if (whereClause) {
+        idsQuery += ` AND (${whereClause})`;
+        queryParams = [tenantId, ...params];
+      }
+
+      const idsResult = await query(idsQuery, queryParams);
+      const matchingIds = idsResult.rows.map(r => r.id);
+      count = matchingIds.length;
+
+      // Sync SegmentMember table for active segments
+      // Delete all existing and re-insert with current timestamp for new members
+      // Keep existing members that still match (preserve their added_at)
+
+      const existingResult = await query(
+        `SELECT ${idColumn} as record_id, added_at FROM "SegmentMember" WHERE segment_id = $1`,
+        [segmentId]
+      ).catch(() => ({ rows: [] }));
+
+      // Map of existing record_id -> added_at
+      const existingMap = new Map();
+      for (const row of existingResult.rows) {
+        existingMap.set(row.record_id, row.added_at);
+      }
+
+      const matchingIdsSet = new Set(matchingIds);
+
+      // Find new members (not in existing) - these get added with NOW()
+      const newIds = matchingIds.filter(id => !existingMap.has(id));
+
+      // Find removed members (in existing but not matching anymore) - delete them
+      const removedIds = [...existingMap.keys()].filter(id => !matchingIdsSet.has(id));
+
+      console.log('[Refresh] Sync stats:', {
+        totalMatching: matchingIds.length,
+        existingCount: existingMap.size,
+        newCount: newIds.length,
+        removedCount: removedIds.length
+      });
+
+      // Insert new members with current timestamp
+      for (const id of newIds) {
+        try {
+          await query(
+            `INSERT INTO "SegmentMember" (segment_id, ${idColumn}, tenant_id, added_at)
+             VALUES ($1, $2, $3, NOW())`,
+            [segmentId, id, tenantId]
+          );
+        } catch (insertErr) {
+          console.log('[Refresh] Insert error for id', id, ':', insertErr.message);
+        }
+      }
+
+      // Remove members that no longer match
+      if (removedIds.length > 0) {
+        await query(
+          `DELETE FROM "SegmentMember" WHERE segment_id = $1 AND ${idColumn} = ANY($2::uuid[])`,
+          [segmentId, removedIds]
+        ).catch((delErr) => console.log('[Refresh] Delete error:', delErr.message));
+      }
+    } else {
+      // Static segment: count from SegmentMember table
+      const countResult = await query(
+        `SELECT COUNT(*) as count FROM "SegmentMember" WHERE segment_id = $1`,
+        [segmentId]
+      );
+      count = parseInt(countResult.rows[0]?.count || 0);
+    }
+
+    // Get total count for percentage calculation
+    let totalTableName = '"Owner"';
+    if (objectType === 'pets') totalTableName = '"Pet"';
+    else if (objectType === 'bookings') totalTableName = '"Booking"';
+
+    const totalResult = await query(
+      `SELECT COUNT(*) as count FROM ${totalTableName} WHERE tenant_id = $1`,
+      [tenantId]
+    );
+    const totalCount = parseInt(totalResult.rows[0]?.count || 1);
+    const percentOfTotal = totalCount > 0 ? ((count / totalCount) * 100).toFixed(2) : 0;
+
+    // Calculate 7-day change from snapshots
+    let sevenDayChange = 0;
+    try {
+      const snapshotResult = await query(
+        `SELECT member_count FROM "SegmentSnapshot"
+         WHERE segment_id = $1 AND snapshot_date <= NOW() - INTERVAL '7 days'
+         ORDER BY snapshot_date DESC LIMIT 1`,
+        [segmentId]
+      );
+      if (snapshotResult.rows.length > 0) {
+        const oldCount = parseInt(snapshotResult.rows[0].member_count || 0);
+        sevenDayChange = count - oldCount;
+      }
+    } catch (e) {
+      // SegmentSnapshot table might not exist yet - ignore
+      console.log('[Segment][refresh] Snapshot table not found, skipping 7-day calc');
+    }
+
+    // Store today's snapshot (upsert)
+    try {
+      await query(
+        `INSERT INTO "SegmentSnapshot" (id, segment_id, member_count, snapshot_date)
+         VALUES (gen_random_uuid(), $1, $2, CURRENT_DATE)
+         ON CONFLICT (segment_id, snapshot_date) DO UPDATE SET member_count = $2`,
+        [segmentId, count]
+      );
+    } catch (e) {
+      // SegmentSnapshot table might not exist - ignore
+      console.log('[Segment][refresh] Could not store snapshot:', e.message);
+    }
+
+    // Update segment
+    await query(
+      `UPDATE "Segment"
+       SET member_count = $1, percent_of_total = $2, seven_day_change = $3, updated_at = NOW()
+       WHERE id = $4 AND tenant_id = $5`,
+      [count, percentOfTotal, sevenDayChange, segmentId, tenantId]
+    );
+
+    return createResponse(200, {
+      memberCount: count,
+      percentOfTotal: parseFloat(percentOfTotal),
+      sevenDayChange,
+      message: 'Segment refreshed'
+    });
+  } catch (error) {
+    console.error('[ANALYTICS-SERVICE] Failed to refresh segment:', error.message, error.stack);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to refresh segment' });
+  }
+}
+
+/**
+ * Refresh all segments
+ */
+async function handleRefreshAllSegments(tenantId) {
+  try {
+    await getPoolAsync();
+
+    // Get all segments for tenant
+    const segments = await query(
+      `SELECT id FROM "Segment" WHERE tenant_id = $1`,
+      [tenantId]
+    );
+
+    for (const segment of segments.rows) {
+      const countResult = await query(
+        `SELECT COUNT(*) as count FROM "SegmentMember" WHERE segment_id = $1`,
+        [segment.id]
+      );
+      const count = parseInt(countResult.rows[0]?.count || 0);
+
+      await query(
+        `UPDATE "Segment" SET member_count = $1, updated_at = NOW() WHERE id = $2`,
+        [count, segment.id]
+      );
+    }
+
+    return createResponse(200, { message: `Refreshed ${segments.rows.length} segments` });
+  } catch (error) {
+    console.error('[ANALYTICS-SERVICE] Failed to refresh segments:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to refresh segments' });
+  }
+}
+
+/**
+ * Get segment activity
+ * Joins with User table to get actual user names
+ */
+async function handleGetSegmentActivity(tenantId, segmentId, queryParams) {
+  const { limit = 50, offset = 0 } = queryParams;
+
+  try {
+    await getPoolAsync();
+
+    // Join with User table to get created_by user info
+    const result = await query(
+      `SELECT
+         sa.id,
+         sa.activity_type,
+         sa.description,
+         sa.metadata,
+         sa.member_count_before,
+         sa.member_count_after,
+         sa.created_by,
+         sa.created_at,
+         u.first_name as user_first_name,
+         u.last_name as user_last_name,
+         u.email as user_email
+       FROM "SegmentActivity" sa
+       LEFT JOIN "User" u ON sa.created_by = u.id
+       WHERE sa.segment_id = $1
+       ORDER BY sa.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [segmentId, parseInt(limit), parseInt(offset)]
+    );
+
+    const countResult = await query(
+      `SELECT COUNT(*) as count FROM "SegmentActivity" WHERE segment_id = $1`,
+      [segmentId]
+    );
+
+    const items = result.rows.map(row => {
+      // Build user name from joined user data
+      const userName = row.user_first_name || row.user_last_name
+        ? `${row.user_first_name || ''} ${row.user_last_name || ''}`.trim()
+        : null;
+
+      return {
+        id: row.id,
+        type: row.activity_type,
+        description: row.description,
+        metadata: row.metadata,
+        memberCountBefore: row.member_count_before,
+        memberCountAfter: row.member_count_after,
+        createdAt: row.created_at,
+        created_by: row.created_by,
+        // Include modifiedByUser for frontend fallback chain
+        modifiedByUser: row.created_by ? {
+          id: row.created_by,
+          name: userName,
+          email: row.user_email,
+        } : null,
+        // Also include as created_by_name for simpler access
+        created_by_name: userName || row.user_email || null,
+      };
+    });
+
+    return createResponse(200, {
+      items,
+      total: parseInt(countResult.rows[0]?.count || 0),
+      offset: parseInt(offset),
+      limit: parseInt(limit),
+    });
+  } catch (error) {
+    // Return empty if table doesn't exist
+    if (error.message?.includes('does not exist') || error.code === '42P01') {
+      return createResponse(200, { items: [], total: 0, offset: 0, limit: 50 });
+    }
+    console.error('[ANALYTICS-SERVICE] Failed to get segment activity:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to get activity' });
+  }
+}
+
+/**
+ * Preview segment (for builder)
+ * Uses same filter logic as handleGetSegmentMembers for consistency
+ */
+async function handlePreviewSegment(tenantId, body) {
+  const { filters, objectType = 'owners', limit = 10 } = body;
+
+  try {
+    await getPoolAsync();
+
+    let tableName = '"Owner"';
+    let selectFields = 'o.id, o.first_name, o.last_name, o.email, o.phone';
+
+    if (objectType === 'pets') {
+      tableName = '"Pet"';
+      selectFields = 'o.id, o.name, o.species, o.breed';
+    } else if (objectType === 'bookings') {
+      tableName = '"Booking"';
+      selectFields = 'o.id, o.pet_id, o.start_date, o.end_date, o.status';
+    }
+
+    // Build filter clause using same function as members endpoint
+    const { whereClause, params, paramIndex } = buildFilterWhereClause(filters, objectType, 'o', 2);
+
+    // Build queries
+    let dataQuery = `SELECT ${selectFields} FROM ${tableName} o WHERE o.tenant_id = $1`;
+    let countQuery = `SELECT COUNT(*) as count FROM ${tableName} o WHERE o.tenant_id = $1`;
+    let queryParams = [tenantId];
+
+    if (whereClause) {
+      dataQuery += ` AND (${whereClause})`;
+      countQuery += ` AND (${whereClause})`;
+      queryParams = [tenantId, ...params];
+    }
+
+    dataQuery += ` LIMIT $${paramIndex}`;
+
+    // Execute queries
+    const result = await query(dataQuery, [...queryParams, parseInt(limit)]);
+    const countResult = await query(countQuery, queryParams);
+
+    const sample = result.rows.map(row => {
+      if (objectType === 'owners') {
+        return {
+          id: row.id,
+          recordId: row.id,
+          firstName: row.first_name,
+          lastName: row.last_name,
+          email: row.email,
+          phone: row.phone,
+          name: `${row.first_name || ''} ${row.last_name || ''}`.trim(),
+        };
+      } else if (objectType === 'pets') {
+        return {
+          id: row.id,
+          recordId: row.id,
+          name: row.name,
+          species: row.species,
+          breed: row.breed,
+        };
+      } else {
+        return {
+          id: row.id,
+          recordId: row.id,
+          petId: row.pet_id,
+          startDate: row.start_date,
+          endDate: row.end_date,
+          status: row.status,
+        };
+      }
+    });
+
+    return createResponse(200, {
+      count: parseInt(countResult.rows[0]?.count || 0),
+      sample,
+    });
+  } catch (error) {
+    console.error('[ANALYTICS-SERVICE] Failed to preview segment:', error.message, error.stack);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to preview segment' });
+  }
+}
+
+/**
+ * Export segment members to CSV
+ */
+async function handleExportSegmentMembers(tenantId, segmentId) {
+  try {
+    await getPoolAsync();
+
+    // Get segment info
+    const segmentResult = await query(
+      `SELECT object_type FROM "Segment" WHERE id = $1 AND tenant_id = $2`,
+      [segmentId, tenantId]
+    );
+
+    if (segmentResult.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Segment not found' });
+    }
+
+    const objectType = segmentResult.rows[0].object_type || 'owners';
+
+    // Get members with owner details
+    const result = await query(
+      `SELECT
+         o.id,
+         o.first_name,
+         o.last_name,
+         o.email,
+         o.phone,
+         o.created_at
+       FROM "SegmentMember" sm
+       JOIN "Owner" o ON sm.owner_id = o.id
+       WHERE sm.segment_id = $1
+       ORDER BY o.last_name, o.first_name`,
+      [segmentId]
+    );
+
+    // Build CSV
+    const headers = ['ID', 'First Name', 'Last Name', 'Email', 'Phone', 'Created At'];
+    const rows = result.rows.map(row => [
+      row.id,
+      row.first_name || '',
+      row.last_name || '',
+      row.email || '',
+      row.phone || '',
+      row.created_at ? new Date(row.created_at).toISOString() : '',
+    ]);
+
+    const csv = [headers.join(','), ...rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n');
+
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'text/csv',
+        'Content-Disposition': `attachment; filename="segment-export-${segmentId}.csv"`,
+        'Access-Control-Allow-Origin': '*',
+      },
+      body: csv,
+    };
+  } catch (error) {
+    console.error('[ANALYTICS-SERVICE] Failed to export segment:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to export segment' });
   }
 }
 

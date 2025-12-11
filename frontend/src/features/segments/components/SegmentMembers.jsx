@@ -12,30 +12,35 @@ import {
 import { useOwners } from '@/features/owners/api';
 
 const MemberCard = ({ member, onRemove, canManage }) => {
-  const owner = member.owner;
-  
+  // Handle both nested owner object and flat member structure
+  const owner = member.owner || member;
+  const ownerId = owner?.recordId || owner?.id || member?.ownerId;
+  const ownerName = owner?.name || `${owner?.firstName || ''} ${owner?.lastName || ''}`.trim() || 'Unknown';
+  const petCount = owner?._count?.pets ?? owner?.petCount ?? 0;
+  const bookingCount = owner?._count?.bookings ?? owner?.bookingCount ?? 0;
+
   return (
     <Card className="p-4">
       <div className="flex items-start justify-between">
         <div>
           <h4 className="font-medium text-text">
-            {owner.firstName} {owner.lastName}
+            {ownerName}
           </h4>
-          <p className="text-sm text-text-secondary">{owner.email}</p>
+          <p className="text-sm text-text-secondary">{owner?.email || 'No email'}</p>
           <div className="flex items-center gap-4 mt-2 text-sm text-text-muted">
             <span className="flex items-center gap-1">
               <Dog className="w-4 h-4" />
-              {owner._count.pets} pets
+              {petCount} pets
             </span>
-            <span>{owner._count.bookings} bookings</span>
+            <span>{bookingCount} bookings</span>
           </div>
         </div>
-        
-        {canManage && (
+
+        {canManage && ownerId && (
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => onRemove(owner.recordId)}
+            onClick={() => onRemove(ownerId)}
             className="text-danger hover:bg-danger/10"
           >
             <UserMinus className="w-4 h-4" />
@@ -85,34 +90,38 @@ const AddMembersForm = ({ segment, onClose }) => {
         </p>
       ) : (
         <div className="space-y-2 max-h-64 overflow-y-auto mb-4">
-          {availableOwners.map((owner) => (
-            <label
-              key={owner.recordId}
-              className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary rounded cursor-pointer"
-            >
-              <input
-                type="checkbox"
-                value={owner.recordId}
-                checked={selectedOwners.includes(owner.recordId)}
-                onChange={(e) => {
-                  if (e.target.checked) {
-                    setSelectedOwners([...selectedOwners, owner.recordId]);
-                  } else {
-                    setSelectedOwners(selectedOwners.filter(recordId => id !== owner.recordId));
-                  }
-                }}
-                className="h-4 w-4 text-primary rounded"
-              />
-              <div className="flex-1">
-                <span className="font-medium text-sm">
-                  {owner.firstName} {owner.lastName}
-                </span>
-                <span className="text-sm text-text-secondary ml-2">
-                  {owner.email}
-                </span>
-              </div>
-            </label>
-          ))}
+          {availableOwners.map((owner) => {
+            const ownerId = owner?.recordId || owner?.id;
+            const ownerName = owner?.name || `${owner?.firstName || ''} ${owner?.lastName || ''}`.trim() || 'Unknown';
+            return (
+              <label
+                key={ownerId}
+                className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-surface-secondary dark:bg-surface-secondary rounded cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  value={ownerId}
+                  checked={selectedOwners.includes(ownerId)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedOwners([...selectedOwners, ownerId]);
+                    } else {
+                      setSelectedOwners(selectedOwners.filter(id => id !== ownerId));
+                    }
+                  }}
+                  className="h-4 w-4 text-primary rounded"
+                />
+                <div className="flex-1">
+                  <span className="font-medium text-sm">
+                    {ownerName}
+                  </span>
+                  <span className="text-sm text-text-secondary ml-2">
+                    {owner?.email || ''}
+                  </span>
+                </div>
+              </label>
+            );
+          })}
         </div>
       )}
       

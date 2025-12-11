@@ -1,0 +1,1 @@
+{"entityTypes":["owners"],"data":[{"first_name":"Test","last_name":"User","email":"test@example.com"}],"mappings":{},"importModes":{"owners":"create_update"},"options":{},"filename":"test.csv"}

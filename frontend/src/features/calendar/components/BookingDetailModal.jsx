@@ -65,10 +65,13 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit, onCheckIn, onChe
     return `${petInitial}-${dateStr}`;
   };
 
+  // Get the actual booking ID - prefer explicit bookingId field over generic id
+  const actualBookingId = booking.bookingId || booking.recordId || booking.id || null;
+
   // Transform booking data for display
   const displayBooking = {
-    id: booking.recordId || booking.id || 'Unknown',
-    bookingRef: generateBookingRef(booking.recordId || booking.id, booking.checkIn),
+    id: actualBookingId || 'Unknown',
+    bookingRef: generateBookingRef(actualBookingId, booking.checkIn),
     pet: booking.pet || {},
     owner: booking.owner || {},
     checkIn: booking.checkIn,
@@ -87,7 +90,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit, onCheckIn, onChe
   const balance = displayBooking.totalCents - displayBooking.amountPaidCents;
 
   // Check if booking has a valid ID for operations
-  const hasValidBookingId = displayBooking.id && displayBooking.id !== 'Unknown';
+  const hasValidBookingId = actualBookingId && actualBookingId !== 'Unknown';
 
   const getStatusVariant = (status) => {
     const variants = {
@@ -180,8 +183,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit, onCheckIn, onChe
     }
   }, [displayBooking.owner, openSlideout]);
 
-  // DAFE: Inline kennel assignment
-  // If no booking ID, open create booking flow with kennel pre-selected
+  // DAFE: Inline kennel assignment - just update the booking
   const handleAssignKennel = useCallback(async (kennelId) => {
     if (!hasValidBookingId) {
       // No booking exists - open create booking flow with kennel pre-selected
@@ -190,13 +192,13 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit, onCheckIn, onChe
     }
 
     try {
-      await assignKennelMutation.mutateAsync({ bookingId: displayBooking.id, kennelId });
+      await assignKennelMutation.mutateAsync({ bookingId: actualBookingId, kennelId });
       toast.success('Kennel assigned successfully');
       setShowKennelDropdown(false);
     } catch (error) {
       toast.error(error?.message || 'Failed to assign kennel');
     }
-  }, [hasValidBookingId, displayBooking.id, assignKennelMutation, openCreateBookingWithPrefill]);
+  }, [hasValidBookingId, actualBookingId, assignKennelMutation, openCreateBookingWithPrefill]);
 
   // DAFE: Cancel booking
   // If no booking ID, just close (nothing to cancel)
@@ -209,14 +211,14 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit, onCheckIn, onChe
     }
 
     try {
-      await deleteBookingMutation.mutateAsync(displayBooking.id);
+      await deleteBookingMutation.mutateAsync(actualBookingId);
       toast.success('Booking cancelled');
       setShowCancelDialog(false);
       onClose();
     } catch (error) {
       toast.error(error?.message || 'Failed to cancel booking');
     }
-  }, [hasValidBookingId, displayBooking.id, deleteBookingMutation, onClose]);
+  }, [hasValidBookingId, actualBookingId, deleteBookingMutation, onClose]);
 
   // DAFE: Add note
   // If no booking ID, open create booking flow with the note pre-filled

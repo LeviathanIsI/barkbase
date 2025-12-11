@@ -1,12 +1,22 @@
-import { AlertCircle, PawPrint, Sparkles, UserCheck } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { AlertCircle, PawPrint, Sparkles, UserCheck, Phone, Mail, MessageSquare, Loader2, CheckCircle, Syringe, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import PetAvatar from '@/components/ui/PetAvatar';
 import TodayCard from './TodayCard';
 import TodaySection from './TodaySection';
 import { TodayListSkeleton } from './TodaySkeleton';
+import { useBookingCheckInMutation } from '@/features/bookings/api';
+import PetQuickActionsDrawer from '@/features/owners/components/PetQuickActionsDrawer';
+import toast from 'react-hot-toast';
 
 const TodayArrivalsList = ({ arrivals, onBatchCheckIn, isLoading, hasError }) => {
+  // Track which bookings are checked in (to hide from list with animation)
+  const [checkedInIds, setCheckedInIds] = useState(new Set());
+
+  // Filter out checked-in bookings for display count
+  const pendingArrivals = arrivals.filter(b => !checkedInIds.has(b.id || b.recordId));
+
   if (isLoading) {
     return (
       <TodayCard className="h-full">
@@ -21,25 +31,30 @@ const TodayArrivalsList = ({ arrivals, onBatchCheckIn, isLoading, hasError }) =>
         title="Today's Arrivals"
         icon={UserCheck}
         iconClassName="text-emerald-600 dark:text-emerald-400"
-        badge={<Badge variant="success">{arrivals.length}</Badge>}
+        badge={<Badge variant="success">{pendingArrivals.length}</Badge>}
         actions={
           <Button
             size="sm"
             variant="outline"
             onClick={onBatchCheckIn}
-            disabled={arrivals.length === 0}
+            disabled={pendingArrivals.length === 0}
           >
             Batch Check-in
           </Button>
         }
       >
-        <ListBody items={arrivals} hasError={hasError} />
+        <ListBody
+          items={arrivals}
+          hasError={hasError}
+          checkedInIds={checkedInIds}
+          onCheckInSuccess={(id) => setCheckedInIds(prev => new Set([...prev, id]))}
+        />
       </TodaySection>
     </TodayCard>
   );
 };
 
-const ListBody = ({ items, hasError }) => {
+const ListBody = ({ items, hasError, checkedInIds, onCheckInSuccess }) => {
   if (hasError) {
     return (
       <div
@@ -57,7 +72,10 @@ const ListBody = ({ items, hasError }) => {
     );
   }
 
-  if (!items.length) {
+  // Filter out already checked-in items
+  const pendingItems = items.filter(b => !checkedInIds.has(b.id || b.recordId));
+
+  if (!pendingItems.length) {
     return (
       <div className="py-[var(--bb-space-10,2.5rem)] text-center">
         <div className="relative mx-auto mb-4 h-16 w-16">
@@ -66,10 +84,10 @@ const ListBody = ({ items, hasError }) => {
           <Sparkles className="absolute -top-1 -right-1 h-5 w-5 text-amber-400" />
         </div>
         <p className="text-[var(--bb-font-size-base,1rem)] font-semibold text-[color:var(--bb-color-text-primary)]">
-          No pets arriving today
+          {items.length > 0 ? 'All checked in!' : 'No pets arriving today'}
         </p>
         <p className="mt-1 text-[var(--bb-font-size-sm,0.875rem)] text-[color:var(--bb-color-text-muted)]">
-          Chill day ahead! 🌴
+          {items.length > 0 ? 'Great job! All arrivals are checked in.' : 'Chill day ahead!'}
         </p>
       </div>
     );
@@ -77,47 +95,254 @@ const ListBody = ({ items, hasError }) => {
 
   return (
     <div className="space-y-[var(--bb-space-2,0.5rem)]">
-      {items.map((booking, idx) => (
-        <ArrivalRow key={booking.id || idx} booking={booking} />
+      {pendingItems.map((booking, idx) => (
+        <ArrivalRow
+          key={booking.id || booking.recordId || idx}
+          booking={booking}
+          onCheckInSuccess={onCheckInSuccess}
+        />
       ))}
     </div>
   );
 };
 
-const ArrivalRow = ({ booking }) => {
+const ArrivalRow = ({ booking, onCheckInSuccess }) => {
+  const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const [showOwnerPopover, setShowOwnerPopover] = useState(false);
+  const [showVaxDetails, setShowVaxDetails] = useState(false);
+  const [selectedPetId, setSelectedPetId] = useState(null);
+  const ownerRef = useRef(null);
+  const checkInMutation = useBookingCheckInMutation();
+
   const time = booking.arrivalTime || booking.departureTime || booking.startDate;
+  const bookingId = booking.id || booking.recordId;
+  const petId = booking.petId || booking.pet?.id || booking.pet?.recordId;
+  const petName = booking.petName || booking.pet?.name;
+  const ownerName = booking.ownerName || booking.owner?.name || booking.owner?.firstName
+    ? `${booking.owner?.firstName || ''} ${booking.owner?.lastName || ''}`.trim()
+    : 'Owner';
+  const ownerPhone = booking.ownerPhone || booking.owner?.phone;
+  const ownerEmail = booking.ownerEmail || booking.owner?.email;
+
+  // Close popover when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (ownerRef.current && !ownerRef.current.contains(e.target)) {
+        setShowOwnerPopover(false);
+      }
+    };
+    if (showOwnerPopover) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showOwnerPopover]);
+
+  const handleCheckIn = async (e) => {
+    e.stopPropagation();
+    if (!bookingId) {
+      toast.error('Invalid booking');
+      return;
+    }
+
+    setIsCheckingIn(true);
+    try {
+      await checkInMutation.mutateAsync({ bookingId });
+      toast.success(`${petName} checked in!`);
+      onCheckInSuccess?.(bookingId);
+    } catch (error) {
+      console.error('Check-in failed:', error);
+      toast.error(error?.message || 'Failed to check in');
+    } finally {
+      setIsCheckingIn(false);
+    }
+  };
+
+  const handlePetClick = (e) => {
+    e.stopPropagation();
+    if (petId) {
+      setSelectedPetId(petId);
+    }
+  };
+
+  const handleOwnerClick = (e) => {
+    e.stopPropagation();
+    setShowOwnerPopover(prev => !prev);
+  };
+
+  const handleVaxClick = (e) => {
+    e.stopPropagation();
+    setShowVaxDetails(true);
+    // Open pet drawer to vaccination section
+    if (petId) {
+      setSelectedPetId(petId);
+    }
+  };
+
+  return (
+    <>
+      <div
+        className="group flex items-center gap-[var(--bb-space-3,0.75rem)] rounded-xl p-[var(--bb-space-3,0.75rem)] transition-all hover:shadow-sm"
+        style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+      >
+        <PetAvatar
+          pet={booking.pet || { name: petName }}
+          size="md"
+          showStatus={false}
+        />
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
+            {/* Clickable pet name */}
+            <button
+              type="button"
+              onClick={handlePetClick}
+              className="truncate text-[var(--bb-font-size-sm,0.875rem)] font-semibold text-[color:var(--bb-color-text-primary)] hover:text-[color:var(--bb-color-accent)] hover:underline transition-colors text-left"
+            >
+              {petName}
+            </button>
+            <Badge variant="success" className="shrink-0 text-xs">
+              {formatTime(time)}
+            </Badge>
+          </div>
+
+          {/* Clickable owner name with popover */}
+          <div className="relative" ref={ownerRef}>
+            <button
+              type="button"
+              onClick={handleOwnerClick}
+              className="truncate text-[var(--bb-font-size-xs,0.75rem)] text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-accent)] hover:underline transition-colors text-left"
+            >
+              {ownerName}
+            </button>
+
+            {/* Owner contact popover */}
+            {showOwnerPopover && (
+              <OwnerContactPopover
+                ownerName={ownerName}
+                phone={ownerPhone}
+                email={ownerEmail}
+                onClose={() => setShowOwnerPopover(false)}
+              />
+            )}
+          </div>
+
+          {(booking.service || booking.serviceName) && (
+            <p className="mt-0.5 truncate text-[var(--bb-font-size-xs,0.75rem)] text-[color:var(--bb-color-text-subtle)]">
+              {typeof booking.service === 'object' ? booking.service?.name : (booking.service || booking.serviceName)}
+            </p>
+          )}
+        </div>
+
+        {/* Vaccination alert - clickable */}
+        {booking.hasExpiringVaccinations && (
+          <button
+            type="button"
+            onClick={handleVaxClick}
+            className="p-1 rounded hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+            title="Click to view vaccination details"
+          >
+            <AlertCircle className="h-4 w-4 shrink-0 text-amber-500" />
+          </button>
+        )}
+
+        {/* Check-in button */}
+        <Button
+          size="sm"
+          variant="primary"
+          onClick={handleCheckIn}
+          disabled={isCheckingIn}
+          className="shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+        >
+          {isCheckingIn ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <>
+              <CheckCircle className="h-4 w-4 mr-1" />
+              Check In
+            </>
+          )}
+        </Button>
+      </div>
+
+      {/* Pet Quick Actions Drawer */}
+      <PetQuickActionsDrawer
+        petId={selectedPetId}
+        isOpen={!!selectedPetId}
+        onClose={() => setSelectedPetId(null)}
+      />
+    </>
+  );
+};
+
+/**
+ * Owner Contact Popover - Quick contact actions
+ */
+const OwnerContactPopover = ({ ownerName, phone, email, onClose }) => {
+  const handleCall = () => {
+    if (phone) {
+      window.open(`tel:${phone}`, '_self');
+    }
+    onClose();
+  };
+
+  const handleEmail = () => {
+    if (email) {
+      window.open(`mailto:${email}`, '_blank');
+    }
+    onClose();
+  };
+
+  const handleSMS = () => {
+    if (phone) {
+      window.open(`sms:${phone}`, '_self');
+    }
+    onClose();
+  };
 
   return (
     <div
-      className="flex items-center gap-[var(--bb-space-3,0.75rem)] rounded-xl p-[var(--bb-space-3,0.75rem)] transition-all hover:shadow-sm cursor-pointer"
-      style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+      className="absolute left-0 top-full mt-1 z-50 w-48 rounded-lg border shadow-lg py-1 animate-in fade-in-0 zoom-in-95 duration-150"
+      style={{
+        backgroundColor: 'var(--bb-color-bg-surface)',
+        borderColor: 'var(--bb-color-border-subtle)',
+      }}
     >
-      <PetAvatar
-        pet={booking.pet || { name: booking.petName }}
-        size="md"
-        showStatus={false}
-      />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
-          <p className="truncate text-[var(--bb-font-size-sm,0.875rem)] font-semibold text-[color:var(--bb-color-text-primary)]">
-            {booking.petName || booking.pet?.name}
-          </p>
-          <Badge variant="success" className="shrink-0 text-xs">
-            {formatTime(time)}
-          </Badge>
-        </div>
-        <p className="truncate text-[var(--bb-font-size-xs,0.75rem)] text-[color:var(--bb-color-text-muted)]">
-          {booking.ownerName || booking.owner?.name || 'Owner'}
-        </p>
-        {(booking.service || booking.serviceName) && (
-          <p className="mt-0.5 truncate text-[var(--bb-font-size-xs,0.75rem)] text-[color:var(--bb-color-text-subtle)]">
-            {typeof booking.service === 'object' ? booking.service?.name : (booking.service || booking.serviceName)}
-          </p>
-        )}
+      <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+        <p className="text-xs font-medium text-[color:var(--bb-color-text-muted)]">Contact</p>
+        <p className="text-sm font-semibold text-[color:var(--bb-color-text-primary)] truncate">{ownerName}</p>
       </div>
-      {booking.hasExpiringVaccinations && (
-        <AlertCircle className="h-4 w-4 shrink-0 text-amber-500" title="Expiring vaccinations" />
-      )}
+
+      <div className="py-1">
+        <button
+          type="button"
+          onClick={handleCall}
+          disabled={!phone}
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[color:var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-elevated)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Phone className="h-4 w-4 text-emerald-500" />
+          <span>{phone || 'No phone'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleEmail}
+          disabled={!email}
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[color:var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-elevated)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Mail className="h-4 w-4 text-blue-500" />
+          <span className="truncate">{email || 'No email'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleSMS}
+          disabled={!phone}
+          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[color:var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-elevated)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <MessageSquare className="h-4 w-4 text-purple-500" />
+          <span>Send SMS</span>
+        </button>
+      </div>
     </div>
   );
 };

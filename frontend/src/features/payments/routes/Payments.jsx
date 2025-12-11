@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useTour } from '@/contexts/TourContext';
-import { TourIconButton } from '@/components/ui';
+import { TourIconButton } from '@/components/ui/TourHelpButton';
 import { paymentsTourConfig } from '../tours';
 import {
   CreditCard,

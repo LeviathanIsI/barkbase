@@ -1,22 +1,38 @@
 /**
  * PetQuickActionsDrawer - Quick actions drawer for a pet
- * Opens from hover card, shows pet details and quick action buttons
+ * Opens from hover card, shows pet details and inline action forms
+ * All actions happen within the drawer - no navigation or external modals
  */
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
 import {
-  X, PawPrint, Calendar, Syringe, ExternalLink, Bell,
-  LogIn, LogOut, User, Scale, Cake, Clock, Check, AlertTriangle,
-  Loader2,
+  X, PawPrint, Calendar, Syringe, Bell, ArrowLeft,
+  User, Scale, Cake, Check, AlertTriangle,
+  Loader2, Clock, Send, CheckCircle,
 } from 'lucide-react';
-import { format, formatDistanceToNow, differenceInYears, differenceInMonths } from 'date-fns';
+import { format, differenceInYears, differenceInMonths, addDays } from 'date-fns';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { cn } from '@/lib/cn';
 import { usePetQuery } from '@/features/pets/api';
-import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout/SlideoutProvider';
-import { useBookingsQuery } from '@/features/bookings/api';
+import { useBookingsQuery, useCreateBookingMutation } from '@/features/bookings/api';
+import { useCreateVaccinationMutation } from '@/features/pets/api';
+import { useSendMessageMutation } from '@/features/messaging/api';
+import { useServicesQuery } from '@/features/services/api';
+import toast from 'react-hot-toast';
+
+// Common vaccine types
+const VACCINE_TYPES = [
+  'Rabies',
+  'DAPP',
+  'DHPP',
+  'Bordetella',
+  'Leptospirosis',
+  'Influenza',
+  'FVRCP',
+  'FeLV',
+];
 
 /**
  * Calculate age from date of birth
@@ -38,9 +54,16 @@ const formatWeight = (weight) => {
   return `${weight} lbs`;
 };
 
+// Panel types for navigation
+const PANELS = {
+  MAIN: 'main',
+  BOOKING: 'booking',
+  VACCINATION: 'vaccination',
+  REMINDER: 'reminder',
+};
+
 const PetQuickActionsDrawer = ({ petId, isOpen, onClose }) => {
-  const navigate = useNavigate();
-  const { openSlideout } = useSlideout();
+  const [activePanel, setActivePanel] = useState(PANELS.MAIN);
 
   // Fetch pet details
   const { data: pet, isLoading: petLoading } = usePetQuery(petId, {
@@ -53,17 +76,6 @@ const PetQuickActionsDrawer = ({ petId, isOpen, onClose }) => {
     limit: 5,
   });
   const recentBookings = bookingsData?.slice?.(0, 5) || [];
-
-  // Determine if pet has active booking today (for check-in/out)
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const todayBooking = recentBookings.find(b => {
-    const checkIn = b.checkIn || b.startDate;
-    const checkOut = b.checkOut || b.endDate;
-    return checkIn?.startsWith(today) || checkOut?.startsWith(today);
-  });
-  const isCheckedIn = todayBooking?.status === 'CHECKED_IN';
-  const canCheckIn = todayBooking && !isCheckedIn && todayBooking.status !== 'CHECKED_OUT';
-  const canCheckOut = isCheckedIn;
 
   // Pet info
   const petName = pet?.name || 'Loading...';
@@ -87,51 +99,15 @@ const PetQuickActionsDrawer = ({ petId, isOpen, onClose }) => {
     pet?.vaccinationStatus === 'missing' ||
     pet?.hasExpiringVaccinations === true;
 
-  // Handlers
-  const handleNewBooking = () => {
-    openSlideout(SLIDEOUT_TYPES.BOOKING_CREATE, {
-      petId: pet?.id || pet?.recordId,
-      ownerId,
-    });
+  // Handle panel back navigation
+  const handleBack = () => {
+    setActivePanel(PANELS.MAIN);
+  };
+
+  // Handle close - reset panel state
+  const handleClose = () => {
+    setActivePanel(PANELS.MAIN);
     onClose();
-  };
-
-  const handleAddVaccination = () => {
-    // Navigate to pet detail with vaccination tab or open modal
-    navigate(`/pets/${petId}?tab=vaccinations&action=add`);
-    onClose();
-  };
-
-  const handleViewProfile = () => {
-    navigate(`/pets/${petId}`);
-    onClose();
-  };
-
-  const handleSendReminder = () => {
-    // Could open communication slideout
-    openSlideout(SLIDEOUT_TYPES.COMMUNICATION_CREATE, {
-      ownerId,
-      petId: pet?.id || pet?.recordId,
-      subject: `Reminder for ${petName}`,
-    });
-    onClose();
-  };
-
-  const handleCheckIn = () => {
-    // TODO: Implement check-in mutation
-    console.log('Check in:', todayBooking?.id);
-  };
-
-  const handleCheckOut = () => {
-    // TODO: Implement check-out mutation
-    console.log('Check out:', todayBooking?.id);
-  };
-
-  const handleOwnerClick = () => {
-    if (ownerId) {
-      navigate(`/customers/${ownerId}`);
-      onClose();
-    }
   };
 
   if (!isOpen) return null;
@@ -141,7 +117,7 @@ const PetQuickActionsDrawer = ({ petId, isOpen, onClose }) => {
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/50 z-50 animate-in fade-in-0 duration-200"
-        onClick={onClose}
+        onClick={handleClose}
       />
 
       {/* Drawer */}
@@ -157,11 +133,118 @@ const PetQuickActionsDrawer = ({ petId, isOpen, onClose }) => {
         }}
       >
         {/* Header */}
-        <div
-          className="flex items-start justify-between p-4 border-b"
-          style={{ borderColor: 'var(--bb-color-border-subtle)' }}
-        >
-          <div className="flex items-center gap-3">
+        <DrawerHeader
+          pet={pet}
+          petName={petName}
+          speciesBreed={speciesBreed}
+          isActive={isActive}
+          activePanel={activePanel}
+          onBack={handleBack}
+          onClose={handleClose}
+        />
+
+        {/* Content - Panel based */}
+        <div className="flex-1 overflow-y-auto">
+          {petLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-[color:var(--bb-color-text-muted)]" />
+            </div>
+          ) : (
+            <>
+              {activePanel === PANELS.MAIN && (
+                <MainPanel
+                  pet={pet}
+                  ownerName={ownerName}
+                  age={age}
+                  weight={weight}
+                  hasVaccinationIssue={hasVaccinationIssue}
+                  recentBookings={recentBookings}
+                  onActionClick={setActivePanel}
+                />
+              )}
+              {activePanel === PANELS.BOOKING && (
+                <BookingPanel
+                  pet={pet}
+                  ownerId={ownerId}
+                  onBack={handleBack}
+                  onSuccess={() => {
+                    toast.success('Booking created successfully');
+                    handleBack();
+                  }}
+                />
+              )}
+              {activePanel === PANELS.VACCINATION && (
+                <VaccinationPanel
+                  pet={pet}
+                  petId={petId}
+                  species={species}
+                  onBack={handleBack}
+                  onSuccess={() => {
+                    toast.success('Vaccination added successfully');
+                    handleBack();
+                  }}
+                />
+              )}
+              {activePanel === PANELS.REMINDER && (
+                <ReminderPanel
+                  pet={pet}
+                  petName={petName}
+                  ownerId={ownerId}
+                  onBack={handleBack}
+                  onSuccess={() => {
+                    toast.success('Reminder sent successfully');
+                    handleBack();
+                  }}
+                />
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </>
+  );
+};
+
+/**
+ * Drawer header component
+ */
+const DrawerHeader = ({ pet, petName, speciesBreed, isActive, activePanel, onBack, onClose }) => {
+  const getPanelTitle = () => {
+    switch (activePanel) {
+      case PANELS.BOOKING: return 'New Booking';
+      case PANELS.VACCINATION: return 'Add Vaccination';
+      case PANELS.REMINDER: return 'Send Reminder';
+      default: return null;
+    }
+  };
+
+  const panelTitle = getPanelTitle();
+
+  return (
+    <div
+      className="flex items-start justify-between p-4 border-b"
+      style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+    >
+      <div className="flex items-center gap-3">
+        {activePanel !== PANELS.MAIN ? (
+          <>
+            <button
+              onClick={onBack}
+              className="p-1 rounded hover:bg-[var(--bb-color-bg-elevated)] transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5 text-[color:var(--bb-color-text-muted)]" />
+            </button>
+            <div>
+              <h2 className="text-lg font-semibold text-[color:var(--bb-color-text-primary)]">
+                {panelTitle}
+              </h2>
+              <p className="text-sm text-[color:var(--bb-color-text-muted)]">
+                for {petName}
+              </p>
+            </div>
+          </>
+        ) : (
+          <>
             {/* Pet Avatar */}
             <div
               className="flex h-12 w-12 items-center justify-center rounded-full text-lg font-semibold"
@@ -185,155 +268,507 @@ const PetQuickActionsDrawer = ({ petId, isOpen, onClose }) => {
                 {speciesBreed}
               </p>
             </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded hover:bg-[var(--bb-color-bg-elevated)] transition-colors"
-          >
-            <X className="h-5 w-5 text-[color:var(--bb-color-text-muted)]" />
-          </button>
+          </>
+        )}
+      </div>
+      <button
+        onClick={onClose}
+        className="p-1 rounded hover:bg-[var(--bb-color-bg-elevated)] transition-colors"
+      >
+        <X className="h-5 w-5 text-[color:var(--bb-color-text-muted)]" />
+      </button>
+    </div>
+  );
+};
+
+/**
+ * Main panel - shows pet info and action buttons
+ */
+const MainPanel = ({ pet, ownerName, age, weight, hasVaccinationIssue, recentBookings, onActionClick }) => (
+  <div className="p-4 space-y-6">
+    {/* Quick Info */}
+    <section>
+      <h3 className="text-xs font-semibold uppercase tracking-wider mb-3 text-[color:var(--bb-color-text-muted)]">
+        Quick Info
+      </h3>
+      <div className="space-y-2">
+        {ownerName && (
+          <InfoRow icon={User} label="Owner" value={ownerName} />
+        )}
+        {age && (
+          <InfoRow icon={Cake} label="Age" value={age} />
+        )}
+        {weight && (
+          <InfoRow icon={Scale} label="Weight" value={weight} />
+        )}
+        <InfoRow
+          icon={hasVaccinationIssue ? AlertTriangle : Check}
+          iconColor={hasVaccinationIssue ? 'text-amber-500' : 'text-emerald-500'}
+          label="Vaccinations"
+          value={hasVaccinationIssue ? 'Needs attention' : 'Up to date'}
+        />
+      </div>
+    </section>
+
+    {/* Quick Actions */}
+    <section>
+      <h3 className="text-xs font-semibold uppercase tracking-wider mb-3 text-[color:var(--bb-color-text-muted)]">
+        Quick Actions
+      </h3>
+      <div className="grid grid-cols-2 gap-2">
+        <ActionButton
+          icon={Calendar}
+          label="New Booking"
+          onClick={() => onActionClick(PANELS.BOOKING)}
+        />
+        <ActionButton
+          icon={Syringe}
+          label="Add Vaccination"
+          onClick={() => onActionClick(PANELS.VACCINATION)}
+        />
+        <ActionButton
+          icon={Bell}
+          label="Send Reminder"
+          onClick={() => onActionClick(PANELS.REMINDER)}
+        />
+      </div>
+    </section>
+
+    {/* Recent Bookings */}
+    <section>
+      <h3 className="text-xs font-semibold uppercase tracking-wider mb-3 text-[color:var(--bb-color-text-muted)]">
+        Recent Bookings
+      </h3>
+      {recentBookings.length > 0 ? (
+        <div className="space-y-2">
+          {recentBookings.map((booking) => (
+            <BookingRow key={booking.id || booking.recordId} booking={booking} />
+          ))}
         </div>
+      ) : (
+        <p className="text-sm text-[color:var(--bb-color-text-muted)] py-2">
+          No recent bookings
+        </p>
+      )}
+    </section>
+  </div>
+);
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
-          {petLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-[color:var(--bb-color-text-muted)]" />
-            </div>
-          ) : (
-            <>
-              {/* Quick Info */}
-              <section>
-                <h3 className="text-xs font-semibold uppercase tracking-wider mb-3 text-[color:var(--bb-color-text-muted)]">
-                  Quick Info
-                </h3>
-                <div className="space-y-2">
-                  {ownerName && (
-                    <InfoRow
-                      icon={User}
-                      label="Owner"
-                      value={ownerName}
-                      onClick={handleOwnerClick}
-                      clickable
-                    />
-                  )}
-                  {age && (
-                    <InfoRow icon={Cake} label="Age" value={age} />
-                  )}
-                  {weight && (
-                    <InfoRow icon={Scale} label="Weight" value={weight} />
-                  )}
-                  <InfoRow
-                    icon={hasVaccinationIssue ? AlertTriangle : Check}
-                    iconColor={hasVaccinationIssue ? 'text-amber-500' : 'text-emerald-500'}
-                    label="Vaccinations"
-                    value={hasVaccinationIssue ? 'Needs attention' : 'Up to date'}
-                  />
-                </div>
-              </section>
+/**
+ * Booking panel - inline booking form
+ */
+const BookingPanel = ({ pet, ownerId, onBack, onSuccess }) => {
+  const { data: servicesData } = useServicesQuery();
+  const services = servicesData?.services || servicesData || [];
+  const createMutation = useCreateBookingMutation();
 
-              {/* Quick Actions */}
-              <section>
-                <h3 className="text-xs font-semibold uppercase tracking-wider mb-3 text-[color:var(--bb-color-text-muted)]">
-                  Quick Actions
-                </h3>
-                <div className="grid grid-cols-2 gap-2">
-                  <ActionButton
-                    icon={Calendar}
-                    label="New Booking"
-                    onClick={handleNewBooking}
-                  />
-                  <ActionButton
-                    icon={Syringe}
-                    label="Add Vaccination"
-                    onClick={handleAddVaccination}
-                  />
-                  <ActionButton
-                    icon={ExternalLink}
-                    label="View Profile"
-                    onClick={handleViewProfile}
-                  />
-                  <ActionButton
-                    icon={Bell}
-                    label="Send Reminder"
-                    onClick={handleSendReminder}
-                  />
-                  {canCheckIn && (
-                    <ActionButton
-                      icon={LogIn}
-                      label="Check In"
-                      onClick={handleCheckIn}
-                      variant="success"
-                    />
-                  )}
-                  {canCheckOut && (
-                    <ActionButton
-                      icon={LogOut}
-                      label="Check Out"
-                      onClick={handleCheckOut}
-                      variant="warning"
-                    />
-                  )}
-                </div>
-              </section>
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    defaultValues: {
+      checkIn: format(new Date(), 'yyyy-MM-dd'),
+      checkOut: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
+      serviceId: '',
+      specialRequirements: '',
+    },
+  });
 
-              {/* Recent Activity */}
-              <section>
-                <h3 className="text-xs font-semibold uppercase tracking-wider mb-3 text-[color:var(--bb-color-text-muted)]">
-                  Recent Bookings
-                </h3>
-                {recentBookings.length > 0 ? (
-                  <div className="space-y-2">
-                    {recentBookings.map((booking) => (
-                      <BookingRow key={booking.id || booking.recordId} booking={booking} />
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-[color:var(--bb-color-text-muted)] py-2">
-                    No recent bookings
-                  </p>
-                )}
-              </section>
-            </>
-          )}
-        </div>
+  const onSubmit = async (data) => {
+    if (!data.serviceId) {
+      toast.error('Please select a service');
+      return;
+    }
 
-        {/* Footer */}
-        <div
-          className="p-4 border-t"
-          style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+    try {
+      await createMutation.mutateAsync({
+        ownerId: ownerId,
+        petId: pet?.recordId || pet?.id,
+        serviceId: data.serviceId,
+        checkIn: data.checkIn,
+        checkOut: data.checkOut,
+        specialRequirements: data.specialRequirements,
+        status: 'PENDING',
+      });
+      onSuccess();
+    } catch (error) {
+      console.error('Failed to create booking:', error);
+      toast.error(error?.message || 'Failed to create booking');
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-4">
+      {/* Service */}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+          Service <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+        </label>
+        <select
+          {...register('serviceId', { required: 'Service is required' })}
+          className={inputClass}
+          style={inputStyles}
         >
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={handleViewProfile}
-          >
-            <ExternalLink className="h-4 w-4 mr-2" />
-            View Full Profile
-          </Button>
+          <option value="">Select a service</option>
+          {services.map(service => (
+            <option key={service.recordId || service.id} value={service.recordId || service.id}>
+              {service.name} {service.priceCents ? `- $${(service.priceCents / 100).toFixed(2)}/day` : ''}
+            </option>
+          ))}
+        </select>
+        {errors.serviceId && (
+          <p className="text-xs" style={{ color: 'var(--bb-color-status-negative)' }}>{errors.serviceId.message}</p>
+        )}
+      </div>
+
+      {/* Dates */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+            Check-in <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+          </label>
+          <input
+            type="date"
+            {...register('checkIn', { required: 'Check-in date is required' })}
+            className={inputClass}
+            style={inputStyles}
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+            Check-out <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+          </label>
+          <input
+            type="date"
+            {...register('checkOut', { required: 'Check-out date is required' })}
+            className={inputClass}
+            style={inputStyles}
+          />
         </div>
       </div>
-    </>
+
+      {/* Notes */}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+          Special Requirements
+        </label>
+        <textarea
+          {...register('specialRequirements')}
+          rows={3}
+          className={cn(inputClass, 'resize-y')}
+          style={inputStyles}
+          placeholder="Medications, feeding instructions, special handling..."
+        />
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-3 pt-4">
+        <Button type="button" variant="ghost" onClick={onBack} disabled={isSubmitting} className="flex-1">
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isSubmitting} className="flex-1">
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Creating...
+            </>
+          ) : (
+            <>
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Create Booking
+            </>
+          )}
+        </Button>
+      </div>
+    </form>
+  );
+};
+
+/**
+ * Vaccination panel - inline vaccination form
+ */
+const VaccinationPanel = ({ pet, petId, species, onBack, onSuccess }) => {
+  const createMutation = useCreateVaccinationMutation(petId);
+
+  // Filter vaccine types by species
+  const vaccineOptions = VACCINE_TYPES.filter(type => {
+    const dogVaccines = ['DAPP', 'DHPP', 'Bordetella', 'Leptospirosis', 'Influenza'];
+    const catVaccines = ['FVRCP', 'FeLV'];
+
+    if (species?.toLowerCase() === 'cat') {
+      return !dogVaccines.includes(type);
+    }
+    if (species?.toLowerCase() === 'dog') {
+      return !catVaccines.includes(type);
+    }
+    return true; // Show all if species unknown
+  });
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    defaultValues: {
+      vaccineType: '',
+      dateAdministered: format(new Date(), 'yyyy-MM-dd'),
+      expirationDate: format(addDays(new Date(), 365), 'yyyy-MM-dd'),
+      veterinarian: '',
+      notes: '',
+    },
+  });
+
+  const onSubmit = async (data) => {
+    if (!data.vaccineType) {
+      toast.error('Please select a vaccine type');
+      return;
+    }
+
+    try {
+      await createMutation.mutateAsync({
+        vaccineType: data.vaccineType,
+        dateAdministered: data.dateAdministered,
+        expirationDate: data.expirationDate,
+        veterinarian: data.veterinarian || null,
+        notes: data.notes || null,
+      });
+      onSuccess();
+    } catch (error) {
+      console.error('Failed to add vaccination:', error);
+      toast.error(error?.message || 'Failed to add vaccination');
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-4">
+      {/* Vaccine Type */}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+          Vaccine Type <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+        </label>
+        <select
+          {...register('vaccineType', { required: 'Vaccine type is required' })}
+          className={inputClass}
+          style={inputStyles}
+        >
+          <option value="">Select a vaccine</option>
+          {vaccineOptions.map(type => (
+            <option key={type} value={type}>{type}</option>
+          ))}
+          <option value="Other">Other</option>
+        </select>
+        {errors.vaccineType && (
+          <p className="text-xs" style={{ color: 'var(--bb-color-status-negative)' }}>{errors.vaccineType.message}</p>
+        )}
+      </div>
+
+      {/* Dates */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+            Date Administered <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+          </label>
+          <input
+            type="date"
+            {...register('dateAdministered', { required: 'Date is required' })}
+            className={inputClass}
+            style={inputStyles}
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+            Expiration Date <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+          </label>
+          <input
+            type="date"
+            {...register('expirationDate', { required: 'Expiration date is required' })}
+            className={inputClass}
+            style={inputStyles}
+          />
+        </div>
+      </div>
+
+      {/* Veterinarian */}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+          Veterinarian / Clinic
+        </label>
+        <input
+          type="text"
+          {...register('veterinarian')}
+          className={inputClass}
+          style={inputStyles}
+          placeholder="e.g., Dr. Smith at ABC Vet Clinic"
+        />
+      </div>
+
+      {/* Notes */}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+          Notes
+        </label>
+        <textarea
+          {...register('notes')}
+          rows={2}
+          className={cn(inputClass, 'resize-y')}
+          style={inputStyles}
+          placeholder="Any additional notes..."
+        />
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-3 pt-4">
+        <Button type="button" variant="ghost" onClick={onBack} disabled={isSubmitting} className="flex-1">
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isSubmitting} className="flex-1">
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Adding...
+            </>
+          ) : (
+            <>
+              <Syringe className="h-4 w-4 mr-2" />
+              Add Vaccination
+            </>
+          )}
+        </Button>
+      </div>
+    </form>
+  );
+};
+
+/**
+ * Reminder panel - inline message form
+ */
+const ReminderPanel = ({ pet, petName, ownerId, onBack, onSuccess }) => {
+  const sendMutation = useSendMessageMutation();
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    defaultValues: {
+      subject: `Reminder for ${petName}`,
+      message: '',
+    },
+  });
+
+  const onSubmit = async (data) => {
+    if (!data.message.trim()) {
+      toast.error('Please enter a message');
+      return;
+    }
+
+    try {
+      await sendMutation.mutateAsync({
+        ownerId: ownerId,
+        petId: pet?.recordId || pet?.id,
+        subject: data.subject,
+        content: data.message,
+        type: 'REMINDER',
+      });
+      onSuccess();
+    } catch (error) {
+      console.error('Failed to send reminder:', error);
+      toast.error(error?.message || 'Failed to send reminder');
+    }
+  };
+
+  // Quick message templates
+  const templates = [
+    { label: 'Vaccination Due', text: `Hi! This is a friendly reminder that ${petName}'s vaccinations are due for renewal. Please contact us to schedule an update.` },
+    { label: 'Upcoming Booking', text: `Just a reminder about your upcoming booking for ${petName}. Please let us know if you have any questions or need to make changes.` },
+    { label: 'General Check-in', text: `We wanted to check in and see how ${petName} is doing! Feel free to reach out if you need anything.` },
+  ];
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-4">
+      {/* Quick Templates */}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+          Quick Templates
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {templates.map((template, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => setValue('message', template.text)}
+              className="px-2 py-1 text-xs rounded border transition-colors hover:bg-[var(--bb-color-bg-surface)]"
+              style={{ borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }}
+            >
+              {template.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Subject */}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+          Subject
+        </label>
+        <input
+          type="text"
+          {...register('subject')}
+          className={inputClass}
+          style={inputStyles}
+        />
+      </div>
+
+      {/* Message */}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+          Message <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+        </label>
+        <textarea
+          {...register('message', { required: 'Message is required' })}
+          rows={5}
+          className={cn(inputClass, 'resize-y')}
+          style={inputStyles}
+          placeholder="Type your message here..."
+        />
+        {errors.message && (
+          <p className="text-xs" style={{ color: 'var(--bb-color-status-negative)' }}>{errors.message.message}</p>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-3 pt-4">
+        <Button type="button" variant="ghost" onClick={onBack} disabled={isSubmitting} className="flex-1">
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isSubmitting} className="flex-1">
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Sending...
+            </>
+          ) : (
+            <>
+              <Send className="h-4 w-4 mr-2" />
+              Send Reminder
+            </>
+          )}
+        </Button>
+      </div>
+    </form>
   );
 };
 
 /**
  * Info row component
  */
-const InfoRow = ({ icon: Icon, iconColor, label, value, onClick, clickable }) => (
-  <div
-    className={cn(
-      'flex items-center gap-3 py-1.5',
-      clickable && 'cursor-pointer hover:bg-[var(--bb-color-bg-surface)] -mx-2 px-2 rounded'
-    )}
-    onClick={onClick}
-  >
+const InfoRow = ({ icon: Icon, iconColor, label, value }) => (
+  <div className="flex items-center gap-3 py-1.5">
     <Icon className={cn('h-4 w-4', iconColor || 'text-[color:var(--bb-color-text-muted)]')} />
     <span className="text-sm text-[color:var(--bb-color-text-muted)]">{label}</span>
-    <span className={cn(
-      'text-sm ml-auto text-[color:var(--bb-color-text-primary)]',
-      clickable && 'text-[color:var(--bb-color-accent)] hover:underline'
-    )}>
+    <span className="text-sm ml-auto text-[color:var(--bb-color-text-primary)]">
       {value}
     </span>
   </div>
@@ -342,27 +777,17 @@ const InfoRow = ({ icon: Icon, iconColor, label, value, onClick, clickable }) =>
 /**
  * Action button component
  */
-const ActionButton = ({ icon: Icon, label, onClick, variant }) => {
-  const variantStyles = {
-    success: 'border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400',
-    warning: 'border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400',
-  };
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'flex items-center gap-2 p-3 rounded-lg border text-sm font-medium transition-colors',
-        variant ? variantStyles[variant] : 'border-[var(--bb-color-border-subtle)] hover:bg-[var(--bb-color-bg-surface)]'
-      )}
-      style={!variant ? { color: 'var(--bb-color-text-primary)' } : undefined}
-    >
-      <Icon className="h-4 w-4" />
-      {label}
-    </button>
-  );
-};
+const ActionButton = ({ icon: Icon, label, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="flex items-center gap-2 p-3 rounded-lg border text-sm font-medium transition-colors border-[var(--bb-color-border-subtle)] hover:bg-[var(--bb-color-bg-surface)]"
+    style={{ color: 'var(--bb-color-text-primary)' }}
+  >
+    <Icon className="h-4 w-4" />
+    {label}
+  </button>
+);
 
 /**
  * Booking row component
@@ -396,5 +821,18 @@ const BookingRow = ({ booking }) => {
     </div>
   );
 };
+
+// Shared styles
+const inputStyles = {
+  backgroundColor: 'var(--bb-color-bg-surface)',
+  borderColor: 'var(--bb-color-border-subtle)',
+  color: 'var(--bb-color-text-primary)',
+};
+
+const inputClass = cn(
+  'w-full rounded-md border px-3 py-2 text-sm',
+  'focus:outline-none focus:ring-1',
+  'transition-colors'
+);
 
 export default PetQuickActionsDrawer;

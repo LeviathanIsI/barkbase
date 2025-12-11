@@ -90,37 +90,55 @@ const ModuleHeader = ({ title, subtitle, action, actionLabel, actionIcon: Action
 );
 
 // Event Row Component
-const EventRow = ({ type, petName, ownerName, time, status, onClick }) => (
-  <button
-    onClick={onClick}
-    className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-surface transition-colors text-left"
-  >
-    <div className={cn(
-      'h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0',
-      type === 'arrival' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-blue-100 dark:bg-blue-900/30'
-    )}>
+const EventRow = ({ type, petId, petName, ownerId, ownerName, time, status, onClick }) => (
+  <div className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-surface transition-colors text-left">
+    <button
+      onClick={onClick}
+      className={cn(
+        'h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0',
+        type === 'arrival' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-blue-100 dark:bg-blue-900/30'
+      )}
+    >
       {type === 'arrival' ? (
         <UserCheck className="h-4 w-4 text-green-600" />
       ) : (
         <UserX className="h-4 w-4 text-blue-600" />
       )}
-    </div>
+    </button>
     <div className="flex-1 min-w-0">
-      <p className="text-sm font-medium text-text truncate">{petName}</p>
-      <p className="text-xs text-muted truncate">{ownerName}</p>
+      {petId ? (
+        <Link
+          to={`/pets/${petId}`}
+          className="text-sm font-medium text-text truncate block hover:text-primary hover:underline transition-colors"
+        >
+          {petName}
+        </Link>
+      ) : (
+        <p className="text-sm font-medium text-text truncate">{petName}</p>
+      )}
+      {ownerId ? (
+        <Link
+          to={`/owners/${ownerId}`}
+          className="text-xs text-muted truncate block hover:text-primary hover:underline transition-colors"
+        >
+          {ownerName}
+        </Link>
+      ) : (
+        <p className="text-xs text-muted truncate">{ownerName}</p>
+      )}
     </div>
     <div className="text-right flex-shrink-0">
       <p className="text-xs font-medium text-text">{time}</p>
       {status && (
-        <Badge 
-          variant={status === 'confirmed' ? 'info' : status === 'checked-in' ? 'success' : 'neutral'} 
+        <Badge
+          variant={status === 'confirmed' ? 'info' : status === 'checked-in' ? 'success' : 'neutral'}
           size="sm"
         >
           {status}
         </Badge>
       )}
     </div>
-  </button>
+  </div>
 );
 
 // Staff Row Component
@@ -247,7 +265,9 @@ const Operations = () => {
       })
       .map(item => ({
         id: item.recordId,
+        petId: item.pet?.recordId || item.petId,
         petName: item.pet?.name || 'Unknown',
+        ownerId: item.owner?.recordId || item.ownerId,
         ownerName: item.owner ? `${item.owner.firstName || ''} ${item.owner.lastName || ''}`.trim() : 'Unknown',
         time: item.checkIn ? format(new Date(item.checkIn), 'h:mm a') : 'N/A',
         status: item.status?.toLowerCase().replace('_', '-') || 'confirmed',
@@ -263,7 +283,9 @@ const Operations = () => {
       })
       .map(item => ({
         id: item.recordId,
+        petId: item.pet?.recordId || item.petId,
         petName: item.pet?.name || 'Unknown',
+        ownerId: item.owner?.recordId || item.ownerId,
         ownerName: item.owner ? `${item.owner.firstName || ''} ${item.owner.lastName || ''}`.trim() : 'Unknown',
         time: item.checkOut ? format(new Date(item.checkOut), 'h:mm a') : 'N/A',
         status: item.status?.toLowerCase().replace('_', '-') || 'ready',
@@ -456,7 +478,9 @@ const Operations = () => {
                   <EventRow
                     key={event.id}
                     type={event.type}
+                    petId={event.petId}
                     petName={event.petName}
+                    ownerId={event.ownerId}
                     ownerName={event.ownerName}
                     time={event.time}
                     status={event.status}

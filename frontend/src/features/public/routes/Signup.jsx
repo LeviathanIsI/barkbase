@@ -41,10 +41,15 @@ const Signup = () => {
   const [tenantSlug, setTenantSlug] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [acknowledgeAwsHosting, setAcknowledgeAwsHosting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+
+  // Password validation
+  const passwordsMatch = password === confirmPassword;
+  const showPasswordMismatch = confirmPassword.length > 0 && !passwordsMatch;
 
   const slugHint = tenantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
@@ -54,6 +59,12 @@ const Signup = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+
+    if (!passwordsMatch) {
+      setError('Passwords do not match');
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
 
@@ -176,6 +187,37 @@ const Signup = () => {
               helpText="Must include upper & lower case letters, a number, and a symbol."
               required
             />
+            <div className="w-full space-y-[var(--bb-space-2,0.5rem)]">
+              <label
+                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
+                style={{ color: 'var(--bb-color-text-primary)' }}
+              >
+                Confirm password
+                <span style={{ color: 'var(--bb-color-status-negative)' }} className="ml-1">*</span>
+              </label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Re-enter your password"
+                minLength={12}
+                required
+                className="flex h-11 w-full rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-base,1rem)] font-[var(--bb-font-weight-regular,400)] transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                style={{
+                  backgroundColor: 'var(--bb-color-bg-surface)',
+                  borderColor: showPasswordMismatch ? 'var(--bb-color-status-negative)' : 'var(--bb-color-border-subtle)',
+                  color: 'var(--bb-color-text-primary)',
+                }}
+              />
+              <p
+                className="text-[var(--bb-font-size-sm,0.875rem)] h-5 transition-opacity duration-150"
+                style={{
+                  color: showPasswordMismatch ? 'var(--bb-color-status-negative)' : 'transparent',
+                }}
+              >
+                {showPasswordMismatch ? 'Passwords do not match' : '\u00A0'}
+              </p>
+            </div>
             <label className="flex items-start gap-2 rounded-lg border border-gray-200 dark:border-surface-border bg-gray-50 dark:bg-surface-secondary p-3 text-sm">
               <input
                 type="checkbox"
@@ -191,7 +233,7 @@ const Signup = () => {
             </label>
             {error ? <p className="text-sm text-red-600">{error}</p> : null}
             <div className="flex items-center justify-between gap-3">
-              <Button type="submit" disabled={submitting || !acknowledgeAwsHosting}>
+              <Button type="submit" disabled={submitting || !acknowledgeAwsHosting || showPasswordMismatch}>
                 {submitting ? 'Creating workspace…' : 'Create workspace'}
               </Button>
               <Link to="/login" className="text-sm text-primary-600 underline">

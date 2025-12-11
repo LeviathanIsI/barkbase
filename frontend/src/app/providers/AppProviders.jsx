@@ -1,4 +1,5 @@
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { TourProvider } from "@/contexts/TourContext";
 import { RealtimeClient } from "@/lib/realtime";
 import { useAuthStore } from "@/stores/auth";
 import { useTenantStore } from "@/stores/tenant";
@@ -45,16 +46,18 @@ const RealtimeProvider = ({ children }) => {
 const AppProviders = ({ children, fallback = null }) => (
   <ThemeProvider>
     <QueryProvider>
-      <SlideoutProvider>
-        <RealtimeProvider>
-          <AuthLoader />
-          <TenantLoader />
-          <TokenRefresher />
-          <Suspense fallback={fallback}>{children}</Suspense>
-          <SlideoutHost />
-          <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
-        </RealtimeProvider>
-      </SlideoutProvider>
+      <TourProvider>
+        <SlideoutProvider>
+          <RealtimeProvider>
+            <AuthLoader />
+            <TenantLoader />
+            <TokenRefresher />
+            <Suspense fallback={fallback}>{children}</Suspense>
+            <SlideoutHost />
+            <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+          </RealtimeProvider>
+        </SlideoutProvider>
+      </TourProvider>
     </QueryProvider>
   </ThemeProvider>
 );

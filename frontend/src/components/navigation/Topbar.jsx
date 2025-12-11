@@ -1,15 +1,79 @@
-import { useEffect, useMemo, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Bell, ChevronDown, HelpCircle, MapPin, Menu, Search, X } from 'lucide-react';
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import {
+  Bell,
+  ChevronDown,
+  HelpCircle,
+  LogOut,
+  MapPin,
+  Menu,
+  Search,
+  Settings,
+  User,
+  X,
+  Check,
+  CheckCheck,
+  Keyboard,
+  ExternalLink,
+  MessageCircle,
+  Sparkles,
+  Bug,
+  BookOpen,
+  Loader2,
+} from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useAuthStore } from '@/stores/auth';
 import { useTenantStore } from '@/stores/tenant';
 import { cn } from '@/lib/utils';
+import {
+  useNotifications,
+  useUnreadNotificationsCount,
+  useMarkNotificationRead,
+  useMarkAllNotificationsRead,
+} from '@/features/notifications/api';
 
 const getInitials = (value) => {
   if (!value) return '';
   return value.split(' ').filter(Boolean).slice(0, 2).map((chunk) => chunk[0]?.toUpperCase()).join('');
+};
+
+// Format relative time
+const formatRelativeTime = (date) => {
+  if (!date) return '';
+  const now = new Date();
+  const then = new Date(date);
+  const diffMs = now - then;
+  const diffSecs = Math.floor(diffMs / 1000);
+  const diffMins = Math.floor(diffSecs / 60);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffSecs < 60) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return then.toLocaleDateString();
+};
+
+// Notification type icons and colors
+const NOTIFICATION_STYLES = {
+  booking_created: { icon: '📅', color: 'text-blue-500' },
+  booking_updated: { icon: '📝', color: 'text-blue-500' },
+  booking_cancelled: { icon: '❌', color: 'text-red-500' },
+  check_in: { icon: '✅', color: 'text-green-500' },
+  check_out: { icon: '👋', color: 'text-amber-500' },
+  payment_received: { icon: '💰', color: 'text-green-500' },
+  payment_failed: { icon: '⚠️', color: 'text-red-500' },
+  invoice_created: { icon: '📄', color: 'text-blue-500' },
+  vaccination_expiring: { icon: '💉', color: 'text-amber-500' },
+  vaccination_expired: { icon: '🚨', color: 'text-red-500' },
+  task_assigned: { icon: '📋', color: 'text-purple-500' },
+  task_completed: { icon: '✓', color: 'text-green-500' },
+  message_received: { icon: '💬', color: 'text-blue-500' },
+  system: { icon: 'ℹ️', color: 'text-gray-500' },
+  alert: { icon: '🔔', color: 'text-amber-500' },
+  info: { icon: 'ℹ️', color: 'text-blue-500' },
 };
 
 // Location Switcher Component
@@ -71,13 +135,18 @@ const GlobalSearch = () => {
   const inputRef = useRef(null);
   const navigate = useNavigate();
 
+  // Listen for custom event to open search (from keyboard shortcuts)
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setIsOpen(true); }
-      if (e.key === 'Escape') setIsOpen(false);
+    const handleOpenSearch = () => setIsOpen(true);
+    const handleCloseModal = () => setIsOpen(false);
+
+    window.addEventListener('bb-open-search', handleOpenSearch);
+    window.addEventListener('bb-close-modal', handleCloseModal);
+
+    return () => {
+      window.removeEventListener('bb-open-search', handleOpenSearch);
+      window.removeEventListener('bb-close-modal', handleCloseModal);
     };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   useEffect(() => { if (isOpen && inputRef.current) inputRef.current.focus(); }, [isOpen]);
@@ -92,7 +161,7 @@ const GlobalSearch = () => {
       <button type="button" onClick={() => setIsOpen(true)} className={cn('flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-all w-full hover:bg-[color:var(--bb-color-bg-elevated)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)]')} style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }} aria-label="Search">
         <Search className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
         <span className="hidden md:inline text-[color:var(--bb-color-text-muted)] flex-1 text-left">Search pets, owners, bookings...</span>
-        <kbd className="hidden lg:inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[0.65rem] font-medium text-[color:var(--bb-color-text-muted)]" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>⌘K</kbd>
+        <kbd className="hidden lg:inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[0.65rem] font-medium text-[color:var(--bb-color-text-muted)]" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>Ctrl+K</kbd>
       </button>
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]">
@@ -116,46 +185,720 @@ const GlobalSearch = () => {
   );
 };
 
-// Notifications Button
-const NotificationsButton = () => {
-  const [hasUnread] = useState(true);
+// Live Connection Status Indicator
+const LiveIndicator = () => {
+  const [status, setStatus] = useState('connecting'); // 'live' | 'connecting' | 'offline'
+  const [showTooltip, setShowTooltip] = useState(false);
+
+  useEffect(() => {
+    // Initial check
+    setStatus(navigator.onLine ? 'live' : 'offline');
+
+    const handleRealtimeStatus = (event) => {
+      const { connected, connecting } = event?.detail || {};
+      if (connecting) {
+        setStatus('connecting');
+      } else if (connected) {
+        setStatus('live');
+      } else {
+        setStatus('offline');
+      }
+    };
+
+    const handleOnline = () => setStatus('live');
+    const handleOffline = () => setStatus('offline');
+
+    window.addEventListener('bb-realtime-status', handleRealtimeStatus);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('bb-realtime-status', handleRealtimeStatus);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const statusConfig = {
+    live: {
+      color: 'var(--bb-color-status-positive)',
+      label: 'Live',
+      tooltip: 'Real-time updates active',
+    },
+    connecting: {
+      color: 'var(--bb-color-status-warning, #f59e0b)',
+      label: 'Connecting',
+      tooltip: 'Establishing connection...',
+    },
+    offline: {
+      color: 'var(--bb-color-status-negative)',
+      label: 'Offline',
+      tooltip: 'No connection - changes may not sync',
+    },
+  };
+
+  const config = statusConfig[status];
+
   return (
-    <button type="button" className={cn('relative flex items-center justify-center rounded-lg border p-2 transition-all hover:bg-[color:var(--bb-color-bg-elevated)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)]')} style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }} aria-label={hasUnread ? 'Notifications (unread)' : 'Notifications'}>
-      <Bell className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
-      {hasUnread && <span className="absolute -right-0.5 -top-0.5 flex h-2.5 w-2.5"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" /><span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" /></span>}
-    </button>
+    <div
+      className="relative hidden sm:flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[0.7rem] font-medium cursor-default"
+      style={{
+        backgroundColor: 'var(--bb-color-bg-elevated)',
+        borderColor: 'var(--bb-color-border-subtle)',
+        color: 'var(--bb-color-text-muted)',
+      }}
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+    >
+      <span
+        className={cn('h-2 w-2 rounded-full', status === 'connecting' && 'animate-pulse')}
+        style={{ backgroundColor: config.color }}
+      />
+      <span>{config.label}</span>
+
+      {showTooltip && (
+        <div
+          className="absolute left-1/2 -translate-x-1/2 top-full mt-2 whitespace-nowrap rounded-md px-2 py-1 text-xs shadow-lg z-50"
+          style={{
+            backgroundColor: 'var(--bb-color-bg-elevated)',
+            color: 'var(--bb-color-text-primary)',
+            border: '1px solid var(--bb-color-border-subtle)',
+          }}
+        >
+          {config.tooltip}
+        </div>
+      )}
+    </div>
   );
 };
 
-// Help Button
-const HelpButton = () => {
-  const [showTooltip, setShowTooltip] = useState(false);
+// Notifications Button with Popover
+const NotificationsButton = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const navigate = useNavigate();
+
+  // Fetch unread count (always)
+  const { data: unreadCount = 0 } = useUnreadNotificationsCount();
+
+  // Fetch notifications (only when open)
+  const { data: notificationsData, isLoading } = useNotifications({
+    limit: 10,
+    enabled: isOpen,
+  });
+
+  const notifications = notificationsData?.notifications || [];
+  const markReadMutation = useMarkNotificationRead();
+  const markAllReadMutation = useMarkAllNotificationsRead();
+
+  // Close on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleNotificationClick = useCallback((notification) => {
+    // Mark as read
+    if (!notification.isRead) {
+      markReadMutation.mutate(notification.id);
+    }
+    // Navigate if has link
+    if (notification.link) {
+      navigate(notification.link);
+      setIsOpen(false);
+    }
+  }, [markReadMutation, navigate]);
+
+  const handleMarkAllRead = useCallback(() => {
+    markAllReadMutation.mutate();
+  }, [markAllReadMutation]);
+
   return (
-    <div className="relative">
-      <button type="button" onMouseEnter={() => setShowTooltip(true)} onMouseLeave={() => setShowTooltip(false)} className={cn('flex items-center justify-center rounded-lg border p-2 transition-all hover:bg-[color:var(--bb-color-bg-elevated)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)]')} style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }} aria-label="Help & Support">
-        <HelpCircle className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+    <div className="relative" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          'relative flex items-center justify-center rounded-lg border p-2 transition-all',
+          'hover:bg-[color:var(--bb-color-bg-elevated)]',
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)]'
+        )}
+        style={{
+          backgroundColor: 'var(--bb-color-bg-surface)',
+          borderColor: 'var(--bb-color-border-subtle)',
+        }}
+        aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : 'Notifications'}
+      >
+        <Bell className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+        {unreadCount > 0 && (
+          <span className="absolute -right-0.5 -top-0.5 flex h-2.5 w-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
+          </span>
+        )}
       </button>
-      {showTooltip && <div className="absolute right-0 top-full mt-2 whitespace-nowrap rounded-md px-2 py-1 text-xs shadow-lg z-50" style={{ backgroundColor: 'var(--bb-color-bg-elevated)', color: 'var(--bb-color-text-primary)' }}>Help & Support</div>}
+
+      {isOpen && (
+        <div
+          className="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-lg border shadow-xl z-50"
+          style={{
+            backgroundColor: 'var(--bb-color-bg-surface)',
+            borderColor: 'var(--bb-color-border-subtle)',
+          }}
+        >
+          {/* Header */}
+          <div
+            className="flex items-center justify-between px-4 py-3 border-b"
+            style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+          >
+            <div className="flex items-center gap-2">
+              <Bell className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+              <span className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">
+                Notifications
+              </span>
+              {unreadCount > 0 && (
+                <span className="rounded-full bg-red-100 dark:bg-red-900/30 px-2 py-0.5 text-xs font-medium text-red-600 dark:text-red-400">
+                  {unreadCount}
+                </span>
+              )}
+            </div>
+            {unreadCount > 0 && (
+              <button
+                type="button"
+                onClick={handleMarkAllRead}
+                disabled={markAllReadMutation.isPending}
+                className="flex items-center gap-1 text-xs text-[color:var(--bb-color-accent)] hover:underline disabled:opacity-50"
+              >
+                <CheckCheck className="h-3.5 w-3.5" />
+                Mark all read
+              </button>
+            )}
+          </div>
+
+          {/* Notifications List */}
+          <div className="max-h-[400px] overflow-y-auto">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-[color:var(--bb-color-text-muted)]" />
+              </div>
+            ) : notifications.length === 0 ? (
+              <div className="py-8 text-center">
+                <Bell className="h-8 w-8 mx-auto text-[color:var(--bb-color-text-muted)] opacity-50 mb-2" />
+                <p className="text-sm text-[color:var(--bb-color-text-muted)]">No notifications yet</p>
+                <p className="text-xs text-[color:var(--bb-color-text-muted)] mt-1">
+                  We'll notify you about important updates
+                </p>
+              </div>
+            ) : (
+              <div className="py-1">
+                {notifications.map((notification) => {
+                  const style = NOTIFICATION_STYLES[notification.type] || NOTIFICATION_STYLES.info;
+                  return (
+                    <button
+                      key={notification.id}
+                      type="button"
+                      onClick={() => handleNotificationClick(notification)}
+                      className={cn(
+                        'w-full px-4 py-3 text-left transition-colors',
+                        'hover:bg-[color:var(--bb-color-bg-elevated)]',
+                        !notification.isRead && 'bg-[color:var(--bb-color-accent-soft)]'
+                      )}
+                    >
+                      <div className="flex gap-3">
+                        <span className="text-lg flex-shrink-0">{style.icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className={cn(
+                              'text-sm truncate',
+                              notification.isRead
+                                ? 'text-[color:var(--bb-color-text-primary)]'
+                                : 'font-medium text-[color:var(--bb-color-text-primary)]'
+                            )}>
+                              {notification.title}
+                            </p>
+                            {!notification.isRead && (
+                              <span className="h-2 w-2 rounded-full bg-[color:var(--bb-color-accent)] flex-shrink-0 mt-1.5" />
+                            )}
+                          </div>
+                          {notification.message && (
+                            <p className="text-xs text-[color:var(--bb-color-text-muted)] mt-0.5 line-clamp-2">
+                              {notification.message}
+                            </p>
+                          )}
+                          <p className="text-[0.65rem] text-[color:var(--bb-color-text-muted)] mt-1">
+                            {formatRelativeTime(notification.createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          {notifications.length > 0 && (
+            <div
+              className="px-4 py-2 border-t text-center"
+              style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+            >
+              <Link
+                to="/notifications"
+                onClick={() => setIsOpen(false)}
+                className="text-xs text-[color:var(--bb-color-accent)] hover:underline"
+              >
+                View all notifications
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Help Button with Dropdown
+const HelpButton = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Listen for custom event to open shortcuts modal (from keyboard shortcuts handler)
+  useEffect(() => {
+    const handleOpenShortcuts = () => setShowKeyboardShortcuts(true);
+    const handleCloseModal = () => setShowKeyboardShortcuts(false);
+
+    window.addEventListener('bb-open-shortcuts-modal', handleOpenShortcuts);
+    window.addEventListener('bb-close-modal', handleCloseModal);
+
+    return () => {
+      window.removeEventListener('bb-open-shortcuts-modal', handleOpenShortcuts);
+      window.removeEventListener('bb-close-modal', handleCloseModal);
+    };
+  }, []);
+
+  const helpItems = [
+    {
+      icon: Keyboard,
+      label: 'Keyboard Shortcuts',
+      shortcut: 'Ctrl+?',
+      onClick: () => {
+        setIsOpen(false);
+        setShowKeyboardShortcuts(true);
+      },
+    },
+    {
+      icon: BookOpen,
+      label: 'Help Center',
+      href: 'https://help.barkbase.com',
+      external: true,
+    },
+    {
+      icon: MessageCircle,
+      label: 'Contact Support',
+      href: 'mailto:support@barkbase.com',
+    },
+    { divider: true },
+    {
+      icon: Sparkles,
+      label: "What's New",
+      href: '/changelog',
+    },
+    {
+      icon: Bug,
+      label: 'Report a Bug',
+      href: 'mailto:bugs@barkbase.com?subject=Bug%20Report',
+    },
+  ];
+
+  // Keyboard shortcuts data
+  const shortcuts = [
+    { category: 'Navigation', items: [
+      { keys: ['Ctrl', 'K'], description: 'Open search' },
+      { keys: ['G', 'H'], description: 'Go to Today/Dashboard' },
+      { keys: ['G', 'B'], description: 'Go to Bookings' },
+      { keys: ['G', 'O'], description: 'Go to Owners' },
+      { keys: ['G', 'P'], description: 'Go to Pets' },
+      { keys: ['G', 'S'], description: 'Go to Settings' },
+      { keys: ['G', 'T'], description: 'Go to Tasks' },
+      { keys: ['G', 'C'], description: 'Go to Calendar' },
+      { keys: ['G', 'M'], description: 'Go to Messages' },
+      { keys: ['G', 'R'], description: 'Go to Reports' },
+      { keys: ['G', 'K'], description: 'Go to Kennels' },
+    ]},
+    { category: 'Actions', items: [
+      { keys: ['N'], description: 'New booking' },
+      { keys: ['Ctrl', 'S'], description: 'Save form' },
+      { keys: ['Esc'], description: 'Close modal/Cancel' },
+    ]},
+    { category: 'Calendar', items: [
+      { keys: ['\u2190'], description: 'Previous day' },
+      { keys: ['\u2192'], description: 'Next day' },
+      { keys: ['Shift', '\u2190'], description: 'Previous week' },
+      { keys: ['Shift', '\u2192'], description: 'Next week' },
+      { keys: ['T'], description: 'Jump to today' },
+    ]},
+    { category: 'Help', items: [
+      { keys: ['?'], description: 'Show keyboard shortcuts' },
+    ]},
+  ];
+
+  return (
+    <>
+      <div className="relative" ref={dropdownRef}>
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className={cn(
+            'flex items-center justify-center rounded-lg border p-2 transition-all',
+            'hover:bg-[color:var(--bb-color-bg-elevated)]',
+            'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)]'
+          )}
+          style={{
+            backgroundColor: 'var(--bb-color-bg-surface)',
+            borderColor: 'var(--bb-color-border-subtle)',
+          }}
+          aria-label="Help & Support"
+        >
+          <HelpCircle className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+        </button>
+
+        {isOpen && (
+          <div
+            className="absolute right-0 top-full mt-2 w-56 rounded-lg border shadow-lg z-50 py-1"
+            style={{
+              backgroundColor: 'var(--bb-color-bg-surface)',
+              borderColor: 'var(--bb-color-border-subtle)',
+            }}
+          >
+            {helpItems.map((item, index) => {
+              if (item.divider) {
+                return (
+                  <div
+                    key={`divider-${index}`}
+                    className="my-1 border-t"
+                    style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+                  />
+                );
+              }
+
+              const Icon = item.icon;
+              const content = (
+                <>
+                  <Icon className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+                  <span className="flex-1 text-[color:var(--bb-color-text-primary)]">{item.label}</span>
+                  {item.shortcut && (
+                    <kbd
+                      className="text-[0.65rem] px-1.5 py-0.5 rounded border"
+                      style={{
+                        borderColor: 'var(--bb-color-border-subtle)',
+                        color: 'var(--bb-color-text-muted)',
+                      }}
+                    >
+                      {item.shortcut}
+                    </kbd>
+                  )}
+                  {item.external && (
+                    <ExternalLink className="h-3 w-3 text-[color:var(--bb-color-text-muted)]" />
+                  )}
+                </>
+              );
+
+              if (item.onClick) {
+                return (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={item.onClick}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-[color:var(--bb-color-bg-elevated)] transition-colors"
+                  >
+                    {content}
+                  </button>
+                );
+              }
+
+              if (item.external) {
+                return (
+                  <a
+                    key={item.label}
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setIsOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[color:var(--bb-color-bg-elevated)] transition-colors"
+                  >
+                    {content}
+                  </a>
+                );
+              }
+
+              return (
+                <Link
+                  key={item.label}
+                  to={item.href}
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[color:var(--bb-color-bg-elevated)] transition-colors"
+                >
+                  {content}
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Keyboard Shortcuts Modal */}
+      {showKeyboardShortcuts && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0"
+            style={{ backgroundColor: 'var(--bb-color-overlay-scrim)' }}
+            onClick={() => setShowKeyboardShortcuts(false)}
+          />
+          <div
+            className="relative w-full max-w-lg rounded-xl border shadow-2xl"
+            style={{
+              backgroundColor: 'var(--bb-color-bg-surface)',
+              borderColor: 'var(--bb-color-border-subtle)',
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              className="flex items-center justify-between px-6 py-4 border-b"
+              style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+            >
+              <div className="flex items-center gap-2">
+                <Keyboard className="h-5 w-5 text-[color:var(--bb-color-accent)]" />
+                <h2 className="text-lg font-semibold text-[color:var(--bb-color-text-primary)]">
+                  Keyboard Shortcuts
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowKeyboardShortcuts(false)}
+                className="rounded p-1 hover:bg-[color:var(--bb-color-bg-elevated)] transition-colors"
+              >
+                <X className="h-5 w-5 text-[color:var(--bb-color-text-muted)]" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 max-h-[60vh] overflow-y-auto">
+              {shortcuts.map((section) => (
+                <div key={section.category} className="mb-6 last:mb-0">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-[color:var(--bb-color-text-muted)] mb-3">
+                    {section.category}
+                  </h3>
+                  <div className="space-y-2">
+                    {section.items.map((shortcut, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between py-1"
+                      >
+                        <span className="text-sm text-[color:var(--bb-color-text-primary)]">
+                          {shortcut.description}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          {shortcut.keys.map((key, keyIdx) => (
+                            <span key={keyIdx}>
+                              <kbd
+                                className="inline-flex items-center justify-center min-w-[24px] px-2 py-1 text-xs font-medium rounded border"
+                                style={{
+                                  backgroundColor: 'var(--bb-color-bg-elevated)',
+                                  borderColor: 'var(--bb-color-border-subtle)',
+                                  color: 'var(--bb-color-text-primary)',
+                                }}
+                              >
+                                {key}
+                              </kbd>
+                              {keyIdx < shortcut.keys.length - 1 && (
+                                <span className="text-[color:var(--bb-color-text-muted)] mx-0.5">+</span>
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              className="px-6 py-3 border-t text-center"
+              style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+            >
+              <p className="text-xs text-[color:var(--bb-color-text-muted)]">
+                Press <kbd className="rounded border px-1" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>Esc</kbd> to close
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+// Profile Dropdown Component
+const ProfileDropdown = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
+  const initials = useMemo(() => getInitials(user?.fullName || user?.name || user?.email || ''), [user]);
+
+  // Close on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    setIsOpen(false);
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  }, [logout, navigate]);
+
+  const handleNavigate = useCallback((path) => {
+    setIsOpen(false);
+    navigate(path);
+  }, [navigate]);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          'flex items-center gap-2 pl-2 border-l rounded-r-lg py-1.5 pr-2 transition-all',
+          'hover:bg-[color:var(--bb-color-bg-elevated)]',
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)]'
+        )}
+        style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+        aria-label="User menu"
+        aria-expanded={isOpen}
+        aria-haspopup="true"
+      >
+        <div className="hidden text-right md:block">
+          <p className="text-[0.8125rem] font-medium leading-tight text-[color:var(--bb-color-text-primary)]">
+            {user?.fullName || user?.name}
+          </p>
+          {user?.email && (
+            <p className="text-[0.7rem] leading-tight text-[color:var(--bb-color-text-muted)]">
+              {user.email}
+            </p>
+          )}
+        </div>
+        <Avatar size="sm" src={user?.avatarUrl} fallback={initials} />
+        <ChevronDown
+          className={cn(
+            'h-3.5 w-3.5 text-[color:var(--bb-color-text-muted)] transition-transform hidden sm:block',
+            isOpen && 'rotate-180'
+          )}
+        />
+      </button>
+
+      {isOpen && (
+        <div
+          className="absolute right-0 top-full mt-2 w-64 rounded-lg border shadow-xl z-50"
+          style={{
+            backgroundColor: 'var(--bb-color-bg-surface)',
+            borderColor: 'var(--bb-color-border-subtle)',
+          }}
+        >
+          {/* User Info Header */}
+          <div
+            className="px-4 py-3 border-b"
+            style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+          >
+            <div className="flex items-center gap-3">
+              <Avatar size="md" src={user?.avatarUrl} fallback={initials} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-[color:var(--bb-color-text-primary)] truncate">
+                  {user?.fullName || user?.name || 'User'}
+                </p>
+                {user?.email && (
+                  <p className="text-xs text-[color:var(--bb-color-text-muted)] truncate">
+                    {user.email}
+                  </p>
+                )}
+                {user?.role && (
+                  <p className="text-[0.65rem] text-[color:var(--bb-color-accent)] mt-0.5 capitalize">
+                    {user.role}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Menu Items */}
+          <div className="py-1">
+            <button
+              type="button"
+              onClick={() => handleNavigate('/settings/profile')}
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-[color:var(--bb-color-bg-elevated)] transition-colors"
+            >
+              <User className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+              <span className="text-[color:var(--bb-color-text-primary)]">Your Profile</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleNavigate('/settings')}
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-[color:var(--bb-color-bg-elevated)] transition-colors"
+            >
+              <Settings className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+              <span className="text-[color:var(--bb-color-text-primary)]">Settings</span>
+            </button>
+          </div>
+
+          {/* Logout */}
+          <div
+            className="py-1 border-t"
+            style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+          >
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-[color:var(--bb-color-bg-elevated)] transition-colors text-red-600 dark:text-red-400"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Sign out</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 const Topbar = ({ onToggleSidebar }) => {
-  const user = useAuthStore((state) => state.user);
-  const [isRealtimeConnected, setRealtimeConnected] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
-
-  useEffect(() => {
-    const handleStatus = (event) => { const connected = event?.detail?.connected; if (typeof connected === 'boolean') setRealtimeConnected(connected); };
-    const handleOnline = () => setRealtimeConnected(true);
-    const handleOffline = () => setRealtimeConnected(false);
-    window.addEventListener('bb-realtime-status', handleStatus);
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => { window.removeEventListener('bb-realtime-status', handleStatus); window.removeEventListener('online', handleOnline); window.removeEventListener('offline', handleOffline); };
-  }, []);
-
-  const initials = useMemo(() => getInitials(user?.fullName || user?.name || user?.email || ''), [user]);
-
   return (
     <header className="sticky top-0 z-30 flex w-full border-b" style={{ backgroundColor: 'var(--bb-color-topbar-bg)', borderColor: 'var(--bb-color-topbar-border)', boxShadow: 'var(--bb-color-topbar-shadow)' }}>
       <div className="mx-auto flex h-[var(--bb-topbar-height,56px)] w-full items-center justify-between gap-4 px-[var(--bb-space-4,1rem)] sm:px-[var(--bb-space-6,1.5rem)] lg:px-[var(--bb-space-8,2rem)]">
@@ -165,10 +908,7 @@ const Topbar = ({ onToggleSidebar }) => {
             <Menu className="h-5 w-5" />
           </button>
           <LocationSwitcher />
-          <div className="hidden sm:flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[0.7rem] font-medium" style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-muted)' }}>
-            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: isRealtimeConnected ? 'var(--bb-color-status-positive)' : 'var(--bb-color-status-negative)' }} />
-            <span>{isRealtimeConnected ? 'Live' : 'Offline'}</span>
-          </div>
+          <LiveIndicator />
         </div>
         {/* Center: Search */}
         <div className="flex-1 max-w-lg hidden sm:block"><GlobalSearch /></div>
@@ -178,13 +918,7 @@ const Topbar = ({ onToggleSidebar }) => {
           <NotificationsButton />
           <HelpButton />
           <ThemeToggle />
-          <div className="flex items-center gap-2 pl-2 border-l" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-            <div className="hidden text-right md:block">
-              <p className="text-[0.8125rem] font-medium leading-tight text-[color:var(--bb-color-text-primary)]">{user?.fullName || user?.name}</p>
-              {user?.email && <p className="text-[0.7rem] leading-tight text-[color:var(--bb-color-text-muted)]">{user.email}</p>}
-            </div>
-            <Avatar size="sm" src={user?.avatarUrl} fallback={initials} />
-          </div>
+          <ProfileDropdown />
         </div>
       </div>
     </header>
@@ -192,4 +926,3 @@ const Topbar = ({ onToggleSidebar }) => {
 };
 
 export default Topbar;
-

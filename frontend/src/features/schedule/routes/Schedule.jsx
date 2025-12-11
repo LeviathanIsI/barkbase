@@ -221,16 +221,22 @@ const Schedule = () => {
       ? bookingOrAssignment // Already a booking with nested objects
       : {
           // Transform flat assignment to booking shape
+          // IMPORTANT: Keep bookingId and runAssignmentId separate so we know which is which
           id: bookingOrAssignment.bookingId || bookingOrAssignment.id,
           recordId: bookingOrAssignment.bookingId || bookingOrAssignment.id,
+          bookingId: bookingOrAssignment.bookingId || null, // The actual booking ID (may be null for daycare)
+          runAssignmentId: bookingOrAssignment.id, // The run assignment ID
           pet: {
             id: bookingOrAssignment.petId,
+            recordId: bookingOrAssignment.petId,
             name: bookingOrAssignment.petName || 'Unknown Pet',
             breed: bookingOrAssignment.petBreed || null,
             species: bookingOrAssignment.petSpecies || null,
             photoUrl: bookingOrAssignment.petPhotoUrl,
           },
           owner: {
+            id: bookingOrAssignment.ownerId,
+            recordId: bookingOrAssignment.ownerId,
             name: bookingOrAssignment.ownerName || 'Unknown',
             phone: bookingOrAssignment.ownerPhone,
           },
@@ -238,9 +244,10 @@ const Schedule = () => {
           checkIn: bookingOrAssignment.bookingCheckIn || bookingOrAssignment.startAt || bookingOrAssignment.assignedDate,
           checkOut: bookingOrAssignment.bookingCheckOut || bookingOrAssignment.endAt || bookingOrAssignment.assignedDate,
           status: bookingOrAssignment.bookingStatus || bookingOrAssignment.status || 'CONFIRMED',
-          kennel: { name: bookingOrAssignment.kennelName || 'Unassigned' },
+          kennel: { name: bookingOrAssignment.kennelName || 'Unassigned', id: bookingOrAssignment.kennelId },
           // Use run name as additional context
           runName: bookingOrAssignment.runName,
+          runId: bookingOrAssignment.runId,
           totalCents: bookingOrAssignment.bookingTotalCents || 0,
           amountPaidCents: 0, // TODO: fetch actual paid amount if needed
         };
@@ -250,6 +257,11 @@ const Schedule = () => {
 
   const navigateWeek = useCallback((direction) => {
     setCurrentDate(prev => addDays(prev, direction * 7));
+  }, []);
+
+  // Navigate by day for the hourly grid
+  const navigateDay = useCallback((direction) => {
+    setCurrentDate(prev => addDays(prev, direction));
   }, []);
 
   const goToToday = useCallback(() => {
@@ -276,7 +288,7 @@ const Schedule = () => {
               title="Today's Schedule"
             />
             <p className="mt-1 text-sm text-[color:var(--bb-color-text-muted)]">
-              Complete operations dashboard for kennel management
+              Real-time facility operations — see where pets are TODAY, hour by hour
             </p>
           </div>
 
@@ -354,22 +366,20 @@ const Schedule = () => {
         {/* Capacity Alerts - Horizontal card */}
         <CapacityAlerts stats={stats} lastRefreshed={formatLastRefreshed()} />
 
-        {/* Run/Room Weekly Grid */}
-        <WeeklyRunGrid
+        {/* Today's Hourly Grid - Shows which pet is WHERE at each HOUR */}
+        <DailyHourlyGrid
           runs={runs}
           bookings={processedBookings}
           assignments={processedAssignments}
-          weekDates={weekDates}
-          occupancyByDate={occupancyByDate}
+          currentDate={currentDate}
           isLoading={isLoading}
           onBookingClick={handleBookingClick}
           onNewBooking={(runId, date) => {
             // Could pre-fill the modal here
             setShowNewBookingModal(true);
           }}
-          onNavigateWeek={navigateWeek}
+          onNavigateDay={navigateDay}
           onGoToToday={goToToday}
-          currentDate={currentDate}
         />
 
         {/* Two-column layout for remaining modules */}
@@ -604,35 +614,83 @@ const CapacityAlerts = ({ stats, lastRefreshed }) => {
   );
 };
 
-// Weekly Run Grid
-const WeeklyRunGrid = ({ runs, bookings, assignments = [], weekDates, occupancyByDate, isLoading, onBookingClick, onNewBooking, onNavigateWeek, onGoToToday, currentDate }) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+// Daily Hourly Grid - Shows which pet is WHERE at each HOUR for TODAY
+// Rows = Hours (6am-8pm), Columns = Kennels/Runs
+const DailyHourlyGrid = ({ runs, bookings, assignments = [], currentDate, isLoading, onBookingClick, onNewBooking, onNavigateDay, onGoToToday }) => {
   const scrollRef = useRef(null);
 
-  // Get assignments for a specific run and date (from RunAssignment table)
-  const getAssignmentsForCell = (runId, date) => {
-    const dateStr = date.toISOString().split('T')[0];
-    return assignments.filter(a => a.runId === runId && a.dateStr === dateStr);
+  // Generate hours array (6am to 8pm = 6-20)
+  const hours = useMemo(() => {
+    return Array.from({ length: 15 }, (_, i) => i + 6); // 6, 7, 8, ... 20
+  }, []);
+
+  // Format hour for display
+  const formatHour = (hour) => {
+    if (hour === 12) return '12pm';
+    if (hour < 12) return `${hour}am`;
+    return `${hour - 12}pm`;
   };
 
-  const weekLabel = `${format(weekDates[0], 'MMM d')} – ${format(weekDates[6], 'MMM d, yyyy')}`;
+  // Get current hour for highlighting
+  const now = new Date();
+  const currentHour = now.getHours();
+  const isToday = currentDate.toDateString() === now.toDateString();
+
+  // Get the date string for filtering
+  const dateStr = currentDate.toISOString().split('T')[0];
+
+  // Get pets in a kennel/run at a specific hour
+  const getPetsForCell = (runId, hour) => {
+    // First check run assignments for this run/kennel on this date
+    const runAssignments = assignments.filter(a => {
+      if (a.runId !== runId || a.dateStr !== dateStr) return false;
+      // Check if this assignment covers this hour
+      const startHour = a.startAt ? new Date(a.startAt).getHours() : 0;
+      const endHour = a.endAt ? new Date(a.endAt).getHours() : 23;
+      return hour >= startHour && hour <= endHour;
+    });
+
+    if (runAssignments.length > 0) return runAssignments;
+
+    // Fall back to bookings assigned to this kennel
+    return bookings.filter(b => {
+      if (b.runId !== runId) return false;
+      if (!b.checkInDate || !b.checkOutDate) return false;
+      const checkInStr = b.checkInDate.toISOString().split('T')[0];
+      const checkOutStr = b.checkOutDate.toISOString().split('T')[0];
+      // Check if booking spans this date
+      if (dateStr < checkInStr || dateStr > checkOutStr) return false;
+      // For simplicity, if booking spans this day, show it all day
+      return true;
+    });
+  };
+
+  // Calculate occupancy for a run (how many hours it's occupied)
+  const getRunOccupancy = (runId) => {
+    let occupiedHours = 0;
+    hours.forEach(hour => {
+      if (getPetsForCell(runId, hour).length > 0) occupiedHours++;
+    });
+    return Math.round((occupiedHours / hours.length) * 100);
+  };
+
+  const dateLabel = format(currentDate, 'EEEE, MMMM d, yyyy');
 
   return (
     <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
         <div className="flex items-center gap-3">
-          <Home className="h-5 w-5 text-[color:var(--bb-color-text-muted)]" />
-          <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Run/Room Weekly Grid</h3>
+          <Clock className="h-5 w-5 text-[color:var(--bb-color-text-muted)]" />
+          <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Today's Facility Grid</h3>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => onNavigateWeek(-1)} className="px-2 h-8">
+          <Button variant="ghost" size="sm" onClick={() => onNavigateDay(-1)} className="px-2 h-8">
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <Button variant="outline" size="sm" onClick={onGoToToday} className="h-8">Today</Button>
-          <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)] min-w-[140px] text-center">{weekLabel}</span>
-          <Button variant="ghost" size="sm" onClick={() => onNavigateWeek(1)} className="px-2 h-8">
+          <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)] min-w-[200px] text-center">{dateLabel}</span>
+          <Button variant="ghost" size="sm" onClick={() => onNavigateDay(1)} className="px-2 h-8">
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
@@ -640,40 +698,42 @@ const WeeklyRunGrid = ({ runs, bookings, assignments = [], weekDates, occupancyB
 
       {/* Grid */}
       <div className="overflow-x-auto" ref={scrollRef}>
-        <div style={{ minWidth: '900px' }}>
-          {/* Column Headers */}
-          <div className="grid grid-cols-[160px_repeat(7,1fr)] border-b" style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}>
+        <div style={{ minWidth: `${80 + runs.length * 120}px` }}>
+          {/* Column Headers - Kennels/Runs */}
+          <div
+            className="grid border-b"
+            style={{
+              gridTemplateColumns: `80px repeat(${runs.length}, minmax(100px, 1fr))`,
+              backgroundColor: 'var(--bb-color-bg-elevated)',
+              borderColor: 'var(--bb-color-border-subtle)'
+            }}
+          >
             <div className="p-3 font-medium text-sm text-[color:var(--bb-color-text-muted)] sticky left-0 z-10" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
-              Run / Room
+              Time
             </div>
-            {weekDates.map((date, idx) => {
-              const dateStr = date.toISOString().split('T')[0];
-              const occ = occupancyByDate[dateStr] || { pct: 0 };
-              const isToday = date.toDateString() === today.toDateString();
-              
+            {runs.map((run) => {
+              const occupancy = getRunOccupancy(run.id);
               return (
                 <div
-                  key={idx}
-                  className={cn('p-2 text-center border-l', isToday && 'bg-[color:var(--bb-color-accent-soft)]')}
+                  key={run.id}
+                  className="p-2 text-center border-l"
                   style={{ borderColor: 'var(--bb-color-border-subtle)' }}
                 >
-                  <div className="text-xs text-[color:var(--bb-color-text-muted)]">{format(date, 'EEE')}</div>
-                  <div className={cn('text-lg font-semibold', isToday ? 'text-[color:var(--bb-color-accent)]' : 'text-[color:var(--bb-color-text-primary)]')}>
-                    {date.getDate()}
-                  </div>
+                  <div className="font-medium text-sm text-[color:var(--bb-color-text-primary)]">{run.name}</div>
+                  <div className="text-xs text-[color:var(--bb-color-text-muted)]">{run.type}</div>
                   <Badge
-                    variant={occ.pct >= 85 ? 'danger' : occ.pct >= 50 ? 'warning' : 'success'}
+                    variant={occupancy >= 85 ? 'danger' : occupancy >= 50 ? 'warning' : 'success'}
                     size="sm"
                     className="mt-1"
                   >
-                    {occ.pct}%
+                    {occupancy}%
                   </Badge>
                 </div>
               );
             })}
           </div>
 
-          {/* Run Rows */}
+          {/* Hour Rows */}
           {isLoading ? (
             <div className="p-8 text-center">
               <LoadingState variant="skeleton" />
@@ -681,75 +741,94 @@ const WeeklyRunGrid = ({ runs, bookings, assignments = [], weekDates, occupancyB
           ) : runs.length === 0 ? (
             <div className="p-8 text-center">
               <Home className="h-8 w-8 text-[color:var(--bb-color-text-muted)] mx-auto mb-2" />
-              <p className="text-[color:var(--bb-color-text-muted)]">No runs configured</p>
+              <p className="text-[color:var(--bb-color-text-muted)]">No kennels or runs configured</p>
               <Button variant="outline" size="sm" className="mt-2" asChild>
-                <Link to="/settings/objects/facilities">Configure Runs</Link>
+                <Link to="/settings/objects/facilities">Configure Facility</Link>
               </Button>
             </div>
           ) : (
-            runs.map((run) => (
-              <div key={run.id} className="grid grid-cols-[160px_repeat(7,1fr)] border-b last:border-b-0" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-                {/* Run Label - Sticky */}
+            hours.map((hour) => {
+              const isCurrentHour = isToday && hour === currentHour;
+              return (
                 <div
-                  className="p-3 sticky left-0 z-10 border-r"
-                  style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+                  key={hour}
+                  className="grid border-b last:border-b-0"
+                  style={{
+                    gridTemplateColumns: `80px repeat(${runs.length}, minmax(100px, 1fr))`,
+                    borderColor: 'var(--bb-color-border-subtle)'
+                  }}
                 >
-                  <p className="font-medium text-sm text-[color:var(--bb-color-text-primary)]">{run.name}</p>
-                  <p className="text-xs text-[color:var(--bb-color-text-muted)]">{run.type} • Cap: {run.capacity}</p>
+                  {/* Hour Label - Sticky */}
+                  <div
+                    className={cn(
+                      'p-2 sticky left-0 z-10 border-r flex items-center justify-center',
+                      isCurrentHour && 'bg-[color:var(--bb-color-accent-soft)]'
+                    )}
+                    style={{
+                      backgroundColor: isCurrentHour ? undefined : 'var(--bb-color-bg-surface)',
+                      borderColor: 'var(--bb-color-border-subtle)'
+                    }}
+                  >
+                    <span className={cn(
+                      'text-sm font-medium',
+                      isCurrentHour ? 'text-[color:var(--bb-color-accent)]' : 'text-[color:var(--bb-color-text-muted)]'
+                    )}>
+                      {formatHour(hour)}
+                    </span>
+                  </div>
+
+                  {/* Kennel/Run Cells */}
+                  {runs.map((run) => {
+                    const cellPets = getPetsForCell(run.id, hour);
+                    const hasPets = cellPets.length > 0;
+
+                    return (
+                      <div
+                        key={run.id}
+                        className={cn(
+                          'min-h-[48px] border-l relative transition-colors cursor-pointer',
+                          !hasPets && 'hover:bg-[color:var(--bb-color-bg-elevated)]',
+                          isCurrentHour && 'bg-[color:var(--bb-color-accent-soft)]'
+                        )}
+                        style={{
+                          backgroundColor: isCurrentHour ? undefined : 'var(--bb-color-bg-body)',
+                          borderColor: 'var(--bb-color-border-subtle)',
+                        }}
+                        onClick={() => hasPets ? onBookingClick(cellPets[0]) : onNewBooking(run.id, currentDate)}
+                      >
+                        {hasPets ? (
+                          <div className="p-1 space-y-0.5 overflow-hidden">
+                            {cellPets.slice(0, 2).map((pet, idx) => (
+                              <div
+                                key={pet.id || idx}
+                                className="rounded bg-blue-100 dark:bg-blue-900/40 border-l-2 border-blue-500 px-1.5 py-0.5 overflow-hidden"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onBookingClick(pet);
+                                }}
+                              >
+                                <p className="text-[10px] font-medium text-blue-800 dark:text-blue-200 truncate">
+                                  {pet.petName}
+                                </p>
+                              </div>
+                            ))}
+                            {cellPets.length > 2 && (
+                              <p className="text-[9px] text-center text-blue-600 dark:text-blue-300 font-medium">
+                                +{cellPets.length - 2} more
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                            <Plus className="h-3 w-3 text-[color:var(--bb-color-text-muted)]" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-
-                {/* Day Cells */}
-                {weekDates.map((date, idx) => {
-                  const cellAssignments = getAssignmentsForCell(run.id, date);
-                  const isToday = date.toDateString() === today.toDateString();
-                  const hasAssignments = cellAssignments.length > 0;
-
-                  return (
-                    <div
-                      key={idx}
-                      className={cn(
-                        'min-h-[64px] border-l relative transition-colors cursor-pointer',
-                        !hasAssignments && 'hover:bg-[color:var(--bb-color-bg-elevated)]'
-                      )}
-                      style={{
-                        backgroundColor: isToday ? 'var(--bb-color-accent-soft)' : 'var(--bb-color-bg-body)',
-                        borderColor: 'var(--bb-color-border-subtle)',
-                      }}
-                      onClick={() => hasAssignments ? onBookingClick(cellAssignments[0]) : onNewBooking(run.id, date)}
-                    >
-                      {hasAssignments ? (
-                        <div className="p-1 space-y-0.5 overflow-hidden">
-                          {cellAssignments.slice(0, 3).map((assignment, aIdx) => (
-                            <div
-                              key={assignment.id || aIdx}
-                              className="rounded bg-blue-100 dark:bg-blue-900/40 border-l-2 border-blue-500 px-1.5 py-0.5 overflow-hidden"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onBookingClick(assignment);
-                              }}
-                            >
-                              <p className="text-[10px] font-medium text-blue-800 dark:text-blue-200 truncate">{assignment.petName}</p>
-                              {assignment.startTime && (
-                                <p className="text-[9px] text-blue-600 dark:text-blue-300 truncate">{assignment.startTime}</p>
-                              )}
-                            </div>
-                          ))}
-                          {cellAssignments.length > 3 && (
-                            <p className="text-[9px] text-center text-blue-600 dark:text-blue-300 font-medium">
-                              +{cellAssignments.length - 3} more
-                            </p>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                          <Plus className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

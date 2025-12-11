@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -18,8 +20,14 @@ import {
   RefreshCw,
   FileJson,
   FileSpreadsheet,
-  File,
   Plus,
+  MoreHorizontal,
+  Eye,
+  Trash2,
+  Users,
+  PawPrint,
+  Calendar,
+  ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
@@ -38,13 +46,33 @@ const FORMAT_OPTIONS = [
   { value: 'xlsx', label: 'Excel (.xlsx)', icon: FileSpreadsheet },
 ];
 
+const ENTITY_ICONS = {
+  owners: Users,
+  pets: PawPrint,
+  bookings: Calendar,
+  vaccinations: FileText,
+  services: FileText,
+  staff: Users,
+};
+
+const ENTITY_LABELS = {
+  owners: 'Owners',
+  pets: 'Pets',
+  bookings: 'Bookings',
+  vaccinations: 'Vaccinations',
+  services: 'Services',
+  staff: 'Staff',
+};
+
 const ImportExport = () => {
+  const navigate = useNavigate();
   const tenant = useTenantStore((state) => state.tenant);
   const accessToken = useAuthStore((state) => state.accessToken);
 
   // Import wizard state
   const [showImportWizard, setShowImportWizard] = useState(false);
   const [importSuccess, setImportSuccess] = useState(null);
+  const [lastImportId, setLastImportId] = useState(null);
 
   // Export state
   const [exportFormat, setExportFormat] = useState('csv');
@@ -52,37 +80,38 @@ const ImportExport = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState(null);
 
-  // Jobs state
-  const [recentJobs, setRecentJobs] = useState([]);
-  const [isLoadingJobs, setIsLoadingJobs] = useState(true);
+  // Filter state for past imports
+  const [entityTypeFilter, setEntityTypeFilter] = useState('');
+  const [hasErrorsFilter, setHasErrorsFilter] = useState('');
 
-  // Fetch recent jobs
-  const fetchJobs = useCallback(async () => {
-    try {
-      setIsLoadingJobs(true);
-      const { data } = await apiClient.get('/api/v1/import-export/jobs');
-      setRecentJobs(data?.jobs || []);
-    } catch (err) {
-      console.error('Failed to fetch import/export jobs:', err);
-      // Gracefully handle - show empty list
-      setRecentJobs([]);
-    } finally {
-      setIsLoadingJobs(false);
-    }
-  }, []);
+  // Active row menu
+  const [activeMenuId, setActiveMenuId] = useState(null);
 
-  useEffect(() => {
-    fetchJobs();
-  }, [fetchJobs]);
+  // Fetch past imports (HubSpot-style history)
+  const { data: importsData, isLoading: isLoadingImports, refetch: refetchImports } = useQuery({
+    queryKey: ['imports', entityTypeFilter, hasErrorsFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (entityTypeFilter) params.append('entityType', entityTypeFilter);
+      if (hasErrorsFilter) params.append('hasErrors', hasErrorsFilter);
+      const { data } = await apiClient.get(`/api/v1/imports?${params.toString()}`);
+      return data;
+    },
+  });
 
-  // Handle import complete
+  // Handle import complete - redirect to summary
   const handleImportComplete = useCallback((result) => {
     setShowImportWizard(false);
-    setImportSuccess(`Successfully imported ${result?.recordCount || 0} record(s)`);
-    fetchJobs();
-    // Clear success message after 5 seconds
-    setTimeout(() => setImportSuccess(null), 5000);
-  }, [fetchJobs]);
+    if (result?.importId) {
+      // Navigate to import summary page
+      navigate(`/settings/imports/${result.importId}`);
+    } else {
+      // Fallback to showing success message
+      setImportSuccess(`Successfully imported ${result?.newRecords || 0} new, ${result?.updatedRecords || 0} updated`);
+      refetchImports();
+      setTimeout(() => setImportSuccess(null), 5000);
+    }
+  }, [navigate, refetchImports]);
 
   // Handle export
   const handleExport = async () => {
@@ -107,7 +136,6 @@ const ImportExport = () => {
         throw new Error('Export failed');
       }
 
-      // Get filename from Content-Disposition header or generate one
       const contentDisposition = response.headers.get('Content-Disposition');
       let filename = `barkbase_${exportScope}_export.${exportFormat}`;
       if (contentDisposition) {
@@ -115,7 +143,6 @@ const ImportExport = () => {
         if (match) filename = match[1];
       }
 
-      // Download the file
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -125,9 +152,6 @@ const ImportExport = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-
-      // Refresh jobs list
-      fetchJobs();
     } catch (err) {
       console.error('Export failed:', err);
       setExportError(err.message || 'Failed to export data');
@@ -136,9 +160,52 @@ const ImportExport = () => {
     }
   };
 
+  // Handle delete import
+  const handleDeleteImport = async (importId) => {
+    if (!confirm('Are you sure you want to delete this import record?')) return;
+
+    try {
+      await apiClient.delete(`/api/v1/imports/${importId}`);
+      refetchImports();
+    } catch (err) {
+      console.error('Delete import failed:', err);
+    }
+    setActiveMenuId(null);
+  };
+
+  // Handle download errors
+  const handleDownloadErrors = async (importId, importName) => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || ''}/api/v1/imports/${importId}/errors`,
+        {
+          headers: {
+            ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
+          },
+        }
+      );
+      if (!response.ok) throw new Error('Download failed');
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${importName || 'import'}_errors.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Download errors failed:', err);
+    }
+    setActiveMenuId(null);
+  };
+
+  const imports = importsData?.imports || [];
+
   return (
-    <SettingsPage 
-      title="Import & Export" 
+    <SettingsPage
+      title="Import & Export"
       description="Move your data in and out of the system"
     >
       {/* Import Wizard Modal */}
@@ -160,6 +227,15 @@ const ImportExport = () => {
             <div className="bg-success/10 border border-success/30 rounded-lg p-3 flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-success flex-shrink-0" />
               <p className="text-sm text-success">{importSuccess}</p>
+              {lastImportId && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate(`/settings/imports/${lastImportId}`)}
+                >
+                  View Summary
+                </Button>
+              )}
             </div>
           )}
 
@@ -204,8 +280,8 @@ const ImportExport = () => {
       </Card>
 
       {/* Export Section */}
-      <Card 
-        title="Export Data" 
+      <Card
+        title="Export Data"
         description="Download your data for backup or migration"
       >
         <div className="space-y-4">
@@ -255,71 +331,187 @@ const ImportExport = () => {
         </div>
       </Card>
 
-      {/* Recent Jobs */}
-      <Card 
+      {/* Past Imports - HubSpot Style */}
+      <Card
         header={(
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h3 className="text-lg font-semibold text-text">Recent Import/Export Jobs</h3>
-              <p className="text-sm text-muted">Track your data transfer history</p>
+              <h3 className="text-lg font-semibold text-text">Past Imports</h3>
+              <p className="text-sm text-muted">View and manage your import history</p>
             </div>
-            <Button variant="ghost" size="sm" onClick={fetchJobs} disabled={isLoadingJobs}>
-              <RefreshCw className={cn("h-4 w-4", isLoadingJobs && "animate-spin")} />
-            </Button>
+            <div className="flex items-center gap-3">
+              {/* Filters */}
+              <Select
+                value={entityTypeFilter}
+                onChange={(e) => setEntityTypeFilter(e.target.value)}
+                className="w-36"
+              >
+                <option value="">All Types</option>
+                <option value="owners">Owners</option>
+                <option value="pets">Pets</option>
+                <option value="bookings">Bookings</option>
+                <option value="vaccinations">Vaccinations</option>
+                <option value="services">Services</option>
+                <option value="staff">Staff</option>
+              </Select>
+              <Select
+                value={hasErrorsFilter}
+                onChange={(e) => setHasErrorsFilter(e.target.value)}
+                className="w-36"
+              >
+                <option value="">All Status</option>
+                <option value="false">No Errors</option>
+                <option value="true">Has Errors</option>
+              </Select>
+              <Button variant="ghost" size="sm" onClick={() => refetchImports()} disabled={isLoadingImports}>
+                <RefreshCw className={cn("h-4 w-4", isLoadingImports && "animate-spin")} />
+              </Button>
+            </div>
           </div>
         )}
       >
-        {isLoadingJobs && recentJobs.length === 0 ? (
+        {isLoadingImports && imports.length === 0 ? (
           <div className="flex items-center justify-center py-8">
             <RefreshCw className="h-6 w-6 animate-spin text-muted" />
           </div>
-        ) : recentJobs.length === 0 ? (
+        ) : imports.length === 0 ? (
           <div className="text-center py-8">
             <FileText className="h-10 w-10 text-muted/50 mx-auto mb-3" />
-            <p className="text-sm font-medium text-text">No import/export jobs yet</p>
+            <p className="text-sm font-medium text-text">No imports yet</p>
             <p className="text-xs text-muted mt-1">
-              Jobs will appear here after you import or export data.
+              Imports will appear here after you use the import wizard.
             </p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {recentJobs.map(job => (
-              <div 
-                key={job.id} 
-                className="flex items-center justify-between p-3 bg-surface rounded-lg border border-border/50"
-              >
-                <div className="flex items-center gap-3">
-                  <div className={cn(
-                    "p-2 rounded-lg",
-                    job.type === 'import' ? 'bg-info/10' : 'bg-success/10'
-                  )}>
-                    {job.type === 'import' ? 
-                      <Upload className={cn("w-4 h-4", job.type === 'import' ? 'text-info' : 'text-success')} /> : 
-                      <Download className="w-4 h-4 text-success" />
-                    }
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm text-text">
-                      {job.type === 'import' ? 'Data Import' : 'Data Export'}
-                      {job.scope && job.scope !== 'all' && (
-                        <span className="text-muted font-normal"> — {job.scope}</span>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-3 px-4 font-medium text-muted">Name</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted">Entity Types</th>
+                  <th className="text-right py-3 px-4 font-medium text-muted">New</th>
+                  <th className="text-right py-3 px-4 font-medium text-muted">Updated</th>
+                  <th className="text-right py-3 px-4 font-medium text-muted">Errors</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted">Date</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted">User</th>
+                  <th className="text-right py-3 px-4 font-medium text-muted"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {imports.map((imp) => (
+                  <tr
+                    key={imp.id}
+                    className="border-b border-border/50 hover:bg-surface/50 cursor-pointer transition-colors"
+                    onClick={() => navigate(`/settings/imports/${imp.id}`)}
+                  >
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2">
+                        <Upload className="w-4 h-4 text-info" />
+                        <span className="font-medium text-text">{imp.name}</span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {(imp.entityTypes || []).map((type) => {
+                          const Icon = ENTITY_ICONS[type] || FileText;
+                          return (
+                            <Badge key={type} variant="neutral" size="sm">
+                              <Icon className="w-3 h-3 mr-1" />
+                              {ENTITY_LABELS[type] || type}
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <span className="text-success font-medium">{imp.newRecords || 0}</span>
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <span className="text-info font-medium">{imp.updatedRecords || 0}</span>
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      {imp.errorCount > 0 ? (
+                        <Badge variant="danger" size="sm">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          {imp.errorCount}
+                        </Badge>
+                      ) : (
+                        <Badge variant="success" size="sm">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          0
+                        </Badge>
                       )}
-                    </p>
-                    <p className="text-xs text-muted">
-                      {formatDate(job.createdAt)} • {job.recordCount || 0} records
-                      {job.format && <span className="uppercase"> • {job.format}</span>}
-                    </p>
-                  </div>
-                </div>
-                <Badge variant={getStatusVariant(job.status)}>
-                  {job.status === 'completed' && <CheckCircle className="w-3 h-3 mr-1" />}
-                  {job.status === 'failed' && <AlertCircle className="w-3 h-3 mr-1" />}
-                  {job.status === 'processing' && <Clock className="w-3 h-3 mr-1" />}
-                  {job.status === 'pending' && <Clock className="w-3 h-3 mr-1" />}
-                  {capitalizeFirst(job.status)}
-                </Badge>
-              </div>
-            ))}
+                    </td>
+                    <td className="py-3 px-4 text-muted">
+                      {formatDate(imp.createdAt)}
+                    </td>
+                    <td className="py-3 px-4 text-muted">
+                      {imp.createdByName || '-'}
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <div className="relative">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveMenuId(activeMenuId === imp.id ? null : imp.id);
+                          }}
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                        {activeMenuId === imp.id && (
+                          <>
+                            <div
+                              className="fixed inset-0 z-10"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveMenuId(null);
+                              }}
+                            />
+                            <div className="absolute right-0 top-full mt-1 w-48 bg-elevated border border-border rounded-lg shadow-lg z-20">
+                              <button
+                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-text hover:bg-surface transition-colors rounded-t-lg"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/settings/imports/${imp.id}`);
+                                  setActiveMenuId(null);
+                                }}
+                              >
+                                <Eye className="w-4 h-4 text-muted" />
+                                View details
+                              </button>
+                              {imp.errorCount > 0 && (
+                                <button
+                                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-text hover:bg-surface transition-colors"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDownloadErrors(imp.id, imp.name);
+                                  }}
+                                >
+                                  <Download className="w-4 h-4 text-muted" />
+                                  Download errors
+                                </button>
+                              )}
+                              <button
+                                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-danger hover:bg-surface transition-colors rounded-b-lg"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteImport(imp.id);
+                                }}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                Delete record
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </Card>
@@ -340,21 +532,6 @@ function formatDate(dateString) {
   } catch {
     return 'Unknown date';
   }
-}
-
-function getStatusVariant(status) {
-  switch (status) {
-    case 'completed': return 'success';
-    case 'failed': return 'danger';
-    case 'processing': return 'warning';
-    case 'pending': return 'neutral';
-    default: return 'neutral';
-  }
-}
-
-function capitalizeFirst(str) {
-  if (!str) return '';
-  return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 export default ImportExport;

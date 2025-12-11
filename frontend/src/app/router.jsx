@@ -115,6 +115,9 @@ const SettingsFiles = lazy(() =>
 const SettingsImportExport = lazy(() =>
   import("@/features/settings/routes/ImportExport")
 );
+const SettingsImportSummary = lazy(() =>
+  import("@/features/settings/routes/ImportSummary")
+);
 const SettingsExports = lazy(() =>
   import("@/features/settings/routes/Exports")
 );
@@ -225,8 +228,14 @@ const OwnersAssociations = lazy(() =>
 const CustomerDetail = lazy(() =>
   import("@/features/customers/routes/CustomerDetail")
 );
-const SegmentList = lazy(() =>
-  import("@/features/segments/components/SegmentList")
+const Segments = lazy(() =>
+  import("@/features/segments/routes/Segments")
+);
+const SegmentDetail = lazy(() =>
+  import("@/features/segments/routes/SegmentDetail")
+);
+const SegmentBuilder = lazy(() =>
+  import("@/features/segments/routes/SegmentBuilder")
 );
 const Roles = lazy(() => import("@/features/roles/routes/Roles"));
 const RoleEditor = lazy(() => import("@/features/roles/routes/RoleEditor"));
@@ -265,7 +274,10 @@ export const router = createBrowserRouter([
               { path: "owners", element: <Owners /> },
               { path: "owners/:ownerId", element: <OwnerDetail /> },
               { path: "customers/:ownerId", element: <CustomerDetail /> },
-              { path: "segments", element: <SegmentList /> },
+              { path: "segments", element: <Segments /> },
+              { path: "segments/new", element: <SegmentBuilder /> },
+              { path: "segments/:id", element: <SegmentDetail /> },
+              { path: "segments/:id/edit", element: <SegmentBuilder /> },
               { path: "payments", element: <Payments /> },
               { path: "reports", element: <Reports /> },
               // Operations
@@ -312,7 +324,7 @@ export const router = createBrowserRouter([
                 path: "settings",
                 element: <SettingsLayout />,
                 children: [
-                  { index: true, element: <Navigate to="account" replace /> },
+                  { index: true, element: <Navigate to="profile" replace /> },
 
                   // Your Preferences
                   { path: "profile", element: <SettingsProfile /> },
@@ -353,6 +365,7 @@ export const router = createBrowserRouter([
                   { path: "documents", element: <SettingsDocuments /> },
                   { path: "files", element: <SettingsFiles /> },
                   { path: "import-export", element: <SettingsImportExport /> },
+                  { path: "imports/:importId", element: <SettingsImportSummary /> },
                   { path: "exports", element: <SettingsExports /> },
 
                   // Communication

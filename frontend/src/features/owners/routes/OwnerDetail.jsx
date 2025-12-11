@@ -4,7 +4,7 @@
  * and token-based styling consistent with the enterprise design system.
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Users as UsersIcon,
@@ -18,6 +18,17 @@ import {
   DollarSign,
   Plus,
   X,
+  Eye,
+  Ban,
+  CheckCircle,
+  LogIn,
+  LogOut,
+  RefreshCw,
+  MoreHorizontal,
+  Receipt,
+  Send,
+  ChevronDown,
+  Loader2,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import AssociationModal from '@/components/ui/AssociationModal';
@@ -27,6 +38,8 @@ import { Card, PageHeader } from '@/components/ui/Card';
 import { StatusPill } from '@/components/primitives';
 import { useOwnerQuery, useDeleteOwnerMutation, useAddPetToOwnerMutation, useRemovePetFromOwnerMutation } from '../api';
 import { usePetsQuery, useCreatePetMutation } from '@/features/pets/api';
+import { useBookingCheckInMutation, useBookingCheckOutMutation, useUpdateBookingMutation } from '@/features/bookings/api';
+import { useCreateInvoiceMutation, useSendInvoiceEmailMutation } from '@/features/invoices/api';
 import { useAssociationsForObjectPairQuery } from '@/features/settings/api/associations';
 import toast from 'react-hot-toast';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -322,8 +335,8 @@ const OwnerDetail = () => {
                     navigate={navigate}
                   />
                 )}
-                {activeTab === 'bookings' && <BookingsTab bookings={bookings} />}
-                {activeTab === 'payments' && <PaymentsTab payments={payments} />}
+                {activeTab === 'bookings' && <BookingsTab bookings={bookings} ownerId={ownerId} navigate={navigate} onRefresh={() => ownerQuery.refetch()} />}
+                {activeTab === 'payments' && <PaymentsTab payments={payments} ownerId={ownerId} navigate={navigate} onRefresh={() => ownerQuery.refetch()} />}
               </div>
             </Card>
           </div>
@@ -813,7 +826,101 @@ function PetsTab({ pets, onAddPet, onRemovePet, navigate }) {
   );
 }
 
-function BookingsTab({ bookings }) {
+function BookingsTab({ bookings, ownerId, navigate, onRefresh }) {
+  const checkInMutation = useBookingCheckInMutation();
+  const checkOutMutation = useBookingCheckOutMutation();
+  // For cancellation, we'll use a dedicated state since useUpdateBookingMutation needs bookingId
+  const [cancellingBookingId, setCancellingBookingId] = useState(null);
+  const [actionDropdownOpen, setActionDropdownOpen] = useState(null);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setActionDropdownOpen(null);
+      }
+    };
+    if (actionDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [actionDropdownOpen]);
+
+  const handleAction = async (action, booking) => {
+    const bookingId = booking.recordId || booking.id;
+    setActionDropdownOpen(null);
+
+    switch (action) {
+      case 'view':
+        navigate(`/bookings/${bookingId}`);
+        break;
+      case 'edit':
+        navigate(`/bookings/${bookingId}?edit=true`);
+        break;
+      case 'checkIn':
+        try {
+          await checkInMutation.mutateAsync({ bookingId });
+          toast.success('Checked in successfully');
+          onRefresh?.();
+        } catch (error) {
+          toast.error(error?.message || 'Failed to check in');
+        }
+        break;
+      case 'checkOut':
+        try {
+          await checkOutMutation.mutateAsync({ bookingId });
+          toast.success('Checked out successfully');
+          onRefresh?.();
+        } catch (error) {
+          toast.error(error?.message || 'Failed to check out');
+        }
+        break;
+      case 'cancel':
+        // Navigate to booking with cancel action - cancellation should be confirmed in booking detail
+        navigate(`/bookings/${bookingId}?action=cancel`);
+        break;
+      case 'rebook':
+        navigate(`/bookings?action=new&cloneFrom=${bookingId}&ownerId=${ownerId}`);
+        break;
+      default:
+        break;
+    }
+  };
+
+  const getActionsForStatus = (status) => {
+    const normalizedStatus = (status || '').toLowerCase();
+    switch (normalizedStatus) {
+      case 'pending':
+      case 'confirmed':
+        return [
+          { action: 'view', label: 'View Details', icon: Eye },
+          { action: 'edit', label: 'Edit Booking', icon: Edit },
+          { action: 'checkIn', label: 'Check In', icon: LogIn },
+          { action: 'cancel', label: 'Cancel', icon: Ban },
+        ];
+      case 'checked_in':
+      case 'active':
+        return [
+          { action: 'view', label: 'View Details', icon: Eye },
+          { action: 'checkOut', label: 'Check Out', icon: LogOut },
+        ];
+      case 'checked_out':
+      case 'completed':
+        return [
+          { action: 'view', label: 'View Details', icon: Eye },
+          { action: 'rebook', label: 'Rebook', icon: RefreshCw },
+        ];
+      case 'cancelled':
+        return [
+          { action: 'view', label: 'View Details', icon: Eye },
+          { action: 'rebook', label: 'Rebook', icon: RefreshCw },
+        ];
+      default:
+        return [{ action: 'view', label: 'View Details', icon: Eye }];
+    }
+  };
+
   return (
     <div className="space-y-[var(--bb-space-6,1.5rem)]">
       <div className="flex items-center justify-between">
@@ -823,6 +930,10 @@ function BookingsTab({ bookings }) {
         >
           All Bookings ({bookings.length})
         </h3>
+        <Button size="sm" onClick={() => navigate(`/bookings?action=new&ownerId=${ownerId}`)}>
+          <Plus className="h-4 w-4 mr-[var(--bb-space-2,0.5rem)]" />
+          New Booking
+        </Button>
       </div>
 
       {bookings.length === 0 ? (
@@ -834,36 +945,168 @@ function BookingsTab({ bookings }) {
         </p>
       ) : (
         <div className="space-y-[var(--bb-space-3,0.75rem)]">
-          {bookings.map((booking) => (
-            <div
-              key={booking.recordId}
-              className="flex items-center justify-between p-[var(--bb-space-4,1rem)] rounded-lg border"
-              style={{ borderColor: 'var(--bb-color-border-subtle)' }}
-            >
-              <div>
-                <p
-                  className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
-                  style={{ color: 'var(--bb-color-text-primary)' }}
+          {bookings.map((booking) => {
+            const bookingId = booking.recordId || booking.id;
+            const actions = getActionsForStatus(booking.status);
+            const isDropdownOpen = actionDropdownOpen === bookingId;
+
+            return (
+              <div
+                key={bookingId}
+                className="group flex items-center justify-between p-[var(--bb-space-4,1rem)] rounded-lg border transition-all hover:shadow-sm"
+                style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+              >
+                <div
+                  className="flex-1 cursor-pointer"
+                  onClick={() => navigate(`/bookings/${bookingId}`)}
                 >
-                  Booking #{booking.id?.slice(0, 8) || booking.recordId?.slice(0, 8)}
-                </p>
-                <p
-                  className="text-[var(--bb-font-size-sm,0.875rem)]"
-                  style={{ color: 'var(--bb-color-text-muted)' }}
-                >
-                  {new Date(booking.checkIn).toLocaleDateString()} – {new Date(booking.checkOut).toLocaleDateString()}
-                </p>
+                  <p
+                    className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] hover:text-[color:var(--bb-color-accent)] transition-colors"
+                    style={{ color: 'var(--bb-color-text-primary)' }}
+                  >
+                    Booking #{bookingId?.slice(0, 8)}
+                  </p>
+                  <p
+                    className="text-[var(--bb-font-size-sm,0.875rem)]"
+                    style={{ color: 'var(--bb-color-text-muted)' }}
+                  >
+                    {new Date(booking.checkIn).toLocaleDateString()} – {new Date(booking.checkOut).toLocaleDateString()}
+                  </p>
+                  {booking.pet?.name && (
+                    <p className="text-[var(--bb-font-size-xs,0.75rem)] mt-1 flex items-center gap-1" style={{ color: 'var(--bb-color-text-muted)' }}>
+                      <PawPrint className="h-3 w-3" />
+                      {booking.pet.name}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-[var(--bb-space-3,0.75rem)]">
+                  <StatusPill status={booking.status} />
+
+                  {/* Action Dropdown */}
+                  <div className="relative" ref={isDropdownOpen ? dropdownRef : null}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActionDropdownOpen(isDropdownOpen ? null : bookingId);
+                      }}
+                      className="p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-[var(--bb-color-bg-elevated)]"
+                      style={{ color: 'var(--bb-color-text-muted)' }}
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </button>
+
+                    {isDropdownOpen && (
+                      <div
+                        className="absolute right-0 top-full mt-1 z-50 w-44 rounded-lg border shadow-lg py-1 animate-in fade-in-0 zoom-in-95 duration-150"
+                        style={{
+                          backgroundColor: 'var(--bb-color-bg-surface)',
+                          borderColor: 'var(--bb-color-border-subtle)',
+                        }}
+                      >
+                        {actions.map((item) => {
+                          const ActionIcon = item.icon;
+                          return (
+                            <button
+                              key={item.action}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAction(item.action, booking);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-[var(--bb-color-bg-elevated)]"
+                              style={{ color: 'var(--bb-color-text-primary)' }}
+                            >
+                              <ActionIcon className={cn(
+                                'h-4 w-4',
+                                item.action === 'checkIn' && 'text-green-600',
+                                item.action === 'checkOut' && 'text-amber-600',
+                                item.action === 'cancel' && 'text-red-500',
+                                item.action === 'rebook' && 'text-blue-500'
+                              )} />
+                              <span>{item.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-              <StatusPill status={booking.status} />
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
 
-function PaymentsTab({ payments }) {
+function PaymentsTab({ payments, ownerId, navigate, onRefresh }) {
+  const sendInvoiceEmailMutation = useSendInvoiceEmailMutation();
+  const [actionDropdownOpen, setActionDropdownOpen] = useState(null);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setActionDropdownOpen(null);
+      }
+    };
+    if (actionDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [actionDropdownOpen]);
+
+  const handleAction = async (action, payment) => {
+    const paymentId = payment.recordId || payment.id;
+    const invoiceId = payment.invoiceId;
+    setActionDropdownOpen(null);
+
+    switch (action) {
+      case 'viewInvoice':
+        if (invoiceId) {
+          navigate(`/invoices?selected=${invoiceId}`);
+        } else {
+          toast.error('No invoice associated with this payment');
+        }
+        break;
+      case 'sendReceipt':
+        if (invoiceId) {
+          try {
+            await sendInvoiceEmailMutation.mutateAsync(invoiceId);
+            toast.success('Receipt sent');
+          } catch (error) {
+            toast.error(error?.message || 'Failed to send receipt');
+          }
+        } else {
+          toast.error('No invoice associated with this payment');
+        }
+        break;
+      case 'refund':
+        toast.info('Refund functionality - open payment details for more options');
+        // Could navigate to a refund flow
+        break;
+      default:
+        break;
+    }
+  };
+
+  const getActionsForStatus = (status, hasInvoice) => {
+    const normalizedStatus = (status || '').toLowerCase();
+    const actions = [];
+
+    if (hasInvoice) {
+      actions.push({ action: 'viewInvoice', label: 'View Invoice', icon: Eye });
+    }
+
+    if (normalizedStatus === 'completed' || normalizedStatus === 'paid') {
+      actions.push({ action: 'sendReceipt', label: 'Send Receipt', icon: Receipt });
+      actions.push({ action: 'refund', label: 'Process Refund', icon: RefreshCw });
+    }
+
+    return actions.length > 0 ? actions : [{ action: 'viewInvoice', label: 'View Details', icon: Eye }];
+  };
+
   return (
     <div className="space-y-[var(--bb-space-6,1.5rem)]">
       <div className="flex items-center justify-between">
@@ -873,40 +1116,118 @@ function PaymentsTab({ payments }) {
         >
           Payment History ({payments.length})
         </h3>
+        <Button size="sm" onClick={() => navigate(`/invoices?action=new&ownerId=${ownerId}`)}>
+          <Plus className="h-4 w-4 mr-[var(--bb-space-2,0.5rem)]" />
+          Create Invoice
+        </Button>
       </div>
 
       {payments.length === 0 ? (
-        <p
-          className="text-[var(--bb-font-size-sm,0.875rem)] text-center py-[var(--bb-space-8,2rem)]"
-          style={{ color: 'var(--bb-color-text-muted)' }}
-        >
-          No payments yet
-        </p>
+        <div className="text-center py-[var(--bb-space-8,2rem)]">
+          <p
+            className="text-[var(--bb-font-size-sm,0.875rem)]"
+            style={{ color: 'var(--bb-color-text-muted)' }}
+          >
+            No payments yet
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-[var(--bb-space-4,1rem)]"
+            onClick={() => navigate(`/invoices?action=new&ownerId=${ownerId}`)}
+          >
+            <FileText className="h-4 w-4 mr-[var(--bb-space-2,0.5rem)]" />
+            Create First Invoice
+          </Button>
+        </div>
       ) : (
         <div className="space-y-[var(--bb-space-3,0.75rem)]">
-          {payments.map((payment) => (
-            <div
-              key={payment.recordId}
-              className="flex items-center justify-between p-[var(--bb-space-4,1rem)] rounded-lg border"
-              style={{ borderColor: 'var(--bb-color-border-subtle)' }}
-            >
-              <div>
-                <p
-                  className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)]"
-                  style={{ color: 'var(--bb-color-text-primary)' }}
-                >
-                  {formatCurrency(payment.amountCents || 0)}
-                </p>
-                <p
-                  className="text-[var(--bb-font-size-sm,0.875rem)]"
-                  style={{ color: 'var(--bb-color-text-muted)' }}
-                >
-                  {new Date(payment.createdAt).toLocaleDateString()}
-                </p>
+          {payments.map((payment) => {
+            const paymentId = payment.recordId || payment.id;
+            const hasInvoice = !!payment.invoiceId;
+            const actions = getActionsForStatus(payment.status, hasInvoice);
+            const isDropdownOpen = actionDropdownOpen === paymentId;
+
+            return (
+              <div
+                key={paymentId}
+                className="group flex items-center justify-between p-[var(--bb-space-4,1rem)] rounded-lg border transition-all hover:shadow-sm"
+                style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+              >
+                <div className="flex-1">
+                  <p
+                    className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)]"
+                    style={{ color: 'var(--bb-color-text-primary)' }}
+                  >
+                    {formatCurrency(payment.amountCents || 0)}
+                  </p>
+                  <p
+                    className="text-[var(--bb-font-size-sm,0.875rem)]"
+                    style={{ color: 'var(--bb-color-text-muted)' }}
+                  >
+                    {new Date(payment.createdAt).toLocaleDateString()}
+                  </p>
+                  {payment.invoiceNumber && (
+                    <p className="text-[var(--bb-font-size-xs,0.75rem)] mt-1 flex items-center gap-1" style={{ color: 'var(--bb-color-text-muted)' }}>
+                      <FileText className="h-3 w-3" />
+                      Invoice #{payment.invoiceNumber}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-[var(--bb-space-3,0.75rem)]">
+                  <StatusPill status={payment.status} />
+
+                  {/* Action Dropdown */}
+                  {actions.length > 0 && (
+                    <div className="relative" ref={isDropdownOpen ? dropdownRef : null}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActionDropdownOpen(isDropdownOpen ? null : paymentId);
+                        }}
+                        className="p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-[var(--bb-color-bg-elevated)]"
+                        style={{ color: 'var(--bb-color-text-muted)' }}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </button>
+
+                      {isDropdownOpen && (
+                        <div
+                          className="absolute right-0 top-full mt-1 z-50 w-44 rounded-lg border shadow-lg py-1 animate-in fade-in-0 zoom-in-95 duration-150"
+                          style={{
+                            backgroundColor: 'var(--bb-color-bg-surface)',
+                            borderColor: 'var(--bb-color-border-subtle)',
+                          }}
+                        >
+                          {actions.map((item) => {
+                            const ActionIcon = item.icon;
+                            return (
+                              <button
+                                key={item.action}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAction(item.action, payment);
+                                }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-[var(--bb-color-bg-elevated)]"
+                                style={{ color: 'var(--bb-color-text-primary)' }}
+                              >
+                                <ActionIcon className={cn(
+                                  'h-4 w-4',
+                                  item.action === 'sendReceipt' && 'text-green-600',
+                                  item.action === 'refund' && 'text-amber-500'
+                                )} />
+                                <span>{item.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-              <StatusPill status={payment.status} />
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

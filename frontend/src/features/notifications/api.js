@@ -11,15 +11,15 @@ import { useTenantStore } from '@/stores/tenant';
 const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
 
 /**
- * Get unread notification count
+ * Get unread notification count (lightweight endpoint)
  */
 export const useUnreadNotificationsCount = () => {
   const tenantKey = useTenantKey();
-  
+
   return useQuery({
     queryKey: queryKeys.notifications.unreadCount(tenantKey),
     queryFn: async () => {
-      const response = await apiClient.get('/api/v1/notifications/unread-count');
+      const response = await apiClient.get('/api/v1/operations/notifications/count');
       return response.data?.unreadCount ?? 0;
     },
     staleTime: 30_000, // 30 seconds
@@ -35,34 +35,61 @@ export const useUnreadNotificationsCount = () => {
  */
 export const useNotifications = (options = {}) => {
   const tenantKey = useTenantKey();
-  const { limit = 50, offset = 0, unreadOnly = false } = options;
-  
+  const { limit = 50, offset = 0, unreadOnly = false, enabled = true } = options;
+
   return useQuery({
     queryKey: queryKeys.notifications.list(tenantKey, { limit, offset, unreadOnly }),
     queryFn: async () => {
-      const response = await apiClient.get('/api/v1/notifications', {
+      const response = await apiClient.get('/api/v1/operations/notifications', {
         params: { limit, offset, unreadOnly: unreadOnly ? 'true' : 'false' }
       });
-      return response.data;
+      return {
+        notifications: response.data?.notifications || response.data?.data || [],
+        unreadCount: response.data?.unreadCount ?? 0,
+        total: response.data?.total ?? 0,
+      };
     },
     staleTime: 30_000,
+    enabled,
   });
 };
 
 /**
- * Mark notifications as read
+ * Mark a single notification as read
  */
-export const useMarkNotificationsRead = () => {
+export const useMarkNotificationRead = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
-  
+
   return useMutation({
-    mutationFn: async (ids) => {
-      const response = await apiClient.post('/api/v1/notifications/mark-read', { ids });
+    mutationFn: async (notificationId) => {
+      const response = await apiClient.patch(`/api/v1/operations/notifications/${notificationId}/read`);
       return response.data;
     },
     onSuccess: () => {
       // Invalidate unread count and list queries
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount(tenantKey) });
+      queryClient.invalidateQueries({ queryKey: [tenantKey, 'notifications', 'list'] });
+    },
+  });
+};
+
+/**
+ * Mark multiple notifications as read (batch)
+ */
+export const useMarkNotificationsRead = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async (ids) => {
+      // Mark each notification as read (could be optimized to batch endpoint later)
+      await Promise.all(
+        ids.map(id => apiClient.patch(`/api/v1/operations/notifications/${id}/read`))
+      );
+      return { success: true };
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount(tenantKey) });
       queryClient.invalidateQueries({ queryKey: [tenantKey, 'notifications', 'list'] });
     },
@@ -75,10 +102,10 @@ export const useMarkNotificationsRead = () => {
 export const useMarkAllNotificationsRead = () => {
   const queryClient = useQueryClient();
   const tenantKey = useTenantKey();
-  
+
   return useMutation({
     mutationFn: async () => {
-      const response = await apiClient.post('/api/v1/notifications/mark-all-read');
+      const response = await apiClient.patch('/api/v1/operations/notifications/read-all');
       return response.data;
     },
     onSuccess: () => {
@@ -87,4 +114,3 @@ export const useMarkAllNotificationsRead = () => {
     },
   });
 };
-

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, AlertTriangle, Clock, ListTodo } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Clock, ListTodo, Home, ExternalLink, AlertCircle, Dog, User } from 'lucide-react';
 import { useUserProfileQuery } from '@/features/settings/api-user';
 // Dashboard hooks available if needed:
 // import { useDashboardStatsQuery } from '@/features/dashboard/api';
@@ -34,6 +35,8 @@ const TodayCommandCenter = () => {
   const [showBatchCheckIn, setShowBatchCheckIn] = useState(false);
   const [showBatchCheckOut, setShowBatchCheckOut] = useState(false);
   const [showNewBooking, setShowNewBooking] = useState(false);
+  const [showInFacility, setShowInFacility] = useState(false);
+  const [showNeedsAttention, setShowNeedsAttention] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState(() => new Date());
 
   // Today's date for filtering
@@ -165,6 +168,8 @@ const TodayCommandCenter = () => {
             onRefresh={handleRefresh}
             lastRefreshed={lastRefreshed}
             onNewBooking={() => setShowNewBooking(true)}
+            onInFacilityClick={() => setShowInFacility(true)}
+            onAttentionClick={() => setShowNeedsAttention(true)}
           />
         </div>
 
@@ -252,6 +257,35 @@ const TodayCommandCenter = () => {
       >
         <SinglePageBookingWizard onComplete={handleBookingComplete} />
       </SlideOutDrawer>
+
+      {/* In Facility Slideout */}
+      <SlideOutDrawer
+        isOpen={showInFacility}
+        onClose={() => setShowInFacility(false)}
+        title="Pets In Facility"
+        size="lg"
+      >
+        <InFacilitySlideoutContent
+          pets={inFacility}
+          onClose={() => setShowInFacility(false)}
+        />
+      </SlideOutDrawer>
+
+      {/* Needs Attention Slideout */}
+      <SlideOutDrawer
+        isOpen={showNeedsAttention}
+        onClose={() => setShowNeedsAttention(false)}
+        title="Needs Attention"
+        size="lg"
+      >
+        <NeedsAttentionSlideoutContent
+          overdueTasks={overdueTasks}
+          vaccinationIssues={arrivals.filter(b => b.hasExpiringVaccinations)}
+          onCompleteTask={handleCompleteTask}
+          isCompleting={completeTaskMutation.isPending}
+          onClose={() => setShowNeedsAttention(false)}
+        />
+      </SlideOutDrawer>
     </div>
   );
 };
@@ -324,6 +358,192 @@ const TasksList = ({ tasks, isLoading, emptyMessage, onComplete, isCompleting, i
           +{tasks.length - 10} more tasks
         </p>
       )}
+    </div>
+  );
+};
+
+// ============================================================================
+// IN FACILITY SLIDEOUT CONTENT
+// ============================================================================
+
+const InFacilitySlideoutContent = ({ pets, onClose }) => {
+  const navigate = useNavigate();
+
+  if (!pets.length) {
+    return (
+      <div className="text-center py-12">
+        <Home className="h-12 w-12 mx-auto mb-3 text-[color:var(--bb-color-text-muted)]" />
+        <p className="text-[color:var(--bb-color-text-muted)]">No pets currently in facility</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between pb-2 border-b border-[color:var(--bb-color-border)]">
+        <p className="text-sm text-[color:var(--bb-color-text-muted)]">
+          {pets.length} pet{pets.length !== 1 ? 's' : ''} currently staying
+        </p>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            onClose();
+            navigate('/kennels');
+          }}
+          className="gap-1.5"
+        >
+          View Kennels
+          <ExternalLink className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+
+      <div className="space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto">
+        {pets.map((booking) => (
+          <div
+            key={booking.id}
+            className="flex items-center gap-3 p-3 rounded-lg border border-[color:var(--bb-color-border)] bg-[color:var(--bb-color-bg-elevated)] hover:border-[color:var(--bb-color-accent)] transition-colors cursor-pointer"
+            onClick={() => {
+              onClose();
+              navigate(`/pets/${booking.petId || booking.pet_id}`);
+            }}
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/50">
+              <Dog className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm text-[color:var(--bb-color-text-primary)] truncate">
+                {booking.petName || booking.pet_name || 'Unknown Pet'}
+              </p>
+              <p className="text-xs text-[color:var(--bb-color-text-muted)] truncate">
+                {booking.ownerName || booking.owner_name || 'Unknown Owner'}
+                {booking.kennelName && ` • ${booking.kennelName}`}
+              </p>
+            </div>
+            <div className="text-right shrink-0">
+              <p className="text-xs text-[color:var(--bb-color-text-muted)]">
+                Departs {booking.endDate ? new Date(booking.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'TBD'}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ============================================================================
+// NEEDS ATTENTION SLIDEOUT CONTENT
+// ============================================================================
+
+const NeedsAttentionSlideoutContent = ({ overdueTasks, vaccinationIssues, onCompleteTask, isCompleting, onClose }) => {
+  const navigate = useNavigate();
+  const totalItems = overdueTasks.length + vaccinationIssues.length;
+
+  if (totalItems === 0) {
+    return (
+      <div className="text-center py-12">
+        <CheckCircle className="h-12 w-12 mx-auto mb-3 text-emerald-500" />
+        <p className="text-[color:var(--bb-color-text-muted)]">Nothing needs attention right now!</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Overdue Tasks Section */}
+      {overdueTasks.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+            <h3 className="font-semibold text-sm text-[color:var(--bb-color-text-primary)]">
+              Overdue Tasks ({overdueTasks.length})
+            </h3>
+          </div>
+          <div className="space-y-2">
+            {overdueTasks.map((task) => (
+              <div
+                key={task.id}
+                className="flex items-center justify-between p-3 rounded-lg border bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm text-[color:var(--bb-color-text-primary)] truncate">
+                    {task.title || `${task.type} ${task.petName ? `- ${task.petName}` : ''}`}
+                  </p>
+                  {task.scheduledFor && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-0.5">
+                      <Clock className="h-3 w-3" />
+                      Due {new Date(task.scheduledFor).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </p>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  variant="warning"
+                  onClick={() => onCompleteTask(task.id)}
+                  disabled={isCompleting}
+                  className="ml-2 flex-shrink-0"
+                >
+                  <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                  Done
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Vaccination Issues Section */}
+      {vaccinationIssues.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <AlertCircle className="h-4 w-4 text-red-500" />
+            <h3 className="font-semibold text-sm text-[color:var(--bb-color-text-primary)]">
+              Vaccination Alerts ({vaccinationIssues.length})
+            </h3>
+          </div>
+          <div className="space-y-2">
+            {vaccinationIssues.map((booking) => (
+              <div
+                key={booking.id}
+                className="flex items-center gap-3 p-3 rounded-lg border bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800 cursor-pointer hover:border-red-300 dark:hover:border-red-700 transition-colors"
+                onClick={() => {
+                  onClose();
+                  navigate(`/pets/${booking.petId || booking.pet_id}`);
+                }}
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/50">
+                  <Dog className="h-5 w-5 text-red-600 dark:text-red-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm text-[color:var(--bb-color-text-primary)] truncate">
+                    {booking.petName || booking.pet_name || 'Unknown Pet'}
+                  </p>
+                  <p className="text-xs text-red-600 dark:text-red-400">
+                    Expiring or missing vaccinations
+                  </p>
+                </div>
+                <ExternalLink className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Footer link to tasks page */}
+      <div className="pt-4 border-t border-[color:var(--bb-color-border)]">
+        <Button
+          variant="ghost"
+          className="w-full gap-2"
+          onClick={() => {
+            onClose();
+            navigate('/tasks');
+          }}
+        >
+          View All Tasks
+          <ExternalLink className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 };

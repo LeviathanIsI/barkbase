@@ -539,6 +539,32 @@ exports.handler = async (event, context) => {
       return handleDownloadExport(user, jobId);
     }
 
+    // GET /api/v1/imports - List all imports (HubSpot-style history)
+    if ((path === '/api/v1/imports' || path === '/imports') && method === 'GET') {
+      return handleListImports(user, event.queryStringParameters || {});
+    }
+
+    // GET /api/v1/imports/:id - Get import details (HubSpot-style summary)
+    const importDetailMatch = path.match(/^\/(?:api\/v1\/)?imports\/([a-f0-9-]+)$/i);
+    if (importDetailMatch && method === 'GET') {
+      const importId = importDetailMatch[1];
+      return handleGetImportDetail(user, importId);
+    }
+
+    // GET /api/v1/imports/:id/errors - Download error file
+    const importErrorsMatch = path.match(/^\/(?:api\/v1\/)?imports\/([a-f0-9-]+)\/errors$/i);
+    if (importErrorsMatch && method === 'GET') {
+      const importId = importErrorsMatch[1];
+      return handleDownloadImportErrors(user, importId);
+    }
+
+    // DELETE /api/v1/imports/:id - Delete import record
+    const importDeleteMatch = path.match(/^\/(?:api\/v1\/)?imports\/([a-f0-9-]+)$/i);
+    if (importDeleteMatch && method === 'DELETE') {
+      const importId = importDeleteMatch[1];
+      return handleDeleteImport(user, importId);
+    }
+
     // =========================================================================
     // FORMS API (Custom forms and waivers)
     // =========================================================================
@@ -8728,168 +8754,868 @@ function arrayToCSV(data) {
 }
 
 /**
- * Process an import
+ * Process an import - HubSpot-style with tracking
  */
 async function handleProcessImport(user, event) {
+  let importId = null;
+  let ctx = null;
+
   try {
     await getPoolAsync();
-    const ctx = await getUserTenantContext(user.id);
+    ctx = await getUserTenantContext(user.id);
     if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
 
-    // Parse the body - could be JSON or form data
-    let importData;
-    let filename = 'import';
-    let format = 'json';
-
+    // Parse the body
     const contentType = event.headers?.['content-type'] || event.headers?.['Content-Type'] || '';
 
-    if (contentType.includes('application/json')) {
-      const body = parseBody(event);
-      importData = body.data;
-      format = body.format || 'json';
-      filename = body.filename || 'import.json';
-    } else if (contentType.includes('multipart/form-data')) {
-      // For multipart, we'd need to parse the form data
-      // This is a simplified version - in production you'd use a library
+    if (contentType.includes('multipart/form-data')) {
       return createResponse(400, {
         error: 'Bad Request',
         message: 'Multipart form uploads are not yet supported. Please send JSON data directly.',
       });
-    } else {
-      // Try to parse as JSON anyway
-      try {
-        const body = parseBody(event);
-        importData = body.data || body;
-        format = body.format || 'json';
-      } catch (e) {
-        return createResponse(400, { error: 'Bad Request', message: 'Invalid request body' });
+    }
+
+    let body;
+    try {
+      body = parseBody(event);
+    } catch (e) {
+      console.error('[Import] Failed to parse body:', e.message);
+      return createResponse(400, { error: 'Bad Request', message: 'Invalid request body' });
+    }
+
+    // Log incoming payload for debugging
+    console.log('[Import] Received payload:', JSON.stringify({
+      entityTypes: body.entityTypes,
+      dataLength: body.data?.length,
+      mappings: body.mappings,
+      importModes: body.importModes,
+      options: body.options,
+      filename: body.filename,
+      sampleData: body.data?.slice(0, 2)
+    }));
+
+    // Extract import configuration
+    const {
+      entityTypes = [],
+      primaryType = null,
+      data = [],
+      mappings = {},
+      importModes = {},
+      options = {},
+      filename = 'import',
+      importName = null,
+    } = body;
+
+    // Resolve import data and entity types
+    let importData = data;
+    let selectedEntityTypes = entityTypes;
+    const effectivePrimaryType = primaryType || selectedEntityTypes[0];
+
+    // Detect NEW payload format: data contains { record, associations } per row
+    const isNewFormat = Array.isArray(data) && data.length > 0 && data[0]?.record !== undefined;
+    console.log('[Import] Payload format:', isNewFormat ? 'NEW (record+associations)' : 'LEGACY (flat)');
+
+    // If new format, extract records and associations
+    let recordsToImport = [];
+    let associationsByRow = [];
+    if (isNewFormat) {
+      recordsToImport = data.map(d => d.record);
+      associationsByRow = data.map(d => d.associations || []);
+      importData = recordsToImport; // For validation below
+    }
+
+    // Legacy format detection
+    if (selectedEntityTypes.length === 0) {
+      if (body.data && Array.isArray(body.data)) {
+        importData = body.data;
+        const sample = importData[0];
+        if (sample) {
+          if (sample.species || sample.breed || sample.name) {
+            selectedEntityTypes = ['pets'];
+          } else if (sample.first_name && sample.email) {
+            selectedEntityTypes = ['owners'];
+          }
+        }
+      } else if (!body.entityTypes && !body.data) {
+        if (Array.isArray(body)) {
+          importData = body;
+          const sample = importData[0];
+          if (sample?.species || sample?.breed) {
+            selectedEntityTypes = ['pets'];
+          } else if (sample?.first_name && sample?.email) {
+            selectedEntityTypes = ['owners'];
+          }
+        } else if (body.pets || body.owners) {
+          importData = body;
+        }
       }
     }
 
-    if (!importData) {
+    if (!importData || (Array.isArray(importData) && importData.length === 0)) {
       return createResponse(400, { error: 'Bad Request', message: 'No data provided for import' });
     }
 
-    // Determine what we're importing based on data structure
-    let scope = 'all';
-    let recordCount = 0;
-    let errors = [];
+    // Validate required fields - only for PRIMARY type
+    const validationErrors = [];
+    if (Array.isArray(importData) && importData.length > 0) {
+      const sampleRecord = importData[0];
+      console.log('[Import] Sample record keys:', Object.keys(sampleRecord || {}));
 
-    // Process the import based on data structure
-    if (Array.isArray(importData)) {
-      // Single entity type array
-      const sample = importData[0];
-      if (sample) {
-        if (sample.species || sample.breed) {
-          scope = 'pets';
-          const result = await importPets(ctx.tenantId, importData);
-          recordCount = result.count;
-          errors = result.errors;
-        } else if (sample.first_name && sample.email) {
-          scope = 'owners';
-          const result = await importOwners(ctx.tenantId, importData);
-          recordCount = result.count;
-          errors = result.errors;
-        } else if (sample.check_in || sample.booking_id) {
-          scope = 'bookings';
-          // Bookings import is more complex, skip for now
-          errors.push('Booking imports are not yet supported');
-        }
-      }
-    } else if (typeof importData === 'object') {
-      // Multi-entity import (like full backup restore)
-      if (importData.pets) {
-        const result = await importPets(ctx.tenantId, importData.pets);
-        recordCount += result.count;
-        errors.push(...result.errors);
-      }
-      if (importData.owners) {
-        const result = await importOwners(ctx.tenantId, importData.owners);
-        recordCount += result.count;
-        errors.push(...result.errors);
+      // Only validate primary type requirements
+      switch (effectivePrimaryType) {
+        case 'owners':
+          if (!sampleRecord?.email && !Object.keys(sampleRecord || {}).some(k => k === 'email')) {
+            validationErrors.push("Required field 'email' is not mapped for Owners import");
+          }
+          break;
+        case 'pets':
+          if (!sampleRecord?.name && !Object.keys(sampleRecord || {}).some(k => k === 'name')) {
+            validationErrors.push("Required field 'name' is not mapped for Pets import");
+          }
+          // Note: owner_email is NOT required here - it's an ASSOCIATION, not a required field
+          break;
+        case 'vaccinations':
+          if (!sampleRecord?.vaccine_name) {
+            validationErrors.push("Required field 'vaccine_name' is not mapped for Vaccinations import");
+          }
+          break;
       }
     }
 
-    const status = errors.length > 0 ? 'completed' : 'completed';
+    if (validationErrors.length > 0) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: validationErrors.join('; '),
+        validationErrors
+      });
+    }
 
-    // Try to record the job
-    let jobId = null;
+    const totalRows = Array.isArray(importData) ? importData.length : 0;
+
+    // Generate import name: "YY.MM.DD - filename" or user-provided
+    const now = new Date();
+    const dateStr = `${String(now.getFullYear()).slice(-2)}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`;
+    const generatedName = importName || `${dateStr} - ${filename}`;
+
+    // Create Import record with status='processing' BEFORE starting
+    try {
+      const importResult = await query(
+        `INSERT INTO "Import" (tenant_id, name, filename, entity_types, status, total_rows, mappings, import_modes, options, created_by)
+         VALUES ($1, $2, $3, $4, 'processing', $5, $6, $7, $8, $9)
+         RETURNING id`,
+        [
+          ctx.tenantId,
+          generatedName,
+          filename,
+          selectedEntityTypes,
+          totalRows,
+          JSON.stringify(mappings),
+          JSON.stringify(importModes),
+          JSON.stringify(options),
+          ctx.userId
+        ]
+      );
+      importId = importResult.rows[0]?.id;
+      console.log('[Import] Created Import record:', importId);
+    } catch (tableErr) {
+      // Import table might not exist yet - continue without tracking
+      console.warn('[Import] Could not create Import record:', tableErr.message);
+    }
+
+    // Track counts per entity type
+    const results = {
+      newRecords: 0,
+      updatedRecords: 0,
+      skippedRecords: 0,
+      newAssociations: 0,
+    };
+    const detailedErrors = []; // Array of {row, column, entityType, property, errorType, errorMessage, value}
+
+    // Process based on entity types and format
+    if (Array.isArray(importData)) {
+      // NEW FORMAT: Process only the primary type, with associations handled separately
+      if (isNewFormat) {
+        const mode = importModes[effectivePrimaryType] || 'create_update';
+        const opts = {
+          ...options,
+          mode,
+          trackDetails: true,
+        };
+
+        console.log('[Import] Processing new format for primary type:', effectivePrimaryType);
+
+        switch (effectivePrimaryType) {
+          case 'owners': {
+            const result = await importOwnersWithTracking(ctx.tenantId, recordsToImport, opts);
+            results.newRecords += result.newCount;
+            results.updatedRecords += result.updatedCount;
+            results.skippedRecords += result.skippedCount;
+            detailedErrors.push(...result.detailedErrors);
+            break;
+          }
+          case 'pets': {
+            // NEW: Resolve associations from the associationsByRow array
+            const petsWithResolvedAssociations = await resolveAssociationsForPets(ctx.tenantId, recordsToImport, associationsByRow);
+            const result = await importPetsWithTracking(ctx.tenantId, petsWithResolvedAssociations.records, opts);
+            results.newRecords += result.newCount;
+            results.updatedRecords += result.updatedCount;
+            results.skippedRecords += result.skippedCount;
+            results.newAssociations += result.associationCount;
+            detailedErrors.push(...result.detailedErrors);
+            detailedErrors.push(...petsWithResolvedAssociations.errors);
+            break;
+          }
+          case 'vaccinations': {
+            const result = await importVaccinations(ctx.tenantId, recordsToImport, opts);
+            results.newRecords += result.count;
+            detailedErrors.push(...result.errors.map((e, i) => ({
+              row: i + 1,
+              entityType: 'vaccinations',
+              errorType: 'import_error',
+              errorMessage: e,
+            })));
+            break;
+          }
+          case 'services': {
+            const result = await importServices(ctx.tenantId, recordsToImport, opts);
+            results.newRecords += result.count;
+            detailedErrors.push(...result.errors.map((e, i) => ({
+              row: i + 1,
+              entityType: 'services',
+              errorType: 'import_error',
+              errorMessage: e,
+            })));
+            break;
+          }
+          case 'staff': {
+            const result = await importStaff(ctx.tenantId, recordsToImport, opts);
+            results.newRecords += result.count;
+            detailedErrors.push(...result.errors.map((e, i) => ({
+              row: i + 1,
+              entityType: 'staff',
+              errorType: 'import_error',
+              errorMessage: e,
+            })));
+            break;
+          }
+          case 'bookings':
+          case 'invoices':
+            detailedErrors.push({
+              row: 0,
+              entityType: effectivePrimaryType,
+              errorType: 'not_supported',
+              errorMessage: `${effectivePrimaryType} imports are not yet supported`,
+            });
+            break;
+          default:
+            detailedErrors.push({
+              row: 0,
+              entityType: effectivePrimaryType,
+              errorType: 'unknown_entity',
+              errorMessage: `Unknown entity type: ${effectivePrimaryType}`,
+            });
+        }
+      } else {
+        // LEGACY FORMAT: Process each entity type sequentially
+        for (const entityType of selectedEntityTypes) {
+          const mode = importModes[entityType] || 'create_update';
+          const opts = {
+            ...options,
+            mode,
+            trackDetails: true, // Enable detailed tracking
+          };
+
+          switch (entityType) {
+            case 'owners': {
+              const result = await importOwnersWithTracking(ctx.tenantId, importData, opts);
+              results.newRecords += result.newCount;
+              results.updatedRecords += result.updatedCount;
+              results.skippedRecords += result.skippedCount;
+              detailedErrors.push(...result.detailedErrors);
+              break;
+            }
+            case 'pets': {
+              const petsWithOwners = await resolvePetOwners(ctx.tenantId, importData);
+              const result = await importPetsWithTracking(ctx.tenantId, petsWithOwners, opts);
+              results.newRecords += result.newCount;
+              results.updatedRecords += result.updatedCount;
+              results.skippedRecords += result.skippedCount;
+              results.newAssociations += result.associationCount;
+              detailedErrors.push(...result.detailedErrors);
+              break;
+            }
+            case 'vaccinations': {
+              const result = await importVaccinations(ctx.tenantId, importData, opts);
+              results.newRecords += result.count;
+              detailedErrors.push(...result.errors.map((e, i) => ({
+                row: i + 1,
+                entityType: 'vaccinations',
+                errorType: 'import_error',
+                errorMessage: e,
+              })));
+              break;
+            }
+            case 'services': {
+              const result = await importServices(ctx.tenantId, importData, opts);
+              results.newRecords += result.count;
+              detailedErrors.push(...result.errors.map((e, i) => ({
+                row: i + 1,
+                entityType: 'services',
+                errorType: 'import_error',
+                errorMessage: e,
+              })));
+              break;
+            }
+            case 'staff': {
+              const result = await importStaff(ctx.tenantId, importData, opts);
+              results.newRecords += result.count;
+              detailedErrors.push(...result.errors.map((e, i) => ({
+                row: i + 1,
+                entityType: 'staff',
+                errorType: 'import_error',
+                errorMessage: e,
+              })));
+              break;
+            }
+            case 'bookings':
+            case 'invoices':
+              detailedErrors.push({
+                row: 0,
+                entityType,
+                errorType: 'not_supported',
+                errorMessage: `${entityType} imports are not yet supported`,
+              });
+              break;
+            default:
+              detailedErrors.push({
+                row: 0,
+                entityType,
+                errorType: 'unknown_entity',
+                errorMessage: `Unknown entity type: ${entityType}`,
+              });
+          }
+        }
+      }
+    } else if (typeof importData === 'object') {
+      // Legacy multi-entity import format
+      if (importData.pets) {
+        const result = await importPets(ctx.tenantId, importData.pets, options);
+        results.newRecords += result.count;
+        detailedErrors.push(...result.errors.map((e, i) => ({ row: i + 1, entityType: 'pets', errorMessage: e })));
+      }
+      if (importData.owners) {
+        const result = await importOwners(ctx.tenantId, importData.owners, options);
+        results.newRecords += result.count;
+        detailedErrors.push(...result.errors.map((e, i) => ({ row: i + 1, entityType: 'owners', errorMessage: e })));
+      }
+    }
+
+    const totalRecords = results.newRecords + results.updatedRecords;
+    const status = detailedErrors.length > 0 ? 'completed_with_errors' : 'completed';
+
+    // Update Import record with final results
+    if (importId) {
+      try {
+        await query(
+          `UPDATE "Import" SET
+            status = $2,
+            new_records = $3,
+            updated_records = $4,
+            skipped_records = $5,
+            new_associations = $6,
+            error_count = $7,
+            errors = $8,
+            completed_at = NOW()
+          WHERE id = $1`,
+          [
+            importId,
+            status,
+            results.newRecords,
+            results.updatedRecords,
+            results.skippedRecords,
+            results.newAssociations,
+            detailedErrors.length,
+            JSON.stringify(detailedErrors),
+          ]
+        );
+        console.log('[Import] Updated Import record with results');
+      } catch (updateErr) {
+        console.warn('[Import] Could not update Import record:', updateErr.message);
+      }
+    }
+
+    // Also record in legacy ImportExportJob table if it exists
     try {
       const tableCheck = await query(`
         SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'ImportExportJob') as exists
       `);
-
       if (tableCheck.rows[0]?.exists) {
-        const jobResult = await query(
+        await query(
           `INSERT INTO "ImportExportJob" (tenant_id, user_id, type, status, scope, format, filename, record_count, error_message, completed_at)
-           VALUES ($1, $2, 'import', $3, $4, $5, $6, $7, $8, NOW())
-           RETURNING id`,
-          [ctx.tenantId, user.id, status, scope, format, filename, recordCount, errors.length > 0 ? errors.join('; ') : null]
+           VALUES ($1, $2, 'import', $3, $4, $5, $6, $7, $8, NOW())`,
+          [ctx.tenantId, user.id, status, selectedEntityTypes.join(','), 'json', filename, totalRecords, detailedErrors.length > 0 ? `${detailedErrors.length} error(s)` : null]
         );
-        jobId = jobResult.rows[0]?.id;
       }
     } catch (jobError) {
-      console.warn('[ImportExport] Could not record job:', jobError.message);
+      console.warn('[ImportExport] Could not record legacy job:', jobError.message);
     }
 
     return createResponse(200, {
-      success: errors.length === 0,
-      jobId,
-      recordCount,
-      errors: errors.length > 0 ? errors : undefined,
-      message: errors.length > 0
-        ? `Import completed with ${errors.length} error(s)`
-        : `Successfully imported ${recordCount} record(s)`,
+      success: detailedErrors.length === 0,
+      importId,
+      totalRows,
+      newRecords: results.newRecords,
+      updatedRecords: results.updatedRecords,
+      skippedRecords: results.skippedRecords,
+      newAssociations: results.newAssociations,
+      errorCount: detailedErrors.length,
+      errors: detailedErrors.length > 0 ? detailedErrors.slice(0, 10) : undefined, // Return first 10 errors
+      message: detailedErrors.length > 0
+        ? `Import completed with ${detailedErrors.length} error(s). ${results.newRecords} new, ${results.updatedRecords} updated.`
+        : `Successfully imported ${totalRecords} record(s) (${results.newRecords} new, ${results.updatedRecords} updated)`,
     });
   } catch (error) {
-    console.error('[ImportExport] Import failed:', error.message);
-    return createResponse(500, { error: 'Internal Server Error', message: 'Import failed: ' + error.message });
+    console.error('[ImportExport] IMPORT ERROR:', error.message);
+    console.error('[ImportExport] STACK:', error.stack);
+
+    // Update Import record with failed status if we have one
+    if (importId && ctx?.tenantId) {
+      try {
+        await query(
+          `UPDATE "Import" SET status = 'failed', errors = $2, completed_at = NOW() WHERE id = $1`,
+          [importId, JSON.stringify([{ row: 0, errorType: 'system_error', errorMessage: error.message }])]
+        );
+      } catch (e) { /* ignore */ }
+    }
+
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Import failed: ' + error.message,
+      importId,
+      debugStack: error.stack,
+      debugName: error.name
+    });
   }
+}
+
+/**
+ * Import owners with detailed tracking for HubSpot-style results
+ */
+async function importOwnersWithTracking(tenantId, owners, options = {}) {
+  const detailedErrors = [];
+  let newCount = 0;
+  let updatedCount = 0;
+  let skippedCount = 0;
+  const mode = options.mode || 'create_update';
+
+  for (let i = 0; i < owners.length; i++) {
+    const owner = owners[i];
+    const rowNum = i + 1;
+
+    try {
+      // Validate email
+      if (!owner.email) {
+        detailedErrors.push({
+          row: rowNum,
+          column: 'email',
+          entityType: 'owners',
+          property: 'email',
+          errorType: 'required_field_missing',
+          errorMessage: "Required field 'email' is missing",
+          value: null,
+        });
+        skippedCount++;
+        continue;
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(owner.email)) {
+        detailedErrors.push({
+          row: rowNum,
+          column: 'email',
+          entityType: 'owners',
+          property: 'email',
+          errorType: 'invalid_email_format',
+          errorMessage: 'Invalid email format',
+          value: owner.email,
+        });
+        skippedCount++;
+        continue;
+      }
+
+      // Check if owner exists
+      const existing = await query(
+        `SELECT id FROM "Owner" WHERE tenant_id = $1 AND email = $2`,
+        [tenantId, owner.email]
+      );
+
+      if (existing.rows.length > 0) {
+        if (mode === 'create_only') {
+          skippedCount++;
+          continue;
+        }
+        // Update existing
+        await query(
+          `UPDATE "Owner" SET
+            first_name = COALESCE($3, first_name),
+            last_name = COALESCE($4, last_name),
+            phone = COALESCE($5, phone),
+            address_street = COALESCE($6, address_street),
+            address_city = COALESCE($7, address_city),
+            address_state = COALESCE($8, address_state),
+            address_zip = COALESCE($9, address_zip),
+            address_country = COALESCE($10, address_country),
+            emergency_contact_name = COALESCE($11, emergency_contact_name),
+            emergency_contact_phone = COALESCE($12, emergency_contact_phone),
+            notes = COALESCE($13, notes),
+            is_active = COALESCE($14, is_active),
+            updated_at = NOW()
+          WHERE id = $1 AND tenant_id = $2`,
+          [
+            existing.rows[0].id,
+            tenantId,
+            owner.first_name || null,
+            owner.last_name || null,
+            owner.phone || null,
+            owner.address_street || null,
+            owner.address_city || null,
+            owner.address_state || null,
+            owner.address_zip || null,
+            owner.address_country || null,
+            owner.emergency_contact_name || null,
+            owner.emergency_contact_phone || null,
+            owner.notes || null,
+            owner.is_active !== undefined ? owner.is_active : null
+          ]
+        );
+        updatedCount++;
+      } else {
+        if (mode === 'update_only') {
+          detailedErrors.push({
+            row: rowNum,
+            column: 'email',
+            entityType: 'owners',
+            property: 'email',
+            errorType: 'record_not_found',
+            errorMessage: 'Cannot update - owner does not exist',
+            value: owner.email,
+          });
+          skippedCount++;
+          continue;
+        }
+        // Insert new
+        await query(
+          `INSERT INTO "Owner" (tenant_id, first_name, last_name, email, phone, address_street, address_city, address_state, address_zip, address_country, emergency_contact_name, emergency_contact_phone, notes, is_active)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+          [
+            tenantId,
+            owner.first_name || null,
+            owner.last_name || null,
+            owner.email,
+            owner.phone || null,
+            owner.address_street || null,
+            owner.address_city || null,
+            owner.address_state || null,
+            owner.address_zip || null,
+            owner.address_country || 'US',
+            owner.emergency_contact_name || null,
+            owner.emergency_contact_phone || null,
+            owner.notes || null,
+            owner.is_active !== false
+          ]
+        );
+        newCount++;
+      }
+    } catch (e) {
+      console.error('[Import] Owner error row', rowNum, ':', e.message);
+      detailedErrors.push({
+        row: rowNum,
+        column: null,
+        entityType: 'owners',
+        property: null,
+        errorType: 'database_error',
+        errorMessage: e.message,
+        value: owner.email || null,
+      });
+      skippedCount++;
+    }
+  }
+
+  return { newCount, updatedCount, skippedCount, detailedErrors };
+}
+
+/**
+ * Import pets with detailed tracking for HubSpot-style results
+ */
+async function importPetsWithTracking(tenantId, pets, options = {}) {
+  const detailedErrors = [];
+  let newCount = 0;
+  let updatedCount = 0;
+  let skippedCount = 0;
+  let associationCount = 0;
+  const mode = options.mode || 'create_update';
+
+  for (let i = 0; i < pets.length; i++) {
+    const pet = pets[i];
+    const rowNum = i + 1;
+
+    try {
+      if (!pet.name) {
+        detailedErrors.push({
+          row: rowNum,
+          column: 'name',
+          entityType: 'pets',
+          property: 'name',
+          errorType: 'required_field_missing',
+          errorMessage: "Required field 'name' is missing",
+          value: null,
+        });
+        skippedCount++;
+        continue;
+      }
+
+      // owner_id is now optional - pets can be imported without an owner
+      // Association errors are logged separately by resolveAssociationsForPets
+      // But we still track if we have an owner for association count
+
+      // Check if pet exists (by name alone if no owner, by name+owner if owner exists)
+      let existing;
+      if (pet.owner_id) {
+        existing = await query(
+          `SELECT id FROM "Pet" WHERE tenant_id = $1 AND name = $2 AND owner_id = $3`,
+          [tenantId, pet.name, pet.owner_id]
+        );
+      } else {
+        // Without owner, check by name only (might match multiple)
+        existing = await query(
+          `SELECT id FROM "Pet" WHERE tenant_id = $1 AND name = $2 AND owner_id IS NULL`,
+          [tenantId, pet.name]
+        );
+      }
+
+      if (existing.rows.length > 0) {
+        if (mode === 'create_only') {
+          skippedCount++;
+          continue;
+        }
+        await query(
+          `UPDATE "Pet" SET
+            species = COALESCE($3, species),
+            breed = COALESCE($4, breed),
+            weight = COALESCE($5, weight),
+            date_of_birth = COALESCE($6, date_of_birth),
+            gender = COALESCE($7, gender),
+            color = COALESCE($8, color),
+            medical_notes = COALESCE($9, medical_notes),
+            dietary_notes = COALESCE($10, dietary_notes),
+            behavior_notes = COALESCE($11, behavior_notes),
+            updated_at = NOW()
+          WHERE id = $1 AND tenant_id = $2`,
+          [existing.rows[0].id, tenantId, pet.species, pet.breed, pet.weight, pet.date_of_birth, pet.gender, pet.color, pet.medical_notes, pet.dietary_notes, pet.behavior_notes]
+        );
+        updatedCount++;
+      } else {
+        if (mode === 'update_only') {
+          detailedErrors.push({
+            row: rowNum,
+            column: 'name',
+            entityType: 'pets',
+            property: 'name',
+            errorType: 'record_not_found',
+            errorMessage: 'Cannot update - pet does not exist',
+            value: pet.name,
+          });
+          skippedCount++;
+          continue;
+        }
+        await query(
+          `INSERT INTO "Pet" (tenant_id, owner_id, name, species, breed, weight, date_of_birth, gender, color, medical_notes, dietary_notes, behavior_notes)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+          [tenantId, pet.owner_id || null, pet.name, pet.species, pet.breed, pet.weight, pet.date_of_birth, pet.gender, pet.color, pet.medical_notes, pet.dietary_notes, pet.behavior_notes]
+        );
+        newCount++;
+        if (pet.owner_id) {
+          associationCount++; // Pet-Owner association created
+        }
+      }
+    } catch (e) {
+      console.error('[Import] Pet error row', rowNum, ':', e.message);
+      detailedErrors.push({
+        row: rowNum,
+        column: null,
+        entityType: 'pets',
+        property: null,
+        errorType: 'database_error',
+        errorMessage: e.message,
+        value: pet.name || null,
+      });
+      skippedCount++;
+    }
+  }
+
+  return { newCount, updatedCount, skippedCount, associationCount, detailedErrors };
+}
+
+/**
+ * Resolve associations for pets using NEW HubSpot-style format
+ * associations is an array of arrays: [[{type: 'owners', field: 'email', value: 'x@y.com'}], ...]
+ */
+async function resolveAssociationsForPets(tenantId, records, associationsByRow) {
+  const errors = [];
+  const resolvedRecords = [];
+
+  // Batch collect all unique owner emails to resolve
+  const ownerEmails = new Set();
+  associationsByRow.forEach(associations => {
+    associations.forEach(assoc => {
+      if (assoc.type === 'owners' && assoc.field === 'email' && assoc.value) {
+        ownerEmails.add(assoc.value.toLowerCase());
+      }
+    });
+  });
+
+  // Resolve emails to IDs in bulk
+  const emailToOwnerId = {};
+  if (ownerEmails.size > 0) {
+    const emails = Array.from(ownerEmails);
+    const placeholders = emails.map((_, i) => `$${i + 2}`).join(', ');
+    const result = await query(
+      `SELECT id, email FROM "Owner" WHERE tenant_id = $1 AND email IN (${placeholders})`,
+      [tenantId, ...emails]
+    );
+    result.rows.forEach(row => {
+      emailToOwnerId[row.email.toLowerCase()] = row.id;
+    });
+    console.log(`[Import] Resolved ${result.rows.length} of ${emails.length} owner emails`);
+  }
+
+  // Process each record with its associations
+  for (let i = 0; i < records.length; i++) {
+    const record = records[i];
+    const associations = associationsByRow[i] || [];
+    const resolvedRecord = { ...record };
+    const rowNum = i + 1;
+
+    // Process each association for this row
+    for (const assoc of associations) {
+      if (assoc.type === 'owners' && assoc.field === 'email' && assoc.value) {
+        const ownerId = emailToOwnerId[assoc.value.toLowerCase()];
+        if (ownerId) {
+          resolvedRecord.owner_id = ownerId;
+        } else {
+          errors.push({
+            row: rowNum,
+            column: 'owner_email',
+            entityType: 'pets',
+            property: 'owner_id',
+            errorType: 'association_not_found',
+            errorMessage: `Owner with email "${assoc.value}" not found`,
+            value: assoc.value,
+          });
+          // Don't set owner_id - the pet will fail validation in importPetsWithTracking
+        }
+      }
+      // Add more association types here as needed (services, staff, etc.)
+    }
+
+    resolvedRecords.push(resolvedRecord);
+  }
+
+  return { records: resolvedRecords, errors };
+}
+
+/**
+ * Resolve owner_email to owner_id for pet imports (LEGACY format)
+ */
+async function resolvePetOwners(tenantId, pets) {
+  const emailToId = {};
+
+  // Collect unique emails
+  const emails = [...new Set(pets.filter(p => p.owner_email).map(p => p.owner_email))];
+
+  if (emails.length > 0) {
+    const placeholders = emails.map((_, i) => `$${i + 2}`).join(', ');
+    const result = await query(
+      `SELECT id, email FROM "Owner" WHERE tenant_id = $1 AND email IN (${placeholders})`,
+      [tenantId, ...emails]
+    );
+    result.rows.forEach(row => {
+      emailToId[row.email.toLowerCase()] = row.id;
+    });
+  }
+
+  // Map owner_email to owner_id
+  return pets.map(pet => ({
+    ...pet,
+    owner_id: pet.owner_id || (pet.owner_email ? emailToId[pet.owner_email.toLowerCase()] : null),
+  }));
 }
 
 /**
  * Import pets data
  */
-async function importPets(tenantId, pets) {
+async function importPets(tenantId, pets, options = {}) {
   const errors = [];
   let count = 0;
+  const mode = options.mode || 'create_update';
 
   for (const pet of pets) {
     try {
+      if (!pet.name) {
+        errors.push(`Pet skipped: missing required field 'name'`);
+        continue;
+      }
+
       // Check if pet already exists by name + owner
-      const existing = await query(
+      const existing = pet.owner_id ? await query(
         `SELECT id FROM "Pet" WHERE tenant_id = $1 AND name = $2 AND owner_id = $3`,
         [tenantId, pet.name, pet.owner_id]
-      );
+      ) : { rows: [] };
 
       if (existing.rows.length > 0) {
+        // Record exists
+        if (mode === 'create_only') {
+          // Skip - don't update existing
+          continue;
+        }
         // Update existing
         await query(
           `UPDATE "Pet" SET
             species = COALESCE($3, species),
             breed = COALESCE($4, breed),
             weight = COALESCE($5, weight),
-            birth_date = COALESCE($6, birth_date),
+            date_of_birth = COALESCE($6, date_of_birth),
             gender = COALESCE($7, gender),
             color = COALESCE($8, color),
+            medical_notes = COALESCE($9, medical_notes),
+            dietary_notes = COALESCE($10, dietary_notes),
+            behavior_notes = COALESCE($11, behavior_notes),
             updated_at = NOW()
           WHERE id = $1 AND tenant_id = $2`,
-          [existing.rows[0].id, tenantId, pet.species, pet.breed, pet.weight, pet.birth_date, pet.gender, pet.color]
+          [existing.rows[0].id, tenantId, pet.species, pet.breed, pet.weight, pet.date_of_birth, pet.gender, pet.color, pet.medical_notes, pet.dietary_notes, pet.behavior_notes]
         );
-      } else if (pet.owner_id) {
+        count++;
+      } else {
+        // Record doesn't exist
+        if (mode === 'update_only') {
+          // Skip - don't create new
+          continue;
+        }
+        if (!pet.owner_id) {
+          errors.push(`Pet "${pet.name}" skipped: missing owner_id (could not resolve owner_email)`);
+          continue;
+        }
         // Insert new
         await query(
-          `INSERT INTO "Pet" (tenant_id, owner_id, name, species, breed, weight, birth_date, gender, color)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [tenantId, pet.owner_id, pet.name, pet.species, pet.breed, pet.weight, pet.birth_date, pet.gender, pet.color]
+          `INSERT INTO "Pet" (tenant_id, owner_id, name, species, breed, weight, date_of_birth, gender, color, medical_notes, dietary_notes, behavior_notes)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+          [tenantId, pet.owner_id, pet.name, pet.species, pet.breed, pet.weight, pet.date_of_birth, pet.gender, pet.color, pet.medical_notes, pet.dietary_notes, pet.behavior_notes]
         );
-      } else {
-        errors.push(`Pet "${pet.name}" skipped: missing owner_id`);
-        continue;
+        count++;
       }
-      count++;
     } catch (e) {
-      errors.push(`Pet "${pet.name}": ${e.message}`);
+      errors.push(`Pet "${pet.name || 'unknown'}": ${e.message}`);
     }
   }
 
@@ -8898,13 +9624,22 @@ async function importPets(tenantId, pets) {
 
 /**
  * Import owners data
+ * Field keys from wizard match database columns: first_name, last_name, email, phone,
+ * address_street, address_city, address_state, address_zip, address_country,
+ * emergency_contact_name, emergency_contact_phone, notes, is_active
  */
-async function importOwners(tenantId, owners) {
+async function importOwners(tenantId, owners, options = {}) {
   const errors = [];
   let count = 0;
+  const mode = options.mode || 'create_update';
 
   for (const owner of owners) {
     try {
+      if (!owner.email) {
+        errors.push(`Owner skipped: missing required field 'email'`);
+        continue;
+      }
+
       // Check if owner already exists by email
       const existing = await query(
         `SELECT id FROM "Owner" WHERE tenant_id = $1 AND email = $2`,
@@ -8912,31 +9647,256 @@ async function importOwners(tenantId, owners) {
       );
 
       if (existing.rows.length > 0) {
-        // Update existing
+        // Record exists
+        if (mode === 'create_only') {
+          // Skip - don't update existing
+          continue;
+        }
+        // Update existing - use correct database column names
         await query(
           `UPDATE "Owner" SET
             first_name = COALESCE($3, first_name),
             last_name = COALESCE($4, last_name),
             phone = COALESCE($5, phone),
-            address = COALESCE($6, address),
-            city = COALESCE($7, city),
-            state = COALESCE($8, state),
-            zip_code = COALESCE($9, zip_code),
+            address_street = COALESCE($6, address_street),
+            address_city = COALESCE($7, address_city),
+            address_state = COALESCE($8, address_state),
+            address_zip = COALESCE($9, address_zip),
+            address_country = COALESCE($10, address_country),
+            emergency_contact_name = COALESCE($11, emergency_contact_name),
+            emergency_contact_phone = COALESCE($12, emergency_contact_phone),
+            notes = COALESCE($13, notes),
+            is_active = COALESCE($14, is_active),
             updated_at = NOW()
           WHERE id = $1 AND tenant_id = $2`,
-          [existing.rows[0].id, tenantId, owner.first_name, owner.last_name, owner.phone, owner.address, owner.city, owner.state, owner.zip_code]
+          [
+            existing.rows[0].id,
+            tenantId,
+            owner.first_name || null,
+            owner.last_name || null,
+            owner.phone || null,
+            owner.address_street || null,
+            owner.address_city || null,
+            owner.address_state || null,
+            owner.address_zip || null,
+            owner.address_country || null,
+            owner.emergency_contact_name || null,
+            owner.emergency_contact_phone || null,
+            owner.notes || null,
+            owner.is_active !== undefined ? owner.is_active : null
+          ]
         );
+        count++;
       } else {
-        // Insert new
+        // Record doesn't exist
+        if (mode === 'update_only') {
+          // Skip - don't create new
+          continue;
+        }
+        // Insert new - use correct database column names
         await query(
-          `INSERT INTO "Owner" (tenant_id, first_name, last_name, email, phone, address, city, state, zip_code)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [tenantId, owner.first_name, owner.last_name, owner.email, owner.phone, owner.address, owner.city, owner.state, owner.zip_code]
+          `INSERT INTO "Owner" (tenant_id, first_name, last_name, email, phone, address_street, address_city, address_state, address_zip, address_country, emergency_contact_name, emergency_contact_phone, notes, is_active)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+          [
+            tenantId,
+            owner.first_name || null,
+            owner.last_name || null,
+            owner.email,
+            owner.phone || null,
+            owner.address_street || null,
+            owner.address_city || null,
+            owner.address_state || null,
+            owner.address_zip || null,
+            owner.address_country || 'US',
+            owner.emergency_contact_name || null,
+            owner.emergency_contact_phone || null,
+            owner.notes || null,
+            owner.is_active !== false
+          ]
         );
+        count++;
       }
-      count++;
     } catch (e) {
-      errors.push(`Owner "${owner.email}": ${e.message}`);
+      console.error('[Import] Owner error:', e.message, 'Data:', JSON.stringify(owner));
+      errors.push(`Owner "${owner.email || 'unknown'}": ${e.message}`);
+    }
+  }
+
+  return { count, errors };
+}
+
+/**
+ * Import vaccinations data
+ */
+async function importVaccinations(tenantId, vaccinations, options = {}) {
+  const errors = [];
+  let count = 0;
+  const mode = options.mode || 'create_update';
+
+  // First resolve pet names to IDs
+  const petNameToId = {};
+  const petNames = [...new Set(vaccinations.filter(v => v.pet_name).map(v => v.pet_name))];
+
+  if (petNames.length > 0) {
+    const placeholders = petNames.map((_, i) => `$${i + 2}`).join(', ');
+    const result = await query(
+      `SELECT id, name FROM "Pet" WHERE tenant_id = $1 AND name IN (${placeholders})`,
+      [tenantId, ...petNames]
+    );
+    result.rows.forEach(row => {
+      petNameToId[row.name.toLowerCase()] = row.id;
+    });
+  }
+
+  for (const vax of vaccinations) {
+    try {
+      const petId = vax.pet_id || (vax.pet_name ? petNameToId[vax.pet_name.toLowerCase()] : null);
+
+      if (!petId) {
+        errors.push(`Vaccination "${vax.vaccine_name}" skipped: could not find pet "${vax.pet_name}"`);
+        continue;
+      }
+
+      if (!vax.vaccine_name) {
+        errors.push(`Vaccination skipped: missing required field 'vaccine_name'`);
+        continue;
+      }
+
+      // Check if vaccination already exists
+      const existing = await query(
+        `SELECT id FROM "Vaccination" WHERE tenant_id = $1 AND pet_id = $2 AND vaccine_name = $3 AND administered_date = $4`,
+        [tenantId, petId, vax.vaccine_name, vax.administered_date]
+      );
+
+      if (existing.rows.length > 0) {
+        if (mode === 'create_only') continue;
+        await query(
+          `UPDATE "Vaccination" SET
+            expiration_date = COALESCE($3, expiration_date),
+            administered_by = COALESCE($4, administered_by),
+            batch_number = COALESCE($5, batch_number),
+            notes = COALESCE($6, notes),
+            updated_at = NOW()
+          WHERE id = $1 AND tenant_id = $2`,
+          [existing.rows[0].id, tenantId, vax.expiration_date, vax.administered_by, vax.batch_number, vax.notes]
+        );
+        count++;
+      } else {
+        if (mode === 'update_only') continue;
+        await query(
+          `INSERT INTO "Vaccination" (tenant_id, pet_id, vaccine_name, administered_date, expiration_date, administered_by, batch_number, notes)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [tenantId, petId, vax.vaccine_name, vax.administered_date, vax.expiration_date, vax.administered_by, vax.batch_number, vax.notes]
+        );
+        count++;
+      }
+    } catch (e) {
+      errors.push(`Vaccination "${vax.vaccine_name || 'unknown'}": ${e.message}`);
+    }
+  }
+
+  return { count, errors };
+}
+
+/**
+ * Import services data
+ */
+async function importServices(tenantId, services, options = {}) {
+  const errors = [];
+  let count = 0;
+  const mode = options.mode || 'create_update';
+
+  for (const service of services) {
+    try {
+      if (!service.name) {
+        errors.push(`Service skipped: missing required field 'name'`);
+        continue;
+      }
+
+      // Check if service already exists by name
+      const existing = await query(
+        `SELECT id FROM "Service" WHERE tenant_id = $1 AND name = $2`,
+        [tenantId, service.name]
+      );
+
+      if (existing.rows.length > 0) {
+        if (mode === 'create_only') continue;
+        await query(
+          `UPDATE "Service" SET
+            description = COALESCE($3, description),
+            category = COALESCE($4, category),
+            price = COALESCE($5, price),
+            duration_minutes = COALESCE($6, duration_minutes),
+            is_active = COALESCE($7, is_active),
+            updated_at = NOW()
+          WHERE id = $1 AND tenant_id = $2`,
+          [existing.rows[0].id, tenantId, service.description, service.category, service.price, service.duration_minutes, service.is_active]
+        );
+        count++;
+      } else {
+        if (mode === 'update_only') continue;
+        await query(
+          `INSERT INTO "Service" (tenant_id, name, description, category, price, duration_minutes, is_active)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [tenantId, service.name, service.description, service.category, service.price, service.duration_minutes, service.is_active !== false]
+        );
+        count++;
+      }
+    } catch (e) {
+      errors.push(`Service "${service.name || 'unknown'}": ${e.message}`);
+    }
+  }
+
+  return { count, errors };
+}
+
+/**
+ * Import staff data
+ */
+async function importStaff(tenantId, staffList, options = {}) {
+  const errors = [];
+  let count = 0;
+  const mode = options.mode || 'create_update';
+
+  for (const staff of staffList) {
+    try {
+      if (!staff.email) {
+        errors.push(`Staff skipped: missing required field 'email'`);
+        continue;
+      }
+
+      // Check if staff already exists by email
+      const existing = await query(
+        `SELECT id FROM "Staff" WHERE tenant_id = $1 AND email = $2`,
+        [tenantId, staff.email]
+      );
+
+      if (existing.rows.length > 0) {
+        if (mode === 'create_only') continue;
+        await query(
+          `UPDATE "Staff" SET
+            first_name = COALESCE($3, first_name),
+            last_name = COALESCE($4, last_name),
+            phone = COALESCE($5, phone),
+            role = COALESCE($6, role),
+            hire_date = COALESCE($7, hire_date),
+            is_active = COALESCE($8, is_active),
+            updated_at = NOW()
+          WHERE id = $1 AND tenant_id = $2`,
+          [existing.rows[0].id, tenantId, staff.first_name, staff.last_name, staff.phone, staff.role, staff.hire_date, staff.is_active]
+        );
+        count++;
+      } else {
+        if (mode === 'update_only') continue;
+        await query(
+          `INSERT INTO "Staff" (tenant_id, first_name, last_name, email, phone, role, hire_date, is_active)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [tenantId, staff.first_name, staff.last_name, staff.email, staff.phone, staff.role, staff.hire_date, staff.is_active !== false]
+        );
+        count++;
+      }
+    } catch (e) {
+      errors.push(`Staff "${staff.email || 'unknown'}": ${e.message}`);
     }
   }
 
@@ -8983,6 +9943,222 @@ async function handleDownloadExport(user, jobId) {
   } catch (error) {
     console.error('[ImportExport] Download failed:', error.message);
     return createResponse(500, { error: 'Internal Server Error', message: 'Download failed' });
+  }
+}
+
+// =============================================================================
+// IMPORT HISTORY HANDLERS (HubSpot-style)
+// =============================================================================
+
+/**
+ * List all imports for the tenant
+ */
+async function handleListImports(user, queryParams = {}) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const { entityType, hasErrors, limit = 50, offset = 0 } = queryParams;
+
+    let whereClause = 'WHERE i.tenant_id = $1';
+    const params = [ctx.tenantId];
+    let paramIndex = 2;
+
+    if (entityType) {
+      whereClause += ` AND $${paramIndex} = ANY(i.entity_types)`;
+      params.push(entityType);
+      paramIndex++;
+    }
+
+    if (hasErrors === 'true') {
+      whereClause += ' AND i.error_count > 0';
+    } else if (hasErrors === 'false') {
+      whereClause += ' AND i.error_count = 0';
+    }
+
+    const result = await query(
+      `SELECT
+        i.id,
+        i.name,
+        i.filename,
+        i.entity_types as "entityTypes",
+        i.status,
+        i.total_rows as "totalRows",
+        i.new_records as "newRecords",
+        i.updated_records as "updatedRecords",
+        i.skipped_records as "skippedRecords",
+        i.new_associations as "newAssociations",
+        i.error_count as "errorCount",
+        i.created_at as "createdAt",
+        i.completed_at as "completedAt",
+        u.first_name || ' ' || u.last_name as "createdByName",
+        u.email as "createdByEmail"
+      FROM "Import" i
+      LEFT JOIN "User" u ON i.created_by = u.id
+      ${whereClause}
+      ORDER BY i.created_at DESC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      [...params, parseInt(limit), parseInt(offset)]
+    );
+
+    const countResult = await query(
+      `SELECT COUNT(*) as total FROM "Import" i ${whereClause}`,
+      params
+    );
+
+    return createResponse(200, {
+      imports: result.rows,
+      total: parseInt(countResult.rows[0]?.total || 0),
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+    });
+  } catch (error) {
+    console.error('[Import] List imports failed:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: error.message });
+  }
+}
+
+/**
+ * Get detailed import information (HubSpot-style summary page)
+ */
+async function handleGetImportDetail(user, importId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(
+      `SELECT
+        i.*,
+        u.first_name || ' ' || u.last_name as "createdByName",
+        u.email as "createdByEmail"
+      FROM "Import" i
+      LEFT JOIN "User" u ON i.created_by = u.id
+      WHERE i.id = $1 AND i.tenant_id = $2`,
+      [importId, ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Import not found' });
+    }
+
+    const imp = result.rows[0];
+
+    // Format response for frontend
+    return createResponse(200, {
+      id: imp.id,
+      name: imp.name,
+      filename: imp.filename,
+      entityTypes: imp.entity_types,
+      status: imp.status,
+      importType: imp.entity_types?.length > 1 ? 'Multiple objects with associations' : 'Single object',
+      totalRows: imp.total_rows,
+      newRecords: imp.new_records,
+      updatedRecords: imp.updated_records,
+      skippedRecords: imp.skipped_records,
+      newAssociations: imp.new_associations,
+      errorCount: imp.error_count,
+      errors: imp.errors || [],
+      mappings: imp.mappings || {},
+      importModes: imp.import_modes || {},
+      options: imp.options || {},
+      createdAt: imp.created_at,
+      completedAt: imp.completed_at,
+      createdBy: {
+        name: imp.createdByName,
+        email: imp.createdByEmail,
+      },
+    });
+  } catch (error) {
+    console.error('[Import] Get import detail failed:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: error.message });
+  }
+}
+
+/**
+ * Download import errors as CSV
+ */
+async function handleDownloadImportErrors(user, importId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(
+      `SELECT errors, name FROM "Import" WHERE id = $1 AND tenant_id = $2`,
+      [importId, ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Import not found' });
+    }
+
+    const errors = result.rows[0].errors || [];
+    const importName = result.rows[0].name || 'import';
+
+    if (errors.length === 0) {
+      return createResponse(400, { error: 'Bad Request', message: 'No errors to download' });
+    }
+
+    // Generate CSV
+    const headers = ['Row', 'Column', 'Entity Type', 'Property', 'Error Type', 'Error Message', 'Value'];
+    const csvRows = [headers.join(',')];
+
+    for (const err of errors) {
+      const row = [
+        err.row || '',
+        err.column || '',
+        err.entityType || '',
+        err.property || '',
+        err.errorType || '',
+        `"${(err.errorMessage || '').replace(/"/g, '""')}"`,
+        `"${(err.value || '').toString().replace(/"/g, '""')}"`,
+      ];
+      csvRows.push(row.join(','));
+    }
+
+    const csvContent = csvRows.join('\n');
+    const filename = `${importName.replace(/[^a-zA-Z0-9]/g, '_')}_errors.csv`;
+
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'text/csv',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Expose-Headers': 'Content-Disposition',
+      },
+      body: csvContent,
+    };
+  } catch (error) {
+    console.error('[Import] Download errors failed:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: error.message });
+  }
+}
+
+/**
+ * Delete an import record
+ */
+async function handleDeleteImport(user, importId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(
+      `DELETE FROM "Import" WHERE id = $1 AND tenant_id = $2 RETURNING id`,
+      [importId, ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Import not found' });
+    }
+
+    return createResponse(200, { success: true, message: 'Import deleted successfully' });
+  } catch (error) {
+    console.error('[Import] Delete import failed:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: error.message });
   }
 }
 

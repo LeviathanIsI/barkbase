@@ -273,7 +273,42 @@ exports.handler = async (event, context) => {
     // Notifications routes
     if (path === '/api/v1/operations/notifications' || path === '/operations/notifications') {
       if (method === 'GET') {
-        return handleGetNotifications(tenantId);
+        return handleGetNotifications(tenantId, user.id, event.queryStringParameters || {});
+      }
+      if (method === 'POST') {
+        return handleCreateNotification(tenantId, parseBody(event));
+      }
+    }
+
+    // Notification count endpoint (lightweight)
+    if (path === '/api/v1/operations/notifications/count' || path === '/operations/notifications/count') {
+      if (method === 'GET') {
+        return handleGetNotificationCount(tenantId, user.id);
+      }
+    }
+
+    // Mark all notifications as read
+    if (path === '/api/v1/operations/notifications/read-all' || path === '/operations/notifications/read-all') {
+      if (method === 'PATCH' || method === 'POST') {
+        return handleMarkAllNotificationsRead(tenantId, user.id);
+      }
+    }
+
+    // Single notification by ID routes
+    const notificationMatch = path.match(/^\/(?:api\/v1\/)?operations\/notifications\/([a-f0-9-]+)$/i);
+    if (notificationMatch) {
+      const notificationId = notificationMatch[1];
+      if (method === 'PATCH') {
+        return handleMarkNotificationRead(tenantId, user.id, notificationId);
+      }
+    }
+
+    // Mark single notification as read (alternate route)
+    const notificationReadMatch = path.match(/^\/(?:api\/v1\/)?operations\/notifications\/([a-f0-9-]+)\/read$/i);
+    if (notificationReadMatch) {
+      const notificationId = notificationReadMatch[1];
+      if (method === 'PATCH' || method === 'POST') {
+        return handleMarkNotificationRead(tenantId, user.id, notificationId);
       }
     }
 
@@ -836,7 +871,13 @@ async function handleGetBookings(tenantId, queryParams) {
       params.push(pet_id);
     }
 
-    console.log('[Bookings][list] tenantId:', tenantId, 'status:', status, 'date:', date, 'startDate:', startDate, 'endDate:', endDate);
+    // Owner filter - for fetching bookings by owner
+    if (owner_id) {
+      whereClause += ` AND b.owner_id = $${paramIndex++}`;
+      params.push(owner_id);
+    }
+
+    console.log('[Bookings][list] tenantId:', tenantId, 'status:', status, 'date:', date, 'startDate:', startDate, 'endDate:', endDate, 'owner_id:', owner_id);
 
     // Schema: check_in, check_out, total_price_cents, deposit_cents
     // Note: pet_id is NOT on Booking table - pets are linked via BookingPet join table
@@ -2725,14 +2766,245 @@ async function handleGetStaffSchedules(tenantId, queryParams) {
 // =============================================================================
 
 /**
- * Get notifications (stub)
+ * Get notifications for user
+ * Returns both notification list and unread count
  */
-async function handleGetNotifications(tenantId) {
-  return createResponse(200, {
-    data: [],
-    notifications: [],
-    unreadCount: 0,
-  });
+async function handleGetNotifications(tenantId, userId, queryParams = {}) {
+  console.log('[Notifications][list] tenantId:', tenantId, 'userId:', userId);
+
+  try {
+    await getPoolAsync();
+
+    const limit = Math.min(parseInt(queryParams.limit) || 50, 100);
+    const offset = parseInt(queryParams.offset) || 0;
+    const unreadOnly = queryParams.unreadOnly === 'true';
+
+    // Build query with optional unread filter
+    let whereClause = 'tenant_id = $1 AND (user_id = $2 OR user_id IS NULL)';
+    const params = [tenantId, userId];
+
+    if (unreadOnly) {
+      whereClause += ' AND is_read = false';
+    }
+
+    // Get notifications
+    const result = await query(
+      `SELECT
+         id,
+         type,
+         title,
+         message,
+         link,
+         metadata,
+         is_read,
+         created_at
+       FROM "Notification"
+       WHERE ${whereClause}
+       ORDER BY created_at DESC
+       LIMIT $3 OFFSET $4`,
+      [...params, limit, offset]
+    );
+
+    // Get unread count
+    const countResult = await query(
+      `SELECT COUNT(*) as count
+       FROM "Notification"
+       WHERE tenant_id = $1 AND (user_id = $2 OR user_id IS NULL) AND is_read = false`,
+      [tenantId, userId]
+    );
+
+    const notifications = result.rows.map(row => ({
+      id: row.id,
+      type: row.type,
+      title: row.title,
+      message: row.message,
+      link: row.link,
+      metadata: row.metadata,
+      isRead: row.is_read,
+      createdAt: row.created_at,
+    }));
+
+    return createResponse(200, {
+      data: notifications,
+      notifications,
+      unreadCount: parseInt(countResult.rows[0]?.count || 0),
+      total: notifications.length,
+      limit,
+      offset,
+    });
+
+  } catch (error) {
+    // If table doesn't exist, return empty (graceful degradation)
+    if (error.message?.includes('does not exist') || error.code === '42P01') {
+      console.log('[Notifications] Table not found, returning empty array');
+      return createResponse(200, {
+        data: [],
+        notifications: [],
+        unreadCount: 0,
+        total: 0,
+      });
+    }
+
+    console.error('[Notifications] Failed to get:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve notifications',
+    });
+  }
+}
+
+/**
+ * Get unread notification count only (lightweight endpoint)
+ */
+async function handleGetNotificationCount(tenantId, userId) {
+  console.log('[Notifications][count] tenantId:', tenantId, 'userId:', userId);
+
+  try {
+    await getPoolAsync();
+
+    const countResult = await query(
+      `SELECT COUNT(*) as count
+       FROM "Notification"
+       WHERE tenant_id = $1 AND (user_id = $2 OR user_id IS NULL) AND is_read = false`,
+      [tenantId, userId]
+    );
+
+    return createResponse(200, {
+      unreadCount: parseInt(countResult.rows[0]?.count || 0),
+    });
+
+  } catch (error) {
+    if (error.message?.includes('does not exist') || error.code === '42P01') {
+      return createResponse(200, { unreadCount: 0 });
+    }
+
+    console.error('[Notifications] Failed to get count:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve notification count',
+    });
+  }
+}
+
+/**
+ * Mark a single notification as read
+ */
+async function handleMarkNotificationRead(tenantId, userId, notificationId) {
+  console.log('[Notifications][markRead] tenantId:', tenantId, 'notificationId:', notificationId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "Notification"
+       SET is_read = true, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2 AND (user_id = $3 OR user_id IS NULL)
+       RETURNING id`,
+      [notificationId, tenantId, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Notification not found',
+      });
+    }
+
+    return createResponse(200, {
+      success: true,
+      message: 'Notification marked as read',
+    });
+
+  } catch (error) {
+    console.error('[Notifications] Failed to mark read:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to mark notification as read',
+    });
+  }
+}
+
+/**
+ * Mark all notifications as read for user
+ */
+async function handleMarkAllNotificationsRead(tenantId, userId) {
+  console.log('[Notifications][markAllRead] tenantId:', tenantId, 'userId:', userId);
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `UPDATE "Notification"
+       SET is_read = true, updated_at = NOW()
+       WHERE tenant_id = $1 AND (user_id = $2 OR user_id IS NULL) AND is_read = false
+       RETURNING id`,
+      [tenantId, userId]
+    );
+
+    return createResponse(200, {
+      success: true,
+      markedCount: result.rows.length,
+      message: `${result.rows.length} notification(s) marked as read`,
+    });
+
+  } catch (error) {
+    console.error('[Notifications] Failed to mark all read:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to mark notifications as read',
+    });
+  }
+}
+
+/**
+ * Create a notification (internal use / admin)
+ */
+async function handleCreateNotification(tenantId, body) {
+  console.log('[Notifications][create] tenantId:', tenantId, 'payload:', JSON.stringify(body));
+
+  const { userId, type, title, message, link, metadata } = body;
+
+  if (!type || !title) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Type and title are required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `INSERT INTO "Notification" (
+         tenant_id, user_id, type, title, message, link, metadata, is_read, created_at, updated_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, false, NOW(), NOW())
+       RETURNING id, type, title, message, link, metadata, is_read, created_at`,
+      [tenantId, userId || null, type, title, message || null, link || null, metadata ? JSON.stringify(metadata) : null]
+    );
+
+    const notification = result.rows[0];
+
+    return createResponse(201, {
+      success: true,
+      notification: {
+        id: notification.id,
+        type: notification.type,
+        title: notification.title,
+        message: notification.message,
+        link: notification.link,
+        metadata: notification.metadata,
+        isRead: notification.is_read,
+        createdAt: notification.created_at,
+      },
+    });
+
+  } catch (error) {
+    console.error('[Notifications] Failed to create:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to create notification',
+    });
+  }
 }
 
 // =============================================================================
