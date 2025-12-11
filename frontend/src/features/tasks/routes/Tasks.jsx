@@ -403,13 +403,13 @@ const StaffWorkload = ({ staff, tasks, onStaffClick, activeStaffFilter }) => {
     return 'Staff';
   };
 
-  // Show all staff (up to 10) to fill vertical space
-  const displayStaff = staffList.slice(0, 10);
+  // Show all staff
+  const displayStaff = staffList;
   const unassignedCount = staffTaskCounts['unassigned'] || 0;
 
   return (
     <div
-      className="rounded-xl border p-4 flex-1"
+      className="rounded-xl border p-4"
       style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
     >
       <div className="flex items-center gap-2 mb-3">
@@ -417,7 +417,8 @@ const StaffWorkload = ({ staff, tasks, onStaffClick, activeStaffFilter }) => {
         <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Staff Workload</h3>
       </div>
 
-      <div className="space-y-2">
+      {/* Scrollable staff list with max-height */}
+      <div className="space-y-2 max-h-[180px] overflow-y-auto">
         {displayStaff.map(s => {
           const id = s.id || s.recordId;
           const count = staffTaskCounts[id] || 0;
@@ -481,7 +482,7 @@ const StaffWorkload = ({ staff, tasks, onStaffClick, activeStaffFilter }) => {
   );
 };
 
-// Quick Add Task Sidebar Card
+// Quick Add Task Sidebar Card - Primary action zone
 const QuickAddTask = ({ taskTypes, priorityConfig, pets, staff, onCreateTask, isCreating }) => {
   const [form, setForm] = useState({
     type: 'FEEDING',
@@ -493,6 +494,19 @@ const QuickAddTask = ({ taskTypes, priorityConfig, pets, staff, onCreateTask, is
 
   const staffList = Array.isArray(staff) ? staff : (staff?.data || []);
   const petList = pets?.pets || [];
+
+  // Format staff name for dropdown
+  const formatStaffName = (s) => {
+    if (s.name) {
+      const parts = s.name.trim().split(' ');
+      if (parts.length >= 2) return `${parts[0]} ${parts[parts.length - 1].charAt(0)}.`;
+      return s.name;
+    }
+    if (s.firstName) {
+      return `${s.firstName}${s.lastName ? ` ${s.lastName.charAt(0)}.` : ''}`;
+    }
+    return s.email?.split('@')[0] || 'Staff';
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -514,82 +528,118 @@ const QuickAddTask = ({ taskTypes, priorityConfig, pets, staff, onCreateTask, is
     });
   };
 
+  const selectedType = taskTypes[form.type];
+
   return (
     <div
-      className="rounded-xl border p-4"
+      className="rounded-xl border p-5"
       style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
     >
-      <div className="flex items-center gap-2 mb-3">
-        <Zap className="h-4 w-4 text-[color:var(--bb-color-accent)]" />
-        <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Quick Add</h3>
+      <div className="flex items-center gap-2 mb-4">
+        <div className="h-8 w-8 rounded-lg bg-[color:var(--bb-color-accent-soft)] flex items-center justify-center">
+          <Zap className="h-4 w-4 text-[color:var(--bb-color-accent)]" />
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Quick Add Task</h3>
+          <p className="text-xs text-[color:var(--bb-color-text-muted)]">Create a new task quickly</p>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-3">
-        {/* Task Type - inline */}
-        <div className="flex gap-1.5">
-          {Object.entries(taskTypes).map(([key, config]) => {
-            const Icon = config.icon;
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setForm({ ...form, type: key })}
-                className={cn(
-                  'flex-1 flex items-center justify-center p-2 rounded-lg transition-all',
-                  form.type === key
-                    ? 'bg-[color:var(--bb-color-accent-soft)] ring-1 ring-[color:var(--bb-color-accent)]'
-                    : 'hover:bg-[color:var(--bb-color-bg-elevated)]'
-                )}
-                title={config.label}
-              >
-                <Icon className={cn('h-4 w-4', config.color)} />
-              </button>
-            );
-          })}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Task Type - larger touch targets */}
+        <div>
+          <label className="text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-2 block">Task Type</label>
+          <div className="grid grid-cols-5 gap-2">
+            {Object.entries(taskTypes).map(([key, config]) => {
+              const Icon = config.icon;
+              const isSelected = form.type === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setForm({ ...form, type: key })}
+                  className={cn(
+                    'flex flex-col items-center justify-center p-3 rounded-xl transition-all',
+                    isSelected
+                      ? 'bg-[color:var(--bb-color-accent-soft)] ring-2 ring-[color:var(--bb-color-accent)]'
+                      : 'hover:bg-[color:var(--bb-color-bg-elevated)] border border-transparent hover:border-[color:var(--bb-color-border-subtle)]'
+                  )}
+                  title={config.label}
+                >
+                  <Icon className={cn('h-5 w-5 mb-1', config.color)} />
+                  <span className={cn('text-[10px] font-medium', isSelected ? 'text-[color:var(--bb-color-accent)]' : 'text-[color:var(--bb-color-text-muted)]')}>
+                    {config.label.slice(0, 4)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Pet + Staff in 2 columns */}
-        <div className="grid grid-cols-2 gap-2">
+        {/* Pet - full width */}
+        <div>
+          <label className="text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-2 block">Pet *</label>
           <select
             value={form.petId}
             onChange={(e) => setForm({ ...form, petId: e.target.value })}
-            className="w-full px-2 py-1.5 text-xs rounded-lg border focus:outline-none"
+            className="w-full px-3 py-2.5 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
             style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
           >
-            <option value="">Pet...</option>
+            <option value="">Select a pet...</option>
             {petList.map(p => (
               <option key={p.id || p.recordId} value={p.id || p.recordId}>{p.name}</option>
             ))}
           </select>
+        </div>
 
+        {/* Staff - full width */}
+        <div>
+          <label className="text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-2 block">Assign To</label>
           <select
             value={form.assignedTo}
             onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}
-            className="w-full px-2 py-1.5 text-xs rounded-lg border focus:outline-none"
+            className="w-full px-3 py-2.5 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
             style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
           >
-            <option value="">Staff...</option>
+            <option value="">Unassigned</option>
             {staffList.map(s => (
               <option key={s.id || s.recordId} value={s.id || s.recordId}>
-                {s.firstName} {s.lastName?.charAt(0)}.
+                {formatStaffName(s)}
               </option>
             ))}
           </select>
         </div>
 
-        {/* Time + Button in row */}
-        <div className="flex gap-2">
+        {/* Date/Time - full width */}
+        <div>
+          <label className="text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-2 block">Schedule For</label>
           <input
             type="datetime-local"
             value={form.scheduledFor}
             onChange={(e) => setForm({ ...form, scheduledFor: e.target.value })}
-            className="flex-1 px-2 py-1.5 text-xs rounded-lg border focus:outline-none"
+            className="w-full px-3 py-2.5 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
             style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
           />
-          <Button type="submit" size="sm" disabled={isCreating || !form.petId} className="px-3">
-            {isCreating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-          </Button>
         </div>
+
+        {/* Add Task Button - prominent */}
+        <Button
+          type="submit"
+          disabled={isCreating || !form.petId}
+          className="w-full py-3 text-sm font-semibold"
+        >
+          {isCreating ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Adding...
+            </>
+          ) : (
+            <>
+              <Plus className="h-4 w-4 mr-2" />
+              Add {selectedType?.label || 'Task'}
+            </>
+          )}
+        </Button>
       </form>
     </div>
   );
@@ -1242,20 +1292,15 @@ const Tasks = () => {
           </div>
         </div>
 
-        {/* Right: Sidebar - fills vertical space */}
-        <div className="flex flex-col gap-4 min-h-0">
+        {/* Right: Sidebar */}
+        <div className="flex flex-col gap-4 min-h-0 overflow-y-auto">
+          {/* Today's Summary - Quick reference */}
           <TodaysSummary
             categoryCounts={categoryCounts}
             taskTypes={TASK_TYPES}
           />
 
-          <StaffWorkload
-            staff={staff}
-            tasks={combinedTasks}
-            onStaffClick={setStaffFilter}
-            activeStaffFilter={staffFilter}
-          />
-
+          {/* Quick Add - Primary action */}
           <QuickAddTask
             taskTypes={TASK_TYPES}
             priorityConfig={PRIORITY_CONFIG}
@@ -1263,6 +1308,14 @@ const Tasks = () => {
             staff={staff}
             onCreateTask={handleQuickAddTask}
             isCreating={createMutation.isPending}
+          />
+
+          {/* Staff Workload - Reference info, scrolls if needed */}
+          <StaffWorkload
+            staff={staff}
+            tasks={combinedTasks}
+            onStaffClick={setStaffFilter}
+            activeStaffFilter={staffFilter}
           />
         </div>
       </div>
