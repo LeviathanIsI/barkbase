@@ -403,9 +403,13 @@ const StaffWorkload = ({ staff, tasks, onStaffClick, activeStaffFilter }) => {
     return 'Staff';
   };
 
+  // Show all staff (up to 10) to fill vertical space
+  const displayStaff = staffList.slice(0, 10);
+  const unassignedCount = staffTaskCounts['unassigned'] || 0;
+
   return (
     <div
-      className="rounded-xl border p-4"
+      className="rounded-xl border p-4 flex-1"
       style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
     >
       <div className="flex items-center gap-2 mb-3">
@@ -414,35 +418,36 @@ const StaffWorkload = ({ staff, tasks, onStaffClick, activeStaffFilter }) => {
       </div>
 
       <div className="space-y-2">
-        {staffList.slice(0, 5).map(s => {
+        {displayStaff.map(s => {
           const id = s.id || s.recordId;
           const count = staffTaskCounts[id] || 0;
           const percentage = maxTasks > 0 ? (count / maxTasks) * 100 : 0;
           const isActive = activeStaffFilter === id;
           const isOverloaded = count >= 5;
+          const displayName = formatName(s);
 
           return (
             <button
               key={id}
               onClick={() => onStaffClick(isActive ? 'all' : id)}
               className={cn(
-                'w-full flex items-center gap-3 px-2 py-1.5 rounded-lg transition-colors text-left',
+                'w-full flex items-center gap-3 px-2 py-2 rounded-lg transition-colors text-left',
                 isActive
                   ? 'bg-[color:var(--bb-color-accent-soft)] ring-1 ring-[color:var(--bb-color-accent)]'
                   : 'hover:bg-[color:var(--bb-color-bg-elevated)]'
               )}
             >
-              <span className="text-xs font-medium text-[color:var(--bb-color-text-primary)] min-w-[80px]">
-                {formatName(s)}
+              <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)] w-24 truncate" title={displayName}>
+                {displayName}
               </span>
-              <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+              <div className="flex-1 h-2.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
                 <div
                   className={cn('h-full rounded-full transition-all', isOverloaded ? 'bg-amber-500' : 'bg-emerald-500')}
                   style={{ width: `${percentage}%` }}
                 />
               </div>
               <span className={cn(
-                'text-xs font-bold min-w-[20px] text-right',
+                'text-sm font-bold w-6 text-right',
                 isOverloaded ? 'text-amber-600' : 'text-[color:var(--bb-color-text-muted)]'
               )}>
                 {count}
@@ -451,18 +456,25 @@ const StaffWorkload = ({ staff, tasks, onStaffClick, activeStaffFilter }) => {
           );
         })}
 
-        {/* Unassigned row */}
-        {staffTaskCounts['unassigned'] > 0 && (
-          <div className="flex items-center gap-3 px-2 py-1.5 text-[color:var(--bb-color-text-muted)]">
-            <span className="text-xs min-w-[80px] italic">Unassigned</span>
-            <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+        {/* Unassigned row - always show if there are unassigned tasks */}
+        {unassignedCount > 0 && (
+          <div className="flex items-center gap-3 px-2 py-2 text-[color:var(--bb-color-text-muted)]">
+            <span className="text-sm w-24 italic">Unassigned</span>
+            <div className="flex-1 h-2.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
               <div
                 className="h-full rounded-full bg-gray-400"
-                style={{ width: `${(staffTaskCounts['unassigned'] / maxTasks) * 100}%` }}
+                style={{ width: `${(unassignedCount / maxTasks) * 100}%` }}
               />
             </div>
-            <span className="text-xs font-bold min-w-[20px] text-right">{staffTaskCounts['unassigned']}</span>
+            <span className="text-sm font-bold w-6 text-right">{unassignedCount}</span>
           </div>
+        )}
+
+        {/* Empty state */}
+        {displayStaff.length === 0 && (
+          <p className="text-sm text-[color:var(--bb-color-text-muted)] text-center py-4">
+            No staff members found
+          </p>
         )}
       </div>
     </div>
@@ -598,7 +610,8 @@ const Tasks = () => {
     overdue: true,
     dueNow: true,
     dueLater: true,
-    upcoming: false,
+    upcoming: true,
+    completed: true,
   });
   const [completingTaskId, setCompletingTaskId] = useState(null);
 
@@ -835,9 +848,9 @@ const Tasks = () => {
   const staffList = Array.isArray(staff) ? staff : (staff?.data || []);
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col h-[calc(100vh-120px)] gap-4">
       {/* Page Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between shrink-0">
         <div>
           <nav className="mb-2">
             <ol className="flex items-center gap-1 text-xs text-[color:var(--bb-color-text-muted)]">
@@ -872,7 +885,7 @@ const Tasks = () => {
       </div>
 
       {/* Stats Bar */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 shrink-0">
         <StatCard
           icon={ClipboardList}
           label="Total Tasks Today"
@@ -904,9 +917,9 @@ const Tasks = () => {
       </div>
 
       {/* Two-Column Layout: Task List (left) + Sidebar (right) */}
-      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px] flex-1 min-h-0">
         {/* Left: Task List */}
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-y-auto min-h-0">
           {/* Filter Bar - includes type filters, sort, search */}
           <div
             className="rounded-xl border p-4"
@@ -1229,8 +1242,8 @@ const Tasks = () => {
           </div>
         </div>
 
-        {/* Right: Sidebar */}
-        <div className="space-y-4">
+        {/* Right: Sidebar - fills vertical space */}
+        <div className="flex flex-col gap-4 min-h-0">
           <TodaysSummary
             categoryCounts={categoryCounts}
             taskTypes={TASK_TYPES}
