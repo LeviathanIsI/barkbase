@@ -57,7 +57,6 @@ export const sidebarSections = [
       { path: '/payments', label: 'Payments', icon: 'credit-card' },
       { path: '/invoices', label: 'Invoices', icon: 'file-text' },
       { path: '/packages', label: 'Packages', icon: 'gift' },
-      { path: '/reports', label: 'Reports', icon: 'bar-chart-3' },
     ],
   },
   {
@@ -67,6 +66,7 @@ export const sidebarSections = [
     defaultExpanded: false,
     items: [
       { path: '/staff', label: 'Team', icon: 'user-cog' },
+      { path: '/reports', label: 'Reports', icon: 'bar-chart-3' },
       { path: '/settings', label: 'Settings', icon: 'settings' },
     ],
   },
