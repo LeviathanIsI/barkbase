@@ -36,7 +36,6 @@ export const sidebarSections = [
       { path: '/tasks', label: 'Tasks', icon: 'check-square' },
       { path: '/kennels', label: 'Kennels', icon: 'home' },
       { path: '/incidents', label: 'Incidents', icon: 'alert-triangle' },
-      { path: '/operations', label: 'Ops Overview', icon: 'panels-top-left' },
     ],
   },
   {

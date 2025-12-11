@@ -177,7 +177,6 @@ const RunAssignment = lazy(() =>
 );
 const Messages = lazy(() => import("@/features/messaging/routes/Messages"));
 const Tasks = lazy(() => import("@/features/tasks/routes/Tasks"));
-const Operations = lazy(() => import("@/features/operations/routes/Operations"));
 const MobileTasks = lazy(() => import("@/features/mobile/routes/MobileTasks"));
 // Real features imported below
 const Services = lazy(() => import("@/features/services/routes/Services"));
@@ -286,7 +285,6 @@ export const router = createBrowserRouter([
               { path: "tasks", element: <Tasks /> },
               { path: "daycare/checkin", element: <Tasks /> },
               { path: "daycare/runs", element: <RunAssignment /> },
-              { path: "operations", element: <Operations /> },
               { path: "mobile/tasks", element: <MobileTasks /> },
               { path: "mobile/check-in", element: <MobileCheckIn /> },
               // Customer Portal
