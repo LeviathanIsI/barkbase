@@ -43,7 +43,6 @@ import {
   Info,
   UserCheck,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { format, addDays, subDays } from 'date-fns';
 import Button from '@/components/ui/Button';
 import { Card, PageHeader } from '@/components/ui/Card';
@@ -1129,8 +1128,8 @@ const RunAssignment = () => {
           title="Run Assignment"
           description="Assign checked-in pets to daycare runs"
           breadcrumbs={[
-            { label: 'Operations', href: '/operations' },
-            { label: 'Run Assignment' }
+            { label: 'Operations' },
+            { label: 'Runs' }
           ]}
         />
         
@@ -1181,9 +1180,9 @@ const RunAssignment = () => {
         <div>
           <nav className="mb-2">
             <ol className="flex items-center gap-1 text-xs text-[color:var(--bb-color-text-muted)]">
-              <li><Link to="/operations" className="hover:text-[color:var(--bb-color-accent)]">Operations</Link></li>
+              <li><span>Operations</span></li>
               <li><ChevronLeft className="h-3 w-3 rotate-180" /></li>
-              <li className="text-[color:var(--bb-color-text-primary)] font-medium">Run Assignment</li>
+              <li className="text-[color:var(--bb-color-text-primary)] font-medium">Runs</li>
             </ol>
           </nav>
           <div className="flex items-center gap-3">
