@@ -395,9 +395,16 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
                   !displayBooking.kennel.name && 'text-[var(--bb-color-status-warning)]'
                 )}
               >
-                <span className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)]">
-                  {displayBooking.kennel.name || 'Unassigned'}
-                </span>
+                <div className="flex flex-col">
+                  <span className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)]">
+                    {displayBooking.kennel.name || 'Unassigned'}
+                  </span>
+                  {displayBooking.kennel.name && (displayBooking.kennel.building || displayBooking.kennel.floor) && (
+                    <span className="text-xs text-[var(--bb-color-text-muted)]">
+                      {[displayBooking.kennel.building, displayBooking.kennel.floor].filter(Boolean).join(' - ')}
+                    </span>
+                  )}
+                </div>
                 <ChevronDown className={cn(
                   'w-4 h-4 transition-transform',
                   showKennelDropdown && 'rotate-180'
