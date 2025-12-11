@@ -247,6 +247,14 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit, onCheckIn, onChe
   // Available kennels for dropdown
   const availableKennels = kennels.filter(k => k.isActive !== false);
 
+  // Get full kennel data (with building/floor) by looking up from availableKennels
+  const fullKennelData = useMemo(() => {
+    const kennelId = displayBooking.kennel?.id || displayBooking.kennel?.recordId;
+    if (!kennelId) return displayBooking.kennel;
+    const found = availableKennels.find(k => (k.id || k.recordId) === kennelId);
+    return found || displayBooking.kennel;
+  }, [displayBooking.kennel, availableKennels]);
+
   return (
     <>
       <InspectorRoot
@@ -387,11 +395,11 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit, onCheckIn, onChe
                 >
                   <div className="flex flex-col">
                     <span className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)]">
-                      {displayBooking.kennel.name || 'Unassigned'}
+                      {fullKennelData?.name || 'Unassigned'}
                     </span>
-                    {displayBooking.kennel.name && (displayBooking.kennel.building || displayBooking.kennel.floor) && (
+                    {fullKennelData?.name && (fullKennelData?.building || fullKennelData?.floor) && (
                       <span className="text-xs text-[var(--bb-color-text-muted)]">
-                        {[displayBooking.kennel.building, displayBooking.kennel.floor].filter(Boolean).join(' - ')}
+                        {[fullKennelData.building, fullKennelData.floor].filter(Boolean).join(' - ')}
                       </span>
                     )}
                   </div>
