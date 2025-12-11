@@ -661,7 +661,7 @@ const Tasks = () => {
     dueNow: true,
     dueLater: true,
     upcoming: true,
-    completed: true,
+    completed: false,
   });
   const [completingTaskId, setCompletingTaskId] = useState(null);
 
