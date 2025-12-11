@@ -4,7 +4,6 @@
  */
 
 import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useReportDashboard, useKPIsQuery, useServiceAnalyticsQuery, useRevenueReport, useCustomerAnalyticsQuery, useLiveAnalyticsQuery, useRecentActivityQuery } from '../api';
 import {
@@ -962,10 +961,10 @@ const Reports = () => {
       <div className="flex items-start justify-between">
         <div>
           <nav className="mb-1">
-            <ol className="flex items-center gap-1 text-xs text-muted">
-              <li><Link to="/" className="hover:text-primary">Administration</Link></li>
+            <ol className="flex items-center gap-1 text-xs text-[color:var(--bb-color-text-muted)]">
+              <li><span>Administration</span></li>
               <li><ChevronRight className="h-3 w-3" /></li>
-              <li className="text-text font-medium">Reports</li>
+              <li className="text-[color:var(--bb-color-text-primary)] font-medium">Reports</li>
             </ol>
           </nav>
           <h1 className="text-lg font-semibold text-text">Reports & Analytics</h1>

@@ -27,12 +27,12 @@ const Packages = () => {
   if (isLoading) {
     return (
       <div>
-        <PageHeader 
+        <PageHeader
           breadcrumbs={[
-            { label: 'Finance', href: '/packages' },
+            { label: 'Finance' },
             { label: 'Packages' }
           ]}
-          title="Packages" 
+          title="Packages"
         />
         <Skeleton className="h-96" />
       </div>
@@ -43,7 +43,7 @@ const Packages = () => {
     <div>
       <PageHeader
         breadcrumbs={[
-          { label: 'Finance', href: '/packages' },
+          { label: 'Finance' },
           { label: 'Packages' }
         ]}
         title="Prepaid Packages"

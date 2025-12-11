@@ -263,7 +263,7 @@ const Schedule = () => {
           <div>
             <PageHeader
               breadcrumbs={[
-                { label: 'Operations', href: '/schedule' },
+                { label: 'Operations' },
                 { label: 'Schedule' }
               ]}
               title="Today's Schedule"

@@ -4,7 +4,6 @@
  */
 
 import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { format, addDays, startOfWeek } from 'date-fns';
 import {
   Users,
@@ -1356,10 +1355,10 @@ const TeamOverview = () => {
         <div className="flex items-start justify-between">
           <div>
             <nav className="mb-1">
-              <ol className="flex items-center gap-1 text-xs text-muted">
-                <li><Link to="/" className="hover:text-primary">Administration</Link></li>
+              <ol className="flex items-center gap-1 text-xs text-[color:var(--bb-color-text-muted)]">
+                <li><span>Administration</span></li>
                 <li><ChevronRight className="h-3 w-3" /></li>
-                <li className="text-text font-medium">Team</li>
+                <li className="text-[color:var(--bb-color-text-primary)] font-medium">Team</li>
               </ol>
             </nav>
             <h1 className="text-lg font-semibold text-text">Team Management</h1>
@@ -1400,10 +1399,10 @@ const TeamOverview = () => {
       <div className="flex items-start justify-between">
         <div>
           <nav className="mb-1">
-            <ol className="flex items-center gap-1 text-xs text-muted">
-              <li><Link to="/" className="hover:text-primary">Administration</Link></li>
+            <ol className="flex items-center gap-1 text-xs text-[color:var(--bb-color-text-muted)]">
+              <li><span>Administration</span></li>
               <li><ChevronRight className="h-3 w-3" /></li>
-              <li className="text-text font-medium">Team</li>
+              <li className="text-[color:var(--bb-color-text-primary)] font-medium">Team</li>
             </ol>
           </nav>
           <h1 className="text-lg font-semibold text-text">Team Management</h1>

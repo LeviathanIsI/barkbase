@@ -22,12 +22,12 @@ const Facilities = () => {
   if (isLoading) {
     return (
       <div>
-        <PageHeader 
+        <PageHeader
           breadcrumbs={[
-            { label: 'Operations', href: '/facilities' },
+            { label: 'Operations' },
             { label: 'Facilities' }
           ]}
-          title="Capacity View" 
+          title="Capacity View"
         />
         <Skeleton className="h-96" />
       </div>
@@ -39,7 +39,7 @@ const Facilities = () => {
       <div>
         <PageHeader
           breadcrumbs={[
-            { label: 'Operations', href: '/facilities' },
+            { label: 'Operations' },
             { label: 'Facilities' }
           ]}
           title="Capacity View"

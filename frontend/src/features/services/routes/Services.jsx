@@ -96,13 +96,13 @@ const Services = () => {
   if (isLoading) {
     return (
       <div className="space-y-[var(--bb-space-6,1.5rem)]">
-        <PageHeader 
+        <PageHeader
           breadcrumbs={[
-            { label: 'Administration', href: '/settings' },
+            { label: 'Administration' },
             { label: 'Services' }
           ]}
-          title="Services & Add-ons" 
-          description="Manage services and add-ons for bookings" 
+          title="Services & Add-ons"
+          description="Manage services and add-ons for bookings"
         />
         <Skeleton className="h-96" />
       </div>
@@ -113,7 +113,7 @@ const Services = () => {
     <div className="space-y-[var(--bb-space-6,1.5rem)]">
       <PageHeader
         breadcrumbs={[
-          { label: 'Administration', href: '/settings' },
+          { label: 'Administration' },
           { label: 'Services' }
         ]}
         title="Services & Add-ons"
