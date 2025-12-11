@@ -10,11 +10,16 @@ import {
 import { cn } from '@/lib/cn';
 import Button from '@/components/ui/Button';
 import { useAuthStore } from '@/stores/auth';
+import { apiBaseUrl } from '@/config/env';
 import ImportTypeStep from './ImportTypeStep';
 import ImportUploadStep from './ImportUploadStep';
 import ImportMapStep from './ImportMapStep';
 import ImportDetailsStep from './ImportDetailsStep';
-import { autoMapColumns, getUnmappedRequiredFields, ENTITY_TYPES } from './importFieldDefinitions';
+import {
+  autoMapColumns,
+  getUnmappedRequiredFields,
+  ENTITY_TYPES,
+} from './importFieldDefinitions';
 
 const STEPS = [
   { id: 'type', label: 'Type', shortLabel: 'Type' },
@@ -33,11 +38,13 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
   // Step 1: Type selection
   const [selectedTypes, setSelectedTypes] = useState([]);
 
-  // Step 2: File upload
+  // Step 2: File upload and import modes
   const [file, setFile] = useState(null);
   const [parsedData, setParsedData] = useState(null);
   const [parseError, setParseError] = useState(null);
   const [isParsing, setIsParsing] = useState(false);
+  const [fileMode, setFileMode] = useState('single'); // 'single' or 'multiple'
+  const [importModes, setImportModes] = useState({}); // { owners: 'create_update', pets: 'create_only', etc }
 
   // Step 3: Mappings
   const [mappings, setMappings] = useState({});
@@ -48,6 +55,7 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
     skipDuplicates: true,
     updateExisting: false,
     createNewOnly: false,
+    uniqueIdentifier: null,
   });
 
   // Import state
@@ -55,80 +63,96 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
   const [importError, setImportError] = useState(null);
 
   // Parse file when uploaded
-  const handleFileChange = useCallback(async (newFile) => {
-    setFile(newFile);
-    setParsedData(null);
-    setParseError(null);
-    setMappings({});
-    setOverwriteSettings({});
+  const handleFileChange = useCallback(
+    async (newFile) => {
+      setFile(newFile);
+      setParsedData(null);
+      setParseError(null);
+      setMappings({});
+      setOverwriteSettings({});
 
-    if (!newFile) return;
+      if (!newFile) return;
 
-    setIsParsing(true);
+      setIsParsing(true);
 
-    try {
-      const ext = newFile.name.split('.').pop()?.toLowerCase();
-      const content = await readFileAsText(newFile);
+      try {
+        const ext = newFile.name.split('.').pop()?.toLowerCase();
+        const content = await readFileAsText(newFile);
 
-      let data;
-      if (ext === 'json') {
-        const parsed = JSON.parse(content);
-        // Handle both array and object with data property
-        data = Array.isArray(parsed) ? parsed : (parsed.data || [parsed]);
-      } else if (ext === 'csv') {
-        data = parseCSV(content);
-      } else if (ext === 'xlsx' || ext === 'xls') {
-        // For XLSX, we'd need a library like xlsx/sheetjs
-        // For now, show an error
-        throw new Error('Excel files require the xlsx library. Please convert to CSV first.');
-      } else {
-        throw new Error('Unsupported file format. Please use CSV or JSON.');
+        let data;
+        if (ext === 'json') {
+          const parsed = JSON.parse(content);
+          // Handle both array and object with data property
+          data = Array.isArray(parsed) ? parsed : parsed.data || [parsed];
+        } else if (ext === 'csv') {
+          data = parseCSV(content);
+        } else if (ext === 'xlsx' || ext === 'xls') {
+          // For XLSX, we'd need a library like xlsx/sheetjs
+          throw new Error(
+            'Excel files require the xlsx library. Please convert to CSV first.'
+          );
+        } else {
+          throw new Error('Unsupported file format. Please use CSV or JSON.');
+        }
+
+        if (!data || data.length === 0) {
+          throw new Error('File appears to be empty or could not be parsed.');
+        }
+
+        const headers = Object.keys(data[0]);
+        const sampleRows = data.slice(0, 5);
+
+        setParsedData({
+          headers,
+          rowCount: data.length,
+          sampleRows,
+          allData: data,
+        });
+
+        // Auto-map columns if we have selected types
+        if (selectedTypes.length > 0) {
+          const autoMappings = {};
+          selectedTypes.forEach((typeId) => {
+            const typeMappings = autoMapColumns(headers, typeId);
+            Object.assign(autoMappings, typeMappings);
+          });
+          setMappings(autoMappings);
+        }
+      } catch (err) {
+        console.error('Parse error:', err);
+        setParseError(err.message || 'Failed to parse file');
+      } finally {
+        setIsParsing(false);
       }
+    },
+    [selectedTypes]
+  );
 
-      if (!data || data.length === 0) {
-        throw new Error('File appears to be empty or could not be parsed.');
-      }
+  // Re-run auto-mapping when types change (if file already uploaded)
+  const handleTypesChange = useCallback(
+    (newTypes) => {
+      setSelectedTypes(newTypes);
 
-      const headers = Object.keys(data[0]);
-      const sampleRows = data.slice(0, 5);
-
-      setParsedData({
-        headers,
-        rowCount: data.length,
-        sampleRows,
-        allData: data,
+      // Initialize import modes for new types
+      const newImportModes = { ...importModes };
+      newTypes.forEach((typeId) => {
+        if (!newImportModes[typeId]) {
+          newImportModes[typeId] = 'create_update';
+        }
       });
+      setImportModes(newImportModes);
 
-      // Auto-map columns if we have selected types
-      if (selectedTypes.length > 0) {
+      if (parsedData?.headers) {
         const autoMappings = {};
-        selectedTypes.forEach(typeId => {
-          const typeMappings = autoMapColumns(headers, typeId);
+        newTypes.forEach((typeId) => {
+          const typeMappings = autoMapColumns(parsedData.headers, typeId);
           Object.assign(autoMappings, typeMappings);
         });
         setMappings(autoMappings);
       }
-    } catch (err) {
-      console.error('Parse error:', err);
-      setParseError(err.message || 'Failed to parse file');
-    } finally {
-      setIsParsing(false);
-    }
-  }, [selectedTypes]);
-
-  // Re-run auto-mapping when types change (if file already uploaded)
-  const handleTypesChange = useCallback((newTypes) => {
-    setSelectedTypes(newTypes);
-
-    if (parsedData?.headers) {
-      const autoMappings = {};
-      newTypes.forEach(typeId => {
-        const typeMappings = autoMapColumns(parsedData.headers, typeId);
-        Object.assign(autoMappings, typeMappings);
-      });
-      setMappings(autoMappings);
-    }
-  }, [parsedData?.headers]);
+    },
+    [parsedData?.headers, importModes]
+  );
 
   // Check if step is valid
   const isStepValid = useMemo(() => {
@@ -140,7 +164,7 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
       case 2: // Map
         // Check all required fields are mapped
         let allMapped = true;
-        selectedTypes.forEach(typeId => {
+        selectedTypes.forEach((typeId) => {
           const unmapped = getUnmappedRequiredFields(mappings, typeId);
           if (unmapped.length > 0) allMapped = false;
         });
@@ -150,7 +174,15 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
       default:
         return false;
     }
-  }, [currentStep, selectedTypes, file, parsedData, parseError, isParsing, mappings]);
+  }, [
+    currentStep,
+    selectedTypes,
+    file,
+    parsedData,
+    parseError,
+    isParsing,
+    mappings,
+  ]);
 
   // Handle import
   const handleImport = useCallback(async () => {
@@ -161,7 +193,7 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
 
     try {
       // Transform data based on mappings
-      const transformedData = parsedData.allData.map(row => {
+      const transformedData = parsedData.allData.map((row) => {
         const transformed = {};
         Object.entries(mappings).forEach(([header, fieldKey]) => {
           if (fieldKey && row[header] !== undefined) {
@@ -171,25 +203,35 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
         return transformed;
       });
 
+      // Build the import request payload
+      const payload = {
+        entityTypes: selectedTypes,
+        data: transformedData,
+        mappings,
+        importModes,
+        overwriteSettings,
+        options: importOptions,
+        filename: file.name,
+      };
+
       // Call the import API
-      const response = await fetch('/api/v1/import-export/import', {
+      const response = await fetch(`${apiBaseUrl}/api/v1/import-export/import`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
+          ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
         },
-        body: JSON.stringify({
-          entityTypes: selectedTypes,
-          data: transformedData,
-          mappings,
-          options: importOptions,
-          filename: file.name,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Import failed');
+        console.error('Import API error response:', errorData);
+        // Include debug info if available
+        const errorMsg = errorData.debugStack
+          ? `${errorData.message}\n\nDebug: ${errorData.debugStack}`
+          : errorData.message || `Import failed with status ${response.status}`;
+        throw new Error(errorMsg);
       }
 
       const result = await response.json();
@@ -199,11 +241,22 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
       }
     } catch (err) {
       console.error('Import error:', err);
+      // Show full error including any debug stack
       setImportError(err.message || 'Failed to import data');
     } finally {
       setIsImporting(false);
     }
-  }, [parsedData, mappings, selectedTypes, importOptions, file, onImportComplete]);
+  }, [
+    parsedData,
+    mappings,
+    selectedTypes,
+    importModes,
+    overwriteSettings,
+    importOptions,
+    file,
+    accessToken,
+    onImportComplete,
+  ]);
 
   const canGoNext = isStepValid;
   const canGoPrev = currentStep > 0;
@@ -220,7 +273,7 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
 
       {/* Modal */}
       <div
-        className="relative w-full max-w-4xl max-h-[90vh] mx-4 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+        className="relative w-full max-w-5xl max-h-[90vh] mx-4 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
         style={{ backgroundColor: 'var(--bb-color-bg-surface)' }}
       >
         {/* Header */}
@@ -311,11 +364,16 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
 
           {currentStep === 1 && (
             <ImportUploadStep
+              selectedTypes={selectedTypes}
               file={file}
               onFileChange={handleFileChange}
               parsedData={parsedData}
               parseError={parseError}
               isParsing={isParsing}
+              fileMode={fileMode}
+              onFileModeChange={setFileMode}
+              importModes={importModes}
+              onImportModesChange={setImportModes}
             />
           )}
 
@@ -337,6 +395,7 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
               mappings={mappings}
               importOptions={importOptions}
               onImportOptionsChange={setImportOptions}
+              importModes={importModes}
             />
           )}
 
@@ -345,11 +404,14 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
             <div
               className="mt-4 p-4 rounded-lg border"
               style={{
-                backgroundColor: 'var(--bb-color-status-negative-muted, rgba(239, 68, 68, 0.1))',
+                backgroundColor:
+                  'var(--bb-color-status-negative-muted, rgba(239, 68, 68, 0.1))',
                 borderColor: 'var(--bb-color-status-negative)',
               }}
             >
-              <p className="text-sm text-[color:var(--bb-color-status-negative)]">{importError}</p>
+              <p className="text-sm text-[color:var(--bb-color-status-negative)]">
+                {importError}
+              </p>
             </div>
           )}
         </div>
@@ -362,7 +424,7 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
           <Button
             type="button"
             variant="ghost"
-            onClick={() => setCurrentStep(s => s - 1)}
+            onClick={() => setCurrentStep((s) => s - 1)}
             disabled={!canGoPrev || isImporting}
           >
             <ChevronLeft className="w-4 h-4 mr-1" />
@@ -400,7 +462,7 @@ const ImportWizard = ({ onClose, onImportComplete }) => {
             ) : (
               <Button
                 type="button"
-                onClick={() => setCurrentStep(s => s + 1)}
+                onClick={() => setCurrentStep((s) => s + 1)}
                 disabled={!canGoNext}
               >
                 Next
