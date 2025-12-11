@@ -9,6 +9,7 @@ import {
   AlertCircle, CheckCircle2, Clock, User, Loader2, ShieldCheck, ShieldOff,
   Crown, Ban, ExternalLink, Mail, Phone,
 } from 'lucide-react';
+import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import toast from 'react-hot-toast';
 import EntityToolbar from '@/components/EntityToolbar';
 import Button from '@/components/ui/Button';
@@ -531,6 +532,7 @@ const Pets = () => {
         {/* Header Section */}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between pb-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
           <div>
+            <Breadcrumbs items={['Clients', 'Pets']} />
             <h1 className="text-2xl font-bold text-[color:var(--bb-color-text-primary)]">Pets Directory</h1>
             <p className="mt-0.5 text-sm text-[color:var(--bb-color-text-muted)]">
               Manage all registered pets and their records

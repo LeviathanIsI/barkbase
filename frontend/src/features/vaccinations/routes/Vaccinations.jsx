@@ -345,7 +345,7 @@ const Vaccinations = () => {
       <div className="pb-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
         <PageHeader
           breadcrumbs={[
-            { label: 'Directory', href: '/pets' },
+            { label: 'Clients' },
             { label: 'Vaccinations' }
           ]}
           title="Vaccinations"

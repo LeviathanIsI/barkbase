@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, AlertTriangle, Clock, ListTodo, Home, ExternalLink, AlertCircle, Dog, User } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Clock, ListTodo, Home, ExternalLink, AlertCircle, Dog, User, ChevronRight } from 'lucide-react';
 import { useUserProfileQuery } from '@/features/settings/api-user';
 // Dashboard hooks available if needed:
 // import { useDashboardStatsQuery } from '@/features/dashboard/api';
@@ -155,6 +155,14 @@ const TodayCommandCenter = () => {
       "space-y-[var(--bb-space-6,1.5rem)] transition-opacity duration-200",
       hasLoaded ? "opacity-100" : "opacity-0"
     )}>
+      {/* Breadcrumbs */}
+      <nav className="mb-2">
+        <ol className="flex items-center gap-1 text-xs text-[color:var(--bb-color-text-muted)]">
+          <li><span>Today</span></li>
+          <li className="flex items-center gap-1"><ChevronRight className="h-3 w-3" /><span className="text-[color:var(--bb-color-text-primary)] font-medium">Command Center</span></li>
+        </ol>
+      </nav>
+
       {/* 12-column grid layout */}
       <div className="grid gap-[var(--bb-space-6,1.5rem)] lg:grid-cols-12">
         {/* Hero card spans full width */}

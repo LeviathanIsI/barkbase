@@ -20,6 +20,7 @@ import {
   TrendingUp,
   TrendingDown,
   Minus,
+  ChevronRight,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -162,6 +163,13 @@ export default function Segments() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
+          <nav className="mb-2">
+            <ol className="flex items-center gap-1 text-xs text-[color:var(--bb-color-text-muted)]">
+              <li><span>Clients</span></li>
+              <li className="flex items-center"><ChevronRight className="h-3 w-3" /></li>
+              <li className="text-[color:var(--bb-color-text-primary)] font-medium">Segments</li>
+            </ol>
+          </nav>
           <h1 className="text-2xl font-bold text-[color:var(--bb-color-text-primary)]">
             Customer Segments
           </h1>

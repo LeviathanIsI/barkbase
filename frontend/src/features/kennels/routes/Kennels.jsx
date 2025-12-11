@@ -382,7 +382,7 @@ const Kennels = () => {
           <div>
             <nav className="mb-1">
               <ol className="flex items-center gap-1 text-xs text-muted">
-                <li><Link to="/settings" className="hover:text-primary">Administration</Link></li>
+                <li><span>Operations</span></li>
                 <li><ChevronRight className="h-3 w-3" /></li>
                 <li className="text-text font-medium">Kennels</li>
               </ol>
@@ -406,7 +406,7 @@ const Kennels = () => {
         <div>
           <nav className="mb-1">
             <ol className="flex items-center gap-1 text-xs text-muted">
-              <li><Link to="/settings" className="hover:text-primary">Administration</Link></li>
+              <li><span>Operations</span></li>
               <li><ChevronRight className="h-3 w-3" /></li>
               <li className="text-text font-medium">Kennels</li>
             </ol>

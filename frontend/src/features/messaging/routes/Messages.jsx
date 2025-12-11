@@ -451,7 +451,7 @@ const Messages = () => {
         <div>
           <nav className="mb-1">
             <ol className="flex items-center gap-1 text-xs text-muted">
-              <li><Link to="/operations" className="hover:text-primary">Operations</Link></li>
+              <li><span>Communications</span></li>
               <li><ChevronRight className="h-3 w-3" /></li>
               <li className="text-text font-medium">Messages</li>
             </ol>

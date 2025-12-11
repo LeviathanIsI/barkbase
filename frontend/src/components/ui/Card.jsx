@@ -220,21 +220,17 @@ const PageHeader = React.forwardRef(({
                     !isFirst && !isLast && 'hidden sm:flex'
                   )}
                 >
-                  {isLast ? (
-                    <span
-                      className="text-[var(--bb-font-size-xs)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)] max-w-[200px] truncate"
-                      aria-current="page"
-                    >
-                      {item.label}
-                    </span>
-                  ) : (
-                    <a
-                      href={item.href}
-                      className="text-[var(--bb-font-size-xs)] text-[var(--bb-color-text-muted)] hover:text-[var(--bb-color-text-primary)] transition-colors max-w-[150px] truncate"
-                    >
-                      {item.label}
-                    </a>
-                  )}
+                  <span
+                    className={cn(
+                      "text-xs max-w-[200px] truncate",
+                      isLast
+                        ? "font-medium text-[color:var(--bb-color-text-primary)]"
+                        : "text-[color:var(--bb-color-text-muted)]"
+                    )}
+                    aria-current={isLast ? "page" : undefined}
+                  >
+                    {item.label}
+                  </span>
                 </li>
                 {!isLast && (
                   <li 
@@ -250,8 +246,8 @@ const PageHeader = React.forwardRef(({
                   </li>
                 )}
                 {isFirst && breadcrumbs.length > 2 && (
-                  <li className="flex items-center sm:hidden text-[var(--bb-color-text-muted)]">
-                    <span className="text-[var(--bb-font-size-xs)] px-[var(--bb-space-1)]">...</span>
+                  <li className="flex items-center sm:hidden text-[color:var(--bb-color-text-muted)]">
+                    <span className="text-xs px-1">...</span>
                     <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>

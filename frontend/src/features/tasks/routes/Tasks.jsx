@@ -904,7 +904,7 @@ const Tasks = () => {
         <div>
           <nav className="mb-2">
             <ol className="flex items-center gap-1 text-xs text-[color:var(--bb-color-text-muted)]">
-              <li><Link to="/operations" className="hover:text-[color:var(--bb-color-accent)]">Operations</Link></li>
+              <li><span>Operations</span></li>
               <li><ChevronRight className="h-3 w-3" /></li>
               <li className="text-[color:var(--bb-color-text-primary)] font-medium">Tasks</li>
             </ol>

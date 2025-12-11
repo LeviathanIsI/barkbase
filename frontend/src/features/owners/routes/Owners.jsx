@@ -7,6 +7,7 @@ import {
   BookmarkPlus, PawPrint, ArrowUpDown, ArrowUp, ArrowDown, GripVertical,
   Calendar, Loader2, ShieldCheck, ShieldOff, Crown, Ban, Clock,
 } from 'lucide-react';
+import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import { formatDistanceToNow } from 'date-fns';
 import EntityToolbar from '@/components/EntityToolbar';
 import Button from '@/components/ui/Button';
@@ -328,6 +329,7 @@ const Owners = () => {
         {/* Header Section */}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between pb-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
           <div>
+            <Breadcrumbs items={['Clients', 'Owners']} />
             <h1 className="text-2xl font-bold text-[color:var(--bb-color-text-primary)]">Pet Owners</h1>
             <p className="mt-0.5 text-sm text-[color:var(--bb-color-text-muted)]">
               Manage your client relationships

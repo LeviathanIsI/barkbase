@@ -3,6 +3,7 @@
  * Main page for incident reporting and management
  */
 import { useState, useCallback } from 'react';
+import { ChevronRight } from 'lucide-react';
 import IncidentList from '../components/IncidentList';
 import IncidentForm from '../components/IncidentForm';
 import { createIncident, updateIncident } from '../api';
@@ -56,6 +57,13 @@ export default function IncidentsPage() {
       <div className="max-w-6xl mx-auto">
         {/* Page Header */}
         <div className="mb-6">
+          <nav className="mb-2">
+            <ol className="flex items-center gap-1 text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
+              <li><span>Operations</span></li>
+              <li className="flex items-center"><ChevronRight className="h-3 w-3" /></li>
+              <li style={{ color: 'var(--bb-color-text-primary)', fontWeight: 500 }}>Incidents</li>
+            </ol>
+          </nav>
           <h1
             className="text-2xl font-bold mb-1"
             style={{ color: 'var(--bb-color-text-primary)' }}
