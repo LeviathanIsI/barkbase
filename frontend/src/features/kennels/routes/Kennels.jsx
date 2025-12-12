@@ -147,8 +147,8 @@ const KennelUnit = ({ kennel, onClick, isSelected }) => {
             : 'bg-gray-100 dark:bg-gray-800/50 opacity-60'
         )}
       >
-        {/* Status indicator dot - slightly larger */}
-        <div className={cn('absolute top-3 right-3 w-3.5 h-3.5 rounded-full', status.bg)} />
+        {/* Status indicator dot - positioned in corner with breathing room */}
+        <div className={cn('absolute top-2 right-2 w-2.5 h-2.5 rounded-full', status.bg)} />
 
         {/* Kennel name */}
         <span className="text-base font-bold text-[color:var(--bb-color-text-primary)] mb-1.5">
