@@ -1077,26 +1077,24 @@ const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut,
         onBookingClick(pet);
       }}
     >
-      {/* Main content */}
-      <div className="flex items-start justify-between gap-1">
-        <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold text-[color:var(--bb-color-text-primary)] truncate flex items-center gap-1">
-            <PawPrint className="h-3 w-3 shrink-0" />
+      {/* Compact single-row layout - uses horizontal space */}
+      <div className="flex items-center justify-between gap-2 h-full">
+        {/* Left: Pet name with icon */}
+        <div className="flex items-center gap-1 min-w-0">
+          <PawPrint className="h-3 w-3 shrink-0 text-[color:var(--bb-color-text-primary)]" />
+          <span className="text-[11px] font-semibold text-[color:var(--bb-color-text-primary)] truncate">
             {pet.petName}
-          </p>
-          <p className="text-[9px] text-[color:var(--bb-color-text-muted)] truncate">
-            {pet.ownerName}
-          </p>
+          </span>
         </div>
-        {/* Service badge */}
-        <span className={cn('text-[8px] font-medium px-1 py-0.5 rounded shrink-0', getServiceColor(pet.serviceType))}>
-          {pet.serviceType || 'Daycare'}
-        </span>
-      </div>
 
-      {/* Check In/Out buttons */}
-      {(showCheckIn || showCheckOut) && (
-        <div className="mt-1 flex gap-1">
+        {/* Middle: Owner name */}
+        <span className="text-[9px] text-[color:var(--bb-color-text-muted)] truncate hidden sm:block">
+          {pet.ownerName}
+        </span>
+
+        {/* Right: Actions and badge */}
+        <div className="flex items-center gap-1 shrink-0">
+          {/* Check In/Out buttons */}
           {showCheckIn && (
             <button
               type="button"
@@ -1119,8 +1117,12 @@ const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut,
               {checkOutPending ? '...' : 'Out'}
             </button>
           )}
+          {/* Service badge */}
+          <span className={cn('text-[8px] font-medium px-1 py-0.5 rounded', getServiceColor(pet.serviceType))}>
+            {pet.serviceType || 'Daycare'}
+          </span>
         </div>
-      )}
+      </div>
 
       {/* Tooltip on hover */}
       {showTooltip && (
