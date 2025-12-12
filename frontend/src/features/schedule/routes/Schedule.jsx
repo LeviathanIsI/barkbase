@@ -1,10 +1,10 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { format, addDays, startOfWeek } from 'date-fns';
+import { addDays, startOfWeek } from 'date-fns';
 import {
-  Plus, Home, Users, Settings, ChevronLeft, ChevronRight,
+  Plus, Home, Users, Settings, ChevronRight,
   Clock, PawPrint, UserCheck, UserX, CheckCircle,
-  TrendingUp, Brain, CheckSquare, Search, LogIn, LogOut,
+  TrendingUp, Brain, Search, LogIn, LogOut,
   AlertTriangle, BarChart3, Zap, Info, Phone, User,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
@@ -36,6 +36,8 @@ const Schedule = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showAssignmentPanel, setShowAssignmentPanel] = useState(false);
+  const [selectedRunForAssignment, setSelectedRunForAssignment] = useState(null);
 
   // Filter state
   const [activeFilter, setActiveFilter] = useState(null); // 'pets' | 'checkins' | 'checkouts' | 'occupancy'
@@ -285,17 +287,34 @@ const Schedule = () => {
     setShowBookingModal(true);
   }, []);
 
-  const navigateWeek = useCallback((direction) => {
-    setCurrentDate(prev => addDays(prev, direction * 7));
-  }, []);
+  // Get checked-in pets that are not assigned to any run today
+  const unassignedCheckedInPets = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
 
-  // Navigate by day for the hourly grid
-  const navigateDay = useCallback((direction) => {
-    setCurrentDate(prev => addDays(prev, direction));
-  }, []);
+    // Get all assigned pet IDs for today
+    const assignedPetIds = new Set(
+      processedAssignments
+        .filter(a => a.dateStr === today)
+        .map(a => a.petId)
+    );
 
-  const goToToday = useCallback(() => {
-    setCurrentDate(new Date());
+    // Get checked-in bookings that don't have a run assignment
+    return processedBookings.filter(b => {
+      if (b.status !== 'CHECKED_IN') return false;
+      if (!b.checkInDate || !b.checkOutDate) return false;
+      const inStr = b.checkInDate.toISOString().split('T')[0];
+      const outStr = b.checkOutDate.toISOString().split('T')[0];
+      // Must be active today
+      if (today < inStr || today > outStr) return false;
+      // Must not already be assigned
+      return !assignedPetIds.has(b.pet?.id || b.petId);
+    });
+  }, [processedBookings, processedAssignments]);
+
+  // Handler for empty cell click - opens assignment panel
+  const handleEmptyCellClick = useCallback((run, hour) => {
+    setSelectedRunForAssignment({ ...run, hour });
+    setShowAssignmentPanel(true);
   }, []);
 
   return (
@@ -394,11 +413,7 @@ const Schedule = () => {
             currentDate={currentDate}
             isLoading={isLoading}
             onBookingClick={handleBookingClick}
-            onNewBooking={(runId, date) => {
-              setShowNewBookingModal(true);
-            }}
-            onNavigateDay={navigateDay}
-            onGoToToday={goToToday}
+            onEmptyCellClick={handleEmptyCellClick}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
             serviceFilter={serviceFilter}
@@ -409,7 +424,7 @@ const Schedule = () => {
           {/* Right: Stacked widgets */}
           <div className="space-y-6">
             <CapacityOverview stats={stats} />
-            <SmartSchedulingAssistant stats={stats} />
+            <SmartSchedulingAssistant stats={stats} onOpenCheckInPanel={() => setShowCheckInOutPanel(true)} />
           </div>
         </div>
       </div>
@@ -454,6 +469,33 @@ const Schedule = () => {
         <CheckInOutDashboard
           currentDate={currentDate}
           onBookingClick={handleBookingClick}
+        />
+      </SlidePanel>
+
+      {/* Pet Assignment Panel */}
+      <SlidePanel
+        open={showAssignmentPanel}
+        onClose={() => {
+          setShowAssignmentPanel(false);
+          setSelectedRunForAssignment(null);
+        }}
+        title={`Assign Pet to ${selectedRunForAssignment?.name || 'Run'}`}
+      >
+        <PetAssignmentPanel
+          run={selectedRunForAssignment}
+          unassignedPets={unassignedCheckedInPets}
+          onAssign={(pet) => {
+            // TODO: Call API to assign pet to run
+            toast.success(`${pet.petName} assigned to ${selectedRunForAssignment?.name}`);
+            setShowAssignmentPanel(false);
+            setSelectedRunForAssignment(null);
+            // Refetch assignments
+            refetchAssignments();
+          }}
+          onClose={() => {
+            setShowAssignmentPanel(false);
+            setSelectedRunForAssignment(null);
+          }}
         />
       </SlidePanel>
     </div>
@@ -550,9 +592,7 @@ const DailyHourlyGrid = ({
   currentDate,
   isLoading,
   onBookingClick,
-  onNewBooking,
-  onNavigateDay,
-  onGoToToday,
+  onEmptyCellClick,
   searchTerm,
   onSearchChange,
   serviceFilter,
@@ -658,8 +698,6 @@ const DailyHourlyGrid = ({
     }
   }, [checkOutMutation, userId]);
 
-  const dateLabel = format(currentDate, 'EEEE, MMMM d, yyyy');
-
   return (
     <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}>
       {/* Header */}
@@ -667,16 +705,7 @@ const DailyHourlyGrid = ({
         <div className="flex items-center gap-3">
           <Clock className="h-5 w-5 text-[color:var(--bb-color-text-muted)]" />
           <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">Today's Facility Grid</h3>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => onNavigateDay(-1)} className="px-2 h-8">
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="sm" onClick={onGoToToday} className="h-8">Today</Button>
-          <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)] min-w-[200px] text-center">{dateLabel}</span>
-          <Button variant="ghost" size="sm" onClick={() => onNavigateDay(1)} className="px-2 h-8">
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+          <Badge variant="info" size="sm">Today</Badge>
         </div>
       </div>
 
@@ -825,7 +854,7 @@ const DailyHourlyGrid = ({
                           backgroundColor: isCurrentHour ? undefined : 'var(--bb-color-bg-body)',
                           borderColor: 'var(--bb-color-border-subtle)',
                         }}
-                        onClick={() => hasPets ? onBookingClick(cellPets[0]) : onNewBooking(run.id, currentDate)}
+                        onClick={() => hasPets ? onBookingClick(cellPets[0]) : onEmptyCellClick(run, hour)}
                       >
                         {hasPets ? (
                           <div className="p-1 space-y-1 overflow-hidden">
@@ -1098,7 +1127,7 @@ const CapacityOverview = ({ stats }) => {
 };
 
 // Smart Scheduling Assistant
-const SmartSchedulingAssistant = ({ stats }) => {
+const SmartSchedulingAssistant = ({ stats, onOpenCheckInPanel }) => {
   const insights = useMemo(() => {
     const list = [];
 
@@ -1108,6 +1137,7 @@ const SmartSchedulingAssistant = ({ stats }) => {
         icon: AlertTriangle,
         title: 'High Capacity',
         message: `At ${stats.occupancy}% capacity — consider limiting new bookings`,
+        clickable: false,
       });
     } else if (stats.occupancy < 50) {
       list.push({
@@ -1115,15 +1145,18 @@ const SmartSchedulingAssistant = ({ stats }) => {
         icon: CheckCircle,
         title: 'Good Availability',
         message: `${stats.availableSpots} spots open — great time to accept new bookings`,
+        clickable: false,
       });
     }
 
     if (stats.checkIns > 0) {
       list.push({
         type: 'info',
-        icon: Info,
+        icon: UserCheck,
         title: 'Pending Check-ins',
-        message: `${stats.checkIns} guest${stats.checkIns > 1 ? 's' : ''} arriving — ensure kennels are ready`,
+        message: `${stats.checkIns} guest${stats.checkIns > 1 ? 's' : ''} arriving — click to view`,
+        clickable: true,
+        onClick: onOpenCheckInPanel,
       });
     }
 
@@ -1133,11 +1166,12 @@ const SmartSchedulingAssistant = ({ stats }) => {
         icon: CheckCircle,
         title: 'All Systems Optimal',
         message: 'No scheduling recommendations at this time',
+        clickable: false,
       });
     }
 
     return list;
-  }, [stats]);
+  }, [stats, onOpenCheckInPanel]);
 
   const variantStyles = {
     success: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/50 text-emerald-800 dark:text-emerald-200',
@@ -1155,16 +1189,91 @@ const SmartSchedulingAssistant = ({ stats }) => {
       <div className="space-y-2">
         {insights.map((insight, idx) => {
           const Icon = insight.icon;
+          const Wrapper = insight.clickable ? 'button' : 'div';
           return (
-            <div key={idx} className={cn('flex items-start gap-2 rounded-lg border p-3', variantStyles[insight.type])}>
+            <Wrapper
+              key={idx}
+              type={insight.clickable ? 'button' : undefined}
+              onClick={insight.clickable ? insight.onClick : undefined}
+              className={cn(
+                'flex items-start gap-2 rounded-lg border p-3 w-full text-left',
+                variantStyles[insight.type],
+                insight.clickable && 'cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all'
+              )}
+            >
               <Icon className="h-4 w-4 mt-0.5 shrink-0" />
-              <div>
+              <div className="flex-1">
                 <p className="font-medium text-sm">{insight.title}</p>
                 <p className="text-xs opacity-80">{insight.message}</p>
               </div>
-            </div>
+              {insight.clickable && (
+                <ChevronRight className="h-4 w-4 mt-0.5 shrink-0 opacity-60" />
+              )}
+            </Wrapper>
           );
         })}
+      </div>
+    </div>
+  );
+};
+
+// Pet Assignment Panel - Shows unassigned checked-in pets to assign to a run
+const PetAssignmentPanel = ({ run, unassignedPets, onAssign, onClose }) => {
+  if (!run) return null;
+
+  return (
+    <div className="p-4 space-y-4">
+      {/* Run Info */}
+      <div className="p-3 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+        <p className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">{run.name}</p>
+        <p className="text-xs text-[color:var(--bb-color-text-muted)]">{run.type} • Capacity: {run.capacity}</p>
+      </div>
+
+      {/* Unassigned Pets List */}
+      <div>
+        <h4 className="text-sm font-medium text-[color:var(--bb-color-text-primary)] mb-2">
+          Available Pets to Assign
+        </h4>
+        {unassignedPets.length === 0 ? (
+          <div className="text-center py-8">
+            <PawPrint className="h-8 w-8 text-[color:var(--bb-color-text-muted)] mx-auto mb-2" />
+            <p className="text-sm text-[color:var(--bb-color-text-muted)]">All checked-in pets are already assigned</p>
+            <p className="text-xs text-[color:var(--bb-color-text-muted)] mt-1">Check in more pets or clear existing assignments</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {unassignedPets.map((pet) => (
+              <button
+                key={pet.id}
+                type="button"
+                onClick={() => onAssign(pet)}
+                className="w-full flex items-center gap-3 p-3 rounded-lg border transition-all hover:shadow-md hover:-translate-y-0.5 hover:border-[var(--bb-color-accent)] cursor-pointer"
+                style={{
+                  backgroundColor: 'var(--bb-color-bg-surface)',
+                  borderColor: 'var(--bb-color-border-subtle)',
+                }}
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--bb-color-accent)] text-white shrink-0">
+                  <PawPrint className="h-5 w-5" />
+                </div>
+                <div className="flex-1 text-left min-w-0">
+                  <p className="font-medium text-sm text-[color:var(--bb-color-text-primary)] truncate">{pet.petName}</p>
+                  <p className="text-xs text-[color:var(--bb-color-text-muted)] truncate">
+                    {pet.pet?.breed || 'Pet'} • {pet.ownerName}
+                  </p>
+                </div>
+                <Badge variant="success" size="sm">Checked In</Badge>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="pt-4 border-t" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+        <Button variant="outline" size="sm" className="w-full" onClick={onClose}>
+          Cancel
+        </Button>
       </div>
     </div>
   );
