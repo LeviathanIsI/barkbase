@@ -487,27 +487,58 @@ const Schedule = () => {
         <PetAssignmentPanel
           run={selectedRunForAssignment}
           unassignedPets={unassignedCheckedInPets}
-          onAssign={async (pet) => {
+          onAssign={async (pet, startTime, endTime) => {
+            console.log('[Schedule] onAssign called with pet:', pet, 'startTime:', startTime, 'endTime:', endTime);
+            console.log('[Schedule] selectedRunForAssignment:', selectedRunForAssignment);
+
             if (!selectedRunForAssignment?.id) {
+              console.error('[Schedule] No run selected - missing id');
               toast.error('No run selected');
               return;
             }
+
+            const todayStr = currentDate.toISOString().split('T')[0];
+            // pet is actually a booking object from processedBookings
+            const petId = pet.pet?.id || pet.petId;
+            const bookingId = pet.id; // The booking's ID
+
+            console.log('[Schedule] Assigning pet to run:', {
+              runId: selectedRunForAssignment.id,
+              runName: selectedRunForAssignment.name,
+              petId,
+              petName: pet.petName,
+              date: todayStr,
+              bookingId,
+              startTime,
+              endTime,
+            });
+
+            if (!petId) {
+              console.error('[Schedule] No petId found in booking:', pet);
+              toast.error('Could not find pet ID');
+              return;
+            }
+
             try {
-              const todayStr = currentDate.toISOString().split('T')[0];
-              await assignPetsMutation.mutateAsync({
+              const result = await assignPetsMutation.mutateAsync({
                 runId: selectedRunForAssignment.id,
-                petIds: [pet.pet?.id || pet.petId || pet.id],
+                petIds: [petId],
                 date: todayStr,
-                bookingIds: pet.bookingId ? [pet.bookingId] : undefined,
+                bookingIds: [bookingId],
+                startTime,
+                endTime,
               });
+
+              console.log('[Schedule] Assignment result:', result);
               toast.success(`${pet.petName} assigned to ${selectedRunForAssignment?.name}`);
               setShowAssignmentPanel(false);
               setSelectedRunForAssignment(null);
               // Refetch assignments
               refetchAssignments();
             } catch (error) {
-              console.error('Failed to assign pet:', error);
-              toast.error(error?.message || 'Failed to assign pet to run');
+              console.error('[Schedule] Failed to assign pet:', error);
+              console.error('[Schedule] Error details:', error?.response?.data || error?.message);
+              toast.error(error?.response?.data?.message || error?.message || 'Failed to assign pet to run');
             }
           }}
           onClose={() => {
@@ -654,10 +685,27 @@ const DailyHourlyGrid = ({
     // First check run assignments for this run/kennel on this date
     const runAssignments = assignments.filter(a => {
       if (a.runId !== runId || a.dateStr !== dateStr) return false;
-      // Check if this assignment covers this hour
-      const startHour = a.startAt ? new Date(a.startAt).getHours() : 0;
-      const endHour = a.endAt ? new Date(a.endAt).getHours() : 23;
-      return hour >= startHour && hour <= endHour;
+
+      // Parse start/end time - could be TIME strings like "08:00" or timestamps
+      let startHour = 0;
+      let endHour = 23;
+
+      if (a.startTime) {
+        // TIME string like "08:00:00" or "08:00"
+        const parts = a.startTime.split(':');
+        startHour = parseInt(parts[0], 10) || 0;
+      } else if (a.startAt) {
+        startHour = new Date(a.startAt).getHours();
+      }
+
+      if (a.endTime) {
+        const parts = a.endTime.split(':');
+        endHour = parseInt(parts[0], 10) || 23;
+      } else if (a.endAt) {
+        endHour = new Date(a.endAt).getHours();
+      }
+
+      return hour >= startHour && hour < endHour;
     });
 
     if (runAssignments.length > 0) return runAssignments;
@@ -1237,7 +1285,21 @@ const SmartSchedulingAssistant = ({ stats, onOpenCheckInPanel }) => {
 
 // Pet Assignment Panel - Shows unassigned checked-in pets to assign to a run
 const PetAssignmentPanel = ({ run, unassignedPets, onAssign, onClose }) => {
+  const [startTime, setStartTime] = useState('08:00');
+  const [endTime, setEndTime] = useState('18:00');
+
   if (!run) return null;
+
+  // Generate time options (6am to 8pm)
+  const timeOptions = [];
+  for (let h = 6; h <= 20; h++) {
+    const hour = h.toString().padStart(2, '0');
+    timeOptions.push(`${hour}:00`);
+  }
+
+  const handleAssign = (pet) => {
+    onAssign(pet, startTime, endTime);
+  };
 
   return (
     <div className="p-4 space-y-4">
@@ -1245,6 +1307,44 @@ const PetAssignmentPanel = ({ run, unassignedPets, onAssign, onClose }) => {
       <div className="p-3 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
         <p className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">{run.name}</p>
         <p className="text-xs text-[color:var(--bb-color-text-muted)]">{run.type} • Capacity: {run.capacity}</p>
+      </div>
+
+      {/* Time Selection */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-1">Start Time</label>
+          <select
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value)}
+            className="w-full rounded-lg border px-3 py-2 text-sm"
+            style={{
+              backgroundColor: 'var(--bb-color-bg-surface)',
+              borderColor: 'var(--bb-color-border-subtle)',
+              color: 'var(--bb-color-text-primary)',
+            }}
+          >
+            {timeOptions.map(time => (
+              <option key={time} value={time}>{time}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-1">End Time</label>
+          <select
+            value={endTime}
+            onChange={(e) => setEndTime(e.target.value)}
+            className="w-full rounded-lg border px-3 py-2 text-sm"
+            style={{
+              backgroundColor: 'var(--bb-color-bg-surface)',
+              borderColor: 'var(--bb-color-border-subtle)',
+              color: 'var(--bb-color-text-primary)',
+            }}
+          >
+            {timeOptions.map(time => (
+              <option key={time} value={time}>{time}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Unassigned Pets List */}
@@ -1264,7 +1364,7 @@ const PetAssignmentPanel = ({ run, unassignedPets, onAssign, onClose }) => {
               <button
                 key={pet.id}
                 type="button"
-                onClick={() => onAssign(pet)}
+                onClick={() => handleAssign(pet)}
                 className="w-full flex items-center gap-3 p-3 rounded-lg border transition-all hover:shadow-md hover:-translate-y-0.5 hover:border-[var(--bb-color-accent)] cursor-pointer"
                 style={{
                   backgroundColor: 'var(--bb-color-bg-surface)',

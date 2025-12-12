@@ -135,6 +135,11 @@ export const useAssignPetsToRunMutation = () => {
 
   return useMutation({
     mutationFn: async ({ runId, petIds, date, startTime, endTime, bookingIds }) => {
+      console.log('[useAssignPetsToRunMutation] Calling API:', {
+        url: `/api/v1/runs/${runId}/assignments`,
+        payload: { date, petIds, startTime, endTime, bookingIds },
+      });
+
       const res = await apiClient.post(`/api/v1/runs/${runId}/assignments`, {
         date,
         petIds,
@@ -142,6 +147,8 @@ export const useAssignPetsToRunMutation = () => {
         endTime,
         bookingIds,
       });
+
+      console.log('[useAssignPetsToRunMutation] Response:', res.data);
       return res.data;
     },
     onSuccess: (data, variables) => {

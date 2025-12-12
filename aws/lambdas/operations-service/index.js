@@ -4014,8 +4014,8 @@ async function handleAssignPetsToRun(tenantId, runId, body) {
   try {
     await getPoolAsync();
 
-    // Verify run exists - check both Run and RunTemplate tables
-    let runRecord = null;
+    // Verify run exists - check Run table first, then RunTemplate
+    let actualRunId = runId;
 
     // First check Run table
     const runCheck = await query(
@@ -4024,30 +4024,44 @@ async function handleAssignPetsToRun(tenantId, runId, body) {
     );
 
     if (runCheck.rows.length > 0) {
-      runRecord = runCheck.rows[0];
+      console.log('[RunAssignments][assignToRun] Found Run:', runCheck.rows[0].name);
     } else {
-      // If not found in Run, check RunTemplate and use its ID
+      // If not found in Run, check RunTemplate and create a Run from it
       const templateCheck = await query(
-        `SELECT id, name FROM "RunTemplate" WHERE id = $1 AND tenant_id = $2`,
+        `SELECT id, name, description, capacity, run_type FROM "RunTemplate" WHERE id = $1 AND tenant_id = $2`,
         [runId, tenantId]
       );
 
       if (templateCheck.rows.length > 0) {
-        runRecord = templateCheck.rows[0];
-        console.log('[RunAssignments][assignToRun] Using RunTemplate ID as run_id:', runId);
+        const template = templateCheck.rows[0];
+        console.log('[RunAssignments][assignToRun] Found RunTemplate:', template.name, '- creating Run record');
+
+        // Create a Run record from the template (using same ID for consistency)
+        const createRun = await query(
+          `INSERT INTO "Run" (id, tenant_id, name, description, capacity, run_type, is_active)
+           VALUES ($1, $2, $3, $4, $5, $6, true)
+           ON CONFLICT (id) DO NOTHING
+           RETURNING id`,
+          [template.id, tenantId, template.name, template.description, template.capacity, template.run_type]
+        );
+
+        if (createRun.rows.length > 0) {
+          console.log('[RunAssignments][assignToRun] Created Run from template:', createRun.rows[0].id);
+        } else {
+          console.log('[RunAssignments][assignToRun] Run already exists (created by concurrent request)');
+        }
+        actualRunId = template.id;
+      } else {
+        return createResponse(404, {
+          error: 'Not Found',
+          message: 'Run or RunTemplate not found',
+        });
       }
     }
 
-    if (!runRecord) {
-      return createResponse(404, {
-        error: 'Not Found',
-        message: 'Run or RunTemplate not found',
-      });
-    }
-
-    // Parse times
-    let startAt = startTime ? `${date}T${startTime}:00` : `${date}T00:00:00`;
-    let endAt = endTime ? `${date}T${endTime}:00` : `${date}T23:59:59`;
+    // Parse times - schema uses TIME columns, not TIMESTAMPTZ
+    const startTimeVal = startTime || '08:00';
+    const endTimeVal = endTime || '18:00';
 
     const created = [];
     const errors = [];
@@ -4057,23 +4071,41 @@ async function handleAssignPetsToRun(tenantId, runId, body) {
       const bookingId = bookingIds?.[i] || null;
 
       try {
-        // Use upsert to handle duplicates
-        const result = await query(
-          `INSERT INTO "RunAssignment" (tenant_id, run_id, pet_id, booking_id, start_at, end_at, status)
-           VALUES ($1, $2, $3, $4, $5::timestamptz, $6::timestamptz, 'SCHEDULED')
-           ON CONFLICT (run_id, pet_id, start_at)
-           DO UPDATE SET end_at = EXCLUDED.end_at, booking_id = EXCLUDED.booking_id, updated_at = NOW()
-           RETURNING id`,
-          [tenantId, runId, petId, bookingId, startAt, endAt]
+        // Schema: assigned_date (DATE), start_time (TIME), end_time (TIME)
+        // Check if assignment already exists for this pet/run/date
+        const existingCheck = await query(
+          `SELECT id FROM "RunAssignment" WHERE run_id = $1 AND pet_id = $2 AND assigned_date = $3::date`,
+          [actualRunId, petId, date]
         );
+
+        let result;
+        if (existingCheck.rows.length > 0) {
+          // Update existing
+          result = await query(
+            `UPDATE "RunAssignment" SET start_time = $1::time, end_time = $2::time, booking_id = COALESCE($3, booking_id)
+             WHERE run_id = $4 AND pet_id = $5 AND assigned_date = $6::date
+             RETURNING id`,
+            [startTimeVal, endTimeVal, bookingId, actualRunId, petId, date]
+          );
+        } else {
+          // Insert new
+          result = await query(
+            `INSERT INTO "RunAssignment" (tenant_id, run_id, pet_id, booking_id, assigned_date, start_time, end_time)
+             VALUES ($1, $2, $3, $4, $5::date, $6::time, $7::time)
+             RETURNING id`,
+            [tenantId, actualRunId, petId, bookingId, date, startTimeVal, endTimeVal]
+          );
+        }
 
         created.push({
           id: result.rows[0].id,
           petId,
-          startAt,
-          endAt,
+          assignedDate: date,
+          startTime: startTimeVal,
+          endTime: endTimeVal,
         });
       } catch (insertError) {
+        console.error('[RunAssignments][assignToRun] Insert error for pet', petId, ':', insertError.message);
         errors.push({ petId, error: insertError.message });
       }
     }
