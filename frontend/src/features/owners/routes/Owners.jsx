@@ -463,17 +463,20 @@ const Owners = () => {
           )}
         </div>
 
-        {/* Table Section - Uses full available width in content area */}
-        <div className="flex-1 flex flex-col mt-4">
+        {/* Table Section - Inner scroll with sticky header */}
+        <div className="flex-1 flex flex-col mt-4 min-h-0">
           {sortedOwners.length === 0 ? (
             <div className="py-8">
               <EmptyState hasFilters={hasActiveFilters} onClearFilters={clearFilters} onAddOwner={() => setFormModalOpen(true)} />
             </div>
           ) : (
-            <div className="flex-1 overflow-x-auto max-w-full">
+            <div
+              className="flex-1 overflow-auto border rounded-t-lg min-h-0"
+              style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+            >
               <table className="w-full text-sm min-w-[1024px]">
-                <thead>
-                  <tr style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderBottom: '2px solid var(--bb-color-border-subtle)' }}>
+                <thead className="sticky top-0 z-10">
+                  <tr style={{ backgroundColor: 'var(--bb-color-bg-elevated)', boxShadow: '0 1px 0 var(--bb-color-border-subtle)' }}>
                     {orderedColumns.map((column) => {
                       const thPadding = 'px-4 lg:px-6 py-3';
                       const alignClass = column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : 'text-left';
@@ -486,7 +489,7 @@ const Owners = () => {
                             'text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] whitespace-nowrap',
                             column.sortable && 'cursor-pointer hover:text-[color:var(--bb-color-text-primary)] transition-colors'
                           )}
-                          style={{ minWidth: column.minWidth, maxWidth: column.maxWidth }}
+                          style={{ minWidth: column.minWidth, maxWidth: column.maxWidth, backgroundColor: 'var(--bb-color-bg-elevated)' }}
                           onClick={() => column.sortable && handleSort(column.sortKey)}
                         >
                           {column.id === 'select' ? (
@@ -635,7 +638,7 @@ const OwnerRow = ({ owner, columns, isSelected, onSelect, onView, isEven, onStat
                 onView();
               }}
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold" style={{ backgroundColor: 'var(--bb-color-accent)', color: 'var(--bb-color-text-on-accent)' }}>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold bg-slate-600 dark:bg-slate-500 text-white">
                 {owner.fullName?.[0]?.toUpperCase() || 'O'}
               </div>
               <div className="min-w-0">
@@ -915,9 +918,10 @@ const EmptyState = ({ hasFilters, onClearFilters, onAddOwner }) => (
 );
 
 // Status Badge Dropdown Component - Clickable to change status
+// Active is subtle/muted, only non-active states draw attention
 const STATUS_OPTIONS = [
-  { value: true, label: 'Active', icon: ShieldCheck, variant: 'success', color: 'text-emerald-600' },
-  { value: false, label: 'Inactive', icon: ShieldOff, variant: 'neutral', color: 'text-gray-500' },
+  { value: true, label: 'Active', icon: ShieldCheck, variant: 'neutral', color: 'text-slate-500 dark:text-slate-400' },
+  { value: false, label: 'Inactive', icon: ShieldOff, variant: 'warning', color: 'text-amber-600 dark:text-amber-500' },
 ];
 
 const StatusBadgeDropdown = ({ owner, onStatusChange }) => {
