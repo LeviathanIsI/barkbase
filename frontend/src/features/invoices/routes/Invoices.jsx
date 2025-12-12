@@ -8,7 +8,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTour } from '@/contexts/TourContext';
 import { invoicesTourConfig, INVOICES_TOUR_ID, invoicesTourSteps } from '../tours';
 import { TourIconButton } from '@/components/ui/TourHelpButton';
-import { format, isPast } from 'date-fns';
+import { format, isPast, differenceInDays } from 'date-fns';
 import {
   FileText,
   Mail,
@@ -49,6 +49,11 @@ import {
   AlertCircle,
   CircleDollarSign,
   Wallet,
+  TrendingUp,
+  BarChart3,
+  Zap,
+  History,
+  Percent,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -919,6 +924,307 @@ const InvoiceDrawer = ({ invoice, isOpen, onClose, onSendEmail, onMarkPaid }) =>
   );
 };
 
+// Invoices Sidebar Component
+const InvoicesSidebar = ({ invoices, stats, onCreateInvoice, onExport, onSendReminders }) => {
+  // Calculate revenue summary
+  const revenueSummary = useMemo(() => {
+    const totalInvoiced = invoices.reduce((sum, i) => sum + (i.totalCents || 0), 0) / 100;
+    const totalCollected = invoices.reduce((sum, i) => sum + (i.paidCents || 0), 0) / 100;
+    const collectionRate = totalInvoiced > 0 ? (totalCollected / totalInvoiced) * 100 : 0;
+
+    return {
+      totalInvoiced,
+      totalCollected,
+      collectionRate,
+    };
+  }, [invoices]);
+
+  // Calculate aging report
+  const agingReport = useMemo(() => {
+    const now = new Date();
+    const unpaidInvoices = invoices.filter(i => i.status !== 'paid' && i.status !== 'void');
+
+    const aging = {
+      current: 0,      // Not due yet
+      days1to30: 0,    // 1-30 days overdue
+      days31to60: 0,   // 31-60 days overdue
+      days60plus: 0,   // 60+ days overdue
+    };
+
+    unpaidInvoices.forEach(inv => {
+      const balance = ((inv.totalCents || 0) - (inv.paidCents || 0)) / 100;
+      if (!inv.dueDate) {
+        aging.current += balance;
+        return;
+      }
+
+      const dueDate = new Date(inv.dueDate);
+      const daysOverdue = differenceInDays(now, dueDate);
+
+      if (daysOverdue <= 0) {
+        aging.current += balance;
+      } else if (daysOverdue <= 30) {
+        aging.days1to30 += balance;
+      } else if (daysOverdue <= 60) {
+        aging.days31to60 += balance;
+      } else {
+        aging.days60plus += balance;
+      }
+    });
+
+    const total = aging.current + aging.days1to30 + aging.days31to60 + aging.days60plus;
+
+    return { ...aging, total };
+  }, [invoices]);
+
+  // Recent activity (mock based on invoice data)
+  const recentActivity = useMemo(() => {
+    const activities = [];
+
+    // Get invoices with recent activity, sorted by most recent
+    const sortedInvoices = [...invoices]
+      .filter(i => i.paidAt || i.viewedAt || i.sentAt)
+      .sort((a, b) => {
+        const aDate = new Date(a.paidAt || a.viewedAt || a.sentAt || 0);
+        const bDate = new Date(b.paidAt || b.viewedAt || b.sentAt || 0);
+        return bDate - aDate;
+      })
+      .slice(0, 5);
+
+    sortedInvoices.forEach(inv => {
+      const ownerName = inv.customer
+        ? `${inv.customer.firstName || ''} ${inv.customer.lastName || ''}`.trim()
+        : inv.owner
+          ? `${inv.owner.firstName || ''} ${inv.owner.lastName || ''}`.trim()
+          : 'Customer';
+      const invNumber = inv.invoiceNumber || `INV-${(inv.id || inv.recordId)?.slice(0, 6)}`;
+
+      if (inv.paidAt) {
+        activities.push({
+          id: `${inv.id}-paid`,
+          type: 'paid',
+          text: `${ownerName} paid ${invNumber}`,
+          date: new Date(inv.paidAt),
+          icon: CheckCircle,
+          iconColor: 'text-green-600',
+        });
+      } else if (inv.viewedAt) {
+        activities.push({
+          id: `${inv.id}-viewed`,
+          type: 'viewed',
+          text: `${ownerName} viewed ${invNumber}`,
+          date: new Date(inv.viewedAt),
+          icon: Eye,
+          iconColor: 'text-amber-600',
+        });
+      } else if (inv.sentAt) {
+        activities.push({
+          id: `${inv.id}-sent`,
+          type: 'sent',
+          text: `${invNumber} sent to ${ownerName}`,
+          date: new Date(inv.sentAt),
+          icon: Send,
+          iconColor: 'text-blue-600',
+        });
+      }
+    });
+
+    return activities.sort((a, b) => b.date - a.date).slice(0, 5);
+  }, [invoices]);
+
+  const maxAgingValue = Math.max(
+    agingReport.current,
+    agingReport.days1to30,
+    agingReport.days31to60,
+    agingReport.days60plus,
+    1
+  );
+
+  return (
+    <div className="space-y-4">
+      {/* Revenue Summary Card */}
+      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <TrendingUp className="h-4 w-4 text-muted" />
+          <h3 className="text-sm font-medium text-text">Revenue Summary</h3>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-muted">Total Invoiced</span>
+            <span className="text-sm font-semibold text-text">
+              ${revenueSummary.totalInvoiced.toLocaleString()}
+            </span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-muted">Total Collected</span>
+            <span className="text-sm font-semibold text-green-600">
+              ${revenueSummary.totalCollected.toLocaleString()}
+            </span>
+          </div>
+          <div className="flex justify-between items-center pt-2 border-t border-border">
+            <span className="text-xs text-muted flex items-center gap-1">
+              <Percent className="h-3 w-3" />
+              Collection Rate
+            </span>
+            <span className={cn(
+              'text-sm font-semibold',
+              revenueSummary.collectionRate >= 90 ? 'text-green-600' :
+              revenueSummary.collectionRate >= 70 ? 'text-amber-600' : 'text-red-600'
+            )}>
+              {revenueSummary.collectionRate.toFixed(1)}%
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Aging Report Card */}
+      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <BarChart3 className="h-4 w-4 text-muted" />
+          <h3 className="text-sm font-medium text-text">Aging Report</h3>
+        </div>
+
+        <div className="space-y-3">
+          {/* Current */}
+          <div>
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-muted">Current (not due)</span>
+              <span className="text-text font-medium">${agingReport.current.toLocaleString()}</span>
+            </div>
+            <div className="h-2 bg-surface rounded-full overflow-hidden">
+              <div
+                className="h-full bg-green-500 rounded-full transition-all"
+                style={{ width: `${(agingReport.current / maxAgingValue) * 100}%` }}
+              />
+            </div>
+          </div>
+
+          {/* 1-30 days */}
+          <div>
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-muted">1-30 days overdue</span>
+              <span className="text-text font-medium">${agingReport.days1to30.toLocaleString()}</span>
+            </div>
+            <div className="h-2 bg-surface rounded-full overflow-hidden">
+              <div
+                className="h-full bg-amber-500 rounded-full transition-all"
+                style={{ width: `${(agingReport.days1to30 / maxAgingValue) * 100}%` }}
+              />
+            </div>
+          </div>
+
+          {/* 31-60 days */}
+          <div>
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-muted">31-60 days overdue</span>
+              <span className="text-text font-medium">${agingReport.days31to60.toLocaleString()}</span>
+            </div>
+            <div className="h-2 bg-surface rounded-full overflow-hidden">
+              <div
+                className="h-full bg-orange-500 rounded-full transition-all"
+                style={{ width: `${(agingReport.days31to60 / maxAgingValue) * 100}%` }}
+              />
+            </div>
+          </div>
+
+          {/* 60+ days */}
+          <div>
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-muted">60+ days overdue</span>
+              <span className="text-text font-medium">${agingReport.days60plus.toLocaleString()}</span>
+            </div>
+            <div className="h-2 bg-surface rounded-full overflow-hidden">
+              <div
+                className="h-full bg-red-500 rounded-full transition-all"
+                style={{ width: `${(agingReport.days60plus / maxAgingValue) * 100}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Total */}
+          <div className="flex items-center justify-between pt-2 border-t border-border">
+            <span className="text-xs text-muted">Total Outstanding</span>
+            <span className="text-sm font-semibold text-text">${agingReport.total.toLocaleString()}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Activity Card */}
+      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <History className="h-4 w-4 text-muted" />
+          <h3 className="text-sm font-medium text-text">Recent Activity</h3>
+        </div>
+
+        {recentActivity.length === 0 ? (
+          <p className="text-xs text-muted text-center py-4">No recent activity</p>
+        ) : (
+          <div className="space-y-2">
+            {recentActivity.map(activity => {
+              const ActivityIcon = activity.icon;
+              return (
+                <div
+                  key={activity.id}
+                  className="flex items-start gap-2 p-2 bg-surface rounded-lg"
+                >
+                  <div className={cn('h-5 w-5 flex items-center justify-center flex-shrink-0', activity.iconColor)}>
+                    <ActivityIcon className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs text-text truncate">{activity.text}</p>
+                    <p className="text-xs text-muted">
+                      {format(activity.date, 'MMM d, h:mm a')}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Quick Actions Card */}
+      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Zap className="h-4 w-4 text-muted" />
+          <h3 className="text-sm font-medium text-text">Quick Actions</h3>
+        </div>
+
+        <div className="space-y-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start"
+            onClick={onCreateInvoice}
+          >
+            <Plus className="h-3.5 w-3.5 mr-2" />
+            Create Invoice
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start"
+            onClick={onSendReminders}
+          >
+            <Mail className="h-3.5 w-3.5 mr-2" />
+            Send Reminders
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start"
+            onClick={onExport}
+          >
+            <Download className="h-3.5 w-3.5 mr-2" />
+            Export Report
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Invoices = () => {
   const navigate = useNavigate();
   const [selectedInvoices, setSelectedInvoices] = useState(new Set());
@@ -1126,6 +1432,40 @@ const Invoices = () => {
     }
   };
 
+  // Handler for sending bulk reminders (overdue invoices)
+  const handleSendReminders = async () => {
+    const overdueInvoices = invoices.filter(i =>
+      i.status !== 'paid' &&
+      i.status !== 'void' &&
+      i.dueDate &&
+      isPast(new Date(i.dueDate))
+    );
+
+    if (overdueInvoices.length === 0) {
+      toast.info('No overdue invoices to send reminders for');
+      return;
+    }
+
+    toast.info(`Sending reminders to ${overdueInvoices.length} overdue invoices...`);
+
+    let sent = 0;
+    for (const inv of overdueInvoices) {
+      try {
+        await sendEmailMutation.mutateAsync(inv.id || inv.recordId);
+        sent++;
+      } catch (e) {
+        // Continue with others
+      }
+    }
+
+    if (sent > 0) {
+      toast.success(`${sent} reminder${sent > 1 ? 's' : ''} sent`);
+      refetch();
+    } else {
+      toast.error('Failed to send reminders');
+    }
+  };
+
   // Add the void mutation
   const voidMutation = useVoidInvoiceMutation();
 
@@ -1329,71 +1669,75 @@ const Invoices = () => {
         ))}
       </div>
 
-      {/* Filters Toolbar */}
-      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-3" data-tour="invoices-filters">
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Search */}
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
-            <input
-              type="text"
-              placeholder="Search invoices..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-surface border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-            />
+      {/* Two Column Layout: Filters/Table + Sidebar */}
+      <div className="flex gap-5">
+        {/* Left Column: Filters & Invoice Table (70%) */}
+        <div className="flex-1 min-w-0 space-y-4">
+          {/* Filters Toolbar */}
+          <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-3" data-tour="invoices-filters">
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Search */}
+              <div className="relative flex-1 min-w-[200px] max-w-sm">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+                <input
+                  type="text"
+                  placeholder="Search invoices..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 bg-surface border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                />
+              </div>
+
+              {/* Date Range */}
+              <select
+                value={dateRange}
+                onChange={(e) => setDateRange(e.target.value)}
+                className="px-3 py-2 text-sm bg-surface border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+              >
+                <option value="all">All Time</option>
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+                <option value="quarter">This Quarter</option>
+              </select>
+
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters}>
+                  <X className="h-3.5 w-3.5 mr-1" />
+                  Clear
+                </Button>
+              )}
+
+              <div className="ml-auto flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handleExport}>
+                  <Download className="h-3.5 w-3.5 mr-1.5" />
+                  Export
+                </Button>
+              </div>
+            </div>
+
+            {/* Bulk Actions */}
+            {selectedInvoices.size > 0 && (
+              <div className="flex items-center gap-3 mt-3 pt-3 border-t border-border">
+                <span className="text-sm text-muted">{selectedInvoices.size} selected</span>
+                <Button variant="outline" size="sm">
+                  <Send className="h-3.5 w-3.5 mr-1.5" />
+                  Send
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleExport}>
+                  <Download className="h-3.5 w-3.5 mr-1.5" />
+                  Export
+                </Button>
+                <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                  <Ban className="h-3.5 w-3.5 mr-1.5" />
+                  Void
+                </Button>
+              </div>
+            )}
           </div>
 
-          {/* Date Range */}
-          <select
-            value={dateRange}
-            onChange={(e) => setDateRange(e.target.value)}
-            className="px-3 py-2 text-sm bg-surface border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
-          >
-            <option value="all">All Time</option>
-            <option value="today">Today</option>
-            <option value="week">This Week</option>
-            <option value="month">This Month</option>
-            <option value="quarter">This Quarter</option>
-          </select>
-
-          {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
-              <X className="h-3.5 w-3.5 mr-1" />
-              Clear
-            </Button>
-          )}
-
-          <div className="ml-auto flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleExport}>
-              <Download className="h-3.5 w-3.5 mr-1.5" />
-              Export
-            </Button>
-          </div>
-        </div>
-
-        {/* Bulk Actions */}
-        {selectedInvoices.size > 0 && (
-          <div className="flex items-center gap-3 mt-3 pt-3 border-t border-border">
-            <span className="text-sm text-muted">{selectedInvoices.size} selected</span>
-            <Button variant="outline" size="sm">
-              <Send className="h-3.5 w-3.5 mr-1.5" />
-              Send
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleExport}>
-              <Download className="h-3.5 w-3.5 mr-1.5" />
-              Export
-            </Button>
-            <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
-              <Ban className="h-3.5 w-3.5 mr-1.5" />
-              Void
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* Invoice Table */}
-      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg overflow-hidden" data-tour="invoices-table">
+          {/* Invoice Table */}
+          <div className="bg-white dark:bg-surface-primary border border-border rounded-lg overflow-hidden" data-tour="invoices-table">
         {isLoading ? (
           <div className="p-8 text-center">
             <LoadingState label="Loading invoices…" variant="spinner" />
@@ -1547,6 +1891,19 @@ const Invoices = () => {
             </div>
           </>
         )}
+          </div>
+        </div>
+
+        {/* Right Column: Contextual Sidebar (30%) */}
+        <div className="w-80 flex-shrink-0 hidden lg:block">
+          <InvoicesSidebar
+            invoices={invoices}
+            stats={stats}
+            onCreateInvoice={() => setShowCreateDrawer(true)}
+            onExport={handleExport}
+            onSendReminders={handleSendReminders}
+          />
+        </div>
       </div>
 
       {/* Invoice Detail Drawer */}
