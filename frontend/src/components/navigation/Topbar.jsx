@@ -763,33 +763,16 @@ const TimeClockButton = () => {
   const dropdownRef = useRef(null);
   const [currentDuration, setCurrentDuration] = useState({ hours: 0, mins: 0, secs: 0 });
 
-  // Import the hooks dynamically to avoid circular dependencies
-  const [hooks, setHooks] = useState(null);
-  useEffect(() => {
-    import('@/features/staff/hooks/useTimeClock').then((module) => {
-      setHooks(module);
-    });
-  }, []);
+  // Local state for time clock (will be replaced with API integration later)
+  const [status, setStatus] = useState('out'); // 'out' | 'in' | 'break'
+  const [clockedInTime, setClockedInTime] = useState(null);
+  const [breakStartTime, setBreakStartTime] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Use real API data when hooks are loaded
-  const timeStatusQuery = hooks?.useTimeStatus?.({ enabled: !!hooks }) || { data: null, isLoading: true };
-  const clockInMutation = hooks?.useClockIn?.() || { mutate: () => {}, isPending: false };
-  const clockOutMutation = hooks?.useClockOut?.() || { mutate: () => {}, isPending: false };
-  const startBreakMutation = hooks?.useStartBreak?.() || { mutate: () => {}, isPending: false };
-  const endBreakMutation = hooks?.useEndBreak?.() || { mutate: () => {}, isPending: false };
-
-  // Derive state from API response
-  const timeStatus = timeStatusQuery.data;
-  const isClockedIn = timeStatus?.isClockedIn || false;
-  const isOnBreak = timeStatus?.isOnBreak || false;
-  const status = !isClockedIn ? 'out' : isOnBreak ? 'break' : 'in';
-  const clockedInTime = timeStatus?.clockIn ? new Date(timeStatus.clockIn) : null;
-  const breakStartTime = timeStatus?.breakStart ? new Date(timeStatus.breakStart) : null;
-
-  // Calculate totals from API or use defaults
-  const workedMinutes = timeStatus?.workedMinutes || 0;
-  const todayHours = Math.floor(workedMinutes / 60);
-  const todayMins = workedMinutes % 60;
+  // Placeholder totals - will come from API
+  const todayHours = 0;
+  const todayMins = 0;
+  const weekTotal = 0;
 
   // Close on outside click
   useEffect(() => {
@@ -824,20 +807,49 @@ const TimeClockButton = () => {
     return () => clearInterval(interval);
   }, [status, clockedInTime, breakStartTime]);
 
-  const handleClockIn = () => {
-    clockInMutation.mutate({});
+  const handleClockIn = async () => {
+    setIsLoading(true);
+    try {
+      // TODO: Call API - clockIn()
+      setStatus('in');
+      setClockedInTime(new Date());
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleClockOut = () => {
-    clockOutMutation.mutate({});
+  const handleClockOut = async () => {
+    setIsLoading(true);
+    try {
+      // TODO: Call API - clockOut()
+      setStatus('out');
+      setClockedInTime(null);
+      setBreakStartTime(null);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleStartBreak = () => {
-    startBreakMutation.mutate({});
+  const handleStartBreak = async () => {
+    setIsLoading(true);
+    try {
+      // TODO: Call API - startBreak()
+      setStatus('break');
+      setBreakStartTime(new Date());
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleEndBreak = () => {
-    endBreakMutation.mutate({});
+  const handleEndBreak = async () => {
+    setIsLoading(true);
+    try {
+      // TODO: Call API - endBreak()
+      setStatus('in');
+      setBreakStartTime(null);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const formatTime = (date) => {
@@ -845,9 +857,7 @@ const TimeClockButton = () => {
     return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   };
 
-  const isLoading = timeStatusQuery.isLoading;
-  const isMutating = clockInMutation.isPending || clockOutMutation.isPending ||
-                     startBreakMutation.isPending || endBreakMutation.isPending;
+  const isMutating = isLoading;
 
   const statusConfig = {
     out: { label: 'Clocked Out', color: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' },
@@ -905,87 +915,78 @@ const TimeClockButton = () => {
 
           {/* Status & Timer */}
           <div className="p-4">
-            {/* Loading State */}
-            {isLoading ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="h-5 w-5 animate-spin text-[color:var(--bb-color-text-muted)]" />
+            {/* Status Row */}
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-[color:var(--bb-color-text-muted)]">Status</span>
+              <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full', statusConfig[status].color)}>
+                {statusConfig[status].label}
+              </span>
+            </div>
+
+            {/* Since time when clocked in */}
+            {status !== 'out' && clockedInTime && (
+              <div className="text-xs text-[color:var(--bb-color-text-muted)] mb-3">
+                {status === 'break' ? 'Break started' : 'Since'} {formatTime(status === 'break' ? breakStartTime : clockedInTime)}
               </div>
-            ) : (
-              <>
-                {/* Status Row */}
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-[color:var(--bb-color-text-muted)]">Status</span>
-                  <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full', statusConfig[status].color)}>
-                    {statusConfig[status].label}
-                  </span>
-                </div>
-
-                {/* Since time when clocked in */}
-                {status !== 'out' && clockedInTime && (
-                  <div className="text-xs text-[color:var(--bb-color-text-muted)] mb-3">
-                    {status === 'break' ? 'Break started' : 'Since'} {formatTime(status === 'break' ? breakStartTime : clockedInTime)}
-                  </div>
-                )}
-
-                {/* Live Timer */}
-                {status !== 'out' && (
-                  <div className="flex items-center justify-center gap-2 py-3 mb-3 rounded-lg bg-[color:var(--bb-color-bg-elevated)]">
-                    <Clock className="h-5 w-5 text-[color:var(--bb-color-accent)]" />
-                    <span className="text-2xl font-bold font-mono text-[color:var(--bb-color-text-primary)]">
-                      {String(currentDuration.hours).padStart(2, '0')}:
-                      {String(currentDuration.mins).padStart(2, '0')}:
-                      {String(currentDuration.secs).padStart(2, '0')}
-                    </span>
-                  </div>
-                )}
-
-                {/* Actions */}
-                <div className="flex gap-2">
-                  {status === 'out' ? (
-                    <button
-                      type="button"
-                      onClick={handleClockIn}
-                      disabled={isMutating}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-medium transition-colors"
-                    >
-                      {clockInMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                      Clock In
-                    </button>
-                  ) : status === 'in' ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={handleClockOut}
-                        disabled={isMutating}
-                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-medium transition-colors"
-                      >
-                        {clockOutMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
-                        Clock Out
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleStartBreak}
-                        disabled={isMutating}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors hover:bg-[color:var(--bb-color-bg-elevated)] disabled:opacity-50"
-                        style={{ borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }}
-                      >
-                        {startBreakMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : '☕'} Break
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleEndBreak}
-                      disabled={isMutating}
-                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium transition-colors"
-                    >
-                      {endBreakMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                      End Break
-                    </button>
-                  )}
-                </div>
-              </>
             )}
+
+            {/* Live Timer */}
+            {status !== 'out' && (
+              <div className="flex items-center justify-center gap-2 py-3 mb-3 rounded-lg bg-[color:var(--bb-color-bg-elevated)]">
+                <Clock className="h-5 w-5 text-[color:var(--bb-color-accent)]" />
+                <span className="text-2xl font-bold font-mono text-[color:var(--bb-color-text-primary)]">
+                  {String(currentDuration.hours).padStart(2, '0')}:
+                  {String(currentDuration.mins).padStart(2, '0')}:
+                  {String(currentDuration.secs).padStart(2, '0')}
+                </span>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-2">
+              {status === 'out' ? (
+                <button
+                  type="button"
+                  onClick={handleClockIn}
+                  disabled={isMutating}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-sm font-medium transition-colors"
+                >
+                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  Clock In
+                </button>
+              ) : status === 'in' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleClockOut}
+                    disabled={isMutating}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-medium transition-colors"
+                  >
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                    Clock Out
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleStartBreak}
+                    disabled={isMutating}
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors hover:bg-[color:var(--bb-color-bg-elevated)] disabled:opacity-50"
+                    style={{ borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }}
+                  >
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : '☕'} Break
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleEndBreak}
+                  disabled={isMutating}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium transition-colors"
+                >
+                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  End Break
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Totals */}
@@ -1004,7 +1005,7 @@ const TimeClockButton = () => {
             <div className="flex items-center justify-between">
               <span className="text-xs text-[color:var(--bb-color-text-muted)]">This Week</span>
               <span className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">
-                {timeStatus?.weekTotal ? `${Math.floor(timeStatus.weekTotal / 60)}h ${timeStatus.weekTotal % 60}m` : '0h 0m'}
+                {weekTotal ? `${Math.floor(weekTotal / 60)}h ${weekTotal % 60}m` : '0h 0m'}
               </span>
             </div>
           </div>
@@ -1029,17 +1030,7 @@ const TimeClockButton = () => {
                   </span>
                 </div>
               )}
-              {timeStatus?.recentEntries?.slice(0, 3).map((entry, idx) => (
-                <div key={entry.id || idx} className="flex items-center justify-between text-xs">
-                  <span className="text-[color:var(--bb-color-text-muted)]">
-                    {entry.date ? new Date(entry.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : 'Unknown'}
-                  </span>
-                  <span className="text-[color:var(--bb-color-text-primary)] font-medium">
-                    {entry.workedHours ? `${entry.workedHours}h` : '--'}
-                  </span>
-                </div>
-              ))}
-              {(!timeStatus?.recentEntries || timeStatus.recentEntries.length === 0) && status === 'out' && (
+              {status === 'out' && (
                 <p className="text-xs text-[color:var(--bb-color-text-muted)] italic">No recent entries</p>
               )}
             </div>
