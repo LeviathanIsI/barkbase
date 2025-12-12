@@ -1201,24 +1201,24 @@ async function handleCreateBooking(tenantId, user, body) {
     const priceInCents = totalPriceInCents || (totalPrice ? totalPrice * 100 : 0);
 
     // Create booking using correct schema columns
+    // Note: Booking table does NOT have pet_id - pets are linked via BookingPet junction table
     const result = await query(
-      `INSERT INTO "Booking" (tenant_id, pet_id, owner_id, kennel_id, service_id, check_in, check_out,
-                              notes, special_instructions, total_price_in_cents, service_type, room_number, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'PENDING')
+      `INSERT INTO "Booking" (tenant_id, owner_id, kennel_id, service_id, check_in, check_out,
+                              notes, special_instructions, total_price_cents, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'PENDING')
        RETURNING *`,
-      [tenantId, petId || null, ownerId || null, kennelId || null, serviceId || null,
-       startDate, endDate, notes || null, specialInstructions || null, priceInCents,
-       serviceType || 'boarding', roomNumber || null]
+      [tenantId, ownerId || null, kennelId || null, serviceId || null,
+       startDate, endDate, notes || null, specialInstructions || null, priceInCents]
     );
 
     const booking = result.rows[0];
 
-    // Link pets to booking via BookingPet
+    // Link pets to booking via BookingPet junction table
     const petsToLink = petIds && petIds.length > 0 ? petIds : (petId ? [petId] : []);
     for (const pid of petsToLink) {
       await query(
-        `INSERT INTO "BookingPet" (booking_id, pet_id) VALUES ($1, $2)`,
-        [booking.id, pid]
+        `INSERT INTO "BookingPet" (booking_id, pet_id, tenant_id) VALUES ($1, $2, $3)`,
+        [booking.id, pid, tenantId]
       );
     }
 
