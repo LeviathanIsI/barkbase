@@ -761,12 +761,23 @@ const HelpButton = () => {
 const TimeClockButton = () => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
-  const navigate = useNavigate();
 
-  // Mock clock status - in real app, fetch from API
-  const [clockedIn, setClockedIn] = useState(false);
+  // Clock state - in real app, fetch from API
+  const [status, setStatus] = useState('out'); // 'out' | 'in' | 'break'
   const [clockedInTime, setClockedInTime] = useState(null);
+  const [breakStartTime, setBreakStartTime] = useState(null);
+  const [currentDuration, setCurrentDuration] = useState({ hours: 0, mins: 0, secs: 0 });
 
+  // Mock data - would come from API
+  const todayTotal = { hours: 4, mins: 23 };
+  const weekTotal = { hours: 36, mins: 38 };
+  const recentHistory = [
+    { id: 1, time: 'Today 8:00 AM', type: 'in' },
+    { id: 2, time: 'Yesterday', duration: '8h 15m' },
+    { id: 3, time: 'Mon, Dec 9', duration: '7h 45m' },
+  ];
+
+  // Close on outside click
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -777,23 +788,58 @@ const TimeClockButton = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Live timer update every second
+  useEffect(() => {
+    if (status === 'out' || !clockedInTime) {
+      setCurrentDuration({ hours: 0, mins: 0, secs: 0 });
+      return;
+    }
+
+    const updateDuration = () => {
+      const now = new Date();
+      const startTime = status === 'break' ? breakStartTime : clockedInTime;
+      const diff = now - startTime;
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const secs = Math.floor((diff % (1000 * 60)) / 1000);
+      setCurrentDuration({ hours, mins, secs });
+    };
+
+    updateDuration();
+    const interval = setInterval(updateDuration, 1000);
+    return () => clearInterval(interval);
+  }, [status, clockedInTime, breakStartTime]);
+
   const handleClockIn = () => {
-    setClockedIn(true);
+    setStatus('in');
     setClockedInTime(new Date());
   };
 
   const handleClockOut = () => {
-    setClockedIn(false);
+    setStatus('out');
     setClockedInTime(null);
+    setBreakStartTime(null);
   };
 
-  const formatDuration = (startTime) => {
-    if (!startTime) return '0h 0m';
-    const now = new Date();
-    const diff = now - startTime;
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    return `${hours}h ${mins}m`;
+  const handleStartBreak = () => {
+    setStatus('break');
+    setBreakStartTime(new Date());
+  };
+
+  const handleEndBreak = () => {
+    setStatus('in');
+    setBreakStartTime(null);
+  };
+
+  const formatTime = (date) => {
+    if (!date) return '';
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  };
+
+  const statusConfig = {
+    out: { label: 'Clocked Out', color: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' },
+    in: { label: 'Clocked In', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
+    break: { label: 'On Break', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
   };
 
   return (
@@ -813,16 +859,19 @@ const TimeClockButton = () => {
         aria-label="Time Clock"
       >
         <Clock className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
-        {clockedIn && (
+        {status !== 'out' && (
           <span className="absolute -right-0.5 -top-0.5 flex h-2.5 w-2.5">
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500" />
+            <span className={cn(
+              'relative inline-flex h-2.5 w-2.5 rounded-full',
+              status === 'in' ? 'bg-green-500' : 'bg-amber-500'
+            )} />
           </span>
         )}
       </button>
 
       {isOpen && (
         <div
-          className="absolute right-0 top-full mt-2 w-64 rounded-lg border shadow-xl z-50"
+          className="absolute right-0 top-full mt-2 w-72 rounded-lg border shadow-xl z-50"
           style={{
             backgroundColor: 'var(--bb-color-bg-surface)',
             borderColor: 'var(--bb-color-border-subtle)',
@@ -841,68 +890,130 @@ const TimeClockButton = () => {
             </div>
           </div>
 
-          {/* Status */}
+          {/* Status & Timer */}
           <div className="p-4">
-            <div className="flex items-center justify-between mb-3">
+            {/* Status Row */}
+            <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-[color:var(--bb-color-text-muted)]">Status</span>
-              <span className={cn(
-                'text-xs font-medium px-2 py-0.5 rounded-full',
-                clockedIn
-                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                  : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-              )}>
-                {clockedIn ? 'Clocked In' : 'Clocked Out'}
+              <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full', statusConfig[status].color)}>
+                {statusConfig[status].label}
               </span>
             </div>
 
-            {clockedIn && (
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs text-[color:var(--bb-color-text-muted)]">Duration</span>
-                <span className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">
-                  {formatDuration(clockedInTime)}
+            {/* Since time when clocked in */}
+            {status !== 'out' && clockedInTime && (
+              <div className="text-xs text-[color:var(--bb-color-text-muted)] mb-3">
+                {status === 'break' ? 'Break started' : 'Since'} {formatTime(status === 'break' ? breakStartTime : clockedInTime)}
+              </div>
+            )}
+
+            {/* Live Timer */}
+            {status !== 'out' && (
+              <div className="flex items-center justify-center gap-2 py-3 mb-3 rounded-lg bg-[color:var(--bb-color-bg-elevated)]">
+                <Clock className="h-5 w-5 text-[color:var(--bb-color-accent)]" />
+                <span className="text-2xl font-bold font-mono text-[color:var(--bb-color-text-primary)]">
+                  {String(currentDuration.hours).padStart(2, '0')}:
+                  {String(currentDuration.mins).padStart(2, '0')}:
+                  {String(currentDuration.secs).padStart(2, '0')}
                 </span>
               </div>
             )}
 
             {/* Actions */}
-            <div className="space-y-2">
-              {!clockedIn ? (
+            <div className="flex gap-2">
+              {status === 'out' ? (
                 <button
                   type="button"
                   onClick={handleClockIn}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors"
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors"
                 >
                   <Check className="h-4 w-4" />
                   Clock In
                 </button>
+              ) : status === 'in' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleClockOut}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                    Clock Out
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleStartBreak}
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors hover:bg-[color:var(--bb-color-bg-elevated)]"
+                    style={{ borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }}
+                  >
+                    ☕ Break
+                  </button>
+                </>
               ) : (
                 <button
                   type="button"
-                  onClick={handleClockOut}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
+                  onClick={handleEndBreak}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium transition-colors"
                 >
-                  <X className="h-4 w-4" />
-                  Clock Out
+                  <Check className="h-4 w-4" />
+                  End Break
                 </button>
               )}
             </div>
           </div>
 
-          {/* Footer */}
+          {/* Totals */}
           <div
-            className="px-4 py-2 border-t"
+            className="px-4 py-3 border-t"
             style={{ borderColor: 'var(--bb-color-border-subtle)' }}
           >
-            <button
-              type="button"
-              onClick={() => {
-                setIsOpen(false);
-                navigate('/team?tab=timeclock');
-              }}
-              className="w-full text-xs text-[color:var(--bb-color-accent)] hover:underline text-center"
-            >
-              View Full Time Clock →
-            </button>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-[color:var(--bb-color-text-muted)]">Today</span>
+              <span className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">
+                {status !== 'out'
+                  ? `${todayTotal.hours + currentDuration.hours}h ${todayTotal.mins + currentDuration.mins}m`
+                  : `${todayTotal.hours}h ${todayTotal.mins}m`}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-[color:var(--bb-color-text-muted)]">This Week</span>
+              <span className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">
+                {status !== 'out'
+                  ? `${weekTotal.hours + currentDuration.hours}h ${weekTotal.mins + currentDuration.mins}m`
+                  : `${weekTotal.hours}h ${weekTotal.mins}m`}
+              </span>
+            </div>
+          </div>
+
+          {/* Recent History */}
+          <div
+            className="px-4 py-3 border-t"
+            style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+          >
+            <p className="text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-2">Recent</p>
+            <div className="space-y-1.5">
+              {status !== 'out' && (
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-[color:var(--bb-color-text-muted)]">
+                    Today {formatTime(clockedInTime)}
+                  </span>
+                  <span className={cn(
+                    'font-medium',
+                    status === 'in' ? 'text-green-600' : 'text-amber-600'
+                  )}>
+                    {status === 'in' ? 'In' : 'Break'}
+                  </span>
+                </div>
+              )}
+              {recentHistory.map((entry) => (
+                <div key={entry.id} className="flex items-center justify-between text-xs">
+                  <span className="text-[color:var(--bb-color-text-muted)]">{entry.time}</span>
+                  <span className="text-[color:var(--bb-color-text-primary)] font-medium">
+                    {entry.type === 'in' ? 'In' : entry.duration}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
