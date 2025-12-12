@@ -67,10 +67,8 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showKennelDropdown]);
 
-  if (!isOpen || !booking) return null;
-
-  // Get the actual booking ID from the database
-  const bookingId = booking.id || booking.recordId || booking.booking_id || booking.bookingId;
+  // Get the actual booking ID from the database (use optional chaining for null safety)
+  const bookingId = booking?.id || booking?.recordId || booking?.booking_id || booking?.bookingId;
 
   // Generate short reference for display (first 8 chars of UUID)
   const generateBookingRef = (id) => {
@@ -80,7 +78,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
     return 'UNKNOWN';
   };
 
-  const duration = booking.checkIn && booking.checkOut
+  const duration = booking?.checkIn && booking?.checkOut
     ? Math.ceil((new Date(booking.checkOut) - new Date(booking.checkIn)) / (1000 * 60 * 60 * 24))
     : 0;
 
@@ -116,16 +114,16 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
   const displayBooking = {
     id: bookingId,
     bookingRef: generateBookingRef(bookingId),
-    pet: booking.pet || {},
-    owner: booking.owner || {},
-    checkIn: booking.checkIn,
-    checkOut: booking.checkOut,
-    checkedInAt: localCheckedInAt || booking.checkedInAt || booking.checked_in_at || null,
-    status: localStatus || booking.status || 'PENDING',
-    kennel: booking.segments?.[0]?.kennel || booking.kennel || { name: null, id: null },
-    notes: booking.notes || booking.specialInstructions || null,
-    totalCents: booking.totalCents || 0,
-    amountPaidCents: booking.amountPaidCents || 0,
+    pet: booking?.pet || {},
+    owner: booking?.owner || {},
+    checkIn: booking?.checkIn,
+    checkOut: booking?.checkOut,
+    checkedInAt: localCheckedInAt || booking?.checkedInAt || booking?.checked_in_at || null,
+    status: localStatus || booking?.status || 'PENDING',
+    kennel: booking?.segments?.[0]?.kennel || booking?.kennel || { name: null, id: null },
+    notes: booking?.notes || booking?.specialInstructions || null,
+    totalCents: booking?.totalCents || 0,
+    amountPaidCents: booking?.amountPaidCents || 0,
   };
 
   const balance = displayBooking.totalCents - displayBooking.amountPaidCents;
@@ -331,6 +329,11 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
     const found = availableKennels.find(k => (k.id || k.recordId) === kennelId);
     return found || displayBooking.kennel;
   }, [displayBooking.kennel, availableKennels]);
+
+  // Early return AFTER all hooks to preserve hook order
+  if (!isOpen || !booking) {
+    return null;
+  }
 
   return (
     <>
