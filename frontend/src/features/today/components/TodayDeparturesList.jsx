@@ -109,6 +109,7 @@ const ListBody = ({ items, hasError, checkedOutIds, onCheckOutSuccess }) => {
 const DepartureRow = ({ booking, onCheckOutSuccess }) => {
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [showOwnerPopover, setShowOwnerPopover] = useState(false);
+  const [showCheckOutConfirm, setShowCheckOutConfirm] = useState(false);
   const [selectedPetId, setSelectedPetId] = useState(null);
   const ownerRef = useRef(null);
   const checkOutMutation = useBookingCheckOutMutation();
@@ -117,11 +118,13 @@ const DepartureRow = ({ booking, onCheckOutSuccess }) => {
   const bookingId = booking.id || booking.recordId;
   const petId = booking.petId || booking.pet?.id || booking.pet?.recordId;
   const petName = booking.petName || booking.pet?.name;
+  const petBreed = booking.pet?.breed || booking.petBreed || '';
   const ownerName = booking.ownerName || booking.owner?.name || booking.owner?.firstName
     ? `${booking.owner?.firstName || ''} ${booking.owner?.lastName || ''}`.trim()
     : 'Owner';
   const ownerPhone = booking.ownerPhone || booking.owner?.phone;
   const ownerEmail = booking.ownerEmail || booking.owner?.email;
+  const serviceName = typeof booking.service === 'object' ? booking.service?.name : (booking.service || booking.serviceName);
 
   // Close popover when clicking outside
   useEffect(() => {
@@ -136,10 +139,15 @@ const DepartureRow = ({ booking, onCheckOutSuccess }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showOwnerPopover]);
 
-  const handleCheckOut = async (e) => {
+  const handleCheckOutClick = (e) => {
     e.stopPropagation();
+    setShowCheckOutConfirm(true);
+  };
+
+  const handleConfirmCheckOut = async () => {
     if (!bookingId) {
       toast.error('Invalid booking');
+      setShowCheckOutConfirm(false);
       return;
     }
 
@@ -153,6 +161,7 @@ const DepartureRow = ({ booking, onCheckOutSuccess }) => {
       toast.error(error?.message || 'Failed to check out');
     } finally {
       setIsCheckingOut(false);
+      setShowCheckOutConfirm(false);
     }
   };
 
@@ -246,7 +255,7 @@ const DepartureRow = ({ booking, onCheckOutSuccess }) => {
         <Button
           size="sm"
           variant="outline"
-          onClick={handleCheckOut}
+          onClick={handleCheckOutClick}
           disabled={isCheckingOut}
           className="shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
         >
@@ -261,6 +270,20 @@ const DepartureRow = ({ booking, onCheckOutSuccess }) => {
         </Button>
       </div>
 
+      {/* Check-out Confirmation Dialog */}
+      {showCheckOutConfirm && (
+        <CheckOutConfirmDialog
+          petName={petName}
+          petBreed={petBreed}
+          ownerName={ownerName}
+          serviceName={serviceName}
+          departureTime={formatTime(time)}
+          isLoading={isCheckingOut}
+          onConfirm={handleConfirmCheckOut}
+          onCancel={() => setShowCheckOutConfirm(false)}
+        />
+      )}
+
       {/* Pet Quick Actions Drawer */}
       <PetQuickActionsDrawer
         petId={selectedPetId}
@@ -268,6 +291,108 @@ const DepartureRow = ({ booking, onCheckOutSuccess }) => {
         onClose={() => setSelectedPetId(null)}
       />
     </>
+  );
+};
+
+/**
+ * Check-out Confirmation Dialog
+ */
+const CheckOutConfirmDialog = ({
+  petName,
+  petBreed,
+  ownerName,
+  serviceName,
+  departureTime,
+  isLoading,
+  onConfirm,
+  onCancel,
+}) => {
+  // Close on escape key
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && !isLoading) {
+        onCancel();
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [onCancel, isLoading]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isLoading) onCancel();
+      }}
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/50" />
+
+      {/* Dialog */}
+      <div
+        className="relative w-full max-w-sm mx-4 rounded-xl shadow-xl animate-in fade-in-0 zoom-in-95 duration-150"
+        style={{ backgroundColor: 'var(--bb-color-bg-surface, #fff)' }}
+      >
+        <div className="p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+              <LogOut className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <h3 className="text-lg font-semibold text-[color:var(--bb-color-text-primary)]">
+              Check out {petName}?
+            </h3>
+          </div>
+
+          <div className="space-y-2 mb-6 text-sm">
+            <div className="flex justify-between">
+              <span className="text-[color:var(--bb-color-text-muted)]">Pet</span>
+              <span className="font-medium text-[color:var(--bb-color-text-primary)]">
+                {petName}{petBreed ? ` (${petBreed})` : ''}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[color:var(--bb-color-text-muted)]">Owner</span>
+              <span className="font-medium text-[color:var(--bb-color-text-primary)]">{ownerName}</span>
+            </div>
+            {serviceName && (
+              <div className="flex justify-between">
+                <span className="text-[color:var(--bb-color-text-muted)]">Service</span>
+                <span className="font-medium text-[color:var(--bb-color-text-primary)]">{serviceName}</span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span className="text-[color:var(--bb-color-text-muted)]">Departure</span>
+              <span className="font-medium text-[color:var(--bb-color-text-primary)]">{departureTime}</span>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={onCancel}
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={onConfirm}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Checking out...
+                </>
+              ) : (
+                'Confirm Check-Out'
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
