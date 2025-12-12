@@ -43,6 +43,16 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
   const [noteText, setNoteText] = useState('');
   const kennelDropdownRef = useRef(null);
 
+  // Local state for optimistic updates after check-in/out
+  const [localStatus, setLocalStatus] = useState(null);
+  const [localCheckedInAt, setLocalCheckedInAt] = useState(null);
+
+  // Reset local state when booking changes
+  useEffect(() => {
+    setLocalStatus(null);
+    setLocalCheckedInAt(null);
+  }, [booking?.id]);
+
   // Click outside to close kennel dropdown
   useEffect(() => {
     if (!showKennelDropdown) return;
@@ -102,7 +112,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
     return variants[status] || 'neutral';
   };
 
-  // Compute booking display data
+  // Compute booking display data - use local state for optimistic updates
   const displayBooking = {
     id: bookingId,
     bookingRef: generateBookingRef(bookingId),
@@ -110,8 +120,8 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
     owner: booking.owner || {},
     checkIn: booking.checkIn,
     checkOut: booking.checkOut,
-    checkedInAt: booking.checkedInAt || booking.checked_in_at || null,
-    status: booking.status || 'PENDING',
+    checkedInAt: localCheckedInAt || booking.checkedInAt || booking.checked_in_at || null,
+    status: localStatus || booking.status || 'PENDING',
     kennel: booking.segments?.[0]?.kennel || booking.kennel || { name: null, id: null },
     notes: booking.notes || booking.specialInstructions || null,
     totalCents: booking.totalCents || 0,
@@ -236,6 +246,9 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
         bookingId: displayBooking.id,
         payload: { userId },
       });
+      // Optimistic update - immediately show Check Out button
+      setLocalStatus('CHECKED_IN');
+      setLocalCheckedInAt(new Date().toISOString());
       toast.success('Checked in successfully');
     } catch (error) {
       toast.error(error?.message || 'Failed to check in');
@@ -258,6 +271,8 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
         bookingId: displayBooking.id,
         payload: { userId },
       });
+      // Optimistic update - immediately show Checked Out badge
+      setLocalStatus('CHECKED_OUT');
       toast.success('Checked out successfully');
       setShowQuickCheckoutDialog(false);
     } catch (error) {

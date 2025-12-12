@@ -154,15 +154,22 @@ const Bookings = () => {
       const checkIn = booking.checkIn ? new Date(booking.checkIn) : null;
       const checkOut = booking.checkOut ? new Date(booking.checkOut) : null;
 
+      // Keep the actual booking status for border color
       let displayStatus = booking.status || 'PENDING';
+      // Track if checkout is today (for badge display, not border)
+      let isCheckoutToday = false;
+      // Track if overdue
+      let isOverdue = false;
 
       // Check if overdue (should have checked out but hasn't)
       if (displayStatus === 'CHECKED_IN' && checkOut && checkOut < today) {
         displayStatus = 'OVERDUE';
+        isOverdue = true;
       }
-      // Check if checking out today
+      // Check if checking out today - but keep CHECKED_IN status for border
       else if (displayStatus === 'CHECKED_IN' && checkOut && checkOut.toDateString() === today.toDateString()) {
-        displayStatus = 'CHECKOUT_TODAY';
+        isCheckoutToday = true;
+        // Keep displayStatus as CHECKED_IN so border stays green
       }
       // Check if no-show (check-in date passed but never checked in, still CONFIRMED)
       else if (displayStatus === 'CONFIRMED' && checkIn && checkIn < today) {
@@ -186,6 +193,8 @@ const Bookings = () => {
         checkInDate: checkIn,
         checkOutDate: checkOut,
         displayStatus,
+        isCheckoutToday,
+        isOverdue,
         petName,
         ownerName,
         ownerPhone,
@@ -1208,16 +1217,43 @@ const WeeklyCalendarView = ({
                     const statusConfig = STATUS_CONFIG[booking.displayStatus] || STATUS_CONFIG.PENDING;
                     const isCheckIn = booking.checkInDate?.toDateString() === date.toDateString();
                     const isCheckOut = booking.checkOutDate?.toDateString() === date.toDateString();
+                    const hasBothActions = isCheckIn && isCheckOut;
+
+                    // Get border colors for split border effect
+                    const getStatusBorderColor = (status) => {
+                      const colors = {
+                        PENDING: '#9ca3af', // gray-400
+                        CONFIRMED: '#3b82f6', // blue-500
+                        CHECKED_IN: '#10b981', // emerald-500
+                        CHECKED_OUT: '#6b7280', // gray-500
+                        CANCELLED: '#ef4444', // red-500
+                        OVERDUE: '#ef4444', // red-500
+                        NO_SHOW: '#a855f7', // purple-500
+                      };
+                      return colors[status] || colors.PENDING;
+                    };
+
+                    const primaryColor = getStatusBorderColor(booking.displayStatus);
+                    // For checkout, use orange/amber
+                    const checkoutColor = '#f97316'; // orange-500
 
                     return (
                       <div
                         key={booking.id}
                         className={cn(
-                          'rounded-lg border-l-4 p-2.5 cursor-pointer transition-all hover:shadow-md',
-                          statusConfig.borderColor
+                          'rounded-lg p-2.5 cursor-pointer transition-all hover:shadow-md border-l-4',
+                          // Only use solid border class if NOT split border
+                          !hasBothActions && statusConfig.borderColor
                         )}
                         style={{
                           backgroundColor: 'var(--bb-color-bg-elevated)',
+                          // Split border: use borderLeftColor with gradient workaround
+                          ...(hasBothActions && {
+                            borderLeftColor: 'transparent',
+                            backgroundImage: `linear-gradient(var(--bb-color-bg-elevated), var(--bb-color-bg-elevated)), linear-gradient(to bottom, ${primaryColor} 50%, ${checkoutColor} 50%)`,
+                            backgroundOrigin: 'padding-box, border-box',
+                            backgroundClip: 'padding-box, border-box',
+                          }),
                         }}
                         onClick={() => onBookingClick(booking)}
                       >
