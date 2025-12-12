@@ -75,9 +75,6 @@ export const BOOKING_STATUS = {
 const normalizeBooking = (booking) => {
   if (!booking) return null;
 
-  // Debug: log incoming booking to see if ID is present
-  console.log('[normalizeBooking] incoming booking.id:', booking.id, 'keys:', Object.keys(booking).slice(0, 10));
-
   // Get first pet for display purposes (bookings can have multiple pets)
   const primaryPet = Array.isArray(booking.pets) ? booking.pets[0] : booking.pet;
 

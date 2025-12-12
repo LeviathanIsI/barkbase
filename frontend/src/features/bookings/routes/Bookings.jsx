@@ -181,7 +181,8 @@ const Bookings = () => {
 
       return {
         ...booking,
-        id: booking.recordId,
+        // Keep the original ID from the API (don't overwrite with undefined recordId)
+        id: booking.id || booking.recordId,
         checkInDate: checkIn,
         checkOutDate: checkOut,
         displayStatus,
