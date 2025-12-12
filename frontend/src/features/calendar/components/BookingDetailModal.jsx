@@ -50,37 +50,35 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit, onCheckIn, onChe
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showKennelDropdown]);
 
-  if (!isOpen || !booking) return null;
-
   // Generate booking reference from ID or date
-  const generateBookingRef = (id, checkIn) => {
+  const generateBookingRef = (id, checkIn, petName) => {
     if (id && id !== 'Unknown') {
       // Use first 8 chars of ID
       const shortId = id.toString().slice(0, 8).toUpperCase();
       return shortId;
     }
     // Fallback: Generate from pet name initial + date
-    const petInitial = booking.pet?.name?.charAt(0)?.toUpperCase() || 'B';
+    const petInitial = petName?.charAt(0)?.toUpperCase() || 'B';
     const dateStr = checkIn ? new Date(checkIn).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' }).replace(/\//g, '') : 'XXXXXX';
     return `${petInitial}-${dateStr}`;
   };
 
   // Get the actual booking ID - prefer explicit bookingId field over generic id
-  const actualBookingId = booking.bookingId || booking.recordId || booking.id || null;
+  const actualBookingId = booking?.bookingId || booking?.recordId || booking?.id || null;
 
-  // Transform booking data for display
+  // Transform booking data for display (must be before hooks that depend on it)
   const displayBooking = {
     id: actualBookingId || 'Unknown',
-    bookingRef: generateBookingRef(actualBookingId, booking.checkIn),
-    pet: booking.pet || {},
-    owner: booking.owner || {},
-    checkIn: booking.checkIn,
-    checkOut: booking.checkOut,
-    status: booking.status || 'PENDING',
-    kennel: booking.segments?.[0]?.kennel || booking.kennel || { name: null, id: null },
-    notes: booking.notes || booking.specialInstructions || null,
-    totalCents: booking.totalCents || 0,
-    amountPaidCents: booking.amountPaidCents || 0,
+    bookingRef: generateBookingRef(actualBookingId, booking?.checkIn, booking?.pet?.name),
+    pet: booking?.pet || {},
+    owner: booking?.owner || {},
+    checkIn: booking?.checkIn,
+    checkOut: booking?.checkOut,
+    status: booking?.status || 'PENDING',
+    kennel: booking?.segments?.[0]?.kennel || booking?.kennel || { name: null, id: null },
+    notes: booking?.notes || booking?.specialInstructions || null,
+    totalCents: booking?.totalCents || 0,
+    amountPaidCents: booking?.amountPaidCents || 0,
   };
 
   const duration = displayBooking.checkIn && displayBooking.checkOut
@@ -253,10 +251,12 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit, onCheckIn, onChe
     ? (availableKennels.find(k => (k.id || k.recordId) === kennelId) || displayBooking.kennel)
     : displayBooking.kennel;
 
+  // Always render InspectorRoot and ConfirmDialog to preserve hook order
+  // They handle their own visibility via isOpen prop
   return (
     <>
       <InspectorRoot
-        isOpen={isOpen}
+        isOpen={isOpen && !!booking}
         onClose={onClose}
         title={`Booking #${displayBooking.bookingRef}`}
         subtitle={`${formatDate(displayBooking.checkIn)} → ${formatDate(displayBooking.checkOut)}`}
