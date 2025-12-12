@@ -303,10 +303,15 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
 
         {/* Check In / Check Out Action Buttons - Prominent placement */}
         {(() => {
-          const now = new Date();
-          const checkInDate = displayBooking.checkIn ? new Date(displayBooking.checkIn) : null;
-          const isScheduled = checkInDate && checkInDate > now;
           const status = displayBooking.status;
+
+          // Compare dates only (not times) - check if check-in is tomorrow or later
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const checkInDate = displayBooking.checkIn ? new Date(displayBooking.checkIn) : null;
+          const checkInDateOnly = checkInDate ? new Date(checkInDate) : null;
+          if (checkInDateOnly) checkInDateOnly.setHours(0, 0, 0, 0);
+          const isFutureBooking = checkInDateOnly && checkInDateOnly > today;
 
           // Already checked out - show badge
           if (status === 'CHECKED_OUT') {
@@ -327,8 +332,26 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
             return null;
           }
 
-          // Scheduled for future - show disabled state
-          if (isScheduled && status !== 'CHECKED_IN') {
+          // Currently checked in - show check out button
+          if (status === 'CHECKED_IN') {
+            return (
+              <div className="px-[var(--bb-space-4)] py-[var(--bb-space-3)] border-b border-[var(--bb-color-border-subtle)]">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="w-full bg-amber-500 hover:bg-amber-600"
+                  onClick={handleCheckOut}
+                  disabled={checkOutMutation.isPending || !hasValidBookingId}
+                >
+                  <LogOut className="w-5 h-5 mr-2" />
+                  {checkOutMutation.isPending ? 'Checking Out...' : 'Check Out'}
+                </Button>
+              </div>
+            );
+          }
+
+          // Future booking (tomorrow or later) - show scheduled state
+          if (isFutureBooking) {
             return (
               <div className="px-[var(--bb-space-4)] py-[var(--bb-space-3)] border-b border-[var(--bb-color-border-subtle)]">
                 <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-[var(--bb-color-bg-elevated)]">
@@ -341,7 +364,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
             );
           }
 
-          // Ready to check in (CONFIRMED or PENDING status)
+          // Ready to check in (CONFIRMED or PENDING status, today or past)
           if (status === 'CONFIRMED' || status === 'PENDING') {
             return (
               <div className="px-[var(--bb-space-4)] py-[var(--bb-space-3)] border-b border-[var(--bb-color-border-subtle)]">
@@ -360,24 +383,6 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
                     Save booking first to enable check-in
                   </p>
                 )}
-              </div>
-            );
-          }
-
-          // Currently checked in - show check out button
-          if (status === 'CHECKED_IN') {
-            return (
-              <div className="px-[var(--bb-space-4)] py-[var(--bb-space-3)] border-b border-[var(--bb-color-border-subtle)]">
-                <Button
-                  variant="primary"
-                  size="lg"
-                  className="w-full bg-amber-500 hover:bg-amber-600"
-                  onClick={handleCheckOut}
-                  disabled={checkOutMutation.isPending || !hasValidBookingId}
-                >
-                  <LogOut className="w-5 h-5 mr-2" />
-                  {checkOutMutation.isPending ? 'Checking Out...' : 'Check Out'}
-                </Button>
               </div>
             );
           }
