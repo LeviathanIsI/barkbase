@@ -54,6 +54,10 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
 
   if (!isOpen || !booking) return null;
 
+  // Debug: log the entire booking object to see what fields are available
+  console.log('[BookingDetailModal] Full booking object:', booking);
+  console.log('[BookingDetailModal] Object keys:', Object.keys(booking));
+
   // Get the actual booking ID from the database
   const bookingId = booking.id || booking.recordId || booking.booking_id || booking.bookingId;
 
