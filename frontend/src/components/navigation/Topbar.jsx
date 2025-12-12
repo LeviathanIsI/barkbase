@@ -776,20 +776,20 @@ const TimeClockButton = () => {
   const fetchStatus = useCallback(async () => {
     try {
       const response = await timeClockApi.getTimeStatus();
-      console.log('[TimeClock] Status response:', response);
+      const data = response.data || response;
 
-      if (response.isClockedIn) {
-        setStatus(response.isOnBreak ? 'break' : 'in');
-        setClockedInTime(response.clockIn ? new Date(response.clockIn) : null);
-        setBreakStartTime(response.breakStart ? new Date(response.breakStart) : null);
-        setTodayMinutes(response.workedMinutes || 0);
+      if (data.isClockedIn) {
+        setStatus(data.isOnBreak ? 'break' : 'in');
+        setClockedInTime(data.clockIn ? new Date(data.clockIn) : null);
+        setBreakStartTime(data.breakStart ? new Date(data.breakStart) : null);
+        setTodayMinutes(data.workedMinutes || 0);
       } else {
         setStatus('out');
         setClockedInTime(null);
         setBreakStartTime(null);
         setTodayMinutes(0);
       }
-      setWeekTotal(response.weekTotal || 0);
+      setWeekTotal(data.weekTotal || 0);
     } catch (error) {
       console.error('[TimeClock] Failed to fetch status:', error);
     }
@@ -843,18 +843,16 @@ const TimeClockButton = () => {
   const handleClockIn = async () => {
     setIsLoading(true);
     try {
-      console.log('[TimeClock] Clocking in...');
       const response = await timeClockApi.clockIn();
-      console.log('[TimeClock] Clock in response:', response);
+      const data = response.data || response;
 
-      if (response.success || response.id) {
+      if (data.success || data.id) {
         setStatus('in');
-        setClockedInTime(new Date(response.clockIn || Date.now()));
-        // Refetch to get updated totals
+        setClockedInTime(new Date(data.clockIn || Date.now()));
         await fetchStatus();
       }
     } catch (error) {
-      console.error('[TimeClock] Clock in failed:', error);
+      // Silent fail - UI will show current state
     } finally {
       setIsLoading(false);
     }
@@ -863,19 +861,17 @@ const TimeClockButton = () => {
   const handleClockOut = async () => {
     setIsLoading(true);
     try {
-      console.log('[TimeClock] Clocking out...');
       const response = await timeClockApi.clockOut();
-      console.log('[TimeClock] Clock out response:', response);
+      const data = response.data || response;
 
-      if (response.success || response.id) {
+      if (data.success || data.id) {
         setStatus('out');
         setClockedInTime(null);
         setBreakStartTime(null);
-        // Refetch to get updated totals
         await fetchStatus();
       }
     } catch (error) {
-      console.error('[TimeClock] Clock out failed:', error);
+      // Silent fail - UI will show current state
     } finally {
       setIsLoading(false);
     }
@@ -884,16 +880,15 @@ const TimeClockButton = () => {
   const handleStartBreak = async () => {
     setIsLoading(true);
     try {
-      console.log('[TimeClock] Starting break...');
       const response = await timeClockApi.startBreak();
-      console.log('[TimeClock] Start break response:', response);
+      const data = response.data || response;
 
-      if (response.success || response.id) {
+      if (data.success || data.id) {
         setStatus('break');
-        setBreakStartTime(new Date(response.breakStart || Date.now()));
+        setBreakStartTime(new Date(data.breakStart || Date.now()));
       }
     } catch (error) {
-      console.error('[TimeClock] Start break failed:', error);
+      // Silent fail - UI will show current state
     } finally {
       setIsLoading(false);
     }
@@ -902,16 +897,15 @@ const TimeClockButton = () => {
   const handleEndBreak = async () => {
     setIsLoading(true);
     try {
-      console.log('[TimeClock] Ending break...');
       const response = await timeClockApi.endBreak();
-      console.log('[TimeClock] End break response:', response);
+      const data = response.data || response;
 
-      if (response.success || response.id) {
+      if (data.success || data.id) {
         setStatus('in');
         setBreakStartTime(null);
       }
     } catch (error) {
-      console.error('[TimeClock] End break failed:', error);
+      // Silent fail - UI will show current state
     } finally {
       setIsLoading(false);
     }

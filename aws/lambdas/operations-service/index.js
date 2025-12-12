@@ -6824,7 +6824,7 @@ async function handleNotifyOwnerOfIncident(tenantId, user, incidentId, body) {
  */
 async function handleClockIn(tenantId, user, body) {
   const { notes, location } = body;
-  const userId = user?.id;
+  const userId = user?.userId; // Use userId (database User.id), not id (cognitoSub)
 
   console.log('[TimeClock][clockIn] tenantId:', tenantId, 'userId:', userId);
 
@@ -6879,10 +6879,11 @@ async function handleClockIn(tenantId, user, body) {
     });
 
   } catch (error) {
-    console.error('[TimeClock] Clock in failed:', error.message);
+    console.error('[TimeClock] Clock in failed:', error.message, error.stack);
     return createResponse(500, {
       error: 'Internal Server Error',
       message: 'Failed to clock in',
+      detail: error.message,
     });
   }
 }
@@ -6892,7 +6893,7 @@ async function handleClockIn(tenantId, user, body) {
  */
 async function handleClockOut(tenantId, user, body) {
   const { entryId, notes } = body;
-  const userId = user?.id;
+  const userId = user?.userId; // Use userId (database User.id), not id (cognitoSub)
 
   console.log('[TimeClock][clockOut] tenantId:', tenantId, 'userId:', userId);
 
@@ -6985,7 +6986,7 @@ async function handleClockOut(tenantId, user, body) {
  */
 async function handleStartBreak(tenantId, user, body) {
   const { entryId } = body;
-  const userId = user?.id;
+  const userId = user?.userId; // Use userId (database User.id), not id (cognitoSub)
 
   console.log('[TimeClock][startBreak] tenantId:', tenantId, 'userId:', userId);
 
@@ -7055,7 +7056,7 @@ async function handleStartBreak(tenantId, user, body) {
  */
 async function handleEndBreak(tenantId, user, body) {
   const { entryId } = body;
-  const userId = user?.id;
+  const userId = user?.userId; // Use userId (database User.id), not id (cognitoSub)
 
   console.log('[TimeClock][endBreak] tenantId:', tenantId, 'userId:', userId);
 
@@ -7120,7 +7121,7 @@ async function handleEndBreak(tenantId, user, body) {
  * Includes: current status, today's total, week total, recent entries
  */
 async function handleGetTimeStatus(tenantId, user, queryParams) {
-  const userId = queryParams.userId || user?.id;
+  const userId = queryParams.userId || user?.userId; // Use userId (database User.id), not id (cognitoSub)
 
   console.log('[TimeClock][getStatus] tenantId:', tenantId, 'userId:', userId);
 
