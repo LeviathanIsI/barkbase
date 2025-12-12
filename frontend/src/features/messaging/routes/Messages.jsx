@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { format, isToday, isYesterday, formatDistanceToNow } from 'date-fns';
+import { format, isToday, isYesterday } from 'date-fns';
 import {
   Search,
-  Users,
   Send,
   Plus,
   ChevronRight,
@@ -19,22 +17,21 @@ import {
   CheckCheck,
   Check,
   Clock,
-  Filter,
-  ArrowUpDown,
-  X,
   MessageSquare,
+  Calendar,
+  DollarSign,
+  Bell,
   ExternalLink,
-  UserPlus,
-  CheckCircle,
-  AlertCircle,
   Loader2,
-  Menu,
+  MessageCircle,
+  TrendingUp,
+  Inbox,
+  Send as SendIcon,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/skeleton';
-// Unified loader: replaced inline loading with LoadingState
 import LoadingState from '@/components/ui/LoadingState';
 import {
   useConversationsQuery,
@@ -43,6 +40,7 @@ import {
   useMarkConversationReadMutation
 } from '../api';
 import { useAuthStore } from '@/stores/auth';
+import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
 import { getSocket } from '@/lib/socket';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
@@ -113,8 +111,92 @@ const Avatar = ({ name, size = 'md', className }) => {
   );
 };
 
+// Stats Bar Component
+const StatsBar = ({ conversations }) => {
+  const stats = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const total = conversations?.length || 0;
+    const unread = conversations?.reduce((sum, c) => sum + (c.unreadCount || 0), 0) || 0;
+    const needsReply = conversations?.filter(c => c.needsReply)?.length || 0;
+    // Mock sent today - would need actual API data
+    const sentToday = conversations?.filter(c => {
+      const lastMsg = c.lastMessage?.createdAt;
+      return lastMsg && lastMsg.split('T')[0] === today && c.lastMessage?.senderType === 'STAFF';
+    })?.length || 0;
+
+    return { total, unread, needsReply, sentToday };
+  }, [conversations]);
+
+  const statItems = [
+    {
+      label: 'Total Conversations',
+      value: stats.total,
+      icon: MessageCircle,
+      color: 'text-[var(--bb-color-accent)]',
+      bgColor: 'bg-[var(--bb-color-accent-soft)]',
+    },
+    {
+      label: 'Unread',
+      value: stats.unread,
+      icon: Inbox,
+      color: stats.unread > 0 ? 'text-[var(--bb-color-status-negative)]' : 'text-[var(--bb-color-text-muted)]',
+      bgColor: stats.unread > 0 ? 'bg-red-50 dark:bg-red-900/20' : 'bg-[var(--bb-color-bg-elevated)]',
+      attention: stats.unread > 0,
+    },
+    {
+      label: 'Needs Reply',
+      value: stats.needsReply,
+      icon: Bell,
+      color: stats.needsReply > 0 ? 'text-[var(--bb-color-status-warning)]' : 'text-[var(--bb-color-text-muted)]',
+      bgColor: stats.needsReply > 0 ? 'bg-amber-50 dark:bg-amber-900/20' : 'bg-[var(--bb-color-bg-elevated)]',
+      attention: stats.needsReply > 0,
+    },
+    {
+      label: 'Sent Today',
+      value: stats.sentToday,
+      icon: SendIcon,
+      color: 'text-[var(--bb-color-status-positive)]',
+      bgColor: 'bg-emerald-50 dark:bg-emerald-900/20',
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-4 gap-4 mb-4">
+      {statItems.map((stat, idx) => (
+        <div
+          key={idx}
+          className={cn(
+            'rounded-xl border p-4 transition-all',
+            stat.attention && 'ring-2 ring-offset-2',
+            stat.attention && stat.color.includes('negative') && 'ring-red-500/30',
+            stat.attention && stat.color.includes('warning') && 'ring-amber-500/30'
+          )}
+          style={{
+            backgroundColor: 'var(--bb-color-bg-surface)',
+            borderColor: 'var(--bb-color-border-subtle)',
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <div className={cn('p-2 rounded-lg', stat.bgColor)}>
+              <stat.icon className={cn('h-5 w-5', stat.color)} />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-[color:var(--bb-color-text-primary)]">
+                {stat.value}
+              </p>
+              <p className="text-xs text-[color:var(--bb-color-text-muted)]">
+                {stat.label}
+              </p>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 // Conversation Item
-const ConversationItem = ({ conversation, isSelected, onClick, isCompact }) => {
+const ConversationItem = ({ conversation, isSelected, onClick }) => {
   const hasUnread = conversation.unreadCount > 0;
   const needsReply = conversation.needsReply;
 
@@ -122,16 +204,18 @@ const ConversationItem = ({ conversation, isSelected, onClick, isCompact }) => {
     <button
       onClick={onClick}
       className={cn(
-        'w-full flex items-start gap-3 p-3 text-left transition-colors border-b border-border',
-        isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : 'hover:bg-surface',
-        isCompact ? 'py-2' : 'py-3'
+        'w-full flex items-start gap-3 p-3 text-left transition-colors border-b',
+        isSelected
+          ? 'bg-[var(--bb-color-accent-soft)] border-l-2 border-l-[var(--bb-color-accent)]'
+          : 'hover:bg-[var(--bb-color-bg-elevated)]'
       )}
+      style={{ borderColor: 'var(--bb-color-border-subtle)' }}
     >
       {/* Avatar with unread indicator */}
       <div className="relative flex-shrink-0">
-        <Avatar name={conversation.otherUser?.name} size={isCompact ? 'sm' : 'md'} />
+        <Avatar name={conversation.otherUser?.name} size="sm" />
         {hasUnread && (
-          <div className="absolute -top-0.5 -right-0.5 h-3 w-3 bg-primary rounded-full border-2 border-white dark:border-surface-primary" />
+          <div className="absolute -top-0.5 -right-0.5 h-3 w-3 bg-[var(--bb-color-accent)] rounded-full border-2 border-white dark:border-[var(--bb-color-bg-surface)]" />
         )}
       </div>
 
@@ -139,53 +223,35 @@ const ConversationItem = ({ conversation, isSelected, onClick, isCompact }) => {
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2 mb-0.5">
           <span className={cn(
-            'font-medium truncate',
-            hasUnread ? 'text-text' : 'text-text'
+            'font-medium truncate text-sm',
+            hasUnread ? 'text-[color:var(--bb-color-text-primary)]' : 'text-[color:var(--bb-color-text-primary)]'
           )}>
             {conversation.otherUser?.name || 'Unknown User'}
           </span>
-          <span className="text-xs text-muted flex-shrink-0">
+          <span className="text-[10px] text-[color:var(--bb-color-text-muted)] flex-shrink-0">
             {formatConversationTime(conversation.lastMessage?.createdAt)}
           </span>
         </div>
 
-        {/* Pet names */}
-        {conversation.pets?.length > 0 && (
-          <div className="flex items-center gap-1 mb-0.5">
-            <PawPrint className="h-3 w-3 text-muted" />
-            <span className="text-xs text-muted truncate">
-              {conversation.pets.map(p => p.name).join(', ')}
-            </span>
-          </div>
-        )}
-
         {/* Last message preview */}
         <p className={cn(
-          'text-sm truncate',
-          hasUnread ? 'text-text font-medium' : 'text-muted'
+          'text-xs truncate',
+          hasUnread ? 'text-[color:var(--bb-color-text-primary)] font-medium' : 'text-[color:var(--bb-color-text-muted)]'
         )}>
           {conversation.lastMessage?.content || 'No messages yet'}
         </p>
 
         {/* Status badges */}
-        <div className="flex items-center gap-2 mt-1">
-          {hasUnread && (
-            <Badge variant="primary" size="sm">{conversation.unreadCount} new</Badge>
-          )}
-          {needsReply && (
-            <Badge variant="warning" size="sm">Needs reply</Badge>
-          )}
-          {conversation.isTyping && (
-            <span className="text-xs text-primary flex items-center gap-1">
-              <span className="flex gap-0.5">
-                <span className="h-1.5 w-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="h-1.5 w-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="h-1.5 w-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-              </span>
-              typing...
-            </span>
-          )}
-        </div>
+        {(hasUnread || needsReply) && (
+          <div className="flex items-center gap-1.5 mt-1">
+            {hasUnread && (
+              <Badge variant="primary" size="sm">{conversation.unreadCount}</Badge>
+            )}
+            {needsReply && (
+              <Badge variant="warning" size="sm">Reply</Badge>
+            )}
+          </div>
+        )}
       </div>
     </button>
   );
@@ -203,8 +269,8 @@ const MessageBubble = ({ message, isCurrentUser, showTimestamp }) => {
           className={cn(
             'rounded-2xl px-4 py-2',
             isCurrentUser
-              ? 'bg-primary text-white rounded-br-md'
-              : 'bg-surface text-text rounded-bl-md'
+              ? 'bg-[var(--bb-color-accent)] text-white rounded-br-md'
+              : 'bg-[var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-primary)] rounded-bl-md'
           )}
         >
           <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
@@ -214,12 +280,14 @@ const MessageBubble = ({ message, isCurrentUser, showTimestamp }) => {
             'flex items-center gap-1 mt-1 px-1',
             isCurrentUser ? 'justify-end' : 'justify-start'
           )}>
-            <span className="text-xs text-muted">{formatMessageTime(message.createdAt)}</span>
+            <span className="text-[10px] text-[color:var(--bb-color-text-muted)]">
+              {formatMessageTime(message.createdAt)}
+            </span>
             {isCurrentUser && (
               message.read ? (
-                <CheckCheck className="h-3 w-3 text-primary" />
+                <CheckCheck className="h-3 w-3 text-[var(--bb-color-accent)]" />
               ) : (
-                <Check className="h-3 w-3 text-muted" />
+                <Check className="h-3 w-3 text-[color:var(--bb-color-text-muted)]" />
               )
             )}
           </div>
@@ -241,9 +309,219 @@ const DateDivider = ({ date }) => {
 
   return (
     <div className="flex items-center gap-3 my-4">
-      <div className="flex-1 h-px bg-border" />
-      <span className="text-xs text-muted font-medium">{label}</span>
-      <div className="flex-1 h-px bg-border" />
+      <div className="flex-1 h-px" style={{ backgroundColor: 'var(--bb-color-border-subtle)' }} />
+      <span className="text-xs text-[color:var(--bb-color-text-muted)] font-medium">{label}</span>
+      <div className="flex-1 h-px" style={{ backgroundColor: 'var(--bb-color-border-subtle)' }} />
+    </div>
+  );
+};
+
+// Context Sidebar Component
+const ContextSidebar = ({ conversation, onViewOwner, onViewPet, onScheduleBooking }) => {
+  if (!conversation) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center p-6 text-center">
+        <div
+          className="h-16 w-16 rounded-full flex items-center justify-center mb-4"
+          style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+        >
+          <User className="h-8 w-8 text-[color:var(--bb-color-text-muted)]" />
+        </div>
+        <p className="text-sm text-[color:var(--bb-color-text-muted)]">
+          Select a conversation to view details
+        </p>
+      </div>
+    );
+  }
+
+  const owner = conversation.otherUser;
+  const pets = conversation.pets || [];
+
+  return (
+    <div className="h-full overflow-y-auto p-4 space-y-4">
+      {/* Contact Info Card */}
+      <div
+        className="rounded-xl border p-4"
+        style={{
+          backgroundColor: 'var(--bb-color-bg-surface)',
+          borderColor: 'var(--bb-color-border-subtle)',
+        }}
+      >
+        <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)] mb-3 flex items-center gap-2">
+          <User className="h-4 w-4" />
+          Contact Info
+        </h3>
+        <div className="flex items-center gap-3 mb-3">
+          <Avatar name={owner?.name} size="lg" />
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-[color:var(--bb-color-text-primary)] truncate">
+              {owner?.name || 'Unknown'}
+            </p>
+            {owner?.email && (
+              <p className="text-xs text-[color:var(--bb-color-text-muted)] truncate">
+                {owner.email}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Contact Actions */}
+        <div className="flex gap-2 mb-3">
+          {owner?.phone && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={() => window.open(`tel:${owner.phone}`)}
+            >
+              <Phone className="h-3.5 w-3.5 mr-1.5" />
+              Call
+            </Button>
+          )}
+          {owner?.email && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={() => window.open(`mailto:${owner.email}`)}
+            >
+              <Mail className="h-3.5 w-3.5 mr-1.5" />
+              Email
+            </Button>
+          )}
+        </div>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full"
+          onClick={onViewOwner}
+        >
+          <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+          View Full Profile
+        </Button>
+      </div>
+
+      {/* Their Pets Card */}
+      {pets.length > 0 && (
+        <div
+          className="rounded-xl border p-4"
+          style={{
+            backgroundColor: 'var(--bb-color-bg-surface)',
+            borderColor: 'var(--bb-color-border-subtle)',
+          }}
+        >
+          <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)] mb-3 flex items-center gap-2">
+            <PawPrint className="h-4 w-4" />
+            Their Pets ({pets.length})
+          </h3>
+          <div className="space-y-2">
+            {pets.map((pet, idx) => (
+              <button
+                key={pet.recordId || idx}
+                onClick={() => onViewPet(pet)}
+                className="w-full flex items-center gap-3 p-2 rounded-lg transition-colors hover:bg-[var(--bb-color-bg-elevated)]"
+              >
+                <div
+                  className="h-8 w-8 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: 'var(--bb-color-accent-soft)' }}
+                >
+                  <PawPrint className="h-4 w-4 text-[var(--bb-color-accent)]" />
+                </div>
+                <div className="flex-1 text-left min-w-0">
+                  <p className="text-sm font-medium text-[color:var(--bb-color-text-primary)] truncate">
+                    {pet.name}
+                  </p>
+                  <p className="text-xs text-[color:var(--bb-color-text-muted)] truncate">
+                    {pet.breed || pet.species || 'Pet'}
+                  </p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recent Activity Card */}
+      <div
+        className="rounded-xl border p-4"
+        style={{
+          backgroundColor: 'var(--bb-color-bg-surface)',
+          borderColor: 'var(--bb-color-border-subtle)',
+        }}
+      >
+        <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)] mb-3 flex items-center gap-2">
+          <TrendingUp className="h-4 w-4" />
+          Recent Activity
+        </h3>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between py-1.5">
+            <span className="text-xs text-[color:var(--bb-color-text-muted)]">Last Booking</span>
+            <span className="text-xs font-medium text-[color:var(--bb-color-text-primary)]">
+              {conversation.lastBookingDate || 'None'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between py-1.5">
+            <span className="text-xs text-[color:var(--bb-color-text-muted)]">Upcoming</span>
+            <span className="text-xs font-medium text-[color:var(--bb-color-text-primary)]">
+              {conversation.upcomingBookings || 0} bookings
+            </span>
+          </div>
+          <div className="flex items-center justify-between py-1.5">
+            <span className="text-xs text-[color:var(--bb-color-text-muted)]">Account Status</span>
+            <Badge
+              variant={conversation.accountStatus === 'Active' ? 'success' : 'warning'}
+              size="sm"
+            >
+              {conversation.accountStatus || 'Active'}
+            </Badge>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Actions Card */}
+      <div
+        className="rounded-xl border p-4"
+        style={{
+          backgroundColor: 'var(--bb-color-bg-surface)',
+          borderColor: 'var(--bb-color-border-subtle)',
+        }}
+      >
+        <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)] mb-3 flex items-center gap-2">
+          <Clock className="h-4 w-4" />
+          Quick Actions
+        </h3>
+        <div className="space-y-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start"
+            onClick={onScheduleBooking}
+          >
+            <Calendar className="h-3.5 w-3.5 mr-2" />
+            Schedule Booking
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start"
+            onClick={() => toast.info('Send reminder coming soon')}
+          >
+            <Bell className="h-3.5 w-3.5 mr-2" />
+            Send Reminder
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start"
+            onClick={() => toast.info('Add note coming soon')}
+          >
+            <FileText className="h-3.5 w-3.5 mr-2" />
+            Add Note
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };
@@ -251,11 +529,14 @@ const DateDivider = ({ date }) => {
 // Empty State Components
 const EmptyConversationList = ({ onNewConversation }) => (
   <div className="flex flex-col items-center justify-center h-full py-12 px-4 text-center">
-    <div className="h-16 w-16 rounded-full bg-surface flex items-center justify-center mb-4">
-      <MessageSquare className="h-8 w-8 text-muted" />
+    <div
+      className="h-16 w-16 rounded-full flex items-center justify-center mb-4"
+      style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+    >
+      <MessageSquare className="h-8 w-8 text-[color:var(--bb-color-text-muted)]" />
     </div>
-    <h3 className="font-medium text-text mb-1">No messages yet</h3>
-    <p className="text-sm text-muted mb-4">Start a conversation with a pet owner</p>
+    <h3 className="font-medium text-[color:var(--bb-color-text-primary)] mb-1">No messages yet</h3>
+    <p className="text-sm text-[color:var(--bb-color-text-muted)] mb-4">Start a conversation with a pet owner</p>
     <Button size="sm" onClick={onNewConversation}>
       <Plus className="h-4 w-4 mr-1.5" />
       New Conversation
@@ -265,13 +546,15 @@ const EmptyConversationList = ({ onNewConversation }) => (
 
 const EmptyChatPane = ({ onNewConversation }) => (
   <div className="flex flex-col items-center justify-center h-full text-center px-4">
-    <div className="h-20 w-20 rounded-full bg-surface flex items-center justify-center mb-4">
-      <Send className="h-10 w-10 text-muted" />
+    <div
+      className="h-20 w-20 rounded-full flex items-center justify-center mb-4"
+      style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+    >
+      <Send className="h-10 w-10 text-[color:var(--bb-color-text-muted)]" />
     </div>
-    <h3 className="font-medium text-text mb-1">Select a conversation</h3>
-    <p className="text-sm text-muted mb-4">
-      Choose a conversation from the list to start messaging,<br />
-      or create a new conversation from the top-right.
+    <h3 className="font-medium text-[color:var(--bb-color-text-primary)] mb-1">Select a conversation</h3>
+    <p className="text-sm text-[color:var(--bb-color-text-muted)] mb-4">
+      Choose a conversation from the list to start messaging
     </p>
     <Button variant="outline" size="sm" onClick={onNewConversation}>
       <Plus className="h-4 w-4 mr-1.5" />
@@ -281,14 +564,13 @@ const EmptyChatPane = ({ onNewConversation }) => (
 );
 
 const Messages = () => {
-  const navigate = useNavigate();
+  const { openSlideout } = useSlideout();
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messageText, setMessageText] = useState('');
   const [filter, setFilter] = useState('all');
   const [sortBy, setSortBy] = useState('recent');
   const [searchTerm, setSearchTerm] = useState('');
   const [showMobileList, setShowMobileList] = useState(true);
-  const [showFilters, setShowFilters] = useState(false);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
   const currentUser = useAuthStore(state => state.user);
@@ -390,7 +672,7 @@ const Messages = () => {
   // Group messages by date
   const groupedMessages = useMemo(() => {
     if (!messages) return [];
-    
+
     const groups = [];
     let currentDate = null;
 
@@ -422,7 +704,7 @@ const Messages = () => {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    
+
     if (!messageText.trim() || !selectedConversation) return;
 
     try {
@@ -438,11 +720,42 @@ const Messages = () => {
   };
 
   const handleNewConversation = () => {
-    // TODO: Open new conversation modal
     toast.info('New conversation modal coming soon');
   };
 
-  const unreadCount = conversations?.reduce((sum, c) => sum + (c.unreadCount || 0), 0) || 0;
+  // DAFE: Open Owner slideout
+  const handleViewOwner = () => {
+    const owner = selectedConversation?.otherUser;
+    if (owner) {
+      openSlideout(SLIDEOUT_TYPES.OWNER_EDIT, {
+        owner,
+        title: `${owner.name || 'Owner'} Profile`,
+      });
+    }
+  };
+
+  // DAFE: Open Pet slideout
+  const handleViewPet = (pet) => {
+    if (pet) {
+      openSlideout(SLIDEOUT_TYPES.PET_EDIT, {
+        pet,
+        title: `${pet.name || 'Pet'} Profile`,
+      });
+    }
+  };
+
+  // DAFE: Open Booking slideout
+  const handleScheduleBooking = () => {
+    const owner = selectedConversation?.otherUser;
+    const pets = selectedConversation?.pets || [];
+    openSlideout(SLIDEOUT_TYPES.BOOKING_CREATE, {
+      title: 'New Booking',
+      prefill: {
+        ownerId: owner?.recordId,
+        petId: pets[0]?.recordId,
+      },
+    });
+  };
 
   return (
     <div className="h-[calc(100vh-120px)] flex flex-col">
@@ -450,18 +763,13 @@ const Messages = () => {
       <div className="flex items-center justify-between mb-4">
         <div>
           <nav className="mb-1">
-            <ol className="flex items-center gap-1 text-xs text-muted">
+            <ol className="flex items-center gap-1 text-xs text-[color:var(--bb-color-text-muted)]">
               <li><span>Communications</span></li>
               <li><ChevronRight className="h-3 w-3" /></li>
-              <li className="text-text font-medium">Messages</li>
+              <li className="text-[color:var(--bb-color-text-primary)] font-medium">Messages</li>
             </ol>
           </nav>
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg font-semibold text-text">Messages</h1>
-            {unreadCount > 0 && (
-              <Badge variant="primary" size="sm">{unreadCount} unread</Badge>
-            )}
-          </div>
+          <h1 className="text-lg font-semibold text-[color:var(--bb-color-text-primary)]">Messages</h1>
         </div>
 
         <div className="flex items-center gap-2">
@@ -476,24 +784,43 @@ const Messages = () => {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex bg-white dark:bg-surface-primary border border-border rounded-lg overflow-hidden">
-        {/* Left Panel - Conversation List */}
-        <div className={cn(
-          'w-80 flex-shrink-0 border-r border-border flex flex-col',
-          'lg:block',
-          showMobileList ? 'block absolute inset-0 z-20 bg-white dark:bg-surface-primary lg:relative' : 'hidden'
-        )}>
+      {/* Stats Bar */}
+      <StatsBar conversations={conversations} />
+
+      {/* Main Content - Three Column Layout */}
+      <div
+        className="flex-1 flex rounded-xl border overflow-hidden"
+        style={{
+          backgroundColor: 'var(--bb-color-bg-surface)',
+          borderColor: 'var(--bb-color-border-subtle)',
+        }}
+      >
+        {/* Left Panel - Conversation List (20%) */}
+        <div
+          className={cn(
+            'w-[20%] min-w-[240px] flex-shrink-0 border-r flex flex-col',
+            'lg:block',
+            showMobileList ? 'block absolute inset-0 z-20 lg:relative' : 'hidden'
+          )}
+          style={{
+            backgroundColor: 'var(--bb-color-bg-surface)',
+            borderColor: 'var(--bb-color-border-subtle)',
+          }}
+        >
           {/* Search & Filters */}
-          <div className="p-3 border-b border-border space-y-2">
+          <div className="p-3 border-b space-y-2" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
               <input
                 type="text"
-                placeholder="Search conversations..."
+                placeholder="Search..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-surface border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="w-full pl-9 pr-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]/50"
+                style={{
+                  backgroundColor: 'var(--bb-color-bg-elevated)',
+                  color: 'var(--bb-color-text-primary)',
+                }}
               />
             </div>
 
@@ -502,7 +829,11 @@ const Messages = () => {
               <select
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                className="flex-1 px-2 py-1.5 text-xs bg-surface border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="flex-1 px-2 py-1.5 text-xs rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]/50"
+                style={{
+                  backgroundColor: 'var(--bb-color-bg-elevated)',
+                  color: 'var(--bb-color-text-primary)',
+                }}
               >
                 {FILTER_OPTIONS.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -511,7 +842,11 @@ const Messages = () => {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="flex-1 px-2 py-1.5 text-xs bg-surface border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="flex-1 px-2 py-1.5 text-xs rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]/50"
+                style={{
+                  backgroundColor: 'var(--bb-color-bg-elevated)',
+                  color: 'var(--bb-color-text-primary)',
+                }}
               >
                 {SORT_OPTIONS.map(opt => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -543,51 +878,43 @@ const Messages = () => {
           </div>
         </div>
 
-        {/* Right Panel - Chat */}
-        <div className="flex-1 flex flex-col min-w-0">
+        {/* Center Panel - Chat (50%) */}
+        <div className="flex-1 flex flex-col min-w-0" style={{ width: '50%' }}>
           {!selectedConversation ? (
             <EmptyChatPane onNewConversation={handleNewConversation} />
           ) : (
             <>
               {/* Conversation Header */}
-              <div className="flex items-center justify-between p-3 border-b border-border">
+              <div
+                className="flex items-center justify-between p-3 border-b"
+                style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+              >
                 <div className="flex items-center gap-3">
                   {/* Mobile back button */}
                   <button
                     onClick={() => setShowMobileList(true)}
-                    className="lg:hidden p-1.5 text-muted hover:text-text hover:bg-surface rounded"
+                    className="lg:hidden p-1.5 text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-elevated)] rounded"
                   >
                     <ChevronLeft className="h-5 w-5" />
                   </button>
 
                   <Avatar name={selectedConversation.otherUser?.name} size="md" />
                   <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-text">
+                    <button
+                      onClick={handleViewOwner}
+                      className="flex items-center gap-2 hover:underline"
+                    >
+                      <h3 className="font-semibold text-[color:var(--bb-color-text-primary)]">
                         {selectedConversation.otherUser?.name || 'Unknown User'}
                       </h3>
                       {selectedConversation.isOnline && (
                         <span className="h-2 w-2 bg-green-500 rounded-full" />
                       )}
-                    </div>
-                    <div className="flex items-center gap-3 text-xs text-muted">
-                      {selectedConversation.otherUser?.email && (
-                        <span className="flex items-center gap-1">
-                          <Mail className="h-3 w-3" />
-                          {selectedConversation.otherUser.email}
-                        </span>
-                      )}
-                      {selectedConversation.otherUser?.phone && (
-                        <span className="flex items-center gap-1">
-                          <Phone className="h-3 w-3" />
-                          {selectedConversation.otherUser.phone}
-                        </span>
-                      )}
-                    </div>
+                    </button>
                     {selectedConversation.pets?.length > 0 && (
                       <div className="flex items-center gap-1 mt-0.5">
-                        <PawPrint className="h-3 w-3 text-muted" />
-                        <span className="text-xs text-muted">
+                        <PawPrint className="h-3 w-3 text-[color:var(--bb-color-text-muted)]" />
+                        <span className="text-xs text-[color:var(--bb-color-text-muted)]">
                           {selectedConversation.pets.map(p => p.name).join(', ')}
                         </span>
                       </div>
@@ -595,42 +922,19 @@ const Messages = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => selectedConversation.otherUser?.recordId && navigate(`/owners/${selectedConversation.otherUser.recordId}`)}
-                    title="View Owner Profile"
-                  >
-                    <User className="h-4 w-4" />
-                  </Button>
-                  {selectedConversation.pets?.[0] && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => navigate(`/pets/${selectedConversation.pets[0].recordId}`)}
-                      title="View Pet Profile"
-                    >
-                      <PawPrint className="h-4 w-4" />
-                    </Button>
-                  )}
-                  <Button variant="ghost" size="sm" title="Assign to Staff">
-                    <UserPlus className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" title="Mark as Resolved">
-                    <CheckCircle className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </div>
+                <Button variant="ghost" size="sm">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
               </div>
 
               {/* Messages Area */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-surface/30">
+              <div
+                className="flex-1 overflow-y-auto p-4 space-y-2"
+                style={{ backgroundColor: 'var(--bb-color-bg-body)' }}
+              >
                 {messagesLoading ? (
                   <div className="flex items-center justify-center h-full">
-                    <LoadingState label="Loading messages…" variant="skeleton" />
+                    <LoadingState label="Loading messages..." variant="skeleton" />
                   </div>
                 ) : (
                   <>
@@ -653,7 +957,13 @@ const Messages = () => {
               </div>
 
               {/* Message Composer */}
-              <div className="p-3 border-t border-border bg-white dark:bg-surface-primary">
+              <div
+                className="p-3 border-t"
+                style={{
+                  backgroundColor: 'var(--bb-color-bg-surface)',
+                  borderColor: 'var(--bb-color-border-subtle)',
+                }}
+              >
                 <form onSubmit={handleSendMessage}>
                   <div className="flex items-end gap-2">
                     <div className="flex-1 relative">
@@ -669,31 +979,28 @@ const Messages = () => {
                         }}
                         placeholder="Type your message..."
                         rows={1}
-                        className="w-full px-4 py-2.5 bg-surface border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
-                        style={{ maxHeight: '120px' }}
+                        className="w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]/50 resize-none"
+                        style={{
+                          backgroundColor: 'var(--bb-color-bg-elevated)',
+                          color: 'var(--bb-color-text-primary)',
+                          maxHeight: '120px',
+                        }}
                       />
                     </div>
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
-                        className="p-2 text-muted hover:text-text hover:bg-surface rounded-lg transition-colors"
+                        className="p-2 text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-elevated)] rounded-lg transition-colors"
                         title="Attach file"
                       >
                         <Paperclip className="h-5 w-5" />
                       </button>
                       <button
                         type="button"
-                        className="p-2 text-muted hover:text-text hover:bg-surface rounded-lg transition-colors"
+                        className="p-2 text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] hover:bg-[var(--bb-color-bg-elevated)] rounded-lg transition-colors"
                         title="Emoji"
                       >
                         <Smile className="h-5 w-5" />
-                      </button>
-                      <button
-                        type="button"
-                        className="p-2 text-muted hover:text-text hover:bg-surface rounded-lg transition-colors"
-                        title="Use template"
-                      >
-                        <FileText className="h-5 w-5" />
                       </button>
                       <Button
                         type="submit"
@@ -708,13 +1015,29 @@ const Messages = () => {
                       </Button>
                     </div>
                   </div>
-                  <p className="text-xs text-muted mt-1.5 px-1">
+                  <p className="text-[10px] text-[color:var(--bb-color-text-muted)] mt-1.5 px-1">
                     Press Enter to send, Shift+Enter for new line
                   </p>
                 </form>
               </div>
             </>
           )}
+        </div>
+
+        {/* Right Panel - Context Sidebar (30%) */}
+        <div
+          className="w-[30%] min-w-[280px] flex-shrink-0 border-l hidden lg:block"
+          style={{
+            backgroundColor: 'var(--bb-color-bg-body)',
+            borderColor: 'var(--bb-color-border-subtle)',
+          }}
+        >
+          <ContextSidebar
+            conversation={selectedConversation}
+            onViewOwner={handleViewOwner}
+            onViewPet={handleViewPet}
+            onScheduleBooking={handleScheduleBooking}
+          />
         </div>
       </div>
     </div>
