@@ -1830,17 +1830,22 @@ async function sendBookingCancellationEmail(tenantId, bookingId) {
  * Schema column: checked_in_at (not check_in_time)
  */
 async function handleCheckIn(tenantId, bookingId, body) {
-  const { sendConfirmation = true } = body || {};
-  
+  const { sendConfirmation = true, userId } = body || {};
+
   try {
     await getPoolAsync();
 
+    // Build the update query with optional user tracking fields
     const result = await query(
       `UPDATE "Booking"
-       SET status = 'CHECKED_IN', checked_in_at = NOW(), updated_at = NOW()
+       SET status = 'CHECKED_IN',
+           checked_in_at = NOW(),
+           checked_in_by = $3,
+           updated_at = NOW(),
+           updated_by = $3
        WHERE id = $1 AND tenant_id = $2
        RETURNING *`,
-      [bookingId, tenantId]
+      [bookingId, tenantId, userId || null]
     );
 
     if (result.rows.length === 0) {
@@ -1857,10 +1862,20 @@ async function handleCheckIn(tenantId, bookingId, body) {
       });
     }
 
+    const booking = result.rows[0];
     return createResponse(200, {
       success: true,
       message: 'Check-in successful',
-      checkInTime: result.rows[0].checked_in_at,
+      checkInTime: booking.checked_in_at,
+      // Return full booking data for UI update
+      data: {
+        id: booking.id,
+        status: booking.status,
+        checkedInAt: booking.checked_in_at,
+        checkedInBy: booking.checked_in_by,
+        updatedAt: booking.updated_at,
+        updatedBy: booking.updated_by,
+      },
     });
 
   } catch (error) {
@@ -1935,17 +1950,22 @@ async function sendCheckInEmail(tenantId, bookingId) {
  * Schema column: checked_out_at (not check_out_time)
  */
 async function handleCheckOut(tenantId, bookingId, body) {
-  const { sendConfirmation = true } = body || {};
-  
+  const { sendConfirmation = true, userId } = body || {};
+
   try {
     await getPoolAsync();
 
+    // Build the update query with optional user tracking fields
     const result = await query(
       `UPDATE "Booking"
-       SET status = 'CHECKED_OUT', checked_out_at = NOW(), updated_at = NOW()
+       SET status = 'CHECKED_OUT',
+           checked_out_at = NOW(),
+           checked_out_by = $3,
+           updated_at = NOW(),
+           updated_by = $3
        WHERE id = $1 AND tenant_id = $2
        RETURNING *`,
-      [bookingId, tenantId]
+      [bookingId, tenantId, userId || null]
     );
 
     if (result.rows.length === 0) {
@@ -1967,7 +1987,17 @@ async function handleCheckOut(tenantId, bookingId, body) {
     return createResponse(200, {
       success: true,
       message: 'Check-out successful',
-      checkOutTime: result.rows[0].checked_out_at,
+      checkOutTime: booking.checked_out_at,
+      // Return full booking data for UI update
+      data: {
+        id: booking.id,
+        status: booking.status,
+        checkedInAt: booking.checked_in_at,
+        checkedOutAt: booking.checked_out_at,
+        checkedOutBy: booking.checked_out_by,
+        updatedAt: booking.updated_at,
+        updatedBy: booking.updated_by,
+      },
     });
 
   } catch (error) {

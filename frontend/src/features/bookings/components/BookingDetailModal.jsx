@@ -20,6 +20,7 @@ import { formatCurrency } from '@/lib/utils';
 import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
 import { useKennels } from '@/features/kennels/api';
 import { useAssignKennelMutation, useDeleteBookingMutation, useBookingCheckInMutation, useBookingCheckOutMutation } from '@/features/bookings/api';
+import { useAuthStore } from '@/stores/auth';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
 
@@ -31,9 +32,13 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
   const checkInMutation = useBookingCheckInMutation();
   const checkOutMutation = useBookingCheckOutMutation();
 
+  // Get current user for audit fields
+  const userId = useAuthStore((state) => state.user?.id);
+
   // Local state
   const [showKennelDropdown, setShowKennelDropdown] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showQuickCheckoutDialog, setShowQuickCheckoutDialog] = useState(false);
   const [addingNote, setAddingNote] = useState(false);
   const [noteText, setNoteText] = useState('');
   const kennelDropdownRef = useRef(null);
@@ -105,6 +110,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
     owner: booking.owner || {},
     checkIn: booking.checkIn,
     checkOut: booking.checkOut,
+    checkedInAt: booking.checkedInAt || booking.checked_in_at || null,
     status: booking.status || 'PENDING',
     kennel: booking.segments?.[0]?.kennel || booking.kennel || { name: null, id: null },
     notes: booking.notes || booking.specialInstructions || null,
@@ -226,28 +232,55 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
     }
 
     try {
-      await checkInMutation.mutateAsync({ bookingId: displayBooking.id });
+      await checkInMutation.mutateAsync({
+        bookingId: displayBooking.id,
+        payload: { userId },
+      });
       toast.success('Checked in successfully');
     } catch (error) {
       toast.error(error?.message || 'Failed to check in');
     }
-  }, [displayBooking.id, checkInMutation, hasValidBookingId, openCreateBookingWithPrefill]);
+  }, [displayBooking.id, checkInMutation, hasValidBookingId, openCreateBookingWithPrefill, userId]);
 
-  // Check Out handler
-  // If no booking ID, open create booking flow
+  // Check if check-in was less than 5 minutes ago (quick checkout protection)
+  const isQuickCheckout = useMemo(() => {
+    if (!displayBooking.checkedInAt) return false;
+    const checkedInTime = new Date(displayBooking.checkedInAt);
+    const now = new Date();
+    const diffMinutes = (now - checkedInTime) / (1000 * 60);
+    return diffMinutes < 5;
+  }, [displayBooking.checkedInAt]);
+
+  // Actual check out execution
+  const executeCheckOut = useCallback(async () => {
+    try {
+      await checkOutMutation.mutateAsync({
+        bookingId: displayBooking.id,
+        payload: { userId },
+      });
+      toast.success('Checked out successfully');
+      setShowQuickCheckoutDialog(false);
+    } catch (error) {
+      toast.error(error?.message || 'Failed to check out');
+    }
+  }, [displayBooking.id, checkOutMutation, userId]);
+
+  // Check Out handler - shows confirmation if quick checkout
   const handleCheckOut = useCallback(async () => {
     if (!hasValidBookingId) {
       openCreateBookingWithPrefill();
       return;
     }
 
-    try {
-      await checkOutMutation.mutateAsync({ bookingId: displayBooking.id });
-      toast.success('Checked out successfully');
-    } catch (error) {
-      toast.error(error?.message || 'Failed to check out');
+    // If checked in less than 5 minutes ago, show confirmation
+    if (isQuickCheckout) {
+      setShowQuickCheckoutDialog(true);
+      return;
     }
-  }, [displayBooking.id, checkOutMutation, hasValidBookingId, openCreateBookingWithPrefill]);
+
+    // Otherwise proceed directly
+    await executeCheckOut();
+  }, [hasValidBookingId, openCreateBookingWithPrefill, isQuickCheckout, executeCheckOut]);
 
   // DAFE: Add note
   // If no booking ID, open create booking flow with the note pre-filled
@@ -709,6 +742,19 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
         cancelText="Keep Booking"
         variant="danger"
         isLoading={deleteBookingMutation.isPending}
+      />
+
+      {/* Quick Checkout Confirmation - shown if check-in was < 5 minutes ago */}
+      <ConfirmDialog
+        isOpen={showQuickCheckoutDialog}
+        onClose={() => setShowQuickCheckoutDialog(false)}
+        onConfirm={executeCheckOut}
+        title="Quick Check Out"
+        message={`${displayBooking.pet.name || 'This pet'} was just checked in less than 5 minutes ago. Are you sure you want to check them out?`}
+        confirmText="Yes, Check Out"
+        cancelText="Cancel"
+        variant="warning"
+        isLoading={checkOutMutation.isPending}
       />
     </>
   );
