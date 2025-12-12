@@ -1,20 +1,17 @@
 /**
  * Kennels Page
- * Redesigned operational page with stats bar, sidebar, and DAFE interactions
+ * Visual facility map view with spatial kennel layout
  */
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Plus,
   Search,
   Building,
-  MapPin,
   Settings,
   Home,
   AlertTriangle,
   ChevronRight,
-  ChevronDown,
-  MoreHorizontal,
   Calendar,
   Eye,
   Edit,
@@ -25,16 +22,15 @@ import {
   DoorOpen,
   Stethoscope,
   Sun,
-  Minimize2,
-  Maximize2,
   BarChart3,
   Layers,
   TrendingUp,
   Map,
+  User,
+  Clock,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import Badge from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import KennelForm from '../components/KennelForm';
 import KennelAssignDrawer from '../components/KennelAssignDrawer';
@@ -45,20 +41,12 @@ import { cn } from '@/lib/cn';
 
 // Kennel type configurations
 const KENNEL_TYPES = {
-  KENNEL: { label: 'Kennel', icon: Home, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
-  SUITE: { label: 'Suite', icon: DoorOpen, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20' },
-  CABIN: { label: 'Cabin', icon: Building, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20' },
-  DAYCARE: { label: 'Daycare', icon: Sun, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20' },
-  MEDICAL: { label: 'Medical', icon: Stethoscope, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-900/20' },
+  KENNEL: { label: 'Kennel', icon: Home, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20', size: 'normal' },
+  SUITE: { label: 'Suite', icon: DoorOpen, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20', size: 'large' },
+  CABIN: { label: 'Cabin', icon: Building, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20', size: 'large' },
+  DAYCARE: { label: 'Daycare', icon: Sun, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20', size: 'xlarge' },
+  MEDICAL: { label: 'Medical', icon: Stethoscope, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-900/20', size: 'normal' },
 };
-
-// Group by options
-const GROUP_BY_OPTIONS = [
-  { value: 'none', label: 'None' },
-  { value: 'type', label: 'Type' },
-  { value: 'building', label: 'Building' },
-  { value: 'status', label: 'Status' },
-];
 
 // Stat Card Component
 const StatCard = ({ icon: Icon, label, value, subValue, variant = 'primary' }) => {
@@ -109,232 +97,204 @@ const StatCard = ({ icon: Icon, label, value, subValue, variant = 'primary' }) =
   );
 };
 
-// Availability pill component
-const AvailabilityPill = ({ available, capacity }) => {
-  const utilization = capacity > 0 ? ((capacity - available) / capacity) * 100 : 100;
-
-  if (available <= 0) {
-    return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
-        Full
-      </span>
-    );
-  }
-
-  if (utilization >= 75) {
-    return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-        {available} left
-      </span>
-    );
-  }
-
-  return (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-      {available} open
-    </span>
-  );
-};
-
-// Inline Status Dropdown
-const StatusDropdown = ({ value, onChange, disabled }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const isActive = value;
-
-  return (
-    <div className="relative">
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          if (!disabled) setIsOpen(!isOpen);
-        }}
-        disabled={disabled}
-        className={cn(
-          'px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-all hover:ring-2 hover:ring-offset-1',
-          isActive
-            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-            : 'bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400',
-          disabled && 'opacity-50 cursor-not-allowed'
-        )}
-      >
-        {isActive ? 'Active' : 'Inactive'}
-      </button>
-      {isOpen && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[100px]">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onChange(true);
-                setIsOpen(false);
-              }}
-              className={cn(
-                'w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2',
-                isActive && 'bg-gray-50 dark:bg-gray-700/50'
-              )}
-            >
-              <span className="w-2 h-2 rounded-full bg-green-500" />
-              Active
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onChange(false);
-                setIsOpen(false);
-              }}
-              className={cn(
-                'w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2',
-                !isActive && 'bg-gray-50 dark:bg-gray-700/50'
-              )}
-            >
-              <span className="w-2 h-2 rounded-full bg-gray-400" />
-              Inactive
-            </button>
-          </div>
-        </>
-      )}
-    </div>
-  );
-};
-
-// Simplified Kennel Card with DAFE
-const KennelCard = ({ kennel, onEdit, onDelete, onViewBookings, onAssignPet, onStatusChange, isCompact, isUpdating }) => {
-  const [showMenu, setShowMenu] = useState(false);
+// Kennel Unit Box for the facility map
+const KennelUnit = ({ kennel, onClick, isSelected }) => {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const tooltipRef = useRef(null);
   const typeConfig = KENNEL_TYPES[kennel.type] || KENNEL_TYPES.KENNEL;
 
-  const available = (kennel.capacity || 0) - (kennel.occupied || 0);
-  const utilization = kennel.capacity > 0 ? Math.round((kennel.occupied || 0) / kennel.capacity * 100) : 0;
+  const available = (kennel.capacity || 1) - (kennel.occupied || 0);
+  const isFull = available <= 0;
+  const isPartial = available > 0 && (kennel.occupied || 0) > 0;
+
+  // Determine status color
+  const getStatusColor = () => {
+    if (!kennel.isActive) return { bg: 'bg-gray-400', ring: 'ring-gray-400', text: 'Inactive' };
+    if (isFull) return { bg: 'bg-red-500', ring: 'ring-red-500', text: 'Full' };
+    if (isPartial) return { bg: 'bg-amber-500', ring: 'ring-amber-500', text: `${available} open` };
+    return { bg: 'bg-emerald-500', ring: 'ring-emerald-500', text: 'Open' };
+  };
+
+  const status = getStatusColor();
+
+  // Size based on type
+  const getSizeClass = () => {
+    switch (typeConfig.size) {
+      case 'xlarge': return 'min-w-[140px] min-h-[100px]';
+      case 'large': return 'min-w-[120px] min-h-[90px]';
+      default: return 'min-w-[90px] min-h-[80px]';
+    }
+  };
 
   return (
     <div
-      className={cn(
-        'group bg-white dark:bg-surface-primary border border-border rounded-lg transition-all hover:border-primary/30 hover:shadow-md cursor-pointer',
-        isCompact ? 'p-3' : 'p-4'
-      )}
-      onClick={() => onEdit(kennel)}
+      className="relative"
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
     >
-      {/* Top Row: Name, Status, Menu */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <h3 className={cn('font-medium text-text truncate', isCompact ? 'text-sm' : 'text-base')}>
-            {kennel.name}
-          </h3>
-          <StatusDropdown
-            value={kennel.isActive}
-            onChange={(newStatus) => onStatusChange(kennel.id || kennel.recordId, newStatus)}
-            disabled={isUpdating}
+      <button
+        onClick={() => onClick(kennel)}
+        className={cn(
+          'relative flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all',
+          'hover:shadow-lg hover:scale-105 hover:z-10',
+          getSizeClass(),
+          isSelected
+            ? 'ring-2 ring-offset-2 ring-[color:var(--bb-color-accent)] border-[color:var(--bb-color-accent)]'
+            : 'border-[color:var(--bb-color-border-subtle)] hover:border-[color:var(--bb-color-accent)]',
+          kennel.isActive
+            ? 'bg-[color:var(--bb-color-bg-surface)]'
+            : 'bg-gray-100 dark:bg-gray-800/50 opacity-60'
+        )}
+      >
+        {/* Status indicator dot */}
+        <div className={cn('absolute top-2 right-2 w-3 h-3 rounded-full', status.bg)} />
+
+        {/* Kennel name */}
+        <span className="text-sm font-bold text-[color:var(--bb-color-text-primary)] mb-1">
+          {kennel.name}
+        </span>
+
+        {/* Type icon */}
+        <typeConfig.icon className={cn('h-4 w-4 mb-1', typeConfig.color)} />
+
+        {/* Capacity */}
+        <span className="text-xs font-medium text-[color:var(--bb-color-text-muted)]">
+          {kennel.occupied || 0}/{kennel.capacity || 1}
+        </span>
+
+        {/* Status text */}
+        <span className={cn(
+          'text-[10px] font-semibold mt-1 px-1.5 py-0.5 rounded-full',
+          isFull ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+          isPartial ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+          !kennel.isActive ? 'bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400' :
+          'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+        )}>
+          {status.text}
+        </span>
+      </button>
+
+      {/* Tooltip */}
+      {showTooltip && (
+        <div
+          ref={tooltipRef}
+          className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-3 rounded-lg shadow-xl border"
+          style={{
+            backgroundColor: 'var(--bb-color-bg-elevated)',
+            borderColor: 'var(--bb-color-border-subtle)',
+          }}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-semibold text-sm text-[color:var(--bb-color-text-primary)]">{kennel.name}</span>
+            <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', typeConfig.bg, typeConfig.color)}>
+              {typeConfig.label}
+            </span>
+          </div>
+
+          <div className="space-y-1.5 text-xs">
+            <div className="flex items-center gap-2 text-[color:var(--bb-color-text-muted)]">
+              <Building className="h-3 w-3" />
+              <span>{kennel.building || 'No building'}{kennel.floor ? ` - ${kennel.floor}` : ''}</span>
+            </div>
+
+            <div className="flex items-center gap-2 text-[color:var(--bb-color-text-muted)]">
+              <Activity className="h-3 w-3" />
+              <span>Capacity: {kennel.occupied || 0}/{kennel.capacity || 1}</span>
+            </div>
+
+            {kennel.currentPets && kennel.currentPets.length > 0 && (
+              <div className="pt-2 border-t" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+                <div className="flex items-center gap-1 mb-1">
+                  <PawPrint className="h-3 w-3 text-[color:var(--bb-color-text-muted)]" />
+                  <span className="text-[color:var(--bb-color-text-muted)]">Current guests:</span>
+                </div>
+                {kennel.currentPets.map((pet, i) => (
+                  <div key={i} className="ml-4 text-[color:var(--bb-color-text-primary)]">
+                    {pet.name} {pet.ownerName && <span className="text-[color:var(--bb-color-text-muted)]">({pet.ownerName})</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {kennel.notes && (
+              <div className="pt-2 border-t text-[color:var(--bb-color-text-muted)] italic" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+                {kennel.notes}
+              </div>
+            )}
+          </div>
+
+          {/* Arrow */}
+          <div
+            className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0"
+            style={{
+              borderLeft: '8px solid transparent',
+              borderRight: '8px solid transparent',
+              borderTop: '8px solid var(--bb-color-bg-elevated)',
+            }}
           />
         </div>
-        <div className="relative flex-shrink-0">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowMenu(!showMenu);
-            }}
-            className="p-1 text-muted hover:text-text hover:bg-surface rounded transition-colors opacity-0 group-hover:opacity-100"
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </button>
-          {showMenu && (
-            <>
-              <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setShowMenu(false); }} />
-              <div className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-surface-primary border border-border rounded-lg shadow-lg z-20 py-1">
-                <button
-                  onClick={(e) => { e.stopPropagation(); onEdit(kennel); setShowMenu(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-text hover:bg-surface"
-                >
-                  <Edit className="h-3.5 w-3.5" /> Edit
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onViewBookings(kennel); setShowMenu(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-text hover:bg-surface"
-                >
-                  <Calendar className="h-3.5 w-3.5" /> Bookings
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onAssignPet(kennel); setShowMenu(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-text hover:bg-surface"
-                >
-                  <PawPrint className="h-3.5 w-3.5" /> Assign
-                </button>
-                <hr className="my-1 border-border" />
-                <button
-                  onClick={(e) => { e.stopPropagation(); onDelete(kennel.id || kennel.recordId); setShowMenu(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-sm text-danger hover:bg-danger/10"
-                >
-                  <Trash2 className="h-3.5 w-3.5" /> Delete
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Middle Row: Type, Building, Capacity */}
-      <div className="flex items-center gap-2 flex-wrap mb-2">
-        <Badge variant="info" size="sm" className={cn(typeConfig.bg, typeConfig.color, 'border-0')}>
-          {typeConfig.label}
-        </Badge>
-        <span className="text-xs text-muted">
-          {kennel.building || 'No building'}
-          {kennel.floor ? ` - ${kennel.floor}` : ''}
-        </span>
-        <span className="text-xs text-muted">•</span>
-        <span className="text-xs text-muted">
-          {kennel.occupied || 0}/{kennel.capacity || 0} ({utilization}%)
-        </span>
-        <AvailabilityPill available={available} capacity={kennel.capacity || 0} />
-      </div>
-
-      {/* Bottom Row: Actions */}
-      <div className="flex items-center gap-1.5 pt-2 border-t border-border">
-        <button
-          onClick={(e) => { e.stopPropagation(); onViewBookings(kennel); }}
-          className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted hover:text-primary hover:bg-primary/5 rounded transition-colors"
-        >
-          <Calendar className="h-3.5 w-3.5" />
-          Bookings
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onAssignPet(kennel); }}
-          className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted hover:text-primary hover:bg-primary/5 rounded transition-colors"
-        >
-          <PawPrint className="h-3.5 w-3.5" />
-          Assign
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onEdit(kennel); }}
-          className="flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted hover:text-primary hover:bg-primary/5 rounded transition-colors"
-        >
-          <Eye className="h-3.5 w-3.5" />
-          View
-        </button>
-      </div>
+      )}
     </div>
   );
 };
 
-// Section Header for grouped kennels
-const SectionHeader = ({ title, count, isExpanded, onToggle }) => (
-  <button
-    onClick={onToggle}
-    className="w-full flex items-center gap-3 py-2 text-left group"
-  >
-    <div className={cn(
-      'flex items-center justify-center h-5 w-5 rounded transition-colors',
-      isExpanded ? 'bg-primary/10' : 'bg-surface'
-    )}>
-      {isExpanded ? (
-        <ChevronDown className="h-3.5 w-3.5 text-primary" />
-      ) : (
-        <ChevronRight className="h-3.5 w-3.5 text-muted" />
-      )}
+// Building Floor Section
+const BuildingFloorSection = ({ title, kennels, onKennelClick, selectedKennelId }) => {
+  const sectionStats = useMemo(() => {
+    const total = kennels.length;
+    const capacity = kennels.reduce((sum, k) => sum + (k.capacity || 1), 0);
+    const occupied = kennels.reduce((sum, k) => sum + (k.occupied || 0), 0);
+    const available = capacity - occupied;
+    return { total, capacity, occupied, available };
+  }, [kennels]);
+
+  return (
+    <div
+      className="rounded-xl border p-4"
+      style={{
+        backgroundColor: 'var(--bb-color-bg-surface)',
+        borderColor: 'var(--bb-color-border-subtle)',
+      }}
+    >
+      {/* Section Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg bg-[color:var(--bb-color-accent-soft)] flex items-center justify-center">
+            <Building className="h-4 w-4 text-[color:var(--bb-color-accent)]" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">{title}</h3>
+            <p className="text-xs text-[color:var(--bb-color-text-muted)]">
+              {sectionStats.total} units • {sectionStats.occupied}/{sectionStats.capacity} occupied
+            </p>
+          </div>
+        </div>
+        <div className={cn(
+          'px-2 py-1 rounded-full text-xs font-medium',
+          sectionStats.available === 0
+            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+            : sectionStats.available <= 2
+            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+            : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+        )}>
+          {sectionStats.available} available
+        </div>
+      </div>
+
+      {/* Kennel Units Grid */}
+      <div className="flex flex-wrap gap-3">
+        {kennels.map((kennel) => (
+          <KennelUnit
+            key={kennel.id || kennel.recordId}
+            kennel={kennel}
+            onClick={onKennelClick}
+            isSelected={selectedKennelId === (kennel.id || kennel.recordId)}
+          />
+        ))}
+      </div>
     </div>
-    <span className="font-medium text-text">{title}</span>
-    <span className="text-xs text-muted">{count} kennel{count !== 1 ? 's' : ''}</span>
-  </button>
-);
+  );
+};
 
 // Capacity Overview Sidebar Card
 const CapacityOverview = ({ stats }) => {
@@ -393,18 +353,20 @@ const CapacityOverview = ({ stats }) => {
   );
 };
 
-// By Building Sidebar Card
-const BuildingBreakdown = ({ kennels }) => {
+// By Building Sidebar Card with jump links
+const BuildingBreakdown = ({ kennels, onJumpToSection }) => {
   const buildingStats = useMemo(() => {
     const stats = {};
     kennels.forEach(k => {
       const building = k.building || 'No Building';
-      if (!stats[building]) {
-        stats[building] = { total: 0, capacity: 0, occupied: 0 };
+      const floor = k.floor || 'Main';
+      const key = `${building} - ${floor}`;
+      if (!stats[key]) {
+        stats[key] = { building, floor, total: 0, capacity: 0, occupied: 0 };
       }
-      stats[building].total++;
-      stats[building].capacity += k.capacity || 0;
-      stats[building].occupied += k.occupied || 0;
+      stats[key].total++;
+      stats[key].capacity += k.capacity || 0;
+      stats[key].occupied += k.occupied || 0;
     });
     return Object.entries(stats).sort((a, b) => a[0].localeCompare(b[0]));
   }, [kennels]);
@@ -416,17 +378,22 @@ const BuildingBreakdown = ({ kennels }) => {
     >
       <div className="flex items-center gap-2 mb-3">
         <Building className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
-        <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">By Building</h3>
+        <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">By Location</h3>
       </div>
 
       <div className="space-y-2">
-        {buildingStats.map(([building, data]) => {
+        {buildingStats.map(([key, data]) => {
           const available = data.capacity - data.occupied;
           return (
-            <div key={building} className="flex items-center justify-between p-2 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
-              <div>
-                <p className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">{building}</p>
-                <p className="text-xs text-[color:var(--bb-color-text-muted)]">{data.total} unit{data.total !== 1 ? 's' : ''}</p>
+            <button
+              key={key}
+              onClick={() => onJumpToSection(key)}
+              className="w-full flex items-center justify-between p-2 rounded-lg transition-colors hover:bg-[color:var(--bb-color-accent-soft)]"
+              style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+            >
+              <div className="text-left">
+                <p className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">{data.building}</p>
+                <p className="text-xs text-[color:var(--bb-color-text-muted)]">{data.floor} • {data.total} units</p>
               </div>
               <div className="text-right">
                 <p className="text-sm font-bold text-[color:var(--bb-color-text-primary)]">{data.occupied}/{data.capacity}</p>
@@ -434,7 +401,7 @@ const BuildingBreakdown = ({ kennels }) => {
                   {available > 0 ? `${available} avail` : 'Full'}
                 </p>
               </div>
-            </div>
+            </button>
           );
         })}
         {buildingStats.length === 0 && (
@@ -476,7 +443,6 @@ const TypeBreakdown = ({ kennels }) => {
       <div className="space-y-2">
         {typeStats.map(([type, data]) => {
           const config = KENNEL_TYPES[type];
-          const available = data.capacity - data.occupied;
           return (
             <div key={type} className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -523,19 +489,32 @@ const QuickActions = ({ onAddKennel, navigate }) => {
           <Building className="h-4 w-4 mr-2" />
           Manage Buildings
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start text-[color:var(--bb-color-text-muted)]"
-          onClick={() => toast('Map view coming soon!')}
-        >
-          <Map className="h-4 w-4 mr-2" />
-          View Full Map
-        </Button>
       </div>
     </div>
   );
 };
+
+// Legend Component
+const MapLegend = () => (
+  <div className="flex items-center gap-4 text-xs text-[color:var(--bb-color-text-muted)]">
+    <div className="flex items-center gap-1.5">
+      <span className="w-3 h-3 rounded-full bg-emerald-500" />
+      <span>Available</span>
+    </div>
+    <div className="flex items-center gap-1.5">
+      <span className="w-3 h-3 rounded-full bg-amber-500" />
+      <span>Partial</span>
+    </div>
+    <div className="flex items-center gap-1.5">
+      <span className="w-3 h-3 rounded-full bg-red-500" />
+      <span>Full</span>
+    </div>
+    <div className="flex items-center gap-1.5">
+      <span className="w-3 h-3 rounded-full bg-gray-400" />
+      <span>Inactive</span>
+    </div>
+  </div>
+);
 
 const Kennels = () => {
   const navigate = useNavigate();
@@ -544,34 +523,19 @@ const Kennels = () => {
   const [selectedKennel, setSelectedKennel] = useState(null);
   const [showAssignDrawer, setShowAssignDrawer] = useState(false);
   const [assignKennel, setAssignKennel] = useState(null);
-  const [updatingId, setUpdatingId] = useState(null);
-
-  // View mode
-  const [isCompact, setIsCompact] = useState(true);
+  const sectionRefs = useRef({});
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [typeFilter, setTypeFilter] = useState('ALL');
 
-  // Grouping
-  const [groupBy, setGroupBy] = useState('none');
-  const [expandedGroups, setExpandedGroups] = useState({});
-
-  const { data: kennels = [], isLoading, error, refetch } = useKennels();
+  const { data: kennels = [], isLoading, error } = useKennels();
   const deleteMutation = useDeleteKennel();
-
-  // Calculate enhanced kennel data
-  const kennelsWithMetrics = useMemo(() => {
-    return kennels.map((kennel) => ({
-      ...kennel,
-      utilizationRate: kennel.capacity > 0 ? Math.round((kennel.occupied || 0) / kennel.capacity * 100) : 0,
-    }));
-  }, [kennels]);
 
   // Filter kennels
   const filteredKennels = useMemo(() => {
-    return kennelsWithMetrics.filter(kennel => {
+    return kennels.filter(kennel => {
       const matchesSearch = !searchTerm ||
         kennel.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         kennel.building?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -584,42 +548,31 @@ const Kennels = () => {
 
       return matchesSearch && matchesStatus && matchesType;
     });
-  }, [kennelsWithMetrics, searchTerm, statusFilter, typeFilter]);
+  }, [kennels, searchTerm, statusFilter, typeFilter]);
 
-  // Group kennels
-  const groupedKennels = useMemo(() => {
-    if (groupBy === 'none') {
-      return { '': filteredKennels };
-    }
-
+  // Group kennels by Building + Floor
+  const groupedByLocation = useMemo(() => {
     const groups = {};
     filteredKennels.forEach(kennel => {
-      let groupKey;
-      switch (groupBy) {
-        case 'type':
-          groupKey = KENNEL_TYPES[kennel.type]?.label || 'Other';
-          break;
-        case 'building':
-          groupKey = kennel.building || 'No Building';
-          break;
-        case 'status':
-          groupKey = kennel.isActive ? 'Active' : 'Inactive';
-          break;
-        default:
-          groupKey = 'Other';
+      const building = kennel.building || 'No Building';
+      const floor = kennel.floor || 'Main';
+      const key = `${building} - ${floor}`;
+      if (!groups[key]) {
+        groups[key] = { building, floor, kennels: [] };
       }
-      if (!groups[groupKey]) groups[groupKey] = [];
-      groups[groupKey].push(kennel);
+      groups[key].kennels.push(kennel);
     });
 
-    // Sort groups alphabetically
-    const sortedGroups = {};
-    Object.keys(groups).sort().forEach(key => {
-      sortedGroups[key] = groups[key];
+    // Sort kennels within each group by name
+    Object.values(groups).forEach(group => {
+      group.kennels.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     });
 
-    return sortedGroups;
-  }, [filteredKennels, groupBy]);
+    // Sort groups by building then floor
+    return Object.entries(groups)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, data]) => ({ key, ...data }));
+  }, [filteredKennels]);
 
   // Calculate stats
   const stats = useMemo(() => ({
@@ -639,55 +592,17 @@ const Kennels = () => {
     setTypeFilter('ALL');
   };
 
-  // Toggle group expansion
-  const toggleGroup = useCallback((groupKey) => {
-    setExpandedGroups(prev => ({ ...prev, [groupKey]: prev[groupKey] === false ? true : false }));
-  }, []);
-
-  // Check if group is expanded (default to true)
-  const isGroupExpanded = (groupKey) => expandedGroups[groupKey] !== false;
-
   // Handlers
-  const handleEdit = (kennel) => {
+  const handleKennelClick = (kennel) => {
     setSelectedKennel(kennel);
     setShowForm(true);
   };
 
-  const handleDelete = async (kennelId) => {
-    if (!confirm('Are you sure you want to delete this kennel?')) return;
-    try {
-      await deleteMutation.mutateAsync(kennelId);
-      toast.success('Kennel deleted');
-    } catch (error) {
-      toast.error(error.message || 'Failed to delete kennel');
+  const handleJumpToSection = (sectionKey) => {
+    const element = sectionRefs.current[sectionKey];
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-  };
-
-  const handleViewBookings = (kennel) => {
-    navigate(`/bookings?kennel=${kennel.id || kennel.recordId}`);
-  };
-
-  const handleAssignPet = (kennel) => {
-    setAssignKennel(kennel);
-    setShowAssignDrawer(true);
-  };
-
-  const handleStatusChange = async (kennelId, newStatus) => {
-    try {
-      setUpdatingId(kennelId);
-      // For now just show toast - would need useUpdateKennel mutation
-      toast.success(`Status changed to ${newStatus ? 'Active' : 'Inactive'}`);
-      refetch();
-    } catch (err) {
-      toast.error('Failed to update status');
-    } finally {
-      setUpdatingId(null);
-    }
-  };
-
-  const handleCloseAssignDrawer = () => {
-    setShowAssignDrawer(false);
-    setAssignKennel(null);
   };
 
   const handleCloseForm = () => {
@@ -741,8 +656,8 @@ const Kennels = () => {
               <li className="text-[color:var(--bb-color-text-primary)] font-medium">Kennels</li>
             </ol>
           </nav>
-          <h1 className="text-xl font-semibold text-[color:var(--bb-color-text-primary)]">Kennel Management</h1>
-          <p className="text-sm text-[color:var(--bb-color-text-muted)] mt-1">Manage facility accommodations and capacity</p>
+          <h1 className="text-xl font-semibold text-[color:var(--bb-color-text-primary)]">Facility Map</h1>
+          <p className="text-sm text-[color:var(--bb-color-text-muted)] mt-1">Visual layout of kennel accommodations</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" asChild>
@@ -751,7 +666,7 @@ const Kennels = () => {
               Settings
             </Link>
           </Button>
-          <Button size="sm" onClick={() => setShowForm(true)}>
+          <Button size="sm" onClick={() => { setSelectedKennel(null); setShowForm(true); }}>
             <Plus className="h-3.5 w-3.5 mr-1.5" />
             Add Kennel
           </Button>
@@ -798,7 +713,7 @@ const Kennels = () => {
 
       {/* Two-Column Layout */}
       <div className="grid gap-6 lg:grid-cols-[1fr_320px] flex-1 min-h-0">
-        {/* Left: Kennel Grid */}
+        {/* Left: Facility Map */}
         <div className="space-y-4 overflow-y-auto min-h-0">
           {/* Filter Bar */}
           <div
@@ -841,28 +756,7 @@ const Kennels = () => {
                 ))}
               </select>
 
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-[color:var(--bb-color-text-muted)]">Group:</span>
-                <select
-                  value={groupBy}
-                  onChange={(e) => setGroupBy(e.target.value)}
-                  className="px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
-                  style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
-                >
-                  {GROUP_BY_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <button
-                onClick={() => setIsCompact(!isCompact)}
-                className="p-2 rounded-lg border transition-colors hover:border-[color:var(--bb-color-accent)]"
-                style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
-                title={isCompact ? 'Comfortable view' : 'Compact view'}
-              >
-                {isCompact ? <Maximize2 className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" /> : <Minimize2 className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />}
-              </button>
+              <MapLegend />
             </div>
 
             {/* Active Filter Tags */}
@@ -904,16 +798,11 @@ const Kennels = () => {
             )}
           </div>
 
-          {/* Results count */}
-          <div className="text-xs text-[color:var(--bb-color-text-muted)]">
-            {filteredKennels.length} of {kennels.length} kennels
-          </div>
-
-          {/* Kennels Grid */}
+          {/* Facility Map */}
           {isLoading ? (
-            <div className="grid gap-4 sm:grid-cols-2">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-32 rounded-lg" />
+            <div className="space-y-4">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <Skeleton key={i} className="h-40 rounded-xl" />
               ))}
             </div>
           ) : filteredKennels.length === 0 ? (
@@ -921,17 +810,17 @@ const Kennels = () => {
               className="p-8 text-center rounded-lg border"
               style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
             >
-              <Building className="h-12 w-12 mx-auto mb-4" style={{ color: 'var(--bb-color-text-muted)' }} />
+              <Map className="h-12 w-12 mx-auto mb-4" style={{ color: 'var(--bb-color-text-muted)' }} />
               <h3 className="text-lg font-medium mb-2" style={{ color: 'var(--bb-color-text-primary)' }}>
                 {kennels.length === 0 ? 'No Kennels Yet' : 'No Results'}
               </h3>
               <p className="text-sm mb-4" style={{ color: 'var(--bb-color-text-muted)' }}>
                 {kennels.length === 0
-                  ? 'Add your first kennel to get started.'
+                  ? 'Add your first kennel to see the facility map.'
                   : 'Try adjusting your filters.'}
               </p>
               {kennels.length === 0 ? (
-                <Button onClick={() => setShowForm(true)}>
+                <Button onClick={() => { setSelectedKennel(null); setShowForm(true); }}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add Kennel
                 </Button>
@@ -942,34 +831,18 @@ const Kennels = () => {
               )}
             </div>
           ) : (
-            <div className="space-y-6">
-              {Object.entries(groupedKennels).map(([groupKey, groupKennels]) => (
-                <div key={groupKey || 'all'}>
-                  {groupBy !== 'none' && groupKey && (
-                    <SectionHeader
-                      title={groupKey}
-                      count={groupKennels.length}
-                      isExpanded={isGroupExpanded(groupKey)}
-                      onToggle={() => toggleGroup(groupKey)}
-                    />
-                  )}
-                  {(groupBy === 'none' || isGroupExpanded(groupKey)) && (
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      {groupKennels.map((kennel) => (
-                        <KennelCard
-                          key={kennel.id || kennel.recordId}
-                          kennel={kennel}
-                          onEdit={handleEdit}
-                          onDelete={handleDelete}
-                          onViewBookings={handleViewBookings}
-                          onAssignPet={handleAssignPet}
-                          onStatusChange={handleStatusChange}
-                          isCompact={isCompact}
-                          isUpdating={updatingId === (kennel.id || kennel.recordId)}
-                        />
-                      ))}
-                    </div>
-                  )}
+            <div className="space-y-4">
+              {groupedByLocation.map((group) => (
+                <div
+                  key={group.key}
+                  ref={(el) => { sectionRefs.current[group.key] = el; }}
+                >
+                  <BuildingFloorSection
+                    title={group.key}
+                    kennels={group.kennels}
+                    onKennelClick={handleKennelClick}
+                    selectedKennelId={selectedKennel?.id || selectedKennel?.recordId}
+                  />
                 </div>
               ))}
             </div>
@@ -979,9 +852,9 @@ const Kennels = () => {
         {/* Right: Sidebar */}
         <div className="flex flex-col gap-4 min-h-0 overflow-y-auto">
           <CapacityOverview stats={stats} />
-          <BuildingBreakdown kennels={kennels} />
+          <BuildingBreakdown kennels={kennels} onJumpToSection={handleJumpToSection} />
           <TypeBreakdown kennels={kennels} />
-          <QuickActions onAddKennel={() => setShowForm(true)} navigate={navigate} />
+          <QuickActions onAddKennel={() => { setSelectedKennel(null); setShowForm(true); }} navigate={navigate} />
         </div>
       </div>
 
@@ -998,7 +871,7 @@ const Kennels = () => {
       {/* Kennel Assignment Drawer */}
       <KennelAssignDrawer
         isOpen={showAssignDrawer}
-        onClose={handleCloseAssignDrawer}
+        onClose={() => { setShowAssignDrawer(false); setAssignKennel(null); }}
         kennel={assignKennel}
       />
     </div>
