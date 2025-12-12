@@ -4014,16 +4014,34 @@ async function handleAssignPetsToRun(tenantId, runId, body) {
   try {
     await getPoolAsync();
 
-    // Verify run exists and belongs to tenant
+    // Verify run exists - check both Run and RunTemplate tables
+    let runRecord = null;
+
+    // First check Run table
     const runCheck = await query(
-      `SELECT id FROM "Run" WHERE id = $1 AND tenant_id = $2 `,
+      `SELECT id, name FROM "Run" WHERE id = $1 AND tenant_id = $2`,
       [runId, tenantId]
     );
 
-    if (runCheck.rows.length === 0) {
+    if (runCheck.rows.length > 0) {
+      runRecord = runCheck.rows[0];
+    } else {
+      // If not found in Run, check RunTemplate and use its ID
+      const templateCheck = await query(
+        `SELECT id, name FROM "RunTemplate" WHERE id = $1 AND tenant_id = $2`,
+        [runId, tenantId]
+      );
+
+      if (templateCheck.rows.length > 0) {
+        runRecord = templateCheck.rows[0];
+        console.log('[RunAssignments][assignToRun] Using RunTemplate ID as run_id:', runId);
+      }
+    }
+
+    if (!runRecord) {
       return createResponse(404, {
         error: 'Not Found',
-        message: 'Run not found',
+        message: 'Run or RunTemplate not found',
       });
     }
 

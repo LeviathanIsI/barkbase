@@ -20,7 +20,7 @@ import CheckInOutDashboard from '@/features/calendar/components/CheckInOutDashbo
 import FilterOptionsPanel from '@/features/calendar/components/FilterOptionsPanel';
 import { useBookingsQuery, useBookingCheckInMutation, useBookingCheckOutMutation } from '@/features/bookings/api';
 import { useRunTemplatesQuery } from '@/features/daycare/api-templates';
-import { useRunAssignmentsQuery } from '@/features/daycare/api';
+import { useRunAssignmentsQuery, useAssignPetsToRunMutation } from '@/features/daycare/api';
 import { useTodayStats } from '../hooks/useTodayStats';
 import { useAuthStore } from '@/stores/auth';
 import { cn } from '@/lib/cn';
@@ -79,6 +79,9 @@ const Schedule = () => {
   });
 
   const isLoading = runsLoading || bookingsLoading || assignmentsLoading;
+
+  // Mutation for assigning pets to runs
+  const assignPetsMutation = useAssignPetsToRunMutation();
 
   // Transform runs from templates
   const runs = useMemo(() => {
@@ -484,13 +487,28 @@ const Schedule = () => {
         <PetAssignmentPanel
           run={selectedRunForAssignment}
           unassignedPets={unassignedCheckedInPets}
-          onAssign={(pet) => {
-            // TODO: Call API to assign pet to run
-            toast.success(`${pet.petName} assigned to ${selectedRunForAssignment?.name}`);
-            setShowAssignmentPanel(false);
-            setSelectedRunForAssignment(null);
-            // Refetch assignments
-            refetchAssignments();
+          onAssign={async (pet) => {
+            if (!selectedRunForAssignment?.id) {
+              toast.error('No run selected');
+              return;
+            }
+            try {
+              const todayStr = currentDate.toISOString().split('T')[0];
+              await assignPetsMutation.mutateAsync({
+                runId: selectedRunForAssignment.id,
+                petIds: [pet.pet?.id || pet.petId || pet.id],
+                date: todayStr,
+                bookingIds: pet.bookingId ? [pet.bookingId] : undefined,
+              });
+              toast.success(`${pet.petName} assigned to ${selectedRunForAssignment?.name}`);
+              setShowAssignmentPanel(false);
+              setSelectedRunForAssignment(null);
+              // Refetch assignments
+              refetchAssignments();
+            } catch (error) {
+              console.error('Failed to assign pet:', error);
+              toast.error(error?.message || 'Failed to assign pet to run');
+            }
           }}
           onClose={() => {
             setShowAssignmentPanel(false);
