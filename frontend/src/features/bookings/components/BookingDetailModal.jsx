@@ -5,7 +5,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { Calendar, PawPrint, User, CheckCircle, Clock, DollarSign, Phone, Edit2, X, MessageSquare, Home, ChevronDown } from 'lucide-react';
+import { Calendar, PawPrint, User, CheckCircle, Clock, DollarSign, Phone, Edit2, X, MessageSquare, Home, ChevronDown, LogIn, LogOut } from 'lucide-react';
 import {
   InspectorRoot,
   InspectorHeader,
@@ -300,6 +300,90 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
           statusIntent={getStatusVariant(displayBooking.status)}
           metrics={metrics}
         />
+
+        {/* Check In / Check Out Action Buttons - Prominent placement */}
+        {(() => {
+          const now = new Date();
+          const checkInDate = displayBooking.checkIn ? new Date(displayBooking.checkIn) : null;
+          const isScheduled = checkInDate && checkInDate > now;
+          const status = displayBooking.status;
+
+          // Already checked out - show badge
+          if (status === 'CHECKED_OUT') {
+            return (
+              <div className="px-[var(--bb-space-4)] py-[var(--bb-space-3)] border-b border-[var(--bb-color-border-subtle)]">
+                <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-[var(--bb-color-bg-elevated)]">
+                  <CheckCircle className="w-5 h-5 text-[var(--bb-color-status-positive)]" />
+                  <span className="text-sm font-medium text-[var(--bb-color-text-muted)]">
+                    Checked Out
+                  </span>
+                </div>
+              </div>
+            );
+          }
+
+          // Cancelled - no buttons
+          if (status === 'CANCELLED') {
+            return null;
+          }
+
+          // Scheduled for future - show disabled state
+          if (isScheduled && status !== 'CHECKED_IN') {
+            return (
+              <div className="px-[var(--bb-space-4)] py-[var(--bb-space-3)] border-b border-[var(--bb-color-border-subtle)]">
+                <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-[var(--bb-color-bg-elevated)]">
+                  <Clock className="w-5 h-5 text-[var(--bb-color-text-muted)]" />
+                  <span className="text-sm font-medium text-[var(--bb-color-text-muted)]">
+                    Scheduled for {checkInDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </span>
+                </div>
+              </div>
+            );
+          }
+
+          // Ready to check in (CONFIRMED or PENDING status)
+          if (status === 'CONFIRMED' || status === 'PENDING') {
+            return (
+              <div className="px-[var(--bb-space-4)] py-[var(--bb-space-3)] border-b border-[var(--bb-color-border-subtle)]">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700"
+                  onClick={handleCheckIn}
+                  disabled={checkInMutation.isPending || !hasValidBookingId}
+                >
+                  <LogIn className="w-5 h-5 mr-2" />
+                  {checkInMutation.isPending ? 'Checking In...' : 'Check In'}
+                </Button>
+                {!hasValidBookingId && (
+                  <p className="text-xs text-center text-[var(--bb-color-text-muted)] mt-2">
+                    Save booking first to enable check-in
+                  </p>
+                )}
+              </div>
+            );
+          }
+
+          // Currently checked in - show check out button
+          if (status === 'CHECKED_IN') {
+            return (
+              <div className="px-[var(--bb-space-4)] py-[var(--bb-space-3)] border-b border-[var(--bb-color-border-subtle)]">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="w-full bg-amber-500 hover:bg-amber-600"
+                  onClick={handleCheckOut}
+                  disabled={checkOutMutation.isPending || !hasValidBookingId}
+                >
+                  <LogOut className="w-5 h-5 mr-2" />
+                  {checkOutMutation.isPending ? 'Checking Out...' : 'Check Out'}
+                </Button>
+              </div>
+            );
+          }
+
+          return null;
+        })()}
 
         {/* Pet Info */}
         <InspectorSection title="Pet" icon={PawPrint}>
