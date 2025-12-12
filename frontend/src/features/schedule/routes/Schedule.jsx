@@ -4,8 +4,8 @@ import { format, addDays, startOfWeek } from 'date-fns';
 import {
   Plus, Home, Users, Settings, ChevronLeft, ChevronRight,
   Clock, PawPrint, UserCheck, UserX, CheckCircle,
-  TrendingUp, Brain, CheckSquare,
-  AlertTriangle, BarChart3, Zap, Info,
+  TrendingUp, Brain, CheckSquare, Search, LogIn, LogOut,
+  AlertTriangle, BarChart3, Zap, Info, Phone, User,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -14,15 +14,17 @@ import { PageHeader } from '@/components/ui/Card';
 import LoadingState from '@/components/ui/LoadingState';
 import SlidePanel from '@/components/ui/SlidePanel';
 import NewBookingModal from '@/features/bookings/components/NewBookingModal';
-import BookingDetailModal from '@/features/calendar/components/BookingDetailModal';
+import BookingDetailModal from '@/features/bookings/components/BookingDetailModal';
 import KennelLayoutView from '@/features/calendar/components/KennelLayoutView';
 import CheckInOutDashboard from '@/features/calendar/components/CheckInOutDashboard';
 import FilterOptionsPanel from '@/features/calendar/components/FilterOptionsPanel';
-import { useBookingsQuery } from '@/features/bookings/api';
+import { useBookingsQuery, useBookingCheckInMutation, useBookingCheckOutMutation } from '@/features/bookings/api';
 import { useRunTemplatesQuery } from '@/features/daycare/api-templates';
 import { useRunAssignmentsQuery } from '@/features/daycare/api';
 import { useTodayStats } from '../hooks/useTodayStats';
+import { useAuthStore } from '@/stores/auth';
 import { cn } from '@/lib/cn';
+import toast from 'react-hot-toast';
 
 const Schedule = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -37,12 +39,17 @@ const Schedule = () => {
 
   // Filter state
   const [activeFilter, setActiveFilter] = useState(null); // 'pets' | 'checkins' | 'checkouts' | 'occupancy'
+  const [searchTerm, setSearchTerm] = useState('');
+  const [serviceFilter, setServiceFilter] = useState('all');
   const [filters, setFilters] = useState({
     services: ['boarding', 'daycare', 'grooming'],
     kennels: ['all'],
     status: ['CONFIRMED', 'PENDING', 'CHECKED_IN'],
     highlights: ['check-in-today', 'check-out-today', 'medication-required'],
   });
+
+  // Get current user for audit fields
+  const userId = useAuthStore((state) => state.user?.id);
 
   // Stats
   const todayStats = useTodayStats(currentDate);
@@ -117,6 +124,9 @@ const Schedule = () => {
       const startDate = assignment.startAt ? new Date(assignment.startAt) : null;
       const dateStr = startDate ? startDate.toISOString().split('T')[0] : null;
 
+      // Determine service type from run type or booking
+      const serviceType = assignment.serviceType || assignment.runType || 'Daycare';
+
       return {
         id: assignment.id,
         runId: assignment.runId,
@@ -140,10 +150,43 @@ const Schedule = () => {
         startTime: assignment.startTime,
         endTime: assignment.endTime,
         status: assignment.status,
+        serviceType,
         dateStr, // The date this assignment is for
       };
     }).filter(a => a.dateStr); // Only include valid assignments with dates
   }, [runAssignmentsData]);
+
+  // Filter assignments based on search and service filter
+  const filteredAssignments = useMemo(() => {
+    return processedAssignments.filter(assignment => {
+      // Search filter
+      const matchesSearch = !searchTerm ||
+        assignment.petName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        assignment.ownerName?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      // Service filter
+      const matchesService = serviceFilter === 'all' ||
+        assignment.serviceType?.toLowerCase().includes(serviceFilter.toLowerCase());
+
+      return matchesSearch && matchesService;
+    });
+  }, [processedAssignments, searchTerm, serviceFilter]);
+
+  // Filter bookings based on search and service filter
+  const filteredBookings = useMemo(() => {
+    return processedBookings.filter(booking => {
+      // Search filter
+      const matchesSearch = !searchTerm ||
+        booking.petName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        booking.ownerName?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      // Service filter
+      const matchesService = serviceFilter === 'all' ||
+        booking.serviceName?.toLowerCase().includes(serviceFilter.toLowerCase());
+
+      return matchesSearch && matchesService;
+    });
+  }, [processedBookings, searchTerm, serviceFilter]);
 
   // Calculate occupancy per day based on run assignments
   const occupancyByDate = useMemo(() => {
@@ -346,8 +389,8 @@ const Schedule = () => {
           {/* Left: Today's Hourly Grid */}
           <DailyHourlyGrid
             runs={runs}
-            bookings={processedBookings}
-            assignments={processedAssignments}
+            bookings={filteredBookings}
+            assignments={filteredAssignments}
             currentDate={currentDate}
             isLoading={isLoading}
             onBookingClick={handleBookingClick}
@@ -356,6 +399,11 @@ const Schedule = () => {
             }}
             onNavigateDay={navigateDay}
             onGoToToday={goToToday}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            serviceFilter={serviceFilter}
+            onServiceFilterChange={setServiceFilter}
+            userId={userId}
           />
 
           {/* Right: Stacked widgets */}
@@ -495,8 +543,26 @@ const StatCard = ({ icon: Icon, label, value, delta, variant, isActive, onClick,
 
 // Daily Hourly Grid - Shows which pet is WHERE at each HOUR for TODAY
 // Rows = Hours (6am-8pm), Columns = Kennels/Runs
-const DailyHourlyGrid = ({ runs, bookings, assignments = [], currentDate, isLoading, onBookingClick, onNewBooking, onNavigateDay, onGoToToday }) => {
+const DailyHourlyGrid = ({
+  runs,
+  bookings,
+  assignments = [],
+  currentDate,
+  isLoading,
+  onBookingClick,
+  onNewBooking,
+  onNavigateDay,
+  onGoToToday,
+  searchTerm,
+  onSearchChange,
+  serviceFilter,
+  onServiceFilterChange,
+  userId,
+}) => {
   const scrollRef = useRef(null);
+  const currentHourRef = useRef(null);
+  const checkInMutation = useBookingCheckInMutation();
+  const checkOutMutation = useBookingCheckOutMutation();
 
   // Generate hours array (6am to 8pm = 6-20)
   const hours = useMemo(() => {
@@ -517,6 +583,13 @@ const DailyHourlyGrid = ({ runs, bookings, assignments = [], currentDate, isLoad
 
   // Get the date string for filtering
   const dateStr = currentDate.toISOString().split('T')[0];
+
+  // Scroll to current hour on mount
+  useEffect(() => {
+    if (isToday && currentHourRef.current) {
+      currentHourRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [isToday]);
 
   // Get pets in a kennel/run at a specific hour
   const getPetsForCell = (runId, hour) => {
@@ -553,6 +626,38 @@ const DailyHourlyGrid = ({ runs, bookings, assignments = [], currentDate, isLoad
     return Math.round((occupiedHours / hours.length) * 100);
   };
 
+  // Check in handler
+  const handleCheckIn = useCallback(async (e, pet) => {
+    e.stopPropagation();
+    const bookingId = pet.bookingId || pet.id;
+    if (!bookingId) {
+      toast.error('No booking ID found');
+      return;
+    }
+    try {
+      await checkInMutation.mutateAsync({ bookingId, payload: { userId } });
+      toast.success(`${pet.petName} checked in!`);
+    } catch (error) {
+      toast.error(error?.message || 'Failed to check in');
+    }
+  }, [checkInMutation, userId]);
+
+  // Check out handler
+  const handleCheckOut = useCallback(async (e, pet) => {
+    e.stopPropagation();
+    const bookingId = pet.bookingId || pet.id;
+    if (!bookingId) {
+      toast.error('No booking ID found');
+      return;
+    }
+    try {
+      await checkOutMutation.mutateAsync({ bookingId, payload: { userId } });
+      toast.success(`${pet.petName} checked out!`);
+    } catch (error) {
+      toast.error(error?.message || 'Failed to check out');
+    }
+  }, [checkOutMutation, userId]);
+
   const dateLabel = format(currentDate, 'EEEE, MMMM d, yyyy');
 
   return (
@@ -575,14 +680,56 @@ const DailyHourlyGrid = ({ runs, bookings, assignments = [], currentDate, isLoad
         </div>
       </div>
 
+      {/* Filter Bar */}
+      <div className="flex items-center gap-3 px-4 py-2 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)', backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+        {/* Service Filter */}
+        <select
+          value={serviceFilter}
+          onChange={(e) => onServiceFilterChange(e.target.value)}
+          className="h-8 rounded-lg border px-2 text-sm"
+          style={{
+            backgroundColor: 'var(--bb-color-bg-body)',
+            borderColor: 'var(--bb-color-border-subtle)',
+            color: 'var(--bb-color-text-primary)',
+          }}
+        >
+          <option value="all">All Services</option>
+          <option value="boarding">Boarding</option>
+          <option value="daycare">Daycare</option>
+          <option value="grooming">Grooming</option>
+        </select>
+
+        {/* Search */}
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[color:var(--bb-color-text-muted)]" />
+          <input
+            type="text"
+            placeholder="Search by pet or owner..."
+            value={searchTerm}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="w-full h-8 rounded-lg border pl-9 pr-4 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]"
+            style={{
+              backgroundColor: 'var(--bb-color-bg-body)',
+              borderColor: 'var(--bb-color-border-subtle)',
+              color: 'var(--bb-color-text-primary)',
+            }}
+          />
+        </div>
+
+        {/* Results count */}
+        <span className="text-sm text-[color:var(--bb-color-text-muted)]">
+          {assignments.length + bookings.length} pets
+        </span>
+      </div>
+
       {/* Grid */}
       <div className="overflow-x-auto" ref={scrollRef}>
-        <div style={{ minWidth: `${80 + runs.length * 120}px` }}>
+        <div style={{ minWidth: `${80 + runs.length * 140}px` }}>
           {/* Column Headers - Kennels/Runs */}
           <div
             className="grid border-b"
             style={{
-              gridTemplateColumns: `80px repeat(${runs.length}, minmax(100px, 1fr))`,
+              gridTemplateColumns: `80px repeat(${runs.length}, minmax(120px, 1fr))`,
               backgroundColor: 'var(--bb-color-bg-elevated)',
               borderColor: 'var(--bb-color-border-subtle)'
             }}
@@ -631,9 +778,13 @@ const DailyHourlyGrid = ({ runs, bookings, assignments = [], currentDate, isLoad
               return (
                 <div
                   key={hour}
-                  className="grid border-b last:border-b-0"
+                  ref={isCurrentHour ? currentHourRef : null}
+                  className={cn(
+                    "grid border-b last:border-b-0",
+                    isCurrentHour && "ring-2 ring-inset ring-[var(--bb-color-accent)]"
+                  )}
                   style={{
-                    gridTemplateColumns: `80px repeat(${runs.length}, minmax(100px, 1fr))`,
+                    gridTemplateColumns: `80px repeat(${runs.length}, minmax(120px, 1fr))`,
                     borderColor: 'var(--bb-color-border-subtle)'
                   }}
                 >
@@ -641,7 +792,7 @@ const DailyHourlyGrid = ({ runs, bookings, assignments = [], currentDate, isLoad
                   <div
                     className={cn(
                       'p-2 sticky left-0 z-10 border-r flex items-center justify-center',
-                      isCurrentHour && 'bg-[color:var(--bb-color-accent-soft)]'
+                      isCurrentHour && 'bg-[var(--bb-color-accent)] text-white'
                     )}
                     style={{
                       backgroundColor: isCurrentHour ? undefined : 'var(--bb-color-bg-surface)',
@@ -649,10 +800,11 @@ const DailyHourlyGrid = ({ runs, bookings, assignments = [], currentDate, isLoad
                     }}
                   >
                     <span className={cn(
-                      'text-sm font-medium',
-                      isCurrentHour ? 'text-[color:var(--bb-color-accent)]' : 'text-[color:var(--bb-color-text-muted)]'
+                      'text-sm font-semibold',
+                      !isCurrentHour && 'text-[color:var(--bb-color-text-muted)]'
                     )}>
                       {formatHour(hour)}
+                      {isCurrentHour && ' •'}
                     </span>
                   </div>
 
@@ -665,7 +817,7 @@ const DailyHourlyGrid = ({ runs, bookings, assignments = [], currentDate, isLoad
                       <div
                         key={run.id}
                         className={cn(
-                          'min-h-[48px] border-l relative transition-colors cursor-pointer',
+                          'min-h-[60px] border-l relative transition-colors cursor-pointer',
                           !hasPets && 'hover:bg-[color:var(--bb-color-bg-elevated)]',
                           isCurrentHour && 'bg-[color:var(--bb-color-accent-soft)]'
                         )}
@@ -676,20 +828,18 @@ const DailyHourlyGrid = ({ runs, bookings, assignments = [], currentDate, isLoad
                         onClick={() => hasPets ? onBookingClick(cellPets[0]) : onNewBooking(run.id, currentDate)}
                       >
                         {hasPets ? (
-                          <div className="p-1 space-y-0.5 overflow-hidden">
+                          <div className="p-1 space-y-1 overflow-hidden">
                             {cellPets.slice(0, 2).map((pet, idx) => (
-                              <div
+                              <PetTimeBar
                                 key={pet.id || idx}
-                                className="rounded bg-blue-100 dark:bg-blue-900/40 border-l-2 border-blue-500 px-1.5 py-0.5 overflow-hidden"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onBookingClick(pet);
-                                }}
-                              >
-                                <p className="text-[10px] font-medium text-blue-800 dark:text-blue-200 truncate">
-                                  {pet.petName}
-                                </p>
-                              </div>
+                                pet={pet}
+                                dateStr={dateStr}
+                                onBookingClick={onBookingClick}
+                                onCheckIn={handleCheckIn}
+                                onCheckOut={handleCheckOut}
+                                checkInPending={checkInMutation.isPending}
+                                checkOutPending={checkOutMutation.isPending}
+                              />
                             ))}
                             {cellPets.length > 2 && (
                               <p className="text-[9px] text-center text-blue-600 dark:text-blue-300 font-medium">
@@ -711,6 +861,176 @@ const DailyHourlyGrid = ({ runs, bookings, assignments = [], currentDate, isLoad
           )}
         </div>
       </div>
+    </div>
+  );
+};
+
+// Pet Time Bar - DAFE pattern with hover tooltip, click to open, inline check-in/out
+const PetTimeBar = ({ pet, dateStr, onBookingClick, onCheckIn, onCheckOut, checkInPending, checkOutPending }) => {
+  const [showTooltip, setShowTooltip] = useState(false);
+
+  // Determine check-in/out eligibility
+  const today = new Date().toISOString().split('T')[0];
+  const isArrivalToday = pet.bookingCheckIn?.split('T')[0] === today || pet.startAt?.split('T')[0] === today;
+  const isDepartureToday = pet.bookingCheckOut?.split('T')[0] === today || pet.endAt?.split('T')[0] === today;
+  const status = pet.bookingStatus || pet.status || 'CONFIRMED';
+  const isCheckedIn = status === 'CHECKED_IN';
+  const isCheckedOut = status === 'CHECKED_OUT';
+
+  // Show check-in button if arrival is today and not yet checked in
+  const showCheckIn = isArrivalToday && !isCheckedIn && !isCheckedOut && status !== 'CANCELLED';
+  // Show check-out button if checked in and departure is today
+  const showCheckOut = isCheckedIn && isDepartureToday;
+
+  // Service type badge color
+  const getServiceColor = (service) => {
+    const s = (service || '').toLowerCase();
+    if (s.includes('boarding')) return 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
+    if (s.includes('daycare')) return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300';
+    if (s.includes('groom')) return 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300';
+    return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+  };
+
+  // Status border color
+  const getStatusBorderColor = () => {
+    if (isCheckedOut) return 'border-l-gray-400';
+    if (isCheckedIn) return 'border-l-emerald-500';
+    if (status === 'CONFIRMED') return 'border-l-blue-500';
+    if (status === 'PENDING') return 'border-l-amber-500';
+    return 'border-l-gray-400';
+  };
+
+  const formatTime = (dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  };
+
+  return (
+    <div
+      className={cn(
+        'relative rounded border-l-4 px-2 py-1 cursor-pointer transition-all',
+        'hover:shadow-md hover:-translate-y-0.5 hover:ring-1 hover:ring-[var(--bb-color-accent)]',
+        getStatusBorderColor()
+      )}
+      style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+      onClick={(e) => {
+        e.stopPropagation();
+        onBookingClick(pet);
+      }}
+    >
+      {/* Main content */}
+      <div className="flex items-start justify-between gap-1">
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-semibold text-[color:var(--bb-color-text-primary)] truncate flex items-center gap-1">
+            <PawPrint className="h-3 w-3 shrink-0" />
+            {pet.petName}
+          </p>
+          <p className="text-[9px] text-[color:var(--bb-color-text-muted)] truncate">
+            {pet.ownerName}
+          </p>
+        </div>
+        {/* Service badge */}
+        <span className={cn('text-[8px] font-medium px-1 py-0.5 rounded shrink-0', getServiceColor(pet.serviceType))}>
+          {pet.serviceType || 'Daycare'}
+        </span>
+      </div>
+
+      {/* Check In/Out buttons */}
+      {(showCheckIn || showCheckOut) && (
+        <div className="mt-1 flex gap-1">
+          {showCheckIn && (
+            <button
+              type="button"
+              onClick={(e) => onCheckIn(e, pet)}
+              disabled={checkInPending}
+              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-medium bg-emerald-500 text-white hover:bg-emerald-600 transition-colors"
+            >
+              <LogIn className="h-2.5 w-2.5" />
+              {checkInPending ? '...' : 'In'}
+            </button>
+          )}
+          {showCheckOut && (
+            <button
+              type="button"
+              onClick={(e) => onCheckOut(e, pet)}
+              disabled={checkOutPending}
+              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-medium bg-amber-500 text-white hover:bg-amber-600 transition-colors"
+            >
+              <LogOut className="h-2.5 w-2.5" />
+              {checkOutPending ? '...' : 'Out'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Tooltip on hover */}
+      {showTooltip && (
+        <div
+          className="absolute left-full top-0 ml-2 z-50 w-56 rounded-lg p-3 shadow-xl"
+          style={{
+            backgroundColor: 'var(--bb-color-bg-surface)',
+            border: '1px solid var(--bb-color-border-subtle)',
+          }}
+        >
+          <div className="space-y-2">
+            {/* Pet info */}
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bb-color-accent)] text-white">
+                <PawPrint className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm text-[color:var(--bb-color-text-primary)]">{pet.petName}</p>
+                <p className="text-xs text-[color:var(--bb-color-text-muted)]">{pet.petBreed || pet.petSpecies || 'Pet'}</p>
+              </div>
+            </div>
+
+            {/* Owner */}
+            <div className="flex items-center gap-2 text-xs">
+              <User className="h-3.5 w-3.5 text-[color:var(--bb-color-text-muted)]" />
+              <span className="text-[color:var(--bb-color-text-primary)]">{pet.ownerName}</span>
+            </div>
+
+            {/* Phone */}
+            {pet.ownerPhone && (
+              <div className="flex items-center gap-2 text-xs">
+                <Phone className="h-3.5 w-3.5 text-[color:var(--bb-color-text-muted)]" />
+                <a href={`tel:${pet.ownerPhone}`} className="text-[color:var(--bb-color-accent)] hover:underline">
+                  {pet.ownerPhone}
+                </a>
+              </div>
+            )}
+
+            {/* Service */}
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-[color:var(--bb-color-text-muted)]">Service:</span>
+              <Badge size="sm" variant="info">{pet.serviceType || 'Daycare'}</Badge>
+            </div>
+
+            {/* Times */}
+            <div className="pt-2 border-t text-xs space-y-1" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+              <div className="flex justify-between">
+                <span className="text-[color:var(--bb-color-text-muted)]">Check-in:</span>
+                <span className="text-[color:var(--bb-color-text-primary)]">{formatTime(pet.bookingCheckIn || pet.startAt)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[color:var(--bb-color-text-muted)]">Check-out:</span>
+                <span className="text-[color:var(--bb-color-text-primary)]">{formatTime(pet.bookingCheckOut || pet.endAt)}</span>
+              </div>
+            </div>
+
+            {/* Status */}
+            <div className="flex items-center justify-between pt-2 border-t" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+              <span className="text-xs text-[color:var(--bb-color-text-muted)]">Status:</span>
+              <Badge size="sm" variant={isCheckedIn ? 'success' : isCheckedOut ? 'neutral' : 'info'}>
+                {status.replace('_', ' ')}
+              </Badge>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
