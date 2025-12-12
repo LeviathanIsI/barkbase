@@ -12,7 +12,7 @@ import { PageHeader } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/skeleton';
 // Unified loader: replaced inline loading with LoadingState
 import LoadingState from '@/components/ui/LoadingState';
-import SinglePageBookingWizard from '../components/SinglePageBookingWizard';
+import NewBookingModal from '../components/NewBookingModal';
 import BookingDetailModal from '../components/BookingDetailModal';
 import { useBookingsQuery, useDeleteBookingMutation } from '../api';
 import { cn } from '@/lib/cn';
@@ -432,21 +432,16 @@ const Bookings = () => {
     }
   }, [currentDate, periodMode, dateRange]);
 
-  if (showNewBooking) {
-    return (
-      <div className="flex h-full flex-col">
-        <div className="mb-4">
-          <Button variant="ghost" onClick={() => setShowNewBooking(false)} className="gap-2">
-            <ChevronLeft className="h-4 w-4" />
-            Back to Bookings
-          </Button>
-        </div>
-        <SinglePageBookingWizard onComplete={handleBookingComplete} />
-      </div>
-    );
-  }
-
   return (
+    <>
+      {/* New Booking Slideout */}
+      <NewBookingModal
+        isOpen={showNewBooking}
+        onClose={() => setShowNewBooking(false)}
+        onSuccess={handleBookingComplete}
+      />
+
+      {/* Main Page */}
     <div className="flex flex-col flex-grow w-full min-h-[calc(100vh-180px)]">
       {/* Header Section */}
       <div className="pb-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
@@ -724,6 +719,7 @@ const Bookings = () => {
         />
       )}
     </div>
+    </>
   );
 };
 
