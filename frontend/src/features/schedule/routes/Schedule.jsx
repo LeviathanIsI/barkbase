@@ -688,24 +688,39 @@ const DailyHourlyGrid = ({
 
       // Parse start/end time - could be TIME strings like "08:00" or timestamps
       let startHour = 0;
+      let startMinute = 0;
       let endHour = 23;
+      let endMinute = 59;
 
       if (a.startTime) {
         // TIME string like "08:00:00" or "08:00"
         const parts = a.startTime.split(':');
         startHour = parseInt(parts[0], 10) || 0;
+        startMinute = parseInt(parts[1], 10) || 0;
       } else if (a.startAt) {
-        startHour = new Date(a.startAt).getHours();
+        const d = new Date(a.startAt);
+        startHour = d.getHours();
+        startMinute = d.getMinutes();
       }
 
       if (a.endTime) {
         const parts = a.endTime.split(':');
         endHour = parseInt(parts[0], 10) || 23;
+        endMinute = parseInt(parts[1], 10) || 59;
       } else if (a.endAt) {
-        endHour = new Date(a.endAt).getHours();
+        const d = new Date(a.endAt);
+        endHour = d.getHours();
+        endMinute = d.getMinutes();
       }
 
-      return hour >= startHour && hour < endHour;
+      // Check if the assignment overlaps this hour slot (hour to hour+1)
+      // Assignment overlaps if it starts before the hour ends AND ends after the hour starts
+      const slotStart = hour;
+      const slotEnd = hour + 1;
+      const assignStart = startHour + startMinute / 60;
+      const assignEnd = endHour + endMinute / 60;
+
+      return assignStart < slotEnd && assignEnd > slotStart;
     });
 
     if (runAssignments.length > 0) return runAssignments;
