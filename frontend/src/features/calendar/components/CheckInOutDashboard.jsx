@@ -1,116 +1,88 @@
+import { useMemo } from 'react';
 import { format } from 'date-fns';
 import { CheckCircle, Clock, AlertTriangle, Phone, CreditCard, FileText } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { useBookingCheckInMutation, useBookingCheckOutMutation } from '@/features/bookings/api';
+import { useAuthStore } from '@/stores/auth';
+import toast from 'react-hot-toast';
 
-const CheckInOutDashboard = ({ currentDate, onBookingClick }) => {
-  const pendingCheckIns = [
-    {
-      id: 1,
-      pet: 'Max',
-      breed: 'Golden Retriever',
-      owner: 'Sarah Johnson',
-      kennel: 'K-1',
-      scheduledTime: '2:00 PM',
-      status: 'on-time',
-      paymentStatus: 'paid'
-    },
-    {
-      id: 2,
-      pet: 'Bella',
-      breed: 'Labrador',
-      owner: 'Mike Thompson',
-      kennel: 'K-3',
-      scheduledTime: '10:00 AM',
-      status: 'late',
-      overdue: '3 hours',
-      paymentStatus: 'paid',
-      lastContact: 'No answer'
-    },
-    {
-      id: 3,
-      pet: 'Luna',
-      breed: 'Poodle',
-      owner: 'Emily Davis',
-      kennel: 'K-5',
-      scheduledTime: '4:00 PM',
-      status: 'early',
-      earlyBy: '4 hours',
-      vaccinationExpires: '10 days',
-      paymentStatus: 'paid'
-    },
-    {
-      id: 4,
-      pet: 'Buddy',
-      breed: 'Husky',
-      owner: 'Jessica Lee',
-      kennel: 'K-2',
-      scheduledTime: '5:30 PM',
-      status: 'scheduled',
-      paymentStatus: 'paid'
+const CheckInOutDashboard = ({ currentDate, bookings = [], onBookingClick }) => {
+  const userId = useAuthStore((state) => state.user?.id);
+  const checkInMutation = useBookingCheckInMutation();
+  const checkOutMutation = useBookingCheckOutMutation();
+
+  const today = currentDate.toISOString().split('T')[0];
+
+  // Filter bookings for pending check-ins (check-in date is today, not yet checked in)
+  const pendingCheckIns = useMemo(() => {
+    return bookings.filter(b => {
+      const checkInDate = b.checkInDate?.toISOString().split('T')[0];
+      return checkInDate === today &&
+             b.status !== 'CHECKED_IN' &&
+             b.status !== 'CHECKED_OUT' &&
+             b.status !== 'CANCELLED';
+    }).map(b => ({
+      ...b,
+      scheduledTime: b.checkInDate ? format(b.checkInDate, 'h:mm a') : 'TBD',
+    }));
+  }, [bookings, today]);
+
+  // Filter bookings for pending check-outs (check-out date is today, currently checked in)
+  const pendingCheckOuts = useMemo(() => {
+    return bookings.filter(b => {
+      const checkOutDate = b.checkOutDate?.toISOString().split('T')[0];
+      return checkOutDate === today &&
+             b.status === 'CHECKED_IN';
+    }).map(b => ({
+      ...b,
+      scheduledTime: b.checkOutDate ? format(b.checkOutDate, 'h:mm a') : 'TBD',
+    }));
+  }, [bookings, today]);
+
+  // Handle check-in
+  const handleCheckIn = async (booking) => {
+    const bookingId = booking.id || booking.recordId;
+    if (!bookingId) {
+      toast.error('No booking ID found');
+      return;
     }
-  ];
-
-  const pendingCheckOuts = [
-    {
-      id: 1,
-      pet: 'Duke',
-      breed: 'Terrier',
-      owner: 'Tom Wilson',
-      kennel: 'K-4',
-      scheduledTime: '11:00 AM',
-      status: 'ready',
-      paymentStatus: 'paid',
-      reportCardSent: true
-    },
-    {
-      id: 2,
-      pet: 'Charlie',
-      breed: 'Beagle',
-      owner: 'Amanda Brown',
-      kennel: 'K-7',
-      scheduledTime: '3:00 PM',
-      status: 'outstanding-balance',
-      outstandingAmount: 145,
-      paymentStatus: 'unpaid'
-    },
-    {
-      id: 3,
-      pet: 'Rocky',
-      breed: 'Shepherd',
-      owner: 'David Martinez',
-      kennel: 'OUT-1',
-      scheduledTime: '6:00 PM',
-      status: 'scheduled',
-      paymentStatus: 'paid'
+    try {
+      await checkInMutation.mutateAsync({ bookingId, payload: { userId } });
+      toast.success(`${booking.petName} checked in!`);
+    } catch (error) {
+      toast.error(error?.message || 'Failed to check in');
     }
-  ];
+  };
 
-  const completedToday = [
-    { time: '8:00 AM', action: 'Daisy checked out' },
-    { time: '9:30 AM', action: 'Cooper checked in' },
-    { time: '10:15 AM', action: 'Bailey checked out' },
-    { time: '11:45 AM', action: 'Sadie checked in' },
-    { time: '1:30 PM', action: 'Tucker checked out' }
-  ];
+  // Handle check-out
+  const handleCheckOut = async (booking) => {
+    const bookingId = booking.id || booking.recordId;
+    if (!bookingId) {
+      toast.error('No booking ID found');
+      return;
+    }
+    try {
+      await checkOutMutation.mutateAsync({ bookingId, payload: { userId } });
+      toast.success(`${booking.petName} checked out!`);
+    } catch (error) {
+      toast.error(error?.message || 'Failed to check out');
+    }
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'on-time': return 'bg-green-100 dark:bg-surface-secondary border-green-300 text-green-800 dark:text-green-200';
-      case 'late': return 'bg-red-100 dark:bg-surface-secondary border-red-300 text-red-800 dark:text-red-200';
-      case 'early': return 'bg-blue-100 dark:bg-surface-secondary border-blue-300 text-blue-800 dark:text-blue-200';
-      case 'scheduled': return 'bg-gray-100 dark:bg-surface-secondary border-gray-300 dark:border-surface-border text-gray-800 dark:text-text-primary';
-      case 'ready': return 'bg-green-100 dark:bg-surface-secondary border-green-300 text-green-800 dark:text-green-200';
-      case 'outstanding-balance': return 'bg-yellow-100 dark:bg-surface-secondary border-yellow-300 text-yellow-800 dark:text-yellow-200';
+      case 'CONFIRMED': return 'bg-blue-100 dark:bg-blue-900/30 border-blue-300 text-blue-800 dark:text-blue-200';
+      case 'PENDING': return 'bg-amber-100 dark:bg-amber-900/30 border-amber-300 text-amber-800 dark:text-amber-200';
+      case 'CHECKED_IN': return 'bg-green-100 dark:bg-green-900/30 border-green-300 text-green-800 dark:text-green-200';
       default: return 'bg-gray-100 dark:bg-surface-secondary border-gray-300 dark:border-surface-border text-gray-800 dark:text-text-primary';
     }
   };
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'late': return <AlertTriangle className="w-4 h-4 text-red-600" />;
-      case 'early': return <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />;
-      case 'ready': return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case 'CHECKED_IN': return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case 'PENDING': return <AlertTriangle className="w-4 h-4 text-amber-600" />;
       default: return <Clock className="w-4 h-4 text-gray-600 dark:text-text-secondary" />;
     }
   };
@@ -128,49 +100,49 @@ const CheckInOutDashboard = ({ currentDate, onBookingClick }) => {
           PENDING CHECK-INS ({pendingCheckIns.length})
         </h3>
 
-        <div className="space-y-4">
-          {pendingCheckIns.map((checkin) => (
-            <div key={checkin.id} className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    {getStatusIcon(checkin.status)}
-                    <span className="font-medium text-gray-900 dark:text-text-primary">
-                      {checkin.pet} - {checkin.breed}
-                    </span>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(checkin.status)}`}>
-                      {checkin.scheduledTime}
-                      {checkin.status === 'late' && ` (${checkin.overdue} overdue)`}
-                      {checkin.status === 'early' && ` (${checkin.earlyBy} early)`}
-                    </span>
-                  </div>
+        {pendingCheckIns.length === 0 ? (
+          <p className="text-sm text-gray-500 dark:text-text-secondary py-4 text-center">
+            No pending check-ins for today
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {pendingCheckIns.map((booking) => (
+              <div key={booking.id || booking.recordId} className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      {getStatusIcon(booking.status)}
+                      <span className="font-medium text-gray-900 dark:text-text-primary">
+                        {booking.petName}
+                      </span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
+                        {booking.scheduledTime}
+                      </span>
+                    </div>
 
-                  <div className="text-sm text-gray-600 dark:text-text-secondary mb-2">
-                    Owner: {checkin.owner} • Kennel: {checkin.kennel} • {checkin.paymentStatus === 'paid' ? '✅ Paid' : '❌ Unpaid'}
-                  </div>
-
-                  {checkin.lastContact && (
                     <div className="text-sm text-gray-600 dark:text-text-secondary mb-2">
-                      📞 Last contact: {checkin.lastContact}
+                      Owner: {booking.ownerName}
+                      {booking.kennel?.name && ` • Kennel: ${booking.kennel.name}`}
                     </div>
-                  )}
+                  </div>
 
-                  {checkin.vaccinationExpires && (
-                    <div className="text-sm text-orange-600 mb-2">
-                      ⚠️ Vaccination expires in {checkin.vaccinationExpires}
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex gap-2">
-                  <Button size="sm">Check In Now</Button>
-                  <Button size="sm" variant="outline">View Details</Button>
-                  <Button size="sm" variant="outline">Contact Owner</Button>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => handleCheckIn(booking)}
+                      disabled={checkInMutation.isPending}
+                    >
+                      {checkInMutation.isPending ? 'Checking in...' : 'Check In Now'}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => onBookingClick?.(booking)}>
+                      View Details
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       {/* Pending Check-outs */}
@@ -179,80 +151,49 @@ const CheckInOutDashboard = ({ currentDate, onBookingClick }) => {
           PENDING CHECK-OUTS ({pendingCheckOuts.length})
         </h3>
 
-        <div className="space-y-4">
-          {pendingCheckOuts.map((checkout) => (
-            <div key={checkout.id} className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    {getStatusIcon(checkout.status)}
-                    <span className="font-medium text-gray-900 dark:text-text-primary">
-                      {checkout.pet} - {checkout.breed}
-                    </span>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(checkout.status)}`}>
-                      {checkout.scheduledTime}
-                      {checkout.outstandingAmount && ` ($${checkout.outstandingAmount} due)`}
-                    </span>
-                  </div>
-
-                  <div className="text-sm text-gray-600 dark:text-text-secondary mb-2">
-                    Owner: {checkout.owner} • Kennel: {checkout.kennel} • {checkout.paymentStatus === 'paid' ? '✅ Paid' : '❌ Unpaid'}
-                  </div>
-
-                  {checkout.reportCardSent && (
-                    <div className="text-sm text-green-600">
-                      Report card: ✅ Sent
+        {pendingCheckOuts.length === 0 ? (
+          <p className="text-sm text-gray-500 dark:text-text-secondary py-4 text-center">
+            No pending check-outs for today
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {pendingCheckOuts.map((booking) => (
+              <div key={booking.id || booking.recordId} className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      {getStatusIcon(booking.status)}
+                      <span className="font-medium text-gray-900 dark:text-text-primary">
+                        {booking.petName}
+                      </span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
+                        {booking.scheduledTime}
+                      </span>
                     </div>
-                  )}
-                </div>
 
-                <div className="flex gap-2">
-                  {checkout.outstandingAmount ? (
-                    <>
-                      <Button size="sm" variant="outline">
-                        <CreditCard className="w-4 h-4 mr-1" />
-                        Process Payment
-                      </Button>
-                      <Button size="sm" variant="outline">Contact Owner</Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button size="sm">Check Out Now</Button>
-                      <Button size="sm" variant="outline">View Stay Summary</Button>
-                    </>
-                  )}
-                  <Button size="sm" variant="outline">
-                    <FileText className="w-4 h-4 mr-1" />
-                    Generate Report Card
-                  </Button>
+                    <div className="text-sm text-gray-600 dark:text-text-secondary mb-2">
+                      Owner: {booking.ownerName}
+                      {booking.kennel?.name && ` • Kennel: ${booking.kennel.name}`}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => handleCheckOut(booking)}
+                      disabled={checkOutMutation.isPending}
+                    >
+                      {checkOutMutation.isPending ? 'Checking out...' : 'Check Out Now'}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => onBookingClick?.(booking)}>
+                      View Details
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      {/* Completed Today */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-4">
-          COMPLETED TODAY ({completedToday.length})
-        </h3>
-
-        <div className="space-y-2">
-          {completedToday.map((item, index) => (
-            <div key={index} className="flex items-center gap-3 text-sm text-gray-600 dark:text-text-secondary">
-              <CheckCircle className="w-4 h-4 text-green-600" />
-              <span>{item.time}</span>
-              <span>{item.action}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-surface-border">
-          <Button variant="outline">
-            View Full Log
-          </Button>
-        </div>
+            ))}
+          </div>
+        )}
       </Card>
     </div>
   );

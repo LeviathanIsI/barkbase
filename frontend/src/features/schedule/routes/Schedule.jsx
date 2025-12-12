@@ -471,6 +471,7 @@ const Schedule = () => {
       >
         <CheckInOutDashboard
           currentDate={currentDate}
+          bookings={processedBookings}
           onBookingClick={handleBookingClick}
         />
       </SlidePanel>
