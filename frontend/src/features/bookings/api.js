@@ -102,6 +102,9 @@ const normalizeBooking = (booking) => {
       (primaryPet?.name
         ? `${primaryPet.name} - ${booking.service?.name || 'Boarding'}`
         : 'Booking'),
+    // Normalize pricing fields (backend uses various names)
+    totalCents: booking.totalCents || booking.totalPriceCents || booking.totalPriceInCents || booking.total_price_cents || booking.total_price_in_cents || 0,
+    amountPaidCents: booking.amountPaidCents || booking.amount_paid_cents || booking.depositCents || booking.deposit_cents || 0,
   };
 };
 
