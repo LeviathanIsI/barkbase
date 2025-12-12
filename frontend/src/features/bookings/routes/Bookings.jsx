@@ -348,7 +348,7 @@ const Bookings = () => {
           checkIn: bookingOrAssignment.bookingCheckIn || bookingOrAssignment.startAt || bookingOrAssignment.assignedDate,
           checkOut: bookingOrAssignment.bookingCheckOut || bookingOrAssignment.endAt || bookingOrAssignment.assignedDate,
           status: bookingOrAssignment.bookingStatus || bookingOrAssignment.status || 'CONFIRMED',
-          kennel: { name: bookingOrAssignment.kennelName || 'Unassigned' },
+          kennel: { name: bookingOrAssignment.kennelName || null },
           // Use run name as additional context
           runName: bookingOrAssignment.runName,
           totalCents: bookingOrAssignment.bookingTotalCents || 0,

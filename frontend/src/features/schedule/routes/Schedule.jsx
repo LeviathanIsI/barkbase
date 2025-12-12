@@ -279,7 +279,7 @@ const Schedule = () => {
           checkIn: bookingOrAssignment.bookingCheckIn || bookingOrAssignment.startAt || bookingOrAssignment.assignedDate,
           checkOut: bookingOrAssignment.bookingCheckOut || bookingOrAssignment.endAt || bookingOrAssignment.assignedDate,
           status: bookingOrAssignment.bookingStatus || bookingOrAssignment.status || 'CONFIRMED',
-          kennel: { name: bookingOrAssignment.kennelName || 'Unassigned', id: bookingOrAssignment.kennelId },
+          kennel: { name: bookingOrAssignment.kennelName || null, id: bookingOrAssignment.kennelId },
           // Use run name as additional context
           runName: bookingOrAssignment.runName,
           runId: bookingOrAssignment.runId,
