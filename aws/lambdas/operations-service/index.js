@@ -7140,6 +7140,7 @@ async function handleEndBreak(tenantId, user, body) {
 
 /**
  * Get current time status for staff
+ * Includes: current status, today's total, week total, recent entries
  */
 async function handleGetTimeStatus(tenantId, user, queryParams) {
   const { staffId: queryStaffId } = queryParams;
@@ -7155,6 +7156,9 @@ async function handleGetTimeStatus(tenantId, user, queryParams) {
       return createResponse(200, {
         isClockedIn: false,
         isOnBreak: false,
+        workedMinutes: 0,
+        weekTotal: 0,
+        recentEntries: [],
         message: 'No staff record found',
       });
     }
@@ -7164,15 +7168,49 @@ async function handleGetTimeStatus(tenantId, user, queryParams) {
       `SELECT te.*, s.first_name, s.last_name
        FROM "TimeEntry" te
        JOIN "Staff" s ON te.staff_id = s.id
-       WHERE te.tenant_id = $1 AND te.staff_id = $2 AND te.clock_out IS NULL       LIMIT 1`,
+       WHERE te.tenant_id = $1 AND te.staff_id = $2 AND te.clock_out IS NULL
+       LIMIT 1`,
       [tenantId, staffId]
     );
+
+    // Get week totals (completed entries this week, Monday to Sunday)
+    const weekTotalResult = await query(
+      `SELECT COALESCE(SUM(
+         EXTRACT(EPOCH FROM (clock_out - clock_in)) / 60 - COALESCE(break_minutes, 0)
+       ), 0) as total_minutes
+       FROM "TimeEntry"
+       WHERE tenant_id = $1 AND staff_id = $2 AND clock_out IS NOT NULL
+       AND clock_in >= DATE_TRUNC('week', CURRENT_DATE)`,
+      [tenantId, staffId]
+    );
+    const weekTotal = Math.round(weekTotalResult.rows[0]?.total_minutes || 0);
+
+    // Get recent completed entries (last 5)
+    const recentResult = await query(
+      `SELECT id, DATE(clock_in) as date, clock_in, clock_out, break_minutes,
+       ROUND(EXTRACT(EPOCH FROM (clock_out - clock_in)) / 3600 - COALESCE(break_minutes, 0) / 60.0, 1) as worked_hours
+       FROM "TimeEntry"
+       WHERE tenant_id = $1 AND staff_id = $2 AND clock_out IS NOT NULL
+       ORDER BY clock_in DESC LIMIT 5`,
+      [tenantId, staffId]
+    );
+    const recentEntries = recentResult.rows.map(row => ({
+      id: row.id,
+      date: row.date,
+      clockIn: row.clock_in,
+      clockOut: row.clock_out,
+      breakMinutes: row.break_minutes,
+      workedHours: parseFloat(row.worked_hours) || 0,
+    }));
 
     if (activeResult.rows.length === 0) {
       return createResponse(200, {
         isClockedIn: false,
         isOnBreak: false,
         staffId: staffId,
+        workedMinutes: 0,
+        weekTotal: weekTotal,
+        recentEntries: recentEntries,
       });
     }
 
@@ -7186,6 +7224,8 @@ async function handleGetTimeStatus(tenantId, user, queryParams) {
       currentBreakMinutes += Math.floor((now - new Date(entry.break_start)) / 60000);
     }
 
+    const workedMinutes = elapsedMinutes - currentBreakMinutes;
+
     return createResponse(200, {
       isClockedIn: true,
       isOnBreak: entry.is_on_break,
@@ -7196,8 +7236,10 @@ async function handleGetTimeStatus(tenantId, user, queryParams) {
       breakStart: entry.break_start,
       elapsedMinutes: elapsedMinutes,
       breakMinutes: currentBreakMinutes,
-      workedMinutes: elapsedMinutes - currentBreakMinutes,
-      workedHours: ((elapsedMinutes - currentBreakMinutes) / 60).toFixed(2),
+      workedMinutes: workedMinutes,
+      workedHours: (workedMinutes / 60).toFixed(2),
+      weekTotal: weekTotal + workedMinutes, // Include current session in week total
+      recentEntries: recentEntries,
     });
 
   } catch (error) {
