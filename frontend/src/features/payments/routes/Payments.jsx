@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subWeeks, subMonths, isWithinInterval } from 'date-fns';
 import { useTour } from '@/contexts/TourContext';
 import { TourIconButton } from '@/components/ui/TourHelpButton';
 import { paymentsTourConfig } from '../tours';
+import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
 import {
   CreditCard,
   TrendingUp,
@@ -48,6 +49,8 @@ import {
   Key,
   Link as LinkIcon,
   Shield,
+  PieChart,
+  Activity,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -125,7 +128,7 @@ const KPITile = ({ icon: Icon, label, value, subtext, trend, trendType, onClick,
 );
 
 // Transaction Row Component
-const TransactionRow = ({ payment, isSelected, onSelect, onClick }) => {
+const TransactionRow = ({ payment, isSelected, onSelect, onClick, onCustomerClick }) => {
   const status = STATUS_CONFIG[(payment.status || '').toUpperCase()] || STATUS_CONFIG.PENDING;
   const StatusIcon = status.icon;
 
@@ -170,7 +173,17 @@ const TransactionRow = ({ payment, isSelected, onSelect, onClick }) => {
             <User className="h-3.5 w-3.5 text-primary" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-medium text-text truncate">{customerName}</p>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (payment.ownerId && onCustomerClick) {
+                  onCustomerClick(payment.ownerId);
+                }
+              }}
+              className="text-sm font-medium text-primary hover:underline truncate block"
+            >
+              {customerName}
+            </button>
             {payment.petName && (
               <p className="text-xs text-muted truncate flex items-center gap-1">
                 <PawPrint className="h-3 w-3" />
@@ -783,8 +796,270 @@ const StripeSettingsModal = ({ isOpen, onClose, processorStatus }) => {
   );
 };
 
+// Contextual Sidebar Component
+const PaymentsSidebar = ({ payments, stats, onRecordPayment, onExport, periodToggle, onPeriodToggle }) => {
+  // Calculate method breakdown
+  const methodBreakdown = useMemo(() => {
+    const breakdown = {};
+    payments.forEach(p => {
+      const method = (p.method || 'card').toLowerCase();
+      if (!breakdown[method]) {
+        breakdown[method] = { count: 0, amountCents: 0 };
+      }
+      breakdown[method].count += 1;
+      breakdown[method].amountCents += parseInt(p.amountCents, 10) || 0;
+    });
+    return breakdown;
+  }, [payments]);
+
+  const totalRevenue = stats.revenueCollected || 0;
+  const cardAmount = (methodBreakdown.card?.amountCents || 0) / 100;
+  const cashAmount = (methodBreakdown.cash?.amountCents || 0) / 100;
+  const cardPercent = totalRevenue > 0 ? (cardAmount / totalRevenue) * 100 : 0;
+  const cashPercent = totalRevenue > 0 ? (cashAmount / totalRevenue) * 100 : 0;
+
+  // Calculate period stats
+  const now = new Date();
+  const periodStats = useMemo(() => {
+    const isWeekly = periodToggle === 'week';
+    const start = isWeekly ? startOfWeek(now) : startOfMonth(now);
+    const end = isWeekly ? endOfWeek(now) : endOfMonth(now);
+    const prevStart = isWeekly ? startOfWeek(subWeeks(now, 1)) : startOfMonth(subMonths(now, 1));
+    const prevEnd = isWeekly ? endOfWeek(subWeeks(now, 1)) : endOfMonth(subMonths(now, 1));
+
+    const currentPayments = payments.filter(p => {
+      const date = new Date(p.capturedAt || p.createdAt);
+      return isWithinInterval(date, { start, end }) &&
+        ['CAPTURED', 'SUCCESSFUL', 'COMPLETED', 'SUCCEEDED'].includes(p.status);
+    });
+
+    const prevPayments = payments.filter(p => {
+      const date = new Date(p.capturedAt || p.createdAt);
+      return isWithinInterval(date, { start: prevStart, end: prevEnd }) &&
+        ['CAPTURED', 'SUCCESSFUL', 'COMPLETED', 'SUCCEEDED'].includes(p.status);
+    });
+
+    const currentTotal = currentPayments.reduce((sum, p) => sum + (parseInt(p.amountCents, 10) || 0), 0) / 100;
+    const prevTotal = prevPayments.reduce((sum, p) => sum + (parseInt(p.amountCents, 10) || 0), 0) / 100;
+    const change = prevTotal > 0 ? ((currentTotal - prevTotal) / prevTotal) * 100 : 0;
+
+    return {
+      collected: currentTotal,
+      transactions: currentPayments.length,
+      avgTransaction: currentPayments.length > 0 ? currentTotal / currentPayments.length : 0,
+      change,
+    };
+  }, [payments, periodToggle, now]);
+
+  // Mock recent payouts (would come from Stripe API)
+  const recentPayouts = [
+    { id: 'po_1', amount: 2450.00, date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), status: 'paid' },
+    { id: 'po_2', amount: 1875.50, date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), status: 'paid' },
+    { id: 'po_3', amount: 3200.00, date: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000), status: 'paid' },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {/* Revenue Breakdown Card */}
+      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <PieChart className="h-4 w-4 text-muted" />
+          <h3 className="text-sm font-medium text-text">Revenue Breakdown</h3>
+        </div>
+
+        {/* Simple horizontal bar chart */}
+        <div className="space-y-3">
+          <div>
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-muted flex items-center gap-1.5">
+                <CreditCard className="h-3 w-3" />
+                Card
+              </span>
+              <span className="text-text font-medium">${cardAmount.toLocaleString()}</span>
+            </div>
+            <div className="h-2 bg-surface rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all"
+                style={{ width: `${cardPercent}%` }}
+              />
+            </div>
+          </div>
+          <div>
+            <div className="flex justify-between text-xs mb-1">
+              <span className="text-muted flex items-center gap-1.5">
+                <Banknote className="h-3 w-3" />
+                Cash
+              </span>
+              <span className="text-text font-medium">${cashAmount.toLocaleString()}</span>
+            </div>
+            <div className="h-2 bg-surface rounded-full overflow-hidden">
+              <div
+                className="h-full bg-green-500 rounded-full transition-all"
+                style={{ width: `${cashPercent}%` }}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+          <span className="text-xs text-muted">Total</span>
+          <span className="text-sm font-semibold text-text">${totalRevenue.toLocaleString()}</span>
+        </div>
+      </div>
+
+      {/* This Week / This Month Toggle Card */}
+      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Activity className="h-4 w-4 text-muted" />
+            <h3 className="text-sm font-medium text-text">Quick Stats</h3>
+          </div>
+          <div className="flex bg-surface rounded-lg p-0.5">
+            <button
+              onClick={() => onPeriodToggle('week')}
+              className={cn(
+                'px-2 py-1 text-xs rounded-md transition-colors',
+                periodToggle === 'week'
+                  ? 'bg-white dark:bg-surface-primary text-text shadow-sm'
+                  : 'text-muted hover:text-text'
+              )}
+            >
+              Week
+            </button>
+            <button
+              onClick={() => onPeriodToggle('month')}
+              className={cn(
+                'px-2 py-1 text-xs rounded-md transition-colors',
+                periodToggle === 'month'
+                  ? 'bg-white dark:bg-surface-primary text-text shadow-sm'
+                  : 'text-muted hover:text-text'
+              )}
+            >
+              Month
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-muted">Collected</span>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-text">${periodStats.collected.toLocaleString()}</span>
+              {periodStats.change !== 0 && (
+                <span className={cn(
+                  'text-xs flex items-center gap-0.5',
+                  periodStats.change > 0 ? 'text-green-600' : 'text-red-600'
+                )}>
+                  {periodStats.change > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                  {Math.abs(periodStats.change).toFixed(0)}%
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-muted">Transactions</span>
+            <span className="text-sm font-medium text-text">{periodStats.transactions}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-muted">Avg Transaction</span>
+            <span className="text-sm font-medium text-text">${periodStats.avgTransaction.toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Payouts Card */}
+      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Wallet className="h-4 w-4 text-muted" />
+            <h3 className="text-sm font-medium text-text">Recent Payouts</h3>
+          </div>
+          <button className="text-xs text-primary hover:underline">
+            View All
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {recentPayouts.map(payout => (
+            <div
+              key={payout.id}
+              className="flex items-center justify-between p-2 bg-surface rounded-lg"
+            >
+              <div className="flex items-center gap-2">
+                <div className="h-6 w-6 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                  <CheckCircle className="h-3 w-3 text-green-600" />
+                </div>
+                <span className="text-xs text-muted">
+                  {format(payout.date, 'MMM d')}
+                </span>
+              </div>
+              <span className="text-sm font-medium text-text">${payout.amount.toLocaleString()}</span>
+            </div>
+          ))}
+        </div>
+
+        <button
+          className="w-full mt-3 pt-3 border-t border-border flex items-center justify-center gap-1.5 text-xs text-primary hover:underline"
+          onClick={() => window.open('https://dashboard.stripe.com', '_blank')}
+        >
+          <ExternalLink className="h-3 w-3" />
+          Open Stripe Dashboard
+        </button>
+      </div>
+
+      {/* Quick Actions Card */}
+      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Zap className="h-4 w-4 text-muted" />
+          <h3 className="text-sm font-medium text-text">Quick Actions</h3>
+        </div>
+
+        <div className="space-y-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start"
+            onClick={onRecordPayment}
+          >
+            <Plus className="h-3.5 w-3.5 mr-2" />
+            Record Payment
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start"
+            onClick={() => toast.info('View Outstanding coming soon')}
+          >
+            <Clock className="h-3.5 w-3.5 mr-2" />
+            View Outstanding
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start"
+            onClick={onExport}
+          >
+            <Download className="h-3.5 w-3.5 mr-2" />
+            Export Report
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full justify-start"
+            onClick={() => toast.info('Reconciliation coming soon')}
+          >
+            <RefreshCw className="h-3.5 w-3.5 mr-2" />
+            Reconcile
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Payments = () => {
   const navigate = useNavigate();
+  const { openSlideout } = useSlideout();
   const [currentView, setCurrentView] = useState('overview');
   const [selectedPayments, setSelectedPayments] = useState(new Set());
   const [selectedPayment, setSelectedPayment] = useState(null);
@@ -792,6 +1067,7 @@ const Payments = () => {
   const [showOutstanding, setShowOutstanding] = useState(true);
   const [showManualPayment, setShowManualPayment] = useState(false);
   const [showStripeSettings, setShowStripeSettings] = useState(false);
+  const [sidebarPeriod, setSidebarPeriod] = useState('week');
 
   // Tour integration
   const { startTour, isTourSeen } = useTour();
@@ -1007,6 +1283,13 @@ const Payments = () => {
     setStatusFilter('all');
     setMethodFilter('all');
     setDateRange('all');
+  };
+
+  // DAFE handler for customer click
+  const handleCustomerClick = (ownerId) => {
+    if (ownerId) {
+      navigate(`/customers/${ownerId}`);
+    }
   };
 
   // Processor status (mock)
@@ -1235,252 +1518,268 @@ const Payments = () => {
         </>
       )}
 
-      {/* Overview Tab - Filters and Transactions */}
+      {/* Overview Tab - Two Column Layout with Filters, Table, and Sidebar */}
       {currentView === 'overview' && (
-        <>
-          {/* Tier 2: Filters Toolbar */}
-          <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-3" data-tour="payments-filters">
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Search */}
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
-            <input
-              type="text"
-              placeholder="Search transactions..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-surface border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+        <div className="flex gap-5">
+          {/* Left Column: Filters & Transactions Table (70%) */}
+          <div className="flex-1 min-w-0 space-y-4">
+            {/* Filters Toolbar */}
+            <div className="bg-white dark:bg-surface-primary border border-border rounded-lg p-3" data-tour="payments-filters">
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Search */}
+                <div className="relative flex-1 min-w-[200px] max-w-sm">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+                  <input
+                    type="text"
+                    placeholder="Search transactions..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 bg-surface border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+                </div>
+
+                {/* Status */}
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-3 py-2 text-sm bg-surface border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
+                  <option value="all">All Status</option>
+                  <option value="CAPTURED">Captured</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="AUTHORIZED">Authorized</option>
+                  <option value="REFUNDED">Refunded</option>
+                  <option value="FAILED">Failed</option>
+                </select>
+
+                {/* Method */}
+                <select
+                  value={methodFilter}
+                  onChange={(e) => setMethodFilter(e.target.value)}
+                  className="px-3 py-2 text-sm bg-surface border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
+                  <option value="all">All Methods</option>
+                  <option value="card">Card</option>
+                  <option value="cash">Cash</option>
+                  <option value="check">Check</option>
+                  <option value="bank_transfer">Bank Transfer</option>
+                </select>
+
+                {/* Date Range */}
+                <select
+                  value={dateRange}
+                  onChange={(e) => setDateRange(e.target.value)}
+                  className="px-3 py-2 text-sm bg-surface border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
+                  <option value="all">All Time</option>
+                  <option value="today">Today</option>
+                  <option value="week">This Week</option>
+                  <option value="month">This Month</option>
+                  <option value="quarter">This Quarter</option>
+                </select>
+
+                {hasActiveFilters && (
+                  <Button variant="ghost" size="sm" onClick={clearFilters}>
+                    <X className="h-3.5 w-3.5 mr-1" />
+                    Clear
+                  </Button>
+                )}
+
+                <div className="ml-auto flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={handleExport}>
+                    <Download className="h-3.5 w-3.5 mr-1.5" />
+                    Export
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => refetch()}>
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Bulk Actions */}
+              {selectedPayments.size > 0 && (
+                <div className="flex items-center gap-3 mt-3 pt-3 border-t border-border">
+                  <span className="text-sm text-muted">{selectedPayments.size} selected</span>
+                  <Button variant="outline" size="sm">
+                    <Mail className="h-3.5 w-3.5 mr-1.5" />
+                    Email
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleExport}>
+                    <Download className="h-3.5 w-3.5 mr-1.5" />
+                    Export
+                  </Button>
+                  <Button variant="outline" size="sm">
+                    <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                    Refund
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* Transactions Table */}
+            <div className="bg-white dark:bg-surface-primary border border-border rounded-lg overflow-hidden" data-tour="payments-transactions">
+              {isLoading ? (
+                <div className="p-8 text-center">
+                  <LoadingState label="Loading payments…" variant="spinner" />
+                </div>
+              ) : error ? (
+                <div className="p-8 text-center">
+                  <AlertTriangle className="h-10 w-10 text-red-500 mx-auto mb-3" />
+                  <p className="font-medium text-text mb-1">Error loading payments</p>
+                  <p className="text-sm text-muted">{error.message}</p>
+                </div>
+              ) : filteredPayments.length === 0 ? (
+                <div className="p-12 text-center">
+                  <div className="h-16 w-16 rounded-full bg-surface flex items-center justify-center mx-auto mb-4">
+                    <DollarSign className="h-8 w-8 text-muted" />
+                  </div>
+                  <h3 className="font-medium text-text mb-1">
+                    {payments.length === 0 ? 'No transactions yet' : 'No matching transactions'}
+                  </h3>
+                  <p className="text-sm text-muted mb-4">
+                    {payments.length === 0
+                      ? 'Transactions will appear here once payments are processed'
+                      : 'Try adjusting your filters'}
+                  </p>
+                  {payments.length === 0 ? (
+                    <Button size="sm" onClick={() => setShowManualPayment(true)}>
+                      <Plus className="h-4 w-4 mr-1.5" />
+                      Record Payment
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" onClick={clearFilters}>
+                      Clear Filters
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[800px]">
+                      <thead className="bg-surface border-b border-border sticky top-0">
+                        <tr>
+                          <th className="px-3 py-3 text-left">
+                            <input
+                              type="checkbox"
+                              checked={selectedPayments.size === paginatedPayments.length && paginatedPayments.length > 0}
+                              onChange={handleSelectAll}
+                              className="rounded border-border"
+                            />
+                          </th>
+                          <th className="px-3 py-3 text-left text-xs font-medium text-muted uppercase tracking-wide">
+                            Status
+                          </th>
+                          <th className="px-3 py-3 text-left text-xs font-medium text-muted uppercase tracking-wide">
+                            <button
+                              onClick={() => handleSort('recordId')}
+                              className="flex items-center gap-1 hover:text-text"
+                            >
+                              Transaction ID
+                              <ArrowUpDown className="h-3 w-3" />
+                            </button>
+                          </th>
+                          <th className="px-3 py-3 text-left text-xs font-medium text-muted uppercase tracking-wide">
+                            Customer / Pet
+                          </th>
+                          <th className="px-3 py-3 text-right text-xs font-medium text-muted uppercase tracking-wide">
+                            <button
+                              onClick={() => handleSort('amountCents')}
+                              className="flex items-center gap-1 hover:text-text ml-auto"
+                            >
+                              Amount
+                              {sortConfig.key === 'amountCents' && (
+                                sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                              )}
+                            </button>
+                          </th>
+                          <th className="px-3 py-3 text-left text-xs font-medium text-muted uppercase tracking-wide">
+                            Method
+                          </th>
+                          <th className="px-3 py-3 text-left text-xs font-medium text-muted uppercase tracking-wide">
+                            <button
+                              onClick={() => handleSort('createdAt')}
+                              className="flex items-center gap-1 hover:text-text"
+                            >
+                              Date
+                              {sortConfig.key === 'createdAt' && (
+                                sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                              )}
+                            </button>
+                          </th>
+                          <th className="px-3 py-3 text-left text-xs font-medium text-muted uppercase tracking-wide">
+                            Staff
+                          </th>
+                          <th className="px-3 py-3"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedPayments.map(payment => (
+                          <TransactionRow
+                            key={payment.recordId || payment.id}
+                            payment={payment}
+                            isSelected={selectedPayments.has(payment.recordId || payment.id)}
+                            onSelect={handleSelectPayment}
+                            onClick={() => handleViewPayment(payment)}
+                            onCustomerClick={handleCustomerClick}
+                          />
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination */}
+                  <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+                    <div className="text-sm text-muted">
+                      Showing {((currentPage - 1) * pageSize) + 1}–{Math.min(currentPage * pageSize, filteredPayments.length)} of {filteredPayments.length}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={pageSize}
+                        onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+                        className="px-2 py-1 text-sm bg-surface border-0 rounded focus:outline-none"
+                      >
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                      </select>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(p => p - 1)}
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-sm text-muted">
+                        Page {currentPage} of {totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage === totalPages}
+                        onClick={() => setCurrentPage(p => p + 1)}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Right Column: Contextual Sidebar (30%) */}
+          <div className="w-80 flex-shrink-0 hidden lg:block">
+            <PaymentsSidebar
+              payments={payments}
+              stats={stats}
+              onRecordPayment={() => setShowManualPayment(true)}
+              onExport={handleExport}
+              periodToggle={sidebarPeriod}
+              onPeriodToggle={setSidebarPeriod}
             />
           </div>
-
-          {/* Status */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 text-sm bg-surface border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
-          >
-            <option value="all">All Status</option>
-            <option value="CAPTURED">Captured</option>
-            <option value="PENDING">Pending</option>
-            <option value="AUTHORIZED">Authorized</option>
-            <option value="REFUNDED">Refunded</option>
-            <option value="FAILED">Failed</option>
-          </select>
-
-          {/* Method */}
-          <select
-            value={methodFilter}
-            onChange={(e) => setMethodFilter(e.target.value)}
-            className="px-3 py-2 text-sm bg-surface border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
-          >
-            <option value="all">All Methods</option>
-            <option value="card">Card</option>
-            <option value="cash">Cash</option>
-            <option value="check">Check</option>
-            <option value="bank_transfer">Bank Transfer</option>
-          </select>
-
-          {/* Date Range */}
-          <select
-            value={dateRange}
-            onChange={(e) => setDateRange(e.target.value)}
-            className="px-3 py-2 text-sm bg-surface border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
-          >
-            <option value="all">All Time</option>
-            <option value="today">Today</option>
-            <option value="week">This Week</option>
-            <option value="month">This Month</option>
-            <option value="quarter">This Quarter</option>
-          </select>
-
-          {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
-              <X className="h-3.5 w-3.5 mr-1" />
-              Clear
-            </Button>
-          )}
-
-          <div className="ml-auto flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleExport}>
-              <Download className="h-3.5 w-3.5 mr-1.5" />
-              Export
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => refetch()}>
-              <RefreshCw className="h-3.5 w-3.5" />
-            </Button>
-          </div>
         </div>
-
-        {/* Bulk Actions */}
-        {selectedPayments.size > 0 && (
-          <div className="flex items-center gap-3 mt-3 pt-3 border-t border-border">
-            <span className="text-sm text-muted">{selectedPayments.size} selected</span>
-            <Button variant="outline" size="sm">
-              <Mail className="h-3.5 w-3.5 mr-1.5" />
-              Email
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleExport}>
-              <Download className="h-3.5 w-3.5 mr-1.5" />
-              Export
-            </Button>
-            <Button variant="outline" size="sm">
-              <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-              Refund
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* Tier 3: Transactions Table */}
-      <div className="bg-white dark:bg-surface-primary border border-border rounded-lg overflow-hidden" data-tour="payments-transactions">
-        {isLoading ? (
-          <div className="p-8 text-center">
-            <LoadingState label="Loading payments…" variant="spinner" />
-          </div>
-        ) : error ? (
-          <div className="p-8 text-center">
-            <AlertTriangle className="h-10 w-10 text-red-500 mx-auto mb-3" />
-            <p className="font-medium text-text mb-1">Error loading payments</p>
-            <p className="text-sm text-muted">{error.message}</p>
-          </div>
-        ) : filteredPayments.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="h-16 w-16 rounded-full bg-surface flex items-center justify-center mx-auto mb-4">
-              <DollarSign className="h-8 w-8 text-muted" />
-            </div>
-            <h3 className="font-medium text-text mb-1">
-              {payments.length === 0 ? 'No transactions yet' : 'No matching transactions'}
-            </h3>
-            <p className="text-sm text-muted mb-4">
-              {payments.length === 0
-                ? 'Transactions will appear here once payments are processed'
-                : 'Try adjusting your filters'}
-            </p>
-            {payments.length === 0 ? (
-              <Button size="sm" onClick={() => setShowManualPayment(true)}>
-                <Plus className="h-4 w-4 mr-1.5" />
-                Record Payment
-              </Button>
-            ) : (
-              <Button variant="outline" size="sm" onClick={clearFilters}>
-                Clear Filters
-              </Button>
-            )}
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px]">
-                <thead className="bg-surface border-b border-border sticky top-0">
-                  <tr>
-                    <th className="px-3 py-3 text-left">
-                      <input
-                        type="checkbox"
-                        checked={selectedPayments.size === paginatedPayments.length && paginatedPayments.length > 0}
-                        onChange={handleSelectAll}
-                        className="rounded border-border"
-                      />
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-muted uppercase tracking-wide">
-                      Status
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-muted uppercase tracking-wide">
-                      <button
-                        onClick={() => handleSort('recordId')}
-                        className="flex items-center gap-1 hover:text-text"
-                      >
-                        Transaction ID
-                        <ArrowUpDown className="h-3 w-3" />
-                      </button>
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-muted uppercase tracking-wide">
-                      Customer / Pet
-                    </th>
-                    <th className="px-3 py-3 text-right text-xs font-medium text-muted uppercase tracking-wide">
-                      <button
-                        onClick={() => handleSort('amountCents')}
-                        className="flex items-center gap-1 hover:text-text ml-auto"
-                      >
-                        Amount
-                        {sortConfig.key === 'amountCents' && (
-                          sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-                        )}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-muted uppercase tracking-wide">
-                      Method
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-muted uppercase tracking-wide">
-                      <button
-                        onClick={() => handleSort('createdAt')}
-                        className="flex items-center gap-1 hover:text-text"
-                      >
-                        Date
-                        {sortConfig.key === 'createdAt' && (
-                          sortConfig.direction === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-                        )}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-muted uppercase tracking-wide">
-                      Staff
-                    </th>
-                    <th className="px-3 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedPayments.map(payment => (
-                    <TransactionRow
-                      key={payment.recordId || payment.id}
-                      payment={payment}
-                      isSelected={selectedPayments.has(payment.recordId || payment.id)}
-                      onSelect={handleSelectPayment}
-                      onClick={() => handleViewPayment(payment)}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination */}
-            <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-              <div className="text-sm text-muted">
-                Showing {((currentPage - 1) * pageSize) + 1}–{Math.min(currentPage * pageSize, filteredPayments.length)} of {filteredPayments.length}
-              </div>
-              <div className="flex items-center gap-2">
-                <select
-                  value={pageSize}
-                  onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
-                  className="px-2 py-1 text-sm bg-surface border-0 rounded focus:outline-none"
-                >
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(p => p - 1)}
-                >
-                  Previous
-                </Button>
-                <span className="text-sm text-muted">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage(p => p + 1)}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-        </>
       )}
 
       {/* Analytics Tab */}
