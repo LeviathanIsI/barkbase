@@ -33,6 +33,7 @@ import {
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
 } from '@/features/notifications/api';
+import * as timeClockApi from '@/features/staff/api-timeclock';
 
 const getInitials = (value) => {
   if (!value) return '';
@@ -763,16 +764,48 @@ const TimeClockButton = () => {
   const dropdownRef = useRef(null);
   const [currentDuration, setCurrentDuration] = useState({ hours: 0, mins: 0, secs: 0 });
 
-  // Local state for time clock (will be replaced with API integration later)
+  // State from API
   const [status, setStatus] = useState('out'); // 'out' | 'in' | 'break'
   const [clockedInTime, setClockedInTime] = useState(null);
   const [breakStartTime, setBreakStartTime] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [weekTotal, setWeekTotal] = useState(0);
+  const [todayMinutes, setTodayMinutes] = useState(0);
 
-  // Placeholder totals - will come from API
-  const todayHours = 0;
-  const todayMins = 0;
-  const weekTotal = 0;
+  // Fetch status on mount and when dropdown opens
+  const fetchStatus = useCallback(async () => {
+    try {
+      const response = await timeClockApi.getTimeStatus();
+      console.log('[TimeClock] Status response:', response);
+
+      if (response.isClockedIn) {
+        setStatus(response.isOnBreak ? 'break' : 'in');
+        setClockedInTime(response.clockIn ? new Date(response.clockIn) : null);
+        setBreakStartTime(response.breakStart ? new Date(response.breakStart) : null);
+        setTodayMinutes(response.workedMinutes || 0);
+      } else {
+        setStatus('out');
+        setClockedInTime(null);
+        setBreakStartTime(null);
+        setTodayMinutes(0);
+      }
+      setWeekTotal(response.weekTotal || 0);
+    } catch (error) {
+      console.error('[TimeClock] Failed to fetch status:', error);
+    }
+  }, []);
+
+  // Fetch status on mount
+  useEffect(() => {
+    fetchStatus();
+  }, [fetchStatus]);
+
+  // Refetch when dropdown opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchStatus();
+    }
+  }, [isOpen, fetchStatus]);
 
   // Close on outside click
   useEffect(() => {
@@ -810,9 +843,18 @@ const TimeClockButton = () => {
   const handleClockIn = async () => {
     setIsLoading(true);
     try {
-      // TODO: Call API - clockIn()
-      setStatus('in');
-      setClockedInTime(new Date());
+      console.log('[TimeClock] Clocking in...');
+      const response = await timeClockApi.clockIn();
+      console.log('[TimeClock] Clock in response:', response);
+
+      if (response.success || response.id) {
+        setStatus('in');
+        setClockedInTime(new Date(response.clockIn || Date.now()));
+        // Refetch to get updated totals
+        await fetchStatus();
+      }
+    } catch (error) {
+      console.error('[TimeClock] Clock in failed:', error);
     } finally {
       setIsLoading(false);
     }
@@ -821,10 +863,19 @@ const TimeClockButton = () => {
   const handleClockOut = async () => {
     setIsLoading(true);
     try {
-      // TODO: Call API - clockOut()
-      setStatus('out');
-      setClockedInTime(null);
-      setBreakStartTime(null);
+      console.log('[TimeClock] Clocking out...');
+      const response = await timeClockApi.clockOut();
+      console.log('[TimeClock] Clock out response:', response);
+
+      if (response.success || response.id) {
+        setStatus('out');
+        setClockedInTime(null);
+        setBreakStartTime(null);
+        // Refetch to get updated totals
+        await fetchStatus();
+      }
+    } catch (error) {
+      console.error('[TimeClock] Clock out failed:', error);
     } finally {
       setIsLoading(false);
     }
@@ -833,9 +884,16 @@ const TimeClockButton = () => {
   const handleStartBreak = async () => {
     setIsLoading(true);
     try {
-      // TODO: Call API - startBreak()
-      setStatus('break');
-      setBreakStartTime(new Date());
+      console.log('[TimeClock] Starting break...');
+      const response = await timeClockApi.startBreak();
+      console.log('[TimeClock] Start break response:', response);
+
+      if (response.success || response.id) {
+        setStatus('break');
+        setBreakStartTime(new Date(response.breakStart || Date.now()));
+      }
+    } catch (error) {
+      console.error('[TimeClock] Start break failed:', error);
     } finally {
       setIsLoading(false);
     }
@@ -844,13 +902,24 @@ const TimeClockButton = () => {
   const handleEndBreak = async () => {
     setIsLoading(true);
     try {
-      // TODO: Call API - endBreak()
-      setStatus('in');
-      setBreakStartTime(null);
+      console.log('[TimeClock] Ending break...');
+      const response = await timeClockApi.endBreak();
+      console.log('[TimeClock] End break response:', response);
+
+      if (response.success || response.id) {
+        setStatus('in');
+        setBreakStartTime(null);
+      }
+    } catch (error) {
+      console.error('[TimeClock] End break failed:', error);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Calculate today's hours from minutes
+  const todayHours = Math.floor(todayMinutes / 60);
+  const todayMins = todayMinutes % 60;
 
   const formatTime = (date) => {
     if (!date) return '';

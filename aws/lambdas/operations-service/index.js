@@ -6820,21 +6820,54 @@ async function handleNotifyOwnerOfIncident(tenantId, user, incidentId, body) {
 // =============================================================================
 
 /**
- * Get staff ID for current user
+ * Get staff ID for current user (auto-creates Staff record if needed)
  */
-async function getStaffIdForUser(tenantId, userId) {
+async function getStaffIdForUser(tenantId, userId, autoCreate = true) {
   if (!userId) return null;
-  
+
   try {
+    // First try to find existing Staff record
     const result = await query(
       `SELECT s.id FROM "Staff" s
        JOIN "User" u ON s.user_id = u.id OR s.email = u.email
-       WHERE s.tenant_id = $1 AND u.id = $2       LIMIT 1`,
+       WHERE s.tenant_id = $1 AND u.id = $2
+       LIMIT 1`,
       [tenantId, userId]
     );
-    return result.rows[0]?.id || null;
+
+    if (result.rows[0]?.id) {
+      return result.rows[0].id;
+    }
+
+    // If no Staff record and autoCreate is true, create one from User
+    if (autoCreate) {
+      const userResult = await query(
+        `SELECT id, email, first_name, last_name, phone FROM "User" WHERE id = $1 AND tenant_id = $2`,
+        [userId, tenantId]
+      );
+
+      if (userResult.rows[0]) {
+        const user = userResult.rows[0];
+        console.log('[TimeClock] Auto-creating Staff record for user:', user.email);
+
+        const createResult = await query(
+          `INSERT INTO "Staff" (tenant_id, user_id, email, first_name, last_name, phone, status)
+           VALUES ($1, $2, $3, $4, $5, $6, 'ACTIVE')
+           ON CONFLICT (tenant_id, email) DO UPDATE SET user_id = EXCLUDED.user_id
+           RETURNING id`,
+          [tenantId, user.id, user.email, user.first_name, user.last_name, user.phone]
+        );
+
+        if (createResult.rows[0]?.id) {
+          console.log('[TimeClock] Created Staff record:', createResult.rows[0].id);
+          return createResult.rows[0].id;
+        }
+      }
+    }
+
+    return null;
   } catch (error) {
-    console.error('[TimeClock] Failed to get staff ID:', error.message);
+    console.error('[TimeClock] Failed to get/create staff ID:', error.message);
     return null;
   }
 }
