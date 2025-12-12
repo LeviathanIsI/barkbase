@@ -341,7 +341,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
                   size="lg"
                   className="w-full bg-amber-500 hover:bg-amber-600"
                   onClick={handleCheckOut}
-                  disabled={checkOutMutation.isPending || !hasValidBookingId}
+                  disabled={checkOutMutation.isPending}
                 >
                   <LogOut className="w-5 h-5 mr-2" />
                   {checkOutMutation.isPending ? 'Checking Out...' : 'Check Out'}
@@ -373,16 +373,11 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
                   size="lg"
                   className="w-full bg-emerald-600 hover:bg-emerald-700"
                   onClick={handleCheckIn}
-                  disabled={checkInMutation.isPending || !hasValidBookingId}
+                  disabled={checkInMutation.isPending}
                 >
                   <LogIn className="w-5 h-5 mr-2" />
                   {checkInMutation.isPending ? 'Checking In...' : 'Check In'}
                 </Button>
-                {!hasValidBookingId && (
-                  <p className="text-xs text-center text-[var(--bb-color-text-muted)] mt-2">
-                    Save booking first to enable check-in
-                  </p>
-                )}
               </div>
             );
           }
