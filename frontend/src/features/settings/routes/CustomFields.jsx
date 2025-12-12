@@ -1,12 +1,11 @@
 import Card from '@/components/ui/Card';
 import UpgradeBanner from '@/components/ui/UpgradeBanner';
 import { useTenantStore } from '@/stores/tenant';
-import SettingsPage from '../components/SettingsPage';
 
 const CustomFields = () => {
   const tenant = useTenantStore((state) => state.tenant);
   const plan = tenant?.plan || 'FREE';
-  
+
   const limits = {
     FREE: { owner: 20, pet: 20 },
     PRO: { owner: 100, pet: 100 },
@@ -14,8 +13,14 @@ const CustomFields = () => {
   };
 
   return (
-    
-    <SettingsPage title="Custom Fields (Properties)" description="Add custom fields to collect additional information about pet owners and pets">
+    <div className="space-y-6 max-w-4xl">
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold text-text">Custom Fields</h1>
+          <p className="mt-1 text-sm text-muted">Add custom fields to collect additional information about pet owners and pets</p>
+        </div>
+      </header>
+
       <Card
         title="Owner Custom Fields"
         description={`Create up to ${limits[plan].owner} custom fields for pet owner records.`}
@@ -45,7 +50,7 @@ const CustomFields = () => {
       {plan === 'FREE' && (
         <UpgradeBanner requiredPlan="PRO" feature="Calculated Fields" />
       )}
-    </SettingsPage>
+    </div>
   );
 };
 

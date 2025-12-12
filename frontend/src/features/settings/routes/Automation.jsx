@@ -1,18 +1,21 @@
 import Card from '@/components/ui/Card';
-import UpgradeBanner from '@/components/ui/UpgradeBanner';
-import SettingsPage from '../components/SettingsPage';
 
-const PLACEHOLDER = () => {
+const Automation = () => {
   return (
-    
-    <SettingsPage title="TITLE_PLACEHOLDER" description="Configuration page coming soon">
-      <Card title="Settings" description="This section is under development.">
+    <div className="space-y-6 max-w-4xl">
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold text-text">Automation</h1>
+          <p className="mt-1 text-sm text-muted">Configure automated workflows and rules</p>
+        </div>
+      </header>
+      <Card title="Coming Soon" description="This feature is under development.">
         <p className="text-sm text-muted">
-          Full settings for this section will be available soon. You'll be able to configure all aspects of TITLE_PLACEHOLDER here.
+          Automation settings will allow you to set up triggers, actions, and workflows to streamline your operations.
         </p>
       </Card>
-    </SettingsPage>
+    </div>
   );
 };
 
-export default PLACEHOLDER;
+export default Automation;

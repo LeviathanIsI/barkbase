@@ -126,12 +126,15 @@ const NotificationsOverview = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-4xl">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-text-primary">Notifications</h1>
-        <p className="text-gray-600 dark:text-text-secondary">Email and communication preferences</p>
-      </div>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold text-text">Notifications</h1>
+          <p className="mt-1 text-sm text-muted">Configure email, SMS, and push notification preferences</p>
+        </div>
+        <Button onClick={handleSave}>Save Preferences</Button>
+      </header>
 
       {/* Communication Channels */}
       <CommunicationChannels
@@ -183,16 +186,6 @@ const NotificationsOverview = () => {
 
       {/* Notification Testing */}
       <NotificationTesting />
-
-      {/* Action Buttons */}
-      <div className="flex justify-end gap-3">
-        <Button variant="outline" onClick={handleReset}>
-          Reset
-        </Button>
-        <Button onClick={handleSave}>
-          Save Preferences
-        </Button>
-      </div>
     </div>
   );
 };

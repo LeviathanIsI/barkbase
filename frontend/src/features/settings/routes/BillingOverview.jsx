@@ -1,11 +1,5 @@
-import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import {
-  CreditCard, Settings, FileText, BarChart3, Star,
-  DollarSign, Calendar, Download, Receipt
-} from 'lucide-react';
-import Button from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import FinancialDashboard from './components/FinancialDashboard';
 import SubscriptionTab from './components/SubscriptionTab';
 import PaymentMethodsTab from './components/PaymentMethodsTab';
@@ -14,11 +8,11 @@ import UsageTab from './components/UsageTab';
 import PlansTab from './components/PlansTab';
 
 const TABS = [
-  { id: 'subscription', label: 'Subscription', icon: Settings },
-  { id: 'payment-methods', label: 'Payment Methods', icon: CreditCard },
-  { id: 'invoices', label: 'Invoices', icon: FileText },
-  { id: 'usage', label: 'Usage', icon: BarChart3 },
-  { id: 'plans', label: 'Plans', icon: Star },
+  { id: 'subscription', label: 'Subscription' },
+  { id: 'payment-methods', label: 'Payment Methods' },
+  { id: 'invoices', label: 'Invoices' },
+  { id: 'usage', label: 'Usage' },
+  { id: 'plans', label: 'Plans' },
 ];
 
 export default function BillingOverview() {
@@ -26,63 +20,52 @@ export default function BillingOverview() {
   const activeTab = searchParams.get('tab') || 'subscription';
 
   const handleTabChange = (tabId) => {
-    setSearchParams({ tab: tabId });
-  };
-
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'subscription':
-        return <SubscriptionTab />;
-      case 'payment-methods':
-        return <PaymentMethodsTab />;
-      case 'invoices':
-        return <InvoicesTab />;
-      case 'usage':
-        return <UsageTab />;
-      case 'plans':
-        return <PlansTab />;
-      default:
-        return <SubscriptionTab />;
-    }
+    setSearchParams({ tab: tabId }, { replace: true });
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-4xl">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-text-primary">Billing</h1>
-        <p className="text-gray-600 dark:text-text-secondary">Subscription and payment settings</p>
-      </div>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold text-text">Billing</h1>
+          <p className="mt-1 text-sm text-muted">Manage your subscription, payment methods, and invoices</p>
+        </div>
+      </header>
 
       {/* Financial Dashboard */}
       <FinancialDashboard />
 
-      {/* Sub-Tab Navigation */}
-      <div className="border-b border-gray-200 dark:border-surface-border">
-        <nav className="flex space-x-8">
+      {/* Tab Navigation */}
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
+        <TabsList className="border-b border-border w-full justify-start gap-6 bg-transparent px-0 mb-6">
           {TABS.map((tab) => (
-            <button
+            <TabsTrigger
               key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              className={`
-                flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm
-                ${activeTab === tab.id
-                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 dark:text-text-secondary hover:text-gray-700 dark:hover:text-text-primary hover:border-gray-300 dark:hover:border-surface-border'
-                }
-              `}
+              value={tab.id}
+              className="px-0 py-3 data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none bg-transparent"
             >
-              <tab.icon className="w-5 h-5" />
               {tab.label}
-            </button>
+            </TabsTrigger>
           ))}
-        </nav>
-      </div>
+        </TabsList>
 
-      {/* Tab Content */}
-      <div className="bg-white dark:bg-surface-primary rounded-lg shadow-sm p-6">
-        {renderTabContent()}
-      </div>
+        <TabsContent value="subscription">
+          <SubscriptionTab />
+        </TabsContent>
+        <TabsContent value="payment-methods">
+          <PaymentMethodsTab />
+        </TabsContent>
+        <TabsContent value="invoices">
+          <InvoicesTab />
+        </TabsContent>
+        <TabsContent value="usage">
+          <UsageTab />
+        </TabsContent>
+        <TabsContent value="plans">
+          <PlansTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

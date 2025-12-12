@@ -388,7 +388,19 @@ const Profile = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-4xl">
+      {/* Page Header */}
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold text-text">Profile Settings</h1>
+          <p className="mt-1 text-sm text-muted">Manage your personal information and preferences</p>
+        </div>
+        <Button type="button" onClick={handleSubmit} disabled={updateProfile.isPending}>
+          <Save className="h-4 w-4 mr-2" />
+          {updateProfile.isPending ? 'Saving...' : 'Save Changes'}
+        </Button>
+      </header>
+
       {/* Email Verification Banner */}
       {!profile?.emailVerified && (
         <Alert variant="warning">
@@ -535,20 +547,6 @@ const Profile = () => {
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-6 border-t border-gray-200 dark:border-surface-border">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleReset}
-            >
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Reset
-            </Button>
-            <Button type="submit" disabled={updateProfile.isPending}>
-              <Save className="h-4 w-4 mr-2" />
-              {updateProfile.isPending ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </div>
         </form>
       </Card>
 

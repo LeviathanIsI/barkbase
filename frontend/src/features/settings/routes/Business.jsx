@@ -4,7 +4,6 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
-import SettingsPage from '../components/SettingsPage';
 import apiClient from '@/lib/apiClient';
 import { useTenantStore } from '@/stores/tenant';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
@@ -115,11 +114,22 @@ const Business = () => {
   };
 
   return (
-    <SettingsPage title="Business Settings" description="Configure your facility profile, hours, services, policies and more.">
+    <div className="space-y-6 max-w-4xl">
+      {/* Page Header */}
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold text-text">Business Settings</h1>
+          <p className="mt-1 text-sm text-muted">Configure your facility profile, hours, services, policies and more</p>
+        </div>
+        <Button onClick={handleSave} disabled={!isDirty || isSaving}>
+          {isSaving ? 'Saving...' : 'Save Changes'}
+        </Button>
+      </header>
+
       <Tabs value={activeTab} onValueChange={(t)=>{ setActiveTab(t); navigate(`?tab=${t}`, { replace: true }); }}>
-        <TabsList className="mb-6">
+        <TabsList className="border-b border-border w-full justify-start gap-6 bg-transparent px-0 mb-6">
           {['profile','hours','services','policies','vaccinations','branding','payments','notifications','legal'].map((t) => (
-            <TabsTrigger key={t} value={t} className="capitalize">{t.replace('-',' & ')}</TabsTrigger>
+            <TabsTrigger key={t} value={t} className="capitalize px-0 py-3 data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none bg-transparent">{t.replace('-',' & ')}</TabsTrigger>
           ))}
         </TabsList>
 
@@ -285,7 +295,7 @@ const Business = () => {
           <LegalTab />
         </TabsContent>
       </Tabs>
-    </SettingsPage>
+    </div>
   );
 };
 

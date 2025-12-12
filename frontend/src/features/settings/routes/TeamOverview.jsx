@@ -233,24 +233,24 @@ const TeamOverview = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-4xl">
       {/* Header with Actions */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <header className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-text-primary">Team</h1>
-          <p className="text-gray-600 dark:text-text-secondary">Manage staff and permissions</p>
+          <h1 className="text-xl font-semibold text-text">Team</h1>
+          <p className="mt-1 text-sm text-muted">Manage staff members, roles, and permissions</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-2">
+          <Button variant="secondary" size="sm">
+            <Upload className="w-4 h-4 mr-2" />
+            Import CSV
+          </Button>
           <Button onClick={() => setShowInviteModal(true)}>
             <UserPlus className="w-4 h-4 mr-2" />
-            Invite Team Member
-          </Button>
-          <Button variant="outline">
-            <Upload className="w-4 h-4 mr-2" />
-            Import from CSV
+            Invite Member
           </Button>
         </div>
-      </div>
+      </header>
 
       {/* Team Overview Dashboard */}
       <Card className="bg-primary-50 dark:bg-surface-primary border-blue-200 dark:border-blue-900/30">

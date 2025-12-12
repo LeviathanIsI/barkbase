@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, Plus, BarChart3, Download, Upload, Settings, Eye, EyeOff, BookOpen, Play, FileText } from 'lucide-react';
+import { Search, Plus, Upload, BookOpen } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import ActionableEmptyState from './components/ActionableEmptyState';
 import IndustryTemplatesModal from './components/IndustryTemplatesModal';
 import ServiceListView from './components/ServiceListView';
@@ -106,53 +107,49 @@ const ServicesOverview = () => {
   }, [servicesData, servicesLoading, selectedCategory, searchQuery]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-4xl">
       {/* Page Header */}
-      <div className="flex items-start justify-between">
+      <header className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-text-primary">Services & Pricing</h1>
-          <p className="mt-1 text-gray-600 dark:text-text-secondary">
+          <h1 className="text-xl font-semibold text-text">Services & Pricing</h1>
+          <p className="mt-1 text-sm text-muted">
             Configure boarding, daycare, grooming, and training services with flexible pricing
           </p>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={handleImportServices}>
+        <div className="flex gap-2">
+          <Button variant="secondary" size="sm" onClick={handleImportServices}>
             <Upload className="w-4 h-4 mr-2" />
             Import
           </Button>
-          <Button variant="outline" onClick={handleBrowseTemplates}>
+          <Button variant="secondary" size="sm" onClick={handleBrowseTemplates}>
             <BookOpen className="w-4 h-4 mr-2" />
             Templates
           </Button>
-          <Button onClick={handleCreateService} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
+          <Button onClick={handleCreateService}>
+            <Plus className="h-4 w-4 mr-2" />
             Create Service
           </Button>
         </div>
-      </div>
+      </header>
 
       {/* Service Analytics Dashboard */}
       {hasServices && <ServiceAnalyticsDashboard data={{ services: servicesData || [] }} />}
 
       {/* Category Tabs */}
-      <div className="border-b border-gray-200 dark:border-surface-border">
-        <nav className="flex gap-1 overflow-x-auto">
+      <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
+        <TabsList className="border-b border-border w-full justify-start gap-6 bg-transparent px-0 mb-6">
           {OBJECT_TYPES.map((type) => (
-            <button
+            <TabsTrigger
               key={type.recordId}
-              onClick={() => setSelectedCategory(type.recordId)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                selectedCategory === type.recordId
-                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 dark:text-text-secondary hover:text-gray-700 dark:hover:text-text-primary hover:border-gray-300 dark:hover:border-surface-border'
-              }`}
+              value={type.recordId}
+              className="px-0 py-3 data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:text-primary rounded-none bg-transparent"
             >
               {type.label}
               {selectedCategory === type.recordId && categoryStats.serviceCount > 0 && ` (${categoryStats.serviceCount})`}
-            </button>
+            </TabsTrigger>
           ))}
-        </nav>
-      </div>
+        </TabsList>
+      </Tabs>
 
       {/* Content based on state */}
       {!hasServices ? (
