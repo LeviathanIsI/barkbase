@@ -6820,84 +6820,30 @@ async function handleNotifyOwnerOfIncident(tenantId, user, incidentId, body) {
 // =============================================================================
 
 /**
- * Get staff ID for current user (auto-creates Staff record if needed)
- */
-async function getStaffIdForUser(tenantId, userId, autoCreate = true) {
-  if (!userId) return null;
-
-  try {
-    // First try to find existing Staff record
-    const result = await query(
-      `SELECT s.id FROM "Staff" s
-       JOIN "User" u ON s.user_id = u.id OR s.email = u.email
-       WHERE s.tenant_id = $1 AND u.id = $2
-       LIMIT 1`,
-      [tenantId, userId]
-    );
-
-    if (result.rows[0]?.id) {
-      return result.rows[0].id;
-    }
-
-    // If no Staff record and autoCreate is true, create one from User
-    if (autoCreate) {
-      const userResult = await query(
-        `SELECT id, email, first_name, last_name, phone FROM "User" WHERE id = $1 AND tenant_id = $2`,
-        [userId, tenantId]
-      );
-
-      if (userResult.rows[0]) {
-        const user = userResult.rows[0];
-        console.log('[TimeClock] Auto-creating Staff record for user:', user.email);
-
-        const createResult = await query(
-          `INSERT INTO "Staff" (tenant_id, user_id, email, first_name, last_name, phone, status)
-           VALUES ($1, $2, $3, $4, $5, $6, 'ACTIVE')
-           ON CONFLICT (tenant_id, email) DO UPDATE SET user_id = EXCLUDED.user_id
-           RETURNING id`,
-          [tenantId, user.id, user.email, user.first_name, user.last_name, user.phone]
-        );
-
-        if (createResult.rows[0]?.id) {
-          console.log('[TimeClock] Created Staff record:', createResult.rows[0].id);
-          return createResult.rows[0].id;
-        }
-      }
-    }
-
-    return null;
-  } catch (error) {
-    console.error('[TimeClock] Failed to get/create staff ID:', error.message);
-    return null;
-  }
-}
-
-/**
  * Clock in - Start a time entry
  */
 async function handleClockIn(tenantId, user, body) {
-  const { staffId: bodyStaffId, notes, location } = body;
+  const { notes, location } = body;
+  const userId = user?.id;
 
-  console.log('[TimeClock][clockIn] tenantId:', tenantId, 'user:', user?.id);
+  console.log('[TimeClock][clockIn] tenantId:', tenantId, 'userId:', userId);
 
   try {
     await getPoolAsync();
 
-    // Get staff ID - from body or lookup from user
-    const staffId = bodyStaffId || await getStaffIdForUser(tenantId, user?.id);
-
-    if (!staffId) {
+    if (!userId) {
       return createResponse(400, {
         error: 'Bad Request',
-        message: 'Staff ID is required or user is not linked to a staff record',
+        message: 'User ID is required',
       });
     }
 
     // Check if already clocked in (has active entry without clock_out)
     const activeResult = await query(
       `SELECT id, clock_in FROM "TimeEntry"
-       WHERE tenant_id = $1 AND staff_id = $2 AND clock_out IS NULL       LIMIT 1`,
-      [tenantId, staffId]
+       WHERE tenant_id = $1 AND user_id = $2 AND clock_out IS NULL
+       LIMIT 1`,
+      [tenantId, userId]
     );
 
     if (activeResult.rows.length > 0) {
@@ -6914,10 +6860,10 @@ async function handleClockIn(tenantId, user, body) {
 
     // Create new time entry
     const result = await query(
-      `INSERT INTO "TimeEntry" (tenant_id, staff_id, clock_in, notes, location, status)
+      `INSERT INTO "TimeEntry" (tenant_id, user_id, clock_in, notes, location, status)
        VALUES ($1, $2, NOW(), $3, $4, 'ACTIVE')
        RETURNING *`,
-      [tenantId, staffId, notes || null, location || null]
+      [tenantId, userId, notes || null, location || null]
     );
 
     const entry = result.rows[0];
@@ -6926,7 +6872,7 @@ async function handleClockIn(tenantId, user, body) {
     return createResponse(201, {
       success: true,
       id: entry.id,
-      staffId: entry.staff_id,
+      userId: entry.user_id,
       clockIn: entry.clock_in,
       status: entry.status,
       message: 'Clocked in successfully',
@@ -6945,19 +6891,18 @@ async function handleClockIn(tenantId, user, body) {
  * Clock out - End a time entry
  */
 async function handleClockOut(tenantId, user, body) {
-  const { staffId: bodyStaffId, entryId, notes } = body;
+  const { entryId, notes } = body;
+  const userId = user?.id;
 
-  console.log('[TimeClock][clockOut] tenantId:', tenantId);
+  console.log('[TimeClock][clockOut] tenantId:', tenantId, 'userId:', userId);
 
   try {
     await getPoolAsync();
 
-    const staffId = bodyStaffId || await getStaffIdForUser(tenantId, user?.id);
-
-    if (!staffId && !entryId) {
+    if (!userId && !entryId) {
       return createResponse(400, {
         error: 'Bad Request',
-        message: 'Staff ID or entry ID is required',
+        message: 'User ID or entry ID is required',
       });
     }
 
@@ -6966,14 +6911,15 @@ async function handleClockOut(tenantId, user, body) {
     if (entryId) {
       activeResult = await query(
         `SELECT * FROM "TimeEntry"
-         WHERE id = $1 AND tenant_id = $2 AND clock_out IS NULL `,
+         WHERE id = $1 AND tenant_id = $2 AND clock_out IS NULL`,
         [entryId, tenantId]
       );
     } else {
       activeResult = await query(
         `SELECT * FROM "TimeEntry"
-         WHERE tenant_id = $1 AND staff_id = $2 AND clock_out IS NULL         ORDER BY clock_in DESC LIMIT 1`,
-        [tenantId, staffId]
+         WHERE tenant_id = $1 AND user_id = $2 AND clock_out IS NULL
+         ORDER BY clock_in DESC LIMIT 1`,
+        [tenantId, userId]
       );
     }
 
@@ -7038,25 +6984,24 @@ async function handleClockOut(tenantId, user, body) {
  * Start break
  */
 async function handleStartBreak(tenantId, user, body) {
-  const { staffId: bodyStaffId, entryId } = body;
+  const { entryId } = body;
+  const userId = user?.id;
 
-  console.log('[TimeClock][startBreak] tenantId:', tenantId);
+  console.log('[TimeClock][startBreak] tenantId:', tenantId, 'userId:', userId);
 
   try {
     await getPoolAsync();
 
-    const staffId = bodyStaffId || await getStaffIdForUser(tenantId, user?.id);
-
     // Find active entry
-    let whereClause = 'tenant_id = $1 AND clock_out IS NULL ';
+    let whereClause = 'tenant_id = $1 AND clock_out IS NULL';
     const params = [tenantId];
 
     if (entryId) {
       whereClause += ' AND id = $2';
       params.push(entryId);
-    } else if (staffId) {
-      whereClause += ' AND staff_id = $2';
-      params.push(staffId);
+    } else if (userId) {
+      whereClause += ' AND user_id = $2';
+      params.push(userId);
     }
 
     const activeResult = await query(
@@ -7109,25 +7054,24 @@ async function handleStartBreak(tenantId, user, body) {
  * End break
  */
 async function handleEndBreak(tenantId, user, body) {
-  const { staffId: bodyStaffId, entryId } = body;
+  const { entryId } = body;
+  const userId = user?.id;
 
-  console.log('[TimeClock][endBreak] tenantId:', tenantId);
+  console.log('[TimeClock][endBreak] tenantId:', tenantId, 'userId:', userId);
 
   try {
     await getPoolAsync();
 
-    const staffId = bodyStaffId || await getStaffIdForUser(tenantId, user?.id);
-
     // Find active entry on break
-    let whereClause = 'tenant_id = $1 AND clock_out IS NULL AND is_on_break = true ';
+    let whereClause = 'tenant_id = $1 AND clock_out IS NULL AND is_on_break = true';
     const params = [tenantId];
 
     if (entryId) {
       whereClause += ' AND id = $2';
       params.push(entryId);
-    } else if (staffId) {
-      whereClause += ' AND staff_id = $2';
-      params.push(staffId);
+    } else if (userId) {
+      whereClause += ' AND user_id = $2';
+      params.push(userId);
     }
 
     const activeResult = await query(
@@ -7172,38 +7116,36 @@ async function handleEndBreak(tenantId, user, body) {
 }
 
 /**
- * Get current time status for staff
+ * Get current time status for user
  * Includes: current status, today's total, week total, recent entries
  */
 async function handleGetTimeStatus(tenantId, user, queryParams) {
-  const { staffId: queryStaffId } = queryParams;
+  const userId = queryParams.userId || user?.id;
 
-  console.log('[TimeClock][getStatus] tenantId:', tenantId);
+  console.log('[TimeClock][getStatus] tenantId:', tenantId, 'userId:', userId);
 
   try {
     await getPoolAsync();
 
-    const staffId = queryStaffId || await getStaffIdForUser(tenantId, user?.id);
-
-    if (!staffId) {
+    if (!userId) {
       return createResponse(200, {
         isClockedIn: false,
         isOnBreak: false,
         workedMinutes: 0,
         weekTotal: 0,
         recentEntries: [],
-        message: 'No staff record found',
+        message: 'No user ID',
       });
     }
 
     // Get active entry
     const activeResult = await query(
-      `SELECT te.*, s.first_name, s.last_name
+      `SELECT te.*, u.first_name, u.last_name
        FROM "TimeEntry" te
-       JOIN "Staff" s ON te.staff_id = s.id
-       WHERE te.tenant_id = $1 AND te.staff_id = $2 AND te.clock_out IS NULL
+       JOIN "User" u ON te.user_id = u.id
+       WHERE te.tenant_id = $1 AND te.user_id = $2 AND te.clock_out IS NULL
        LIMIT 1`,
-      [tenantId, staffId]
+      [tenantId, userId]
     );
 
     // Get week totals (completed entries this week, Monday to Sunday)
@@ -7212,9 +7154,9 @@ async function handleGetTimeStatus(tenantId, user, queryParams) {
          EXTRACT(EPOCH FROM (clock_out - clock_in)) / 60 - COALESCE(break_minutes, 0)
        ), 0) as total_minutes
        FROM "TimeEntry"
-       WHERE tenant_id = $1 AND staff_id = $2 AND clock_out IS NOT NULL
+       WHERE tenant_id = $1 AND user_id = $2 AND clock_out IS NOT NULL
        AND clock_in >= DATE_TRUNC('week', CURRENT_DATE)`,
-      [tenantId, staffId]
+      [tenantId, userId]
     );
     const weekTotal = Math.round(weekTotalResult.rows[0]?.total_minutes || 0);
 
@@ -7223,9 +7165,9 @@ async function handleGetTimeStatus(tenantId, user, queryParams) {
       `SELECT id, DATE(clock_in) as date, clock_in, clock_out, break_minutes,
        ROUND(EXTRACT(EPOCH FROM (clock_out - clock_in)) / 3600 - COALESCE(break_minutes, 0) / 60.0, 1) as worked_hours
        FROM "TimeEntry"
-       WHERE tenant_id = $1 AND staff_id = $2 AND clock_out IS NOT NULL
+       WHERE tenant_id = $1 AND user_id = $2 AND clock_out IS NOT NULL
        ORDER BY clock_in DESC LIMIT 5`,
-      [tenantId, staffId]
+      [tenantId, userId]
     );
     const recentEntries = recentResult.rows.map(row => ({
       id: row.id,
@@ -7240,7 +7182,7 @@ async function handleGetTimeStatus(tenantId, user, queryParams) {
       return createResponse(200, {
         isClockedIn: false,
         isOnBreak: false,
-        staffId: staffId,
+        userId: userId,
         workedMinutes: 0,
         weekTotal: weekTotal,
         recentEntries: recentEntries,
@@ -7263,8 +7205,8 @@ async function handleGetTimeStatus(tenantId, user, queryParams) {
       isClockedIn: true,
       isOnBreak: entry.is_on_break,
       entryId: entry.id,
-      staffId: staffId,
-      staffName: `${entry.first_name} ${entry.last_name}`.trim(),
+      userId: userId,
+      userName: `${entry.first_name} ${entry.last_name}`.trim(),
       clockIn: entry.clock_in,
       breakStart: entry.break_start,
       elapsedMinutes: elapsedMinutes,
@@ -7288,7 +7230,7 @@ async function handleGetTimeStatus(tenantId, user, queryParams) {
  * Get time entries
  */
 async function handleGetTimeEntries(tenantId, queryParams) {
-  const { staffId, startDate, endDate, status, limit = 50, offset = 0 } = queryParams;
+  const { userId, startDate, endDate, status, limit = 50, offset = 0 } = queryParams;
 
   console.log('[TimeClock][list] tenantId:', tenantId, queryParams);
 
@@ -7299,9 +7241,9 @@ async function handleGetTimeEntries(tenantId, queryParams) {
     const params = [tenantId];
     let paramIndex = 2;
 
-    if (staffId) {
-      whereClause += ` AND te.staff_id = $${paramIndex++}`;
-      params.push(staffId);
+    if (userId) {
+      whereClause += ` AND te.user_id = $${paramIndex++}`;
+      params.push(userId);
     }
     if (status) {
       whereClause += ` AND te.status = $${paramIndex++}`;
@@ -7316,11 +7258,11 @@ async function handleGetTimeEntries(tenantId, queryParams) {
     const result = await query(
       `SELECT
          te.*,
-         s.first_name, s.last_name, s.email as staff_email,
-         u.first_name as approved_by_first, u.last_name as approved_by_last
+         u.first_name, u.last_name, u.email as user_email,
+         approver.first_name as approved_by_first, approver.last_name as approved_by_last
        FROM "TimeEntry" te
-       JOIN "Staff" s ON te.staff_id = s.id
-       LEFT JOIN "User" u ON te.approved_by = u.id
+       JOIN "User" u ON te.user_id = u.id
+       LEFT JOIN "User" approver ON te.approved_by = approver.id
        WHERE ${whereClause}
        ORDER BY te.clock_in DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
@@ -7329,9 +7271,9 @@ async function handleGetTimeEntries(tenantId, queryParams) {
 
     const entries = result.rows.map(row => ({
       id: row.id,
-      staffId: row.staff_id,
-      staffName: `${row.first_name} ${row.last_name}`.trim(),
-      staffEmail: row.staff_email,
+      userId: row.user_id,
+      userName: `${row.first_name} ${row.last_name}`.trim(),
+      userEmail: row.user_email,
       clockIn: row.clock_in,
       clockOut: row.clock_out,
       breakMinutes: row.break_minutes,
@@ -7388,9 +7330,9 @@ async function handleGetTimeEntry(tenantId, entryId) {
     const result = await query(
       `SELECT
          te.*,
-         s.first_name, s.last_name, s.email as staff_email
+         u.first_name, u.last_name, u.email as user_email
        FROM "TimeEntry" te
-       JOIN "Staff" s ON te.staff_id = s.id
+       JOIN "User" u ON te.user_id = u.id
        WHERE te.id = $1 AND te.tenant_id = $2`,
       [entryId, tenantId]
     );
@@ -7406,8 +7348,8 @@ async function handleGetTimeEntry(tenantId, entryId) {
 
     return createResponse(200, {
       id: row.id,
-      staffId: row.staff_id,
-      staffName: `${row.first_name} ${row.last_name}`.trim(),
+      userId: row.user_id,
+      userName: `${row.first_name} ${row.last_name}`.trim(),
       clockIn: row.clock_in,
       clockOut: row.clock_out,
       breakMinutes: row.break_minutes,
