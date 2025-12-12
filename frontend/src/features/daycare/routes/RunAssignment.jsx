@@ -473,7 +473,7 @@ const RunColumn = ({
       <div
         ref={setNodeRef}
         className={cn(
-          'flex-1 border-2 border-dashed rounded-b-lg p-3 transition-all min-h-[250px] max-h-[500px] overflow-y-auto',
+          'flex-1 border-2 border-dashed rounded-b-lg p-3 transition-all min-h-[200px] max-h-[400px] overflow-y-auto',
           isOver
             ? 'border-[color:var(--bb-color-accent)] bg-[color:var(--bb-color-accent-soft)]'
             : 'border-[color:var(--bb-color-border-subtle)]'
@@ -618,7 +618,7 @@ const UnassignedPetsSidebar = ({ pets, selectedPets, onSelect, onSelectAll }) =>
       <div
         ref={setNodeRef}
         className={cn(
-          'p-3 max-h-[400px] overflow-y-auto transition-colors',
+          'p-3 max-h-[280px] overflow-y-auto transition-colors',
           isOver && 'bg-[color:var(--bb-color-accent-soft)]'
         )}
       >
@@ -1175,7 +1175,7 @@ const RunAssignment = () => {
   }
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className={cn('space-y-5', hasChanges && 'pb-20')}>
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
