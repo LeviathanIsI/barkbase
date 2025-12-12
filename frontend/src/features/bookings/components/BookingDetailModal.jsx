@@ -54,15 +54,15 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
 
   if (!isOpen || !booking) return null;
 
-  // Generate booking reference from ID or date
-  const generateBookingRef = (id, checkIn) => {
-    if (id && id !== 'Unknown') {
-      const shortId = id.toString().slice(0, 8).toUpperCase();
-      return shortId;
+  // Get the actual booking ID from the database
+  const bookingId = booking.id || booking.recordId || booking.booking_id || booking.bookingId;
+
+  // Generate short reference for display (first 8 chars of UUID)
+  const generateBookingRef = (id) => {
+    if (id) {
+      return id.toString().slice(0, 8).toUpperCase();
     }
-    const petInitial = booking.pet?.name?.charAt(0)?.toUpperCase() || 'B';
-    const dateStr = checkIn ? new Date(checkIn).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' }).replace(/\//g, '') : 'XXXXXX';
-    return `${petInitial}-${dateStr}`;
+    return 'UNKNOWN';
   };
 
   const duration = booking.checkIn && booking.checkOut
@@ -99,8 +99,8 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
 
   // Compute booking display data
   const displayBooking = {
-    id: booking.id || booking.recordId || 'Unknown',
-    bookingRef: generateBookingRef(booking.id || booking.recordId, booking.checkIn),
+    id: bookingId,
+    bookingRef: generateBookingRef(bookingId),
     pet: booking.pet || {},
     owner: booking.owner || {},
     checkIn: booking.checkIn,
@@ -115,7 +115,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
   const balance = displayBooking.totalCents - displayBooking.amountPaidCents;
 
   // Check if booking has a valid ID for operations
-  const hasValidBookingId = displayBooking.id && displayBooking.id !== 'Unknown';
+  const hasValidBookingId = Boolean(bookingId);
 
   // Helper: Open create booking flow with pre-filled data
   // Used when booking ID is missing but user wants to take action
