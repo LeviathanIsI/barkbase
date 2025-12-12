@@ -938,11 +938,12 @@ const DailyHourlyGrid = ({
                         onClick={() => hasPets ? onBookingClick(cellPets[0]) : onEmptyCellClick(run, hour)}
                       >
                         {hasPets ? (
-                          <div className="p-1 space-y-1 overflow-hidden">
+                          <div className="absolute inset-0 p-1 overflow-hidden flex flex-col">
                             {cellPets.slice(0, 2).map((pet, idx) => (
                               <PetTimeBar
                                 key={pet.id || idx}
                                 pet={pet}
+                                hour={hour}
                                 dateStr={dateStr}
                                 onBookingClick={onBookingClick}
                                 onCheckIn={handleCheckIn}
@@ -976,8 +977,49 @@ const DailyHourlyGrid = ({
 };
 
 // Pet Time Bar - DAFE pattern with hover tooltip, click to open, inline check-in/out
-const PetTimeBar = ({ pet, dateStr, onBookingClick, onCheckIn, onCheckOut, checkInPending, checkOutPending }) => {
+const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut, checkInPending, checkOutPending }) => {
   const [showTooltip, setShowTooltip] = useState(false);
+
+  // Calculate width percentage based on how much of this hour the assignment covers
+  const calculateWidthPercent = () => {
+    let startHour = 0, startMinute = 0, endHour = 23, endMinute = 59;
+
+    if (pet.startTime) {
+      const parts = pet.startTime.split(':');
+      startHour = parseInt(parts[0], 10) || 0;
+      startMinute = parseInt(parts[1], 10) || 0;
+    } else if (pet.startAt) {
+      const d = new Date(pet.startAt);
+      startHour = d.getHours();
+      startMinute = d.getMinutes();
+    }
+
+    if (pet.endTime) {
+      const parts = pet.endTime.split(':');
+      endHour = parseInt(parts[0], 10) || 23;
+      endMinute = parseInt(parts[1], 10) || 59;
+    } else if (pet.endAt) {
+      const d = new Date(pet.endAt);
+      endHour = d.getHours();
+      endMinute = d.getMinutes();
+    }
+
+    // Convert to decimal hours
+    const assignStart = startHour + startMinute / 60;
+    const assignEnd = endHour + endMinute / 60;
+    const slotStart = hour;
+    const slotEnd = hour + 1;
+
+    // Calculate overlap within this hour slot
+    const overlapStart = Math.max(assignStart, slotStart);
+    const overlapEnd = Math.min(assignEnd, slotEnd);
+    const overlapDuration = Math.max(0, overlapEnd - overlapStart);
+
+    // Return percentage (0-100)
+    return Math.round(overlapDuration * 100);
+  };
+
+  const heightPercent = calculateWidthPercent();
 
   // Determine check-in/out eligibility
   const today = new Date().toISOString().split('T')[0];
@@ -1023,7 +1065,11 @@ const PetTimeBar = ({ pet, dateStr, onBookingClick, onCheckIn, onCheckOut, check
         'hover:shadow-md hover:-translate-y-0.5 hover:ring-1 hover:ring-[var(--bb-color-accent)]',
         getStatusBorderColor()
       )}
-      style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+      style={{
+        backgroundColor: 'var(--bb-color-bg-elevated)',
+        height: `${heightPercent}%`,
+        minHeight: '20px', // Ensure card is always readable
+      }}
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}
       onClick={(e) => {
