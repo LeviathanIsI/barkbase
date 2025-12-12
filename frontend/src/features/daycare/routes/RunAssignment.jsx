@@ -44,6 +44,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { format, addDays, subDays } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 import Button from '@/components/ui/Button';
 import { Card, PageHeader } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
@@ -728,6 +729,7 @@ const SmartSuggestions = ({ unassignedPets, runs }) => {
 };
 
 const RunAssignment = () => {
+  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [assignmentState, setAssignmentState] = useState({});
   const [initialState, setInitialState] = useState({});
@@ -1143,12 +1145,10 @@ const RunAssignment = () => {
               Before you can assign pets to runs, you need to create run templates in Settings. 
               These templates define the schedule, capacity, and time slots for each run.
             </p>
-            <Link to="/settings/facility?tab=run-templates">
-              <Button>
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Go to Run Templates Settings
-              </Button>
-            </Link>
+            <Button onClick={() => navigate('/settings/facility?tab=run-templates')}>
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Go to Run Templates Settings
+            </Button>
           </div>
         </div>
       </div>
