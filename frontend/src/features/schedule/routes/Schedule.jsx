@@ -1290,11 +1290,16 @@ const PetAssignmentPanel = ({ run, unassignedPets, onAssign, onClose }) => {
 
   if (!run) return null;
 
-  // Generate time options (6am to 8pm)
+  // Generate time options (6am to 8pm) with 15-minute increments
   const timeOptions = [];
   for (let h = 6; h <= 20; h++) {
     const hour = h.toString().padStart(2, '0');
     timeOptions.push(`${hour}:00`);
+    if (h < 20) {
+      timeOptions.push(`${hour}:15`);
+      timeOptions.push(`${hour}:30`);
+      timeOptions.push(`${hour}:45`);
+    }
   }
 
   const handleAssign = (pet) => {
