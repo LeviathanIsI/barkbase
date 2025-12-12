@@ -757,6 +757,159 @@ const HelpButton = () => {
   );
 };
 
+// Time Clock Button with Dropdown
+const TimeClockButton = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const navigate = useNavigate();
+
+  // Mock clock status - in real app, fetch from API
+  const [clockedIn, setClockedIn] = useState(false);
+  const [clockedInTime, setClockedInTime] = useState(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleClockIn = () => {
+    setClockedIn(true);
+    setClockedInTime(new Date());
+  };
+
+  const handleClockOut = () => {
+    setClockedIn(false);
+    setClockedInTime(null);
+  };
+
+  const formatDuration = (startTime) => {
+    if (!startTime) return '0h 0m';
+    const now = new Date();
+    const diff = now - startTime;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${mins}m`;
+  };
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          'relative flex items-center justify-center rounded-lg border p-2 transition-all',
+          'hover:bg-[color:var(--bb-color-bg-elevated)]',
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)]'
+        )}
+        style={{
+          backgroundColor: 'var(--bb-color-bg-surface)',
+          borderColor: 'var(--bb-color-border-subtle)',
+        }}
+        aria-label="Time Clock"
+      >
+        <Clock className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+        {clockedIn && (
+          <span className="absolute -right-0.5 -top-0.5 flex h-2.5 w-2.5">
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500" />
+          </span>
+        )}
+      </button>
+
+      {isOpen && (
+        <div
+          className="absolute right-0 top-full mt-2 w-64 rounded-lg border shadow-xl z-50"
+          style={{
+            backgroundColor: 'var(--bb-color-bg-surface)',
+            borderColor: 'var(--bb-color-border-subtle)',
+          }}
+        >
+          {/* Header */}
+          <div
+            className="px-4 py-3 border-b"
+            style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+          >
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+              <span className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">
+                Time Clock
+              </span>
+            </div>
+          </div>
+
+          {/* Status */}
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs text-[color:var(--bb-color-text-muted)]">Status</span>
+              <span className={cn(
+                'text-xs font-medium px-2 py-0.5 rounded-full',
+                clockedIn
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                  : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+              )}>
+                {clockedIn ? 'Clocked In' : 'Clocked Out'}
+              </span>
+            </div>
+
+            {clockedIn && (
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs text-[color:var(--bb-color-text-muted)]">Duration</span>
+                <span className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">
+                  {formatDuration(clockedInTime)}
+                </span>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="space-y-2">
+              {!clockedIn ? (
+                <button
+                  type="button"
+                  onClick={handleClockIn}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors"
+                >
+                  <Check className="h-4 w-4" />
+                  Clock In
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleClockOut}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                  Clock Out
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div
+            className="px-4 py-2 border-t"
+            style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                navigate('/team?tab=timeclock');
+              }}
+              className="w-full text-xs text-[color:var(--bb-color-accent)] hover:underline text-center"
+            >
+              View Full Time Clock →
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Profile Dropdown Component
 const ProfileDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -918,22 +1071,8 @@ const Topbar = ({ onToggleSidebar }) => {
           <button type="button" className="sm:hidden flex items-center justify-center rounded-lg border p-2" style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }} aria-label="Search"><Search className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" /></button>
           <NotificationsButton />
           <HelpButton />
+          <TimeClockButton />
           <ThemeToggle />
-          <Link
-            to="/team?tab=timeclock"
-            className={cn(
-              'hidden sm:flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-all',
-              'hover:bg-[color:var(--bb-color-bg-elevated)]',
-              'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--bb-color-accent)]'
-            )}
-            style={{
-              backgroundColor: 'var(--bb-color-bg-surface)',
-              borderColor: 'var(--bb-color-border-subtle)',
-            }}
-          >
-            <Clock className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
-            <span className="text-[color:var(--bb-color-text-primary)] font-medium">Time Clock</span>
-          </Link>
           <ProfileDropdown />
         </div>
       </div>
