@@ -808,6 +808,25 @@ const RunAssignment = () => {
     return JSON.stringify(assignmentState) !== JSON.stringify(initialState);
   }, [assignmentState, initialState]);
 
+  // Calculate stats for the stat cards (MUST be before any early returns)
+  const stats = useMemo(() => {
+    const totalAssigned = Object.values(assignmentState).flat().length;
+    const totalCapacity = runs?.reduce((sum, run) => sum + (run.maxCapacity || run.capacity || 10), 0) || 0;
+    const utilizationPercent = totalCapacity > 0 ? Math.round((totalAssigned / totalCapacity) * 100) : 0;
+
+    return {
+      petsCheckedIn: checkedInPets.length,
+      unassigned: unassignedPets.length,
+      totalAssigned,
+      totalCapacity,
+      utilization: utilizationPercent,
+    };
+  }, [checkedInPets.length, unassignedPets.length, assignmentState, runs]);
+
+  // Date formatting (before early returns)
+  const formattedDate = format(new Date(selectedDate), 'EEEE, MMMM d, yyyy');
+  const isToday = selectedDate === new Date().toISOString().split('T')[0];
+
   // Date navigation
   const navigateDate = (direction) => {
     const current = new Date(selectedDate);
@@ -1154,24 +1173,6 @@ const RunAssignment = () => {
       </div>
     );
   }
-
-  const formattedDate = format(new Date(selectedDate), 'EEEE, MMMM d, yyyy');
-  const isToday = selectedDate === new Date().toISOString().split('T')[0];
-
-  // Calculate stats for the stat cards
-  const stats = useMemo(() => {
-    const totalAssigned = Object.values(assignmentState).flat().length;
-    const totalCapacity = runs?.reduce((sum, run) => sum + (run.maxCapacity || run.capacity || 10), 0) || 0;
-    const utilizationPercent = totalCapacity > 0 ? Math.round((totalAssigned / totalCapacity) * 100) : 0;
-
-    return {
-      petsCheckedIn: checkedInPets.length,
-      unassigned: unassignedPets.length,
-      totalAssigned,
-      totalCapacity,
-      utilization: utilizationPercent,
-    };
-  }, [checkedInPets.length, unassignedPets.length, assignmentState, runs]);
 
   return (
     <div className="space-y-6 pb-20">
