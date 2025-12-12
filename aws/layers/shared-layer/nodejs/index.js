@@ -22,6 +22,7 @@ const webhookUtils = require('./webhook-utils');
 const usdaForms = require('./usda-forms');
 const vaccinationRules = require('./vaccination-rules');
 const auditUtils = require('./audit-utils');
+const tierEnforcement = require('./tier-enforcement');
 
 
 /**
@@ -258,4 +259,20 @@ module.exports = {
 
   // Admin path rewriting
   handleAdminPathRewrite,
+
+  // Tier Enforcement exports
+  tierEnforcement,
+  PLAN_FEATURES: tierEnforcement.PLAN_FEATURES,
+  FEATURE_NAMES: tierEnforcement.FEATURE_NAMES,
+  TIER_ERROR_CODES: tierEnforcement.TIER_ERROR_CODES,
+  hasFeature: tierEnforcement.hasFeature,
+  getLimit: tierEnforcement.getLimit,
+  isWithinLimit: tierEnforcement.isWithinLimit,
+  getUpgradeTier: tierEnforcement.getUpgradeTier,
+  getUpgradeTierForLimit: tierEnforcement.getUpgradeTierForLimit,
+  enforceFeature: tierEnforcement.enforceFeature,
+  enforceLimit: tierEnforcement.enforceLimit,
+  createTierErrorResponse: tierEnforcement.createTierErrorResponse,
+  withTierEnforcement: tierEnforcement.withTierEnforcement,
+  getTenantPlan: tierEnforcement.getTenantPlan,
 };

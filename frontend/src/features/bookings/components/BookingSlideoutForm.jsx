@@ -114,8 +114,8 @@ const BookingSlideoutForm = ({
       const bookings = await Promise.all(
         selectedPets.map(pet => {
           const payload = {
-            ownerId: selectedOwner.recordId,
-            petId: pet.recordId,
+            ownerId: selectedOwner.id || selectedOwner.recordId,
+            petId: pet.id || pet.recordId,
             serviceId: data.serviceId,
             startDate: data.checkIn,
             endDate: data.checkOut,
@@ -199,7 +199,7 @@ const BookingSlideoutForm = ({
               <div className="border rounded-lg divide-y" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
                 {owners.slice(0, 5).map(owner => (
                   <button
-                    key={owner.recordId}
+                    key={owner.id || owner.recordId}
                     type="button"
                     onClick={() => setSelectedOwner(owner)}
                     className="w-full p-3 text-left hover:bg-[color:var(--bb-color-bg-elevated)] transition-colors flex items-center gap-3"
@@ -289,8 +289,8 @@ const BookingSlideoutForm = ({
             >
               <option value="">Select a service</option>
               {services.map(service => (
-                <option key={service.recordId} value={service.recordId}>
-                  {service.name} {service.priceCents ? `- $${(service.priceCents / 100).toFixed(2)}/day` : ''}
+                <option key={service.id || service.recordId} value={service.id || service.recordId}>
+                  {service.name} {service.priceInCents ? `- $${(service.priceInCents / 100).toFixed(2)}/day` : ''}
                 </option>
               ))}
             </select>
