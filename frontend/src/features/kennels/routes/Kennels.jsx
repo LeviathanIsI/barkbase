@@ -109,20 +109,21 @@ const KennelUnit = ({ kennel, onClick, isSelected }) => {
 
   // Determine status color
   const getStatusColor = () => {
-    if (!kennel.isActive) return { bg: 'bg-gray-400', ring: 'ring-gray-400', text: 'Inactive' };
-    if (isFull) return { bg: 'bg-red-500', ring: 'ring-red-500', text: 'Full' };
-    if (isPartial) return { bg: 'bg-amber-500', ring: 'ring-amber-500', text: `${available} open` };
-    return { bg: 'bg-emerald-500', ring: 'ring-emerald-500', text: 'Open' };
+    if (!kennel.isActive) return { bg: 'bg-gray-400', ring: 'ring-gray-400', glow: 'shadow-gray-400/30', text: 'Inactive' };
+    if (isFull) return { bg: 'bg-red-500', ring: 'ring-red-500', glow: 'shadow-red-500/30', text: 'Full' };
+    if (isPartial) return { bg: 'bg-amber-500', ring: 'ring-amber-500', glow: 'shadow-amber-500/30', text: `${available} open` };
+    return { bg: 'bg-emerald-500', ring: 'ring-emerald-500', glow: 'shadow-emerald-500/30', text: 'Open' };
   };
 
   const status = getStatusColor();
 
-  // Size based on type
+  // Size based on type - bigger boxes for touch-friendly tablet use
+  // Suites are premium units and should be visually larger (2x width)
   const getSizeClass = () => {
     switch (typeConfig.size) {
-      case 'xlarge': return 'min-w-[140px] min-h-[100px]';
-      case 'large': return 'min-w-[120px] min-h-[90px]';
-      default: return 'min-w-[90px] min-h-[80px]';
+      case 'xlarge': return 'w-[200px] min-h-[130px]'; // Daycare - extra wide
+      case 'large': return 'w-[180px] min-h-[120px]';  // Suites/Cabins - premium 2x width
+      default: return 'w-[110px] min-h-[110px]';       // Standard kennels - touch-friendly
     }
   };
 
@@ -135,36 +136,36 @@ const KennelUnit = ({ kennel, onClick, isSelected }) => {
       <button
         onClick={() => onClick(kennel)}
         className={cn(
-          'relative flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all',
-          'hover:shadow-lg hover:scale-105 hover:z-10',
+          'relative flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all duration-200',
+          'hover:shadow-xl hover:-translate-y-1 hover:z-10',
           getSizeClass(),
           isSelected
             ? 'ring-2 ring-offset-2 ring-[color:var(--bb-color-accent)] border-[color:var(--bb-color-accent)]'
             : 'border-[color:var(--bb-color-border-subtle)] hover:border-[color:var(--bb-color-accent)]',
           kennel.isActive
-            ? 'bg-[color:var(--bb-color-bg-surface)]'
+            ? `bg-[color:var(--bb-color-bg-surface)] hover:${status.glow}`
             : 'bg-gray-100 dark:bg-gray-800/50 opacity-60'
         )}
       >
-        {/* Status indicator dot */}
-        <div className={cn('absolute top-2 right-2 w-3 h-3 rounded-full', status.bg)} />
+        {/* Status indicator dot - slightly larger */}
+        <div className={cn('absolute top-3 right-3 w-3.5 h-3.5 rounded-full', status.bg)} />
 
         {/* Kennel name */}
-        <span className="text-sm font-bold text-[color:var(--bb-color-text-primary)] mb-1">
+        <span className="text-base font-bold text-[color:var(--bb-color-text-primary)] mb-1.5">
           {kennel.name}
         </span>
 
-        {/* Type icon */}
-        <typeConfig.icon className={cn('h-4 w-4 mb-1', typeConfig.color)} />
+        {/* Type icon - slightly larger */}
+        <typeConfig.icon className={cn('h-5 w-5 mb-1.5', typeConfig.color)} />
 
         {/* Capacity */}
-        <span className="text-xs font-medium text-[color:var(--bb-color-text-muted)]">
+        <span className="text-sm font-medium text-[color:var(--bb-color-text-muted)]">
           {kennel.occupied || 0}/{kennel.capacity || 1}
         </span>
 
         {/* Status text */}
         <span className={cn(
-          'text-[10px] font-semibold mt-1 px-1.5 py-0.5 rounded-full',
+          'text-xs font-semibold mt-1.5 px-2 py-1 rounded-full',
           isFull ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
           isPartial ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
           !kennel.isActive ? 'bg-gray-100 text-gray-600 dark:bg-gray-900/30 dark:text-gray-400' :
@@ -174,50 +175,69 @@ const KennelUnit = ({ kennel, onClick, isSelected }) => {
         </span>
       </button>
 
-      {/* Tooltip */}
+      {/* Tooltip with pet/booking details */}
       {showTooltip && (
         <div
           ref={tooltipRef}
-          className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-3 rounded-lg shadow-xl border"
+          className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-3 w-64 p-4 rounded-xl shadow-2xl border"
           style={{
             backgroundColor: 'var(--bb-color-bg-elevated)',
             borderColor: 'var(--bb-color-border-subtle)',
           }}
         >
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-semibold text-sm text-[color:var(--bb-color-text-primary)]">{kennel.name}</span>
-            <span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', typeConfig.bg, typeConfig.color)}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="font-bold text-base text-[color:var(--bb-color-text-primary)]">{kennel.name}</span>
+            <span className={cn('px-2.5 py-1 rounded-full text-xs font-medium', typeConfig.bg, typeConfig.color)}>
               {typeConfig.label}
             </span>
           </div>
 
-          <div className="space-y-1.5 text-xs">
+          <div className="space-y-2 text-sm">
             <div className="flex items-center gap-2 text-[color:var(--bb-color-text-muted)]">
-              <Building className="h-3 w-3" />
+              <Building className="h-3.5 w-3.5" />
               <span>{kennel.building || 'No building'}{kennel.floor ? ` - ${kennel.floor}` : ''}</span>
             </div>
 
             <div className="flex items-center gap-2 text-[color:var(--bb-color-text-muted)]">
-              <Activity className="h-3 w-3" />
+              <Activity className="h-3.5 w-3.5" />
               <span>Capacity: {kennel.occupied || 0}/{kennel.capacity || 1}</span>
             </div>
 
+            {/* Current guests with full details */}
             {kennel.currentPets && kennel.currentPets.length > 0 && (
-              <div className="pt-2 border-t" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-                <div className="flex items-center gap-1 mb-1">
-                  <PawPrint className="h-3 w-3 text-[color:var(--bb-color-text-muted)]" />
-                  <span className="text-[color:var(--bb-color-text-muted)]">Current guests:</span>
+              <div className="pt-2.5 mt-2 border-t" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <PawPrint className="h-3.5 w-3.5 text-[color:var(--bb-color-accent)]" />
+                  <span className="font-medium text-[color:var(--bb-color-text-primary)]">Current Guests</span>
                 </div>
                 {kennel.currentPets.map((pet, i) => (
-                  <div key={i} className="ml-4 text-[color:var(--bb-color-text-primary)]">
-                    {pet.name} {pet.ownerName && <span className="text-[color:var(--bb-color-text-muted)]">({pet.ownerName})</span>}
+                  <div key={i} className="ml-5 mb-2 last:mb-0">
+                    <div className="font-medium text-[color:var(--bb-color-text-primary)]">{pet.name}</div>
+                    {pet.ownerName && (
+                      <div className="flex items-center gap-1.5 text-xs text-[color:var(--bb-color-text-muted)]">
+                        <User className="h-3 w-3" />
+                        {pet.ownerName}
+                      </div>
+                    )}
+                    {(pet.checkIn || pet.checkOut) && (
+                      <div className="flex items-center gap-1.5 text-xs text-[color:var(--bb-color-text-muted)]">
+                        <Clock className="h-3 w-3" />
+                        {pet.checkIn && pet.checkOut ? `${pet.checkIn} - ${pet.checkOut}` : pet.checkIn || pet.checkOut}
+                      </div>
+                    )}
+                    {pet.serviceType && (
+                      <div className="flex items-center gap-1.5 text-xs text-[color:var(--bb-color-text-muted)]">
+                        <Calendar className="h-3 w-3" />
+                        {pet.serviceType}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             )}
 
             {kennel.notes && (
-              <div className="pt-2 border-t text-[color:var(--bb-color-text-muted)] italic" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+              <div className="pt-2 border-t text-[color:var(--bb-color-text-muted)] italic text-xs" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
                 {kennel.notes}
               </div>
             )}
@@ -227,9 +247,9 @@ const KennelUnit = ({ kennel, onClick, isSelected }) => {
           <div
             className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0"
             style={{
-              borderLeft: '8px solid transparent',
-              borderRight: '8px solid transparent',
-              borderTop: '8px solid var(--bb-color-bg-elevated)',
+              borderLeft: '10px solid transparent',
+              borderRight: '10px solid transparent',
+              borderTop: '10px solid var(--bb-color-bg-elevated)',
             }}
           />
         </div>
@@ -250,27 +270,27 @@ const BuildingFloorSection = ({ title, kennels, onKennelClick, selectedKennelId 
 
   return (
     <div
-      className="rounded-xl border p-4"
+      className="rounded-xl border p-5"
       style={{
         backgroundColor: 'var(--bb-color-bg-surface)',
         borderColor: 'var(--bb-color-border-subtle)',
       }}
     >
       {/* Section Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-[color:var(--bb-color-accent-soft)] flex items-center justify-center">
-            <Building className="h-4 w-4 text-[color:var(--bb-color-accent)]" />
+          <div className="h-10 w-10 rounded-lg bg-[color:var(--bb-color-accent-soft)] flex items-center justify-center">
+            <Building className="h-5 w-5 text-[color:var(--bb-color-accent)]" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">{title}</h3>
-            <p className="text-xs text-[color:var(--bb-color-text-muted)]">
+            <h3 className="text-base font-semibold text-[color:var(--bb-color-text-primary)]">{title}</h3>
+            <p className="text-sm text-[color:var(--bb-color-text-muted)]">
               {sectionStats.total} units • {sectionStats.occupied}/{sectionStats.capacity} occupied
             </p>
           </div>
         </div>
         <div className={cn(
-          'px-2 py-1 rounded-full text-xs font-medium',
+          'px-3 py-1.5 rounded-full text-sm font-medium',
           sectionStats.available === 0
             ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
             : sectionStats.available <= 2
@@ -281,8 +301,8 @@ const BuildingFloorSection = ({ title, kennels, onKennelClick, selectedKennelId 
         </div>
       </div>
 
-      {/* Kennel Units Grid */}
-      <div className="flex flex-wrap gap-3">
+      {/* Kennel Units Grid - more gap for breathing room */}
+      <div className="flex flex-wrap gap-4">
         {kennels.map((kennel) => (
           <KennelUnit
             key={kennel.id || kennel.recordId}
@@ -494,24 +514,46 @@ const QuickActions = ({ onAddKennel, navigate }) => {
   );
 };
 
-// Legend Component
+// Legend Component - Sidebar Card version
 const MapLegend = () => (
-  <div className="flex items-center gap-4 text-xs text-[color:var(--bb-color-text-muted)]">
-    <div className="flex items-center gap-1.5">
-      <span className="w-3 h-3 rounded-full bg-emerald-500" />
-      <span>Available</span>
+  <div
+    className="rounded-xl border p-4"
+    style={{ backgroundColor: 'var(--bb-color-bg-surface)', borderColor: 'var(--bb-color-border-subtle)' }}
+  >
+    <div className="flex items-center gap-2 mb-3">
+      <Map className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+      <h3 className="text-sm font-semibold text-[color:var(--bb-color-text-primary)]">Status Legend</h3>
     </div>
-    <div className="flex items-center gap-1.5">
-      <span className="w-3 h-3 rounded-full bg-amber-500" />
-      <span>Partial</span>
-    </div>
-    <div className="flex items-center gap-1.5">
-      <span className="w-3 h-3 rounded-full bg-red-500" />
-      <span>Full</span>
-    </div>
-    <div className="flex items-center gap-1.5">
-      <span className="w-3 h-3 rounded-full bg-gray-400" />
-      <span>Inactive</span>
+
+    <div className="space-y-2">
+      <div className="flex items-center gap-3 p-2 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+        <span className="w-4 h-4 rounded-full bg-emerald-500 flex-shrink-0" />
+        <div>
+          <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">Available</span>
+          <p className="text-xs text-[color:var(--bb-color-text-muted)]">Ready for new bookings</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 p-2 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+        <span className="w-4 h-4 rounded-full bg-amber-500 flex-shrink-0" />
+        <div>
+          <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">Partial</span>
+          <p className="text-xs text-[color:var(--bb-color-text-muted)]">Some capacity remaining</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 p-2 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+        <span className="w-4 h-4 rounded-full bg-red-500 flex-shrink-0" />
+        <div>
+          <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">Full</span>
+          <p className="text-xs text-[color:var(--bb-color-text-muted)]">At maximum capacity</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-3 p-2 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+        <span className="w-4 h-4 rounded-full bg-gray-400 flex-shrink-0" />
+        <div>
+          <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">Inactive</span>
+          <p className="text-xs text-[color:var(--bb-color-text-muted)]">Not in service</p>
+        </div>
+      </div>
     </div>
   </div>
 );
@@ -755,8 +797,6 @@ const Kennels = () => {
                   <option key={key} value={key}>{config.label}</option>
                 ))}
               </select>
-
-              <MapLegend />
             </div>
 
             {/* Active Filter Tags */}
@@ -831,7 +871,7 @@ const Kennels = () => {
               )}
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {groupedByLocation.map((group) => (
                 <div
                   key={group.key}
@@ -851,6 +891,7 @@ const Kennels = () => {
 
         {/* Right: Sidebar */}
         <div className="flex flex-col gap-4 min-h-0 overflow-y-auto">
+          <MapLegend />
           <CapacityOverview stats={stats} />
           <BuildingBreakdown kennels={kennels} onJumpToSection={handleJumpToSection} />
           <TypeBreakdown kennels={kennels} />
