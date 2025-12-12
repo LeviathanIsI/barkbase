@@ -3,7 +3,8 @@
  * Modeled after Deputy, WhenIWork, Homebase, BambooHR, HubSpot Teams
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { format, addDays, startOfWeek } from 'date-fns';
 import {
   Users,
@@ -199,7 +200,8 @@ const StaffCard = ({ member, onViewProfile, onAssignTask, onMessage }) => {
           Task
         </Button>
         <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => onMessage(member)}>
-          <MessageSquare className="h-3 w-3" />
+          <MessageSquare className="h-3 w-3 mr-1" />
+          Message
         </Button>
       </div>
     </div>
@@ -1271,9 +1273,18 @@ const AddStaffWizard = ({ isOpen, onClose, onComplete }) => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 const TeamOverview = () => {
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('overview');
   const [showAddStaff, setShowAddStaff] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
+
+  // Handle ?tab=timeclock from topbar link
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'timeclock') {
+      setActiveTab('timeclock');
+    }
+  }, [searchParams]);
 
   // Fetch staff data
   const { data: staffData, isLoading } = useStaffQuery();
@@ -1312,7 +1323,6 @@ const TeamOverview = () => {
     { key: 'overview', label: 'Overview', icon: Users },
     { key: 'schedule', label: 'Schedule', icon: Calendar },
     { key: 'tasks', label: 'Tasks', icon: Target },
-    { key: 'timeclock', label: 'Time Clock', icon: Clock },
     { key: 'reviews', label: 'Reviews', icon: Star },
     { key: 'messages', label: 'Messages', icon: MessageSquare },
     { key: 'analytics', label: 'Analytics', icon: BarChart3 },
