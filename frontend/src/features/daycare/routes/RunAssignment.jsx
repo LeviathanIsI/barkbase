@@ -1365,22 +1365,23 @@ const RunAssignment = () => {
           </div>
         </div>
 
-        {/* Drag Overlay - Portal to body to escape overflow clipping */}
-        <DragOverlay
-          dropAnimation={{
-            duration: 200,
-            easing: 'ease',
-          }}
-        >
-          {activeId && activePet
-            ? createPortal(
-                <div style={{ width: 280, pointerEvents: 'none', position: 'fixed', zIndex: 9999 }}>
-                  <DraggablePetCard pet={activePet} isDragOverlay />
-                </div>,
-                document.body
-              )
-            : null}
-        </DragOverlay>
+        {/* Drag Overlay - Portal entire component to body to escape overflow clipping */}
+        {createPortal(
+          <DragOverlay
+            dropAnimation={{
+              duration: 200,
+              easing: 'ease',
+            }}
+            zIndex={9999}
+          >
+            {activeId && activePet ? (
+              <div style={{ width: 280 }}>
+                <DraggablePetCard pet={activePet} isDragOverlay />
+              </div>
+            ) : null}
+          </DragOverlay>,
+          document.body
+        )}
       </DndContext>
 
       {/* Sticky Action Bar (when changes exist) */}
