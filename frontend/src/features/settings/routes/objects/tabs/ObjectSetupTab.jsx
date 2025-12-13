@@ -1,33 +1,73 @@
-import { useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import {
-  Settings, Type, Eye, FileText, MoreVertical,
-  ExternalLink, Download, Activity, Save
+  Settings, Type, Eye, FileText,
+  ExternalLink, Download, Activity, Save, Loader2
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { OBJECT_TYPES } from '../objectConfig';
+import {
+  useObjectSettings,
+  useUpdateObjectSettings,
+  useObjectProperties
+} from '@/features/settings/api/objectSettingsApi';
 
 const ObjectSetupTab = ({ objectType }) => {
   const config = OBJECT_TYPES[objectType];
-  const [showActions, setShowActions] = useState(false);
 
-  const { register, handleSubmit, watch, formState: { isDirty } } = useForm({
+  // Fetch object settings from API
+  const { data: settings, isLoading: settingsLoading } = useObjectSettings(objectType);
+  const { data: propertiesData, isLoading: propertiesLoading } = useObjectProperties(objectType);
+  const updateSettings = useUpdateObjectSettings(objectType);
+
+  const { register, handleSubmit, watch, reset, formState: { isDirty } } = useForm({
     defaultValues: {
-      singularName: config?.labelSingular || '',
-      pluralName: config?.labelPlural || '',
-      primaryProperty: config?.primaryProperty || 'name',
-      description: config?.description || '',
+      singularName: '',
+      pluralName: '',
+      primaryDisplayProperty: 'name',
+      secondaryDisplayProperties: [],
+      description: '',
+      autoAssignOwner: true,
+      sendNotificationOnCreate: false,
     },
   });
 
+  // Reset form when settings load
+  useEffect(() => {
+    if (settings) {
+      reset({
+        singularName: settings.singularName || config?.labelSingular || '',
+        pluralName: settings.pluralName || config?.labelPlural || '',
+        primaryDisplayProperty: settings.primaryDisplayProperty || 'name',
+        secondaryDisplayProperties: settings.secondaryDisplayProperties || [],
+        description: settings.description || '',
+        autoAssignOwner: settings.autoAssignOwner !== false,
+        sendNotificationOnCreate: settings.sendNotificationOnCreate || false,
+      });
+    }
+  }, [settings, config, reset]);
+
+  // Build property options for select
+  const propertyOptions = useMemo(() => {
+    if (!propertiesData?.properties) {
+      return [
+        { value: 'name', label: 'Name' },
+        { value: 'id', label: 'ID' },
+      ];
+    }
+    return propertiesData.properties.map(p => ({
+      value: p.name,
+      label: p.label || p.name,
+    }));
+  }, [propertiesData]);
+
   const onSubmit = async (data) => {
     try {
-      // API call would go here
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await updateSettings.mutateAsync(data);
       toast.success('Object settings saved');
     } catch (error) {
       toast.error('Failed to save settings');
@@ -42,7 +82,17 @@ const ObjectSetupTab = ({ objectType }) => {
     );
   }
 
+  if (settingsLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   const Icon = config.icon;
+  const singularName = watch('singularName') || config.labelSingular;
+  const pluralName = watch('pluralName') || config.labelPlural;
 
   return (
     <div className="space-y-4">
@@ -50,7 +100,7 @@ const ObjectSetupTab = ({ objectType }) => {
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <p className="text-sm text-muted">
-            Any person who interacts with a {config.labelSingular.toLowerCase()} record in your account.
+            Any person who interacts with a {singularName.toLowerCase()} record in your account.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -58,7 +108,7 @@ const ObjectSetupTab = ({ objectType }) => {
             href="#"
             className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
           >
-            View {config.labelPlural} in the data model
+            View {pluralName} in the data model
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
         </div>
@@ -109,8 +159,12 @@ const ObjectSetupTab = ({ objectType }) => {
 
               {isDirty && (
                 <div className="flex justify-end">
-                  <Button type="submit" size="sm">
-                    <Save className="w-3.5 h-3.5 mr-1.5" />
+                  <Button type="submit" size="sm" disabled={updateSettings.isPending}>
+                    {updateSettings.isPending ? (
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <Save className="w-3.5 h-3.5 mr-1.5" />
+                    )}
                     Save Changes
                   </Button>
                 </div>
@@ -126,25 +180,20 @@ const ObjectSetupTab = ({ objectType }) => {
                 <h2 className="text-sm font-semibold text-text">Properties</h2>
               </div>
               <a href={`/settings/properties?object=${objectType}`} className="text-xs text-primary hover:underline">
-                Manage {config.labelSingular} properties
+                Manage {singularName} properties
               </a>
             </div>
 
             <p className="text-xs text-muted mb-4">
-              Manage the information you collect about your {config.labelPlural}.
+              Manage the information you collect about your {pluralName}.
             </p>
 
             <div className="space-y-3">
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted">Primary Display Property</label>
                 <Select
-                  value={watch('primaryProperty')}
-                  onChange={(e) => {}}
-                  options={[
-                    { value: 'name', label: 'Name' },
-                    { value: 'id', label: 'ID' },
-                    { value: 'email', label: 'Email' },
-                  ]}
+                  {...register('primaryDisplayProperty')}
+                  options={propertyOptions}
                   className="text-sm"
                 />
                 <p className="text-[10px] text-muted">
@@ -155,15 +204,18 @@ const ObjectSetupTab = ({ objectType }) => {
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted">Secondary Display Properties</label>
                 <div className="flex flex-wrap gap-1.5">
-                  {(config.secondaryProperties || []).map((prop) => (
+                  {(watch('secondaryDisplayProperties') || []).map((prop) => (
                     <span
                       key={prop}
                       className="inline-flex items-center px-2 py-1 text-xs bg-surface-secondary rounded border border-border"
                     >
-                      {prop}
+                      {propertyOptions.find(p => p.value === prop)?.label || prop}
                     </span>
                   ))}
-                  <button className="inline-flex items-center px-2 py-1 text-xs text-primary hover:bg-primary/10 rounded border border-dashed border-primary/50">
+                  <button
+                    type="button"
+                    className="inline-flex items-center px-2 py-1 text-xs text-primary hover:bg-primary/10 rounded border border-dashed border-primary/50"
+                  >
                     + Add property
                   </button>
                 </div>
@@ -173,7 +225,7 @@ const ObjectSetupTab = ({ objectType }) => {
 
           {/* Creating Records Card */}
           <Card className="p-4">
-            <h2 className="text-sm font-semibold text-text mb-4">Creating {config.labelPlural}</h2>
+            <h2 className="text-sm font-semibold text-text mb-4">Creating {pluralName}</h2>
 
             <div className="flex items-start gap-3 p-3 rounded-lg border border-border bg-surface-secondary">
               <div className="w-12 h-10 rounded bg-surface flex items-center justify-center border border-border">
@@ -181,10 +233,10 @@ const ObjectSetupTab = ({ objectType }) => {
               </div>
               <div className="flex-1">
                 <a href="#" className="text-sm font-medium text-primary hover:underline">
-                  Customize the 'Create {config.labelSingular}' form
+                  Customize the 'Create {singularName}' form
                 </a>
                 <p className="text-xs text-muted mt-0.5">
-                  Add, remove, or edit fields on the 'Create {config.labelSingular}' form
+                  Add, remove, or edit fields on the 'Create {singularName}' form
                 </p>
               </div>
             </div>
@@ -194,31 +246,52 @@ const ObjectSetupTab = ({ objectType }) => {
           <Card className="p-4">
             <h2 className="text-sm font-semibold text-text mb-4">Automation</h2>
 
-            <div className="space-y-3">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
               <label className="flex items-start gap-3 cursor-pointer">
-                <input type="checkbox" className="mt-0.5 rounded border-border" defaultChecked />
+                <input
+                  type="checkbox"
+                  {...register('autoAssignOwner')}
+                  className="mt-0.5 rounded border-border"
+                />
                 <div>
                   <span className="text-sm font-medium text-text">
                     Auto-assign owner on creation
                   </span>
                   <p className="text-xs text-muted mt-0.5">
-                    When a new {config.labelSingular.toLowerCase()} is created, automatically assign the current user as the owner.
+                    When a new {singularName.toLowerCase()} is created, automatically assign the current user as the owner.
                   </p>
                 </div>
               </label>
 
               <label className="flex items-start gap-3 cursor-pointer">
-                <input type="checkbox" className="mt-0.5 rounded border-border" />
+                <input
+                  type="checkbox"
+                  {...register('sendNotificationOnCreate')}
+                  className="mt-0.5 rounded border-border"
+                />
                 <div>
                   <span className="text-sm font-medium text-text">
                     Send notification on creation
                   </span>
                   <p className="text-xs text-muted mt-0.5">
-                    Send an email notification when a new {config.labelSingular.toLowerCase()} record is created.
+                    Send an email notification when a new {singularName.toLowerCase()} record is created.
                   </p>
                 </div>
               </label>
-            </div>
+
+              {isDirty && (
+                <div className="flex justify-end pt-2">
+                  <Button type="submit" size="sm" disabled={updateSettings.isPending}>
+                    {updateSettings.isPending ? (
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    ) : (
+                      <Save className="w-3.5 h-3.5 mr-1.5" />
+                    )}
+                    Save Changes
+                  </Button>
+                </div>
+              )}
+            </form>
           </Card>
         </div>
 
@@ -231,27 +304,29 @@ const ObjectSetupTab = ({ objectType }) => {
                 <Icon className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h2 className="text-sm font-semibold text-text">{config.label}</h2>
-                <p className="text-xs text-muted">{config.hasPipeline ? 'Pipeline Object' : 'Standard Object'}</p>
+                <h2 className="text-sm font-semibold text-text">{singularName}</h2>
+                <p className="text-xs text-muted">{settings?.isPipelineObject ? 'Pipeline Object' : 'Standard Object'}</p>
               </div>
             </div>
 
             <div className="space-y-2 text-xs">
               <div className="flex justify-between py-1.5 border-b border-border">
                 <span className="text-muted">Object ID</span>
-                <span className="font-mono text-text">{config.id}</span>
+                <span className="font-mono text-text">{objectType}</span>
               </div>
               <div className="flex justify-between py-1.5 border-b border-border">
                 <span className="text-muted">Type</span>
-                <span className="text-text">{config.hasPipeline ? 'Pipeline' : 'Standard'}</span>
+                <span className="text-text">{settings?.isPipelineObject ? 'Pipeline' : 'Standard'}</span>
               </div>
               <div className="flex justify-between py-1.5 border-b border-border">
                 <span className="text-muted">Properties</span>
-                <span className="text-text">{12 + Math.floor(Math.random() * 8)}</span>
+                <span className="text-text">
+                  {propertiesLoading ? '...' : (propertiesData?.properties?.length || 0)}
+                </span>
               </div>
               <div className="flex justify-between py-1.5">
                 <span className="text-muted">Records</span>
-                <span className="text-text">{Math.floor(Math.random() * 500)}</span>
+                <span className="text-text">{settings?.recordCount ?? 0}</span>
               </div>
             </div>
           </Card>
@@ -260,10 +335,13 @@ const ObjectSetupTab = ({ objectType }) => {
           <Card className="p-4">
             <h2 className="text-sm font-semibold text-text mb-3">Quick Actions</h2>
             <div className="space-y-2">
-              <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left rounded hover:bg-surface-secondary transition-colors">
+              <a
+                href={`/${objectType}`}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left rounded hover:bg-surface-secondary transition-colors"
+              >
                 <Eye className="w-4 h-4 text-muted" />
-                <span>View all {config.labelPlural}</span>
-              </button>
+                <span>View all {pluralName}</span>
+              </a>
               <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left rounded hover:bg-surface-secondary transition-colors">
                 <Download className="w-4 h-4 text-muted" />
                 <span>Export schema</span>
@@ -282,14 +360,23 @@ const ObjectSetupTab = ({ objectType }) => {
               <div>
                 <div className="flex justify-between text-xs mb-1">
                   <span className="text-muted">Completeness</span>
-                  <span className="text-text font-medium">87%</span>
+                  <span className="text-text font-medium">{settings?.dataQuality ?? 0}%</span>
                 </div>
                 <div className="h-1.5 bg-surface-secondary rounded-full overflow-hidden">
-                  <div className="h-full bg-green-500 rounded-full" style={{ width: '87%' }} />
+                  <div
+                    className={`h-full rounded-full ${
+                      (settings?.dataQuality ?? 0) >= 80
+                        ? 'bg-green-500'
+                        : (settings?.dataQuality ?? 0) >= 50
+                        ? 'bg-yellow-500'
+                        : 'bg-red-500'
+                    }`}
+                    style={{ width: `${settings?.dataQuality ?? 0}%` }}
+                  />
                 </div>
               </div>
               <p className="text-xs text-muted">
-                Based on required fields completion across all {config.labelPlural.toLowerCase()}
+                Based on required fields completion across all {pluralName.toLowerCase()}
               </p>
             </div>
           </Card>

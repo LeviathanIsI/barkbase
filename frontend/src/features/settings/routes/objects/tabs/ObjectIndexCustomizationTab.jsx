@@ -1,36 +1,122 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Table, Plus, GripVertical, Trash2, RotateCcw, Search, Filter,
-  MoreVertical, Star, Copy, Edit, Eye, ChevronDown, Settings
+  MoreVertical, Star, Copy, Edit, Eye, ChevronDown, Settings,
+  Loader2, AlertCircle, X
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { OBJECT_TYPES } from '../objectConfig';
+import {
+  useIndexSettings,
+  useUpdateIndexSettings,
+  useSavedViews,
+  useCreateSavedView,
+  useUpdateSavedView,
+  useDeleteSavedView,
+  useSetDefaultView,
+  useObjectProperties,
+} from '@/features/settings/api/objectSettingsApi';
 
 const ObjectIndexCustomizationTab = ({ objectType }) => {
   const config = OBJECT_TYPES[objectType];
 
-  const defaultColumns = [
-    { id: 'name', label: 'Name', width: 200, enabled: true, sortable: true },
-    { id: 'status', label: 'Status', width: 120, enabled: true, sortable: true },
-    { id: 'email', label: 'Email', width: 200, enabled: true, sortable: true },
-    { id: 'phone', label: 'Phone', width: 150, enabled: true, sortable: false },
-    { id: 'createdAt', label: 'Created', width: 150, enabled: true, sortable: true },
-    { id: 'updatedAt', label: 'Updated', width: 150, enabled: false, sortable: true },
-    { id: 'owner', label: 'Owner', width: 150, enabled: false, sortable: true },
-  ];
+  // API hooks
+  const { data: indexSettings, isLoading: settingsLoading, error: settingsError } = useIndexSettings(objectType);
+  const { data: savedViews = [], isLoading: viewsLoading } = useSavedViews(objectType);
+  const { data: propertiesData, isLoading: propertiesLoading } = useObjectProperties(objectType);
+  const updateIndexSettings = useUpdateIndexSettings(objectType);
+  const createSavedView = useCreateSavedView(objectType);
+  const updateSavedView = useUpdateSavedView(objectType);
+  const deleteSavedView = useDeleteSavedView(objectType);
+  const setDefaultView = useSetDefaultView(objectType);
 
-  const [columns, setColumns] = useState(defaultColumns.filter((c) => c.enabled));
-  const [availableColumns, setAvailableColumns] = useState(defaultColumns.filter((c) => !c.enabled));
-  const [sortColumn, setSortColumn] = useState('createdAt');
+  // Get all available properties/columns from the API
+  const allColumns = useMemo(() => {
+    if (!propertiesData?.properties) return [];
+    return propertiesData.properties.map(p => ({
+      id: p.name,
+      label: p.label,
+      width: 150, // default width
+      sortable: ['string', 'number', 'date'].includes(p.type),
+      type: p.type,
+    }));
+  }, [propertiesData]);
+
+  // Local state for editing
+  const [columns, setColumns] = useState([]);
+  const [availableColumns, setAvailableColumns] = useState([]);
+  const [sortColumn, setSortColumn] = useState('created_at');
   const [sortDirection, setSortDirection] = useState('desc');
   const [rowsPerPage, setRowsPerPage] = useState(25);
-  const [savedViews, setSavedViews] = useState([
-    { id: 'default', name: 'Default view', isDefault: true, assignedTo: 'All users', updatedAt: 'Dec 12, 2024' },
-    { id: 'active', name: 'Active Records', isDefault: false, assignedTo: 'Sales Team', updatedAt: 'Dec 10, 2024' },
-  ]);
+  const [enableBulkActions, setEnableBulkActions] = useState(true);
+  const [enableInlineEditing, setEnableInlineEditing] = useState(false);
+  const [enableRowSelection, setEnableRowSelection] = useState(true);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [viewSearchQuery, setViewSearchQuery] = useState('');
+  const [showCreateViewModal, setShowCreateViewModal] = useState(false);
+  const [newViewName, setNewViewName] = useState('');
+  const [selectedViewId, setSelectedViewId] = useState(null);
+  const [actionMenuOpen, setActionMenuOpen] = useState(null);
+
+  // Initialize from API data when it loads
+  useEffect(() => {
+    if (indexSettings && allColumns.length > 0) {
+      // Parse columns from JSONB
+      const savedColumns = Array.isArray(indexSettings.default_columns)
+        ? indexSettings.default_columns
+        : [];
+
+      if (savedColumns.length > 0) {
+        // Map saved column IDs to full column objects
+        const cols = savedColumns
+          .map(col => {
+            const fullCol = allColumns.find(c => c.id === (col.id || col));
+            return fullCol ? { ...fullCol, width: col.width || fullCol.width } : null;
+          })
+          .filter(Boolean);
+        setColumns(cols);
+      } else {
+        // Use defaults
+        const defaultCols = getDefaultColumns();
+        setColumns(defaultCols);
+      }
+
+      setSortColumn(indexSettings.default_sort_column || 'created_at');
+      setSortDirection(indexSettings.default_sort_direction || 'desc');
+      setRowsPerPage(indexSettings.rows_per_page || 25);
+      setEnableBulkActions(indexSettings.enable_bulk_actions ?? true);
+      setEnableInlineEditing(indexSettings.enable_inline_editing ?? false);
+      setEnableRowSelection(indexSettings.enable_row_selection ?? true);
+      setHasChanges(false);
+    } else if (allColumns.length > 0 && !settingsLoading) {
+      // No settings exist, use defaults
+      setColumns(getDefaultColumns());
+    }
+  }, [indexSettings, allColumns, settingsLoading]);
+
+  // Update available columns when columns change
+  useEffect(() => {
+    const columnIds = new Set(columns.map(c => c.id));
+    setAvailableColumns(allColumns.filter(c => !columnIds.has(c.id)));
+  }, [columns, allColumns]);
+
+  // Get default columns based on object type
+  const getDefaultColumns = () => {
+    const defaults = ['name', 'status', 'email', 'phone', 'created_at'];
+    return defaults
+      .map(id => allColumns.find(c => c.id === id))
+      .filter(Boolean);
+  };
+
+  // Filter saved views by search
+  const filteredSavedViews = useMemo(() => {
+    if (!viewSearchQuery.trim()) return savedViews;
+    const query = viewSearchQuery.toLowerCase();
+    return savedViews.filter(v => v.name.toLowerCase().includes(query));
+  }, [savedViews, viewSearchQuery]);
 
   if (!config) {
     return (
@@ -40,19 +126,119 @@ const ObjectIndexCustomizationTab = ({ objectType }) => {
     );
   }
 
+  const isLoading = settingsLoading || viewsLoading || propertiesLoading;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        <span className="ml-2 text-muted">Loading index configuration...</span>
+      </div>
+    );
+  }
+
+  if (settingsError) {
+    return (
+      <div className="text-center py-12">
+        <AlertCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
+        <p className="text-red-500">Failed to load index settings</p>
+        <p className="text-sm text-muted mt-1">{settingsError.message}</p>
+      </div>
+    );
+  }
+
   const handleAddColumn = (column) => {
     setColumns([...columns, column]);
-    setAvailableColumns((prev) => prev.filter((c) => c.id !== column.id));
+    setHasChanges(true);
   };
 
   const handleRemoveColumn = (column) => {
     setColumns((prev) => prev.filter((c) => c.id !== column.id));
-    setAvailableColumns([...availableColumns, column]);
+    setHasChanges(true);
   };
 
   const handleResetColumns = () => {
-    setColumns(defaultColumns.filter((c) => c.enabled));
-    setAvailableColumns(defaultColumns.filter((c) => !c.enabled));
+    setColumns(getDefaultColumns());
+    setHasChanges(true);
+  };
+
+  const handleSettingChange = (setter) => (value) => {
+    setter(value);
+    setHasChanges(true);
+  };
+
+  const handleSaveSettings = async () => {
+    try {
+      await updateIndexSettings.mutateAsync({
+        default_columns: columns.map(c => ({ id: c.id, width: c.width })),
+        default_sort_column: sortColumn,
+        default_sort_direction: sortDirection,
+        rows_per_page: rowsPerPage,
+        enable_bulk_actions: enableBulkActions,
+        enable_inline_editing: enableInlineEditing,
+        enable_row_selection: enableRowSelection,
+      });
+      setHasChanges(false);
+    } catch (error) {
+      console.error('Failed to save index settings:', error);
+    }
+  };
+
+  const handleCreateView = async () => {
+    if (!newViewName.trim()) return;
+    try {
+      await createSavedView.mutateAsync({
+        name: newViewName.trim(),
+        columns: columns.map(c => ({ id: c.id, width: c.width })),
+        sort_column: sortColumn,
+        sort_direction: sortDirection,
+        filters: {},
+      });
+      setShowCreateViewModal(false);
+      setNewViewName('');
+    } catch (error) {
+      console.error('Failed to create view:', error);
+    }
+  };
+
+  const handleDeleteView = async (viewId) => {
+    if (!window.confirm('Are you sure you want to delete this view?')) return;
+    try {
+      await deleteSavedView.mutateAsync(viewId);
+      setActionMenuOpen(null);
+    } catch (error) {
+      console.error('Failed to delete view:', error);
+    }
+  };
+
+  const handleSetDefaultView = async (viewId) => {
+    try {
+      await setDefaultView.mutateAsync(viewId);
+      setActionMenuOpen(null);
+    } catch (error) {
+      console.error('Failed to set default view:', error);
+    }
+  };
+
+  // Drag and drop handlers for columns
+  const handleDragStart = (e, index) => {
+    e.dataTransfer.setData('dragIndex', index.toString());
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e, dropIndex) => {
+    e.preventDefault();
+    const dragIndex = parseInt(e.dataTransfer.getData('dragIndex'), 10);
+    if (dragIndex === dropIndex) return;
+
+    const newColumns = [...columns];
+    const [removed] = newColumns.splice(dragIndex, 1);
+    newColumns.splice(dropIndex, 0, removed);
+    setColumns(newColumns);
+    setHasChanges(true);
   };
 
   return (
@@ -83,10 +269,15 @@ const ObjectIndexCustomizationTab = ({ objectType }) => {
           <div className="flex items-center gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
-              <Input placeholder="Search views" className="pl-9 w-48 h-8 text-sm" />
+              <Input
+                placeholder="Search views"
+                className="pl-9 w-48 h-8 text-sm"
+                value={viewSearchQuery}
+                onChange={(e) => setViewSearchQuery(e.target.value)}
+              />
             </div>
           </div>
-          <Button size="sm">
+          <Button size="sm" onClick={() => setShowCreateViewModal(true)}>
             <Plus className="w-3.5 h-3.5 mr-1.5" />
             Create View
           </Button>
@@ -96,7 +287,7 @@ const ObjectIndexCustomizationTab = ({ objectType }) => {
           <thead>
             <tr className="border-b border-border bg-surface-secondary">
               <th className="px-4 py-2.5 text-left">
-                <input type="checkbox" className="rounded border-border" />
+                <input type="checkbox" className="rounded border-border" disabled />
               </th>
               <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted uppercase tracking-wider">
                 View Name
@@ -113,43 +304,107 @@ const ObjectIndexCustomizationTab = ({ objectType }) => {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {savedViews.map((view) => (
-              <tr key={view.id} className="hover:bg-surface-secondary/50">
-                <td className="px-4 py-2.5">
-                  <input type="checkbox" className="rounded border-border" />
-                </td>
-                <td className="px-4 py-2.5">
-                  <div className="flex items-center gap-2">
-                    {view.isDefault && (
-                      <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                    )}
-                    <a href="#" className="text-sm text-primary hover:underline font-medium">
-                      {view.name}
-                    </a>
-                  </div>
-                </td>
-                <td className="px-4 py-2.5">
-                  <span className="text-sm text-text">{view.assignedTo}</span>
-                </td>
-                <td className="px-4 py-2.5">
-                  <span className="text-sm text-text">{view.updatedAt}</span>
-                </td>
-                <td className="px-4 py-2.5 text-right">
-                  <button className="p-1.5 rounded hover:bg-surface-secondary">
-                    <MoreVertical className="w-4 h-4 text-muted" />
-                  </button>
+            {filteredSavedViews.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-8 text-center text-muted">
+                  {viewSearchQuery ? 'No views match your search' : 'No saved views yet. Create one to get started.'}
                 </td>
               </tr>
-            ))}
+            ) : (
+              filteredSavedViews.map((view) => (
+                <tr key={view.id} className="hover:bg-surface-secondary/50">
+                  <td className="px-4 py-2.5">
+                    <input type="checkbox" className="rounded border-border" />
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center gap-2">
+                      {view.is_default && (
+                        <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                      )}
+                      <a href="#" className="text-sm text-primary hover:underline font-medium">
+                        {view.name}
+                      </a>
+                      {view.is_admin_promoted && (
+                        <span className="px-1.5 py-0.5 text-[10px] bg-blue-100 text-blue-700 rounded">
+                          Promoted
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <span className="text-sm text-text">
+                      {Array.isArray(view.assigned_to) && view.assigned_to.length > 0
+                        ? `${view.assigned_to.length} users/teams`
+                        : 'All users'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <span className="text-sm text-text">
+                      {view.updated_at
+                        ? new Date(view.updated_at).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })
+                        : '-'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-right relative">
+                    <button
+                      className="p-1.5 rounded hover:bg-surface-secondary"
+                      onClick={() => setActionMenuOpen(actionMenuOpen === view.id ? null : view.id)}
+                    >
+                      <MoreVertical className="w-4 h-4 text-muted" />
+                    </button>
+                    {actionMenuOpen === view.id && (
+                      <div className="absolute right-4 top-full mt-1 w-48 bg-surface border border-border rounded-lg shadow-lg py-1 z-10">
+                        {!view.is_default && (
+                          <button
+                            className="w-full px-3 py-2 text-left text-sm text-text hover:bg-surface-secondary flex items-center gap-2"
+                            onClick={() => handleSetDefaultView(view.id)}
+                          >
+                            <Star className="w-4 h-4" />
+                            Set as default
+                          </button>
+                        )}
+                        <button
+                          className="w-full px-3 py-2 text-left text-sm text-text hover:bg-surface-secondary flex items-center gap-2"
+                          onClick={() => setActionMenuOpen(null)}
+                        >
+                          <Edit className="w-4 h-4" />
+                          Edit view
+                        </button>
+                        <button
+                          className="w-full px-3 py-2 text-left text-sm text-text hover:bg-surface-secondary flex items-center gap-2"
+                          onClick={() => setActionMenuOpen(null)}
+                        >
+                          <Copy className="w-4 h-4" />
+                          Duplicate
+                        </button>
+                        <button
+                          className="w-full px-3 py-2 text-left text-sm text-red-500 hover:bg-surface-secondary flex items-center gap-2"
+                          onClick={() => handleDeleteView(view.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Delete
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
 
         {/* Pagination */}
-        <div className="px-4 py-3 border-t border-border flex items-center justify-center gap-2">
-          <button className="px-2 py-1 text-xs text-muted hover:text-text">&lt; Prev</button>
-          <span className="px-2 py-1 text-xs bg-primary/10 text-primary rounded">1</span>
-          <button className="px-2 py-1 text-xs text-muted hover:text-text">Next &gt;</button>
-        </div>
+        {filteredSavedViews.length > 0 && (
+          <div className="px-4 py-3 border-t border-border flex items-center justify-center gap-2">
+            <button className="px-2 py-1 text-xs text-muted hover:text-text">&lt; Prev</button>
+            <span className="px-2 py-1 text-xs bg-primary/10 text-primary rounded">1</span>
+            <button className="px-2 py-1 text-xs text-muted hover:text-text">Next &gt;</button>
+          </div>
+        )}
       </Card>
 
       {/* Two-column layout for settings */}
@@ -176,7 +431,11 @@ const ObjectIndexCustomizationTab = ({ objectType }) => {
               {columns.map((column, idx) => (
                 <div
                   key={column.id}
-                  className="flex items-center gap-2 px-3 py-2 border border-border rounded hover:bg-surface-secondary/50 group"
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, idx)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, idx)}
+                  className="flex items-center gap-2 px-3 py-2 border border-border rounded hover:bg-surface-secondary/50 group cursor-move"
                 >
                   <GripVertical className="w-4 h-4 text-muted cursor-grab" />
                   <span className="flex-1 text-sm text-text">{column.label}</span>
@@ -202,18 +461,22 @@ const ObjectIndexCustomizationTab = ({ objectType }) => {
           {/* Available Columns */}
           <Card className="p-4">
             <h3 className="text-sm font-semibold text-text mb-4">Available Columns</h3>
-            <div className="grid grid-cols-2 gap-2">
-              {availableColumns.map((column) => (
-                <button
-                  key={column.id}
-                  onClick={() => handleAddColumn(column)}
-                  className="flex items-center gap-2 px-3 py-2 border border-border rounded text-sm text-text hover:bg-surface-secondary/50 hover:border-primary/50 text-left"
-                >
-                  <Plus className="w-3.5 h-3.5 text-muted" />
-                  {column.label}
-                </button>
-              ))}
-            </div>
+            {availableColumns.length === 0 ? (
+              <p className="text-sm text-muted text-center py-4">All columns are selected</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {availableColumns.map((column) => (
+                  <button
+                    key={column.id}
+                    onClick={() => handleAddColumn(column)}
+                    className="flex items-center gap-2 px-3 py-2 border border-border rounded text-sm text-text hover:bg-surface-secondary/50 hover:border-primary/50 text-left"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-muted" />
+                    {column.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </Card>
 
           {/* Default Settings */}
@@ -224,7 +487,7 @@ const ObjectIndexCustomizationTab = ({ objectType }) => {
                 <label className="text-xs font-medium text-muted">Default Sort Column</label>
                 <Select
                   value={sortColumn}
-                  onChange={(e) => setSortColumn(e.target.value)}
+                  onChange={(e) => handleSettingChange(setSortColumn)(e.target.value)}
                   options={columns.filter((c) => c.sortable).map((c) => ({
                     value: c.id,
                     label: c.label,
@@ -236,7 +499,7 @@ const ObjectIndexCustomizationTab = ({ objectType }) => {
                 <label className="text-xs font-medium text-muted">Sort Direction</label>
                 <Select
                   value={sortDirection}
-                  onChange={(e) => setSortDirection(e.target.value)}
+                  onChange={(e) => handleSettingChange(setSortDirection)(e.target.value)}
                   options={[
                     { value: 'asc', label: 'Ascending' },
                     { value: 'desc', label: 'Descending' },
@@ -248,7 +511,7 @@ const ObjectIndexCustomizationTab = ({ objectType }) => {
                 <label className="text-xs font-medium text-muted">Rows Per Page</label>
                 <Select
                   value={rowsPerPage}
-                  onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                  onChange={(e) => handleSettingChange(setRowsPerPage)(Number(e.target.value))}
                   options={[
                     { value: 10, label: '10 rows' },
                     { value: 25, label: '25 rows' },
@@ -270,21 +533,36 @@ const ObjectIndexCustomizationTab = ({ objectType }) => {
                   <span className="text-sm text-text">Enable bulk actions</span>
                   <p className="text-xs text-muted">Allow selecting multiple records for bulk operations</p>
                 </div>
-                <input type="checkbox" defaultChecked className="rounded border-border" />
+                <input
+                  type="checkbox"
+                  checked={enableBulkActions}
+                  onChange={(e) => handleSettingChange(setEnableBulkActions)(e.target.checked)}
+                  className="rounded border-border"
+                />
               </label>
               <label className="flex items-center justify-between cursor-pointer">
                 <div>
                   <span className="text-sm text-text">Enable inline editing</span>
                   <p className="text-xs text-muted">Allow editing values directly in the table</p>
                 </div>
-                <input type="checkbox" className="rounded border-border" />
+                <input
+                  type="checkbox"
+                  checked={enableInlineEditing}
+                  onChange={(e) => handleSettingChange(setEnableInlineEditing)(e.target.checked)}
+                  className="rounded border-border"
+                />
               </label>
               <label className="flex items-center justify-between cursor-pointer">
                 <div>
                   <span className="text-sm text-text">Enable row selection</span>
                   <p className="text-xs text-muted">Show checkboxes for selecting rows</p>
                 </div>
-                <input type="checkbox" defaultChecked className="rounded border-border" />
+                <input
+                  type="checkbox"
+                  checked={enableRowSelection}
+                  onChange={(e) => handleSettingChange(setEnableRowSelection)(e.target.checked)}
+                  className="rounded border-border"
+                />
               </label>
             </div>
           </Card>
@@ -299,9 +577,11 @@ const ObjectIndexCustomizationTab = ({ objectType }) => {
             <div className="border border-border rounded-lg overflow-hidden text-xs">
               {/* Header */}
               <div className="flex bg-surface-secondary border-b border-border">
-                <div className="w-8 px-2 py-2 flex items-center">
-                  <input type="checkbox" className="w-3 h-3 rounded border-border" />
-                </div>
+                {enableRowSelection && (
+                  <div className="w-8 px-2 py-2 flex items-center">
+                    <input type="checkbox" className="w-3 h-3 rounded border-border" />
+                  </div>
+                )}
                 {columns.slice(0, 3).map((col) => (
                   <div
                     key={col.id}
@@ -315,9 +595,11 @@ const ObjectIndexCustomizationTab = ({ objectType }) => {
               {/* Rows */}
               {[1, 2, 3].map((row) => (
                 <div key={row} className="flex border-b border-border last:border-0 hover:bg-surface-secondary/50">
-                  <div className="w-8 px-2 py-2 flex items-center">
-                    <input type="checkbox" className="w-3 h-3 rounded border-border" />
-                  </div>
+                  {enableRowSelection && (
+                    <div className="w-8 px-2 py-2 flex items-center">
+                      <input type="checkbox" className="w-3 h-3 rounded border-border" />
+                    </div>
+                  )}
                   {columns.slice(0, 3).map((col) => (
                     <div key={col.id} className="flex-1 px-2 py-2 text-text truncate">
                       {col.id === 'status' ? (
@@ -349,7 +631,7 @@ const ObjectIndexCustomizationTab = ({ objectType }) => {
               <div className="flex justify-between py-1.5 border-b border-border">
                 <span className="text-muted">Sort By</span>
                 <span className="text-text font-medium">
-                  {columns.find((c) => c.id === sortColumn)?.label} ({sortDirection})
+                  {columns.find((c) => c.id === sortColumn)?.label || sortColumn} ({sortDirection})
                 </span>
               </div>
               <div className="flex justify-between py-1.5 border-b border-border">
@@ -364,11 +646,82 @@ const ObjectIndexCustomizationTab = ({ objectType }) => {
           </Card>
 
           {/* Save Button */}
-          <Button className="w-full">
-            Save Index Configuration
+          <Button
+            className="w-full"
+            onClick={handleSaveSettings}
+            disabled={!hasChanges || updateIndexSettings.isPending}
+          >
+            {updateIndexSettings.isPending ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : hasChanges ? (
+              'Save Index Configuration'
+            ) : (
+              'No Changes to Save'
+            )}
           </Button>
+
+          {updateIndexSettings.isError && (
+            <p className="text-xs text-red-500 text-center">
+              Failed to save: {updateIndexSettings.error.message}
+            </p>
+          )}
         </div>
       </div>
+
+      {/* Create View Modal */}
+      {showCreateViewModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-surface border border-border rounded-lg shadow-xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-text">Create New View</h3>
+              <button
+                onClick={() => setShowCreateViewModal(false)}
+                className="p-1 rounded hover:bg-surface-secondary"
+              >
+                <X className="w-5 h-5 text-muted" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-text mb-1">View Name</label>
+                <Input
+                  value={newViewName}
+                  onChange={(e) => setNewViewName(e.target.value)}
+                  placeholder="e.g., Active Records, My Assignments"
+                  autoFocus
+                />
+              </div>
+              <p className="text-xs text-muted">
+                This view will use your current column and sort settings.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowCreateViewModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreateView}
+                  disabled={!newViewName.trim() || createSavedView.isPending}
+                >
+                  {createSavedView.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Create View'
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,20 +1,87 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useForm } from 'react-hook-form';
+import toast from 'react-hot-toast';
 import {
-  Link2, Plus, Search, Filter, ExternalLink, MoreVertical,
-  ArrowRight, Settings, Trash2, Edit
+  Tag, Plus, Search, MoreVertical,
+  Trash2, Edit, Loader2, X, Users, ChevronDown
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
-import { OBJECT_TYPES, DEFAULT_ASSOCIATIONS } from '../objectConfig';
+import { OBJECT_TYPES } from '../objectConfig';
+import {
+  useAssociationLabels,
+  useCreateAssociationLabel,
+  useUpdateAssociationLabel,
+  useDeleteAssociationLabel
+} from '@/features/settings/api/objectSettingsApi';
+
+// Define which object pairs can have association labels
+const ASSOCIATION_PAIRS = {
+  owners: ['pets', 'bookings', 'owners'], // Owner can have labels with Pets, Bookings, and other Owners
+  pets: ['owners', 'bookings', 'pets'], // Pet can have labels with Owners, Bookings, and other Pets
+  bookings: ['owners', 'pets', 'services'],
+  services: ['bookings', 'packages'],
+  facilities: ['bookings'],
+  packages: ['owners', 'services'],
+  invoices: ['owners', 'bookings', 'payments'],
+  payments: ['owners', 'invoices'],
+  tickets: ['owners', 'pets', 'bookings'],
+};
 
 const ObjectAssociationsTab = ({ objectType }) => {
   const config = OBJECT_TYPES[objectType];
-  const associations = DEFAULT_ASSOCIATIONS[objectType] || [];
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterLimit, setFilterLimit] = useState('all');
+  const [selectedPair, setSelectedPair] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingLabel, setEditingLabel] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+  // Fetch association labels from API
+  const { data: labels = [], isLoading } = useAssociationLabels(objectType);
+  const createLabel = useCreateAssociationLabel(objectType);
+  const updateLabel = useUpdateAssociationLabel(objectType);
+  const deleteLabel = useDeleteAssociationLabel(objectType);
+
+  const { register, handleSubmit, reset, watch, setValue } = useForm({
+    defaultValues: {
+      targetObject: '',
+      label: '',
+      inverseLabel: '',
+      maxAssociations: null,
+      description: '',
+    }
+  });
+
+  // Get available pairs for this object type
+  const availablePairs = useMemo(() => {
+    return ASSOCIATION_PAIRS[objectType] || [];
+  }, [objectType]);
+
+  // Filter labels
+  const filteredLabels = useMemo(() => {
+    return labels.filter((label) => {
+      const matchesSearch = !searchQuery ||
+        label.label?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        label.inverseLabel?.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchesPair = selectedPair === 'all' || label.targetObject === selectedPair;
+
+      return matchesSearch && matchesPair;
+    });
+  }, [labels, searchQuery, selectedPair]);
+
+  // Group labels by target object for display
+  const labelsByPair = useMemo(() => {
+    const grouped = {};
+    filteredLabels.forEach(label => {
+      const key = label.targetObject;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(label);
+    });
+    return grouped;
+  }, [filteredLabels]);
 
   if (!config) {
     return (
@@ -24,26 +91,67 @@ const ObjectAssociationsTab = ({ objectType }) => {
     );
   }
 
-  const filteredAssociations = associations.filter((assoc) => {
-    const relatedConfig = OBJECT_TYPES[assoc.objectId];
-    if (!relatedConfig) return false;
-
-    const matchesSearch = !searchQuery ||
-      relatedConfig.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      assoc.label.toLowerCase().includes(searchQuery.toLowerCase());
-
-    return matchesSearch;
-  });
-
-  const getCardinalityDisplay = (cardinality) => {
-    switch (cardinality) {
-      case '1:1': return '1-to-1';
-      case '1:many': return '1-to-many';
-      case 'many:1': return 'Many-to-1';
-      case 'many:many': return 'Many-to-many';
-      default: return cardinality;
+  const handleCreateSubmit = async (data) => {
+    try {
+      await createLabel.mutateAsync(data);
+      toast.success('Association label created');
+      setShowCreateModal(false);
+      reset();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to create label');
     }
   };
+
+  const handleUpdateSubmit = async (data) => {
+    try {
+      await updateLabel.mutateAsync({ id: editingLabel.id, ...data });
+      toast.success('Association label updated');
+      setEditingLabel(null);
+      reset();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update label');
+    }
+  };
+
+  const handleDelete = async (labelId) => {
+    try {
+      await deleteLabel.mutateAsync(labelId);
+      toast.success('Association label deleted');
+      setDeleteConfirm(null);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to delete label');
+    }
+  };
+
+  const openEditModal = (label) => {
+    setEditingLabel(label);
+    reset({
+      targetObject: label.targetObject,
+      label: label.label || '',
+      inverseLabel: label.inverseLabel || '',
+      maxAssociations: label.maxAssociations,
+      description: label.description || '',
+    });
+  };
+
+  const openCreateModal = () => {
+    setShowCreateModal(true);
+    reset({
+      targetObject: availablePairs[0] || '',
+      label: '',
+      inverseLabel: '',
+      maxAssociations: null,
+      description: '',
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -51,41 +159,24 @@ const ObjectAssociationsTab = ({ objectType }) => {
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm text-muted">
-            Use associations to identify and track the connections between your objects.{' '}
-            <a href="#" className="text-primary hover:underline">Learn more</a>
+            Create labels to describe the nature of relationships between {config.labelPlural} and other objects.
+            Labels help categorize connections like "Primary Caretaker", "Emergency Contact", or "Authorized Pickup".
           </p>
         </div>
       </div>
 
-      {/* Association Selector Card */}
-      <Card className="p-4">
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-medium text-text">Select object association</span>
-          <Select
-            value={`${config.id}-to-all`}
-            onChange={() => {}}
-            options={[
-              { value: `${config.id}-to-all`, label: `${config.labelPlural}-to-All Objects` },
-              ...associations.map((assoc) => {
-                const relatedConfig = OBJECT_TYPES[assoc.objectId];
-                return {
-                  value: `${config.id}-to-${assoc.objectId}`,
-                  label: `${config.labelPlural}-to-${relatedConfig?.labelPlural || assoc.objectId}`,
-                };
-              }),
-            ]}
-            className="w-64"
-          />
+      {/* Info Card */}
+      <Card className="p-4 bg-blue-500/10 border-blue-500/20">
+        <div className="flex gap-3">
+          <Tag className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-sm font-semibold text-text mb-1">About Association Labels</h3>
+            <p className="text-sm text-muted">
+              {config.labelPlural} can already be linked to other objects like {availablePairs.slice(0, 3).map(p => OBJECT_TYPES[p]?.labelPlural || p).join(', ')}.
+              Labels let you describe <em>how</em> they're related. For example, an Owner linked to a Pet could be labeled as "Primary Caretaker" vs "Emergency Contact".
+            </p>
+          </div>
         </div>
-      </Card>
-
-      {/* Association Limits Info */}
-      <Card className="p-4">
-        <h3 className="text-sm font-semibold text-text mb-2">Association limits</h3>
-        <ul className="text-sm text-muted space-y-1 list-disc list-inside">
-          <li>Each {config.labelSingular} can be associated to <strong>many</strong> other objects.</li>
-          <li>Each related object can be associated to <strong>many</strong> {config.labelPlural}.</li>
-        </ul>
       </Card>
 
       {/* Search and Filter Bar */}
@@ -95,41 +186,33 @@ const ObjectAssociationsTab = ({ objectType }) => {
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search"
+            placeholder="Search labels"
             className="pl-9 text-sm"
           />
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted">Filter by:</span>
           <Select
-            value={filterLimit}
-            onChange={(e) => setFilterLimit(e.target.value)}
+            value={selectedPair}
+            onChange={(e) => setSelectedPair(e.target.value)}
             options={[
-              { value: 'all', label: 'All label limits' },
-              { value: '1:1', label: '1-to-1' },
-              { value: '1:many', label: '1-to-many' },
-              { value: 'many:many', label: 'Many-to-many' },
+              { value: 'all', label: 'All associations' },
+              ...availablePairs.map(p => ({
+                value: p,
+                label: `${config.labelPlural} ↔ ${OBJECT_TYPES[p]?.labelPlural || p}`
+              }))
             ]}
-            className="w-40"
-          />
-          <Select
-            value="all"
-            onChange={() => {}}
-            options={[
-              { value: 'all', label: 'All users' },
-              { value: 'admin', label: 'Admins only' },
-            ]}
-            className="w-32"
+            className="w-56"
           />
         </div>
         <div className="flex-1" />
-        <Button variant="outline" size="sm" onClick={() => setShowCreateModal(true)}>
+        <Button variant="primary" size="sm" onClick={openCreateModal}>
           <Plus className="w-3.5 h-3.5 mr-1.5" />
-          Create and configure
+          Create label
         </Button>
       </div>
 
-      {/* Associations Table */}
+      {/* Labels Table */}
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -139,79 +222,96 @@ const ObjectAssociationsTab = ({ objectType }) => {
                   Label
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">
-                  Limits
+                  Association
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">
-                  Object Association
+                  Inverse Label
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">
-                  Created by System
+                  Limit
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-muted uppercase tracking-wider">
-                  Used In
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">
+                  Usage
                 </th>
                 <th className="px-4 py-3 w-12"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filteredAssociations.map((assoc, idx) => {
-                const relatedConfig = OBJECT_TYPES[assoc.objectId];
-                if (!relatedConfig) return null;
-
-                const RelatedIcon = relatedConfig.icon;
-                const usedCount = Math.floor(Math.random() * 100);
+              {filteredLabels.map((label) => {
+                const targetConfig = OBJECT_TYPES[label.targetObject];
+                const TargetIcon = targetConfig?.icon || Users;
 
                 return (
-                  <tr key={idx} className="hover:bg-surface-secondary/50 transition-colors">
+                  <tr key={label.id} className="hover:bg-surface-secondary/50 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <Link2 className="w-4 h-4 text-muted" />
-                        <a href="#" className="text-sm text-primary hover:underline font-medium">
-                          {assoc.label}
-                        </a>
+                        <Tag className="w-4 h-4 text-primary" />
+                        <span className="text-sm text-primary font-medium">
+                          {label.label}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2 text-sm text-muted">
+                        <config.icon className="w-3.5 h-3.5" />
+                        <span>{config.labelPlural}</span>
+                        <span>↔</span>
+                        <TargetIcon className="w-3.5 h-3.5" />
+                        <span>{targetConfig?.labelPlural || label.targetObject}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-sm text-text">
-                        {getCardinalityDisplay(assoc.cardinality)}
+                        {label.inverseLabel || '—'}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <RelatedIcon className="w-4 h-4 text-muted" />
-                        <span className="text-sm text-text">{relatedConfig.labelPlural}</span>
+                      <span className="text-sm text-text">
+                        {label.maxAssociations ? `Max ${label.maxAssociations}` : 'Unlimited'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-sm text-primary font-medium">
+                        {label.usageCount ?? 0}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => openEditModal(label)}
+                          className="p-1.5 rounded hover:bg-surface-secondary"
+                          title="Edit"
+                        >
+                          <Edit className="w-4 h-4 text-muted" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirm(label)}
+                          className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </button>
                       </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="text-sm text-text">Yes</span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <span className={`text-sm ${usedCount > 0 ? 'text-primary font-medium' : 'text-muted'}`}>
-                        {usedCount}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <button className="p-1.5 rounded hover:bg-surface-secondary">
-                        <MoreVertical className="w-4 h-4 text-muted" />
-                      </button>
                     </td>
                   </tr>
                 );
               })}
 
-              {filteredAssociations.length === 0 && (
+              {filteredLabels.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center">
-                    <Link2 className="w-8 h-8 text-muted mx-auto mb-2" />
-                    <p className="text-sm text-muted">No associations found</p>
+                    <Tag className="w-8 h-8 text-muted mx-auto mb-2" />
+                    <p className="text-sm text-text mb-1">No association labels yet</p>
+                    <p className="text-xs text-muted mb-3">
+                      Create labels to describe how {config.labelPlural.toLowerCase()} relate to other objects
+                    </p>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="mt-3"
-                      onClick={() => setShowCreateModal(true)}
+                      onClick={openCreateModal}
                     >
                       <Plus className="w-3.5 h-3.5 mr-1.5" />
-                      Create association
+                      Create your first label
                     </Button>
                   </td>
                 </tr>
@@ -221,95 +321,158 @@ const ObjectAssociationsTab = ({ objectType }) => {
         </div>
       </Card>
 
-      {/* Visual Association Map */}
-      <Card className="p-4">
-        <h3 className="text-sm font-semibold text-text mb-4">Association Map</h3>
-        <div className="flex items-center justify-center gap-8 py-6">
-          <div className="flex flex-col items-center">
-            <div className="w-16 h-16 rounded-xl bg-primary/10 border-2 border-primary flex items-center justify-center">
-              <config.icon className="w-8 h-8 text-primary" />
-            </div>
-            <span className="mt-2 text-sm font-medium text-text">{config.labelPlural}</span>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            {associations.slice(0, 4).map((assoc, idx) => {
-              const relatedConfig = OBJECT_TYPES[assoc.objectId];
-              if (!relatedConfig) return null;
-
-              return (
-                <div key={idx} className="flex items-center gap-2">
-                  <div className="w-16 border-t border-dashed border-border" />
-                  <ArrowRight className="w-4 h-4 text-muted" />
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-secondary border border-border">
-                    <relatedConfig.icon className="w-4 h-4 text-muted" />
-                    <span className="text-xs text-text">{relatedConfig.labelPlural}</span>
+      {/* Suggested Labels */}
+      {filteredLabels.length === 0 && (
+        <Card className="p-4">
+          <h3 className="text-sm font-semibold text-text mb-3">Suggested Labels</h3>
+          <p className="text-xs text-muted mb-4">
+            Here are some common labels you might want to create:
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {getSuggestedLabels(objectType).map((suggestion, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  setShowCreateModal(true);
+                  reset({
+                    targetObject: suggestion.targetObject,
+                    label: suggestion.label,
+                    inverseLabel: suggestion.inverseLabel || '',
+                    maxAssociations: suggestion.maxAssociations || null,
+                    description: '',
+                  });
+                }}
+                className="flex items-start gap-3 p-3 rounded-lg border border-border hover:border-primary/50 hover:bg-primary/5 text-left transition-colors"
+              >
+                <Tag className="w-4 h-4 text-primary mt-0.5" />
+                <div>
+                  <div className="text-sm font-medium text-text">{suggestion.label}</div>
+                  <div className="text-xs text-muted">
+                    {config.labelPlural} ↔ {OBJECT_TYPES[suggestion.targetObject]?.labelPlural || suggestion.targetObject}
                   </div>
                 </div>
-              );
-            })}
-            {associations.length > 4 && (
-              <span className="text-xs text-muted ml-20">+{associations.length - 4} more</span>
-            )}
+              </button>
+            ))}
           </div>
-        </div>
-      </Card>
+        </Card>
+      )}
 
-      {/* Create Association Modal */}
-      {showCreateModal && (
+      {/* Create/Edit Label Modal */}
+      {(showCreateModal || editingLabel) && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <Card className="w-full max-w-md p-5">
-            <h3 className="text-lg font-semibold text-text mb-4">Create Association</h3>
-
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted">From Object</label>
-                <div className="flex items-center gap-2 px-3 py-2 rounded border border-border bg-surface-secondary">
-                  <config.icon className="w-4 h-4 text-muted" />
-                  <span className="text-sm text-text">{config.labelPlural}</span>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted">To Object</label>
-                <Select
-                  value=""
-                  onChange={() => {}}
-                  options={[
-                    { value: '', label: 'Select an object...' },
-                    ...Object.values(OBJECT_TYPES)
-                      .filter(o => o.id !== objectType)
-                      .map(o => ({ value: o.id, label: o.labelPlural }))
-                  ]}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted">Cardinality</label>
-                <Select
-                  value="many:many"
-                  onChange={() => {}}
-                  options={[
-                    { value: '1:1', label: '1-to-1' },
-                    { value: '1:many', label: '1-to-many' },
-                    { value: 'many:1', label: 'Many-to-1' },
-                    { value: 'many:many', label: 'Many-to-many' },
-                  ]}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted">Label</label>
-                <Input placeholder="e.g., Primary Contact" />
-              </div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-text">
+                {editingLabel ? 'Edit Label' : 'Create Association Label'}
+              </h3>
+              <button
+                onClick={() => { setShowCreateModal(false); setEditingLabel(null); }}
+                className="p-1 rounded hover:bg-surface-secondary"
+              >
+                <X className="w-4 h-4 text-muted" />
+              </button>
             </div>
 
-            <div className="flex justify-end gap-2 mt-6">
-              <Button variant="outline" onClick={() => setShowCreateModal(false)}>
+            <form onSubmit={handleSubmit(editingLabel ? handleUpdateSubmit : handleCreateSubmit)} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted">Association Type</label>
+                <Select
+                  {...register('targetObject', { required: true })}
+                  disabled={!!editingLabel}
+                  options={availablePairs.map(p => ({
+                    value: p,
+                    label: `${config.labelPlural} ↔ ${OBJECT_TYPES[p]?.labelPlural || p}`
+                  }))}
+                />
+                <p className="text-[10px] text-muted">
+                  Which objects does this label apply to?
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted">Label Name</label>
+                <Input
+                  {...register('label', { required: true })}
+                  placeholder="e.g., Primary Caretaker"
+                />
+                <p className="text-[10px] text-muted">
+                  How the {config.labelSingular.toLowerCase()} is related (from {config.labelSingular.toLowerCase()}'s perspective)
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted">Inverse Label (Optional)</label>
+                <Input
+                  {...register('inverseLabel')}
+                  placeholder="e.g., Primary Pet"
+                />
+                <p className="text-[10px] text-muted">
+                  How the related object sees this relationship (optional, for paired labels)
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted">Limit (Optional)</label>
+                <Input
+                  type="number"
+                  min="1"
+                  {...register('maxAssociations', { valueAsNumber: true })}
+                  placeholder="Unlimited"
+                />
+                <p className="text-[10px] text-muted">
+                  Maximum number of {config.labelPlural.toLowerCase()} that can have this label per related object
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => { setShowCreateModal(false); setEditingLabel(null); }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={createLabel.isPending || updateLabel.isPending}
+                >
+                  {(createLabel.isPending || updateLabel.isPending) && (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  )}
+                  {editingLabel ? 'Save Changes' : 'Create Label'}
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-sm p-5">
+            <h3 className="text-lg font-semibold text-text mb-2">Delete Label</h3>
+            <p className="text-sm text-muted mb-4">
+              Are you sure you want to delete the "{deleteConfirm.label}" label?
+              {deleteConfirm.usageCount > 0 && (
+                <span className="block mt-2 text-amber-500">
+                  This label is used on {deleteConfirm.usageCount} associations.
+                </span>
+              )}
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setDeleteConfirm(null)}>
                 Cancel
               </Button>
-              <Button onClick={() => setShowCreateModal(false)}>
-                Create Association
+              <Button
+                variant="destructive"
+                onClick={() => handleDelete(deleteConfirm.id)}
+                disabled={deleteLabel.isPending}
+              >
+                {deleteLabel.isPending && (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                )}
+                Delete
               </Button>
             </div>
           </Card>
@@ -318,5 +481,56 @@ const ObjectAssociationsTab = ({ objectType }) => {
     </div>
   );
 };
+
+// Get suggested labels based on object type
+function getSuggestedLabels(objectType) {
+  const suggestions = {
+    owners: [
+      { targetObject: 'pets', label: 'Primary Caretaker', inverseLabel: 'Primary Owner', maxAssociations: 1 },
+      { targetObject: 'pets', label: 'Emergency Contact', inverseLabel: 'Emergency Contact For' },
+      { targetObject: 'pets', label: 'Authorized Pickup', inverseLabel: 'Can Be Picked Up By' },
+      { targetObject: 'owners', label: 'Spouse/Partner', inverseLabel: 'Spouse/Partner' },
+      { targetObject: 'owners', label: 'Referred By', inverseLabel: 'Referred' },
+      { targetObject: 'bookings', label: 'Booked By', inverseLabel: 'Booking For', maxAssociations: 1 },
+    ],
+    pets: [
+      { targetObject: 'owners', label: 'Primary Owner', inverseLabel: 'Primary Caretaker', maxAssociations: 1 },
+      { targetObject: 'pets', label: 'Sibling', inverseLabel: 'Sibling' },
+      { targetObject: 'pets', label: 'Same Household', inverseLabel: 'Same Household' },
+      { targetObject: 'bookings', label: 'Primary Pet', inverseLabel: 'Primary Booking For', maxAssociations: 1 },
+    ],
+    bookings: [
+      { targetObject: 'owners', label: 'Paying Party', inverseLabel: 'Paying For', maxAssociations: 1 },
+      { targetObject: 'owners', label: 'Pickup Contact', inverseLabel: 'Picking Up' },
+      { targetObject: 'owners', label: 'Dropoff Contact', inverseLabel: 'Dropping Off' },
+      { targetObject: 'pets', label: 'Primary Pet', inverseLabel: 'Primary Booking', maxAssociations: 1 },
+    ],
+    services: [
+      { targetObject: 'packages', label: 'Included In', inverseLabel: 'Includes' },
+    ],
+    facilities: [
+      { targetObject: 'bookings', label: 'Assigned To', inverseLabel: 'Uses Facility' },
+    ],
+    packages: [
+      { targetObject: 'owners', label: 'Purchased By', inverseLabel: 'Purchased Package', maxAssociations: 1 },
+      { targetObject: 'services', label: 'Includes', inverseLabel: 'Included In' },
+    ],
+    invoices: [
+      { targetObject: 'owners', label: 'Bill To', inverseLabel: 'Billed For', maxAssociations: 1 },
+      { targetObject: 'bookings', label: 'For Booking', inverseLabel: 'Invoice' },
+    ],
+    payments: [
+      { targetObject: 'owners', label: 'Paid By', inverseLabel: 'Made Payment', maxAssociations: 1 },
+      { targetObject: 'invoices', label: 'Applied To', inverseLabel: 'Payment' },
+    ],
+    tickets: [
+      { targetObject: 'owners', label: 'Reported By', inverseLabel: 'Reported Issue', maxAssociations: 1 },
+      { targetObject: 'pets', label: 'Regarding', inverseLabel: 'Has Ticket' },
+      { targetObject: 'bookings', label: 'Related To', inverseLabel: 'Has Ticket' },
+    ],
+  };
+
+  return suggestions[objectType] || [];
+}
 
 export default ObjectAssociationsTab;

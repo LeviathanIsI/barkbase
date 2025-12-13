@@ -1,32 +1,60 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import {
-  Layout, Plus, GripVertical, Eye, Settings, Trash2, ChevronDown,
-  ChevronRight, Columns, Sidebar, PanelRight, FileText, Activity,
-  Users, Paperclip, MoreVertical
+  Layout, Plus, GripVertical, Eye, Trash2, MoreVertical,
+  FileText, Users, Paperclip, Loader2, Save, RotateCcw
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
-import Select from '@/components/ui/Select';
 import { OBJECT_TYPES } from '../objectConfig';
+import {
+  useRecordLayouts,
+  useCreateRecordLayout,
+  useUpdateRecordLayout,
+  useResetRecordLayout
+} from '@/features/settings/api/objectSettingsApi';
 
 const ObjectRecordCustomizationTab = ({ objectType }) => {
   const config = OBJECT_TYPES[objectType];
-  const [activeView, setActiveView] = useState('default');
-  const [leftSidebarCards, setLeftSidebarCards] = useState([
-    { id: 'about', label: `About this ${config?.labelSingular}`, type: 'about', expanded: true },
-    { id: 'details', label: 'Details', type: 'properties', expanded: false },
-  ]);
-  const [middleColumns, setMiddleColumns] = useState([
-    { id: 'overview', label: 'Overview', active: true },
-    { id: 'activities', label: 'Activities', active: true },
-    { id: 'notes', label: 'Notes', active: false },
-  ]);
-  const [rightSidebarCards, setRightSidebarCards] = useState([
-    { id: 'associations', label: 'Associations', type: 'associations' },
-    { id: 'attachments', label: 'Attachments', type: 'attachments' },
-  ]);
+  const [selectedLayoutId, setSelectedLayoutId] = useState(null);
   const [showAddCardModal, setShowAddCardModal] = useState(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Local state for layout editing
+  const [leftSidebarCards, setLeftSidebarCards] = useState([]);
+  const [middleColumnConfig, setMiddleColumnConfig] = useState({ tabs: ['overview', 'activities'] });
+  const [rightSidebarCards, setRightSidebarCards] = useState([]);
+
+  // Fetch layouts from API
+  const { data: layouts = [], isLoading } = useRecordLayouts(objectType);
+  const createLayout = useCreateRecordLayout(objectType);
+  const updateLayout = useUpdateRecordLayout(objectType);
+  const resetLayout = useResetRecordLayout(objectType);
+
+  // Set selected layout and initialize local state when data loads
+  useEffect(() => {
+    if (layouts.length > 0 && !selectedLayoutId) {
+      const defaultLayout = layouts.find(l => l.isDefault) || layouts[0];
+      setSelectedLayoutId(defaultLayout.id);
+      setLeftSidebarCards(defaultLayout.leftSidebarConfig || []);
+      setMiddleColumnConfig(defaultLayout.middleColumnConfig || { tabs: ['overview', 'activities'] });
+      setRightSidebarCards(defaultLayout.rightSidebarConfig || []);
+    }
+  }, [layouts, selectedLayoutId]);
+
+  // Update local state when selected layout changes
+  useEffect(() => {
+    if (selectedLayoutId) {
+      const layout = layouts.find(l => l.id === selectedLayoutId);
+      if (layout) {
+        setLeftSidebarCards(layout.leftSidebarConfig || []);
+        setMiddleColumnConfig(layout.middleColumnConfig || { tabs: ['overview', 'activities'] });
+        setRightSidebarCards(layout.rightSidebarConfig || []);
+        setHasUnsavedChanges(false);
+      }
+    }
+  }, [selectedLayoutId, layouts]);
 
   if (!config) {
     return (
@@ -36,10 +64,20 @@ const ObjectRecordCustomizationTab = ({ objectType }) => {
     );
   }
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const selectedLayout = layouts.find(l => l.id === selectedLayoutId);
+
   const handleAddCard = (section, cardType) => {
     const newCard = {
       id: `card_${Date.now()}`,
-      label: cardType === 'properties' ? 'Property Group' : 'Custom Card',
+      label: cardType === 'properties' ? 'Property Group' : cardType === 'associations' ? 'Associations' : 'Custom Card',
       type: cardType,
       expanded: false,
     };
@@ -50,6 +88,7 @@ const ObjectRecordCustomizationTab = ({ objectType }) => {
       setRightSidebarCards([...rightSidebarCards, newCard]);
     }
     setShowAddCardModal(null);
+    setHasUnsavedChanges(true);
   };
 
   const handleRemoveCard = (section, cardId) => {
@@ -58,7 +97,66 @@ const ObjectRecordCustomizationTab = ({ objectType }) => {
     } else if (section === 'right') {
       setRightSidebarCards((prev) => prev.filter((c) => c.id !== cardId));
     }
+    setHasUnsavedChanges(true);
   };
+
+  const handleToggleTab = (tabId) => {
+    const tabs = middleColumnConfig.tabs || [];
+    const newTabs = tabs.includes(tabId)
+      ? tabs.filter(t => t !== tabId)
+      : [...tabs, tabId];
+    setMiddleColumnConfig({ ...middleColumnConfig, tabs: newTabs });
+    setHasUnsavedChanges(true);
+  };
+
+  const handleSaveLayout = async () => {
+    try {
+      await updateLayout.mutateAsync({
+        id: selectedLayoutId,
+        leftSidebarConfig: leftSidebarCards,
+        middleColumnConfig,
+        rightSidebarConfig: rightSidebarCards,
+      });
+      toast.success('Layout saved');
+      setHasUnsavedChanges(false);
+    } catch (error) {
+      toast.error('Failed to save layout');
+    }
+  };
+
+  const handleResetLayout = async () => {
+    if (!confirm('Reset layout to default? This cannot be undone.')) return;
+    try {
+      await resetLayout.mutateAsync();
+      toast.success('Layout reset to default');
+    } catch (error) {
+      toast.error('Failed to reset layout');
+    }
+  };
+
+  const handleCreateLayout = async () => {
+    const name = prompt('Enter view name:');
+    if (!name) return;
+    try {
+      const result = await createLayout.mutateAsync({
+        name,
+        layoutType: 'custom',
+        leftSidebarConfig: [],
+        middleColumnConfig: { tabs: ['overview', 'activities'] },
+        rightSidebarConfig: [],
+      });
+      toast.success('View created');
+      setSelectedLayoutId(result.id);
+    } catch (error) {
+      toast.error('Failed to create view');
+    }
+  };
+
+  const tabs = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'activities', label: 'Activities' },
+    { id: 'notes', label: 'Notes' },
+  ];
 
   return (
     <div className="space-y-4">
@@ -78,9 +176,9 @@ const ObjectRecordCustomizationTab = ({ objectType }) => {
             <Input
               placeholder="Search by view name"
               className="w-64"
-              leftIcon={<Eye className="w-4 h-4" />}
             />
-            <Button size="sm">
+            <Button size="sm" onClick={handleCreateLayout} disabled={createLayout.isPending}>
+              {createLayout.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Create team view
             </Button>
           </div>
@@ -99,7 +197,7 @@ const ObjectRecordCustomizationTab = ({ objectType }) => {
                 View Name
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">
-                Assigned To
+                Type
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-muted uppercase tracking-wider">
                 Last Updated
@@ -110,184 +208,200 @@ const ObjectRecordCustomizationTab = ({ objectType }) => {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            <tr className="hover:bg-surface-secondary/50">
-              <td className="px-4 py-3">
-                <input type="checkbox" className="rounded border-border" />
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded bg-primary/20 flex items-center justify-center">
-                    <Layout className="w-3 h-3 text-primary" />
-                  </div>
-                  <a href="#" className="text-sm text-primary hover:underline font-medium">
-                    Default view
-                  </a>
-                </div>
-              </td>
-              <td className="px-4 py-3">
-                <span className="text-sm text-muted">All unassigned teams and users</span>
-              </td>
-              <td className="px-4 py-3">
-                <span className="text-sm text-text">Dec 12, 2024 3:45 PM</span>
-              </td>
-              <td className="px-4 py-3 text-right">
-                <button className="p-1.5 rounded hover:bg-surface-secondary">
-                  <MoreVertical className="w-4 h-4 text-muted" />
-                </button>
-              </td>
-            </tr>
+            {layouts.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted">
+                  No views configured. Create a team view to customize layouts.
+                </td>
+              </tr>
+            ) : (
+              layouts.map(layout => (
+                <tr
+                  key={layout.id}
+                  className={`hover:bg-surface-secondary/50 cursor-pointer ${selectedLayoutId === layout.id ? 'bg-primary/5' : ''}`}
+                  onClick={() => setSelectedLayoutId(layout.id)}
+                >
+                  <td className="px-4 py-3">
+                    <input type="checkbox" className="rounded border-border" onClick={e => e.stopPropagation()} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 rounded bg-primary/20 flex items-center justify-center">
+                        <Layout className="w-3 h-3 text-primary" />
+                      </div>
+                      <span className={`text-sm font-medium ${selectedLayoutId === layout.id ? 'text-primary' : 'text-text'}`}>
+                        {layout.name}
+                      </span>
+                      {layout.isDefault && (
+                        <span className="px-1.5 py-0.5 text-[10px] bg-primary/10 text-primary rounded">Default</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-sm text-muted capitalize">{layout.layoutType}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="text-sm text-text">
+                      {layout.updatedAt ? new Date(layout.updatedAt).toLocaleDateString() : '-'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button className="p-1.5 rounded hover:bg-surface-secondary" onClick={e => e.stopPropagation()}>
+                      <MoreVertical className="w-4 h-4 text-muted" />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </Card>
 
       {/* Visual Layout Editor */}
-      <Card className="p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-text">Record Layout Editor</h3>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              Preview
-            </Button>
-            <Button size="sm">
-              Save Layout
-            </Button>
-          </div>
-        </div>
-
-        {/* 3-Column Layout Preview */}
-        <div className="border border-border rounded-lg overflow-hidden bg-surface-secondary">
-          {/* Header Bar */}
-          <div className="px-4 py-3 border-b border-border bg-surface flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary/20" />
-            <div>
-              <div className="text-sm font-medium text-text">Sample {config.labelSingular}</div>
-              <div className="text-xs text-muted">Record preview</div>
+      {selectedLayout && (
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-text">Record Layout Editor - {selectedLayout.name}</h3>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleResetLayout} disabled={resetLayout.isPending}>
+                {resetLayout.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+              </Button>
+              <Button size="sm" onClick={handleSaveLayout} disabled={!hasUnsavedChanges || updateLayout.isPending}>
+                {updateLayout.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                Save Layout
+              </Button>
             </div>
           </div>
 
-          <div className="grid grid-cols-12 min-h-[400px]">
-            {/* Left Sidebar */}
-            <div className="col-span-3 border-r border-border p-3 space-y-2">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-semibold text-muted uppercase">Left Sidebar</span>
-                <button
-                  onClick={() => setShowAddCardModal('left')}
-                  className="p-1 rounded hover:bg-surface"
-                >
-                  <Plus className="w-3 h-3 text-muted" />
-                </button>
+          {/* 3-Column Layout Preview */}
+          <div className="border border-border rounded-lg overflow-hidden bg-surface-secondary">
+            {/* Header Bar */}
+            <div className="px-4 py-3 border-b border-border bg-surface flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-primary/20" />
+              <div>
+                <div className="text-sm font-medium text-text">Sample {config.labelSingular}</div>
+                <div className="text-xs text-muted">Record preview</div>
               </div>
-
-              {leftSidebarCards.map((card) => (
-                <div
-                  key={card.id}
-                  className="border border-border rounded bg-surface p-2 group"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <GripVertical className="w-3 h-3 text-muted cursor-grab" />
-                      <span className="text-xs font-medium text-text">{card.label}</span>
-                    </div>
-                    <button
-                      onClick={() => handleRemoveCard('left', card.id)}
-                      className="p-0.5 rounded hover:bg-surface-secondary opacity-0 group-hover:opacity-100"
-                    >
-                      <Trash2 className="w-3 h-3 text-muted" />
-                    </button>
-                  </div>
-                  {card.expanded && (
-                    <div className="mt-2 pt-2 border-t border-border">
-                      <div className="space-y-1">
-                        <div className="h-2 bg-surface-secondary rounded w-3/4" />
-                        <div className="h-2 bg-surface-secondary rounded w-1/2" />
-                        <div className="h-2 bg-surface-secondary rounded w-2/3" />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
             </div>
 
-            {/* Middle Content */}
-            <div className="col-span-6 p-3">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] font-semibold text-muted uppercase">Middle Column</span>
-              </div>
-
-              {/* Tabs */}
-              <div className="flex gap-1 border-b border-border mb-3">
-                {middleColumns.map((tab) => (
+            <div className="grid grid-cols-12 min-h-[400px]">
+              {/* Left Sidebar */}
+              <div className="col-span-3 border-r border-border p-3 space-y-2">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-semibold text-muted uppercase">Left Sidebar</span>
                   <button
-                    key={tab.id}
-                    className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${
-                      tab.active
-                        ? 'border-primary text-primary'
-                        : 'border-transparent text-muted hover:text-text'
-                    }`}
-                    onClick={() => {
-                      setMiddleColumns((prev) =>
-                        prev.map((t) =>
-                          t.id === tab.id ? { ...t, active: !t.active } : t
-                        )
-                      );
-                    }}
+                    onClick={() => setShowAddCardModal('left')}
+                    className="p-1 rounded hover:bg-surface"
                   >
-                    {tab.label}
+                    <Plus className="w-3 h-3 text-muted" />
                   </button>
-                ))}
-                <button className="px-2 py-1.5 text-xs text-muted hover:text-text">
-                  <Plus className="w-3 h-3" />
-                </button>
-              </div>
-
-              {/* Content Area */}
-              <div className="space-y-3">
-                <div className="border border-dashed border-border rounded p-4 text-center">
-                  <span className="text-xs text-muted">Data highlights card</span>
                 </div>
-                <div className="border border-dashed border-border rounded p-4 text-center">
-                  <span className="text-xs text-muted">Activity timeline</span>
-                </div>
-              </div>
-            </div>
 
-            {/* Right Sidebar */}
-            <div className="col-span-3 border-l border-border p-3 space-y-2">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-semibold text-muted uppercase">Right Sidebar</span>
-                <button
-                  onClick={() => setShowAddCardModal('right')}
-                  className="p-1 rounded hover:bg-surface"
-                >
-                  <Plus className="w-3 h-3 text-muted" />
-                </button>
-              </div>
-
-              {rightSidebarCards.map((card) => (
-                <div
-                  key={card.id}
-                  className="border border-border rounded bg-surface p-2 group"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <GripVertical className="w-3 h-3 text-muted cursor-grab" />
-                      {card.type === 'associations' && <Users className="w-3 h-3 text-muted" />}
-                      {card.type === 'attachments' && <Paperclip className="w-3 h-3 text-muted" />}
-                      <span className="text-xs font-medium text-text">{card.label}</span>
+                {leftSidebarCards.map((card) => (
+                  <div
+                    key={card.id}
+                    className="border border-border rounded bg-surface p-2 group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <GripVertical className="w-3 h-3 text-muted cursor-grab" />
+                        <span className="text-xs font-medium text-text">{card.label}</span>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveCard('left', card.id)}
+                        className="p-0.5 rounded hover:bg-surface-secondary opacity-0 group-hover:opacity-100"
+                      >
+                        <Trash2 className="w-3 h-3 text-muted" />
+                      </button>
                     </div>
+                  </div>
+                ))}
+
+                {leftSidebarCards.length === 0 && (
+                  <div className="border border-dashed border-border rounded p-3 text-center">
+                    <span className="text-[10px] text-muted">Add cards here</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Middle Content */}
+              <div className="col-span-6 p-3">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[10px] font-semibold text-muted uppercase">Middle Column</span>
+                </div>
+
+                {/* Tabs */}
+                <div className="flex gap-1 border-b border-border mb-3">
+                  {tabs.map((tab) => (
                     <button
-                      onClick={() => handleRemoveCard('right', card.id)}
-                      className="p-0.5 rounded hover:bg-surface-secondary opacity-0 group-hover:opacity-100"
+                      key={tab.id}
+                      className={`px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${
+                        middleColumnConfig.tabs?.includes(tab.id)
+                          ? 'border-primary text-primary'
+                          : 'border-transparent text-muted hover:text-text'
+                      }`}
+                      onClick={() => handleToggleTab(tab.id)}
                     >
-                      <Trash2 className="w-3 h-3 text-muted" />
+                      {tab.label}
                     </button>
+                  ))}
+                </div>
+
+                {/* Content Area */}
+                <div className="space-y-3">
+                  <div className="border border-dashed border-border rounded p-4 text-center">
+                    <span className="text-xs text-muted">Data highlights card</span>
+                  </div>
+                  <div className="border border-dashed border-border rounded p-4 text-center">
+                    <span className="text-xs text-muted">Activity timeline</span>
                   </div>
                 </div>
-              ))}
+              </div>
+
+              {/* Right Sidebar */}
+              <div className="col-span-3 border-l border-border p-3 space-y-2">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-semibold text-muted uppercase">Right Sidebar</span>
+                  <button
+                    onClick={() => setShowAddCardModal('right')}
+                    className="p-1 rounded hover:bg-surface"
+                  >
+                    <Plus className="w-3 h-3 text-muted" />
+                  </button>
+                </div>
+
+                {rightSidebarCards.map((card) => (
+                  <div
+                    key={card.id}
+                    className="border border-border rounded bg-surface p-2 group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <GripVertical className="w-3 h-3 text-muted cursor-grab" />
+                        {card.type === 'associations' && <Users className="w-3 h-3 text-muted" />}
+                        {card.type === 'attachments' && <Paperclip className="w-3 h-3 text-muted" />}
+                        <span className="text-xs font-medium text-text">{card.label}</span>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveCard('right', card.id)}
+                        className="p-0.5 rounded hover:bg-surface-secondary opacity-0 group-hover:opacity-100"
+                      >
+                        <Trash2 className="w-3 h-3 text-muted" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {rightSidebarCards.length === 0 && (
+                  <div className="border border-dashed border-border rounded p-3 text-center">
+                    <span className="text-[10px] text-muted">Add cards here</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      )}
 
       {/* Add Card Modal */}
       {showAddCardModal && (

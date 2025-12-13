@@ -8,7 +8,7 @@ import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const Select = React.forwardRef(
-  ({ className, label, error, helpText, children, ...props }, ref) => {
+  ({ className, label, error, helpText, children, options, placeholder, ...props }, ref) => {
     return (
       <div className="w-full space-y-[var(--bb-space-2,0.5rem)]">
         {label && (
@@ -40,7 +40,12 @@ const Select = React.forwardRef(
             ref={ref}
             {...props}
           >
-            {children}
+            {placeholder && <option value="">{placeholder}</option>}
+            {options ? options.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            )) : children}
           </select>
           <ChevronDown
             className="absolute right-[var(--bb-space-3,0.75rem)] top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none"

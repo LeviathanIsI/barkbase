@@ -997,6 +997,256 @@ exports.handler = async (event, context) => {
       }
     }
 
+    // =========================================================================
+    // OBJECT SETTINGS API
+    // =========================================================================
+    // GET /api/v1/settings/objects/:objectType - Get object settings
+    const objectSettingsMatch = path.match(/^\/(?:api\/v1\/)?settings\/objects\/([a-z]+)$/i);
+    if (objectSettingsMatch && !path.includes('/associations') && !path.includes('/pipelines') && !path.includes('/statuses') && !path.includes('/record-layout') && !path.includes('/preview-layout') && !path.includes('/index-settings') && !path.includes('/saved-views') && !path.includes('/properties')) {
+      const objectType = objectSettingsMatch[1];
+      if (method === 'GET') {
+        return handleGetObjectSettings(user, objectType);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateObjectSettings(user, objectType, parseBody(event));
+      }
+    }
+
+    // =========================================================================
+    // ASSOCIATION LABELS API (describes relationship types)
+    // =========================================================================
+    // GET/POST /api/v1/settings/objects/:objectType/association-labels
+    const assocLabelMatch = path.match(/^\/(?:api\/v1\/)?settings\/objects\/([a-z]+)\/association-labels$/i);
+    if (assocLabelMatch) {
+      const objectType = assocLabelMatch[1];
+      if (method === 'GET') {
+        return handleGetAssociationLabels(user, objectType);
+      }
+      if (method === 'POST') {
+        return handleCreateAssociationLabel(user, objectType, parseBody(event));
+      }
+    }
+
+    // PUT/DELETE /api/v1/settings/objects/:objectType/association-labels/:id
+    const assocLabelIdMatch = path.match(/^\/(?:api\/v1\/)?settings\/objects\/([a-z]+)\/association-labels\/([a-f0-9-]+)$/i);
+    if (assocLabelIdMatch) {
+      const objectType = assocLabelIdMatch[1];
+      const labelId = assocLabelIdMatch[2];
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateAssociationLabel(user, objectType, labelId, parseBody(event));
+      }
+      if (method === 'DELETE') {
+        return handleDeleteAssociationLabel(user, objectType, labelId);
+      }
+    }
+
+    // =========================================================================
+    // OBJECT PIPELINES API
+    // =========================================================================
+    // GET/POST /api/v1/settings/objects/:objectType/pipelines
+    const objectPipelineMatch = path.match(/^\/(?:api\/v1\/)?settings\/objects\/([a-z]+)\/pipelines$/i);
+    if (objectPipelineMatch) {
+      const objectType = objectPipelineMatch[1];
+      if (method === 'GET') {
+        return handleGetObjectPipelines(user, objectType);
+      }
+      if (method === 'POST') {
+        return handleCreateObjectPipeline(user, objectType, parseBody(event));
+      }
+    }
+
+    // PUT/DELETE /api/v1/settings/objects/:objectType/pipelines/:id
+    const pipelineIdMatch = path.match(/^\/(?:api\/v1\/)?settings\/objects\/([a-z]+)\/pipelines\/([a-f0-9-]+)$/i);
+    if (pipelineIdMatch) {
+      const objectType = pipelineIdMatch[1];
+      const pipelineId = pipelineIdMatch[2];
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateObjectPipeline(user, objectType, pipelineId, parseBody(event));
+      }
+      if (method === 'DELETE') {
+        return handleDeleteObjectPipeline(user, objectType, pipelineId);
+      }
+    }
+
+    // GET/POST /api/v1/settings/objects/:objectType/pipelines/:id/stages
+    const pipelineStagesMatch = path.match(/^\/(?:api\/v1\/)?settings\/objects\/([a-z]+)\/pipelines\/([a-f0-9-]+)\/stages$/i);
+    if (pipelineStagesMatch) {
+      const objectType = pipelineStagesMatch[1];
+      const pipelineId = pipelineStagesMatch[2];
+      if (method === 'GET') {
+        return handleGetPipelineStages(user, objectType, pipelineId);
+      }
+      if (method === 'POST') {
+        return handleCreatePipelineStage(user, objectType, pipelineId, parseBody(event));
+      }
+    }
+
+    // PUT /api/v1/settings/objects/:objectType/pipelines/:id/stages/reorder
+    const stagesReorderMatch = path.match(/^\/(?:api\/v1\/)?settings\/objects\/([a-z]+)\/pipelines\/([a-f0-9-]+)\/stages\/reorder$/i);
+    if (stagesReorderMatch && method === 'PUT') {
+      const objectType = stagesReorderMatch[1];
+      const pipelineId = stagesReorderMatch[2];
+      return handleReorderPipelineStages(user, objectType, pipelineId, parseBody(event));
+    }
+
+    // PUT/DELETE /api/v1/settings/objects/:objectType/pipelines/:pipelineId/stages/:stageId
+    const stageIdMatch = path.match(/^\/(?:api\/v1\/)?settings\/objects\/([a-z]+)\/pipelines\/([a-f0-9-]+)\/stages\/([a-f0-9-]+)$/i);
+    if (stageIdMatch) {
+      const objectType = stageIdMatch[1];
+      const pipelineId = stageIdMatch[2];
+      const stageId = stageIdMatch[3];
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdatePipelineStage(user, objectType, pipelineId, stageId, parseBody(event));
+      }
+      if (method === 'DELETE') {
+        return handleDeletePipelineStage(user, objectType, pipelineId, stageId);
+      }
+    }
+
+    // =========================================================================
+    // OBJECT STATUSES API (for non-pipeline objects)
+    // =========================================================================
+    // GET/POST /api/v1/settings/objects/:objectType/statuses
+    const objectStatusMatch = path.match(/^\/(?:api\/v1\/)?settings\/objects\/([a-z]+)\/statuses$/i);
+    if (objectStatusMatch) {
+      const objectType = objectStatusMatch[1];
+      if (method === 'GET') {
+        return handleGetObjectStatuses(user, objectType);
+      }
+      if (method === 'POST') {
+        return handleCreateObjectStatus(user, objectType, parseBody(event));
+      }
+    }
+
+    // PUT/DELETE /api/v1/settings/objects/:objectType/statuses/:id
+    const statusIdMatch = path.match(/^\/(?:api\/v1\/)?settings\/objects\/([a-z]+)\/statuses\/([a-f0-9-]+)$/i);
+    if (statusIdMatch) {
+      const objectType = statusIdMatch[1];
+      const statusId = statusIdMatch[2];
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateObjectStatus(user, objectType, statusId, parseBody(event));
+      }
+      if (method === 'DELETE') {
+        return handleDeleteObjectStatus(user, objectType, statusId);
+      }
+    }
+
+    // PUT /api/v1/settings/objects/:objectType/statuses/reorder
+    const statusesReorderMatch = path.match(/^\/(?:api\/v1\/)?settings\/objects\/([a-z]+)\/statuses\/reorder$/i);
+    if (statusesReorderMatch && method === 'PUT') {
+      const objectType = statusesReorderMatch[1];
+      return handleReorderObjectStatuses(user, objectType, parseBody(event));
+    }
+
+    // =========================================================================
+    // RECORD LAYOUT API
+    // =========================================================================
+    // GET/PUT /api/v1/settings/objects/:objectType/record-layout
+    const recordLayoutMatch = path.match(/^\/(?:api\/v1\/)?settings\/objects\/([a-z]+)\/record-layout$/i);
+    if (recordLayoutMatch) {
+      const objectType = recordLayoutMatch[1];
+      if (method === 'GET') {
+        return handleGetRecordLayouts(user, objectType);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateRecordLayout(user, objectType, parseBody(event));
+      }
+      if (method === 'POST') {
+        return handleCreateRecordLayout(user, objectType, parseBody(event));
+      }
+    }
+
+    // POST /api/v1/settings/objects/:objectType/record-layout/reset
+    const recordLayoutResetMatch = path.match(/^\/(?:api\/v1\/)?settings\/objects\/([a-z]+)\/record-layout\/reset$/i);
+    if (recordLayoutResetMatch && method === 'POST') {
+      const objectType = recordLayoutResetMatch[1];
+      return handleResetRecordLayout(user, objectType);
+    }
+
+    // =========================================================================
+    // PREVIEW LAYOUT API
+    // =========================================================================
+    // GET/PUT /api/v1/settings/objects/:objectType/preview-layout
+    const previewLayoutMatch = path.match(/^\/(?:api\/v1\/)?settings\/objects\/([a-z]+)\/preview-layout$/i);
+    if (previewLayoutMatch) {
+      const objectType = previewLayoutMatch[1];
+      if (method === 'GET') {
+        return handleGetPreviewLayouts(user, objectType);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdatePreviewLayout(user, objectType, parseBody(event));
+      }
+    }
+
+    // =========================================================================
+    // INDEX SETTINGS API
+    // =========================================================================
+    // GET/PUT /api/v1/settings/objects/:objectType/index-settings
+    const indexSettingsMatch = path.match(/^\/(?:api\/v1\/)?settings\/objects\/([a-z]+)\/index-settings$/i);
+    if (indexSettingsMatch) {
+      const objectType = indexSettingsMatch[1];
+      if (method === 'GET') {
+        return handleGetIndexSettings(user, objectType);
+      }
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateIndexSettings(user, objectType, parseBody(event));
+      }
+    }
+
+    // =========================================================================
+    // SAVED VIEWS API
+    // =========================================================================
+    // GET/POST /api/v1/settings/objects/:objectType/saved-views
+    const savedViewsMatch = path.match(/^\/(?:api\/v1\/)?settings\/objects\/([a-z]+)\/saved-views$/i);
+    if (savedViewsMatch) {
+      const objectType = savedViewsMatch[1];
+      if (method === 'GET') {
+        return handleGetSavedViews(user, objectType);
+      }
+      if (method === 'POST') {
+        return handleCreateSavedView(user, objectType, parseBody(event));
+      }
+    }
+
+    // PUT/DELETE /api/v1/settings/objects/:objectType/saved-views/:id
+    const savedViewIdMatch = path.match(/^\/(?:api\/v1\/)?settings\/objects\/([a-z]+)\/saved-views\/([a-f0-9-]+)$/i);
+    if (savedViewIdMatch) {
+      const objectType = savedViewIdMatch[1];
+      const viewId = savedViewIdMatch[2];
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateSavedView(user, objectType, viewId, parseBody(event));
+      }
+      if (method === 'DELETE') {
+        return handleDeleteSavedView(user, objectType, viewId);
+      }
+    }
+
+    // PUT /api/v1/settings/objects/:objectType/saved-views/:id/set-default
+    const setDefaultViewMatch = path.match(/^\/(?:api\/v1\/)?settings\/objects\/([a-z]+)\/saved-views\/([a-f0-9-]+)\/set-default$/i);
+    if (setDefaultViewMatch && method === 'PUT') {
+      const objectType = setDefaultViewMatch[1];
+      const viewId = setDefaultViewMatch[2];
+      return handleSetDefaultView(user, objectType, viewId);
+    }
+
+    // PUT /api/v1/settings/objects/:objectType/saved-views/:id/promote
+    const promoteViewMatch = path.match(/^\/(?:api\/v1\/)?settings\/objects\/([a-z]+)\/saved-views\/([a-f0-9-]+)\/promote$/i);
+    if (promoteViewMatch && method === 'PUT') {
+      const objectType = promoteViewMatch[1];
+      const viewId = promoteViewMatch[2];
+      return handlePromoteSavedView(user, objectType, viewId);
+    }
+
+    // =========================================================================
+    // OBJECT PROPERTIES API
+    // =========================================================================
+    // GET /api/v1/settings/objects/:objectType/properties - Get available properties
+    const objectPropsMatch = path.match(/^\/(?:api\/v1\/)?settings\/objects\/([a-z]+)\/properties$/i);
+    if (objectPropsMatch && method === 'GET') {
+      const objectType = objectPropsMatch[1];
+      return handleGetObjectProperties(user, objectType);
+    }
+
     // Default response for unmatched routes
     return createResponse(404, {
       error: 'Not Found',
@@ -11905,4 +12155,2069 @@ async function handleDeleteAddOnService(user, addonId) {
     console.error('[AddOnServices] Failed to delete add-on:', error.message);
     return createResponse(500, { error: 'Internal Server Error', message: 'Failed to delete add-on service' });
   }
+}
+
+// =============================================================================
+// OBJECT SETTINGS HANDLERS
+// =============================================================================
+
+const VALID_OBJECT_TYPES = [
+  'owners', 'pets', 'bookings', 'services', 'facilities',
+  'packages', 'invoices', 'payments', 'tickets'
+];
+
+const PIPELINE_OBJECTS = ['bookings', 'invoices', 'payments', 'tickets'];
+
+/**
+ * Get object settings for a specific object type
+ */
+async function handleGetObjectSettings(user, objectType) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    if (!VALID_OBJECT_TYPES.includes(objectType.toLowerCase())) {
+      return createResponse(400, { error: 'Bad Request', message: 'Invalid object type' });
+    }
+
+    const objType = objectType.toLowerCase();
+
+    // Get settings
+    const result = await query(
+      `SELECT * FROM "ObjectSettings" WHERE tenant_id = $1 AND object_type = $2`,
+      [ctx.tenantId, objType]
+    );
+
+    // Get record count based on object type
+    const recordCount = await getObjectRecordCount(ctx.tenantId, objType);
+
+    // Get data quality (completeness percentage)
+    const dataQuality = await getObjectDataQuality(ctx.tenantId, objType);
+
+    if (result.rows.length === 0) {
+      // Return default settings if none exist
+      return createResponse(200, {
+        objectType: objType,
+        singularName: objectType.charAt(0).toUpperCase() + objectType.slice(1, -1),
+        pluralName: objectType.charAt(0).toUpperCase() + objectType.slice(1),
+        description: '',
+        icon: null,
+        primaryDisplayProperty: 'name',
+        secondaryDisplayProperties: [],
+        defaultStatus: null,
+        autoAssignOwner: true,
+        sendNotificationOnCreate: false,
+        isPipelineObject: PIPELINE_OBJECTS.includes(objType),
+        recordCount,
+        dataQuality,
+      });
+    }
+
+    const row = result.rows[0];
+    return createResponse(200, {
+      id: row.id,
+      objectType: row.object_type,
+      singularName: row.singular_name,
+      pluralName: row.plural_name,
+      description: row.description,
+      icon: row.icon,
+      primaryDisplayProperty: row.primary_display_property,
+      secondaryDisplayProperties: row.secondary_display_properties || [],
+      defaultStatus: row.default_status,
+      autoAssignOwner: row.auto_assign_owner,
+      sendNotificationOnCreate: row.send_notification_on_create,
+      isPipelineObject: PIPELINE_OBJECTS.includes(row.object_type),
+      recordCount,
+      dataQuality,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    });
+  } catch (error) {
+    console.error('[ObjectSettings] Failed to get:', error.message);
+    if (error.code === '42P01') {
+      return createResponse(200, {
+        objectType: objectType.toLowerCase(),
+        singularName: objectType.charAt(0).toUpperCase() + objectType.slice(1, -1),
+        pluralName: objectType.charAt(0).toUpperCase() + objectType.slice(1),
+        isPipelineObject: PIPELINE_OBJECTS.includes(objectType.toLowerCase()),
+        recordCount: 0,
+        dataQuality: 0,
+      });
+    }
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to get object settings' });
+  }
+}
+
+/**
+ * Get record count for an object type
+ */
+async function getObjectRecordCount(tenantId, objectType) {
+  const tableMap = {
+    owners: 'Owner',
+    pets: 'Pet',
+    bookings: 'Booking',
+    services: 'Service',
+    facilities: 'Kennel',
+    packages: 'Package',
+    invoices: 'Invoice',
+    payments: 'Payment',
+    tickets: 'Ticket',
+  };
+
+  const tableName = tableMap[objectType];
+  if (!tableName) return 0;
+
+  try {
+    const result = await query(
+      `SELECT COUNT(*) as count FROM "${tableName}" WHERE tenant_id = $1`,
+      [tenantId]
+    );
+    return parseInt(result.rows[0]?.count || 0, 10);
+  } catch (error) {
+    // Table might not exist
+    console.log(`[ObjectSettings] Could not count ${tableName}:`, error.code);
+    return 0;
+  }
+}
+
+/**
+ * Get data quality (completeness) for an object type
+ * Returns percentage of required fields filled across all records
+ */
+async function getObjectDataQuality(tenantId, objectType) {
+  const tableMap = {
+    owners: 'Owner',
+    pets: 'Pet',
+    bookings: 'Booking',
+    services: 'Service',
+    facilities: 'Kennel',
+    packages: 'Package',
+    invoices: 'Invoice',
+    payments: 'Payment',
+    tickets: 'Ticket',
+  };
+
+  // Required fields for each object type
+  const requiredFieldsMap = {
+    owners: ['first_name', 'last_name', 'email'],
+    pets: ['name', 'species'],
+    bookings: ['check_in_date', 'check_out_date', 'status'],
+    services: ['name', 'price'],
+    facilities: ['name'],
+    packages: ['name', 'price'],
+    invoices: ['total', 'status'],
+    payments: ['amount', 'status'],
+    tickets: ['subject', 'status'],
+  };
+
+  const tableName = tableMap[objectType];
+  const requiredFields = requiredFieldsMap[objectType];
+  if (!tableName || !requiredFields || requiredFields.length === 0) return 100;
+
+  try {
+    // Build query to check completeness
+    const fieldChecks = requiredFields.map(f => `CASE WHEN ${f} IS NOT NULL AND ${f}::text != '' THEN 1 ELSE 0 END`).join(' + ');
+    const maxScore = requiredFields.length;
+
+    const result = await query(
+      `SELECT
+        COUNT(*) as total_records,
+        COALESCE(AVG((${fieldChecks})::float / ${maxScore}) * 100, 100) as completeness
+       FROM "${tableName}"
+       WHERE tenant_id = $1`,
+      [tenantId]
+    );
+
+    const completeness = parseFloat(result.rows[0]?.completeness || 100);
+    return Math.round(completeness);
+  } catch (error) {
+    console.log(`[ObjectSettings] Could not get quality for ${tableName}:`, error.code);
+    return 100; // Default to 100% if table doesn't exist or error
+  }
+}
+
+/**
+ * Update object settings for a specific object type
+ */
+async function handleUpdateObjectSettings(user, objectType, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    if (!VALID_OBJECT_TYPES.includes(objectType.toLowerCase())) {
+      return createResponse(400, { error: 'Bad Request', message: 'Invalid object type' });
+    }
+
+    const {
+      singularName, pluralName, description, icon,
+      primaryDisplayProperty, secondaryDisplayProperties,
+      defaultStatus, autoAssignOwner, sendNotificationOnCreate
+    } = body;
+
+    const result = await query(
+      `INSERT INTO "ObjectSettings" (
+        tenant_id, object_type, singular_name, plural_name, description, icon,
+        primary_display_property, secondary_display_properties,
+        default_status, auto_assign_owner, send_notification_on_create
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      ON CONFLICT (tenant_id, object_type) DO UPDATE SET
+        singular_name = COALESCE(EXCLUDED.singular_name, "ObjectSettings".singular_name),
+        plural_name = COALESCE(EXCLUDED.plural_name, "ObjectSettings".plural_name),
+        description = COALESCE(EXCLUDED.description, "ObjectSettings".description),
+        icon = COALESCE(EXCLUDED.icon, "ObjectSettings".icon),
+        primary_display_property = COALESCE(EXCLUDED.primary_display_property, "ObjectSettings".primary_display_property),
+        secondary_display_properties = COALESCE(EXCLUDED.secondary_display_properties, "ObjectSettings".secondary_display_properties),
+        default_status = COALESCE(EXCLUDED.default_status, "ObjectSettings".default_status),
+        auto_assign_owner = COALESCE(EXCLUDED.auto_assign_owner, "ObjectSettings".auto_assign_owner),
+        send_notification_on_create = COALESCE(EXCLUDED.send_notification_on_create, "ObjectSettings".send_notification_on_create),
+        updated_at = NOW()
+      RETURNING *`,
+      [
+        ctx.tenantId, objectType.toLowerCase(),
+        singularName, pluralName, description, icon,
+        primaryDisplayProperty, JSON.stringify(secondaryDisplayProperties || []),
+        defaultStatus, autoAssignOwner, sendNotificationOnCreate
+      ]
+    );
+
+    const row = result.rows[0];
+    return createResponse(200, {
+      id: row.id,
+      objectType: row.object_type,
+      singularName: row.singular_name,
+      pluralName: row.plural_name,
+      description: row.description,
+      icon: row.icon,
+      primaryDisplayProperty: row.primary_display_property,
+      secondaryDisplayProperties: row.secondary_display_properties || [],
+      defaultStatus: row.default_status,
+      autoAssignOwner: row.auto_assign_owner,
+      sendNotificationOnCreate: row.send_notification_on_create,
+      isPipelineObject: PIPELINE_OBJECTS.includes(row.object_type),
+    });
+  } catch (error) {
+    console.error('[ObjectSettings] Failed to update:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update object settings' });
+  }
+}
+
+// =============================================================================
+// ASSOCIATION LABELS HANDLERS (describes relationship types)
+// =============================================================================
+
+/**
+ * Get association labels for an object type
+ */
+async function handleGetAssociationLabels(user, objectType) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(
+      `SELECT * FROM "AssociationLabel"
+       WHERE tenant_id = $1 AND (source_object = $2 OR target_object = $2)
+       ORDER BY label`,
+      [ctx.tenantId, objectType.toLowerCase()]
+    );
+
+    const labels = result.rows.map(row => ({
+      id: row.id,
+      sourceObject: row.source_object,
+      targetObject: row.target_object,
+      label: row.label,
+      inverseLabel: row.inverse_label,
+      maxAssociations: row.max_associations,
+      description: row.description,
+      isActive: row.is_active,
+      usageCount: 0, // TODO: Count actual usage
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
+    return createResponse(200, { labels });
+  } catch (error) {
+    console.error('[AssociationLabels] Failed to get:', error.message);
+    if (error.code === '42P01') return createResponse(200, { labels: [] });
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to get association labels' });
+  }
+}
+
+/**
+ * Create a new association label
+ */
+async function handleCreateAssociationLabel(user, objectType, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const { targetObject, label, inverseLabel, maxAssociations, description } = body;
+
+    if (!targetObject || !label) {
+      return createResponse(400, { error: 'Bad Request', message: 'Target object and label are required' });
+    }
+
+    const result = await query(
+      `INSERT INTO "AssociationLabel" (
+        tenant_id, source_object, target_object, label,
+        inverse_label, max_associations, description
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *`,
+      [
+        ctx.tenantId, objectType.toLowerCase(), targetObject.toLowerCase(),
+        label, inverseLabel || null, maxAssociations || null, description || null
+      ]
+    );
+
+    const row = result.rows[0];
+    return createResponse(201, {
+      id: row.id,
+      sourceObject: row.source_object,
+      targetObject: row.target_object,
+      label: row.label,
+      inverseLabel: row.inverse_label,
+      maxAssociations: row.max_associations,
+      description: row.description,
+    });
+  } catch (error) {
+    console.error('[AssociationLabels] Failed to create:', error.message);
+    if (error.code === '23505') {
+      return createResponse(409, { error: 'Conflict', message: 'A label with this name already exists for this association' });
+    }
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to create association label' });
+  }
+}
+
+/**
+ * Update an association label
+ */
+async function handleUpdateAssociationLabel(user, objectType, labelId, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const { label, inverseLabel, maxAssociations, description } = body;
+
+    const result = await query(
+      `UPDATE "AssociationLabel"
+       SET label = COALESCE($1, label),
+           inverse_label = $2,
+           max_associations = $3,
+           description = $4,
+           updated_at = NOW()
+       WHERE id = $5 AND tenant_id = $6
+       RETURNING *`,
+      [label, inverseLabel || null, maxAssociations || null, description || null, labelId, ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Association label not found' });
+    }
+
+    const row = result.rows[0];
+    return createResponse(200, {
+      id: row.id,
+      sourceObject: row.source_object,
+      targetObject: row.target_object,
+      label: row.label,
+      inverseLabel: row.inverse_label,
+      maxAssociations: row.max_associations,
+      description: row.description,
+    });
+  } catch (error) {
+    console.error('[AssociationLabels] Failed to update:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update association label' });
+  }
+}
+
+/**
+ * Delete an association label
+ */
+async function handleDeleteAssociationLabel(user, objectType, labelId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(
+      `DELETE FROM "AssociationLabel" WHERE id = $1 AND tenant_id = $2 RETURNING id`,
+      [labelId, ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Association label not found' });
+    }
+
+    return createResponse(200, { success: true });
+  } catch (error) {
+    console.error('[AssociationLabels] Failed to delete:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to delete association label' });
+  }
+}
+
+// =============================================================================
+// LEGACY OBJECT ASSOCIATIONS HANDLERS (keeping for backward compatibility)
+// =============================================================================
+
+/**
+ * Get associations for an object type (legacy)
+ */
+async function handleGetObjectAssociations(user, objectType) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(
+      `SELECT * FROM "ObjectAssociation"
+       WHERE tenant_id = $1 AND (source_object = $2 OR target_object = $2)
+       ORDER BY created_at`,
+      [ctx.tenantId, objectType.toLowerCase()]
+    );
+
+    const associations = result.rows.map(row => ({
+      id: row.id,
+      sourceObject: row.source_object,
+      targetObject: row.target_object,
+      cardinality: row.cardinality,
+      sourceLabel: row.source_label,
+      targetLabel: row.target_label,
+      isSystem: row.is_system,
+      associationLimit: row.association_limit,
+      isActive: row.is_active,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
+    return createResponse(200, { associations });
+  } catch (error) {
+    console.error('[ObjectAssociations] Failed to get:', error.message);
+    if (error.code === '42P01') return createResponse(200, { associations: [] });
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to get associations' });
+  }
+}
+
+/**
+ * Create a new association
+ */
+async function handleCreateObjectAssociation(user, objectType, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const { targetObject, cardinality, sourceLabel, targetLabel, associationLimit } = body;
+
+    if (!targetObject) {
+      return createResponse(400, { error: 'Bad Request', message: 'Target object is required' });
+    }
+
+    const result = await query(
+      `INSERT INTO "ObjectAssociation" (
+        tenant_id, source_object, target_object, cardinality,
+        source_label, target_label, association_limit, is_system
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, false)
+      RETURNING *`,
+      [
+        ctx.tenantId, objectType.toLowerCase(), targetObject.toLowerCase(),
+        cardinality || 'many_to_many', sourceLabel, targetLabel, associationLimit
+      ]
+    );
+
+    const row = result.rows[0];
+    return createResponse(201, {
+      id: row.id,
+      sourceObject: row.source_object,
+      targetObject: row.target_object,
+      cardinality: row.cardinality,
+      sourceLabel: row.source_label,
+      targetLabel: row.target_label,
+      isSystem: row.is_system,
+      associationLimit: row.association_limit,
+      isActive: row.is_active,
+    });
+  } catch (error) {
+    console.error('[ObjectAssociations] Failed to create:', error.message);
+    if (error.code === '23505') {
+      return createResponse(409, { error: 'Conflict', message: 'Association already exists' });
+    }
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to create association' });
+  }
+}
+
+/**
+ * Update an association
+ */
+async function handleUpdateObjectAssociation(user, objectType, assocId, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const { cardinality, sourceLabel, targetLabel, associationLimit, isActive } = body;
+
+    // Cannot modify system associations
+    const checkResult = await query(
+      `SELECT is_system FROM "ObjectAssociation" WHERE id = $1 AND tenant_id = $2`,
+      [assocId, ctx.tenantId]
+    );
+
+    if (checkResult.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Association not found' });
+    }
+
+    if (checkResult.rows[0].is_system) {
+      return createResponse(403, { error: 'Forbidden', message: 'Cannot modify system association' });
+    }
+
+    const result = await query(
+      `UPDATE "ObjectAssociation" SET
+        cardinality = COALESCE($3, cardinality),
+        source_label = COALESCE($4, source_label),
+        target_label = COALESCE($5, target_label),
+        association_limit = $6,
+        is_active = COALESCE($7, is_active),
+        updated_at = NOW()
+      WHERE id = $1 AND tenant_id = $2
+      RETURNING *`,
+      [assocId, ctx.tenantId, cardinality, sourceLabel, targetLabel, associationLimit, isActive]
+    );
+
+    const row = result.rows[0];
+    return createResponse(200, {
+      id: row.id,
+      sourceObject: row.source_object,
+      targetObject: row.target_object,
+      cardinality: row.cardinality,
+      sourceLabel: row.source_label,
+      targetLabel: row.target_label,
+      isSystem: row.is_system,
+      associationLimit: row.association_limit,
+      isActive: row.is_active,
+    });
+  } catch (error) {
+    console.error('[ObjectAssociations] Failed to update:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update association' });
+  }
+}
+
+/**
+ * Delete an association
+ */
+async function handleDeleteObjectAssociation(user, objectType, assocId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Cannot delete system associations
+    const checkResult = await query(
+      `SELECT is_system FROM "ObjectAssociation" WHERE id = $1 AND tenant_id = $2`,
+      [assocId, ctx.tenantId]
+    );
+
+    if (checkResult.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Association not found' });
+    }
+
+    if (checkResult.rows[0].is_system) {
+      return createResponse(403, { error: 'Forbidden', message: 'Cannot delete system association' });
+    }
+
+    await query(
+      `DELETE FROM "ObjectAssociation" WHERE id = $1 AND tenant_id = $2`,
+      [assocId, ctx.tenantId]
+    );
+
+    return createResponse(200, { success: true, message: 'Association deleted' });
+  } catch (error) {
+    console.error('[ObjectAssociations] Failed to delete:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to delete association' });
+  }
+}
+
+// =============================================================================
+// OBJECT PIPELINES HANDLERS
+// =============================================================================
+
+/**
+ * Get pipelines for an object type
+ */
+async function handleGetObjectPipelines(user, objectType) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    if (!PIPELINE_OBJECTS.includes(objectType.toLowerCase())) {
+      return createResponse(400, { error: 'Bad Request', message: 'Object type does not support pipelines' });
+    }
+
+    const result = await query(
+      `SELECT p.*,
+        (SELECT json_agg(s ORDER BY s.display_order)
+         FROM "PipelineStage" s
+         WHERE s.pipeline_id = p.id AND s.is_active = true) as stages
+       FROM "ObjectPipeline" p
+       WHERE p.tenant_id = $1 AND p.object_type = $2 AND p.is_active = true
+       ORDER BY p.display_order`,
+      [ctx.tenantId, objectType.toLowerCase()]
+    );
+
+    const pipelines = result.rows.map(row => ({
+      id: row.id,
+      objectType: row.object_type,
+      name: row.name,
+      displayOrder: row.display_order,
+      isDefault: row.is_default,
+      isActive: row.is_active,
+      stages: (row.stages || []).map(s => ({
+        id: s.id,
+        name: s.name,
+        displayOrder: s.display_order,
+        stageType: s.stage_type,
+        color: s.color,
+        probability: s.probability,
+        conditionalProperties: s.conditional_properties,
+        isActive: s.is_active,
+      })),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
+    return createResponse(200, { pipelines });
+  } catch (error) {
+    console.error('[ObjectPipelines] Failed to get:', error.message);
+    if (error.code === '42P01') return createResponse(200, { pipelines: [] });
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to get pipelines' });
+  }
+}
+
+/**
+ * Create a new pipeline
+ */
+async function handleCreateObjectPipeline(user, objectType, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    if (!PIPELINE_OBJECTS.includes(objectType.toLowerCase())) {
+      return createResponse(400, { error: 'Bad Request', message: 'Object type does not support pipelines' });
+    }
+
+    const { name, isDefault } = body;
+    if (!name) return createResponse(400, { error: 'Bad Request', message: 'Name is required' });
+
+    // Get max display order
+    const orderResult = await query(
+      `SELECT COALESCE(MAX(display_order), -1) + 1 as next_order
+       FROM "ObjectPipeline" WHERE tenant_id = $1 AND object_type = $2`,
+      [ctx.tenantId, objectType.toLowerCase()]
+    );
+    const displayOrder = orderResult.rows[0].next_order;
+
+    // If setting as default, unset other defaults
+    if (isDefault) {
+      await query(
+        `UPDATE "ObjectPipeline" SET is_default = false
+         WHERE tenant_id = $1 AND object_type = $2`,
+        [ctx.tenantId, objectType.toLowerCase()]
+      );
+    }
+
+    const result = await query(
+      `INSERT INTO "ObjectPipeline" (tenant_id, object_type, name, display_order, is_default)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [ctx.tenantId, objectType.toLowerCase(), name, displayOrder, isDefault || false]
+    );
+
+    const row = result.rows[0];
+    return createResponse(201, {
+      id: row.id,
+      objectType: row.object_type,
+      name: row.name,
+      displayOrder: row.display_order,
+      isDefault: row.is_default,
+      isActive: row.is_active,
+      stages: [],
+    });
+  } catch (error) {
+    console.error('[ObjectPipelines] Failed to create:', error.message);
+    if (error.code === '23505') {
+      return createResponse(409, { error: 'Conflict', message: 'Pipeline with this name already exists' });
+    }
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to create pipeline' });
+  }
+}
+
+/**
+ * Update a pipeline
+ */
+async function handleUpdateObjectPipeline(user, objectType, pipelineId, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const { name, isDefault, isActive } = body;
+
+    // If setting as default, unset other defaults
+    if (isDefault) {
+      await query(
+        `UPDATE "ObjectPipeline" SET is_default = false
+         WHERE tenant_id = $1 AND object_type = $2 AND id != $3`,
+        [ctx.tenantId, objectType.toLowerCase(), pipelineId]
+      );
+    }
+
+    const result = await query(
+      `UPDATE "ObjectPipeline" SET
+        name = COALESCE($3, name),
+        is_default = COALESCE($4, is_default),
+        is_active = COALESCE($5, is_active),
+        updated_at = NOW()
+      WHERE id = $1 AND tenant_id = $2
+      RETURNING *`,
+      [pipelineId, ctx.tenantId, name, isDefault, isActive]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Pipeline not found' });
+    }
+
+    const row = result.rows[0];
+    return createResponse(200, {
+      id: row.id,
+      objectType: row.object_type,
+      name: row.name,
+      displayOrder: row.display_order,
+      isDefault: row.is_default,
+      isActive: row.is_active,
+    });
+  } catch (error) {
+    console.error('[ObjectPipelines] Failed to update:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update pipeline' });
+  }
+}
+
+/**
+ * Delete a pipeline (soft delete)
+ */
+async function handleDeleteObjectPipeline(user, objectType, pipelineId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Cannot delete if it's the only pipeline
+    const countResult = await query(
+      `SELECT COUNT(*) as count FROM "ObjectPipeline"
+       WHERE tenant_id = $1 AND object_type = $2 AND is_active = true`,
+      [ctx.tenantId, objectType.toLowerCase()]
+    );
+
+    if (parseInt(countResult.rows[0].count) <= 1) {
+      return createResponse(400, { error: 'Bad Request', message: 'Cannot delete the only pipeline' });
+    }
+
+    const result = await query(
+      `UPDATE "ObjectPipeline" SET is_active = false, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2
+       RETURNING *`,
+      [pipelineId, ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Pipeline not found' });
+    }
+
+    return createResponse(200, { success: true, message: 'Pipeline deleted' });
+  } catch (error) {
+    console.error('[ObjectPipelines] Failed to delete:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to delete pipeline' });
+  }
+}
+
+// =============================================================================
+// PIPELINE STAGES HANDLERS
+// =============================================================================
+
+/**
+ * Get stages for a pipeline
+ */
+async function handleGetPipelineStages(user, objectType, pipelineId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(
+      `SELECT * FROM "PipelineStage"
+       WHERE pipeline_id = $1 AND tenant_id = $2 AND is_active = true
+       ORDER BY display_order`,
+      [pipelineId, ctx.tenantId]
+    );
+
+    const stages = result.rows.map(row => ({
+      id: row.id,
+      pipelineId: row.pipeline_id,
+      name: row.name,
+      displayOrder: row.display_order,
+      stageType: row.stage_type,
+      color: row.color,
+      probability: row.probability,
+      conditionalProperties: row.conditional_properties || [],
+      isActive: row.is_active,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
+    return createResponse(200, { stages });
+  } catch (error) {
+    console.error('[PipelineStages] Failed to get:', error.message);
+    if (error.code === '42P01') return createResponse(200, { stages: [] });
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to get stages' });
+  }
+}
+
+/**
+ * Create a new stage
+ */
+async function handleCreatePipelineStage(user, objectType, pipelineId, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const { name, stageType, color, probability, conditionalProperties } = body;
+    if (!name) return createResponse(400, { error: 'Bad Request', message: 'Name is required' });
+
+    // Verify pipeline exists
+    const pipelineCheck = await query(
+      `SELECT id FROM "ObjectPipeline" WHERE id = $1 AND tenant_id = $2`,
+      [pipelineId, ctx.tenantId]
+    );
+    if (pipelineCheck.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Pipeline not found' });
+    }
+
+    // Get max display order
+    const orderResult = await query(
+      `SELECT COALESCE(MAX(display_order), -1) + 1 as next_order
+       FROM "PipelineStage" WHERE pipeline_id = $1`,
+      [pipelineId]
+    );
+    const displayOrder = orderResult.rows[0].next_order;
+
+    const result = await query(
+      `INSERT INTO "PipelineStage" (
+        tenant_id, pipeline_id, name, display_order, stage_type, color, probability, conditional_properties
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *`,
+      [
+        ctx.tenantId, pipelineId, name, displayOrder,
+        stageType || 'open', color || '#6b7280', probability,
+        JSON.stringify(conditionalProperties || [])
+      ]
+    );
+
+    const row = result.rows[0];
+    return createResponse(201, {
+      id: row.id,
+      pipelineId: row.pipeline_id,
+      name: row.name,
+      displayOrder: row.display_order,
+      stageType: row.stage_type,
+      color: row.color,
+      probability: row.probability,
+      conditionalProperties: row.conditional_properties || [],
+      isActive: row.is_active,
+    });
+  } catch (error) {
+    console.error('[PipelineStages] Failed to create:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to create stage' });
+  }
+}
+
+/**
+ * Update a stage
+ */
+async function handleUpdatePipelineStage(user, objectType, pipelineId, stageId, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const { name, stageType, color, probability, conditionalProperties, isActive } = body;
+
+    const result = await query(
+      `UPDATE "PipelineStage" SET
+        name = COALESCE($4, name),
+        stage_type = COALESCE($5, stage_type),
+        color = COALESCE($6, color),
+        probability = COALESCE($7, probability),
+        conditional_properties = COALESCE($8, conditional_properties),
+        is_active = COALESCE($9, is_active),
+        updated_at = NOW()
+      WHERE id = $1 AND pipeline_id = $2 AND tenant_id = $3
+      RETURNING *`,
+      [
+        stageId, pipelineId, ctx.tenantId, name, stageType, color, probability,
+        conditionalProperties ? JSON.stringify(conditionalProperties) : null, isActive
+      ]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Stage not found' });
+    }
+
+    const row = result.rows[0];
+    return createResponse(200, {
+      id: row.id,
+      pipelineId: row.pipeline_id,
+      name: row.name,
+      displayOrder: row.display_order,
+      stageType: row.stage_type,
+      color: row.color,
+      probability: row.probability,
+      conditionalProperties: row.conditional_properties || [],
+      isActive: row.is_active,
+    });
+  } catch (error) {
+    console.error('[PipelineStages] Failed to update:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update stage' });
+  }
+}
+
+/**
+ * Delete a stage
+ */
+async function handleDeletePipelineStage(user, objectType, pipelineId, stageId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(
+      `UPDATE "PipelineStage" SET is_active = false, updated_at = NOW()
+       WHERE id = $1 AND pipeline_id = $2 AND tenant_id = $3
+       RETURNING *`,
+      [stageId, pipelineId, ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Stage not found' });
+    }
+
+    return createResponse(200, { success: true, message: 'Stage deleted' });
+  } catch (error) {
+    console.error('[PipelineStages] Failed to delete:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to delete stage' });
+  }
+}
+
+/**
+ * Reorder stages in a pipeline
+ */
+async function handleReorderPipelineStages(user, objectType, pipelineId, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const { stageIds } = body;
+    if (!Array.isArray(stageIds)) {
+      return createResponse(400, { error: 'Bad Request', message: 'stageIds array required' });
+    }
+
+    // Update each stage's display_order
+    for (let i = 0; i < stageIds.length; i++) {
+      await query(
+        `UPDATE "PipelineStage" SET display_order = $1, updated_at = NOW()
+         WHERE id = $2 AND pipeline_id = $3 AND tenant_id = $4`,
+        [i, stageIds[i], pipelineId, ctx.tenantId]
+      );
+    }
+
+    return createResponse(200, { success: true, message: 'Stages reordered' });
+  } catch (error) {
+    console.error('[PipelineStages] Failed to reorder:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to reorder stages' });
+  }
+}
+
+// =============================================================================
+// OBJECT STATUSES HANDLERS (for non-pipeline objects)
+// =============================================================================
+
+/**
+ * Get statuses for an object type
+ */
+async function handleGetObjectStatuses(user, objectType) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    if (PIPELINE_OBJECTS.includes(objectType.toLowerCase())) {
+      return createResponse(400, { error: 'Bad Request', message: 'Pipeline objects use pipelines, not statuses' });
+    }
+
+    const result = await query(
+      `SELECT * FROM "ObjectStatus"
+       WHERE tenant_id = $1 AND object_type = $2 AND is_active = true
+       ORDER BY display_order`,
+      [ctx.tenantId, objectType.toLowerCase()]
+    );
+
+    const statuses = result.rows.map(row => ({
+      id: row.id,
+      objectType: row.object_type,
+      name: row.name,
+      displayOrder: row.display_order,
+      color: row.color,
+      isDefault: row.is_default,
+      isActive: row.is_active,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
+    return createResponse(200, { statuses });
+  } catch (error) {
+    console.error('[ObjectStatuses] Failed to get:', error.message);
+    if (error.code === '42P01') return createResponse(200, { statuses: [] });
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to get statuses' });
+  }
+}
+
+/**
+ * Create a new status
+ */
+async function handleCreateObjectStatus(user, objectType, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    if (PIPELINE_OBJECTS.includes(objectType.toLowerCase())) {
+      return createResponse(400, { error: 'Bad Request', message: 'Pipeline objects use pipelines, not statuses' });
+    }
+
+    const { name, color, isDefault } = body;
+    if (!name) return createResponse(400, { error: 'Bad Request', message: 'Name is required' });
+
+    // Get max display order
+    const orderResult = await query(
+      `SELECT COALESCE(MAX(display_order), -1) + 1 as next_order
+       FROM "ObjectStatus" WHERE tenant_id = $1 AND object_type = $2`,
+      [ctx.tenantId, objectType.toLowerCase()]
+    );
+    const displayOrder = orderResult.rows[0].next_order;
+
+    // If setting as default, unset other defaults
+    if (isDefault) {
+      await query(
+        `UPDATE "ObjectStatus" SET is_default = false
+         WHERE tenant_id = $1 AND object_type = $2`,
+        [ctx.tenantId, objectType.toLowerCase()]
+      );
+    }
+
+    const result = await query(
+      `INSERT INTO "ObjectStatus" (tenant_id, object_type, name, display_order, color, is_default)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [ctx.tenantId, objectType.toLowerCase(), name, displayOrder, color || '#6b7280', isDefault || false]
+    );
+
+    const row = result.rows[0];
+    return createResponse(201, {
+      id: row.id,
+      objectType: row.object_type,
+      name: row.name,
+      displayOrder: row.display_order,
+      color: row.color,
+      isDefault: row.is_default,
+      isActive: row.is_active,
+    });
+  } catch (error) {
+    console.error('[ObjectStatuses] Failed to create:', error.message);
+    if (error.code === '23505') {
+      return createResponse(409, { error: 'Conflict', message: 'Status with this name already exists' });
+    }
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to create status' });
+  }
+}
+
+/**
+ * Update a status
+ */
+async function handleUpdateObjectStatus(user, objectType, statusId, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const { name, color, isDefault, isActive } = body;
+
+    // If setting as default, unset other defaults
+    if (isDefault) {
+      await query(
+        `UPDATE "ObjectStatus" SET is_default = false
+         WHERE tenant_id = $1 AND object_type = $2 AND id != $3`,
+        [ctx.tenantId, objectType.toLowerCase(), statusId]
+      );
+    }
+
+    const result = await query(
+      `UPDATE "ObjectStatus" SET
+        name = COALESCE($3, name),
+        color = COALESCE($4, color),
+        is_default = COALESCE($5, is_default),
+        is_active = COALESCE($6, is_active),
+        updated_at = NOW()
+      WHERE id = $1 AND tenant_id = $2
+      RETURNING *`,
+      [statusId, ctx.tenantId, name, color, isDefault, isActive]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Status not found' });
+    }
+
+    const row = result.rows[0];
+    return createResponse(200, {
+      id: row.id,
+      objectType: row.object_type,
+      name: row.name,
+      displayOrder: row.display_order,
+      color: row.color,
+      isDefault: row.is_default,
+      isActive: row.is_active,
+    });
+  } catch (error) {
+    console.error('[ObjectStatuses] Failed to update:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update status' });
+  }
+}
+
+/**
+ * Delete a status
+ */
+async function handleDeleteObjectStatus(user, objectType, statusId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(
+      `UPDATE "ObjectStatus" SET is_active = false, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2
+       RETURNING *`,
+      [statusId, ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Status not found' });
+    }
+
+    return createResponse(200, { success: true, message: 'Status deleted' });
+  } catch (error) {
+    console.error('[ObjectStatuses] Failed to delete:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to delete status' });
+  }
+}
+
+/**
+ * Reorder statuses
+ */
+async function handleReorderObjectStatuses(user, objectType, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const { statusIds } = body;
+    if (!Array.isArray(statusIds)) {
+      return createResponse(400, { error: 'Bad Request', message: 'statusIds array required' });
+    }
+
+    for (let i = 0; i < statusIds.length; i++) {
+      await query(
+        `UPDATE "ObjectStatus" SET display_order = $1, updated_at = NOW()
+         WHERE id = $2 AND tenant_id = $3 AND object_type = $4`,
+        [i, statusIds[i], ctx.tenantId, objectType.toLowerCase()]
+      );
+    }
+
+    return createResponse(200, { success: true, message: 'Statuses reordered' });
+  } catch (error) {
+    console.error('[ObjectStatuses] Failed to reorder:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to reorder statuses' });
+  }
+}
+
+// =============================================================================
+// RECORD LAYOUT HANDLERS
+// =============================================================================
+
+/**
+ * Get record layouts for an object type
+ */
+async function handleGetRecordLayouts(user, objectType) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(
+      `SELECT * FROM "ObjectRecordLayout"
+       WHERE tenant_id = $1 AND object_type = $2
+       ORDER BY is_default DESC, name`,
+      [ctx.tenantId, objectType.toLowerCase()]
+    );
+
+    const layouts = result.rows.map(row => ({
+      id: row.id,
+      objectType: row.object_type,
+      name: row.name,
+      layoutType: row.layout_type,
+      teamId: row.team_id,
+      leftSidebarConfig: row.left_sidebar_config || [],
+      middleColumnConfig: row.middle_column_config || { tabs: ['overview', 'activities'] },
+      rightSidebarConfig: row.right_sidebar_config || [],
+      assignedTo: row.assigned_to || [],
+      isDefault: row.is_default,
+      createdBy: row.created_by,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
+    return createResponse(200, { layouts });
+  } catch (error) {
+    console.error('[RecordLayout] Failed to get:', error.message);
+    if (error.code === '42P01') return createResponse(200, { layouts: [] });
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to get layouts' });
+  }
+}
+
+/**
+ * Create a new record layout
+ */
+async function handleCreateRecordLayout(user, objectType, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const {
+      name, layoutType, teamId, leftSidebarConfig, middleColumnConfig,
+      rightSidebarConfig, assignedTo, isDefault
+    } = body;
+
+    if (!name) return createResponse(400, { error: 'Bad Request', message: 'Name is required' });
+
+    // If setting as default, unset other defaults
+    if (isDefault) {
+      await query(
+        `UPDATE "ObjectRecordLayout" SET is_default = false
+         WHERE tenant_id = $1 AND object_type = $2`,
+        [ctx.tenantId, objectType.toLowerCase()]
+      );
+    }
+
+    const result = await query(
+      `INSERT INTO "ObjectRecordLayout" (
+        tenant_id, object_type, name, layout_type, team_id,
+        left_sidebar_config, middle_column_config, right_sidebar_config,
+        assigned_to, is_default, created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING *`,
+      [
+        ctx.tenantId, objectType.toLowerCase(), name, layoutType || 'default', teamId,
+        JSON.stringify(leftSidebarConfig || []),
+        JSON.stringify(middleColumnConfig || { tabs: ['overview', 'activities'] }),
+        JSON.stringify(rightSidebarConfig || []),
+        JSON.stringify(assignedTo || []),
+        isDefault || false, ctx.userId
+      ]
+    );
+
+    const row = result.rows[0];
+    return createResponse(201, {
+      id: row.id,
+      objectType: row.object_type,
+      name: row.name,
+      layoutType: row.layout_type,
+      teamId: row.team_id,
+      leftSidebarConfig: row.left_sidebar_config || [],
+      middleColumnConfig: row.middle_column_config || { tabs: ['overview', 'activities'] },
+      rightSidebarConfig: row.right_sidebar_config || [],
+      assignedTo: row.assigned_to || [],
+      isDefault: row.is_default,
+      createdBy: row.created_by,
+    });
+  } catch (error) {
+    console.error('[RecordLayout] Failed to create:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to create layout' });
+  }
+}
+
+/**
+ * Update a record layout
+ */
+async function handleUpdateRecordLayout(user, objectType, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const {
+      id, name, layoutType, teamId, leftSidebarConfig, middleColumnConfig,
+      rightSidebarConfig, assignedTo, isDefault
+    } = body;
+
+    if (!id) return createResponse(400, { error: 'Bad Request', message: 'Layout ID required' });
+
+    // If setting as default, unset other defaults
+    if (isDefault) {
+      await query(
+        `UPDATE "ObjectRecordLayout" SET is_default = false
+         WHERE tenant_id = $1 AND object_type = $2 AND id != $3`,
+        [ctx.tenantId, objectType.toLowerCase(), id]
+      );
+    }
+
+    const result = await query(
+      `UPDATE "ObjectRecordLayout" SET
+        name = COALESCE($3, name),
+        layout_type = COALESCE($4, layout_type),
+        team_id = $5,
+        left_sidebar_config = COALESCE($6, left_sidebar_config),
+        middle_column_config = COALESCE($7, middle_column_config),
+        right_sidebar_config = COALESCE($8, right_sidebar_config),
+        assigned_to = COALESCE($9, assigned_to),
+        is_default = COALESCE($10, is_default),
+        updated_at = NOW()
+      WHERE id = $1 AND tenant_id = $2
+      RETURNING *`,
+      [
+        id, ctx.tenantId, name, layoutType, teamId,
+        leftSidebarConfig ? JSON.stringify(leftSidebarConfig) : null,
+        middleColumnConfig ? JSON.stringify(middleColumnConfig) : null,
+        rightSidebarConfig ? JSON.stringify(rightSidebarConfig) : null,
+        assignedTo ? JSON.stringify(assignedTo) : null,
+        isDefault
+      ]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Layout not found' });
+    }
+
+    const row = result.rows[0];
+    return createResponse(200, {
+      id: row.id,
+      objectType: row.object_type,
+      name: row.name,
+      layoutType: row.layout_type,
+      teamId: row.team_id,
+      leftSidebarConfig: row.left_sidebar_config || [],
+      middleColumnConfig: row.middle_column_config || { tabs: ['overview', 'activities'] },
+      rightSidebarConfig: row.right_sidebar_config || [],
+      assignedTo: row.assigned_to || [],
+      isDefault: row.is_default,
+    });
+  } catch (error) {
+    console.error('[RecordLayout] Failed to update:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update layout' });
+  }
+}
+
+/**
+ * Reset record layout to default
+ */
+async function handleResetRecordLayout(user, objectType) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Delete all custom layouts and keep only default
+    await query(
+      `DELETE FROM "ObjectRecordLayout"
+       WHERE tenant_id = $1 AND object_type = $2 AND layout_type != 'default'`,
+      [ctx.tenantId, objectType.toLowerCase()]
+    );
+
+    // Reset default layout to system defaults
+    await query(
+      `UPDATE "ObjectRecordLayout" SET
+        left_sidebar_config = '[]',
+        middle_column_config = '{"tabs": ["overview", "activities"]}',
+        right_sidebar_config = '[]',
+        assigned_to = '[]',
+        updated_at = NOW()
+      WHERE tenant_id = $1 AND object_type = $2 AND layout_type = 'default'`,
+      [ctx.tenantId, objectType.toLowerCase()]
+    );
+
+    return createResponse(200, { success: true, message: 'Layout reset to default' });
+  } catch (error) {
+    console.error('[RecordLayout] Failed to reset:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to reset layout' });
+  }
+}
+
+// =============================================================================
+// PREVIEW LAYOUT HANDLERS
+// =============================================================================
+
+/**
+ * Get preview layouts for an object type
+ */
+async function handleGetPreviewLayouts(user, objectType) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(
+      `SELECT * FROM "ObjectPreviewLayout"
+       WHERE tenant_id = $1 AND object_type = $2
+       ORDER BY is_default DESC, name`,
+      [ctx.tenantId, objectType.toLowerCase()]
+    );
+
+    const layouts = result.rows.map(row => ({
+      id: row.id,
+      objectType: row.object_type,
+      name: row.name,
+      properties: row.properties || [],
+      showQuickInfo: row.show_quick_info,
+      showQuickActions: row.show_quick_actions,
+      showRecentActivity: row.show_recent_activity,
+      assignedTo: row.assigned_to || [],
+      isDefault: row.is_default,
+      createdBy: row.created_by,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
+    return createResponse(200, { layouts });
+  } catch (error) {
+    console.error('[PreviewLayout] Failed to get:', error.message);
+    if (error.code === '42P01') return createResponse(200, { layouts: [] });
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to get layouts' });
+  }
+}
+
+/**
+ * Update preview layout
+ */
+async function handleUpdatePreviewLayout(user, objectType, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const {
+      id, name, properties, showQuickInfo, showQuickActions,
+      showRecentActivity, assignedTo, isDefault
+    } = body;
+
+    if (id) {
+      // Update existing layout
+      const result = await query(
+        `UPDATE "ObjectPreviewLayout" SET
+          name = COALESCE($3, name),
+          properties = COALESCE($4, properties),
+          show_quick_info = COALESCE($5, show_quick_info),
+          show_quick_actions = COALESCE($6, show_quick_actions),
+          show_recent_activity = COALESCE($7, show_recent_activity),
+          assigned_to = COALESCE($8, assigned_to),
+          is_default = COALESCE($9, is_default),
+          updated_at = NOW()
+        WHERE id = $1 AND tenant_id = $2
+        RETURNING *`,
+        [
+          id, ctx.tenantId, name,
+          properties ? JSON.stringify(properties) : null,
+          showQuickInfo, showQuickActions, showRecentActivity,
+          assignedTo ? JSON.stringify(assignedTo) : null,
+          isDefault
+        ]
+      );
+
+      if (result.rows.length === 0) {
+        return createResponse(404, { error: 'Not Found', message: 'Layout not found' });
+      }
+
+      const row = result.rows[0];
+      return createResponse(200, {
+        id: row.id,
+        objectType: row.object_type,
+        name: row.name,
+        properties: row.properties || [],
+        showQuickInfo: row.show_quick_info,
+        showQuickActions: row.show_quick_actions,
+        showRecentActivity: row.show_recent_activity,
+        assignedTo: row.assigned_to || [],
+        isDefault: row.is_default,
+      });
+    } else {
+      // Create new layout
+      if (!name) return createResponse(400, { error: 'Bad Request', message: 'Name is required' });
+
+      const result = await query(
+        `INSERT INTO "ObjectPreviewLayout" (
+          tenant_id, object_type, name, properties, show_quick_info,
+          show_quick_actions, show_recent_activity, assigned_to, is_default, created_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        RETURNING *`,
+        [
+          ctx.tenantId, objectType.toLowerCase(), name,
+          JSON.stringify(properties || []),
+          showQuickInfo !== false, showQuickActions !== false, showRecentActivity || false,
+          JSON.stringify(assignedTo || []), isDefault || false, ctx.userId
+        ]
+      );
+
+      const row = result.rows[0];
+      return createResponse(201, {
+        id: row.id,
+        objectType: row.object_type,
+        name: row.name,
+        properties: row.properties || [],
+        showQuickInfo: row.show_quick_info,
+        showQuickActions: row.show_quick_actions,
+        showRecentActivity: row.show_recent_activity,
+        assignedTo: row.assigned_to || [],
+        isDefault: row.is_default,
+      });
+    }
+  } catch (error) {
+    console.error('[PreviewLayout] Failed to update:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update layout' });
+  }
+}
+
+// =============================================================================
+// INDEX SETTINGS HANDLERS
+// =============================================================================
+
+/**
+ * Get index settings for an object type
+ */
+async function handleGetIndexSettings(user, objectType) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(
+      `SELECT * FROM "ObjectIndexSettings"
+       WHERE tenant_id = $1 AND object_type = $2`,
+      [ctx.tenantId, objectType.toLowerCase()]
+    );
+
+    if (result.rows.length === 0) {
+      // Return default settings
+      return createResponse(200, {
+        objectType: objectType.toLowerCase(),
+        defaultColumns: [],
+        defaultSortColumn: 'created_at',
+        defaultSortDirection: 'desc',
+        defaultFilters: {},
+        rowsPerPage: 25,
+        enableBulkActions: true,
+        enableInlineEditing: false,
+        enableRowSelection: true,
+      });
+    }
+
+    const row = result.rows[0];
+    return createResponse(200, {
+      id: row.id,
+      objectType: row.object_type,
+      defaultColumns: row.default_columns || [],
+      defaultSortColumn: row.default_sort_column,
+      defaultSortDirection: row.default_sort_direction,
+      defaultFilters: row.default_filters || {},
+      rowsPerPage: row.rows_per_page,
+      enableBulkActions: row.enable_bulk_actions,
+      enableInlineEditing: row.enable_inline_editing,
+      enableRowSelection: row.enable_row_selection,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    });
+  } catch (error) {
+    console.error('[IndexSettings] Failed to get:', error.message);
+    if (error.code === '42P01') {
+      return createResponse(200, {
+        objectType: objectType.toLowerCase(),
+        defaultColumns: [],
+        defaultSortColumn: 'created_at',
+        defaultSortDirection: 'desc',
+        rowsPerPage: 25,
+      });
+    }
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to get index settings' });
+  }
+}
+
+/**
+ * Update index settings
+ */
+async function handleUpdateIndexSettings(user, objectType, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const {
+      defaultColumns, defaultSortColumn, defaultSortDirection, defaultFilters,
+      rowsPerPage, enableBulkActions, enableInlineEditing, enableRowSelection
+    } = body;
+
+    const result = await query(
+      `INSERT INTO "ObjectIndexSettings" (
+        tenant_id, object_type, default_columns, default_sort_column,
+        default_sort_direction, default_filters, rows_per_page,
+        enable_bulk_actions, enable_inline_editing, enable_row_selection
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      ON CONFLICT (tenant_id, object_type) DO UPDATE SET
+        default_columns = COALESCE(EXCLUDED.default_columns, "ObjectIndexSettings".default_columns),
+        default_sort_column = COALESCE(EXCLUDED.default_sort_column, "ObjectIndexSettings".default_sort_column),
+        default_sort_direction = COALESCE(EXCLUDED.default_sort_direction, "ObjectIndexSettings".default_sort_direction),
+        default_filters = COALESCE(EXCLUDED.default_filters, "ObjectIndexSettings".default_filters),
+        rows_per_page = COALESCE(EXCLUDED.rows_per_page, "ObjectIndexSettings".rows_per_page),
+        enable_bulk_actions = COALESCE(EXCLUDED.enable_bulk_actions, "ObjectIndexSettings".enable_bulk_actions),
+        enable_inline_editing = COALESCE(EXCLUDED.enable_inline_editing, "ObjectIndexSettings".enable_inline_editing),
+        enable_row_selection = COALESCE(EXCLUDED.enable_row_selection, "ObjectIndexSettings".enable_row_selection),
+        updated_at = NOW()
+      RETURNING *`,
+      [
+        ctx.tenantId, objectType.toLowerCase(),
+        JSON.stringify(defaultColumns || []),
+        defaultSortColumn || 'created_at',
+        defaultSortDirection || 'desc',
+        JSON.stringify(defaultFilters || {}),
+        rowsPerPage || 25,
+        enableBulkActions !== false,
+        enableInlineEditing || false,
+        enableRowSelection !== false
+      ]
+    );
+
+    const row = result.rows[0];
+    return createResponse(200, {
+      id: row.id,
+      objectType: row.object_type,
+      defaultColumns: row.default_columns || [],
+      defaultSortColumn: row.default_sort_column,
+      defaultSortDirection: row.default_sort_direction,
+      defaultFilters: row.default_filters || {},
+      rowsPerPage: row.rows_per_page,
+      enableBulkActions: row.enable_bulk_actions,
+      enableInlineEditing: row.enable_inline_editing,
+      enableRowSelection: row.enable_row_selection,
+    });
+  } catch (error) {
+    console.error('[IndexSettings] Failed to update:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update index settings' });
+  }
+}
+
+// =============================================================================
+// SAVED VIEWS HANDLERS
+// =============================================================================
+
+/**
+ * Get saved views for an object type
+ */
+async function handleGetSavedViews(user, objectType) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(
+      `SELECT sv.*, u.first_name, u.last_name, u.email
+       FROM "SavedView" sv
+       LEFT JOIN "User" u ON sv.owner_id = u.id
+       WHERE sv.tenant_id = $1 AND sv.object_type = $2
+       ORDER BY sv.is_admin_promoted DESC, sv.is_default DESC, sv.name`,
+      [ctx.tenantId, objectType.toLowerCase()]
+    );
+
+    const views = result.rows.map(row => ({
+      id: row.id,
+      objectType: row.object_type,
+      name: row.name,
+      ownerId: row.owner_id,
+      ownerName: row.first_name ? `${row.first_name} ${row.last_name || ''}`.trim() : row.email,
+      isDefault: row.is_default,
+      isAdminPromoted: row.is_admin_promoted,
+      columns: row.columns || [],
+      filters: row.filters || {},
+      sortColumn: row.sort_column,
+      sortDirection: row.sort_direction,
+      assignedTo: row.assigned_to || [],
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
+    return createResponse(200, { views });
+  } catch (error) {
+    console.error('[SavedViews] Failed to get:', error.message);
+    if (error.code === '42P01') return createResponse(200, { views: [] });
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to get saved views' });
+  }
+}
+
+/**
+ * Create a saved view
+ */
+async function handleCreateSavedView(user, objectType, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const { name, columns, filters, sortColumn, sortDirection, assignedTo, isDefault } = body;
+    if (!name) return createResponse(400, { error: 'Bad Request', message: 'Name is required' });
+
+    // If setting as default, unset other defaults for this user
+    if (isDefault) {
+      await query(
+        `UPDATE "SavedView" SET is_default = false
+         WHERE tenant_id = $1 AND object_type = $2 AND owner_id = $3`,
+        [ctx.tenantId, objectType.toLowerCase(), ctx.userId]
+      );
+    }
+
+    const result = await query(
+      `INSERT INTO "SavedView" (
+        tenant_id, object_type, name, owner_id, columns, filters,
+        sort_column, sort_direction, assigned_to, is_default
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      RETURNING *`,
+      [
+        ctx.tenantId, objectType.toLowerCase(), name, ctx.userId,
+        JSON.stringify(columns || []), JSON.stringify(filters || {}),
+        sortColumn, sortDirection || 'asc',
+        JSON.stringify(assignedTo || []), isDefault || false
+      ]
+    );
+
+    const row = result.rows[0];
+    return createResponse(201, {
+      id: row.id,
+      objectType: row.object_type,
+      name: row.name,
+      ownerId: row.owner_id,
+      isDefault: row.is_default,
+      isAdminPromoted: row.is_admin_promoted,
+      columns: row.columns || [],
+      filters: row.filters || {},
+      sortColumn: row.sort_column,
+      sortDirection: row.sort_direction,
+      assignedTo: row.assigned_to || [],
+    });
+  } catch (error) {
+    console.error('[SavedViews] Failed to create:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to create saved view' });
+  }
+}
+
+/**
+ * Update a saved view
+ */
+async function handleUpdateSavedView(user, objectType, viewId, body) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const { name, columns, filters, sortColumn, sortDirection, assignedTo, isDefault } = body;
+
+    // Verify ownership or admin
+    const checkResult = await query(
+      `SELECT owner_id FROM "SavedView" WHERE id = $1 AND tenant_id = $2`,
+      [viewId, ctx.tenantId]
+    );
+
+    if (checkResult.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'View not found' });
+    }
+
+    // For now allow any user to edit any view - could add permission check here
+
+    // If setting as default, unset other defaults
+    if (isDefault) {
+      await query(
+        `UPDATE "SavedView" SET is_default = false
+         WHERE tenant_id = $1 AND object_type = $2 AND owner_id = $3 AND id != $4`,
+        [ctx.tenantId, objectType.toLowerCase(), ctx.userId, viewId]
+      );
+    }
+
+    const result = await query(
+      `UPDATE "SavedView" SET
+        name = COALESCE($3, name),
+        columns = COALESCE($4, columns),
+        filters = COALESCE($5, filters),
+        sort_column = COALESCE($6, sort_column),
+        sort_direction = COALESCE($7, sort_direction),
+        assigned_to = COALESCE($8, assigned_to),
+        is_default = COALESCE($9, is_default),
+        updated_at = NOW()
+      WHERE id = $1 AND tenant_id = $2
+      RETURNING *`,
+      [
+        viewId, ctx.tenantId, name,
+        columns ? JSON.stringify(columns) : null,
+        filters ? JSON.stringify(filters) : null,
+        sortColumn, sortDirection,
+        assignedTo ? JSON.stringify(assignedTo) : null,
+        isDefault
+      ]
+    );
+
+    const row = result.rows[0];
+    return createResponse(200, {
+      id: row.id,
+      objectType: row.object_type,
+      name: row.name,
+      ownerId: row.owner_id,
+      isDefault: row.is_default,
+      isAdminPromoted: row.is_admin_promoted,
+      columns: row.columns || [],
+      filters: row.filters || {},
+      sortColumn: row.sort_column,
+      sortDirection: row.sort_direction,
+      assignedTo: row.assigned_to || [],
+    });
+  } catch (error) {
+    console.error('[SavedViews] Failed to update:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to update saved view' });
+  }
+}
+
+/**
+ * Delete a saved view
+ */
+async function handleDeleteSavedView(user, objectType, viewId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    const result = await query(
+      `DELETE FROM "SavedView" WHERE id = $1 AND tenant_id = $2 RETURNING id`,
+      [viewId, ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'View not found' });
+    }
+
+    return createResponse(200, { success: true, message: 'View deleted' });
+  } catch (error) {
+    console.error('[SavedViews] Failed to delete:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to delete saved view' });
+  }
+}
+
+/**
+ * Set a view as default
+ */
+async function handleSetDefaultView(user, objectType, viewId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Unset other defaults
+    await query(
+      `UPDATE "SavedView" SET is_default = false
+       WHERE tenant_id = $1 AND object_type = $2 AND owner_id = $3`,
+      [ctx.tenantId, objectType.toLowerCase(), ctx.userId]
+    );
+
+    // Set this view as default
+    const result = await query(
+      `UPDATE "SavedView" SET is_default = true, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2
+       RETURNING *`,
+      [viewId, ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'View not found' });
+    }
+
+    return createResponse(200, { success: true, message: 'View set as default' });
+  } catch (error) {
+    console.error('[SavedViews] Failed to set default:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to set default view' });
+  }
+}
+
+/**
+ * Promote a view (admin only - makes visible to all users)
+ */
+async function handlePromoteSavedView(user, objectType, viewId) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // TODO: Add admin permission check
+
+    const result = await query(
+      `UPDATE "SavedView" SET is_admin_promoted = true, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2
+       RETURNING *`,
+      [viewId, ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'View not found' });
+    }
+
+    return createResponse(200, { success: true, message: 'View promoted' });
+  } catch (error) {
+    console.error('[SavedViews] Failed to promote:', error.message);
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to promote view' });
+  }
+}
+
+// =============================================================================
+// OBJECT PROPERTIES HANDLER
+// =============================================================================
+
+/**
+ * Get available properties for an object type
+ */
+async function handleGetObjectProperties(user, objectType) {
+  try {
+    await getPoolAsync();
+    const ctx = await getUserTenantContext(user.id);
+    if (!ctx.tenantId) return createResponse(400, { error: 'Bad Request', message: 'No tenant context' });
+
+    // Get custom properties for this object type
+    const result = await query(
+      `SELECT * FROM "Property"
+       WHERE tenant_id = $1 AND entity_type = $2 AND is_active = true
+       ORDER BY display_order, name`,
+      [ctx.tenantId, objectType.toLowerCase()]
+    );
+
+    // Define system properties for each object type
+    const systemProperties = getSystemProperties(objectType.toLowerCase());
+
+    const customProperties = result.rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      label: row.label,
+      type: row.property_type,
+      isSystem: false,
+      isRequired: row.is_required,
+      options: row.options || [],
+      displayOrder: row.display_order,
+    }));
+
+    return createResponse(200, {
+      properties: [...systemProperties, ...customProperties],
+      systemProperties,
+      customProperties,
+    });
+  } catch (error) {
+    console.error('[ObjectProperties] Failed to get:', error.message);
+    if (error.code === '42P01') {
+      return createResponse(200, {
+        properties: getSystemProperties(objectType.toLowerCase()),
+        systemProperties: getSystemProperties(objectType.toLowerCase()),
+        customProperties: [],
+      });
+    }
+    return createResponse(500, { error: 'Internal Server Error', message: 'Failed to get properties' });
+  }
+}
+
+/**
+ * Get system properties for an object type
+ */
+function getSystemProperties(objectType) {
+  const commonProps = [
+    { id: 'sys_created_at', name: 'created_at', label: 'Created At', type: 'datetime', isSystem: true },
+    { id: 'sys_updated_at', name: 'updated_at', label: 'Updated At', type: 'datetime', isSystem: true },
+  ];
+
+  const typeProps = {
+    owners: [
+      { id: 'sys_first_name', name: 'first_name', label: 'First Name', type: 'text', isSystem: true },
+      { id: 'sys_last_name', name: 'last_name', label: 'Last Name', type: 'text', isSystem: true },
+      { id: 'sys_email', name: 'email', label: 'Email', type: 'email', isSystem: true },
+      { id: 'sys_phone', name: 'phone', label: 'Phone', type: 'phone', isSystem: true },
+      { id: 'sys_address', name: 'address', label: 'Address', type: 'text', isSystem: true },
+    ],
+    pets: [
+      { id: 'sys_name', name: 'name', label: 'Name', type: 'text', isSystem: true },
+      { id: 'sys_species', name: 'species', label: 'Species', type: 'select', isSystem: true },
+      { id: 'sys_breed', name: 'breed', label: 'Breed', type: 'text', isSystem: true },
+      { id: 'sys_weight', name: 'weight', label: 'Weight', type: 'number', isSystem: true },
+      { id: 'sys_birthdate', name: 'birthdate', label: 'Birthdate', type: 'date', isSystem: true },
+      { id: 'sys_gender', name: 'gender', label: 'Gender', type: 'select', isSystem: true },
+    ],
+    bookings: [
+      { id: 'sys_check_in', name: 'check_in_date', label: 'Check In', type: 'datetime', isSystem: true },
+      { id: 'sys_check_out', name: 'check_out_date', label: 'Check Out', type: 'datetime', isSystem: true },
+      { id: 'sys_status', name: 'status', label: 'Status', type: 'select', isSystem: true },
+      { id: 'sys_total', name: 'total_price', label: 'Total Price', type: 'currency', isSystem: true },
+    ],
+    services: [
+      { id: 'sys_name', name: 'name', label: 'Name', type: 'text', isSystem: true },
+      { id: 'sys_description', name: 'description', label: 'Description', type: 'textarea', isSystem: true },
+      { id: 'sys_price', name: 'price', label: 'Price', type: 'currency', isSystem: true },
+      { id: 'sys_duration', name: 'duration', label: 'Duration', type: 'number', isSystem: true },
+    ],
+    facilities: [
+      { id: 'sys_name', name: 'name', label: 'Name', type: 'text', isSystem: true },
+      { id: 'sys_capacity', name: 'capacity', label: 'Capacity', type: 'number', isSystem: true },
+      { id: 'sys_type', name: 'type', label: 'Type', type: 'select', isSystem: true },
+    ],
+    packages: [
+      { id: 'sys_name', name: 'name', label: 'Name', type: 'text', isSystem: true },
+      { id: 'sys_description', name: 'description', label: 'Description', type: 'textarea', isSystem: true },
+      { id: 'sys_price', name: 'price', label: 'Price', type: 'currency', isSystem: true },
+    ],
+    invoices: [
+      { id: 'sys_number', name: 'invoice_number', label: 'Invoice Number', type: 'text', isSystem: true },
+      { id: 'sys_amount', name: 'amount', label: 'Amount', type: 'currency', isSystem: true },
+      { id: 'sys_status', name: 'status', label: 'Status', type: 'select', isSystem: true },
+      { id: 'sys_due_date', name: 'due_date', label: 'Due Date', type: 'date', isSystem: true },
+    ],
+    payments: [
+      { id: 'sys_amount', name: 'amount', label: 'Amount', type: 'currency', isSystem: true },
+      { id: 'sys_method', name: 'method', label: 'Method', type: 'select', isSystem: true },
+      { id: 'sys_status', name: 'status', label: 'Status', type: 'select', isSystem: true },
+    ],
+    tickets: [
+      { id: 'sys_title', name: 'title', label: 'Title', type: 'text', isSystem: true },
+      { id: 'sys_description', name: 'description', label: 'Description', type: 'textarea', isSystem: true },
+      { id: 'sys_priority', name: 'priority', label: 'Priority', type: 'select', isSystem: true },
+      { id: 'sys_status', name: 'status', label: 'Status', type: 'select', isSystem: true },
+    ],
+  };
+
+  return [...(typeProps[objectType] || []), ...commonProps];
 }

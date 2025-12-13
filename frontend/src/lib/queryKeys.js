@@ -47,4 +47,15 @@ export const queryKeys = {
     unreadCount: (tenantKey) => [tenantKey, 'notifications', 'unread-count'],
     list: (tenantKey, params = {}) => [tenantKey, 'notifications', 'list', params],
   },
+  // Object Settings
+  objectSettings: (tenantKey, objectType) => [tenantKey, 'objectSettings', objectType],
+  objectAssociations: (tenantKey, objectType) => [tenantKey, 'objectAssociations', objectType],
+  objectPipelines: (tenantKey, objectType) => [tenantKey, 'objectPipelines', objectType],
+  pipelineStages: (tenantKey, objectType, pipelineId) => [tenantKey, 'pipelineStages', objectType, pipelineId],
+  objectStatuses: (tenantKey, objectType) => [tenantKey, 'objectStatuses', objectType],
+  recordLayouts: (tenantKey, objectType) => [tenantKey, 'recordLayouts', objectType],
+  previewLayouts: (tenantKey, objectType) => [tenantKey, 'previewLayouts', objectType],
+  indexSettings: (tenantKey, objectType) => [tenantKey, 'indexSettings', objectType],
+  savedViews: (tenantKey, objectType) => [tenantKey, 'savedViews', objectType],
+  objectProperties: (tenantKey, objectType) => [tenantKey, 'objectProperties', objectType],
 };
