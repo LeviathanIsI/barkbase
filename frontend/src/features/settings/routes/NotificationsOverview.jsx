@@ -67,7 +67,7 @@ const NotificationsOverview = () => {
   };
 
   return (
-    <div className="space-y-4 max-w-6xl">
+    <div className="space-y-4">
       {/* Page Header */}
       <header className="flex items-start justify-between gap-4">
         <div>

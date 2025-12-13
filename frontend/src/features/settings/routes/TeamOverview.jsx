@@ -178,7 +178,7 @@ const TeamOverview = () => {
   }
 
   return (
-    <div className="space-y-4 max-w-6xl">
+    <div className="space-y-4">
       {/* Header */}
       <header className="flex items-center justify-between gap-4">
         <div>
