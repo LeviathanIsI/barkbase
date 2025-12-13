@@ -59,6 +59,7 @@ export const canonicalEndpoints = {
     list: '/api/v1/operations/schedules',
     staff: '/api/v1/operations/schedules/staff',
     detail: build('/api/v1/operations/schedules/{id}'),
+    capacity: '/api/v1/operations/schedules/capacity',
   },
   tasks: {
     list: '/api/v1/operations/tasks',
@@ -272,9 +273,17 @@ export const canonicalEndpoints = {
   paymentSettings: {
     get: '/api/v1/settings/payments',
     update: '/api/v1/settings/payments',
+    // Stripe
     testStripe: '/api/v1/settings/payments/test-stripe',
     stripeStatus: '/api/v1/settings/payments/stripe-status',
     disconnectStripe: '/api/v1/settings/payments/disconnect-stripe',
+    // Square
+    testSquare: '/api/v1/settings/payments/test-square',
+    // PayPal
+    testPaypal: '/api/v1/settings/payments/test-paypal',
+    // Generic (multi-processor)
+    test: '/api/v1/settings/payments/test',
+    disconnect: '/api/v1/settings/payments/disconnect',
   },
   // Booking Settings API - /api/v1/settings/booking/*
   bookingSettings: {

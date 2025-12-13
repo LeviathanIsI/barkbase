@@ -1,5 +1,6 @@
 import apiClient from "@/lib/apiClient";
 import { useQuery } from "@tanstack/react-query";
+import { canonicalEndpoints } from "@/lib/canonicalEndpoints";
 
 /**
  * Fetch today's schedule/bookings
@@ -7,12 +8,12 @@ import { useQuery } from "@tanstack/react-query";
  */
 export function useTodaysSchedule(date = new Date()) {
   const dateStr = date.toISOString().split('T')[0];
-  
+
   return useQuery({
     queryKey: ["schedule", dateStr],
     queryFn: async () => {
       const response = await apiClient.get(
-        `/api/v1/schedule?from=${dateStr}&to=${dateStr}`
+        `${canonicalEndpoints.schedule.list}?from=${dateStr}&to=${dateStr}`
       );
       return response.data || [];
     },
@@ -28,7 +29,7 @@ export function useSchedule(startDate, endDate) {
     queryKey: ["schedule", startDate, endDate],
     queryFn: async () => {
       const response = await apiClient.get(
-        `/api/v1/schedule?from=${startDate}&to=${endDate}`
+        `${canonicalEndpoints.schedule.list}?from=${startDate}&to=${endDate}`
       );
       return response.data || [];
     },
@@ -44,7 +45,7 @@ export function useCapacity(startDate, endDate) {
   return useQuery({
     queryKey: ["schedule", "capacity", startDate, endDate],
     queryFn: async () => {
-      const response = await apiClient.get('/api/v1/schedule/capacity', {
+      const response = await apiClient.get(canonicalEndpoints.schedule.capacity, {
         params: { startDate, endDate }
       });
       // apiClient.get returns { data: ... }, so extract data

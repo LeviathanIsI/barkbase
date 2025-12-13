@@ -1,16 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
+import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 
 /**
  * Get capacity data for a date range
  */
 export const useCapacityQuery = (startDate, endDate) => {
-  
+
   return useQuery({
     queryKey: ['schedule', 'capacity', startDate, endDate],
     queryFn: async () => {
       try {
-        const response = await apiClient.get('/api/v1/schedule/capacity', {
+        const response = await apiClient.get(canonicalEndpoints.schedule.capacity, {
           params: { startDate, endDate }
         });
         // apiClient.get returns { data: ... }, so we need to extract data
