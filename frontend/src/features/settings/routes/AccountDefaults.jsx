@@ -14,7 +14,7 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
-import Card from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import Button from '@/components/ui/Button';
@@ -23,20 +23,19 @@ import Dialog from '@/components/ui/Dialog';
 import Calendar from '@/components/ui/Calendar';
 import Select from '@/components/ui/Select';
 import LoadingState from '@/components/ui/LoadingState';
-import SettingsPage from '../components/SettingsPage';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import { apiClient, uploadClient } from '@/lib/apiClient';
 import { useTenantStore } from '@/stores/tenant';
 
 const DAY_ORDER = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const DAY_LABEL = {
-  monday: 'Monday',
-  tuesday: 'Tuesday',
-  wednesday: 'Wednesday',
-  thursday: 'Thursday',
-  friday: 'Friday',
-  saturday: 'Saturday',
-  sunday: 'Sunday',
+  monday: 'Mon',
+  tuesday: 'Tue',
+  wednesday: 'Wed',
+  thursday: 'Thu',
+  friday: 'Fri',
+  saturday: 'Sat',
+  sunday: 'Sun',
 };
 
 const DEFAULT_HOURS = {
@@ -197,32 +196,20 @@ const formSchema = z.object({
 });
 
 const TAB_ITEMS = [
-  { recordId: 'business',
-    title: 'Business Profile',
-    description: 'Logo, contact information, and on-brand details shared with customers.',
-  },
-  { recordId: 'scheduling',
-    title: 'Scheduling & Availability',
-    description: 'Daily operating hours and holiday closures that drive booking rules.',
-  },
-  { recordId: 'regional',
-    title: 'Locale & Formatting',
-    description: 'Time zone, locale, and formatting preferences for staff and owners.',
-  },
-  { recordId: 'billing',
-    title: 'Currency & Billing',
-    description: 'Currencies offered to customers and default billing preferences.',
-  },
+  { recordId: 'business', title: 'Business Profile' },
+  { recordId: 'scheduling', title: 'Scheduling' },
+  { recordId: 'regional', title: 'Locale' },
+  { recordId: 'billing', title: 'Currency' },
 ];
 
 const TIME_ZONES = [
-  { value: 'America/New_York', label: 'Eastern (America/New_York)' },
-  { value: 'America/Chicago', label: 'Central (America/Chicago)' },
-  { value: 'America/Denver', label: 'Mountain (America/Denver)' },
-  { value: 'America/Los_Angeles', label: 'Pacific (America/Los_Angeles)' },
-  { value: 'America/Phoenix', label: 'Arizona (America/Phoenix)' },
-  { value: 'America/Anchorage', label: 'Alaska (America/Anchorage)' },
-  { value: 'Pacific/Honolulu', label: 'Hawaii (Pacific/Honolulu)' },
+  { value: 'America/New_York', label: 'Eastern (New York)' },
+  { value: 'America/Chicago', label: 'Central (Chicago)' },
+  { value: 'America/Denver', label: 'Mountain (Denver)' },
+  { value: 'America/Los_Angeles', label: 'Pacific (Los Angeles)' },
+  { value: 'America/Phoenix', label: 'Arizona (Phoenix)' },
+  { value: 'America/Anchorage', label: 'Alaska (Anchorage)' },
+  { value: 'Pacific/Honolulu', label: 'Hawaii (Honolulu)' },
   { value: 'Europe/London', label: 'Europe/London' },
   { value: 'Europe/Berlin', label: 'Europe/Berlin' },
   { value: 'Australia/Sydney', label: 'Australia/Sydney' },
@@ -230,13 +217,13 @@ const TIME_ZONES = [
 ];
 
 const DATE_FORMATS = [
-  { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY (12/31/2025)' },
-  { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY (31/12/2025)' },
-  { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD (2025-12-31)' },
+  { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY' },
+  { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY' },
+  { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD' },
 ];
 
 const CURRENCY_OPTIONS = [
-  { value: 'USD', label: 'USD - United States Dollar' },
+  { value: 'USD', label: 'USD - US Dollar' },
   { value: 'CAD', label: 'CAD - Canadian Dollar' },
   { value: 'EUR', label: 'EUR - Euro' },
   { value: 'GBP', label: 'GBP - British Pound' },
@@ -245,8 +232,8 @@ const CURRENCY_OPTIONS = [
 ];
 
 const TIME_FORMATS = [
-  { value: '12-hour', label: '12-hour (e.g., 4:30 PM)' },
-  { value: '24-hour', label: '24-hour (e.g., 16:30)' },
+  { value: '12-hour', label: '12-hour' },
+  { value: '24-hour', label: '24-hour' },
 ];
 
 const WEEK_START_OPTIONS = [
@@ -403,27 +390,19 @@ const formatHolidayRange = (start, end) => {
     const startDate = parseISO(start);
     const endDate = end ? parseISO(end) : startDate;
     if (isAfter(startDate, endDate)) {
-      return format(startDate, 'PPP');
+      return format(startDate, 'MMM d, yyyy');
     }
     if (startDate.getTime() === endDate.getTime()) {
-      return format(startDate, 'PPP');
+      return format(startDate, 'MMM d, yyyy');
     }
-    return `${format(startDate, 'PPP')} - ${format(endDate, 'PPP')}`;
+    return `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d, yyyy')}`;
   } catch {
     return start;
   }
 };
 
-// Removed inline Pill component - now using Badge from @/components/ui/Badge
+// ===== SECTION COMPONENTS =====
 
-const Subheading = ({ title, description }) => (
-  <div className="space-y-1">
-    <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{title}</h3>
-    {description ? <p className="text-sm text-gray-600 dark:text-text-secondary">{description}</p> : null}
-  </div>
-);
-
-// Local LoadingState removed - using shared @/components/ui/LoadingState
 const BusinessSection = ({
   register,
   control,
@@ -432,121 +411,120 @@ const BusinessSection = ({
   onLogoUpload,
   isLogoUploading,
 }) => (
-  <div className="space-y-6">
-    <Card
-      title="Brand Identity"
-      description="Update the details that appear on invoices, booking emails, and the customer portal."
-    >
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Input
-              label="Business Name"
-              placeholder="Pine Ridge Kennels"
-              error={errors.businessInfo?.name?.message}
-              {...register('businessInfo.name')}
-            />
-            <Input
-              label="Tax ID / EIN"
-              placeholder="12-3456789"
-              helper="For invoices and legal documents"
-              error={errors.businessInfo?.taxId?.message}
-              {...register('businessInfo.taxId')}
-            />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Controller
-              name="businessInfo.phone"
-              control={control}
-              render={({ field }) => (
-                <Input
-                  label="Business Phone"
-                  placeholder="(555) 123-4567"
-                  value={field.value}
-                  onChange={(event) => field.onChange(event.target.value)}
-                  error={errors.businessInfo?.phone?.message}
-                />
-              )}
-            />
-            <Input
-              label="Business Email"
-              type="email"
-              placeholder="hello@pineridgekennels.com"
-              error={errors.businessInfo?.email?.message}
-              {...register('businessInfo.email')}
-            />
-          </div>
+  <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+    {/* Left Column - Business Info */}
+    <div className="lg:col-span-3">
+      <Card className="p-4">
+        <h3 className="text-sm font-semibold text-text mb-3">Business Details</h3>
+        <div className="grid gap-3 sm:grid-cols-2">
           <Input
-            label="Website"
-            placeholder="yourkennel.com"
-            error={errors.businessInfo?.website?.message}
-            {...register('businessInfo.website')}
+            label="Business Name"
+            placeholder="Pine Ridge Kennels"
+            error={errors.businessInfo?.name?.message}
+            {...register('businessInfo.name')}
           />
-          <Textarea
-            label="Customer-facing Notes"
-            helper="Optional summary that appears on booking confirmations and owner receipts."
-            rows={4}
-            {...register('businessInfo.notes')}
+          <Input
+            label="Tax ID / EIN"
+            placeholder="12-3456789"
+            error={errors.businessInfo?.taxId?.message}
+            {...register('businessInfo.taxId')}
           />
-        </div>
-        <div className="rounded-lg border border-gray-200 dark:border-surface-border bg-gray-50 dark:bg-surface-secondary p-4">
-          <Subheading title="Logo" description="Square images work best. We crop and optimize for email and PDF output." />
-          <div className="mt-4 flex flex-col items-center gap-3">
-            <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-lg border border-gray-200 dark:border-surface-border bg-white dark:bg-surface-primary">
-              {businessInfo?.logo?.url ? (
-                <img src={businessInfo.logo.url} alt="Business logo" className="h-full w-full object-cover" />
-              ) : (
-                <ImageUp className="h-8 w-8 text-gray-400 dark:text-text-tertiary" />
-              )}
-            </div>
-            <label className="w-full">
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                className="hidden"
-                onChange={(event) => onLogoUpload(event.target.files?.[0] ?? null)}
+          <Controller
+            name="businessInfo.phone"
+            control={control}
+            render={({ field }) => (
+              <Input
+                label="Phone"
+                placeholder="(555) 123-4567"
+                value={field.value}
+                onChange={(event) => field.onChange(event.target.value)}
+                error={errors.businessInfo?.phone?.message}
               />
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full justify-center"
-                onClick={(event) => event.currentTarget.previousSibling?.click()}
-                disabled={isLogoUploading}
-              >
-                {isLogoUploading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="mr-2 h-4 w-4" />
-                    Upload Logo
-                  </>
-                )}
-              </Button>
-            </label>
-            <p className="text-xs text-gray-500 dark:text-text-secondary">PNG, JPG, or WebP - max 5 MB</p>
+            )}
+          />
+          <Input
+            label="Email"
+            type="email"
+            placeholder="hello@kennel.com"
+            error={errors.businessInfo?.email?.message}
+            {...register('businessInfo.email')}
+          />
+          <div className="sm:col-span-2">
+            <Input
+              label="Website"
+              placeholder="yourkennel.com"
+              error={errors.businessInfo?.website?.message}
+              {...register('businessInfo.website')}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <Textarea
+              label="Customer-facing Notes"
+              rows={2}
+              placeholder="Optional summary for booking confirmations"
+              {...register('businessInfo.notes')}
+            />
           </div>
         </div>
-      </div>
-    </Card>
+      </Card>
+    </div>
 
-    <Card
-      title="Location & Mailing Address"
-      description="Used on invoices, legal notices, and outbound communications."
-    >
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Input label="Street" placeholder="123 Bark Lane" {...register('businessInfo.address.street')} />
-        <Input label="Unit / Suite" placeholder="Building 2" {...register('businessInfo.address.street2')} />
-        <Input label="City" placeholder="Portland" {...register('businessInfo.address.city')} />
-        <Input label="State / Province" placeholder="OR" {...register('businessInfo.address.state')} />
-        <Input label="Postal Code" placeholder="97205" {...register('businessInfo.address.postalCode')} />
-        <Input label="Country" placeholder="United States" {...register('businessInfo.address.country')} />
-      </div>
-    </Card>
+    {/* Right Column - Logo */}
+    <div className="lg:col-span-2">
+      <Card className="p-4">
+        <h3 className="text-sm font-semibold text-text mb-3">Logo</h3>
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-lg border border-border bg-surface-secondary">
+            {businessInfo?.logo?.url ? (
+              <img src={businessInfo.logo.url} alt="Logo" className="h-full w-full object-cover" />
+            ) : (
+              <ImageUp className="h-6 w-6 text-muted" />
+            )}
+          </div>
+          <label className="w-full">
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={(event) => onLogoUpload(event.target.files?.[0] ?? null)}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full justify-center"
+              onClick={(event) => event.currentTarget.previousSibling?.click()}
+              disabled={isLogoUploading}
+            >
+              {isLogoUploading ? (
+                <><Loader2 className="mr-2 h-3 w-3 animate-spin" />Uploading...</>
+              ) : (
+                <><Upload className="mr-2 h-3 w-3" />Upload</>
+              )}
+            </Button>
+          </label>
+          <p className="text-xs text-muted">PNG, JPG, WebP - max 5MB</p>
+        </div>
+      </Card>
+    </div>
+
+    {/* Full Width - Address */}
+    <div className="lg:col-span-5">
+      <Card className="p-4">
+        <h3 className="text-sm font-semibold text-text mb-3">Mailing Address</h3>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Input label="Street" placeholder="123 Bark Lane" {...register('businessInfo.address.street')} />
+          <Input label="Unit / Suite" placeholder="Building 2" {...register('businessInfo.address.street2')} />
+          <Input label="City" placeholder="Portland" {...register('businessInfo.address.city')} />
+          <Input label="State" placeholder="OR" {...register('businessInfo.address.state')} />
+          <Input label="Postal Code" placeholder="97205" {...register('businessInfo.address.postalCode')} />
+          <Input label="Country" placeholder="United States" {...register('businessInfo.address.country')} />
+        </div>
+      </Card>
+    </div>
   </div>
 );
+
 const SchedulingSection = ({
   control,
   errors,
@@ -559,219 +537,125 @@ const SchedulingSection = ({
   isFreePlan,
   holidayUsageLabel,
 }) => (
-  <div className="space-y-6">
-    <Card
-      title="Weekly Operating Hours"
-      description="These hours drive booking availability and appear on customer confirmations."
-    >
-      <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-surface-border">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-surface-border text-sm">
-          <thead className="bg-gray-50 dark:bg-surface-secondary text-xs uppercase tracking-wide text-gray-500 dark:text-text-secondary">
-            <tr>
-              <th className="px-4 py-3 text-left font-medium">Day</th>
-              <th className="px-4 py-3 text-left font-medium">Status</th>
-              <th className="px-4 py-3 text-left font-medium">Hours</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-surface-border">
-            {DAY_ORDER.map((day) => {
-              const dayHours = operatingHours?.[day];
-              const dayErrors = errors.operatingHours?.[day];
-              return (
-                <tr key={day} className="bg-white dark:bg-surface-primary">
-                  <td className="px-4 py-3 font-medium text-gray-900 dark:text-text-primary">{DAY_LABEL[day]}</td>
-                  <td className="px-4 py-3">
-                    <label className="inline-flex items-center gap-2 text-sm text-gray-900 dark:text-text-primary">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(dayHours?.isOpen)}
-                        onChange={(event) => onSetHours(day, 'isOpen', event.target.checked)}
-                        className="h-4 w-4 rounded border-gray-300 dark:border-surface-border"
-                      />
-                      {dayHours?.isOpen ? 'Open' : 'Closed'}
-                    </label>
-                  </td>
-                  <td className="px-4 py-3">
-                    {dayHours?.isOpen ? (
-                      <div className="flex flex-wrap items-center gap-3">
-                        <Controller
-                          name={`operatingHours.${day}.open`}
-                          control={control}
-                          render={({ field }) => (
-                            <Input
-                              type="time"
-                              className="w-32"
-                              value={field.value ?? ''}
-                              onChange={(event) => field.onChange(event.target.value)}
-                              error={dayErrors?.open?.message}
-                            />
-                          )}
-                        />
-                        <span className="text-gray-500 dark:text-text-secondary">to</span>
-                        <Controller
-                          name={`operatingHours.${day}.close`}
-                          control={control}
-                          render={({ field }) => (
-                            <Input
-                              type="time"
-                              className="w-32"
-                              value={field.value ?? ''}
-                              onChange={(event) => field.onChange(event.target.value)}
-                              error={dayErrors?.close?.message}
-                            />
-                          )}
-                        />
-                      </div>
-                    ) : (
-                      <span className="text-gray-500 dark:text-text-secondary">Closed</span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </Card>
-
-    <Card
-      title="Holiday Schedule"
-      description="Closed dates immediately block new bookings and remind staff to plan workloads."
-      footer={
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-text-secondary">
-            <CalendarDays className="h-4 w-4" />
-            {holidayUsageLabel}
-          </div>
-          <Button type="button" variant="secondary" size="sm" onClick={onAddHoliday} disabled={!canAddHoliday}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Holiday
-          </Button>
-        </div>
-      }
-    >
-      {holidays.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-gray-300 dark:border-surface-border bg-gray-50 dark:bg-surface-secondary px-4 py-6 text-sm text-gray-500 dark:text-text-secondary">
-          You haven't scheduled any closed dates yet.
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {holidays.map((holiday) => (
-            <div
-              key={holiday.recordId}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 dark:border-surface-border bg-gray-50 dark:bg-surface-secondary px-4 py-3"
-            >
-              <div>
-                <p className="text-sm font-medium text-gray-900 dark:text-text-primary">{holiday.name}</p>
-                <p className="text-xs text-gray-500 dark:text-text-secondary">{formatHolidayRange(holiday.startDate, holiday.endDate)}</p>
-                {holiday.recurring ? <Badge variant="success">Repeats each year</Badge> : null}
-              </div>
-              <Button type="button" variant="ghost" size="sm" onClick={() => onRemoveHoliday(holiday.recordId)}>
-                <Trash2 className="mr-2 h-4 w-4" />
-                Remove
-              </Button>
-            </div>
-          ))}
-        </div>
-      )}
-      {isFreePlan && !canAddHoliday ? (
-        <div className="mt-3 rounded-lg border border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20 px-4 py-3 text-xs text-yellow-800 dark:text-yellow-200">
-          Free plans can store up to 12 closures. Upgrade for unlimited holiday scheduling.
-        </div>
-      ) : null}
-    </Card>
-  </div>
-);
-
-const BillingSection = ({
-  control,
-  errors,
-  currencySettings,
-  setValue,
-  isFreePlan,
-}) => (
-  <div className="space-y-6">
-    <Card
-      title="Supported Currencies"
-      description="Select which currencies you accept for payments."
-    >
-      {isFreePlan ? (
-        <div className="rounded-lg border border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20 px-4 py-3 text-sm text-yellow-800 dark:text-yellow-200">
-          Free plans are limited to USD only. Upgrade to accept multiple currencies.
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {CURRENCY_OPTIONS.map((currency) => {
-              const isSelected = currencySettings?.supportedCurrencies?.includes(currency.value);
-              return (
-                <label
-                  key={currency.value}
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                    isSelected
-                      ? 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/20'
-                      : 'border-gray-200 dark:border-surface-border hover:border-gray-300 dark:hover:border-gray-600'
-                  }`}
-                >
+  <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+    {/* Left Column - Operating Hours */}
+    <div className="lg:col-span-3">
+      <Card className="p-4">
+        <h3 className="text-sm font-semibold text-text mb-3">Weekly Operating Hours</h3>
+        <div className="space-y-1">
+          {DAY_ORDER.map((day) => {
+            const dayHours = operatingHours?.[day];
+            const dayErrors = errors.operatingHours?.[day];
+            return (
+              <div key={day} className="flex items-center gap-2 py-1.5">
+                <span className="w-10 text-sm font-medium text-text">{DAY_LABEL[day]}</span>
+                <label className="flex items-center gap-1.5 w-20">
                   <input
                     type="checkbox"
-                    checked={isSelected}
-                    onChange={(e) => {
-                      const current = currencySettings?.supportedCurrencies || [];
-                      const updated = e.target.checked
-                        ? [...current, currency.value]
-                        : current.filter((c) => c !== currency.value);
-                      setValue('currencySettings.supportedCurrencies', updated, { shouldDirty: true });
-                    }}
-                    className="h-4 w-4 rounded border-gray-300 dark:border-surface-border"
+                    checked={Boolean(dayHours?.isOpen)}
+                    onChange={(event) => onSetHours(day, 'isOpen', event.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-border"
                   />
-                  <span className="text-sm text-gray-900 dark:text-text-primary">{currency.label}</span>
+                  <span className="text-xs text-muted">{dayHours?.isOpen ? 'Open' : 'Closed'}</span>
                 </label>
-              );
-            })}
-          </div>
+                {dayHours?.isOpen ? (
+                  <div className="flex items-center gap-1.5 flex-1">
+                    <Controller
+                      name={`operatingHours.${day}.open`}
+                      control={control}
+                      render={({ field }) => (
+                        <input
+                          type="time"
+                          className="px-2 py-1 text-xs border border-border rounded w-24"
+                          value={field.value ?? ''}
+                          onChange={(event) => field.onChange(event.target.value)}
+                        />
+                      )}
+                    />
+                    <span className="text-xs text-muted">to</span>
+                    <Controller
+                      name={`operatingHours.${day}.close`}
+                      control={control}
+                      render={({ field }) => (
+                        <input
+                          type="time"
+                          className="px-2 py-1 text-xs border border-border rounded w-24"
+                          value={field.value ?? ''}
+                          onChange={(event) => field.onChange(event.target.value)}
+                        />
+                      )}
+                    />
+                    {(dayErrors?.open?.message || dayErrors?.close?.message) && (
+                      <span className="text-xs text-red-500">!</span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-xs text-muted">—</span>
+                )}
+              </div>
+            );
+          })}
         </div>
-      )}
-    </Card>
+      </Card>
+    </div>
 
-    <Card
-      title="Default Currency"
-      description="The primary currency used for new invoices and pricing."
-    >
-      <Controller
-        name="currencySettings.defaultCurrency"
-        control={control}
-        render={({ field }) => (
-          <Select
-            label="Default Currency"
-            value={field.value}
-            onChange={(event) => field.onChange(event.target.value)}
-            error={errors.currencySettings?.defaultCurrency?.message}
-            disabled={isFreePlan}
-          >
-            {(isFreePlan ? [{ value: 'USD', label: 'USD - United States Dollar' }] : CURRENCY_OPTIONS)
-              .filter((c) => currencySettings?.supportedCurrencies?.includes(c.value))
-              .map((currency) => (
-                <option key={currency.value} value={currency.value}>
-                  {currency.label}
-                </option>
-              ))}
-          </Select>
+    {/* Right Column - Holidays */}
+    <div className="lg:col-span-2">
+      <Card className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-text">Holiday Closures</h3>
+          <Button type="button" variant="outline" size="sm" onClick={onAddHoliday} disabled={!canAddHoliday}>
+            <Plus className="h-3 w-3 mr-1" />Add
+          </Button>
+        </div>
+
+        {holidays.length === 0 ? (
+          <p className="text-xs text-muted py-4 text-center border border-dashed border-border rounded">
+            No holidays scheduled
+          </p>
+        ) : (
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {holidays.map((holiday) => (
+              <div
+                key={holiday.recordId}
+                className="flex items-center justify-between p-2 bg-surface-secondary rounded text-sm"
+              >
+                <div>
+                  <p className="font-medium text-text text-xs">{holiday.name}</p>
+                  <p className="text-xs text-muted">{formatHolidayRange(holiday.startDate, holiday.endDate)}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onRemoveHoliday(holiday.recordId)}
+                  className="text-muted hover:text-red-500 p-1"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
         )}
-      />
-    </Card>
+
+        <div className="flex items-center gap-1 mt-3 text-xs text-muted">
+          <CalendarDays className="h-3 w-3" />
+          {holidayUsageLabel}
+        </div>
+
+        {isFreePlan && !canAddHoliday && (
+          <p className="text-xs text-yellow-600 mt-2">
+            Free plans limited to 12 closures. Upgrade for unlimited.
+          </p>
+        )}
+      </Card>
+    </div>
   </div>
 );
 
-const LocaleSection = ({
-  control,
-  errors,
-}) => (
-  <div className="space-y-6">
-    <Card
-      title="Primary Time Zone"
-      description="All bookings, reminders, and staff calendars will use this time zone as the source of truth."
-    >
+const LocaleSection = ({ control, errors }) => (
+  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    {/* Time Zone */}
+    <Card className="p-4">
+      <h3 className="text-sm font-semibold text-text mb-3">Time Zone</h3>
       <Controller
         name="regionalSettings.timeZone"
         control={control}
@@ -783,29 +667,24 @@ const LocaleSection = ({
             error={errors.regionalSettings?.timeZone?.message}
           >
             {TIME_ZONES.map((tz) => (
-              <option key={tz.value} value={tz.value}>
-                {tz.label}
-              </option>
+              <option key={tz.value} value={tz.value}>{tz.label}</option>
             ))}
           </Select>
         )}
       />
     </Card>
 
-    <Card
-      title="Formatting Preferences"
-      description="Set how we display dates and times to staff and pet owners."
-    >
-      <div className="grid gap-4 sm:grid-cols-2">
+    {/* Formatting */}
+    <Card className="p-4">
+      <h3 className="text-sm font-semibold text-text mb-3">Formatting</h3>
+      <div className="grid gap-3 sm:grid-cols-3">
         <Controller
           name="regionalSettings.dateFormat"
           control={control}
           render={({ field }) => (
-            <Select label="Date Format" value={field.value} onChange={(event) => field.onChange(event.target.value)}>
-              {DATE_FORMATS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
+            <Select label="Date" value={field.value} onChange={(event) => field.onChange(event.target.value)}>
+              {DATE_FORMATS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </Select>
           )}
@@ -814,11 +693,9 @@ const LocaleSection = ({
           name="regionalSettings.timeFormat"
           control={control}
           render={({ field }) => (
-            <Select label="Time Format" value={field.value} onChange={(event) => field.onChange(event.target.value)}>
-              {TIME_FORMATS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
+            <Select label="Time" value={field.value} onChange={(event) => field.onChange(event.target.value)}>
+              {TIME_FORMATS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </Select>
           )}
@@ -827,11 +704,9 @@ const LocaleSection = ({
           name="regionalSettings.weekStartsOn"
           control={control}
           render={({ field }) => (
-            <Select label="Week Starts On" value={field.value} onChange={(event) => field.onChange(event.target.value)}>
-              {WEEK_START_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
+            <Select label="Week Starts" value={field.value} onChange={(event) => field.onChange(event.target.value)}>
+              {WEEK_START_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </Select>
           )}
@@ -840,6 +715,82 @@ const LocaleSection = ({
     </Card>
   </div>
 );
+
+const BillingSection = ({
+  control,
+  errors,
+  currencySettings,
+  setValue,
+  isFreePlan,
+}) => (
+  <Card className="p-4">
+    <h3 className="text-sm font-semibold text-text mb-3">Currency Settings</h3>
+
+    {isFreePlan ? (
+      <p className="text-xs text-yellow-600 py-2">
+        Free plans are limited to USD only. Upgrade to accept multiple currencies.
+      </p>
+    ) : (
+      <>
+        <p className="text-xs text-muted mb-3">Select currencies you accept</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+          {CURRENCY_OPTIONS.map((currency) => {
+            const isSelected = currencySettings?.supportedCurrencies?.includes(currency.value);
+            return (
+              <label
+                key={currency.value}
+                className={`flex items-center gap-2 p-2 rounded border cursor-pointer text-xs transition-all ${
+                  isSelected
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-primary/50'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={(e) => {
+                    const current = currencySettings?.supportedCurrencies || [];
+                    const updated = e.target.checked
+                      ? [...current, currency.value]
+                      : current.filter((c) => c !== currency.value);
+                    setValue('currencySettings.supportedCurrencies', updated, { shouldDirty: true });
+                  }}
+                  className="h-3 w-3 rounded border-border"
+                />
+                <span className="text-text">{currency.label}</span>
+              </label>
+            );
+          })}
+        </div>
+      </>
+    )}
+
+    <div className="pt-3 border-t border-border">
+      <Controller
+        name="currencySettings.defaultCurrency"
+        control={control}
+        render={({ field }) => (
+          <Select
+            label="Default Currency"
+            value={field.value}
+            onChange={(event) => field.onChange(event.target.value)}
+            error={errors.currencySettings?.defaultCurrency?.message}
+            disabled={isFreePlan}
+          >
+            {(isFreePlan ? [{ value: 'USD', label: 'USD - US Dollar' }] : CURRENCY_OPTIONS)
+              .filter((c) => currencySettings?.supportedCurrencies?.includes(c.value))
+              .map((currency) => (
+                <option key={currency.value} value={currency.value}>{currency.label}</option>
+              ))}
+          </Select>
+        )}
+      />
+    </div>
+  </Card>
+);
+
+// ===== MAIN COMPONENT =====
+
 const AccountDefaults = () => {
   const queryClient = useQueryClient();
   const tenant = useTenantStore((state) => state.tenant);
@@ -900,10 +851,10 @@ const AccountDefaults = () => {
       const normalized = normalizeResponse(data, tenantName, plan);
       reset(normalized, { keepDirty: false });
       queryClient.invalidateQueries({ queryKey: ['account-defaults'] });
-      toast.success('Account defaults saved');
+      toast.success('Settings saved');
     },
     onError: (error) => {
-      toast.error(error?.message ?? 'Unable to save account defaults');
+      toast.error(error?.message ?? 'Unable to save');
     },
   });
 
@@ -922,10 +873,10 @@ const AccountDefaults = () => {
       const response = await uploadClient('/api/v1/account-defaults/logo', formData);
       if (response?.logo) {
         setValue('businessInfo.logo', response.logo, { shouldDirty: true });
-        toast.success('Logo uploaded successfully');
+        toast.success('Logo uploaded');
       }
     } catch (error) {
-      toast.error(error?.message ?? 'Unable to upload logo right now');
+      toast.error(error?.message ?? 'Upload failed');
     } finally {
       setIsLogoUploading(false);
     }
@@ -960,7 +911,7 @@ const AccountDefaults = () => {
       return;
     }
     if (!dates.from) {
-      toast.error('Pick at least one date for the holiday');
+      toast.error('Pick at least one date');
       return;
     }
 
@@ -1009,36 +960,27 @@ const AccountDefaults = () => {
   };
 
   const holidayUsageLabel = useMemo(
-    () => (isFreePlan ? `${holidays.length} of ${FREE_TIER_HOLIDAY_LIMIT} holidays used` : 'Unlimited'),
+    () => (isFreePlan ? `${holidays.length}/${FREE_TIER_HOLIDAY_LIMIT}` : 'Unlimited'),
     [holidays.length, isFreePlan],
   );
 
   if (accountDefaultsQuery.isLoading) {
-    return <LoadingState label="Loading account defaults…" variant="mascot" />;
+    return <LoadingState label="Loading..." variant="mascot" />;
   }
 
   if (accountDefaultsQuery.isError) {
     return (
-      <div className="flex h-64 flex-col items-center justify-center gap-3 rounded-lg border border-gray-200 dark:border-surface-border bg-gray-50 dark:bg-surface-secondary p-6 text-center text-sm text-gray-500 dark:text-text-secondary">
-        <AlertCircle className="h-6 w-6 text-red-500" />
-        <p>We couldn't load your account defaults. Refresh to try again.</p>
+      <div className="flex h-48 flex-col items-center justify-center gap-2 rounded-lg border border-border bg-surface-secondary p-4 text-center text-sm text-muted">
+        <AlertCircle className="h-5 w-5 text-red-500" />
+        <p>Couldn't load settings. Refresh to try again.</p>
       </div>
     );
   }
 
   return (
-    <SettingsPage
-      title="Account Defaults"
-      description="Keep your kennel's fundamentals aligned—branding, hours, locale, and billing defaults power every booking."
-      actions={
-        <div className="flex items-center gap-2">
-          <Badge variant="neutral">Plan: {plan}</Badge>
-          <Badge variant="neutral">{tenant?.slug ?? 'default'}</Badge>
-        </div>
-      }
-    >
+    <div className="space-y-4">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-6">
+        <TabsList className="mb-4">
           {TAB_ITEMS.map((tab) => (
             <TabsTrigger key={tab.recordId} value={tab.recordId}>
               {tab.title}
@@ -1046,7 +988,7 @@ const AccountDefaults = () => {
           ))}
         </TabsList>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <TabsContent value="business">
             <BusinessSection
               register={register}
@@ -1087,16 +1029,13 @@ const AccountDefaults = () => {
             />
           </TabsContent>
 
-          <div className="flex items-center justify-between pt-6 border-t border-gray-200 dark:border-surface-border">
-            <div className="text-sm text-gray-500 dark:text-text-secondary">
-              {isDirty ? 'You have unsaved changes' : 'All changes saved'}
-            </div>
-            <Button type="submit" disabled={!isDirty || saveMutation.isPending}>
+          <div className="flex items-center justify-between pt-4 border-t border-border">
+            <span className="text-xs text-muted">
+              {isDirty ? 'Unsaved changes' : 'All saved'}
+            </span>
+            <Button type="submit" size="sm" disabled={!isDirty || saveMutation.isPending}>
               {saveMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
+                <><Loader2 className="mr-2 h-3 w-3 animate-spin" />Saving...</>
               ) : (
                 'Save Changes'
               )}
@@ -1108,18 +1047,16 @@ const AccountDefaults = () => {
       <Dialog
         open={holidayDialogOpen}
         onOpenChange={setHolidayDialogOpen}
-        title="Add Holiday Closure"
-        description="Pick a date range and we'll prevent bookings during the closure."
+        title="Add Holiday"
+        description="Pick dates to block bookings"
         footer={
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" onClick={() => setHolidayDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={commitHolidayDraft}>Add Holiday</Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setHolidayDialogOpen(false)}>Cancel</Button>
+            <Button size="sm" onClick={commitHolidayDraft}>Add</Button>
           </div>
         }
       >
-        <div className="space-y-4">
+        <div className="space-y-3">
           <Input
             label="Holiday Name"
             placeholder="Memorial Day"
@@ -1127,7 +1064,7 @@ const AccountDefaults = () => {
             onChange={(event) => setHolidayDraft((draft) => ({ ...draft, name: event.target.value }))}
           />
           <div>
-            <p className="mb-2 text-sm font-medium text-gray-900 dark:text-text-primary">Dates</p>
+            <p className="mb-2 text-xs font-medium text-text">Dates</p>
             <Calendar
               mode="range"
               selected={holidayDraft.dates}
@@ -1137,21 +1074,21 @@ const AccountDefaults = () => {
                   dates: range ?? { from: undefined, to: undefined },
                 }))
               }
-              numberOfMonths={2}
+              numberOfMonths={1}
             />
           </div>
-          <label className="flex items-center gap-2 text-sm text-gray-900 dark:text-text-primary">
+          <label className="flex items-center gap-2 text-xs text-text">
             <input
               type="checkbox"
               checked={holidayDraft.recurring}
               onChange={(event) => setHolidayDraft((draft) => ({ ...draft, recurring: event.target.checked }))}
-              className="h-4 w-4 rounded border-gray-300 dark:border-surface-border"
+              className="h-3 w-3 rounded border-border"
             />
             Repeat every year
           </label>
         </div>
       </Dialog>
-    </SettingsPage>
+    </div>
   );
 };
 
