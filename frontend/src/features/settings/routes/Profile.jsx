@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
 import {
-  User, Mail, Phone, Globe, Clock, Save, RotateCcw, AlertTriangle,
-  Camera, Shield, Key, Monitor, Activity,
-  Download, ExternalLink, HelpCircle, Calendar,
-  MessageSquare, BarChart3,
-  Smartphone, BellRing, QrCode, Trash2,
+  User, Mail, Phone, Globe, Clock, Save, AlertTriangle,
+  Camera, Shield, Key, Monitor,
+  Smartphone, BellRing, QrCode,
   CheckCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -29,42 +27,40 @@ import {
 // Helper function to parse user agent string into readable device name
 const parseUserAgent = (ua) => {
   if (!ua) return 'Unknown Device';
-  
-  // Detect browser
+
   let browser = 'Unknown Browser';
   if (ua.includes('Chrome') && !ua.includes('Edg')) browser = 'Chrome';
   else if (ua.includes('Safari') && !ua.includes('Chrome')) browser = 'Safari';
   else if (ua.includes('Firefox')) browser = 'Firefox';
   else if (ua.includes('Edg')) browser = 'Edge';
   else if (ua.includes('Opera') || ua.includes('OPR')) browser = 'Opera';
-  
-  // Detect OS
+
   let os = '';
   if (ua.includes('Windows')) os = 'Windows';
   else if (ua.includes('Mac OS')) os = 'macOS';
   else if (ua.includes('Linux')) os = 'Linux';
   else if (ua.includes('Android')) os = 'Android';
   else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
-  
+
   return os ? `${browser} on ${os}` : browser;
 };
 
 // Helper function to format last active timestamp
 const formatLastActive = (timestamp) => {
   if (!timestamp) return 'Unknown';
-  
+
   const date = new Date(timestamp);
   const now = new Date();
   const diffMs = now - date;
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
-  
+
   if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
-  if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
-  if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
-  
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+
   return date.toLocaleDateString();
 };
 
@@ -80,33 +76,17 @@ const Profile = () => {
     language: 'en',
   });
 
-  // Profile photo upload state
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState(null);
 
-
   // Notification preferences
-  const [notificationSettings, setNotificationSettings] = useState({
-    email: {
-      bookingConfirmations: true,
-      bookingCancellations: true,
-      payments: true,
-      vaccinationReminders: true,
-      dailySummary: false,
-      weeklyReports: false,
-      marketingUpdates: false,
-    },
-    sms: {
-      bookingAlerts: true,
-      checkInReminders: true,
-      allUpdates: false,
-    },
-    push: {
-      urgentAlerts: true,
-      allNotifications: false,
-    },
+  const [notifications, setNotifications] = useState({
+    emailBookings: true,
+    emailPayments: true,
+    emailVaccinations: true,
+    smsAlerts: true,
+    pushUrgent: true,
     frequency: 'real-time',
-    digestTime: '08:00',
   });
 
   // 2FA
@@ -115,92 +95,24 @@ const Profile = () => {
 
   // Password management
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [passwordForm, setPasswordForm] = useState({
-    current: '',
-    new: '',
-    confirm: '',
-  });
+  const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
   const changePassword = useChangePasswordMutation();
 
   // Personalization settings
   const [personalization, setPersonalization] = useState({
     dashboardLayout: 'comfortable',
-    defaultLandingPage: 'dashboard',
     dateFormat: 'MM/DD/YYYY',
     timeFormat: '12-hour',
     numberFormat: 'us',
   });
 
-  // Active sessions (via React Query)
-  const {
-    data: activeSessionsData,
-    isLoading: isLoadingSessions,
-  } = useAuthSessionsQuery();
+  // Active sessions
+  const { data: activeSessionsData, isLoading: isLoadingSessions } = useAuthSessionsQuery();
   const activeSessions = Array.isArray(activeSessionsData) ? activeSessionsData : [];
   const revokeSession = useRevokeSessionMutation();
   const revokeAllOtherSessions = useRevokeAllOtherSessionsMutation();
-  
-  // Email verification
   const resendVerification = useResendVerificationMutation();
 
-  const [recentActivity] = useState([
-    {
-      id: 1,
-      action: 'Changed business hours',
-      timestamp: '2:34 PM',
-      date: 'today',
-    },
-    {
-      id: 2,
-      action: 'Added new pet: Max (Golden Retriever)',
-      timestamp: '1:15 PM',
-      date: 'today',
-    },
-    {
-      id: 3,
-      action: 'Processed payment: $250',
-      timestamp: '11:22 AM',
-      date: 'today',
-    },
-    {
-      id: 4,
-      action: 'Updated vaccination for Bella',
-      timestamp: '4:45 PM',
-      date: 'yesterday',
-    },
-    {
-      id: 5,
-      action: 'Created booking: Cooper - Jan 15-18',
-      timestamp: '2:30 PM',
-      date: 'yesterday',
-    },
-  ]);
-
-  const [connectedApps] = useState([
-    {
-      id: 1,
-      name: 'Google Calendar',
-      description: `Syncing bookings to ${user?.email || 'your email'}`,
-      connected: true,
-      icon: Calendar,
-    },
-    {
-      id: 2,
-      name: 'QuickBooks',
-      description: 'Sync financial data automatically',
-      connected: false,
-      icon: BarChart3,
-    },
-    {
-      id: 3,
-      name: 'Mailchimp',
-      description: 'Syncing customer list',
-      connected: true,
-      icon: Mail,
-    },
-  ]);
-
-  // Update form when profile loads
   useEffect(() => {
     if (profile) {
       setFormData({
@@ -209,18 +121,15 @@ const Profile = () => {
         timezone: profile.timezone || '',
         language: profile.language || 'en',
       });
-      // Clear preview when profile updates (after successful upload)
       setAvatarPreview(null);
     }
   }, [profile, user]);
 
-
   const handleSubmit = async (e) => {
-    e.preventDefault();
-
+    e?.preventDefault();
     try {
       await updateProfile.mutateAsync(formData);
-      toast.success('Profile updated successfully');
+      toast.success('Profile updated');
     } catch (error) {
       toast.error(error.message || 'Failed to update profile');
     }
@@ -231,140 +140,62 @@ const Profile = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleReset = () => {
-    if (profile) {
-      setFormData({
-        name: profile.name || user?.name || '',
-        phone: profile.phone || '',
-        timezone: profile.timezone || '',
-        language: profile.language || 'en',
-      });
-    }
-  };
-
-  // Profile photo upload
   const handleProfilePhotoUpload = async (file) => {
     if (!file || isUploadingAvatar) return;
-    
     setIsUploadingAvatar(true);
-    
     try {
-      // Show preview immediately while upload happens in background
       const reader = new FileReader();
-      reader.onload = (e) => {
-        setAvatarPreview(e.target.result);
-      };
+      reader.onload = (e) => setAvatarPreview(e.target.result);
       reader.readAsDataURL(file);
-
-      // Upload to S3 using presigned URL
       const { key, publicUrl } = await uploadFile({ file, category: 'avatars' });
-
-      // Save the URL to the user's profile (ONLY avatarUrl, not other fields)
-      const avatarUrl = publicUrl || key;
-      await updateProfile.mutateAsync({ avatarUrl });
-      
-      // Clear preview - the query will refetch and show the real URL
+      await updateProfile.mutateAsync({ avatarUrl: publicUrl || key });
       setAvatarPreview(null);
-      toast.success('Profile photo updated successfully');
+      toast.success('Profile photo updated');
     } catch (error) {
-      console.error('Profile photo upload error:', error);
-      // Clear preview on error
       setAvatarPreview(null);
-      toast.error(error.message || 'Failed to upload profile photo');
+      toast.error(error.message || 'Failed to upload photo');
     } finally {
       setIsUploadingAvatar(false);
     }
   };
 
-  // Notification handlers
-  const handleNotificationChange = (type, setting, value) => {
-    setNotificationSettings(prev => ({
-      ...prev,
-      [type]: {
-        ...prev[type],
-        [setting]: value,
-      },
-    }));
-  };
-
-  // Password handlers
-  const handlePasswordChange = (field, value) => {
-    setPasswordForm(prev => ({ ...prev, [field]: value }));
-  };
-
   const handlePasswordSubmit = async () => {
     if (passwordForm.new !== passwordForm.confirm) {
-      toast.error('New passwords do not match');
+      toast.error('Passwords do not match');
       return;
     }
     if (passwordForm.new.length < 8) {
       toast.error('Password must be at least 8 characters');
       return;
     }
-    if (!passwordForm.current) {
-      toast.error('Current password is required');
-      return;
-    }
-
     try {
       await changePassword.mutateAsync({
         currentPassword: passwordForm.current,
         newPassword: passwordForm.new,
       });
-      toast.success('Password updated successfully');
+      toast.success('Password updated');
       setShowPasswordModal(false);
       setPasswordForm({ current: '', new: '', confirm: '' });
     } catch (error) {
-      console.error('Password change error:', error);
       toast.error(error.message || 'Failed to update password');
     }
   };
 
-  // 2FA handlers
-  const handleEnable2FA = () => {
-    setShow2FAModal(true);
-  };
-
-  const handleDisable2FA = () => {
-    setTwoFactorEnabled(false);
-    toast.success('Two-factor authentication disabled');
-  };
-
-  // Session handlers
   const handleSignOutSession = async (sessionId) => {
-    if (revokeSession.isPending) return;
-    
     try {
       await revokeSession.mutateAsync(sessionId);
-      toast.success('Session signed out successfully');
+      toast.success('Session signed out');
     } catch (error) {
-      console.error('Session sign out error:', error);
-      toast.error(error.message || 'Failed to sign out session');
+      toast.error(error.message || 'Failed to sign out');
     }
   };
 
-  const handleSignOutAllSessions = async () => {
-    if (revokeAllOtherSessions.isPending) return;
-    
-    try {
-      await revokeAllOtherSessions.mutateAsync();
-      toast.success('Signed out of all other sessions');
-    } catch (error) {
-      console.error('Sign out all sessions error:', error);
-      toast.error(error.message || 'Failed to sign out all sessions');
-    }
-  };
-
-  // Resend email verification
   const handleResendVerification = async () => {
-    if (resendVerification.isPending) return;
-    
     try {
       await resendVerification.mutateAsync();
-      toast.success('Verification email sent! Please check your inbox.');
+      toast.success('Verification email sent');
     } catch (error) {
-      console.error('Resend verification error:', error);
-      toast.error(error.message || 'Failed to resend verification email');
+      toast.error(error.message || 'Failed to send');
     }
   };
 
@@ -372,8 +203,8 @@ const Profile = () => {
     return (
       <div className="text-center py-12">
         <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-text-primary mb-2">Error Loading Profile</h3>
-        <p className="text-gray-600 dark:text-text-secondary">Unable to load your profile information. Please try again.</p>
+        <h3 className="text-lg font-semibold text-text mb-2">Error Loading Profile</h3>
+        <p className="text-muted">Unable to load your profile. Please try again.</p>
       </div>
     );
   }
@@ -387,15 +218,18 @@ const Profile = () => {
     );
   }
 
+  const currentSession = activeSessions.find(s => s.isCurrentSession);
+  const otherSessions = activeSessions.filter(s => !s.isCurrentSession);
+
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-4 max-w-6xl">
       {/* Page Header */}
       <header className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold text-text">Profile Settings</h1>
           <p className="mt-1 text-sm text-muted">Manage your personal information and preferences</p>
         </div>
-        <Button type="button" onClick={handleSubmit} disabled={updateProfile.isPending}>
+        <Button onClick={handleSubmit} disabled={updateProfile.isPending}>
           <Save className="h-4 w-4 mr-2" />
           {updateProfile.isPending ? 'Saving...' : 'Save Changes'}
         </Button>
@@ -403,731 +237,359 @@ const Profile = () => {
 
       {/* Email Verification Banner */}
       {!profile?.emailVerified && (
-        <Alert variant="warning">
+        <Alert variant="warning" className="py-2">
           <AlertTriangle className="w-4 h-4" />
-          <AlertTitle>Email Not Verified</AlertTitle>
-          <AlertDescription>
-            Please verify your email to receive important notifications.
-            <button 
-              onClick={handleResendVerification}
-              disabled={resendVerification.isPending}
-              className="text-blue-600 dark:text-blue-400 underline ml-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {resendVerification.isPending ? 'Sending...' : 'Resend Verification Email'}
+          <AlertTitle className="text-sm">Email Not Verified</AlertTitle>
+          <AlertDescription className="text-sm">
+            <button onClick={handleResendVerification} disabled={resendVerification.isPending} className="text-blue-600 underline ml-1">
+              {resendVerification.isPending ? 'Sending...' : 'Resend verification'}
             </button>
           </AlertDescription>
         </Alert>
       )}
 
-      {/* Profile Header with Photo Upload */}
-      <div className="bg-white dark:bg-surface-primary rounded-lg border border-gray-200 dark:border-surface-border p-6">
-        <div className="flex items-start gap-6">
-          <Avatar
-            size="xl"
-            src={avatarPreview || profile?.avatarUrl}
-            fallback={profile?.name || user?.name}
-            uploadable={true}
-            onUpload={handleProfilePhotoUpload}
-            isUploading={isUploadingAvatar}
-          />
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-text-primary">{profile?.name || user?.name || 'Your Profile'}</h1>
-            <p className="text-gray-600 dark:text-text-secondary">{profile?.email || user?.email}</p>
-            <p className="text-sm text-gray-500 dark:text-text-secondary mt-1">
-              Member since {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'January 15, 2024'}
-            </p>
-            <p className="text-blue-600 dark:text-blue-400 text-sm mt-2 flex items-center gap-1">
-              <Camera className="w-4 h-4" />
-              {isUploadingAvatar ? 'Uploading...' : 'Click avatar to change photo'}
-            </p>
-          </div>
+      {/* Two-Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        {/* Left Column - 60% */}
+        <div className="lg:col-span-3 space-y-4">
+          {/* User Card + Personal Info Combined */}
+          <Card className="p-5">
+            <div className="flex items-start gap-4 mb-5 pb-4 border-b border-border">
+              <Avatar
+                size="lg"
+                src={avatarPreview || profile?.avatarUrl}
+                fallback={profile?.name || user?.name}
+                uploadable={true}
+                onUpload={handleProfilePhotoUpload}
+                isUploading={isUploadingAvatar}
+              />
+              <div className="flex-1 min-w-0">
+                <h2 className="text-lg font-semibold text-text truncate">{profile?.name || user?.name || 'Your Profile'}</h2>
+                <p className="text-sm text-muted truncate">{profile?.email || user?.email}</p>
+                <p className="text-xs text-muted mt-1">
+                  Member since {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'N/A'}
+                </p>
+                <p className="text-xs text-primary mt-1 flex items-center gap-1">
+                  <Camera className="w-3 h-3" />
+                  {isUploadingAvatar ? 'Uploading...' : 'Click to change'}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="block text-xs font-medium text-muted mb-1">Full Name</label>
+                <div className="relative">
+                  <User className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    className="w-full pl-8 pr-3 py-2 text-sm border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-muted mb-1">Email</label>
+                <div className="relative">
+                  <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+                  <input
+                    type="email"
+                    value={profile?.email || user?.email}
+                    disabled
+                    className="w-full pl-8 pr-3 py-2 text-sm border border-border rounded-md bg-surface-secondary text-muted cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-muted mb-1">Phone</label>
+                <div className="relative">
+                  <Phone className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted" />
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    placeholder="+1 (555) 123-4567"
+                    className="w-full pl-8 pr-3 py-2 text-sm border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-muted mb-1">Language</label>
+                <div className="relative">
+                  <Globe className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted z-10" />
+                  <select
+                    name="language"
+                    value={formData.language}
+                    onChange={handleChange}
+                    className="w-full pl-8 pr-3 py-2 text-sm border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary appearance-none bg-white dark:bg-surface-primary"
+                  >
+                    <option value="en">English</option>
+                    <option value="es">Spanish</option>
+                    <option value="fr">French</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-muted mb-1">Timezone</label>
+                <div className="relative">
+                  <Clock className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted z-10" />
+                  <select
+                    name="timezone"
+                    value={formData.timezone}
+                    onChange={handleChange}
+                    className="w-full pl-8 pr-3 py-2 text-sm border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary appearance-none bg-white dark:bg-surface-primary"
+                  >
+                    <option value="">Auto-detect</option>
+                    <option value="America/New_York">Eastern (US)</option>
+                    <option value="America/Chicago">Central (US)</option>
+                    <option value="America/Denver">Mountain (US)</option>
+                    <option value="America/Los_Angeles">Pacific (US)</option>
+                    <option value="Europe/London">London</option>
+                    <option value="Europe/Paris">Paris</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Security - Compact */}
+          <Card className="p-5">
+            <h3 className="text-sm font-semibold text-text mb-3 flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Security
+            </h3>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="flex items-center justify-between p-3 border border-border rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-text">Two-Factor Auth</p>
+                  <Badge variant={twoFactorEnabled ? 'success' : 'neutral'} size="sm" className="mt-1">
+                    {twoFactorEnabled ? 'Enabled' : 'Off'}
+                  </Badge>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => twoFactorEnabled ? setTwoFactorEnabled(false) : setShow2FAModal(true)}
+                >
+                  {twoFactorEnabled ? 'Disable' : 'Enable'}
+                </Button>
+              </div>
+
+              <div className="flex items-center justify-between p-3 border border-border rounded-lg">
+                <div>
+                  <p className="text-sm font-medium text-text">Password</p>
+                  <p className="text-xs text-muted">Last changed: Never</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setShowPasswordModal(true)}>
+                  Change
+                </Button>
+              </div>
+            </div>
+          </Card>
+
+          {/* Active Sessions - Compact */}
+          <Card className="p-5">
+            <h3 className="text-sm font-semibold text-text mb-3 flex items-center gap-2">
+              <Monitor className="h-4 w-4" />
+              Active Sessions
+            </h3>
+            {isLoadingSessions ? (
+              <Skeleton className="h-12 w-full" />
+            ) : (
+              <div className="space-y-2">
+                {currentSession && (
+                  <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Monitor className="w-4 h-4 text-green-600" />
+                      <div>
+                        <p className="text-sm font-medium text-text">
+                          {parseUserAgent(currentSession.userAgent)}
+                          <Badge variant="success" size="sm" className="ml-2">Current</Badge>
+                        </p>
+                        <p className="text-xs text-muted">{formatLastActive(currentSession.lastActive)}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {otherSessions.length > 0 && (
+                  <div className="flex items-center justify-between pt-2 border-t border-border">
+                    <p className="text-sm text-muted">{otherSessions.length} other session{otherSessions.length > 1 ? 's' : ''}</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => revokeAllOtherSessions.mutateAsync()}
+                      disabled={revokeAllOtherSessions.isPending}
+                    >
+                      {revokeAllOtherSessions.isPending ? 'Signing out...' : 'Sign out all'}
+                    </Button>
+                  </div>
+                )}
+                {activeSessions.length === 0 && (
+                  <p className="text-sm text-muted text-center py-2">No sessions found</p>
+                )}
+              </div>
+            )}
+          </Card>
+        </div>
+
+        {/* Right Column - 40% */}
+        <div className="lg:col-span-2 space-y-4">
+          {/* Notification Settings - Compact */}
+          <Card className="p-5">
+            <h3 className="text-sm font-semibold text-text mb-3 flex items-center gap-2">
+              <BellRing className="h-4 w-4" />
+              Notifications
+            </h3>
+            <div className="space-y-2">
+              <ToggleRow
+                icon={Mail}
+                label="Email notifications"
+                checked={notifications.emailBookings}
+                onChange={(v) => setNotifications(p => ({ ...p, emailBookings: v }))}
+              />
+              <ToggleRow
+                icon={Smartphone}
+                label="SMS alerts"
+                checked={notifications.smsAlerts}
+                onChange={(v) => setNotifications(p => ({ ...p, smsAlerts: v }))}
+              />
+              <ToggleRow
+                icon={BellRing}
+                label="Push notifications"
+                checked={notifications.pushUrgent}
+                onChange={(v) => setNotifications(p => ({ ...p, pushUrgent: v }))}
+              />
+              <div className="pt-2 border-t border-border">
+                <label className="block text-xs font-medium text-muted mb-1">Frequency</label>
+                <div className="flex gap-2">
+                  {['real-time', 'daily', 'weekly'].map((freq) => (
+                    <button
+                      key={freq}
+                      type="button"
+                      onClick={() => setNotifications(p => ({ ...p, frequency: freq }))}
+                      className={`px-2.5 py-1 text-xs rounded-full transition-colors ${
+                        notifications.frequency === freq
+                          ? 'bg-primary text-white'
+                          : 'bg-surface-secondary text-muted hover:bg-surface-elevated'
+                      }`}
+                    >
+                      {freq === 'real-time' ? 'Real-time' : freq.charAt(0).toUpperCase() + freq.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Display Preferences - Compact */}
+          <Card className="p-5">
+            <h3 className="text-sm font-semibold text-text mb-3">Display Preferences</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-muted mb-1">Layout</label>
+                <select
+                  value={personalization.dashboardLayout}
+                  onChange={(e) => setPersonalization(p => ({ ...p, dashboardLayout: e.target.value }))}
+                  className="w-full px-2.5 py-1.5 text-sm border border-border rounded-md"
+                >
+                  <option value="compact">Compact</option>
+                  <option value="comfortable">Comfortable</option>
+                  <option value="spacious">Spacious</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-medium text-muted mb-1">Date</label>
+                  <select
+                    value={personalization.dateFormat}
+                    onChange={(e) => setPersonalization(p => ({ ...p, dateFormat: e.target.value }))}
+                    className="w-full px-2.5 py-1.5 text-sm border border-border rounded-md"
+                  >
+                    <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                    <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                    <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted mb-1">Time</label>
+                  <select
+                    value={personalization.timeFormat}
+                    onChange={(e) => setPersonalization(p => ({ ...p, timeFormat: e.target.value }))}
+                    className="w-full px-2.5 py-1.5 text-sm border border-border rounded-md"
+                  >
+                    <option value="12-hour">12-hour</option>
+                    <option value="24-hour">24-hour</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Role & Access - Compact */}
+          <Card className="p-5">
+            <h3 className="text-sm font-semibold text-text mb-3">Your Role & Access</h3>
+            <div className="flex items-center gap-2 mb-3">
+              <Badge variant="success">Owner</Badge>
+              <span className="text-sm text-muted">Business Owner</span>
+            </div>
+            <div className="space-y-1">
+              {['Full access', 'Manage staff', 'Financial reports', 'Business settings'].map((perm, i) => (
+                <div key={i} className="flex items-center gap-1.5 text-xs text-muted">
+                  <CheckCircle className="w-3 h-3 text-green-600" />
+                  {perm}
+                </div>
+              ))}
+            </div>
+          </Card>
         </div>
       </div>
 
-      {/* Personal Information Form */}
-      <Card title="Personal Information" description="Update your name, contact details, and regional settings">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
-                Full Name
-              </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-text-tertiary" />
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  placeholder="Enter your full name"
-                  required
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
-                Email Address
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-text-tertiary" />
-                <input
-                  type="email"
-                  value={profile?.email || user?.email}
-                  disabled
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-surface-border rounded-md bg-gray-50 dark:bg-surface-secondary text-gray-500 dark:text-text-secondary cursor-not-allowed"
-                />
-              </div>
-              <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">Email cannot be changed here</p>
-            </div>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
-                Phone Number
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-text-tertiary" />
-                <input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  placeholder="+1 (555) 123-4567"
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
-                Language
-              </label>
-              <div className="relative">
-                <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-text-tertiary z-10" />
-                <select
-                  name="language"
-                  value={formData.language}
-                  onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white dark:bg-surface-primary"
-                >
-                  <option value="en">English</option>
-                  <option value="es">Spanish</option>
-                  <option value="fr">French</option>
-                  <option value="de">German</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
-              Timezone
-            </label>
-            <div className="relative">
-              <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-text-tertiary z-10" />
-              <select
-                name="timezone"
-                value={formData.timezone}
-                onChange={handleChange}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white dark:bg-surface-primary"
-              >
-                <option value="">Auto-detect</option>
-                <option value="America/New_York">Eastern Time (US)</option>
-                <option value="America/Chicago">Central Time (US)</option>
-                <option value="America/Denver">Mountain Time (US)</option>
-                <option value="America/Los_Angeles">Pacific Time (US)</option>
-                <option value="Europe/London">London</option>
-                <option value="Europe/Paris">Paris</option>
-                <option value="Asia/Tokyo">Tokyo</option>
-                <option value="Australia/Sydney">Sydney</option>
-              </select>
-            </div>
-          </div>
-
-        </form>
-      </Card>
-
-      {/* Notification Preferences */}
-      <Card title="Notification Settings" description="Choose how you want to be notified about important updates">
-        <div className="space-y-6">
-          <div>
-            <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3 flex items-center gap-2">
-              <Mail className="w-4 h-4" />
-              Email Notifications
-            </h4>
-            <div className="space-y-3">
-              {Object.entries(notificationSettings.email).map(([key, value]) => {
-                const labels = {
-                  bookingConfirmations: 'Booking confirmations',
-                  bookingCancellations: 'Booking cancellations',
-                  payments: 'Payment received',
-                  vaccinationReminders: 'Vaccination expiration warnings',
-                  dailySummary: 'Daily summary (at 8:00 AM)',
-                  weeklyReports: 'Weekly reports',
-                  marketingUpdates: 'Marketing updates',
-                };
-                return (
-                  <label key={key} className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={value}
-                      onChange={(e) => handleNotificationChange('email', key, e.target.checked)}
-                      className="rounded border-gray-300 dark:border-surface-border"
-                    />
-                    <span className="text-sm">{labels[key]}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          <div>
-            <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3 flex items-center gap-2">
-              <Smartphone className="w-4 h-4" />
-              SMS Notifications (if phone verified)
-            </h4>
-            <div className="space-y-3">
-              {Object.entries(notificationSettings.sms).map(([key, value]) => {
-                const labels = {
-                  bookingAlerts: 'Same-day booking alerts',
-                  checkInReminders: 'Check-in reminders',
-                  allUpdates: 'All booking updates',
-                };
-                return (
-                  <label key={key} className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={value}
-                      onChange={(e) => handleNotificationChange('sms', key, e.target.checked)}
-                      className="rounded border-gray-300 dark:border-surface-border"
-                    />
-                    <span className="text-sm">{labels[key]}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          <div>
-            <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3 flex items-center gap-2">
-              <BellRing className="w-4 h-4" />
-              Push Notifications (browser)
-            </h4>
-            <div className="space-y-3">
-              {Object.entries(notificationSettings.push).map(([key, value]) => {
-                const labels = {
-                  urgentAlerts: 'Urgent alerts only',
-                  allNotifications: 'All notifications',
-                };
-                return (
-                  <label key={key} className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={value}
-                      onChange={(e) => handleNotificationChange('push', key, e.target.checked)}
-                      className="rounded border-gray-300 dark:border-surface-border"
-                    />
-                    <span className="text-sm">{labels[key]}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          <div>
-            <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3">Notification Frequency</h4>
-            <div className="space-y-2">
-              {[
-                { value: 'real-time', label: 'Real-time (immediate)' },
-                { value: 'digest-daily', label: 'Digest (once daily at ' },
-                { value: 'digest-twice', label: 'Digest (twice daily)' },
-              ].map((option) => (
-                <label key={option.value} className="flex items-center gap-3">
-                  <input
-                    type="radio"
-                    name="frequency"
-                    value={option.value}
-                    checked={notificationSettings.frequency === option.value}
-                    onChange={(e) => setNotificationSettings(prev => ({ ...prev, frequency: e.target.value }))}
-                    className="border-gray-300 dark:border-surface-border"
-                  />
-                  <span className="text-sm">{option.label}</span>
-                  {option.value.includes('digest-daily') && (
-                    <input
-                      type="time"
-                      value={notificationSettings.digestTime}
-                      onChange={(e) => setNotificationSettings(prev => ({ ...prev, digestTime: e.target.value }))}
-                      className="text-sm border border-gray-300 dark:border-surface-border rounded px-2 py-1"
-                    />
-                  )}
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Security Section with 2FA and Password */}
-      <Card title="Security" description="Manage your account security and authentication">
-        <div className="space-y-6">
-          <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-surface-border rounded-lg">
-            <div>
-              <h4 className="font-medium text-gray-900 dark:text-text-primary flex items-center gap-2">
-                <Shield className="w-4 h-4" />
-                Two-Factor Authentication
-              </h4>
-              <p className="text-sm text-gray-600 dark:text-text-secondary">Protect your account with an extra layer of security</p>
-            </div>
-            <div className="text-right">
-              <Badge variant={twoFactorEnabled ? 'success' : 'error'}>
-                {twoFactorEnabled ? 'Enabled' : 'Not Enabled'}
-              </Badge>
-              <div className="mt-2">
-                {!twoFactorEnabled ? (
-                  <Button onClick={handleEnable2FA} size="sm">
-                    Enable 2FA
-                  </Button>
-                ) : (
-                  <Button onClick={handleDisable2FA} variant="outline" size="sm">
-                    Disable 2FA
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-surface-border rounded-lg">
-            <div>
-              <h4 className="font-medium text-gray-900 dark:text-text-primary flex items-center gap-2">
-                <Key className="w-4 h-4" />
-                Password Security
-              </h4>
-              <p className="text-sm text-gray-600 dark:text-text-secondary">Last changed: Never</p>
-            </div>
-            <Button onClick={() => setShowPasswordModal(true)}>
-              Change Password
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      {/* Active Sessions */}
-      <Card title="Active Sessions" description="View and manage devices where you're logged in">
-        <div className="space-y-4">
-          {isLoadingSessions ? (
-            <div className="space-y-3">
-              <Skeleton className="h-16 w-full" />
-              <Skeleton className="h-16 w-full" />
-            </div>
-          ) : activeSessions.length === 0 ? (
-            <p className="text-gray-500 dark:text-text-secondary text-center py-4">No active sessions found</p>
-          ) : (
-            activeSessions.map((session) => (
-              <div key={session.sessionId} className="flex items-center justify-between p-4 border border-gray-200 dark:border-surface-border rounded-lg">
-                <div className="flex items-center gap-3">
-                  {session.isCurrentSession ? (
-                    <Monitor className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                  ) : (
-                    <Smartphone className="w-5 h-5 text-gray-400 dark:text-text-tertiary" />
-                  )}
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-text-primary flex items-center gap-2">
-                      {session.userAgent ? parseUserAgent(session.userAgent) : 'Unknown Device'}
-                      {session.isCurrentSession && (
-                        <Badge variant="success" className="text-xs">This Device</Badge>
-                      )}
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-text-secondary">
-                      Last active: {formatLastActive(session.lastActive)}
-                      {session.ipAddress && ` • ${session.ipAddress}`}
-                    </p>
-                  </div>
-                </div>
-                {!session.isCurrentSession && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleSignOutSession(session.sessionId)}
-                    disabled={revokeSession.isPending && revokeSession.variables === session.sessionId}
-                  >
-                    {revokeSession.isPending && revokeSession.variables === session.sessionId ? 'Signing out...' : 'Sign Out'}
-                  </Button>
-                )}
-              </div>
-            ))
-          )}
-          {activeSessions.length > 1 && (
-            <div className="pt-4 border-t border-gray-200 dark:border-surface-border">
-              <Button 
-                variant="outline" 
-                onClick={handleSignOutAllSessions}
-                disabled={revokeAllOtherSessions.isPending}
-              >
-                {revokeAllOtherSessions.isPending ? 'Signing out...' : 'Sign Out All Other Sessions'}
-              </Button>
-            </div>
-          )}
-        </div>
-      </Card>
-
-      {/* Role & Permissions */}
-      <Card title="Your Role & Access" description="View your current permissions and access level">
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <Badge variant="success">Owner</Badge>
-            <span className="text-sm text-gray-600 dark:text-text-secondary">Business Owner</span>
-          </div>
-
-          <div>
-            <h4 className="font-medium text-gray-900 dark:text-text-primary mb-2">Permissions</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {[
-                'Full access to all features',
-                'Can manage staff',
-                'Can view financial reports',
-                'Can modify business settings',
-              ].map((permission, index) => (
-                <div key={index} className="flex items-center gap-2 text-sm text-gray-600 dark:text-text-secondary">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  {permission}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <Button variant="outline">
-            View All Permissions →
-          </Button>
-        </div>
-      </Card>
-
-      {/* Recent Activity */}
-      <Card title="Recent Activity" description="Track your recent actions in the system">
-        <div className="space-y-4">
-          {['Today', 'Yesterday'].map((date) => (
-            <div key={date}>
-              <h4 className="font-medium text-gray-900 dark:text-text-primary mb-3">{date}</h4>
-              <div className="space-y-3">
-                {recentActivity
-                  .filter((activity) => activity.date === date.toLowerCase())
-                  .map((activity) => (
-                    <div key={activity.id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-surface-secondary rounded-lg">
-                      <Activity className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                      <div className="flex-1">
-                        <p className="text-sm text-gray-900 dark:text-text-primary">{activity.action}</p>
-                        <p className="text-xs text-gray-500 dark:text-text-secondary">{activity.timestamp}</p>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          ))}
-
-          <div className="pt-4 border-t border-gray-200 dark:border-surface-border">
-            <Button variant="outline">
-              View Full Activity Log →
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      {/* Display Preferences */}
-      <Card title="Display Preferences" description="Customize how information appears in the system">
-        <div className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
-              Dashboard Layout
-            </label>
-            <div className="space-y-2">
-              {[
-                { value: 'compact', label: 'Compact view (more info, less space)' },
-                { value: 'comfortable', label: 'Comfortable view (balanced)' },
-                { value: 'spacious', label: 'Spacious view (easier to read)' },
-              ].map((option) => (
-                <label key={option.value} className="flex items-center gap-3">
-                  <input
-                    type="radio"
-                    name="dashboardLayout"
-                    value={option.value}
-                    checked={personalization.dashboardLayout === option.value}
-                    onChange={(e) => setPersonalization(prev => ({ ...prev, dashboardLayout: e.target.value }))}
-                    className="border-gray-300 dark:border-surface-border"
-                  />
-                  <span className="text-sm">{option.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
-                Default Landing Page
-              </label>
-              <select
-                value={personalization.defaultLandingPage}
-                onChange={(e) => setPersonalization(prev => ({ ...prev, defaultLandingPage: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="dashboard">Dashboard</option>
-                <option value="schedule">Today's Schedule</option>
-                <option value="bookings">Bookings</option>
-                <option value="reports">Reports</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
-                Date Format
-              </label>
-              <select
-                value={personalization.dateFormat}
-                onChange={(e) => setPersonalization(prev => ({ ...prev, dateFormat: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="MM/DD/YYYY">MM/DD/YYYY (US)</option>
-                <option value="DD/MM/YYYY">DD/MM/YYYY (International)</option>
-                <option value="YYYY-MM-DD">YYYY-MM-DD (ISO)</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
-                Time Format
-              </label>
-              <select
-                value={personalization.timeFormat}
-                onChange={(e) => setPersonalization(prev => ({ ...prev, timeFormat: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="12-hour">12-hour (2:30 PM)</option>
-                <option value="24-hour">24-hour (14:30)</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-2">
-                Number Format
-              </label>
-              <select
-                value={personalization.numberFormat}
-                onChange={(e) => setPersonalization(prev => ({ ...prev, numberFormat: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="us">1,234.56 (US)</option>
-                <option value="european">1.234,56 (European)</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Privacy & Data */}
-      <Card title="Privacy & Data" description="You have full control over your personal information">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 border border-gray-200 dark:border-surface-border rounded-lg">
-            <div>
-              <h4 className="font-medium text-gray-900 dark:text-text-primary">Download My Data</h4>
-              <p className="text-sm text-gray-600 dark:text-text-secondary">Export all your profile data and activity (JSON/CSV)</p>
-            </div>
-            <Button variant="outline">
-              <Download className="w-4 h-4 mr-2" />
-              Download
-            </Button>
-          </div>
-
-          <div className="flex items-center justify-between p-4 border border-red-200 dark:border-red-900/30 rounded-lg">
-            <div>
-              <h4 className="font-medium text-red-900 dark:text-red-100">Request Account Deletion</h4>
-              <p className="text-sm text-red-700">Permanently delete your account and data (requires confirmation)</p>
-            </div>
-            <Button variant="outline" className="text-red-600 border-red-300 hover:bg-red-50 dark:bg-surface-primary">
-              <Trash2 className="w-4 h-4 mr-2" />
-              Request Deletion
-            </Button>
-          </div>
-
-          <div className="text-xs text-gray-500 dark:text-text-secondary space-y-1">
-            <p>Data Retention: All personal data retained per GDPR guidelines</p>
-            <p>
-              Privacy Policy: <button className="text-blue-600 dark:text-blue-400 underline">Link</button> |
-              Terms of Service: <button className="text-blue-600 dark:text-blue-400 underline ml-1">Link</button>
-            </p>
-          </div>
-        </div>
-      </Card>
-
-      {/* Connected Apps */}
-      <Card title="Connected Apps" description="Manage third-party integrations linked to your account">
-        <div className="space-y-4">
-          {connectedApps.map((app) => {
-            const Icon = app.icon;
-            return (
-              <div key={app.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-surface-border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Icon className="w-6 h-6 text-gray-600 dark:text-text-secondary" />
-                  <div>
-                    <h4 className="font-medium text-gray-900 dark:text-text-primary">{app.name}</h4>
-                    <p className="text-sm text-gray-600 dark:text-text-secondary">{app.description}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {app.connected ? (
-                    <>
-                      <Badge variant="success">Connected</Badge>
-                      <Button variant="outline" size="sm">
-                        Disconnect
-                      </Button>
-                    </>
-                  ) : (
-                    <Button size="sm">
-                      Connect
-                    </Button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-
-          <div className="pt-4 border-t border-gray-200 dark:border-surface-border">
-            <Button variant="outline">
-              Manage All Integrations →
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      {/* Help & Support */}
-      <Card title="Need Help?" description="Get support and access documentation">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Button variant="outline" className="h-20 flex-col gap-2">
-            <HelpCircle className="w-6 h-6" />
-            View Documentation
-          </Button>
-          <Button variant="outline" className="h-20 flex-col gap-2">
-            <MessageSquare className="w-6 h-6" />
-            Contact Support
-          </Button>
-          <Button variant="outline" className="h-20 flex-col gap-2">
-            <Monitor className="w-6 h-6" />
-            Video Tutorials
-          </Button>
-          <Button variant="outline" className="h-20 flex-col gap-2">
-            <ExternalLink className="w-6 h-6" />
-            Community Forum
-          </Button>
-        </div>
-
-        <div className="mt-6 pt-6 border-t border-gray-200 dark:border-surface-border">
-          <h4 className="font-medium text-gray-900 dark:text-text-primary mb-2">System Information</h4>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div>
-              <span className="text-gray-500 dark:text-text-secondary">Account ID:</span>
-              <p className="font-mono">#12345</p>
-            </div>
-            <div>
-              <span className="text-gray-500 dark:text-text-secondary">Plan:</span>
-              <p>Professional</p>
-            </div>
-            <div>
-              <span className="text-gray-500 dark:text-text-secondary">Version:</span>
-              <p>2.1.4</p>
-            </div>
-            <div>
-              <span className="text-gray-500 dark:text-text-secondary">Last Updated:</span>
-              <p>Jan 15, 2024</p>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Enhanced Account Information */}
-      <Card title="Account Information" description="View your account details and status">
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label className="block text-sm text-gray-500 dark:text-text-secondary mb-1">Account Created</label>
-            <p className="font-medium">
-              {profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'January 15, 2024'}
-            </p>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-500 dark:text-text-secondary mb-1">Email Status</label>
-            <Badge variant={profile?.emailVerified ? 'success' : 'warning'}>
-              {profile?.emailVerified ? 'Verified' : 'Not Verified'}
-            </Badge>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-500 dark:text-text-secondary mb-1">Last Login</label>
-            <p className="font-medium">Just now</p>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-500 dark:text-text-secondary mb-1">Account Type</label>
-            <p className="font-medium">Business Owner</p>
-          </div>
-        </div>
-      </Card>
-
       {/* Password Change Modal */}
       {showPasswordModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-surface-primary rounded-lg p-6 w-full max-w-md mx-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-surface-primary rounded-lg p-6 w-full max-w-sm mx-4">
             <h3 className="text-lg font-semibold mb-4">Change Password</h3>
-
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
-                  Current Password
-                </label>
+                <label className="block text-xs font-medium text-muted mb-1">Current Password</label>
                 <input
                   type="password"
                   value={passwordForm.current}
-                  onChange={(e) => handlePasswordChange('current', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => setPasswordForm(p => ({ ...p, current: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-border rounded-md"
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
-                  New Password
-                </label>
+                <label className="block text-xs font-medium text-muted mb-1">New Password</label>
                 <input
                   type="password"
                   value={passwordForm.new}
-                  onChange={(e) => handlePasswordChange('new', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => setPasswordForm(p => ({ ...p, new: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-border rounded-md"
                 />
                 <PasswordStrength password={passwordForm.new} className="mt-2" />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
-                  Confirm New Password
-                </label>
+                <label className="block text-xs font-medium text-muted mb-1">Confirm Password</label>
                 <input
                   type="password"
                   value={passwordForm.confirm}
-                  onChange={(e) => handlePasswordChange('confirm', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => setPasswordForm(p => ({ ...p, confirm: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-border rounded-md"
                 />
               </div>
-
-              <div className="text-xs text-gray-500 dark:text-text-secondary space-y-1">
-                <p>✓ At least 8 characters</p>
-                <p>✓ One uppercase letter</p>
-                <p>✓ One number</p>
-                <p>○ One special character (!@#$%)</p>
-              </div>
             </div>
-
-            <div className="flex justify-end gap-3 mt-6">
-              <Button variant="outline" onClick={() => setShowPasswordModal(false)} disabled={changePassword.isPending}>
-                Cancel
-              </Button>
-              <Button onClick={handlePasswordSubmit} disabled={changePassword.isPending}>
-                {changePassword.isPending ? 'Updating...' : 'Update Password'}
+            <div className="flex justify-end gap-2 mt-4">
+              <Button variant="outline" size="sm" onClick={() => setShowPasswordModal(false)}>Cancel</Button>
+              <Button size="sm" onClick={handlePasswordSubmit} disabled={changePassword.isPending}>
+                {changePassword.isPending ? 'Updating...' : 'Update'}
               </Button>
             </div>
           </div>
@@ -1136,47 +598,27 @@ const Profile = () => {
 
       {/* 2FA Setup Modal */}
       {show2FAModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-surface-primary rounded-lg p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold mb-4">Secure Your Account</h3>
-
-            <div className="space-y-4">
-              <div className="text-center">
-                <QrCode className="w-32 h-32 mx-auto mb-4 border border-gray-200 dark:border-surface-border rounded-lg p-2" />
-                <p className="text-sm text-gray-600 dark:text-text-secondary mb-4">
-                  1. Download authenticator app (Google Authenticator, Authy)
-                </p>
-                <p className="text-sm text-gray-600 dark:text-text-secondary mb-4">
-                  2. Scan the QR code above with your app
-                </p>
-                <p className="text-sm text-gray-600 dark:text-text-secondary mb-4">
-                  3. Enter the 6-digit code from your app
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">
-                  Verification Code
-                </label>
-                <input
-                  type="text"
-                  placeholder="000000"
-                  maxLength="6"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-center text-lg font-mono"
-                />
-              </div>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-surface-primary rounded-lg p-6 w-full max-w-sm mx-4">
+            <h3 className="text-lg font-semibold mb-4">Enable Two-Factor Auth</h3>
+            <div className="text-center">
+              <QrCode className="w-24 h-24 mx-auto mb-3 border border-border rounded-lg p-2" />
+              <p className="text-xs text-muted mb-3">Scan with authenticator app</p>
+              <input
+                type="text"
+                placeholder="000000"
+                maxLength="6"
+                className="w-full px-3 py-2 text-center text-lg font-mono border border-border rounded-md"
+              />
             </div>
-
-            <div className="flex justify-end gap-3 mt-6">
-              <Button variant="outline" onClick={() => setShow2FAModal(false)}>
-                Cancel
-              </Button>
-              <Button onClick={() => {
+            <div className="flex justify-end gap-2 mt-4">
+              <Button variant="outline" size="sm" onClick={() => setShow2FAModal(false)}>Cancel</Button>
+              <Button size="sm" onClick={() => {
                 setTwoFactorEnabled(true);
                 setShow2FAModal(false);
-                toast.success('Two-factor authentication enabled successfully');
+                toast.success('2FA enabled');
               }}>
-                Verify & Enable
+                Enable
               </Button>
             </div>
           </div>
@@ -1185,5 +627,28 @@ const Profile = () => {
     </div>
   );
 };
+
+// Toggle Row Component
+const ToggleRow = ({ icon: Icon, label, checked, onChange }) => (
+  <div className="flex items-center justify-between py-1.5">
+    <div className="flex items-center gap-2">
+      <Icon className="w-4 h-4 text-muted" />
+      <span className="text-sm text-text">{label}</span>
+    </div>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+        checked ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+      }`}
+    >
+      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+        checked ? 'translate-x-5' : 'translate-x-1'
+      }`} />
+    </button>
+  </div>
+);
 
 export default Profile;
