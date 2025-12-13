@@ -135,12 +135,8 @@ export const bookingsTourSteps = [
 export const bookingsTourConfig = {
   id: BOOKINGS_TOUR_ID,
   steps: bookingsTourSteps,
-  onComplete: () => {
-    console.log('Bookings tour completed');
-  },
-  onSkip: () => {
-    console.log('Bookings tour skipped');
-  },
+  onComplete: () => {},
+  onSkip: () => {},
 };
 
 // ============================================================================

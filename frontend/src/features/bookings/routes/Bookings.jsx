@@ -352,8 +352,6 @@ const Bookings = () => {
   }, [refetchBookings]);
 
   const handleBookingClick = useCallback((bookingOrAssignment) => {
-    // Debug: log what we receive
-    console.log('[BookingClick] Raw data:', bookingOrAssignment);
     // Transform run assignment to booking-like shape for the detail modal
     // Run assignments have flat fields (petName, ownerName), bookings have nested objects (pet, owner)
     const normalizedBooking = bookingOrAssignment.pet

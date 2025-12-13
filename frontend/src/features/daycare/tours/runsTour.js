@@ -111,12 +111,8 @@ export const runsTourSteps = [
 export const runsTourConfig = {
   id: RUNS_TOUR_ID,
   steps: runsTourSteps,
-  onComplete: () => {
-    console.log('Runs tour completed');
-  },
-  onSkip: () => {
-    console.log('Runs tour skipped');
-  },
+  onComplete: () => {},
+  onSkip: () => {},
 };
 
 // ============================================================================

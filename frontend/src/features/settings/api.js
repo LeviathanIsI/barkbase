@@ -1816,3 +1816,73 @@ export const useDisconnectStripeMutation = () => {
     },
   });
 };
+
+// =============================================================================
+// MULTI-PROCESSOR PAYMENT SETTINGS API
+// =============================================================================
+
+/**
+ * Test Square connection with provided credentials
+ * Validates by calling Square's Locations API
+ */
+export const useTestSquareConnectionMutation = () => {
+  return useMutation({
+    mutationFn: async ({ applicationId, accessToken, locationId, environment = 'sandbox' }) => {
+      const res = await apiClient.post(canonicalEndpoints.paymentSettings.testSquare, {
+        applicationId,
+        accessToken,
+        locationId,
+        environment,
+      });
+      return res.data;
+    },
+  });
+};
+
+/**
+ * Test PayPal connection with provided credentials
+ * Validates by getting an OAuth access token
+ */
+export const useTestPayPalConnectionMutation = () => {
+  return useMutation({
+    mutationFn: async ({ clientId, clientSecret, environment = 'sandbox' }) => {
+      const res = await apiClient.post(canonicalEndpoints.paymentSettings.testPaypal, {
+        clientId,
+        clientSecret,
+        environment,
+      });
+      return res.data;
+    },
+  });
+};
+
+/**
+ * Generic test connection mutation - routes to appropriate processor
+ */
+export const useTestPaymentConnectionMutation = () => {
+  return useMutation({
+    mutationFn: async (data) => {
+      const res = await apiClient.post(canonicalEndpoints.paymentSettings.test, data);
+      return res.data;
+    },
+  });
+};
+
+/**
+ * Disconnect current payment processor (removes all credentials)
+ */
+export const useDisconnectPaymentProcessorMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async () => {
+      const res = await apiClient.post(canonicalEndpoints.paymentSettings.disconnect);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['paymentSettings', tenantKey] });
+      queryClient.invalidateQueries({ queryKey: ['stripeStatus', tenantKey] });
+    },
+  });
+};

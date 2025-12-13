@@ -174,12 +174,8 @@ export const ownersTourSteps = [
 export const ownersTourConfig = {
   id: OWNERS_TOUR_ID,
   steps: ownersTourSteps,
-  onComplete: () => {
-    console.log('Owners tour completed');
-  },
-  onSkip: () => {
-    console.log('Owners tour skipped');
-  },
+  onComplete: () => {},
+  onSkip: () => {},
 };
 
 // ============================================================================

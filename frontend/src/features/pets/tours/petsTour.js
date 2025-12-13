@@ -171,12 +171,8 @@ export const petsTourSteps = [
 export const petsTourConfig = {
   id: PETS_TOUR_ID,
   steps: petsTourSteps,
-  onComplete: () => {
-    console.log('Pets tour completed');
-  },
-  onSkip: () => {
-    console.log('Pets tour skipped');
-  },
+  onComplete: () => {},
+  onSkip: () => {},
 };
 
 // ============================================================================

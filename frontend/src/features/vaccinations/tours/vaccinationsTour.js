@@ -171,12 +171,8 @@ export const vaccinationsTourSteps = [
 export const vaccinationsTourConfig = {
   id: VACCINATIONS_TOUR_ID,
   steps: vaccinationsTourSteps,
-  onComplete: () => {
-    console.log('Vaccinations tour completed');
-  },
-  onSkip: () => {
-    console.log('Vaccinations tour skipped');
-  },
+  onComplete: () => {},
+  onSkip: () => {},
 };
 
 // ============================================================================

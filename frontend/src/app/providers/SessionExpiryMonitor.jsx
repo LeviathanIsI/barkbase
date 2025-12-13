@@ -24,7 +24,6 @@ const SessionExpiryMonitor = () => {
         const intervalHours = autoLogoutIntervalHours;
         
         if (isSessionExpired(sessionStartTime, sessionExpiryTime, intervalHours)) {
-          console.log('[SessionMonitor] Session expired, logging out');
           clearAuth();
           
           // Clear any cached data
@@ -45,7 +44,6 @@ const SessionExpiryMonitor = () => {
     if (sessionStartTime && sessionExpiryTime) {
       const intervalHours = autoLogoutIntervalHours;
       if (isSessionExpired(sessionStartTime, sessionExpiryTime, intervalHours)) {
-        console.log('[SessionMonitor] Session already expired on mount');
         clearAuth();
         window.location.href = '/login';
       }

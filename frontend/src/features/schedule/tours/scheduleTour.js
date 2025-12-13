@@ -123,12 +123,8 @@ export const scheduleTourSteps = [
 export const scheduleTourConfig = {
   id: SCHEDULE_TOUR_ID,
   steps: scheduleTourSteps,
-  onComplete: () => {
-    console.log('Schedule tour completed');
-  },
-  onSkip: () => {
-    console.log('Schedule tour skipped');
-  },
+  onComplete: () => {},
+  onSkip: () => {},
 };
 
 // ============================================================================

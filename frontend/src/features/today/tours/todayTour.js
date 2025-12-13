@@ -166,12 +166,8 @@ export const todayTourSteps = [
 export const todayTourConfig = {
   id: TODAY_TOUR_ID,
   steps: todayTourSteps,
-  onComplete: () => {
-    console.log('Today tour completed');
-  },
-  onSkip: () => {
-    console.log('Today tour skipped');
-  },
+  onComplete: () => {},
+  onSkip: () => {},
 };
 
 // ============================================================================

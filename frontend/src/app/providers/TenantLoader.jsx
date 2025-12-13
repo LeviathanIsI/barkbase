@@ -37,14 +37,12 @@ const TenantLoader = () => {
 
       // If tenant already has recordId (restored from localStorage or set by Login), skip loading
       if (currentTenant?.recordId) {
-        console.log('[TenantLoader] Tenant already loaded from storage:', currentTenant.recordId);
         return;
       }
 
       // If auth store already has tenantId, we might have partial state - still load full config
       // But if tenant store has recordId matching, we're good
       if (authTenantId && currentTenant?.recordId === authTenantId) {
-        console.log('[TenantLoader] Tenant already synced:', authTenantId);
         return;
       }
 
@@ -66,7 +64,6 @@ const TenantLoader = () => {
 
       const initTenant = async () => {
         setLoading(true);
-        console.log('[TenantLoader] Fetching tenant config...');
 
         try {
           // Fetch tenant config from backend
@@ -85,8 +82,6 @@ const TenantLoader = () => {
           if (!tenantId) {
             throw new Error('No tenantId in config response');
           }
-
-          console.log('[TenantLoader] Tenant config loaded:', { tenantId, slug: data.slug });
 
           // Update auth store with tenantId (for API headers)
           updateTokens({

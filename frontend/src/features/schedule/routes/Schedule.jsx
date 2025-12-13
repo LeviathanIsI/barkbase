@@ -489,11 +489,7 @@ const Schedule = () => {
           run={selectedRunForAssignment}
           unassignedPets={unassignedCheckedInPets}
           onAssign={async (pet, startTime, endTime) => {
-            console.log('[Schedule] onAssign called with pet:', pet, 'startTime:', startTime, 'endTime:', endTime);
-            console.log('[Schedule] selectedRunForAssignment:', selectedRunForAssignment);
-
             if (!selectedRunForAssignment?.id) {
-              console.error('[Schedule] No run selected - missing id');
               toast.error('No run selected');
               return;
             }
@@ -503,25 +499,13 @@ const Schedule = () => {
             const petId = pet.pet?.id || pet.petId;
             const bookingId = pet.id; // The booking's ID
 
-            console.log('[Schedule] Assigning pet to run:', {
-              runId: selectedRunForAssignment.id,
-              runName: selectedRunForAssignment.name,
-              petId,
-              petName: pet.petName,
-              date: todayStr,
-              bookingId,
-              startTime,
-              endTime,
-            });
-
             if (!petId) {
-              console.error('[Schedule] No petId found in booking:', pet);
               toast.error('Could not find pet ID');
               return;
             }
 
             try {
-              const result = await assignPetsMutation.mutateAsync({
+              await assignPetsMutation.mutateAsync({
                 runId: selectedRunForAssignment.id,
                 petIds: [petId],
                 date: todayStr,
@@ -530,7 +514,6 @@ const Schedule = () => {
                 endTime,
               });
 
-              console.log('[Schedule] Assignment result:', result);
               toast.success(`${pet.petName} assigned to ${selectedRunForAssignment?.name}`);
               setShowAssignmentPanel(false);
               setSelectedRunForAssignment(null);

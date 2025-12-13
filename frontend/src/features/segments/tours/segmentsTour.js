@@ -111,12 +111,8 @@ export const segmentsTourSteps = [
 export const segmentsTourConfig = {
   id: SEGMENTS_TOUR_ID,
   steps: segmentsTourSteps,
-  onComplete: () => {
-    console.log('Segments tour completed');
-  },
-  onSkip: () => {
-    console.log('Segments tour skipped');
-  },
+  onComplete: () => {},
+  onSkip: () => {},
 };
 
 // ============================================================================

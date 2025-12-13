@@ -17,8 +17,6 @@ export class CognitoPasswordClient {
     if (!this.clientId) throw new Error('Cognito clientId not configured');
     if (!email || !password) throw new Error('Email and password are required');
 
-    console.log('[CognitoPasswordClient] Starting signup for:', email);
-
     // Step 1: Create user in Cognito
     const command = new SignUpCommand({
       ClientId: this.clientId,
@@ -31,14 +29,11 @@ export class CognitoPasswordClient {
     });
 
     const res = await this.client.send(command);
-    console.log('[CognitoPasswordClient] Cognito user created:', res.UserSub);
 
     // Step 2: Sign in to get tokens (Cognito auto-confirms via Pre-SignUp trigger)
     const signInResult = await this.signIn({ email, password });
-    console.log('[CognitoPasswordClient] User signed in, got access token');
 
     // Step 3: Call backend to create Tenant and User records in database
-    console.log('[CognitoPasswordClient] Calling backend /api/v1/auth/register to create tenant/user');
 
     const registerResponse = await fetch(`${this.apiBaseUrl}/api/v1/auth/register`, {
       method: 'POST',
@@ -65,7 +60,6 @@ export class CognitoPasswordClient {
     }
 
     const registerData = await registerResponse.json();
-    console.log('[CognitoPasswordClient] Backend registration successful:', registerData);
 
     return {
       user: {
