@@ -1806,54 +1806,59 @@ async function handleGetMemberships(user) {
       });
     }
 
-    // Get all memberships for this tenant with user details
-    console.log('[CONFIG-SERVICE] Querying memberships for tenant:', tenantId);
+    // Get all users for this tenant with their roles from UserRole junction table
+    console.log('[CONFIG-SERVICE] Querying users for tenant:', tenantId);
     const result = await query(
       `SELECT
-         m.id,
-         m.tenant_id,
-         m.user_id,
-         m.role,
-         m.status,
-         m.invited_at,
-         m.joined_at,
-         m.created_at,
-         m.updated_at,
+         u.id,
+         u.tenant_id,
          u.email,
          u.first_name,
          u.last_name,
-         u.cognito_sub
-       FROM "Membership" m
-       LEFT JOIN "User" u ON m.user_id = u.id
-       WHERE m.tenant_id = $1
-       ORDER BY m.created_at DESC`,
+         u.cognito_sub,
+         u.status,
+         u.created_at,
+         u.updated_at,
+         (SELECT array_agg(r.name) FROM "UserRole" ur
+          JOIN "Role" r ON ur.role_id = r.id
+          WHERE ur.user_id = u.id) as roles
+       FROM "User" u
+       WHERE u.tenant_id = $1
+       ORDER BY u.created_at DESC`,
       [tenantId]
     );
 
     console.log('[CONFIG-SERVICE] handleGetMemberships - found:', result.rows.length, 'members');
 
     // Transform to frontend-friendly format
-    const members = result.rows.map(row => ({
-      id: row.id,
-      membershipId: row.id,
-      tenantId: row.tenant_id,
-      userId: row.user_id,
-      role: row.role,
-      status: row.status || 'active',
-      invitedAt: row.invited_at,
-      joinedAt: row.joined_at,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      // User details
-      email: row.email,
-      firstName: row.first_name,
-      lastName: row.last_name,
-      name: row.first_name && row.last_name
-        ? `${row.first_name} ${row.last_name}`
-        : row.email,
-      // Flag if this is the current user
-      isCurrentUser: row.cognito_sub === user.id,
-    }));
+    const members = result.rows.map(row => {
+      const roles = row.roles || [];
+      // Determine primary role (first role or STAFF as default)
+      const primaryRole = roles.length > 0 ? roles[0] : 'STAFF';
+
+      return {
+        id: row.id,
+        membershipId: row.id, // Use user ID as membership ID for compatibility
+        tenantId: row.tenant_id,
+        userId: row.id,
+        role: primaryRole,
+        roles: roles,
+        status: row.status || 'active',
+        invitedAt: row.created_at, // Use created_at as invited_at
+        joinedAt: row.created_at,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        // User details
+        email: row.email,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        name: row.first_name && row.last_name
+          ? `${row.first_name} ${row.last_name}`
+          : row.email,
+        // Flag if this is the current user
+        isCurrentUser: row.cognito_sub === user.id,
+      };
+    });
 
     return createResponse(200, {
       success: true,
