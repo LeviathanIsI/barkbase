@@ -282,13 +282,11 @@ const DraggablePetCard = ({
     data: { pet },
   });
 
-  // When using DragOverlay, original card stays in place but fades
-  // isDragOverlay cards (in DragOverlay) have no transform/opacity change
   const style = isDragOverlay
     ? {}
     : {
-        opacity: isDragging ? 0.3 : 1,
-        // Don't apply transform - DragOverlay handles the visual drag
+        transform: CSS.Translate.toString(transform),
+        opacity: isDragging ? 0.4 : 1,
       };
 
   const ownerName = pet.owners?.[0]?.owner
