@@ -1389,19 +1389,27 @@ const RunAssignment = () => {
 
         {/* Drag Overlay - Portal entire component to body to escape overflow clipping */}
         {createPortal(
-          <DragOverlay
-            dropAnimation={{
-              duration: 200,
-              easing: 'ease',
-            }}
-            zIndex={9999}
-          >
-            {activeId && activePet ? (
-              <div style={{ width: 280 }}>
-                <DraggablePetCard pet={activePet} isDragOverlay />
-              </div>
-            ) : null}
-          </DragOverlay>,
+          <>
+            {console.log('=== INSIDE PORTAL ===', { activeId, activePet: activePet?.name })}
+            <DragOverlay
+              dropAnimation={{
+                duration: 200,
+                easing: 'ease',
+              }}
+              zIndex={9999}
+            >
+              {activeId && activePet ? (
+                <>
+                  {console.log('=== RENDERING DRAG OVERLAY CHILDREN ===', activePet.name)}
+                  <div style={{ width: 280, border: '5px solid red' }}>
+                    <DraggablePetCard pet={activePet} isDragOverlay />
+                  </div>
+                </>
+              ) : (
+                console.log('=== NO CHILDREN - activeId or activePet missing ===', { activeId, activePet })
+              )}
+            </DragOverlay>
+          </>,
           document.body
         )}
       </DndContext>
