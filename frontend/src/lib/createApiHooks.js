@@ -74,9 +74,24 @@ const buildQueryKey = (baseKey, tenantKey, params = {}) => {
 // ============================================================================
 
 /**
+ * Ensure each item has a recordId field
+ * Standardizes on recordId as the primary identifier
+ * @param {object} item - Item to normalize
+ * @returns {object} Item with recordId guaranteed
+ */
+const ensureRecordId = (item) => {
+  if (!item || typeof item !== 'object') return item;
+  return {
+    ...item,
+    recordId: item.recordId || item.id,
+  };
+};
+
+/**
  * Normalize list response to consistent shape
  * Handles: array, { items: [] }, { data: [] }, { [key]: [] }
- * 
+ * Also ensures all items have recordId field
+ *
  * @param {any} data - Raw API response data
  * @param {string} itemsKey - Key to look for in response (e.g., 'pets')
  * @returns {{ items: Array, total: number, raw: any }}
@@ -84,24 +99,27 @@ const buildQueryKey = (baseKey, tenantKey, params = {}) => {
 export const normalizeListResponse = (data, itemsKey = 'items') => {
   // Direct array
   if (Array.isArray(data)) {
-    return { items: data, total: data.length, raw: data };
+    const items = data.map(ensureRecordId);
+    return { items, total: items.length, raw: data };
   }
-  
+
   // Object with various array keys
   if (data && typeof data === 'object') {
     // Check for standard patterns
-    const items = data.items || data.data || data[itemsKey] || [];
-    if (Array.isArray(items)) {
+    const rawItems = data.items || data.data || data[itemsKey] || [];
+    if (Array.isArray(rawItems)) {
+      const items = rawItems.map(ensureRecordId);
       return { items, total: data.total ?? items.length, raw: data };
     }
   }
-  
+
   // Fallback
   return { items: [], total: 0, raw: data ?? null };
 };
 
 /**
  * Normalize detail response
+ * Also ensures recordId is present
  * @param {any} data - Raw API response data
  * @returns {object|null}
  */
@@ -109,9 +127,9 @@ export const normalizeDetailResponse = (data) => {
   if (!data) return null;
   // If it's an object with a data wrapper, unwrap it
   if (data.data && typeof data.data === 'object' && !Array.isArray(data.data)) {
-    return data.data;
+    return ensureRecordId(data.data);
   }
-  return data;
+  return ensureRecordId(data);
 };
 
 // ============================================================================
