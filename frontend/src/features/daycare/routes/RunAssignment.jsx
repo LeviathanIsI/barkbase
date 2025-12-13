@@ -1000,6 +1000,7 @@ const RunAssignment = () => {
     if (!pet) return;
 
     console.log('Opening time picker for:', pet?.name, 'to run:', targetRun?.name);
+    console.log('Setting pendingAssignment:', { pet: pet?.name, runId: targetId, runName: targetRun?.name });
 
     // Open time picker modal
     setPendingAssignment({
@@ -1007,6 +1008,7 @@ const RunAssignment = () => {
       run: targetRun,
       runId: targetId
     });
+    console.log('Setting timePickerOpen to true');
     setTimePickerOpen(true);
   };
 
@@ -1443,10 +1445,12 @@ const RunAssignment = () => {
       )}
 
       {/* Time Slot Picker Modal */}
+      {console.log('TimeSlotPicker render check:', { timePickerOpen, pendingAssignment: pendingAssignment?.pet?.name })}
       {pendingAssignment && (
         <TimeSlotPicker
           isOpen={timePickerOpen}
           onClose={() => {
+            console.log('TimeSlotPicker onClose called');
             setTimePickerOpen(false);
             setPendingAssignment(null);
           }}
