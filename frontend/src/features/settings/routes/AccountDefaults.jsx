@@ -559,14 +559,14 @@ const SchedulingSection = ({
                   <span className="text-xs text-muted">{dayHours?.isOpen ? 'Open' : 'Closed'}</span>
                 </label>
                 {dayHours?.isOpen ? (
-                  <div className="flex items-center gap-1.5 flex-1">
+                  <div className="flex items-center gap-2 flex-1">
                     <Controller
                       name={`operatingHours.${day}.open`}
                       control={control}
                       render={({ field }) => (
                         <input
                           type="time"
-                          className="px-2 py-1 text-xs border border-border rounded w-24"
+                          className="px-2 py-1.5 text-sm border border-border rounded bg-surface-secondary"
                           value={field.value ?? ''}
                           onChange={(event) => field.onChange(event.target.value)}
                         />
@@ -579,7 +579,7 @@ const SchedulingSection = ({
                       render={({ field }) => (
                         <input
                           type="time"
-                          className="px-2 py-1 text-xs border border-border rounded w-24"
+                          className="px-2 py-1.5 text-sm border border-border rounded bg-surface-secondary"
                           value={field.value ?? ''}
                           onChange={(event) => field.onChange(event.target.value)}
                         />
