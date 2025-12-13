@@ -885,6 +885,21 @@ async function createPet(event) {
       throw tierError;
     }
 
+    // Validate foreign key references
+    const ownerId = body.ownerId || body.owner_id;
+    if (ownerId) {
+      const ownerCheck = await query(
+        `SELECT id FROM "Owner" WHERE id = $1 AND tenant_id = $2`,
+        [ownerId, tenantId]
+      );
+      if (ownerCheck.rows.length === 0) {
+        return createResponse(400, {
+          error: 'BadRequest',
+          message: `Owner with ID ${ownerId} not found`,
+        });
+      }
+    }
+
     // Handle vet_id - can be provided directly or we can create/find a Veterinarian record
     let vetId = body.vetId || body.vet_id || null;
 
@@ -950,8 +965,8 @@ async function createPet(event) {
     const petId = result.rows[0].id;
 
     // If ownerId is provided, create PetOwner relationship
-    if (body.ownerId || body.owner_id) {
-      const ownerId = body.ownerId || body.owner_id;
+    // (ownerId was validated above if provided)
+    if (ownerId) {
       await query(
         `INSERT INTO "PetOwner" (tenant_id, pet_id, owner_id, is_primary, relationship)
          VALUES ($1, $2, $3, true, 'owner')

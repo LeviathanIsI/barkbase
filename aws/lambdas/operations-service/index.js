@@ -1259,6 +1259,65 @@ async function handleCreateBooking(tenantId, user, body) {
       console.log('[Bookings][create] Capacity check passed:', capacityCheck);
     }
 
+    // ==========================================================================
+    // FOREIGN KEY VALIDATION
+    // Verify referenced entities exist before creating the booking
+    // ==========================================================================
+    const fkErrors = [];
+
+    // Validate ownerId exists
+    if (ownerId) {
+      const ownerCheck = await query(
+        `SELECT id FROM "Owner" WHERE id = $1 AND tenant_id = $2`,
+        [ownerId, tenantId]
+      );
+      if (ownerCheck.rows.length === 0) {
+        fkErrors.push(`Owner with ID ${ownerId} not found`);
+      }
+    }
+
+    // Validate kennelId exists
+    if (kennelId) {
+      const kennelCheck = await query(
+        `SELECT id FROM "Kennel" WHERE id = $1 AND tenant_id = $2`,
+        [kennelId, tenantId]
+      );
+      if (kennelCheck.rows.length === 0) {
+        fkErrors.push(`Kennel with ID ${kennelId} not found`);
+      }
+    }
+
+    // Validate serviceId exists
+    if (serviceId) {
+      const serviceCheck = await query(
+        `SELECT id FROM "Service" WHERE id = $1 AND tenant_id = $2`,
+        [serviceId, tenantId]
+      );
+      if (serviceCheck.rows.length === 0) {
+        fkErrors.push(`Service with ID ${serviceId} not found`);
+      }
+    }
+
+    // Validate petIds exist
+    const petsToValidate = petIds && petIds.length > 0 ? petIds : (petId ? [petId] : []);
+    for (const pid of petsToValidate) {
+      const petCheck = await query(
+        `SELECT id FROM "Pet" WHERE id = $1 AND tenant_id = $2`,
+        [pid, tenantId]
+      );
+      if (petCheck.rows.length === 0) {
+        fkErrors.push(`Pet with ID ${pid} not found`);
+      }
+    }
+
+    if (fkErrors.length > 0) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Referenced entities not found',
+        details: fkErrors,
+      });
+    }
+
     // Calculate price in cents
     const priceInCents = totalPriceInCents || (totalPrice ? totalPrice * 100 : 0);
 
