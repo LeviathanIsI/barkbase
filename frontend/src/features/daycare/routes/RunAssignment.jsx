@@ -912,27 +912,16 @@ const RunAssignment = () => {
 
   const handleDragEnd = async (event) => {
     const { active, over } = event;
-    console.log('=== DRAG END ===');
-    console.log('active:', active?.id);
-    console.log('over:', over?.id);
-    console.log('over data:', over?.data?.current);
-
     setActiveId(null);
     setActivePet(null);
 
-    if (!over) {
-      console.log('No drop target - cancelled');
-      return;
-    }
+    if (!over) return;
 
     const petId = active.id.replace('pet-', '');
     const targetId = over.id;
-    console.log('petId:', petId);
-    console.log('targetId:', targetId);
 
     // Handle dropping back to unassigned
     if (targetId === 'unassigned') {
-      console.log('Dropping to unassigned area');
       // Remove from all runs
       setAssignmentState(prev => {
         const newState = { ...prev };
@@ -946,11 +935,7 @@ const RunAssignment = () => {
 
     // Check if dropping onto a run
     const targetRun = runs?.find(r => r.recordId === targetId);
-    console.log('targetRun found:', targetRun?.name || 'NOT FOUND');
-    console.log('Available run IDs:', runs?.map(r => r.recordId));
-
     if (!targetRun) {
-      console.log('No matching run - might be reordering or invalid drop');
       // Might be reordering within the same run - check if target is another pet
       // Find which run contains the target pet
       let sourceRunId = null;
@@ -985,8 +970,6 @@ const RunAssignment = () => {
 
     // Find the pet
     let pet = checkedInPets.find(p => p.recordId === petId);
-    console.log('pet found:', pet?.name || 'NOT FOUND');
-
     if (!pet) {
       for (const assignments of Object.values(assignmentState)) {
         const assignment = assignments.find(a => a.pet?.recordId === petId);
@@ -999,35 +982,13 @@ const RunAssignment = () => {
 
     if (!pet) return;
 
-    console.log('Opening time picker for:', pet?.name, 'to run:', targetRun?.name);
-
-    // TEMP: Direct assignment without time picker
-    console.log('DIRECT ASSIGN:', pet.name, 'to', targetRun.name);
-    setAssignmentState(prev => {
-      const newState = { ...prev };
-      Object.keys(newState).forEach(rid => {
-        newState[rid] = newState[rid].filter(a => a.pet?.recordId !== pet.recordId);
-      });
-      if (!newState[targetId]) {
-        newState[targetId] = [];
-      }
-      newState[targetId].push({
-        pet,
-        startTime: '09:00',
-        endTime: '12:00'
-      });
-      return newState;
+    // Open time picker modal
+    setPendingAssignment({
+      pet,
+      run: targetRun,
+      runId: targetId
     });
-
-    // TODO: Restore time picker once working
-    // console.log('Setting pendingAssignment:', { pet: pet?.name, runId: targetId, runName: targetRun?.name });
-    // setPendingAssignment({
-    //   pet,
-    //   run: targetRun,
-    //   runId: targetId
-    // });
-    // console.log('Setting timePickerOpen to true');
-    // setTimePickerOpen(true);
+    setTimePickerOpen(true);
   };
 
   const handleTimeSlotConfirm = async ({ startTime, endTime }) => {
@@ -1463,12 +1424,10 @@ const RunAssignment = () => {
       )}
 
       {/* Time Slot Picker Modal */}
-      {console.log('TimeSlotPicker render check:', { timePickerOpen, pendingAssignment: pendingAssignment?.pet?.name })}
       {pendingAssignment && (
         <TimeSlotPicker
           isOpen={timePickerOpen}
           onClose={() => {
-            console.log('TimeSlotPicker onClose called');
             setTimePickerOpen(false);
             setPendingAssignment(null);
           }}

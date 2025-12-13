@@ -74,7 +74,7 @@ const TimeSlotPicker = ({
 
   return (
     <Modal
-      isOpen={isOpen}
+      open={isOpen}
       onClose={onClose}
       title={`Schedule ${petName} for ${runName}`}
       size="md"
