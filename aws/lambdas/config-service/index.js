@@ -1816,7 +1816,6 @@ async function handleGetMemberships(user) {
          u.first_name,
          u.last_name,
          u.cognito_sub,
-         u.status,
          u.created_at,
          u.updated_at,
          (SELECT array_agg(r.name) FROM "UserRole" ur
@@ -1843,7 +1842,7 @@ async function handleGetMemberships(user) {
         userId: row.id,
         role: primaryRole,
         roles: roles,
-        status: row.status || 'active',
+        status: 'active', // All users in the table are active
         invitedAt: row.created_at, // Use created_at as invited_at
         joinedAt: row.created_at,
         createdAt: row.created_at,
