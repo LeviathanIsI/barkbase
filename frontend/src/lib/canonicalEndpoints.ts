@@ -37,6 +37,11 @@ export const canonicalEndpoints = {
   staff: {
     list: '/api/v1/entity/staff',
     detail: build('/api/v1/entity/staff/{id}'),
+    create: '/api/v1/entity/staff',
+    update: build('/api/v1/entity/staff/{id}'),
+    delete: build('/api/v1/entity/staff/{id}'),
+    bulkDelete: '/api/v1/entity/staff/bulk/delete',
+    bulkUpdate: '/api/v1/entity/staff/bulk/update',
   },
   facilities: {
     list: '/api/v1/entity/facilities',
