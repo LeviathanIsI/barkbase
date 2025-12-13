@@ -5,7 +5,6 @@ import Input from '@/components/ui/Input';
 import SlideoutPanel from '@/components/SlideoutPanel';
 import Badge from '@/components/ui/Badge';
 import Switch from '@/components/ui/Switch';
-import SettingsPage from '../components/SettingsPage';
 import {
   usePackageTemplatesQuery,
   useCreatePackageTemplateMutation,
@@ -21,7 +20,6 @@ import {
   Plus,
   Pencil,
   Archive,
-  Package,
   Sparkles,
   Bath,
   Bone,
@@ -291,234 +289,195 @@ const ProductsServices = () => {
     : 0;
 
   return (
-    <SettingsPage title="Packages & Add-Ons" description="Manage prepaid packages and add-on services">
-      {/* Packages Section */}
-      <Card
-        title="Packages"
-        description="Prepaid service bundles for your customers"
-        icon={<Ticket className="h-5 w-5" />}
-        headerAction={
-          <Button variant="primary" size="sm" onClick={() => openPackageModal()}>
-            <Plus className="h-4 w-4 mr-1" />New Package
-          </Button>
-        }
-      >
-        {isLoadingPackages ? (
-          <div className="animate-pulse space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-20 bg-surface-secondary rounded-lg" />
-            ))}
-          </div>
-        ) : packages.length === 0 ? (
-          <div className="text-center py-8">
-            <Ticket className="h-12 w-12 mx-auto text-text-tertiary mb-3" />
-            <p className="text-text-secondary mb-4">No packages yet</p>
+    <div className="space-y-6">
+      {/* Two-column layout for Packages & Add-Ons */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Packages Column */}
+        <Card
+          title="Packages"
+          description="Prepaid service bundles for your customers"
+          headerAction={
             <Button variant="primary" size="sm" onClick={() => openPackageModal()}>
-              <Plus className="h-4 w-4 mr-1" />Create First Package
+              <Plus className="h-4 w-4 mr-1" />New
             </Button>
-          </div>
-        ) : (
-          <>
-            <div className="space-y-3">
-              {paginatedPackages.map((pkg) => (
-                <div
-                  key={pkg.id}
-                  className={`flex items-center justify-between p-4 rounded-lg border ${
-                    pkg.is_active
-                      ? 'bg-surface-secondary border-border'
-                      : 'bg-surface-secondary/50 border-border/50 opacity-60'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-primary-100 dark:bg-primary-900/30 rounded-lg">
-                      <Ticket className="h-5 w-5 text-primary-600 dark:text-primary-400" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-text-primary">{pkg.name}</span>
-                        {pkg.is_active ? (
-                          <Badge variant="success" size="sm">Active</Badge>
-                        ) : (
-                          <Badge variant="default" size="sm">Inactive</Badge>
-                        )}
+          }
+        >
+          {isLoadingPackages ? (
+            <div className="animate-pulse space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-16 bg-gray-100 dark:bg-surface-secondary rounded-lg" />
+              ))}
+            </div>
+          ) : packages.length === 0 ? (
+            <div className="text-center py-8 border-2 border-dashed border-gray-200 dark:border-surface-border rounded-lg">
+              <Ticket className="h-10 w-10 mx-auto text-gray-400 mb-3" />
+              <p className="text-gray-500 dark:text-text-secondary mb-4">No packages yet</p>
+              <Button size="sm" onClick={() => openPackageModal()}>
+                <Plus className="h-4 w-4 mr-1" />Create First Package
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                {paginatedPackages.map((pkg) => (
+                  <div
+                    key={pkg.id}
+                    className={`flex items-center justify-between p-3 rounded-lg border ${
+                      pkg.is_active
+                        ? 'bg-gray-50 dark:bg-surface-secondary border-gray-200 dark:border-surface-border'
+                        : 'bg-gray-50/50 dark:bg-surface-secondary/50 border-gray-200/50 dark:border-surface-border/50 opacity-60'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="p-2 bg-primary-100 dark:bg-primary-900/30 rounded-lg flex-shrink-0">
+                        <Ticket className="h-4 w-4 text-primary-600 dark:text-primary-400" />
                       </div>
-                      <p className="text-sm text-text-secondary">
-                        {formatPrice(pkg.price_in_cents)} ({formatPrice(getPerCreditPrice(pkg.price_in_cents, pkg.total_credits))}/{pkg.total_credits === 1 ? 'credit' : 'credit'})
-                      </p>
-                      <p className="text-xs text-text-tertiary">
-                        {pkg.total_credits} credits
-                        {pkg.expires_in_days && ` • Expires: ${pkg.expires_in_days} days`}
-                        {pkg.service_type && ` • ${SERVICE_TYPES.find(s => s.value === pkg.service_type)?.label || pkg.service_type}`}
-                      </p>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm truncate">{pkg.name}</span>
+                          {!pkg.is_active && <Badge variant="default" size="sm">Inactive</Badge>}
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-text-secondary">
+                          {formatPrice(pkg.price_in_cents)} • {pkg.total_credits} credits
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-1 flex-shrink-0">
+                      <Button variant="ghost" size="sm" onClick={() => openPackageModal(pkg)}>
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleTogglePackageActive(pkg)}>
+                        {pkg.is_active ? <Archive className="h-3 w-3" /> : <RotateCcw className="h-3 w-3" />}
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => openPackageModal(pkg)}>
-                      <Pencil className="h-4 w-4 mr-1" />Edit
+                ))}
+              </div>
+              {/* Pagination */}
+              {packagesTotalPages > 1 && (
+                <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-surface-border mt-3">
+                  <p className="text-xs text-gray-500 dark:text-text-secondary">
+                    {(packagePage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(packagePage * ITEMS_PER_PAGE, packages.length)} of {packages.length}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setPackagePage((p) => Math.max(1, p - 1))}
+                      disabled={packagePage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleTogglePackageActive(pkg)}
+                      onClick={() => setPackagePage((p) => Math.min(packagesTotalPages, p + 1))}
+                      disabled={packagePage === packagesTotalPages}
                     >
-                      {pkg.is_active ? (
-                        <><Archive className="h-4 w-4 mr-1" />Archive</>
-                      ) : (
-                        <><RotateCcw className="h-4 w-4 mr-1" />Restore</>
-                      )}
+                      <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
+              )}
+            </>
+          )}
+        </Card>
+
+        {/* Add-On Services Column */}
+        <Card
+          title="Add-On Services"
+          description="Extra services customers can add to bookings"
+          headerAction={
+            <Button variant="primary" size="sm" onClick={() => openAddonModal()}>
+              <Plus className="h-4 w-4 mr-1" />New
+            </Button>
+          }
+        >
+          {isLoadingAddons ? (
+            <div className="animate-pulse space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-16 bg-gray-100 dark:bg-surface-secondary rounded-lg" />
               ))}
             </div>
-            {/* Pagination */}
-            {packagesTotalPages > 1 && (
-              <div className="flex items-center justify-between pt-4 border-t border-border mt-4">
-                <p className="text-sm text-text-secondary">
-                  Showing {(packagePage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(packagePage * ITEMS_PER_PAGE, packages.length)} of {packages.length}
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setPackagePage((p) => Math.max(1, p - 1))}
-                    disabled={packagePage === 1}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <span className="text-sm text-text-secondary">
-                    Page {packagePage} of {packagesTotalPages}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setPackagePage((p) => Math.min(packagesTotalPages, p + 1))}
-                    disabled={packagePage === packagesTotalPages}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </Card>
-
-      {/* Add-On Services Section */}
-      <Card
-        title="Add-On Services"
-        description="Extra services customers can add to bookings"
-        icon={<Sparkles className="h-5 w-5" />}
-        headerAction={
-          <Button variant="primary" size="sm" onClick={() => openAddonModal()}>
-            <Plus className="h-4 w-4 mr-1" />New Add-On
-          </Button>
-        }
-      >
-        {isLoadingAddons ? (
-          <div className="animate-pulse space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-16 bg-surface-secondary rounded-lg" />
-            ))}
-          </div>
-        ) : addons.length === 0 ? (
-          <div className="text-center py-8">
-            <Sparkles className="h-12 w-12 mx-auto text-text-tertiary mb-3" />
-            <p className="text-text-secondary mb-4">No add-on services yet</p>
-            <Button variant="primary" size="sm" onClick={() => openAddonModal()}>
-              <Plus className="h-4 w-4 mr-1" />Create First Add-On
-            </Button>
-          </div>
-        ) : (
-          <>
-            <div className="space-y-3">
-              {paginatedAddons.map((addon) => {
-                const IconComponent = getAddOnIcon(addon.name);
-                return (
-                  <div
-                    key={addon.id}
-                    className={`flex items-center justify-between p-4 rounded-lg border ${
-                      addon.is_active
-                        ? 'bg-surface-secondary border-border'
-                        : 'bg-surface-secondary/50 border-border/50 opacity-60'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-secondary-100 dark:bg-secondary-900/30 rounded-lg">
-                        <IconComponent className="h-5 w-5 text-secondary-600 dark:text-secondary-400" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-text-primary">{addon.name}</span>
-                          {addon.is_active ? (
-                            <Badge variant="success" size="sm">Active</Badge>
-                          ) : (
-                            <Badge variant="default" size="sm">Inactive</Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-text-secondary">
-                          {formatPrice(addon.price_in_cents)}
-                          {addon.price_type !== 'flat' && ` / ${addon.price_type === 'per_day' ? 'day' : 'night'}`}
-                        </p>
-                        <p className="text-xs text-text-tertiary">
-                          Applies to: {addon.applies_to?.length > 0
-                            ? addon.applies_to.map(s => SERVICE_TYPES.find(st => st.value === s)?.label || s).join(', ')
-                            : 'All Services'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => openAddonModal(addon)}>
-                        <Pencil className="h-4 w-4 mr-1" />Edit
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleToggleAddonActive(addon)}
-                      >
-                        {addon.is_active ? (
-                          <><Archive className="h-4 w-4 mr-1" />Archive</>
-                        ) : (
-                          <><RotateCcw className="h-4 w-4 mr-1" />Restore</>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
+          ) : addons.length === 0 ? (
+            <div className="text-center py-8 border-2 border-dashed border-gray-200 dark:border-surface-border rounded-lg">
+              <Sparkles className="h-10 w-10 mx-auto text-gray-400 mb-3" />
+              <p className="text-gray-500 dark:text-text-secondary mb-4">No add-on services yet</p>
+              <Button size="sm" onClick={() => openAddonModal()}>
+                <Plus className="h-4 w-4 mr-1" />Create First Add-On
+              </Button>
             </div>
-            {/* Pagination */}
-            {addonsTotalPages > 1 && (
-              <div className="flex items-center justify-between pt-4 border-t border-border mt-4">
-                <p className="text-sm text-text-secondary">
-                  Showing {(addonPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(addonPage * ITEMS_PER_PAGE, addons.length)} of {addons.length}
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setAddonPage((p) => Math.max(1, p - 1))}
-                    disabled={addonPage === 1}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <span className="text-sm text-text-secondary">
-                    Page {addonPage} of {addonsTotalPages}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setAddonPage((p) => Math.min(addonsTotalPages, p + 1))}
-                    disabled={addonPage === addonsTotalPages}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                {paginatedAddons.map((addon) => {
+                  const IconComponent = getAddOnIcon(addon.name);
+                  return (
+                    <div
+                      key={addon.id}
+                      className={`flex items-center justify-between p-3 rounded-lg border ${
+                        addon.is_active
+                          ? 'bg-gray-50 dark:bg-surface-secondary border-gray-200 dark:border-surface-border'
+                          : 'bg-gray-50/50 dark:bg-surface-secondary/50 border-gray-200/50 dark:border-surface-border/50 opacity-60'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex-shrink-0">
+                          <IconComponent className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm truncate">{addon.name}</span>
+                            {!addon.is_active && <Badge variant="default" size="sm">Inactive</Badge>}
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-text-secondary">
+                            {formatPrice(addon.price_in_cents)}
+                            {addon.price_type !== 'flat' && ` / ${addon.price_type === 'per_day' ? 'day' : 'night'}`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-1 flex-shrink-0">
+                        <Button variant="ghost" size="sm" onClick={() => openAddonModal(addon)}>
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleToggleAddonActive(addon)}>
+                          {addon.is_active ? <Archive className="h-3 w-3" /> : <RotateCcw className="h-3 w-3" />}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            )}
-          </>
-        )}
-      </Card>
+              {/* Pagination */}
+              {addonsTotalPages > 1 && (
+                <div className="flex items-center justify-between pt-3 border-t border-gray-200 dark:border-surface-border mt-3">
+                  <p className="text-xs text-gray-500 dark:text-text-secondary">
+                    {(addonPage - 1) * ITEMS_PER_PAGE + 1}-{Math.min(addonPage * ITEMS_PER_PAGE, addons.length)} of {addons.length}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setAddonPage((p) => Math.max(1, p - 1))}
+                      disabled={addonPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setAddonPage((p) => Math.min(addonsTotalPages, p + 1))}
+                      disabled={addonPage === addonsTotalPages}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </Card>
+      </div>
 
       {/* Package Slideout */}
       <SlideoutPanel
@@ -543,7 +502,7 @@ const ProductsServices = () => {
       >
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">Package Name *</label>
+            <label className="block text-sm font-medium mb-2">Package Name *</label>
             <Input
               value={packageForm.name}
               onChange={(e) => setPackageForm((prev) => ({ ...prev, name: e.target.value }))}
@@ -552,7 +511,7 @@ const ProductsServices = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">Description</label>
+            <label className="block text-sm font-medium mb-2">Description</label>
             <Input
               value={packageForm.description}
               onChange={(e) => setPackageForm((prev) => ({ ...prev, description: e.target.value }))}
@@ -562,7 +521,7 @@ const ProductsServices = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-2">Number of Credits *</label>
+              <label className="block text-sm font-medium mb-2">Number of Credits *</label>
               <Input
                 type="number"
                 min="1"
@@ -570,13 +529,13 @@ const ProductsServices = () => {
                 onChange={(e) => setPackageForm((prev) => ({ ...prev, totalCredits: e.target.value }))}
                 placeholder="10"
               />
-              <p className="text-xs text-text-tertiary mt-1">Days/visits included</p>
+              <p className="text-xs text-gray-500 dark:text-text-muted mt-1">Days/visits included</p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-2">Price *</label>
+              <label className="block text-sm font-medium mb-2">Price *</label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
                 <Input
                   type="number"
                   min="0"
@@ -588,7 +547,7 @@ const ProductsServices = () => {
                 />
               </div>
               {perCreditPrice > 0 && (
-                <p className="text-xs text-text-secondary mt-1">
+                <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">
                   {formatPrice(perCreditPrice)} per credit
                 </p>
               )}
@@ -596,7 +555,7 @@ const ProductsServices = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">Expiration</label>
+            <label className="block text-sm font-medium mb-2">Expiration</label>
             <div className="flex items-center gap-4 flex-wrap">
               <Input
                 type="number"
@@ -607,25 +566,25 @@ const ProductsServices = () => {
                 disabled={packageForm.neverExpires}
                 className="w-24"
               />
-              <span className="text-text-secondary text-sm">days from purchase</span>
+              <span className="text-sm text-gray-500">days from purchase</span>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={packageForm.neverExpires}
                   onChange={(e) => setPackageForm((prev) => ({ ...prev, neverExpires: e.target.checked }))}
-                  className="h-4 w-4 rounded border-border text-primary-600 focus:ring-primary-500"
+                  className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                 />
-                <span className="text-sm text-text-secondary">Never expires</span>
+                <span className="text-sm text-gray-500">Never expires</span>
               </label>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">Applies to Service</label>
+            <label className="block text-sm font-medium mb-2">Applies to Service</label>
             <select
               value={packageForm.serviceType}
               onChange={(e) => setPackageForm((prev) => ({ ...prev, serviceType: e.target.value }))}
-              className="w-full rounded-lg border border-border bg-surface-primary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full rounded-lg border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               {SERVICE_TYPES.map((type) => (
                 <option key={type.value} value={type.value}>{type.label}</option>
@@ -633,10 +592,10 @@ const ProductsServices = () => {
             </select>
           </div>
 
-          <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-lg">
+          <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg">
             <div>
-              <span className="font-medium text-text-primary">Active</span>
-              <p className="text-sm text-text-secondary">Available for purchase</p>
+              <span className="font-medium">Active</span>
+              <p className="text-sm text-gray-500 dark:text-text-secondary">Available for purchase</p>
             </div>
             <Switch
               checked={packageForm.isActive}
@@ -669,7 +628,7 @@ const ProductsServices = () => {
       >
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">Name *</label>
+            <label className="block text-sm font-medium mb-2">Name *</label>
             <Input
               value={addonForm.name}
               onChange={(e) => setAddonForm((prev) => ({ ...prev, name: e.target.value }))}
@@ -678,7 +637,7 @@ const ProductsServices = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">Description</label>
+            <label className="block text-sm font-medium mb-2">Description</label>
             <Input
               value={addonForm.description}
               onChange={(e) => setAddonForm((prev) => ({ ...prev, description: e.target.value }))}
@@ -688,9 +647,9 @@ const ProductsServices = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-2">Price *</label>
+              <label className="block text-sm font-medium mb-2">Price *</label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary">$</span>
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
                 <Input
                   type="number"
                   min="0"
@@ -704,11 +663,11 @@ const ProductsServices = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-2">Price Type</label>
+              <label className="block text-sm font-medium mb-2">Price Type</label>
               <select
                 value={addonForm.priceType}
                 onChange={(e) => setAddonForm((prev) => ({ ...prev, priceType: e.target.value }))}
-                className="w-full rounded-lg border border-border bg-surface-primary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="w-full rounded-lg border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 {PRICE_TYPES.map((type) => (
                   <option key={type.value} value={type.value}>{type.label}</option>
@@ -718,8 +677,8 @@ const ProductsServices = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">Applies to Services</label>
-            <p className="text-xs text-text-tertiary mb-3">Leave empty for all services</p>
+            <label className="block text-sm font-medium mb-2">Applies to Services</label>
+            <p className="text-xs text-gray-500 dark:text-text-muted mb-3">Leave empty for all services</p>
             <div className="flex flex-wrap gap-2">
               {SERVICE_TYPES.filter(s => s.value).map((type) => (
                 <button
@@ -729,7 +688,7 @@ const ProductsServices = () => {
                   className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
                     addonForm.appliesTo.includes(type.value)
                       ? 'bg-primary-100 dark:bg-primary-900/30 border-primary-300 dark:border-primary-700 text-primary-700 dark:text-primary-300'
-                      : 'bg-surface-secondary border-border text-text-secondary hover:bg-surface-elevated'
+                      : 'bg-gray-100 dark:bg-surface-secondary border-gray-200 dark:border-surface-border text-gray-600 dark:text-text-secondary hover:bg-gray-200 dark:hover:bg-surface-elevated'
                   }`}
                 >
                   {type.label}
@@ -738,10 +697,10 @@ const ProductsServices = () => {
             </div>
           </div>
 
-          <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-lg">
+          <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-surface-secondary rounded-lg">
             <div>
-              <span className="font-medium text-text-primary">Active</span>
-              <p className="text-sm text-text-secondary">Available to add to bookings</p>
+              <span className="font-medium">Active</span>
+              <p className="text-sm text-gray-500 dark:text-text-secondary">Available to add to bookings</p>
             </div>
             <Switch
               checked={addonForm.isActive}
@@ -750,7 +709,7 @@ const ProductsServices = () => {
           </div>
         </div>
       </SlideoutPanel>
-    </SettingsPage>
+    </div>
   );
 };
 

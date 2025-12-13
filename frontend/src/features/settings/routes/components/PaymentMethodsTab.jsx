@@ -1,33 +1,36 @@
 import { useState } from 'react';
-import { Plus, MoreVertical, CreditCard, MapPin, Shield, Bell, Loader2 } from 'lucide-react';
+import { Plus, MoreVertical, CreditCard, MapPin, Bell, Loader2 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
-import { usePaymentMethodsQuery } from '@/features/settings/api';
+import { usePaymentMethodsQuery, useBillingContactQuery } from '@/features/settings/api';
 
 export default function PaymentMethodsTab() {
   const [showAddCardModal, setShowAddCardModal] = useState(false);
   const { data: paymentData, isLoading } = usePaymentMethodsQuery();
+  const { data: billingContactData } = useBillingContactQuery();
 
   // Use API data or fallback to empty
   const paymentMethods = paymentData?.methods || [];
   const primaryMethod = paymentData?.primaryMethod;
 
-  // Billing address and preferences would come from user profile or tenant settings
-  // For now, using placeholder structure that can be wired later
-  const billingAddress = {
-    name: '',
-    email: '',
-    phone: '',
+  // Billing address from API or empty placeholder
+  const billingAddress = billingContactData?.contact || {
+    name: null,
+    email: null,
+    phone: null,
     address: {
-      line1: '',
-      line2: '',
-      city: '',
-      state: '',
-      zip: '',
-      country: 'United States'
+      line1: null,
+      line2: null,
+      city: null,
+      state: null,
+      zip: null,
+      country: null
     }
   };
+
+  // Helper to display value or placeholder
+  const displayValue = (value) => value || '—';
 
   const billingPreferences = {
     autoRenewal: true,
@@ -59,99 +62,107 @@ export default function PaymentMethodsTab() {
 
   return (
     <div className="space-y-6">
-      {/* Primary Payment Method */}
-      <Card title="PRIMARY PAYMENT METHOD">
+      {/* Payment Methods - Combined into one card */}
+      <Card title="PAYMENT METHODS">
         {paymentMethods.length === 0 ? (
-          <div className="text-center py-6 text-gray-500 dark:text-text-secondary">
+          <div className="text-center py-8">
             <CreditCard className="w-10 h-10 text-gray-300 dark:text-text-tertiary mx-auto mb-3" />
-            <p>No payment method on file.</p>
-            <p className="text-sm">Add a payment method to enable billing features.</p>
+            <p className="text-gray-600 dark:text-text-secondary mb-4">No payment methods on file</p>
+            <Button onClick={() => setShowAddCardModal(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Payment Method
+            </Button>
           </div>
         ) : (
-          paymentMethods.filter(pm => pm.isPrimary).map((method) => (
-            <div key={method.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-surface-border rounded-lg">
-              <div className="flex items-center gap-4">
-                {getCardTypeIcon(method.type)}
-                <div>
-                  <div className="font-medium text-gray-900 dark:text-text-primary">
-                    {formatCardNumber(method.last4)}
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-text-secondary">
-                    {method.processor || method.type} {method.lastUsedAt ? `• Last used ${new Date(method.lastUsedAt).toLocaleDateString()}` : ''}
+          <div className="space-y-4">
+            {/* Primary Method */}
+            {paymentMethods.filter(pm => pm.isPrimary).map((method) => (
+              <div key={method.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-surface-border rounded-lg">
+                <div className="flex items-center gap-4">
+                  {getCardTypeIcon(method.type)}
+                  <div>
+                    <div className="font-medium text-gray-900 dark:text-text-primary">
+                      {formatCardNumber(method.last4)}
+                    </div>
+                    <div className="text-sm text-gray-600 dark:text-text-secondary">
+                      {method.processor || method.type} {method.lastUsedAt ? `• Last used ${new Date(method.lastUsedAt).toLocaleDateString()}` : ''}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant="success">Primary</Badge>
-                <div className="relative">
-                  <button className="p-2 hover:bg-gray-100 dark:hover:bg-surface-secondary dark:bg-surface-secondary rounded-full">
+                <div className="flex items-center gap-2">
+                  <Badge variant="success">Primary</Badge>
+                  <button className="p-2 hover:bg-gray-100 dark:hover:bg-surface-secondary rounded-full">
                     <MoreVertical className="w-4 h-4" />
                   </button>
                 </div>
               </div>
-            </div>
-          ))
+            ))}
+
+            {/* Backup Methods */}
+            {paymentMethods.filter(pm => !pm.isPrimary).map((method) => (
+              <div key={method.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-surface-border rounded-lg">
+                <div className="flex items-center gap-4">
+                  {getCardTypeIcon(method.type)}
+                  <div>
+                    <div className="font-medium text-gray-900 dark:text-text-primary">
+                      {formatCardNumber(method.last4)}
+                    </div>
+                    <div className="text-sm text-gray-600 dark:text-text-secondary">
+                      {method.processor || method.type} • Backup
+                    </div>
+                  </div>
+                </div>
+                <button className="p-2 hover:bg-gray-100 dark:hover:bg-surface-secondary rounded-full">
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+
+            {/* Add another method */}
+            <Button variant="outline" onClick={() => setShowAddCardModal(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Payment Method
+            </Button>
+          </div>
         )}
-      </Card>
-
-      {/* Add Payment Method */}
-      <Card>
-        <div className="text-center py-8">
-          <CreditCard className="w-12 h-12 text-gray-400 dark:text-text-tertiary mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-text-primary mb-2">Add Payment Method</h3>
-          <p className="text-gray-600 dark:text-text-secondary mb-4">
-            Add a backup payment method to avoid service interruptions
-          </p>
-          <Button onClick={() => setShowAddCardModal(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Payment Method
-          </Button>
-        </div>
-      </Card>
-
-      {/* Backup Payment Methods */}
-      <Card title="BACKUP METHODS">
-        <div className="text-center py-8 text-gray-500 dark:text-text-secondary">
-          <Shield className="w-12 h-12 text-gray-300 dark:text-text-tertiary mx-auto mb-4" />
-          <p>No backup payment method on file.</p>
-          <p className="text-sm">Add one to avoid service interruptions.</p>
-          <Button variant="outline" className="mt-4">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Backup Card
-          </Button>
-        </div>
       </Card>
 
       {/* Billing Address */}
       <Card title="BILLING CONTACT" icon={<MapPin className="w-5 h-5" />}>
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Name</label>
-              <div className="text-gray-900 dark:text-text-primary">{billingAddress.name}</div>
+              <div className="text-gray-900 dark:text-text-primary">{displayValue(billingAddress.name)}</div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Email</label>
-              <div className="text-gray-900 dark:text-text-primary">{billingAddress.email}</div>
+              <div className="text-gray-900 dark:text-text-primary">{displayValue(billingAddress.email)}</div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Phone</label>
-              <div className="text-gray-900 dark:text-text-primary">{billingAddress.phone}</div>
+              <div className="text-gray-900 dark:text-text-primary">{displayValue(billingAddress.phone)}</div>
             </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-text-primary mb-1">Address</label>
             <div className="text-gray-900 dark:text-text-primary">
-              {billingAddress.address.line1}<br />
-              {billingAddress.address.line2 && <>{billingAddress.address.line2}<br /></>}
-              {billingAddress.address.city}, {billingAddress.address.state} {billingAddress.address.zip}<br />
-              {billingAddress.address.country}
+              {billingAddress.address?.line1 ? (
+                <>
+                  {billingAddress.address.line1}<br />
+                  {billingAddress.address.line2 && <>{billingAddress.address.line2}<br /></>}
+                  {billingAddress.address.city}, {billingAddress.address.state} {billingAddress.address.zip}<br />
+                  {billingAddress.address.country}
+                </>
+              ) : (
+                '—'
+              )}
             </div>
           </div>
 
           <Button variant="outline">
-            Edit Billing Address
+            Edit Billing Contact
           </Button>
         </div>
       </Card>

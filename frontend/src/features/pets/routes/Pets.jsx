@@ -7,13 +7,14 @@ import {
   SlidersHorizontal, BookmarkPlus, ArrowUpDown, ArrowUp, ArrowDown,
   GripVertical, Syringe, ShieldAlert, Calendar, Star, Dog, Cat,
   AlertCircle, CheckCircle2, Clock, User, Loader2, ShieldCheck, ShieldOff,
-  Crown, Ban, ExternalLink, Mail, Phone,
+  Crown, Ban, ExternalLink, Mail, Phone, AlertTriangle, FileText,
 } from 'lucide-react';
 import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import toast from 'react-hot-toast';
 import EntityToolbar from '@/components/EntityToolbar';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import Modal from '@/components/ui/Modal';
 import PetAvatar from '@/components/ui/PetAvatar';
 import { ScrollableTableContainer } from '@/components/ui/ScrollableTableContainer';
 // Replaced with LoadingState (mascot) for page-level loading
@@ -30,7 +31,7 @@ import { PetFormModal } from '../components';
 import SlideOutDrawer from '@/components/ui/SlideOutDrawer';
 import { cn } from '@/lib/cn';
 import { getBirthdateFromAge, getAgeFromBirthdate, formatAgeFromBirthdate, getBirthdateFromPet, getFormattedAgeFromPet } from '../utils/pet-date-utils';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
 
 // Saved views - persisted in localStorage
@@ -128,6 +129,11 @@ const Pets = () => {
   const navigate = useNavigate();
   const [petFormModalOpen, setPetFormModalOpen] = useState(false);
   const [selectedOwnerId, setSelectedOwnerId] = useState(null);
+
+  // Delete confirmation modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteConfirmValue, setDeleteConfirmValue] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Search, filter, and view state
   const [searchTerm, setSearchTerm] = useState('');
@@ -459,10 +465,11 @@ const Pets = () => {
   }, []);
 
   const handleSelectAll = useCallback(() => {
-    if (selectedRows.size === paginatedPets.length) {
+    if (selectedRows.size === paginatedPets.length && paginatedPets.length > 0) {
       setSelectedRows(new Set());
     } else {
-      setSelectedRows(new Set(paginatedPets.map(p => p.recordId)));
+      // Use id || recordId to match how individual rows are selected
+      setSelectedRows(new Set(paginatedPets.map(p => p.id || p.recordId)));
     }
   }, [paginatedPets, selectedRows.size]);
 
@@ -505,6 +512,166 @@ const Pets = () => {
   }, [inlineUpdateMutation]);
 
   const hasActiveFilters = searchTerm || Object.keys(customFilters).length > 0 || activeView !== 'all';
+
+  // Get selected pet data for bulk actions
+  const selectedPetData = useMemo(() => {
+    return petsWithMetrics.filter(p => selectedRows.has(p.id || p.recordId));
+  }, [petsWithMetrics, selectedRows]);
+
+  // Export pets to CSV
+  const handleExportCSV = useCallback((petsToExport) => {
+    if (!petsToExport || petsToExport.length === 0) {
+      toast.error('No pets to export');
+      return;
+    }
+
+    // CSV headers
+    const headers = ['Name', 'Species', 'Breed', 'Age', 'Status', 'Owner', 'Vaccination Status', 'Weight'];
+
+    // Convert pet data to CSV rows
+    const rows = petsToExport.map(pet => {
+      const ageDisplay = formatAgeFromBirthdate(pet.birthdate) || '—';
+      return [
+        pet.name || '',
+        pet.species || 'Dog',
+        pet.breed || '',
+        ageDisplay,
+        pet.status || 'active',
+        pet.ownerName || 'No owner',
+        pet.vaccinationStatus || 'current',
+        pet.weight ? `${pet.weight} lbs` : '',
+      ];
+    });
+
+    // Build CSV content
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row =>
+        row.map(cell => {
+          const str = String(cell);
+          if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            return `"${str.replace(/"/g, '""')}"`;
+          }
+          return str;
+        }).join(',')
+      ),
+    ].join('\n');
+
+    // Create and trigger download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `pets_export_${format(new Date(), 'yyyy-MM-dd_HHmm')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast.success(`Exported ${petsToExport.length} pet${petsToExport.length !== 1 ? 's' : ''}`);
+  }, []);
+
+  // Export all/filtered pets (header button)
+  const handleExportAll = useCallback(() => {
+    handleExportCSV(sortedPets);
+  }, [sortedPets, handleExportCSV]);
+
+  // Export selected pets (bulk action)
+  const handleExportSelected = useCallback(() => {
+    handleExportCSV(selectedPetData);
+  }, [selectedPetData, handleExportCSV]);
+
+  // Generate vaccination report for selected pets
+  const handleVaccinationReport = useCallback(() => {
+    if (selectedPetData.length === 0) {
+      toast.error('No pets selected');
+      return;
+    }
+
+    // Get vaccinations for selected pets
+    const petVaccinations = (expiringVaccsData || []).filter(v =>
+      selectedPetData.some(p => v.petId === p.id || v.petId === p.recordId)
+    );
+
+    // CSV headers
+    const headers = ['Pet Name', 'Owner', 'Vaccine', 'Status', 'Expires', 'Days Until Expiry'];
+
+    // Build rows
+    const rows = [];
+    selectedPetData.forEach(pet => {
+      const petVaccs = petVaccinations.filter(v => v.petId === pet.id || v.petId === pet.recordId);
+      if (petVaccs.length === 0) {
+        rows.push([pet.name, pet.ownerName || 'No owner', 'No vaccination records', '', '', '']);
+      } else {
+        petVaccs.forEach(v => {
+          const expiresAt = v.expiresAt ? new Date(v.expiresAt) : null;
+          const daysRemaining = expiresAt ? Math.ceil((expiresAt - new Date()) / (1000 * 60 * 60 * 24)) : null;
+          const status = daysRemaining !== null
+            ? (daysRemaining < 0 ? 'Expired' : daysRemaining <= 7 ? 'Critical' : daysRemaining <= 30 ? 'Expiring' : 'Current')
+            : 'Unknown';
+          rows.push([
+            pet.name,
+            pet.ownerName || 'No owner',
+            v.type || v.name || v.vaccineName || 'Unknown',
+            status,
+            expiresAt ? format(expiresAt, 'yyyy-MM-dd') : 'N/A',
+            daysRemaining !== null ? daysRemaining.toString() : 'N/A',
+          ]);
+        });
+      }
+    });
+
+    // Build CSV content
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row =>
+        row.map(cell => {
+          const str = String(cell);
+          if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            return `"${str.replace(/"/g, '""')}"`;
+          }
+          return str;
+        }).join(',')
+      ),
+    ].join('\n');
+
+    // Create and trigger download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `vaccination_report_${format(new Date(), 'yyyy-MM-dd_HHmm')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast.success(`Vaccination report generated for ${selectedPetData.length} pet${selectedPetData.length !== 1 ? 's' : ''}`);
+  }, [selectedPetData, expiringVaccsData]);
+
+  // Bulk delete selected pets
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedPetData.length === 0) return;
+
+    setIsDeleting(true);
+    try {
+      // Delete pets one by one
+      const deletePromises = selectedPetData.map(pet =>
+        deletePetMutation.mutateAsync(pet.id || pet.recordId)
+      );
+      await Promise.all(deletePromises);
+
+      toast.success(`Deleted ${selectedPetData.length} pet${selectedPetData.length !== 1 ? 's' : ''}`);
+      setSelectedRows(new Set());
+      setDeleteModalOpen(false);
+      setDeleteConfirmValue('');
+    } catch (err) {
+      console.error('Failed to delete pets:', err);
+      toast.error('Failed to delete some pets. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [selectedPetData, deletePetMutation]);
 
   if (error) {
     return (
@@ -669,7 +836,7 @@ const Pets = () => {
                   )}
                 </div>
 
-                <Button variant="outline" size="sm" className="gap-1.5 h-9">
+                <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={handleExportAll}>
                   <Download className="h-4 w-4" />
                   <span className="hidden sm:inline">Export</span>
                 </Button>
@@ -723,9 +890,9 @@ const Pets = () => {
             <div className="mt-3 flex items-center gap-3 rounded-lg border p-2" style={{ backgroundColor: 'var(--bb-color-accent-soft)', borderColor: 'var(--bb-color-accent)' }}>
               <span className="text-sm font-medium text-[color:var(--bb-color-accent)]">{selectedRows.size} selected</span>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="gap-1.5 h-8"><Syringe className="h-3.5 w-3.5" />Vaccination Report</Button>
-                <Button variant="outline" size="sm" className="gap-1.5 h-8"><Download className="h-3.5 w-3.5" />Export</Button>
-                <Button variant="outline" size="sm" className="gap-1.5 h-8 text-red-500 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" />Delete</Button>
+                <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={handleVaccinationReport}><Syringe className="h-3.5 w-3.5" />Vaccination Report</Button>
+                <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={handleExportSelected}><Download className="h-3.5 w-3.5" />Export</Button>
+                <Button variant="outline" size="sm" className="gap-1.5 h-8 text-red-500 hover:text-red-600" onClick={() => setDeleteModalOpen(true)}><Trash2 className="h-3.5 w-3.5" />Delete</Button>
               </div>
               <button type="button" onClick={() => setSelectedRows(new Set())} className="ml-auto text-sm text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]">
                 Clear selection
@@ -895,6 +1062,81 @@ const Pets = () => {
           />
         )}
       </SlideOutDrawer>
+
+      {/* Delete Confirmation Modal - HubSpot-style number confirmation */}
+      <Modal
+        open={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setDeleteConfirmValue('');
+        }}
+        title={`Delete ${selectedRows.size} pet${selectedRows.size !== 1 ? 's' : ''}`}
+        size="sm"
+        footer={
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteModalOpen(false);
+                setDeleteConfirmValue('');
+              }}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleBulkDelete}
+              disabled={isDeleting || deleteConfirmValue !== String(selectedRows.size)}
+            >
+              {isDeleting ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting...</>
+              ) : (
+                <><Trash2 className="h-4 w-4 mr-2" />Delete</>
+              )}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30">
+            <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-red-800 dark:text-red-200">
+                You're about to permanently delete {selectedRows.size} record{selectedRows.size !== 1 ? 's' : ''}.
+                This action cannot be undone.
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2 text-[color:var(--bb-color-text-primary)]">
+              Type "<strong>{selectedRows.size}</strong>" to confirm:
+            </label>
+            <input
+              type="text"
+              value={deleteConfirmValue}
+              onChange={(e) => {
+                // Only allow digits that match the expected number
+                const val = e.target.value;
+                const expectedStr = String(selectedRows.size);
+                // Allow if it's a prefix of the expected number or exactly matches
+                if (val === '' || (expectedStr.startsWith(val) && val.length <= expectedStr.length)) {
+                  setDeleteConfirmValue(val);
+                }
+              }}
+              placeholder={String(selectedRows.size)}
+              className="w-full px-3 py-2 rounded-lg border text-sm"
+              style={{
+                backgroundColor: 'var(--bb-color-bg-body)',
+                borderColor: 'var(--bb-color-border-subtle)',
+                color: 'var(--bb-color-text-primary)',
+              }}
+              autoFocus
+            />
+          </div>
+        </div>
+      </Modal>
     </>
   );
 };

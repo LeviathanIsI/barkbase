@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import toast from 'react-hot-toast';
 import {
   Eye, Plus, GripVertical, Trash2, RotateCcw, Search,
-  MoreVertical, Layout, Info, Loader2, AlertCircle
+  MoreVertical, Layout, Info, Loader2, AlertCircle, Edit, Copy, Star
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -10,16 +11,36 @@ import { OBJECT_TYPES } from '../objectConfig';
 import {
   usePreviewLayouts,
   useUpdatePreviewLayout,
+  useCreatePreviewLayout,
+  useDeletePreviewLayout,
+  useSetDefaultPreviewLayout,
   useObjectProperties,
 } from '@/features/settings/api/objectSettingsApi';
 
 const ObjectPreviewCustomizationTab = ({ objectType }) => {
   const config = OBJECT_TYPES[objectType];
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const [viewSearchQuery, setViewSearchQuery] = useState('');
+  const menuRef = useRef(null);
 
   // API hooks
   const { data: layouts = [], isLoading: layoutsLoading, error: layoutsError } = usePreviewLayouts(objectType);
   const { data: propertiesData, isLoading: propertiesLoading } = useObjectProperties(objectType);
   const updatePreviewLayout = useUpdatePreviewLayout(objectType);
+  const createPreviewLayout = useCreatePreviewLayout(objectType);
+  const deletePreviewLayout = useDeletePreviewLayout(objectType);
+  const setDefaultPreviewLayout = useSetDefaultPreviewLayout(objectType);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpenMenuId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Get the default layout (or first one)
   const defaultLayout = useMemo(() => {
@@ -98,6 +119,13 @@ const ObjectPreviewCustomizationTab = ({ objectType }) => {
     );
   }, [availableProperties, searchQuery]);
 
+  // Filter layouts by search (must be before early returns to maintain hooks order)
+  const filteredLayouts = useMemo(() => {
+    if (!viewSearchQuery.trim()) return layouts;
+    const query = viewSearchQuery.toLowerCase();
+    return layouts.filter(l => l.name?.toLowerCase().includes(query));
+  }, [layouts, viewSearchQuery]);
+
   if (!config) {
     return (
       <div className="text-center py-12">
@@ -165,8 +193,81 @@ const ObjectPreviewCustomizationTab = ({ objectType }) => {
         is_default: true,
       });
       setHasChanges(false);
+      toast.success('Preview configuration saved');
     } catch (error) {
-      console.error('Failed to save preview layout:', error);
+      toast.error('Failed to save preview layout');
+    }
+  };
+
+  const handleCreateView = async () => {
+    const name = prompt('Enter view name:');
+    if (!name) return;
+    try {
+      await createPreviewLayout.mutateAsync({
+        name,
+        properties: getDefaultProperties().map(p => ({ id: p.id, label: p.label })),
+        show_quick_info: true,
+        show_quick_actions: true,
+        show_recent_activity: false,
+        is_default: false,
+      });
+      toast.success('View created');
+    } catch (error) {
+      toast.error('Failed to create view');
+    }
+  };
+
+  const handleDeleteView = async (layoutId) => {
+    const layout = layouts.find(l => l.id === layoutId);
+    if (!confirm(`Delete "${layout?.name}"? This cannot be undone.`)) return;
+    try {
+      await deletePreviewLayout.mutateAsync(layoutId);
+      toast.success('View deleted');
+      setOpenMenuId(null);
+    } catch (error) {
+      toast.error('Failed to delete view');
+    }
+  };
+
+  const handleSetDefaultView = async (layoutId) => {
+    try {
+      await setDefaultPreviewLayout.mutateAsync(layoutId);
+      toast.success('Default view updated');
+      setOpenMenuId(null);
+    } catch (error) {
+      toast.error('Failed to set default');
+    }
+  };
+
+  const handleRenameView = async (layoutId) => {
+    const layout = layouts.find(l => l.id === layoutId);
+    const newName = prompt('Enter new name:', layout?.name);
+    if (!newName || newName === layout?.name) return;
+    try {
+      await updatePreviewLayout.mutateAsync({ id: layoutId, name: newName });
+      toast.success('View renamed');
+      setOpenMenuId(null);
+    } catch (error) {
+      toast.error('Failed to rename view');
+    }
+  };
+
+  const handleDuplicateView = async (layoutId) => {
+    const layout = layouts.find(l => l.id === layoutId);
+    if (!layout) return;
+    try {
+      await createPreviewLayout.mutateAsync({
+        name: `${layout.name} (Copy)`,
+        properties: layout.properties || [],
+        show_quick_info: layout.show_quick_info ?? true,
+        show_quick_actions: layout.show_quick_actions ?? true,
+        show_recent_activity: layout.show_recent_activity ?? false,
+        is_default: false,
+      });
+      toast.success('View duplicated');
+      setOpenMenuId(null);
+    } catch (error) {
+      toast.error('Failed to duplicate view');
     }
   };
 
@@ -216,10 +317,12 @@ const ObjectPreviewCustomizationTab = ({ objectType }) => {
               <Input
                 placeholder="Search by view name"
                 className="pl-9 w-64"
-                disabled
+                value={viewSearchQuery}
+                onChange={(e) => setViewSearchQuery(e.target.value)}
               />
             </div>
-            <Button size="sm" disabled>
+            <Button size="sm" onClick={handleCreateView} disabled={createPreviewLayout.isPending}>
+              {createPreviewLayout.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Create team view
             </Button>
           </div>
@@ -249,14 +352,14 @@ const ObjectPreviewCustomizationTab = ({ objectType }) => {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {layouts.length === 0 ? (
+            {filteredLayouts.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-muted">
-                  No preview layouts configured. Using default settings.
+                  {viewSearchQuery ? 'No views match your search' : 'No preview layouts configured. Using default settings.'}
                 </td>
               </tr>
             ) : (
-              layouts.map((layout) => (
+              filteredLayouts.map((layout) => (
                 <tr key={layout.id} className="hover:bg-surface-secondary/50">
                   <td className="px-4 py-3">
                     <input type="checkbox" className="rounded border-border" />
@@ -266,9 +369,9 @@ const ObjectPreviewCustomizationTab = ({ objectType }) => {
                       <div className="w-5 h-5 rounded bg-primary/20 flex items-center justify-center">
                         <Eye className="w-3 h-3 text-primary" />
                       </div>
-                      <a href="#" className="text-sm text-primary hover:underline font-medium">
+                      <span className="text-sm text-primary font-medium">
                         {layout.name}
-                      </a>
+                      </span>
                       {layout.is_default && (
                         <span className="px-1.5 py-0.5 text-[10px] bg-primary/10 text-primary rounded">
                           Default
@@ -297,9 +400,51 @@ const ObjectPreviewCustomizationTab = ({ objectType }) => {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button className="p-1.5 rounded hover:bg-surface-secondary">
-                      <MoreVertical className="w-4 h-4 text-muted" />
-                    </button>
+                    <div className="relative" ref={openMenuId === layout.id ? menuRef : null}>
+                      <button
+                        className="p-1.5 rounded hover:bg-surface-secondary"
+                        onClick={() => setOpenMenuId(openMenuId === layout.id ? null : layout.id)}
+                      >
+                        <MoreVertical className="w-4 h-4 text-muted" />
+                      </button>
+                      {openMenuId === layout.id && (
+                        <div className="absolute right-0 mt-1 w-48 bg-surface border border-border rounded-lg shadow-lg z-10">
+                          <div className="py-1">
+                            <button
+                              onClick={() => handleRenameView(layout.id)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text hover:bg-surface-secondary"
+                            >
+                              <Edit className="w-4 h-4" />
+                              Rename
+                            </button>
+                            <button
+                              onClick={() => handleDuplicateView(layout.id)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text hover:bg-surface-secondary"
+                            >
+                              <Copy className="w-4 h-4" />
+                              Duplicate
+                            </button>
+                            {!layout.is_default && (
+                              <button
+                                onClick={() => handleSetDefaultView(layout.id)}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text hover:bg-surface-secondary"
+                              >
+                                <Star className="w-4 h-4" />
+                                Set as default
+                              </button>
+                            )}
+                            <div className="border-t border-border my-1" />
+                            <button
+                              onClick={() => handleDeleteView(layout.id)}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-surface-secondary"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))

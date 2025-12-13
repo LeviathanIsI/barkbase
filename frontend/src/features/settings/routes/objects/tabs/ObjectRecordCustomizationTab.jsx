@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import {
   Layout, Plus, GripVertical, Eye, Trash2, MoreVertical,
-  FileText, Users, Paperclip, Loader2, Save, RotateCcw
+  FileText, Users, Paperclip, Loader2, Save, RotateCcw, Star, Edit, Copy
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
@@ -12,7 +12,9 @@ import {
   useRecordLayouts,
   useCreateRecordLayout,
   useUpdateRecordLayout,
-  useResetRecordLayout
+  useResetRecordLayout,
+  useDeleteRecordLayout,
+  useSetDefaultRecordLayout
 } from '@/features/settings/api/objectSettingsApi';
 
 const ObjectRecordCustomizationTab = ({ objectType }) => {
@@ -20,6 +22,8 @@ const ObjectRecordCustomizationTab = ({ objectType }) => {
   const [selectedLayoutId, setSelectedLayoutId] = useState(null);
   const [showAddCardModal, setShowAddCardModal] = useState(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const menuRef = useRef(null);
 
   // Local state for layout editing
   const [leftSidebarCards, setLeftSidebarCards] = useState([]);
@@ -31,6 +35,19 @@ const ObjectRecordCustomizationTab = ({ objectType }) => {
   const createLayout = useCreateRecordLayout(objectType);
   const updateLayout = useUpdateRecordLayout(objectType);
   const resetLayout = useResetRecordLayout(objectType);
+  const deleteLayout = useDeleteRecordLayout(objectType);
+  const setDefaultLayout = useSetDefaultRecordLayout(objectType);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpenMenuId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Set selected layout and initialize local state when data loads
   useEffect(() => {
@@ -152,6 +169,64 @@ const ObjectRecordCustomizationTab = ({ objectType }) => {
     }
   };
 
+  const handleDeleteLayout = async (layoutId) => {
+    const layout = layouts.find(l => l.id === layoutId);
+    if (!confirm(`Delete "${layout?.name}"? This cannot be undone.`)) return;
+    try {
+      await deleteLayout.mutateAsync(layoutId);
+      toast.success('View deleted');
+      setOpenMenuId(null);
+      if (selectedLayoutId === layoutId) {
+        const remaining = layouts.filter(l => l.id !== layoutId);
+        setSelectedLayoutId(remaining[0]?.id || null);
+      }
+    } catch (error) {
+      toast.error('Failed to delete view');
+    }
+  };
+
+  const handleSetDefault = async (layoutId) => {
+    try {
+      await setDefaultLayout.mutateAsync(layoutId);
+      toast.success('Default view updated');
+      setOpenMenuId(null);
+    } catch (error) {
+      toast.error('Failed to set default');
+    }
+  };
+
+  const handleDuplicateLayout = async (layoutId) => {
+    const layout = layouts.find(l => l.id === layoutId);
+    if (!layout) return;
+    try {
+      const result = await createLayout.mutateAsync({
+        name: `${layout.name} (Copy)`,
+        layoutType: 'custom',
+        leftSidebarConfig: layout.leftSidebarConfig || [],
+        middleColumnConfig: layout.middleColumnConfig || { tabs: ['overview', 'activities'] },
+        rightSidebarConfig: layout.rightSidebarConfig || [],
+      });
+      toast.success('View duplicated');
+      setSelectedLayoutId(result.id);
+      setOpenMenuId(null);
+    } catch (error) {
+      toast.error('Failed to duplicate view');
+    }
+  };
+
+  const handleRenameLayout = async (layoutId) => {
+    const layout = layouts.find(l => l.id === layoutId);
+    const newName = prompt('Enter new name:', layout?.name);
+    if (!newName || newName === layout?.name) return;
+    try {
+      await updateLayout.mutateAsync({ id: layoutId, name: newName });
+      toast.success('View renamed');
+      setOpenMenuId(null);
+    } catch (error) {
+      toast.error('Failed to rename view');
+    }
+  };
+
   const tabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'activities', label: 'Activities' },
@@ -246,9 +321,54 @@ const ObjectRecordCustomizationTab = ({ objectType }) => {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button className="p-1.5 rounded hover:bg-surface-secondary" onClick={e => e.stopPropagation()}>
-                      <MoreVertical className="w-4 h-4 text-muted" />
-                    </button>
+                    <div className="relative" ref={openMenuId === layout.id ? menuRef : null}>
+                      <button
+                        className="p-1.5 rounded hover:bg-surface-secondary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenMenuId(openMenuId === layout.id ? null : layout.id);
+                        }}
+                      >
+                        <MoreVertical className="w-4 h-4 text-muted" />
+                      </button>
+                      {openMenuId === layout.id && (
+                        <div className="absolute right-0 mt-1 w-48 bg-surface border border-border rounded-lg shadow-lg z-10">
+                          <div className="py-1">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleRenameLayout(layout.id); }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text hover:bg-surface-secondary"
+                            >
+                              <Edit className="w-4 h-4" />
+                              Rename
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDuplicateLayout(layout.id); }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text hover:bg-surface-secondary"
+                            >
+                              <Copy className="w-4 h-4" />
+                              Duplicate
+                            </button>
+                            {!layout.isDefault && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleSetDefault(layout.id); }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text hover:bg-surface-secondary"
+                              >
+                                <Star className="w-4 h-4" />
+                                Set as default
+                              </button>
+                            )}
+                            <div className="border-t border-border my-1" />
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDeleteLayout(layout.id); }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-surface-secondary"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))

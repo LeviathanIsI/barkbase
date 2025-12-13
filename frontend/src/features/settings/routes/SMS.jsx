@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Switch from '@/components/ui/Switch';
@@ -6,9 +6,7 @@ import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
 import UpgradeBanner from '@/components/ui/UpgradeBanner';
 import { useTenantStore } from '@/stores/tenant';
-import SettingsPage from '../components/SettingsPage';
 import {
-  MessageSquare,
   Phone,
   CheckCircle,
   XCircle,
@@ -20,8 +18,8 @@ import {
   Send,
   Edit2,
   Info,
-  Clock,
   Zap,
+  Clock,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -75,7 +73,7 @@ const TemplateEditModal = ({ template, availableVariables, onClose, onSave }) =>
             placeholder="Enter your SMS template..."
           />
           <div className="flex items-center justify-between mt-2">
-            <span className={`text-xs ${isOverLimit ? 'text-amber-500' : 'text-muted'}`}>
+            <span className={`text-xs ${isOverLimit ? 'text-amber-500' : 'text-gray-500 dark:text-text-secondary'}`}>
               {characterCount} characters
               {segmentCount > 1 && ` (${segmentCount} SMS segments)`}
             </span>
@@ -95,7 +93,7 @@ const TemplateEditModal = ({ template, availableVariables, onClose, onSave }) =>
                 key={variable.name}
                 type="button"
                 onClick={() => insertVariable(variable.name)}
-                className="px-2 py-1 text-xs bg-surface-secondary hover:bg-surface-tertiary rounded border border-surface-border transition-colors"
+                className="px-2 py-1 text-xs bg-gray-100 dark:bg-surface-secondary hover:bg-gray-200 dark:hover:bg-surface-elevated rounded border border-gray-200 dark:border-surface-border transition-colors"
                 title={variable.description}
               >
                 {variable.name}
@@ -104,17 +102,14 @@ const TemplateEditModal = ({ template, availableVariables, onClose, onSave }) =>
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 pt-4 border-t">
+        <div className="flex justify-end gap-2 pt-4 border-t border-gray-200 dark:border-surface-border">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button
             onClick={handleSave}
             disabled={updateMutation.isPending || !content.trim()}
           >
             {updateMutation.isPending ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Saving...
-              </>
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</>
             ) : (
               'Save Template'
             )}
@@ -174,7 +169,7 @@ const SMS = () => {
       });
       setCredentials({
         accountSid: s.twilioAccountSid || '',
-        authToken: '', // Never show actual token
+        authToken: '',
         phoneNumber: s.twilioPhoneNumber || '',
       });
       setHasToggleChanges(false);
@@ -209,7 +204,7 @@ const SMS = () => {
         twilioPhoneNumber: credentials.phoneNumber,
       });
       toast.success('Credentials saved. Click "Test Connection" to verify.');
-      setCredentials(prev => ({ ...prev, authToken: '' })); // Clear token field
+      setCredentials(prev => ({ ...prev, authToken: '' }));
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save credentials');
     }
@@ -260,409 +255,313 @@ const SMS = () => {
   // Show upgrade banner for free plan
   if (plan === 'FREE') {
     return (
-      <SettingsPage title="SMS Settings" description="Send text message notifications and reminders to pet owners">
-        <UpgradeBanner requiredPlan="PRO" feature="SMS Notifications" className="xl:col-span-2" />
-      </SettingsPage>
+      <div className="space-y-6">
+        <UpgradeBanner requiredPlan="PRO" feature="SMS Notifications" />
+      </div>
     );
   }
 
   // Loading state
   if (isLoading) {
     return (
-      <SettingsPage title="SMS Settings" description="Send text message notifications and reminders to pet owners">
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <span className="ml-3 text-muted">Loading SMS settings...</span>
-        </div>
-      </SettingsPage>
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+        <span className="ml-3 text-gray-500 dark:text-text-secondary">Loading SMS settings...</span>
+      </div>
     );
   }
 
   // Error state
   if (isError) {
     return (
-      <SettingsPage title="SMS Settings" description="Send text message notifications and reminders to pet owners">
-        <Card>
-          <div className="flex items-center gap-3 text-danger">
-            <AlertTriangle className="w-5 h-5" />
-            <span>Failed to load SMS settings</span>
-          </div>
-        </Card>
-      </SettingsPage>
+      <div className="p-6 bg-red-50 dark:bg-red-900/20 rounded-lg">
+        <div className="flex items-center gap-3 text-red-600 dark:text-red-400">
+          <AlertTriangle className="w-5 h-5" />
+          <span>Failed to load SMS settings. Please try again.</span>
+        </div>
+      </div>
     );
   }
 
+  const notificationOptions = [
+    { key: 'bookingConfirmations', label: 'Booking Confirmations', desc: 'Send when a booking is confirmed' },
+    { key: 'bookingReminders', label: 'Booking Reminders', desc: 'Reminder before appointments' },
+    { key: 'checkinReminders', label: 'Check-in Reminders', desc: 'Remind to check in pets' },
+    { key: 'vaccinationReminders', label: 'Vaccination Reminders', desc: 'Alert when vaccinations expiring' },
+    { key: 'paymentReceipts', label: 'Payment Receipts', desc: 'Send receipts after payments' },
+  ];
+
   return (
-    <SettingsPage title="SMS Settings" description="Send text message notifications and reminders to pet owners">
-      {/* SMS Configuration Card */}
-      <Card
-        title="SMS Configuration"
-        description="Connect your Twilio account to enable SMS"
-        className="xl:col-span-2"
-      >
-        {/* Connection Status */}
-        <div className="flex items-center gap-3 mb-6 p-4 rounded-lg bg-surface-secondary">
-          <div className={`flex items-center gap-2 ${settings.isConnected ? 'text-green-600 dark:text-green-400' : 'text-gray-500'}`}>
-            {settings.isConnected ? (
-              <>
-                <CheckCircle className="w-5 h-5" />
-                <span className="font-medium">Connected</span>
-              </>
-            ) : (
-              <>
-                <XCircle className="w-5 h-5" />
-                <span className="font-medium">Not Connected</span>
-              </>
+    <div className="space-y-6">
+      {/* Row 1: SMS Configuration | Automated SMS Notifications */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* SMS Configuration */}
+        <Card title="SMS Configuration" description="Connect your Twilio account to enable SMS">
+          {/* Connection Status */}
+          <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-gray-50 dark:bg-surface-secondary">
+            <div className={`flex items-center gap-2 ${settings.isConnected ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-text-secondary'}`}>
+              {settings.isConnected ? (
+                <><CheckCircle className="w-5 h-5" /><span className="font-medium">Connected</span></>
+              ) : (
+                <><XCircle className="w-5 h-5" /><span className="font-medium">Not Connected</span></>
+              )}
+            </div>
+            {settings.isConnected && settings.twilioPhoneNumber && (
+              <Badge variant="neutral" className="ml-auto">
+                <Phone className="w-3 h-3 mr-1" />
+                {settings.twilioPhoneNumber}
+              </Badge>
             )}
           </div>
-          {settings.isConnected && settings.twilioPhoneNumber && (
-            <Badge variant="neutral" className="ml-auto">
-              <Phone className="w-3 h-3 mr-1" />
-              {settings.twilioPhoneNumber}
-            </Badge>
-          )}
-        </div>
 
-        {/* Credentials Form */}
-        {!settings.isConnected ? (
-          <div className="space-y-4">
-            <p className="text-sm text-muted mb-4">
-              To enable SMS notifications, connect your Twilio account:
-            </p>
+          {/* Credentials Form or Connected Info */}
+          {!settings.isConnected ? (
+            <div className="space-y-3">
+              <p className="text-sm text-gray-500 dark:text-text-secondary">
+                To enable SMS notifications, connect your Twilio account:
+              </p>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Account SID</label>
-              <input
-                type="text"
-                value={credentials.accountSid}
-                onChange={(e) => setCredentials(prev => ({ ...prev, accountSid: e.target.value }))}
-                placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary font-mono text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Auth Token</label>
-              <div className="relative">
+              <div>
+                <label className="block text-sm font-medium mb-1">Account SID</label>
                 <input
-                  type={showAuthToken ? 'text' : 'password'}
-                  value={credentials.authToken}
-                  onChange={(e) => setCredentials(prev => ({ ...prev, authToken: e.target.value }))}
-                  placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                  className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary font-mono text-sm"
+                  type="text"
+                  value={credentials.accountSid}
+                  onChange={(e) => setCredentials(prev => ({ ...prev, accountSid: e.target.value }))}
+                  placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary font-mono text-sm"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowAuthToken(!showAuthToken)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted hover:text-text-primary"
-                >
-                  {showAuthToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
               </div>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium mb-1">Phone Number</label>
-              <input
-                type="text"
-                value={credentials.phoneNumber}
-                onChange={(e) => setCredentials(prev => ({ ...prev, phoneNumber: e.target.value }))}
-                placeholder="+15551234567"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
-              />
-              <p className="text-xs text-muted mt-1">Your Twilio phone number in E.164 format</p>
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <Button
-                onClick={handleSaveCredentials}
-                disabled={updateSettingsMutation.isPending}
-              >
-                {updateSettingsMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : null}
-                Save Credentials
-              </Button>
-              {settings.twilioAccountSid && (
-                <Button
-                  variant="outline"
-                  onClick={handleVerifyConnection}
-                  disabled={verifyMutation.isPending}
-                >
-                  {verifyMutation.isPending ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Zap className="w-4 h-4 mr-2" />
-                  )}
-                  Test Connection
-                </Button>
-              )}
-            </div>
-
-            <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-              <div className="flex items-start gap-2">
-                <Info className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-blue-700 dark:text-blue-400">
-                  Get your credentials at{' '}
-                  <a
-                    href="https://www.twilio.com/console"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline inline-flex items-center gap-1"
+              <div>
+                <label className="block text-sm font-medium mb-1">Auth Token</label>
+                <div className="relative">
+                  <input
+                    type={showAuthToken ? 'text' : 'password'}
+                    value={credentials.authToken}
+                    onChange={(e) => setCredentials(prev => ({ ...prev, authToken: e.target.value }))}
+                    placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                    className="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary font-mono text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAuthToken(!showAuthToken)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-text-primary"
                   >
-                    twilio.com/console
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </p>
+                    {showAuthToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 text-sm">
+
               <div>
-                <span className="text-muted">Account SID</span>
-                <p className="font-mono mt-1">{settings.twilioAccountSid}</p>
+                <label className="block text-sm font-medium mb-1">Phone Number</label>
+                <input
+                  type="text"
+                  value={credentials.phoneNumber}
+                  onChange={(e) => setCredentials(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                  placeholder="+15551234567"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
+                />
+                <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">Your Twilio phone number (E.164 format)</p>
               </div>
-              <div>
-                <span className="text-muted">Phone Number</span>
-                <p className="font-mono mt-1">{settings.twilioPhoneNumber}</p>
+
+              <div className="flex gap-2 pt-2">
+                <Button onClick={handleSaveCredentials} disabled={updateSettingsMutation.isPending}>
+                  {updateSettingsMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Save Credentials
+                </Button>
+                {settings.twilioAccountSid && (
+                  <Button variant="outline" onClick={handleVerifyConnection} disabled={verifyMutation.isPending}>
+                    {verifyMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
+                    Test Connection
+                  </Button>
+                )}
               </div>
-              {settings.connectionVerifiedAt && (
-                <div>
-                  <span className="text-muted">Verified</span>
-                  <p className="mt-1 flex items-center gap-1">
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                    {new Date(settings.connectionVerifiedAt).toLocaleDateString()}
+
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900/30 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    Get your credentials at{' '}
+                    <a href="https://www.twilio.com/console" target="_blank" rel="noopener noreferrer" className="underline inline-flex items-center gap-1">
+                      twilio.com/console <ExternalLink className="w-3 h-3" />
+                    </a>
                   </p>
                 </div>
-              )}
-              <div>
-                <span className="text-muted">Messages This Month</span>
-                <p className="mt-1">{settings.messagesSentThisMonth || 0}</p>
               </div>
             </div>
-
-            <Button
-              variant="outline"
-              onClick={handleDisconnect}
-              disabled={disconnectMutation.isPending}
-              className="text-danger hover:bg-danger/10"
-            >
-              {disconnectMutation.isPending ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : null}
-              Disconnect Twilio
-            </Button>
-          </div>
-        )}
-      </Card>
-
-      {/* Automated SMS Notifications */}
-      <Card
-        title="Automated SMS Notifications"
-        description="Choose which notifications are sent via text message"
-      >
-        <div className="space-y-4">
-          <label className="flex items-center justify-between">
-            <div>
-              <span className="font-medium">Booking Confirmations</span>
-              <p className="text-xs text-muted">Send when a booking is confirmed</p>
-            </div>
-            <Switch
-              checked={notificationToggles.bookingConfirmations}
-              onChange={(checked) => handleToggleChange('bookingConfirmations', checked)}
-              disabled={!settings.isConnected}
-            />
-          </label>
-
-          <label className="flex items-center justify-between">
-            <div>
-              <span className="font-medium">Booking Reminders</span>
-              <p className="text-xs text-muted">Reminder before appointments</p>
-            </div>
-            <Switch
-              checked={notificationToggles.bookingReminders}
-              onChange={(checked) => handleToggleChange('bookingReminders', checked)}
-              disabled={!settings.isConnected}
-            />
-          </label>
-
-          <label className="flex items-center justify-between">
-            <div>
-              <span className="font-medium">Check-in Reminders</span>
-              <p className="text-xs text-muted">Remind to check in pets</p>
-            </div>
-            <Switch
-              checked={notificationToggles.checkinReminders}
-              onChange={(checked) => handleToggleChange('checkinReminders', checked)}
-              disabled={!settings.isConnected}
-            />
-          </label>
-
-          <label className="flex items-center justify-between">
-            <div>
-              <span className="font-medium">Vaccination Reminders</span>
-              <p className="text-xs text-muted">Alert when vaccinations are expiring</p>
-            </div>
-            <Switch
-              checked={notificationToggles.vaccinationReminders}
-              onChange={(checked) => handleToggleChange('vaccinationReminders', checked)}
-              disabled={!settings.isConnected}
-            />
-          </label>
-
-          <label className="flex items-center justify-between">
-            <div>
-              <span className="font-medium">Payment Receipts</span>
-              <p className="text-xs text-muted">Send receipts after payments</p>
-            </div>
-            <Switch
-              checked={notificationToggles.paymentReceipts}
-              onChange={(checked) => handleToggleChange('paymentReceipts', checked)}
-              disabled={!settings.isConnected}
-            />
-          </label>
-        </div>
-
-        {hasToggleChanges && (
-          <div className="mt-4 pt-4 border-t flex justify-end">
-            <Button
-              onClick={handleSaveToggles}
-              disabled={updateSettingsMutation.isPending}
-            >
-              {updateSettingsMutation.isPending ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : null}
-              Save Changes
-            </Button>
-          </div>
-        )}
-
-        {!settings.isConnected && (
-          <p className="text-xs text-muted mt-4">
-            Connect Twilio above to enable SMS notifications
-          </p>
-        )}
-
-        <div className="mt-4 pt-4 border-t">
-          <p className="text-xs text-muted flex items-center gap-1">
-            <Info className="w-3 h-3" />
-            Cost: ~$0.01 per SMS segment (160 characters)
-          </p>
-        </div>
-      </Card>
-
-      {/* SMS Templates */}
-      <Card
-        title="SMS Templates"
-        description="Customize your automated messages"
-        className="xl:col-span-2"
-      >
-        <div className="space-y-3">
-          {templates.map((template) => (
-            <div
-              key={template.type}
-              className="p-4 border border-surface-border rounded-lg hover:bg-surface-secondary/50 transition-colors"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-medium">{template.name}</h4>
-                    {template.isCustom && (
-                      <Badge variant="primary" size="sm">Customized</Badge>
-                    )}
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-500 dark:text-text-secondary">Account SID</span>
+                  <p className="font-mono mt-1 text-sm truncate">{settings.twilioAccountSid}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500 dark:text-text-secondary">Phone Number</span>
+                  <p className="font-mono mt-1">{settings.twilioPhoneNumber}</p>
+                </div>
+                {settings.connectionVerifiedAt && (
+                  <div>
+                    <span className="text-gray-500 dark:text-text-secondary">Verified</span>
+                    <p className="mt-1 flex items-center gap-1">
+                      <CheckCircle className="w-4 h-4 text-green-500" />
+                      {new Date(settings.connectionVerifiedAt).toLocaleDateString()}
+                    </p>
                   </div>
-                  <p className="text-sm text-muted mt-1 font-mono truncate">
+                )}
+                <div>
+                  <span className="text-gray-500 dark:text-text-secondary">This Month</span>
+                  <p className="mt-1">{settings.messagesSentThisMonth || 0} messages</p>
+                </div>
+              </div>
+
+              <Button
+                variant="outline"
+                onClick={handleDisconnect}
+                disabled={disconnectMutation.isPending}
+                className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+              >
+                {disconnectMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Disconnect Twilio
+              </Button>
+            </div>
+          )}
+        </Card>
+
+        {/* Automated SMS Notifications */}
+        <Card title="Automated SMS Notifications" description="Choose which notifications are sent via text message">
+          <div className="space-y-2">
+            {notificationOptions.map(({ key, label, desc }) => (
+              <div key={key} className="flex items-center justify-between p-2">
+                <div>
+                  <span className="text-sm font-medium">{label}</span>
+                  <p className="text-xs text-gray-500 dark:text-text-secondary">{desc}</p>
+                </div>
+                <Switch
+                  checked={notificationToggles[key]}
+                  onChange={(checked) => handleToggleChange(key, checked)}
+                  disabled={!settings.isConnected}
+                />
+              </div>
+            ))}
+          </div>
+
+          {!settings.isConnected && (
+            <p className="text-xs text-gray-500 dark:text-text-secondary mt-4 pt-4 border-t border-gray-200 dark:border-surface-border">
+              Connect Twilio above to enable SMS notifications
+            </p>
+          )}
+
+          {hasToggleChanges && (
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-surface-border flex justify-end">
+              <Button onClick={handleSaveToggles} disabled={updateSettingsMutation.isPending}>
+                {updateSettingsMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Save Changes
+              </Button>
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* Row 2: SMS Templates | Two-Way SMS + Test SMS */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* SMS Templates */}
+        <Card title="SMS Templates" description="Customize your automated messages">
+          <div className="space-y-2">
+            {templates.map((template) => (
+              <div
+                key={template.type}
+                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-surface-secondary rounded-lg border border-gray-200 dark:border-surface-border"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm">{template.name}</span>
+                    {template.isCustom && <Badge variant="success" size="sm">Customized</Badge>}
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-text-secondary font-mono truncate mt-0.5">
                     "{template.content}"
                   </p>
-                  <p className="text-xs text-muted mt-1">
+                  <p className="text-xs text-gray-400 dark:text-text-muted mt-0.5">
                     {template.characterCount} characters
                     {template.characterCount > 160 && ` (${Math.ceil(template.characterCount / 160)} segments)`}
                   </p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setEditingTemplate(template)}
-                >
-                  <Edit2 className="w-4 h-4" />
+                <Button variant="ghost" size="sm" onClick={() => setEditingTemplate(template)}>
+                  <Edit2 className="h-3 w-3" />
                 </Button>
               </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-4 pt-4 border-t">
-          <p className="text-sm text-muted">
-            <span className="font-medium">Available variables:</span>{' '}
-            {availableVariables.map(v => v.name).join(', ')}
-          </p>
-        </div>
-      </Card>
-
-      {/* Two-Way SMS (Coming Soon) */}
-      {plan !== 'ENTERPRISE' ? (
-        <UpgradeBanner requiredPlan="ENTERPRISE" feature="Two-way SMS" className="xl:col-span-2" />
-      ) : (
-        <Card
-          title={
-            <div className="flex items-center gap-2">
-              Two-Way SMS
-              <Badge variant="warning">Coming Soon</Badge>
-            </div>
-          }
-          description="Allow customers to reply to text messages"
-        >
-          <p className="text-sm text-muted">
-            When enabled, customer replies will appear in your inbox and can be routed to staff members.
-            This feature is coming soon for Enterprise plans.
-          </p>
-        </Card>
-      )}
-
-      {/* Test SMS */}
-      <Card
-        title="Test SMS"
-        description="Send a test message to verify your configuration"
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Phone Number</label>
-            <div className="flex gap-2">
-              <input
-                type="tel"
-                value={testPhone}
-                onChange={(e) => setTestPhone(e.target.value)}
-                placeholder="+15551234567"
-                className="flex-1 px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
-              />
-              <Button
-                onClick={handleSendTest}
-                disabled={sendTestMutation.isPending || !settings.isConnected}
-              >
-                {sendTestMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <Send className="w-4 h-4 mr-2" />
-                    Send Test
-                  </>
-                )}
-              </Button>
-            </div>
-            <p className="text-xs text-muted mt-1">
-              Enter a phone number in E.164 format to receive a test message
-            </p>
+            ))}
           </div>
 
-          {!settings.isConnected && (
-            <p className="text-xs text-amber-600 dark:text-amber-400">
-              Connect and verify Twilio to send test messages
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-surface-border">
+            <p className="text-xs text-gray-500 dark:text-text-secondary">
+              <span className="font-medium">Available variables:</span>{' '}
+              {availableVariables.map(v => v.name).join(', ')}
             </p>
+          </div>
+        </Card>
+
+        {/* Right column: Two-Way SMS + Test SMS stacked */}
+        <div className="space-y-6">
+          {/* Two-Way SMS (Coming Soon) */}
+          {plan !== 'ENTERPRISE' ? (
+            <UpgradeBanner requiredPlan="ENTERPRISE" feature="Two-way SMS" />
+          ) : (
+            <Card
+              title={
+                <div className="flex items-center gap-2">
+                  Two-Way SMS
+                  <Badge variant="warning">Coming Soon</Badge>
+                </div>
+              }
+              description="Allow customers to reply to text messages"
+            >
+              <p className="text-sm text-gray-500 dark:text-text-secondary">
+                When enabled, customer replies will appear in your inbox and can be routed to staff members.
+                This feature is coming soon for Enterprise plans.
+              </p>
+            </Card>
           )}
+
+          {/* Test SMS */}
+          <Card title="Test SMS" description="Send a test message to verify your configuration">
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">Phone Number</label>
+                <div className="flex gap-2">
+                  <input
+                    type="tel"
+                    value={testPhone}
+                    onChange={(e) => setTestPhone(e.target.value)}
+                    placeholder="+15551234567"
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
+                  />
+                  <Button
+                    onClick={handleSendTest}
+                    disabled={sendTestMutation.isPending || !settings.isConnected}
+                  >
+                    {sendTestMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <><Send className="w-4 h-4 mr-2" />Send Test</>
+                    )}
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">
+                  Enter phone in E.164 format
+                </p>
+              </div>
+
+              {!settings.isConnected && (
+                <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  <p className="text-xs">Connect and verify Twilio to send test messages</p>
+                </div>
+              )}
+            </div>
+          </Card>
         </div>
-      </Card>
+      </div>
 
       {/* Template Edit Modal */}
       {editingTemplate && (
@@ -673,7 +572,7 @@ const SMS = () => {
           onSave={() => setEditingTemplate(null)}
         />
       )}
-    </SettingsPage>
+    </div>
   );
 };
 

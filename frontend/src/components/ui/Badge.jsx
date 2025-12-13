@@ -106,6 +106,13 @@ const badgeVariants = cva(
           'border-[var(--bb-color-border-subtle)]',
           'text-[var(--bb-color-text-primary)]',
         ],
+
+        // Purple - For special states like No Show
+        purple: [
+          'bg-purple-500/10',
+          'border-purple-500/20',
+          'text-purple-400',
+        ],
       },
       size: {
         sm: 'text-[0.6875rem] px-[var(--bb-space-1)] py-0',

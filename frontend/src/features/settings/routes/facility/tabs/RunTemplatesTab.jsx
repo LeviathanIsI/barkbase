@@ -110,12 +110,12 @@ const RunTemplatesTab = () => {
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2 text-gray-600 dark:text-text-secondary">
                   <Clock className="h-4 w-4 text-gray-400 dark:text-text-tertiary" />
-                  <span className="font-medium">{template.timePeriodMinutes} min</span>
+                  <span className="font-medium">{template.timePeriodMinutes || 30} min</span>
                   <span className="text-gray-500 dark:text-text-secondary">per slot</span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-600 dark:text-text-secondary">
                   <span className="font-medium">Capacity:</span>
-                  <span>{template.maxCapacity} pets</span>
+                  <span>{template.maxCapacity || 10} pets</span>
                 </div>
                 <div>
                   <span

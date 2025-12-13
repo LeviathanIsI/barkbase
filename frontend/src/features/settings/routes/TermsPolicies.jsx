@@ -5,12 +5,11 @@ import Badge from '@/components/ui/Badge';
 import Switch from '@/components/ui/Switch';
 import Modal from '@/components/ui/Modal';
 import SlidePanel from '@/components/ui/SlidePanel';
-import SettingsPage from '../components/SettingsPage';
 import apiClient from '@/lib/apiClient';
-import { 
-  FileText, Plus, Edit, Trash2, Eye, Copy, Shield, 
-  Clock, Calendar, Syringe, Heart, DoorOpen, UtensilsCrossed, 
-  AlertTriangle, CheckCircle, FileCheck, X, Save, RotateCcw
+import {
+  FileText, Plus, Edit, Trash2, Eye, Copy, Shield,
+  Clock, Calendar, Syringe, Heart, DoorOpen, UtensilsCrossed,
+  AlertTriangle, CheckCircle, FileCheck, Save, Loader2
 } from 'lucide-react';
 
 // Policy type definitions with icons and colors
@@ -795,7 +794,7 @@ const TermsPolicies = () => {
 
   const handleDelete = async () => {
     if (!selectedPolicy) return;
-    
+
     try {
       setIsSaving(true);
       await apiClient.delete(`/api/v1/policies/${selectedPolicy.id}`);
@@ -821,7 +820,7 @@ const TermsPolicies = () => {
       delete newPolicy.id;
       delete newPolicy.createdAt;
       delete newPolicy.updatedAt;
-      
+
       const { data } = await apiClient.post('/api/v1/policies', newPolicy);
       setPolicies([...policies, data.policy || data]);
     } catch (err) {
@@ -838,7 +837,7 @@ const TermsPolicies = () => {
 
     try {
       setIsSaving(true);
-      
+
       const policyData = {
         name: editorForm.title,
         title: editorForm.title,
@@ -923,40 +922,17 @@ const TermsPolicies = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+        <span className="ml-3 text-gray-500 dark:text-text-secondary">Loading policies...</span>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header Card */}
-      <Card>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold text-[var(--bb-color-text-primary)]">
-              Legal Documents & Policies
-            </h2>
-            <p className="text-sm text-[var(--bb-color-text-muted)] mt-1">
-              Manage liability waivers, terms of service, and other legal documents customers must agree to.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowTemplates(true)}>
-              <FileText className="w-4 h-4 mr-2" />
-              Templates
-            </Button>
-            <Button onClick={handleCreateNew}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Policy
-            </Button>
-          </div>
-        </div>
-      </Card>
-
       {/* Error State */}
       {error && (
-        <Card className="border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-900/20">
+        <div className="p-4 rounded-lg border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-900/20">
           <div className="flex items-center gap-3">
             <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
             <div>
@@ -966,97 +942,79 @@ const TermsPolicies = () => {
               </Button>
             </div>
           </div>
-        </Card>
+        </div>
       )}
 
-      {/* Policies List */}
-      <Card title="Your Policies" description="Policies that customers can view and sign">
+      {/* Policies List Card */}
+      <Card
+        title="Your Policies"
+        description="Policies that customers can view and sign"
+        headerActions={
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowTemplates(true)}>
+              <FileText className="w-4 h-4 mr-2" />
+              Templates
+            </Button>
+            <Button size="sm" onClick={handleCreateNew}>
+              <Plus className="w-4 h-4 mr-2" />
+              Create Policy
+            </Button>
+          </div>
+        }
+      >
         {policies.length === 0 ? (
           <div className="text-center py-12">
-            <Shield className="w-12 h-12 mx-auto text-[var(--bb-color-text-muted)] mb-4" />
-            <h3 className="text-lg font-medium text-[var(--bb-color-text-primary)] mb-2">
+            <Shield className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-text-primary mb-2">
               No policies created yet
             </h3>
-            <p className="text-[var(--bb-color-text-muted)] mb-6 max-w-md mx-auto">
-              Create your first policy from scratch or use one of our pre-built templates designed for kennels.
-            </p>
-            <div className="flex justify-center gap-3">
-              <Button variant="outline" onClick={() => setShowTemplates(true)}>
-                Browse Templates
-              </Button>
-              <Button onClick={handleCreateNew}>
-                Create from Scratch
-              </Button>
-            </div>
+            <Button onClick={handleCreateNew} className="mt-4">
+              <Plus className="w-4 h-4 mr-2" />
+              Create First Policy
+            </Button>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {policies.map(policy => (
               <div
                 key={policy.id}
-                className="flex items-center justify-between p-4 rounded-lg border border-[var(--bb-color-border-subtle)] hover:bg-[var(--bb-color-bg-elevated)] transition-colors"
+                className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-surface-border bg-gray-50 dark:bg-surface-secondary hover:bg-gray-100 dark:hover:bg-surface-elevated transition-colors"
               >
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3 min-w-0">
                   {getPolicyIcon(policy.type)}
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h4 className="font-medium text-[var(--bb-color-text-primary)]">
-                        {policy.title || policy.name}
-                      </h4>
+                      <h4 className="font-medium text-sm truncate">{policy.title || policy.name}</h4>
                       {getStatusBadge(policy)}
-                      {policy.requireForBooking && (
-                        <Badge variant="info" size="sm">Required for Booking</Badge>
-                      )}
-                      {policy.requireSignature && (
-                        <Badge variant="accent" size="sm">Signature Required</Badge>
-                      )}
+                      {policy.requireForBooking && <Badge variant="info" size="sm">Required</Badge>}
+                      {policy.requireSignature && <Badge variant="neutral" size="sm">Signature</Badge>}
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-[var(--bb-color-text-muted)] mt-1">
-                      <span>{POLICY_TYPES[policy.type]?.label || 'Custom Policy'}</span>
+                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-text-secondary mt-0.5">
+                      <span>{POLICY_TYPES[policy.type]?.label || 'Custom'}</span>
                       <span>•</span>
                       <span>Updated {formatDate(policy.updatedAt || policy.createdAt)}</span>
-                      {policy.version && (
-                        <>
-                          <span>•</span>
-                          <span>v{policy.version}</span>
-                        </>
-                      )}
+                      {policy.version && <><span>•</span><span>v{policy.version}</span></>}
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => handlePreview(policy)}
-                    title="Preview"
-                  >
-                    <Eye className="w-4 h-4" />
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <Button variant="ghost" size="sm" onClick={() => handlePreview(policy)} title="Preview">
+                    <Eye className="w-3 h-3" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => handleDuplicate(policy)} title="Duplicate">
+                    <Copy className="w-3 h-3" />
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => handleEdit(policy)} title="Edit">
+                    <Edit className="w-3 h-3" />
                   </Button>
                   <Button
                     variant="ghost"
-                    size="icon-sm"
-                    onClick={() => handleDuplicate(policy)}
-                    title="Duplicate"
-                  >
-                    <Copy className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => handleEdit(policy)}
-                    title="Edit"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
+                    size="sm"
                     onClick={() => handleDeleteClick(policy)}
                     title="Delete"
                     className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3 h-3" />
                   </Button>
                 </div>
               </div>
@@ -1065,48 +1023,48 @@ const TermsPolicies = () => {
         )}
       </Card>
 
-      {/* Quick Actions / Info Card */}
+      {/* Policy Best Practices */}
       <Card title="Policy Best Practices" description="Tips for effective kennel policies">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-4 rounded-lg bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)]">
+          <div className="p-3 rounded-lg bg-gray-50 dark:bg-surface-secondary border border-gray-200 dark:border-surface-border">
             <div className="flex items-start gap-3">
-              <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" />
+              <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
               <div>
-                <h4 className="font-medium text-[var(--bb-color-text-primary)]">Liability Waiver First</h4>
-                <p className="text-sm text-[var(--bb-color-text-muted)] mt-1">
+                <h4 className="font-medium text-sm">Liability Waiver First</h4>
+                <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">
                   Always require a signed liability waiver before the first booking. This is your most important legal protection.
                 </p>
               </div>
             </div>
           </div>
-          <div className="p-4 rounded-lg bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)]">
+          <div className="p-3 rounded-lg bg-gray-50 dark:bg-surface-secondary border border-gray-200 dark:border-surface-border">
             <div className="flex items-start gap-3">
-              <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" />
+              <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
               <div>
-                <h4 className="font-medium text-[var(--bb-color-text-primary)]">Clear Language</h4>
-                <p className="text-sm text-[var(--bb-color-text-muted)] mt-1">
+                <h4 className="font-medium text-sm">Clear Language</h4>
+                <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">
                   Use simple, clear language customers can understand. Avoid jargon and legal terms when possible.
                 </p>
               </div>
             </div>
           </div>
-          <div className="p-4 rounded-lg bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)]">
+          <div className="p-3 rounded-lg bg-gray-50 dark:bg-surface-secondary border border-gray-200 dark:border-surface-border">
             <div className="flex items-start gap-3">
-              <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" />
+              <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
               <div>
-                <h4 className="font-medium text-[var(--bb-color-text-primary)]">Annual Review</h4>
-                <p className="text-sm text-[var(--bb-color-text-muted)] mt-1">
+                <h4 className="font-medium text-sm">Annual Review</h4>
+                <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">
                   Review and update your policies at least once a year. Laws and best practices change.
                 </p>
               </div>
             </div>
           </div>
-          <div className="p-4 rounded-lg bg-[var(--bb-color-bg-elevated)] border border-[var(--bb-color-border-subtle)]">
+          <div className="p-3 rounded-lg bg-gray-50 dark:bg-surface-secondary border border-gray-200 dark:border-surface-border">
             <div className="flex items-start gap-3">
-              <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" />
+              <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
               <div>
-                <h4 className="font-medium text-[var(--bb-color-text-primary)]">Legal Review</h4>
-                <p className="text-sm text-[var(--bb-color-text-muted)] mt-1">
+                <h4 className="font-medium text-sm">Legal Review</h4>
+                <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">
                   Have an attorney review your policies before publishing. Template policies should be customized for your state.
                 </p>
               </div>
@@ -1125,27 +1083,23 @@ const TermsPolicies = () => {
         <div className="space-y-6">
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-[var(--bb-color-text-primary)] mb-2">
-              Policy Title *
-            </label>
+            <label className="block text-sm font-medium mb-2">Policy Title *</label>
             <input
               type="text"
               value={editorForm.title}
               onChange={(e) => setEditorForm({ ...editorForm, title: e.target.value })}
               placeholder="e.g., Liability Waiver"
-              className="w-full px-3 py-2 rounded-md border border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] text-[var(--bb-color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]"
+              className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary text-gray-900 dark:text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
 
           {/* Type */}
           <div>
-            <label className="block text-sm font-medium text-[var(--bb-color-text-primary)] mb-2">
-              Policy Type
-            </label>
+            <label className="block text-sm font-medium mb-2">Policy Type</label>
             <select
               value={editorForm.type}
               onChange={(e) => setEditorForm({ ...editorForm, type: e.target.value })}
-              className="w-full px-3 py-2 rounded-md border border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] text-[var(--bb-color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]"
+              className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary text-gray-900 dark:text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               {Object.entries(POLICY_TYPES).map(([key, config]) => (
                 <option key={key} value={key}>{config.label}</option>
@@ -1155,19 +1109,17 @@ const TermsPolicies = () => {
 
           {/* Status */}
           <div>
-            <label className="block text-sm font-medium text-[var(--bb-color-text-primary)] mb-2">
-              Status
-            </label>
+            <label className="block text-sm font-medium mb-2">Status</label>
             <select
               value={editorForm.status}
               onChange={(e) => setEditorForm({ ...editorForm, status: e.target.value })}
-              className="w-full px-3 py-2 rounded-md border border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] text-[var(--bb-color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]"
+              className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary text-gray-900 dark:text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="draft">Draft</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
             </select>
-            <p className="text-xs text-[var(--bb-color-text-muted)] mt-1">
+            <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">
               Only active policies will be shown to customers
             </p>
           </div>
@@ -1176,13 +1128,13 @@ const TermsPolicies = () => {
           <div className="space-y-4">
             <Switch
               checked={editorForm.requireForBooking}
-              onCheckedChange={(checked) => setEditorForm({ ...editorForm, requireForBooking: checked })}
+              onChange={(checked) => setEditorForm({ ...editorForm, requireForBooking: checked })}
               label="Required for Booking"
               description="Customers must agree to this policy before booking"
             />
             <Switch
               checked={editorForm.requireSignature}
-              onCheckedChange={(checked) => setEditorForm({ ...editorForm, requireSignature: checked })}
+              onChange={(checked) => setEditorForm({ ...editorForm, requireSignature: checked })}
               label="Require Signature"
               description="Customers must provide an electronic signature"
             />
@@ -1190,30 +1142,26 @@ const TermsPolicies = () => {
 
           {/* Content */}
           <div>
-            <label className="block text-sm font-medium text-[var(--bb-color-text-primary)] mb-2">
-              Policy Content *
-            </label>
+            <label className="block text-sm font-medium mb-2">Policy Content *</label>
             <textarea
               value={editorForm.content}
               onChange={(e) => setEditorForm({ ...editorForm, content: e.target.value })}
               placeholder="Enter your policy content here..."
               rows={20}
-              className="w-full px-3 py-2 rounded-md border border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] text-[var(--bb-color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)] font-mono text-sm"
+              className="w-full px-3 py-2 rounded-md border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary text-gray-900 dark:text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono text-sm"
             />
-            <p className="text-xs text-[var(--bb-color-text-muted)] mt-1">
+            <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">
               Use plain text. Replace [FACILITY NAME], [TIME], [AMOUNT], etc. with your actual information.
             </p>
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-between pt-4 border-t border-[var(--bb-color-border-subtle)]">
-            <Button variant="ghost" onClick={() => setShowEditor(false)}>
-              Cancel
-            </Button>
+          <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-surface-border">
+            <Button variant="ghost" onClick={() => setShowEditor(false)}>Cancel</Button>
             <div className="flex gap-2">
               {editorForm.content && (
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => {
                     setSelectedPolicy({ ...selectedPolicy, ...editorForm, title: editorForm.title, name: editorForm.title });
                     setShowPreview(true);
@@ -1223,8 +1171,8 @@ const TermsPolicies = () => {
                   Preview
                 </Button>
               )}
-              <Button onClick={handleSavePolicy} loading={isSaving}>
-                <Save className="w-4 h-4 mr-2" />
+              <Button onClick={handleSavePolicy} disabled={isSaving}>
+                {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                 {selectedPolicy ? 'Update Policy' : 'Create Policy'}
               </Button>
             </div>
@@ -1240,7 +1188,7 @@ const TermsPolicies = () => {
         size="xl"
       >
         <div className="prose prose-sm dark:prose-invert max-w-none">
-          <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-[var(--bb-color-text-primary)]">
+          <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
             {selectedPolicy?.content || editorForm.content}
           </pre>
         </div>
@@ -1258,11 +1206,11 @@ const TermsPolicies = () => {
           {Object.entries(POLICY_TYPES).map(([key, config]) => {
             const Icon = config.icon;
             const template = POLICY_TEMPLATES[key];
-            
+
             return (
               <div
                 key={key}
-                className="p-4 rounded-lg border border-[var(--bb-color-border-subtle)] hover:border-[var(--bb-color-accent)] hover:shadow-md transition-all cursor-pointer"
+                className="p-4 rounded-lg border border-gray-200 dark:border-surface-border hover:border-primary-500 dark:hover:border-primary-500 hover:shadow-md transition-all cursor-pointer"
                 onClick={() => template && handleUseTemplate(key)}
               >
                 <div className="flex items-start gap-3">
@@ -1270,20 +1218,12 @@ const TermsPolicies = () => {
                     <Icon className={`w-5 h-5 ${config.color}`} />
                   </div>
                   <div className="flex-1">
-                    <h4 className="font-medium text-[var(--bb-color-text-primary)]">
-                      {config.label}
-                    </h4>
-                    <p className="text-sm text-[var(--bb-color-text-muted)] mt-1">
-                      {config.description}
-                    </p>
+                    <h4 className="font-medium">{config.label}</h4>
+                    <p className="text-sm text-gray-500 dark:text-text-secondary mt-1">{config.description}</p>
                     {template ? (
-                      <Button variant="outline" size="sm" className="mt-3">
-                        Use Template
-                      </Button>
+                      <Button variant="outline" size="sm" className="mt-3">Use Template</Button>
                     ) : (
-                      <p className="text-xs text-[var(--bb-color-text-muted)] mt-3 italic">
-                        Coming soon
-                      </p>
+                      <p className="text-xs text-gray-400 dark:text-text-muted mt-3 italic">Coming soon</p>
                     )}
                   </div>
                 </div>
@@ -1301,20 +1241,16 @@ const TermsPolicies = () => {
         size="sm"
         footer={
           <div className="flex gap-2">
-            <Button variant="ghost" onClick={() => setShowDeleteConfirm(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDelete} loading={isSaving}>
-              <Trash2 className="w-4 h-4 mr-2" />
+            <Button variant="ghost" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={isSaving}>
+              {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
               Delete Policy
             </Button>
           </div>
         }
       >
-        <p className="text-[var(--bb-color-text-primary)]">
-          Are you sure you want to delete <strong>{selectedPolicy?.title || selectedPolicy?.name}</strong>?
-        </p>
-        <p className="text-sm text-[var(--bb-color-text-muted)] mt-2">
+        <p>Are you sure you want to delete <strong>{selectedPolicy?.title || selectedPolicy?.name}</strong>?</p>
+        <p className="text-sm text-gray-500 dark:text-text-secondary mt-2">
           This action cannot be undone. Customers who have already signed this policy will retain their signed copies.
         </p>
       </Modal>

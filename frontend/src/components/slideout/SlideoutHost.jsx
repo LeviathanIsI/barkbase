@@ -24,6 +24,7 @@ import { format, addDays } from 'date-fns';
 import BookingSlideoutForm from '@/features/bookings/components/BookingSlideoutForm';
 import TaskSlideoutForm from '@/features/tasks/components/TaskSlideoutForm';
 import CommunicationSlideoutForm from '@/features/communications/components/CommunicationSlideoutForm';
+import LogActivityForm from '@/features/activities/components/LogActivityForm';
 
 /**
  * SlideoutHost component
@@ -228,9 +229,11 @@ export function SlideoutHost() {
 
       case SLIDEOUT_TYPES.ACTIVITY_LOG:
         return (
-          <ActivityLogForm
-            ownerId={props?.ownerId}
-            petId={props?.petId}
+          <LogActivityForm
+            entityType={props?.entityType || (props?.ownerId ? 'owner' : props?.petId ? 'pet' : 'booking')}
+            entityId={props?.entityId || props?.ownerId || props?.petId || props?.bookingId}
+            defaultEmail={props?.defaultEmail}
+            defaultPhone={props?.defaultPhone}
             onSuccess={onFormSuccess}
             onCancel={closeSlideout}
           />
@@ -560,89 +563,6 @@ function NoteForm({ ownerId, petId, bookingId, onSuccess, onCancel }) {
   );
 }
 
-// Activity Log Form
-const ACTIVITY_TYPES = [
-  { value: 'call', label: 'Phone Call', icon: '📞' },
-  { value: 'email', label: 'Email', icon: '📧' },
-  { value: 'note', label: 'Note', icon: '📝' },
-  { value: 'visit', label: 'Visit', icon: '🏠' },
-  { value: 'other', label: 'Other', icon: '📋' },
-];
-
-function ActivityLogForm({ ownerId, petId, onSuccess, onCancel }) {
-  const createMutation = useCreateNote();
-  const [activityType, setActivityType] = useState('note');
-  const [content, setContent] = useState('');
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!content.trim()) return;
-
-    try {
-      const result = await createMutation.mutateAsync({
-        ownerId,
-        petId,
-        type: activityType,
-        content,
-        entityType: ownerId ? 'owner' : 'pet',
-        entityId: ownerId || petId,
-      });
-      onSuccess?.(result);
-    } catch (error) {
-      toast.error(error?.message || 'Failed to log activity');
-    }
-  };
-
-  const isLoading = createMutation.isPending;
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <FormSection title="Activity Type">
-        <div className="grid grid-cols-5 gap-2">
-          {ACTIVITY_TYPES.map((type) => (
-            <button
-              key={type.value}
-              type="button"
-              onClick={() => setActivityType(type.value)}
-              className={cn(
-                'flex flex-col items-center gap-1 p-3 rounded-lg border text-sm transition-colors',
-                activityType === type.value
-                  ? 'border-[color:var(--bb-color-accent)] bg-[color:var(--bb-color-accent-soft)]'
-                  : 'border-[color:var(--bb-color-border-subtle)] hover:bg-[color:var(--bb-color-bg-surface)]'
-              )}
-            >
-              <span className="text-lg">{type.icon}</span>
-              <span style={{ color: 'var(--bb-color-text-primary)' }}>{type.label}</span>
-            </button>
-          ))}
-        </div>
-      </FormSection>
-
-      <FormSection title="Details">
-        <div className="space-y-2">
-          <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
-            Description <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
-          </label>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={5}
-            className={cn(inputClass, 'resize-y')}
-            style={inputStyles}
-            placeholder="Describe the activity..."
-          />
-        </div>
-      </FormSection>
-
-      <FormActions>
-        <Button type="button" variant="ghost" onClick={onCancel} disabled={isLoading}>Cancel</Button>
-        <Button type="submit" disabled={isLoading || !content.trim()}>
-          {isLoading ? 'Logging...' : 'Log Activity'}
-        </Button>
-      </FormActions>
-    </form>
-  );
-}
 
 // Vaccination Edit Form with navigation between multiple vaccinations
 function VaccinationEditForm({ vaccinations = [], initialIndex = 0, petId, petName, onSuccess, onCancel }) {

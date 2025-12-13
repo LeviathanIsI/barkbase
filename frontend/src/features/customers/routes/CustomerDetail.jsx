@@ -1,7 +1,8 @@
 /**
- * Customer Detail Page - Enterprise 360° View
- * Two-column layout with tabbed content and sticky owner summary panel
- * Designed for kennel operations staff to quickly access all customer data
+ * Customer Detail Page - 3-Column Enterprise Layout
+ * Left: Property cards (About, Address, Emergency, Notes)
+ * Middle: Stats + Tabs (Overview, Activity, Bookings, Billing)
+ * Right: Associations (Pets, Bookings, Invoices, Segments)
  */
 
 import { useState, useMemo, useRef, useEffect } from 'react';
@@ -35,11 +36,14 @@ import {
   Trash2,
   UserX,
   UserCheck,
+  Tag,
 } from 'lucide-react';
 import { format, formatDistanceToNow, isAfter, isBefore, startOfToday } from 'date-fns';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { Card, MetricCard } from '@/components/ui/Card';
+import { PropertyCard, PropertyList } from '@/components/ui/PropertyCard';
+import { AssociationCard, AssociationItem } from '@/components/ui/AssociationCard';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useOwner, useDeleteOwnerMutation, useUpdateOwnerMutation } from '@/features/owners/api';
@@ -47,6 +51,7 @@ import { useBookingsQuery } from '@/features/bookings/api';
 import { useCommunicationStats, useCustomerTimeline } from '@/features/communications/api';
 import CommunicationForm from '@/features/communications/components/CommunicationForm';
 import NotesPanel from '@/features/communications/components/NotesPanel';
+import ActivityTimeline from '@/features/activities/components/ActivityTimeline';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import toast from 'react-hot-toast';
 import { cn, formatCurrency } from '@/lib/utils';
@@ -57,13 +62,13 @@ import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
 // ============================================================================
 
 const safeFormatDate = (dateStr, formatStr = 'MMM d, yyyy') => {
-  if (!dateStr) return '—';
+  if (!dateStr) return null;
   try {
     const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return '—';
+    if (isNaN(date.getTime())) return null;
     return format(date, formatStr);
   } catch {
-    return '—';
+    return null;
   }
 };
 
@@ -173,11 +178,6 @@ export default function CustomerDetail() {
     setShowDeleteConfirm(false);
   };
 
-  // Handle log activity
-  const handleLogActivity = () => {
-    openSlideout(SLIDEOUT_TYPES.ACTIVITY_LOG, { ownerId });
-  };
-
   // Derived data
   const ownerBookings = useMemo(() => {
     if (!allBookings || !ownerId) return [];
@@ -203,15 +203,23 @@ export default function CustomerDetail() {
   // Loading state
   if (ownerLoading) {
     return (
-      <div className="space-y-6 p-6">
-        <Skeleton className="h-12 w-64" />
-        <div className="grid grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24" />)}
-        </div>
-        <div className="grid grid-cols-12 gap-6">
-          <div className="col-span-8"><Skeleton className="h-96" /></div>
-          <div className="col-span-4"><Skeleton className="h-96" /></div>
-        </div>
+      <div className="flex h-full">
+        <aside className="w-64 border-r p-4 space-y-4" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+          <Skeleton className="h-32" />
+          <Skeleton className="h-24" />
+          <Skeleton className="h-24" />
+        </aside>
+        <main className="flex-1 p-6">
+          <Skeleton className="h-12 w-64 mb-4" />
+          <div className="grid grid-cols-4 gap-4 mb-6">
+            {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-20" />)}
+          </div>
+          <Skeleton className="h-96" />
+        </main>
+        <aside className="w-72 border-l p-4 space-y-4" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+          <Skeleton className="h-48" />
+          <Skeleton className="h-48" />
+        </aside>
       </div>
     );
   }
@@ -239,216 +247,247 @@ export default function CustomerDetail() {
   const pets = owner.pets?.filter(p => p && p.recordId) || [];
   const totalBookings = ownerBookings.length;
   const lastActivity = owner.updatedAt || owner.createdAt;
+  const invoices = owner.invoices || [];
+  const segments = owner.segments || [];
+
+  // Customer status
+  const customerStatus = totalBookings > 10 ? 'VIP' : totalBookings > 0 ? 'Active' : 'New';
+  const customerStatusVariant = totalBookings > 10 ? 'accent' : totalBookings > 0 ? 'success' : 'neutral';
+
+  // Address parts
+  const hasAddress = owner.address?.street || owner.address?.city || owner.city;
 
   return (
-    <div className="min-h-full" style={{ backgroundColor: 'var(--bb-color-bg-base)' }}>
-      {/* ================================================================== */}
-      {/* HEADER SECTION */}
-      {/* ================================================================== */}
-      <header
-        className="border-b sticky top-0 z-10"
-        style={{
-          backgroundColor: 'var(--bb-color-bg-surface)',
-          borderColor: 'var(--bb-color-border-subtle)',
-        }}
-      >
-        <div className="max-w-[1600px] mx-auto px-6 py-5">
-          <div className="flex items-start justify-between gap-6">
-            {/* Left: Back + Owner Info */}
-            <div className="flex items-start gap-4">
-              <button
-                onClick={() => navigate('/owners')}
-                className="flex items-center gap-2 text-sm font-medium transition-colors mt-1"
-                style={{ color: 'var(--bb-color-text-muted)' }}
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="flex-shrink-0 px-6 py-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-2 text-sm mb-2" style={{ color: 'var(--bb-color-text-muted)' }}>
+          <Link
+            to="/owners"
+            className="flex items-center gap-1 hover:text-[color:var(--bb-color-text-primary)] transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Customers
+          </Link>
+          <ChevronRight className="w-4 h-4" />
+          <span style={{ color: 'var(--bb-color-text-primary)' }}>{fullName}</span>
+        </nav>
+
+        {/* Title Row */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1
+                className="text-2xl font-semibold truncate"
+                style={{ color: 'var(--bb-color-text-primary)' }}
               >
-                <ArrowLeft className="w-4 h-4" />
-                Back
-              </button>
-
-              <div>
-                <h1
-                  className="text-2xl font-bold"
-                  style={{ color: 'var(--bb-color-text-primary)' }}
-                >
-                  {fullName}
-                </h1>
-
-                <div className="flex flex-wrap items-center gap-4 mt-2 text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
-                  {owner.email && (
-                    <a
-                      href={`mailto:${owner.email}`}
-                      className="flex items-center gap-1.5 hover:text-[color:var(--bb-color-accent)] transition-colors"
-                    >
-                      <Mail className="w-4 h-4" />
-                      {owner.email}
-                    </a>
-                  )}
-                  {owner.phone && (
-                    <a
-                      href={`tel:${owner.phone}`}
-                      className="flex items-center gap-1.5 hover:text-[color:var(--bb-color-accent)] transition-colors"
-                    >
-                      <Phone className="w-4 h-4" />
-                      {owner.phone}
-                    </a>
-                  )}
-                  {(owner.address?.city || owner.city) && (
-                    <span className="flex items-center gap-1.5">
-                      <MapPin className="w-4 h-4" />
-                      {owner.address?.city || owner.city}{owner.address?.state ? `, ${owner.address.state}` : ''}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2 mt-3">
-                  <Badge variant="neutral" size="sm">
-                    <Calendar className="w-3 h-3" />
-                    Customer since {safeFormatDate(owner.createdAt, 'MMM yyyy')}
-                  </Badge>
-                  {totalBookings > 10 && (
-                    <Badge variant="accent" size="sm">
-                      <Star className="w-3 h-3" />
-                      Frequent
-                    </Badge>
-                  )}
-                </div>
-              </div>
+                {fullName}
+              </h1>
+              <Badge variant={customerStatusVariant}>
+                {customerStatus}
+              </Badge>
             </div>
-
-            {/* Right: Actions */}
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="md" onClick={handleEditOwner}>
-                <Edit className="w-4 h-4" />
-                Edit Owner
-              </Button>
-              <Button size="md" onClick={handleNewBooking}>
-                <Plus className="w-4 h-4" />
-                New Booking
-              </Button>
-              {/* More Actions Dropdown */}
-              <div className="relative" ref={moreMenuRef}>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShowMoreMenu(!showMoreMenu)}
-                >
-                  <MoreHorizontal className="w-5 h-5" />
-                </Button>
-                {showMoreMenu && (
-                  <div
-                    className="absolute right-0 mt-2 w-48 rounded-lg shadow-lg border z-50 py-1"
-                    style={{
-                      backgroundColor: 'var(--bb-color-bg-elevated)',
-                      borderColor: 'var(--bb-color-border-subtle)',
-                    }}
-                  >
-                    <button
-                      onClick={handleSendMessage}
-                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-left hover:bg-[color:var(--bb-color-bg-surface)] transition-colors"
-                      style={{ color: 'var(--bb-color-text-primary)' }}
-                    >
-                      <Send className="w-4 h-4" />
-                      Send Message
-                    </button>
-                    <button
-                      onClick={() => { setActiveTab('billing'); setShowMoreMenu(false); }}
-                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-left hover:bg-[color:var(--bb-color-bg-surface)] transition-colors"
-                      style={{ color: 'var(--bb-color-text-primary)' }}
-                    >
-                      <CreditCard className="w-4 h-4" />
-                      View Billing
-                    </button>
-                    <div className="border-t my-1" style={{ borderColor: 'var(--bb-color-border-subtle)' }} />
-                    <button
-                      onClick={handleToggleStatus}
-                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-left hover:bg-[color:var(--bb-color-bg-surface)] transition-colors"
-                      style={{ color: owner?.status === 'active' ? 'var(--bb-color-status-warning-text)' : 'var(--bb-color-status-positive-text)' }}
-                    >
-                      {owner?.status === 'active' ? (
-                        <>
-                          <UserX className="w-4 h-4" />
-                          Deactivate Customer
-                        </>
-                      ) : (
-                        <>
-                          <UserCheck className="w-4 h-4" />
-                          Activate Customer
-                        </>
-                      )}
-                    </button>
-                    <button
-                      onClick={() => { setShowDeleteConfirm(true); setShowMoreMenu(false); }}
-                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-left hover:bg-[color:var(--bb-color-bg-surface)] transition-colors"
-                      style={{ color: 'var(--bb-color-status-negative)' }}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Delete Customer
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
+            <p className="mt-1 text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
+              {owner.email || 'No email on file'}
+            </p>
           </div>
 
-          {/* Metrics Strip */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6">
-            <MetricStrip
-              icon={Calendar}
-              label="Total Bookings"
-              value={totalBookings}
-            />
-            <MetricStrip
-              icon={DollarSign}
-              label="Lifetime Value"
-              value={formatCurrency(lifetimeValue)}
-            />
-            <MetricStrip
-              icon={PawPrint}
-              label="Active Pets"
-              value={activePets.length}
-            />
-            <MetricStrip
-              icon={Clock}
-              label="Last Activity"
-              value={safeFormatDistance(lastActivity)}
-            />
+          {/* Actions */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Button variant="outline" onClick={handleEditOwner}>
+              <Edit className="w-4 h-4 mr-2" />
+              Edit Owner
+            </Button>
+            <Button variant="primary" onClick={handleNewBooking}>
+              <Plus className="w-4 h-4 mr-2" />
+              New Booking
+            </Button>
+
+            {/* More Actions Dropdown */}
+            <div className="relative" ref={moreMenuRef}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowMoreMenu(!showMoreMenu)}
+              >
+                <MoreHorizontal className="w-5 h-5" />
+              </Button>
+              {showMoreMenu && (
+                <div
+                  className="absolute right-0 mt-2 w-48 rounded-lg shadow-lg border z-50 py-1"
+                  style={{
+                    backgroundColor: 'var(--bb-color-bg-elevated)',
+                    borderColor: 'var(--bb-color-border-subtle)',
+                  }}
+                >
+                  <button
+                    onClick={handleSendMessage}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-left hover:bg-[color:var(--bb-color-bg-surface)] transition-colors"
+                    style={{ color: 'var(--bb-color-text-primary)' }}
+                  >
+                    <Send className="w-4 h-4" />
+                    Send Message
+                  </button>
+                  <button
+                    onClick={() => { setActiveTab('billing'); setShowMoreMenu(false); }}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-left hover:bg-[color:var(--bb-color-bg-surface)] transition-colors"
+                    style={{ color: 'var(--bb-color-text-primary)' }}
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    View Billing
+                  </button>
+                  <div className="border-t my-1" style={{ borderColor: 'var(--bb-color-border-subtle)' }} />
+                  <button
+                    onClick={handleToggleStatus}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-left hover:bg-[color:var(--bb-color-bg-surface)] transition-colors"
+                    style={{ color: owner?.status === 'active' ? 'var(--bb-color-status-caution)' : 'var(--bb-color-status-positive)' }}
+                  >
+                    {owner?.status === 'active' ? (
+                      <>
+                        <UserX className="w-4 h-4" />
+                        Deactivate
+                      </>
+                    ) : (
+                      <>
+                        <UserCheck className="w-4 h-4" />
+                        Activate
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => { setShowDeleteConfirm(true); setShowMoreMenu(false); }}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-left hover:bg-[color:var(--bb-color-bg-surface)] transition-colors"
+                    style={{ color: 'var(--bb-color-status-negative)' }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete Customer
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </header>
+      </div>
 
-      {/* ================================================================== */}
-      {/* MAIN CONTENT - TWO COLUMN LAYOUT */}
-      {/* ================================================================== */}
-      <main className="max-w-[1600px] mx-auto px-6 py-6">
-        <div className="flex flex-col lg:flex-row gap-6">
-          {/* LEFT COLUMN - TABS & CONTENT */}
-          <div className="flex-1 min-w-0">
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="mb-6">
-                <TabsTrigger value="overview">
-                  <Activity className="w-4 h-4 mr-2" />
+      {/* 3-Column Layout */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* LEFT SIDEBAR - Property Cards (420px fixed) */}
+        <aside
+          className="w-[420px] min-w-[420px] flex-shrink-0 border-r overflow-y-auto p-4 space-y-4"
+          style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+        >
+          {/* About this Owner */}
+          <PropertyCard title="About this Customer" icon={User} storageKey={`customer_${ownerId}_about`}>
+            <PropertyList
+              properties={[
+                { label: 'Name', value: fullName },
+                { label: 'Email', value: owner.email, type: 'email' },
+                { label: 'Phone', value: owner.phone, type: 'phone' },
+                { label: 'Status', value: customerStatus, type: 'badge', variant: customerStatusVariant },
+                { label: 'Customer Since', value: safeFormatDate(owner.createdAt) },
+              ]}
+            />
+          </PropertyCard>
+
+          {/* Address */}
+          <PropertyCard
+            title="Address"
+            icon={MapPin}
+            storageKey={`customer_${ownerId}_address`}
+            defaultOpen={!!hasAddress}
+          >
+            <PropertyList
+              properties={[
+                { label: 'Street', value: owner.address?.street },
+                { label: 'City', value: owner.address?.city || owner.city },
+                { label: 'State', value: owner.address?.state },
+                { label: 'ZIP Code', value: owner.address?.zip },
+                { label: 'Country', value: owner.address?.country },
+              ]}
+            />
+          </PropertyCard>
+
+          {/* Emergency Contact */}
+          <PropertyCard
+            title="Emergency Contact"
+            icon={AlertCircle}
+            storageKey={`customer_${ownerId}_emergency`}
+            defaultOpen={!!(owner.emergencyContactName || owner.emergencyContactPhone)}
+          >
+            <PropertyList
+              properties={[
+                { label: 'Contact Name', value: owner.emergencyContactName },
+                { label: 'Contact Phone', value: owner.emergencyContactPhone, type: 'phone' },
+              ]}
+            />
+          </PropertyCard>
+
+          {/* Notes */}
+          <PropertyCard
+            title="Notes"
+            icon={MessageSquare}
+            storageKey={`customer_${ownerId}_notes`}
+            defaultOpen={!!owner.notes}
+          >
+            {owner.notes ? (
+              <p className="text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>
+                {owner.notes}
+              </p>
+            ) : (
+              <p className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
+                No notes
+              </p>
+            )}
+          </PropertyCard>
+
+          {/* Account */}
+          <PropertyCard title="Account" icon={CreditCard} storageKey={`customer_${ownerId}_account`}>
+            <PropertyList
+              properties={[
+                { label: 'Lifetime Value', value: lifetimeValue, type: 'currency' },
+                { label: 'Total Bookings', value: totalBookings },
+                { label: 'Payment on File', value: owner.hasPaymentMethod ? 'Yes' : 'No' },
+              ]}
+            />
+          </PropertyCard>
+        </aside>
+
+        {/* MIDDLE COLUMN - Stats + Tabs (flex-1) */}
+        <main className="flex-1 min-w-0 overflow-y-auto">
+          {/* Stats Bar */}
+          <div className="px-6 py-4 border-b grid grid-cols-4 gap-4" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+            <StatItem label="Total Bookings" value={totalBookings} />
+            <StatItem label="Lifetime Value" value={formatCurrency(lifetimeValue)} />
+            <StatItem label="Active Pets" value={pets.length} />
+            <StatItem label="Last Activity" value={safeFormatDistance(lastActivity)} />
+          </div>
+
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
+            <div className="border-b px-6" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+              <TabsList className="h-12 bg-transparent">
+                <TabsTrigger value="overview" className="flex items-center gap-2">
+                  <Activity className="w-4 h-4" />
                   Overview
                 </TabsTrigger>
-                <TabsTrigger value="bookings">
-                  <Calendar className="w-4 h-4 mr-2" />
+                <TabsTrigger value="activity" className="flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  Activity
+                </TabsTrigger>
+                <TabsTrigger value="bookings" className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
                   Bookings
                 </TabsTrigger>
-                <TabsTrigger value="pets">
-                  <PawPrint className="w-4 h-4 mr-2" />
-                  Pets
-                </TabsTrigger>
-                <TabsTrigger value="communications">
-                  <MessageSquare className="w-4 h-4 mr-2" />
-                  Communications
-                </TabsTrigger>
-                <TabsTrigger value="billing">
-                  <CreditCard className="w-4 h-4 mr-2" />
+                <TabsTrigger value="billing" className="flex items-center gap-2">
+                  <DollarSign className="w-4 h-4" />
                   Billing
                 </TabsTrigger>
               </TabsList>
+            </div>
 
-              {/* OVERVIEW TAB */}
-              <TabsContent value="overview">
+            <div className="p-6">
+              <TabsContent value="overview" className="mt-0">
                 <OverviewTab
                   ownerId={ownerId}
                   owner={owner}
@@ -457,12 +496,14 @@ export default function CustomerDetail() {
                   recentBookings={recentBookings}
                   stats={stats}
                   onTabChange={setActiveTab}
-                  onLogActivity={handleLogActivity}
                 />
               </TabsContent>
 
-              {/* BOOKINGS TAB */}
-              <TabsContent value="bookings">
+              <TabsContent value="activity" className="mt-0">
+                <ActivityTab ownerId={ownerId} ownerEmail={owner.email} ownerPhone={owner.phone} />
+              </TabsContent>
+
+              <TabsContent value="bookings" className="mt-0">
                 <BookingsTab
                   bookings={ownerBookings}
                   ownerName={fullName}
@@ -470,51 +511,157 @@ export default function CustomerDetail() {
                 />
               </TabsContent>
 
-              {/* PETS TAB */}
-              <TabsContent value="pets">
-                <PetsTab
-                  pets={pets}
-                  ownerId={ownerId}
-                  ownerName={fullName}
-                />
-              </TabsContent>
-
-              {/* COMMUNICATIONS TAB */}
-              <TabsContent value="communications">
-                <CommunicationsTab
-                  ownerId={ownerId}
-                  showForm={showCommunicationForm}
-                  onShowForm={setShowCommunicationForm}
-                />
-              </TabsContent>
-
-              {/* BILLING TAB */}
-              <TabsContent value="billing">
+              <TabsContent value="billing" className="mt-0">
                 <BillingTab
                   ownerId={ownerId}
                   bookings={ownerBookings}
                   lifetimeValue={lifetimeValue}
                 />
               </TabsContent>
-            </Tabs>
-          </div>
-
-          {/* RIGHT COLUMN - STICKY SUMMARY PANEL */}
-          <div className="w-full lg:w-[360px] flex-shrink-0">
-            <div className="lg:sticky lg:top-[200px] space-y-4">
-              <OwnerSummaryPanel
-                owner={owner}
-                stats={stats}
-                pets={pets}
-                totalBookings={totalBookings}
-                lifetimeValue={lifetimeValue}
-                onNewBooking={() => openSlideout(SLIDEOUT_TYPES.BOOKING_CREATE, { ownerId })}
-                onNewCommunication={() => openSlideout(SLIDEOUT_TYPES.COMMUNICATION_CREATE, { ownerId })}
-              />
             </div>
-          </div>
-        </div>
-      </main>
+          </Tabs>
+        </main>
+
+        {/* RIGHT SIDEBAR - Associations (460px fixed) */}
+        <aside
+          className="w-[460px] min-w-[460px] flex-shrink-0 border-l overflow-y-auto p-4 space-y-4"
+          style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+        >
+          {/* Pets */}
+          <AssociationCard
+            title="Pets"
+            type="pet"
+            count={pets.length}
+            onAdd={() => navigate(`/pets?action=new&ownerId=${ownerId}`)}
+            viewAllLink={pets.length > 5 ? `/pets?ownerId=${ownerId}` : undefined}
+            emptyMessage="No pets yet"
+          >
+            {pets.slice(0, 5).map((pet) => (
+              <AssociationItem
+                key={pet.recordId || pet.id}
+                name={pet.name}
+                subtitle={pet.breed || pet.species || 'Pet'}
+                href={`/pets/${pet.recordId || pet.id}`}
+                type="pet"
+              />
+            ))}
+          </AssociationCard>
+
+          {/* Bookings */}
+          <AssociationCard
+            title="Bookings"
+            type="booking"
+            count={ownerBookings.length}
+            onAdd={handleNewBooking}
+            viewAllLink={ownerBookings.length > 5 ? `/bookings?ownerId=${ownerId}` : undefined}
+            emptyMessage="No bookings yet"
+          >
+            {ownerBookings.slice(0, 5).map((booking) => (
+              <AssociationItem
+                key={booking.recordId || booking.id}
+                name={`${safeFormatDate(booking.checkIn, 'MMM d')} - ${safeFormatDate(booking.checkOut, 'MMM d')}`}
+                subtitle={booking.petName || 'Booking'}
+                href={`/bookings/${booking.recordId || booking.id}`}
+                type="booking"
+                status={booking.status?.replace(/_/g, ' ')}
+                statusVariant={getStatusVariant(booking.status)}
+              />
+            ))}
+          </AssociationCard>
+
+          {/* Invoices */}
+          <AssociationCard
+            title="Invoices"
+            type="invoice"
+            count={invoices.length}
+            onAdd={() => navigate(`/invoices?action=new&ownerId=${ownerId}`)}
+            viewAllLink={invoices.length > 3 ? `/invoices?ownerId=${ownerId}` : undefined}
+            emptyMessage="No invoices yet"
+          >
+            {invoices.slice(0, 3).map((invoice) => (
+              <AssociationItem
+                key={invoice.recordId || invoice.id}
+                name={`#${invoice.invoiceNumber || invoice.recordId?.slice(0, 8)}`}
+                subtitle={formatCurrency(invoice.totalCents || 0)}
+                href={`/invoices/${invoice.recordId || invoice.id}`}
+                type="invoice"
+                status={invoice.status}
+                statusVariant={invoice.status === 'paid' ? 'success' : invoice.status === 'overdue' ? 'danger' : 'warning'}
+              />
+            ))}
+          </AssociationCard>
+
+          {/* Segments */}
+          <AssociationCard
+            title="Segments"
+            type="segment"
+            count={segments.length}
+            showAdd={false}
+            emptyMessage="No segments"
+          >
+            {segments.map((segment, idx) => (
+              <AssociationItem
+                key={segment.id || segment.recordId || idx}
+                name={segment.name || segment}
+                type="segment"
+                href={segment.id ? `/segments/${segment.id}` : undefined}
+              />
+            ))}
+          </AssociationCard>
+
+          {/* Quick Actions */}
+          <Card className="p-4">
+            <h3
+              className="text-sm font-semibold uppercase tracking-wide mb-3"
+              style={{ color: 'var(--bb-color-text-muted)' }}
+            >
+              Quick Actions
+            </h3>
+            <div className="space-y-2">
+              {owner.phone && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={() => window.open(`tel:${owner.phone}`)}
+                >
+                  <Phone className="w-4 h-4 mr-2" />
+                  Call
+                </Button>
+              )}
+              {owner.email && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={() => window.open(`mailto:${owner.email}`)}
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  Email
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start"
+                onClick={handleNewBooking}
+              >
+                <Calendar className="w-4 h-4 mr-2" />
+                New Booking
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start"
+                onClick={() => navigate(`/pets?action=new&ownerId=${ownerId}`)}
+              >
+                <PawPrint className="w-4 h-4 mr-2" />
+                Add Pet
+              </Button>
+            </div>
+          </Card>
+        </aside>
+      </div>
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
@@ -533,236 +680,24 @@ export default function CustomerDetail() {
 }
 
 // ============================================================================
-// METRIC STRIP COMPONENT
+// STAT ITEM COMPONENT
 // ============================================================================
 
-function MetricStrip({ icon: Icon, label, value }) {
+function StatItem({ label, value }) {
   return (
-    <div
-      className="flex items-center gap-3 p-3 rounded-lg"
-      style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
-    >
-      <div
-        className="flex items-center justify-center w-10 h-10 rounded-lg"
-        style={{ backgroundColor: 'var(--bb-color-accent-soft)' }}
+    <div>
+      <p
+        className="text-xs font-medium uppercase tracking-wide mb-0.5"
+        style={{ color: 'var(--bb-color-text-muted)' }}
       >
-        <Icon className="w-5 h-5" style={{ color: 'var(--bb-color-accent)' }} />
-      </div>
-      <div>
-        <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--bb-color-text-muted)' }}>
-          {label}
-        </p>
-        <p className="text-lg font-semibold" style={{ color: 'var(--bb-color-text-primary)' }}>
-          {value}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================================
-// OWNER SUMMARY PANEL (RIGHT COLUMN)
-// ============================================================================
-
-function OwnerSummaryPanel({ owner, stats, pets, totalBookings, lifetimeValue, onNewBooking, onNewCommunication }) {
-  const fullName = `${owner.firstName || ''} ${owner.lastName || ''}`.trim() || 'Customer';
-  const initials = `${owner.firstName?.[0] || ''}${owner.lastName?.[0] || ''}`.toUpperCase() || 'C';
-
-  // Determine customer status
-  const getCustomerStatus = () => {
-    if (lifetimeValue > 100000) return { label: 'VIP', variant: 'accent' };
-    if (totalBookings > 10) return { label: 'Frequent', variant: 'success' };
-    if (totalBookings > 0) return { label: 'Active', variant: 'info' };
-    return { label: 'New', variant: 'neutral' };
-  };
-  const customerStatus = getCustomerStatus();
-
-  return (
-    <Card className="overflow-hidden">
-      {/* Profile Header */}
-      <div
-        className="p-6 text-center"
-        style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
+        {label}
+      </p>
+      <p
+        className="text-lg font-semibold"
+        style={{ color: 'var(--bb-color-text-primary)' }}
       >
-        <div
-          className="w-20 h-20 mx-auto rounded-full flex items-center justify-center text-2xl font-bold"
-          style={{
-            backgroundColor: 'var(--bb-color-accent)',
-            color: 'var(--bb-color-text-on-accent)',
-          }}
-        >
-          {initials}
-        </div>
-        <h3
-          className="mt-4 text-lg font-semibold"
-          style={{ color: 'var(--bb-color-text-primary)' }}
-        >
-          {fullName}
-        </h3>
-        <p className="text-sm mt-1" style={{ color: 'var(--bb-color-text-muted)' }}>
-          {owner.address?.city || owner.city || 'Local'} customer
-        </p>
-        <div className="flex items-center justify-center gap-2 mt-3">
-          <Badge variant={customerStatus.variant}>{customerStatus.label}</Badge>
-          {lifetimeValue > 50000 && (
-            <Badge variant="warning">
-              <Shield className="w-3 h-3" />
-              High Value
-            </Badge>
-          )}
-        </div>
-      </div>
-
-      {/* Contact Details */}
-      <div className="p-4 border-t" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-        <h4
-          className="text-xs font-semibold uppercase tracking-wide mb-3"
-          style={{ color: 'var(--bb-color-text-muted)' }}
-        >
-          Contact
-        </h4>
-        <div className="space-y-3">
-          {owner.email && (
-            <ContactRow
-              icon={Mail}
-              value={owner.email}
-              href={`mailto:${owner.email}`}
-              onCopy={() => copyToClipboard(owner.email)}
-            />
-          )}
-          {owner.phone && (
-            <ContactRow
-              icon={Phone}
-              value={owner.phone}
-              href={`tel:${owner.phone}`}
-              onCopy={() => copyToClipboard(owner.phone)}
-            />
-          )}
-          {(owner.address?.city || owner.city) && (
-            <ContactRow
-              icon={MapPin}
-              value={`${owner.address?.street || ''} ${owner.address?.city || owner.city || ''}${owner.address?.state ? `, ${owner.address.state}` : ''} ${owner.address?.zip || ''}`.trim()}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="p-4 border-t" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-        <h4
-          className="text-xs font-semibold uppercase tracking-wide mb-3"
-          style={{ color: 'var(--bb-color-text-muted)' }}
-        >
-          Quick Actions
-        </h4>
-        <div className="space-y-2">
-          <Button variant="primary" size="sm" className="w-full justify-start" onClick={onNewBooking}>
-            <Calendar className="w-4 h-4" />
-            New Booking
-          </Button>
-          <Button variant="outline" size="sm" className="w-full justify-start" onClick={onNewCommunication}>
-            <Send className="w-4 h-4" />
-            Send Message
-          </Button>
-          {owner.phone && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start"
-              onClick={() => window.open(`tel:${owner.phone}`)}
-            >
-              <Phone className="w-4 h-4" />
-              Call Customer
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Pets Summary */}
-      {pets.length > 0 && (
-        <div className="p-4 border-t" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-          <h4
-            className="text-xs font-semibold uppercase tracking-wide mb-3"
-            style={{ color: 'var(--bb-color-text-muted)' }}
-          >
-            Pets ({pets.length})
-          </h4>
-          <div className="flex flex-wrap gap-2">
-            {pets.slice(0, 4).map((pet) => (
-              <Link
-                key={pet.id || pet.recordId}
-                to={`/pets/${pet.id || pet.recordId}`}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm transition-colors"
-                style={{
-                  backgroundColor: 'var(--bb-color-bg-elevated)',
-                  color: 'var(--bb-color-text-primary)',
-                }}
-              >
-                <PawPrint className="w-3.5 h-3.5" style={{ color: 'var(--bb-color-accent)' }} />
-                {pet.name}
-              </Link>
-            ))}
-            {pets.length > 4 && (
-              <span
-                className="px-3 py-1.5 rounded-full text-sm"
-                style={{
-                  backgroundColor: 'var(--bb-color-bg-elevated)',
-                  color: 'var(--bb-color-text-muted)',
-                }}
-              >
-                +{pets.length - 4} more
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Internal Notes */}
-      {owner.notes && (
-        <div className="p-4 border-t" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
-          <h4
-            className="text-xs font-semibold uppercase tracking-wide mb-3"
-            style={{ color: 'var(--bb-color-text-muted)' }}
-          >
-            Internal Notes
-          </h4>
-          <p className="text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>
-            {owner.notes}
-          </p>
-        </div>
-      )}
-    </Card>
-  );
-}
-
-function ContactRow({ icon: Icon, value, href, onCopy }) {
-  return (
-    <div className="flex items-center gap-3 group">
-      <Icon className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--bb-color-text-muted)' }} />
-      <div className="flex-1 min-w-0">
-        {href ? (
-          <a
-            href={href}
-            className="text-sm truncate block hover:text-[color:var(--bb-color-accent)] transition-colors"
-            style={{ color: 'var(--bb-color-text-primary)' }}
-          >
-            {value}
-          </a>
-        ) : (
-          <span className="text-sm truncate block" style={{ color: 'var(--bb-color-text-primary)' }}>
-            {value}
-          </span>
-        )}
-      </div>
-      {onCopy && (
-        <button
-          onClick={onCopy}
-          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded"
-          style={{ color: 'var(--bb-color-text-muted)' }}
-        >
-          <Copy className="w-3.5 h-3.5" />
-        </button>
-      )}
+        {value}
+      </p>
     </div>
   );
 }
@@ -771,162 +706,70 @@ function ContactRow({ icon: Icon, value, href, onCopy }) {
 // OVERVIEW TAB
 // ============================================================================
 
-function OverviewTab({ ownerId, owner, pets, upcomingBookings, recentBookings, stats, onTabChange, onLogActivity }) {
+function OverviewTab({ ownerId, owner, pets, upcomingBookings, recentBookings, stats, onTabChange }) {
   const { openSlideout } = useSlideout();
   const { data: timelineData, isLoading: timelineLoading } = useCustomerTimeline(ownerId);
   const timeline = timelineData?.pages?.flatMap(page => page?.data || []) || [];
 
   return (
-    <div className="space-y-6">
-      {/* Activity Timeline */}
-      <Card>
+    <div className="space-y-8">
+      {/* Recent Activity */}
+      <section>
         <div className="flex items-center justify-between mb-4">
-          <h3
-            className="text-base font-semibold"
-            style={{ color: 'var(--bb-color-text-primary)' }}
-          >
-            Activity
+          <h3 className="text-lg font-semibold" style={{ color: 'var(--bb-color-text-primary)' }}>
+            Recent Activity
           </h3>
-          <Button variant="ghost" size="sm" onClick={onLogActivity}>
-            <Plus className="w-4 h-4" />
-            Log Activity
+          <Button variant="outline" size="sm" onClick={() => onTabChange('activity')}>
+            View All
           </Button>
         </div>
 
         {timelineLoading ? (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="flex gap-4">
-                <Skeleton className="w-10 h-10 rounded-full" />
-                <div className="flex-1">
-                  <Skeleton className="h-4 w-48 mb-2" />
-                  <Skeleton className="h-3 w-32" />
-                </div>
-              </div>
+              <Skeleton key={i} className="h-16" />
             ))}
           </div>
         ) : timeline.length === 0 ? (
-          <EmptyState
-            icon={Activity}
-            title="No activity yet"
-            description="Activity will appear here when bookings are made or communications are logged."
-            action={
-              <Button size="sm" onClick={onLogActivity}>
-                <Plus className="w-4 h-4" />
-                Log First Activity
-              </Button>
-            }
-          />
+          <div
+            className="text-center py-8 rounded-lg border-2 border-dashed"
+            style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+          >
+            <Activity className="w-10 h-10 mx-auto mb-2" style={{ color: 'var(--bb-color-text-muted)' }} />
+            <p className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
+              No activity yet
+            </p>
+          </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {timeline.slice(0, 5).map((item, index) => (
               <ActivityItem key={item.recordId || index} item={item} />
             ))}
-            {timeline.length > 5 && (
-              <button
-                onClick={() => onTabChange('communications')}
-                className="w-full text-sm font-medium py-2"
-                style={{ color: 'var(--bb-color-accent)' }}
-              >
-                View all activity →
-              </button>
-            )}
           </div>
         )}
-      </Card>
+      </section>
 
-      {/* Bookings Overview */}
-      <Card>
-        <div className="flex items-center justify-between mb-4">
-          <h3
-            className="text-base font-semibold"
-            style={{ color: 'var(--bb-color-text-primary)' }}
-          >
-            Bookings
-          </h3>
-          <Button variant="link" size="sm" onClick={() => onTabChange('bookings')}>
-            View all
-            <ChevronRight className="w-4 h-4" />
-          </Button>
+      {/* Quick Stats */}
+      <section>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+            <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--bb-color-text-muted)' }}>
+              Customer Since
+            </p>
+            <p className="text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>
+              {safeFormatDate(owner.createdAt) || 'Unknown'}
+            </p>
+          </div>
+          <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+            <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--bb-color-text-muted)' }}>
+              Last Updated
+            </p>
+            <p className="text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>
+              {safeFormatDate(owner.updatedAt) || 'Unknown'}
+            </p>
+          </div>
         </div>
-
-        {upcomingBookings.length === 0 && recentBookings.length === 0 ? (
-          <EmptyState
-            icon={Calendar}
-            title="No bookings yet"
-            description="Create the first booking for this customer."
-            action={
-              <Button size="sm" onClick={() => openSlideout(SLIDEOUT_TYPES.BOOKING_CREATE, { ownerId })}>
-                <Plus className="w-4 h-4" />
-                New Booking
-              </Button>
-            }
-          />
-        ) : (
-          <div className="space-y-4">
-            {upcomingBookings.length > 0 && (
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--bb-color-text-muted)' }}>
-                  Upcoming
-                </p>
-                <div className="space-y-2">
-                  {upcomingBookings.map((booking) => (
-                    <BookingRow key={booking.id || booking.recordId} booking={booking} />
-                  ))}
-                </div>
-              </div>
-            )}
-            {recentBookings.length > 0 && (
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide mb-2" style={{ color: 'var(--bb-color-text-muted)' }}>
-                  Recent
-                </p>
-                <div className="space-y-2">
-                  {recentBookings.map((booking) => (
-                    <BookingRow key={booking.id || booking.recordId} booking={booking} />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </Card>
-
-      {/* Pets Overview */}
-      <Card>
-        <div className="flex items-center justify-between mb-4">
-          <h3
-            className="text-base font-semibold"
-            style={{ color: 'var(--bb-color-text-primary)' }}
-          >
-            Pets
-          </h3>
-          <Button variant="link" size="sm" onClick={() => onTabChange('pets')}>
-            View all
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-        </div>
-
-        {pets.length === 0 ? (
-          <EmptyState
-            icon={PawPrint}
-            title="No pets registered"
-            description="Add pets to this customer's profile."
-            action={
-              <Button size="sm" onClick={() => onTabChange('pets')}>
-                <Plus className="w-4 h-4" />
-                Add Pet
-              </Button>
-            }
-          />
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {pets.slice(0, 6).map((pet) => (
-              <PetCard key={pet.id || pet.recordId} pet={pet} />
-            ))}
-          </div>
-        )}
-      </Card>
+      </section>
     </div>
   );
 }
@@ -938,9 +781,12 @@ function ActivityItem({ item }) {
     : FileText;
 
   return (
-    <div className="flex gap-3">
+    <div
+      className="flex items-start gap-3 p-3 rounded-lg border"
+      style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+    >
       <div
-        className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+        className="flex h-8 w-8 items-center justify-center rounded-full flex-shrink-0"
         style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
       >
         <Icon className="w-4 h-4" style={{ color: 'var(--bb-color-text-muted)' }} />
@@ -950,84 +796,30 @@ function ActivityItem({ item }) {
           {item.title || item.content || 'Activity'}
         </p>
         {item.description && (
-          <p className="text-sm truncate" style={{ color: 'var(--bb-color-text-muted)' }}>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--bb-color-text-muted)' }}>
             {item.description}
           </p>
         )}
-        <p className="text-xs mt-1" style={{ color: 'var(--bb-color-text-muted)' }}>
-          {safeFormatDistance(item.timestamp || item.createdAt)}
-        </p>
       </div>
+      <span className="text-xs flex-shrink-0" style={{ color: 'var(--bb-color-text-muted)' }}>
+        {safeFormatDistance(item.timestamp || item.createdAt)}
+      </span>
     </div>
   );
 }
 
-function BookingRow({ booking }) {
-  return (
-    <Link
-      to={`/bookings/${booking.id || booking.recordId}`}
-      className="flex items-center gap-3 p-3 rounded-lg border transition-colors hover:border-[color:var(--bb-color-accent)]"
-      style={{ borderColor: 'var(--bb-color-border-subtle)' }}
-    >
-      <div
-        className="w-10 h-10 rounded-lg flex items-center justify-center"
-        style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
-      >
-        <Calendar className="w-5 h-5" style={{ color: 'var(--bb-color-accent)' }} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
-          {safeFormatDate(booking.checkIn, 'MMM d')} – {safeFormatDate(booking.checkOut, 'MMM d, yyyy')}
-        </p>
-        <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
-          {booking.petName || 'Pet'} • {formatCurrency(booking.totalPriceInCents || 0)}
-        </p>
-      </div>
-      <Badge variant={getStatusVariant(booking.status)} size="sm">
-        {booking.status || 'Pending'}
-      </Badge>
-    </Link>
-  );
-}
+// ============================================================================
+// ACTIVITY TAB
+// ============================================================================
 
-function PetCard({ pet }) {
+function ActivityTab({ ownerId, ownerEmail, ownerPhone }) {
   return (
-    <Link
-      to={`/pets/${pet.id || pet.recordId}`}
-      className="flex items-center gap-3 p-3 rounded-lg border transition-colors hover:border-[color:var(--bb-color-accent)]"
-      style={{ borderColor: 'var(--bb-color-border-subtle)' }}
-    >
-      <div
-        className="w-10 h-10 rounded-full flex items-center justify-center"
-        style={{ backgroundColor: 'var(--bb-color-accent-soft)' }}
-      >
-        <PawPrint className="w-5 h-5" style={{ color: 'var(--bb-color-accent)' }} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate" style={{ color: 'var(--bb-color-text-primary)' }}>
-          {pet.name}
-        </p>
-        <p className="text-xs truncate" style={{ color: 'var(--bb-color-text-muted)' }}>
-          {pet.breed || pet.species || 'Pet'}
-        </p>
-      </div>
-    </Link>
-  );
-}
-
-function EmptyState({ icon: Icon, title, description, action }) {
-  return (
-    <div className="text-center py-8">
-      <div
-        className="w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-3"
-        style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
-      >
-        <Icon className="w-6 h-6" style={{ color: 'var(--bb-color-text-muted)' }} />
-      </div>
-      <p className="font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>{title}</p>
-      <p className="text-sm mt-1 mb-4" style={{ color: 'var(--bb-color-text-muted)' }}>{description}</p>
-      {action}
-    </div>
+    <ActivityTimeline
+      entityType="owner"
+      entityId={ownerId}
+      defaultEmail={ownerEmail}
+      defaultPhone={ownerPhone}
+    />
   );
 }
 
@@ -1036,6 +828,7 @@ function EmptyState({ icon: Icon, title, description, action }) {
 // ============================================================================
 
 function BookingsTab({ bookings, ownerName, ownerId }) {
+  const navigate = useNavigate();
   const { openSlideout } = useSlideout();
   const [filter, setFilter] = useState('all');
 
@@ -1054,9 +847,9 @@ function BookingsTab({ bookings, ownerName, ownerId }) {
   }, [bookings, filter]);
 
   return (
-    <Card>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-semibold" style={{ color: 'var(--bb-color-text-primary)' }}>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold" style={{ color: 'var(--bb-color-text-primary)' }}>
           All Bookings ({bookings.length})
         </h3>
         <div className="flex items-center gap-2">
@@ -1076,175 +869,46 @@ function BookingsTab({ bookings, ownerName, ownerId }) {
             <option value="cancelled">Cancelled</option>
           </select>
           <Button size="sm" onClick={() => openSlideout(SLIDEOUT_TYPES.BOOKING_CREATE, { ownerId })}>
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 mr-2" />
             New Booking
           </Button>
         </div>
       </div>
 
       {filteredBookings.length === 0 ? (
-        <EmptyState
-          icon={Calendar}
-          title="No bookings found"
-          description={filter === 'all' ? `${ownerName} doesn't have any bookings yet.` : `No ${filter} bookings.`}
-          action={
-            <Button size="sm" onClick={() => openSlideout(SLIDEOUT_TYPES.BOOKING_CREATE, { ownerId })}>
-              <Plus className="w-4 h-4" />
-              Create Booking
-            </Button>
-          }
-        />
+        <div
+          className="text-center py-12 rounded-lg border-2 border-dashed"
+          style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+        >
+          <Calendar className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--bb-color-text-muted)' }} />
+          <p className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
+            {filter === 'all' ? 'No bookings yet' : `No ${filter} bookings`}
+          </p>
+        </div>
       ) : (
         <div className="space-y-3">
           {filteredBookings.map((booking) => (
-            <BookingRow key={booking.id || booking.recordId} booking={booking} />
-          ))}
-        </div>
-      )}
-    </Card>
-  );
-}
-
-// ============================================================================
-// PETS TAB
-// ============================================================================
-
-function PetsTab({ pets, ownerId, ownerName }) {
-  const navigate = useNavigate();
-
-  return (
-    <Card>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-base font-semibold" style={{ color: 'var(--bb-color-text-primary)' }}>
-          Pets ({pets.length})
-        </h3>
-        <Button size="sm" onClick={() => navigate(`/pets?action=new&ownerId=${ownerId}`)}>
-          <Plus className="w-4 h-4" />
-          Add Pet
-        </Button>
-      </div>
-
-      {pets.length === 0 ? (
-        <EmptyState
-          icon={PawPrint}
-          title="No pets registered"
-          description={`${ownerName} doesn't have any pets registered yet.`}
-          action={
-            <Button size="sm" onClick={() => navigate(`/pets?action=new&ownerId=${ownerId}`)}>
-              <Plus className="w-4 h-4" />
-              Add First Pet
-            </Button>
-          }
-        />
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {pets.map((pet) => (
             <div
-              key={pet.id || pet.recordId}
-              onClick={() => navigate(`/pets/${pet.id || pet.recordId}`)}
-              className="flex items-start gap-4 p-4 rounded-lg border cursor-pointer transition-all hover:border-[color:var(--bb-color-accent)] hover:shadow-sm"
+              key={booking.recordId || booking.id}
+              onClick={() => navigate(`/bookings/${booking.recordId || booking.id}`)}
+              className="flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-all hover:shadow-sm"
               style={{ borderColor: 'var(--bb-color-border-subtle)' }}
             >
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: 'var(--bb-color-accent-soft)' }}
-              >
-                <PawPrint className="w-6 h-6" style={{ color: 'var(--bb-color-accent)' }} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-semibold" style={{ color: 'var(--bb-color-text-primary)' }}>
-                    {pet.name}
-                  </p>
-                  <Badge variant={pet.status === 'active' || !pet.status ? 'success' : 'neutral'} size="sm">
-                    {pet.status || 'Active'}
-                  </Badge>
-                </div>
-                <p className="text-sm mt-0.5" style={{ color: 'var(--bb-color-text-muted)' }}>
-                  {[pet.species, pet.breed].filter(Boolean).join(' • ') || 'Pet'}
+              <div>
+                <p className="text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+                  {safeFormatDate(booking.checkIn)} - {safeFormatDate(booking.checkOut)}
                 </p>
-                {pet.medicalNotes && (
-                  <p className="text-xs mt-2 flex items-center gap-1" style={{ color: 'var(--bb-color-status-warning-text)' }}>
-                    <AlertCircle className="w-3 h-3" />
-                    Has medical notes
-                  </p>
-                )}
+                <p className="text-xs mt-0.5" style={{ color: 'var(--bb-color-text-muted)' }}>
+                  {booking.petName || 'Pet'} {booking.totalPriceInCents ? `• ${formatCurrency(booking.totalPriceInCents)}` : ''}
+                </p>
               </div>
-              <ChevronRight className="w-5 h-5" style={{ color: 'var(--bb-color-text-muted)' }} />
+              <Badge variant={getStatusVariant(booking.status)}>
+                {booking.status?.replace(/_/g, ' ') || 'Pending'}
+              </Badge>
             </div>
           ))}
         </div>
       )}
-    </Card>
-  );
-}
-
-// ============================================================================
-// COMMUNICATIONS TAB
-// ============================================================================
-
-function CommunicationsTab({ ownerId, showForm, onShowForm }) {
-  const { data: timelineData, isLoading } = useCustomerTimeline(ownerId);
-  const timeline = timelineData?.pages?.flatMap(page => page?.data || []) || [];
-
-  return (
-    <div className="space-y-4">
-      {showForm && (
-        <Card>
-          <CommunicationForm
-            ownerId={ownerId}
-            onSuccess={() => onShowForm(false)}
-            onCancel={() => onShowForm(false)}
-          />
-        </Card>
-      )}
-
-      <Card>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-semibold" style={{ color: 'var(--bb-color-text-primary)' }}>
-            Communications
-          </h3>
-          <Button size="sm" onClick={() => onShowForm(true)}>
-            <Plus className="w-4 h-4" />
-            New Message
-          </Button>
-        </div>
-
-        {isLoading ? (
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex gap-4">
-                <Skeleton className="w-10 h-10 rounded-full" />
-                <div className="flex-1">
-                  <Skeleton className="h-4 w-48 mb-2" />
-                  <Skeleton className="h-3 w-32" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : timeline.length === 0 ? (
-          <EmptyState
-            icon={MessageSquare}
-            title="No communications"
-            description="Start communicating with this customer by sending a message."
-            action={
-              <Button size="sm" onClick={() => onShowForm(true)}>
-                <Plus className="w-4 h-4" />
-                Send Message
-              </Button>
-            }
-          />
-        ) : (
-          <div className="space-y-4">
-            {timeline.map((item, index) => (
-              <ActivityItem key={item.recordId || index} item={item} />
-            ))}
-          </div>
-        )}
-      </Card>
-
-      {/* Notes Section */}
-      <NotesPanel entityType="owner" entityId={ownerId} />
     </div>
   );
 }
@@ -1261,51 +925,55 @@ function BillingTab({ ownerId, bookings, lifetimeValue }) {
   const outstanding = lifetimeValue - totalPaid;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="p-4">
-          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--bb-color-text-muted)' }}>
-            Lifetime Value
-          </p>
-          <p className="text-2xl font-bold mt-1" style={{ color: 'var(--bb-color-text-primary)' }}>
-            {formatCurrency(lifetimeValue)}
-          </p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--bb-color-text-muted)' }}>
-            Total Paid
-          </p>
-          <p className="text-2xl font-bold mt-1" style={{ color: 'var(--bb-color-status-positive-text)' }}>
-            {formatCurrency(totalPaid)}
-          </p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--bb-color-text-muted)' }}>
-            Outstanding
-          </p>
-          <p
-            className="text-2xl font-bold mt-1"
-            style={{ color: outstanding > 0 ? 'var(--bb-color-status-warning-text)' : 'var(--bb-color-text-primary)' }}
-          >
-            {formatCurrency(outstanding)}
-          </p>
-        </Card>
-      </div>
-
-      {/* Invoice History Placeholder */}
-      <Card>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-semibold" style={{ color: 'var(--bb-color-text-primary)' }}>
-            Invoice History
-          </h3>
+      <section>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="p-4 rounded-lg border" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+            <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--bb-color-text-muted)' }}>
+              Lifetime Value
+            </p>
+            <p className="text-2xl font-bold mt-1" style={{ color: 'var(--bb-color-text-primary)' }}>
+              {formatCurrency(lifetimeValue)}
+            </p>
+          </div>
+          <div className="p-4 rounded-lg border" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+            <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--bb-color-text-muted)' }}>
+              Total Paid
+            </p>
+            <p className="text-2xl font-bold mt-1" style={{ color: 'var(--bb-color-status-positive)' }}>
+              {formatCurrency(totalPaid)}
+            </p>
+          </div>
+          <div className="p-4 rounded-lg border" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+            <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--bb-color-text-muted)' }}>
+              Outstanding
+            </p>
+            <p
+              className="text-2xl font-bold mt-1"
+              style={{ color: outstanding > 0 ? 'var(--bb-color-status-caution)' : 'var(--bb-color-text-primary)' }}
+            >
+              {formatCurrency(outstanding)}
+            </p>
+          </div>
         </div>
-        <EmptyState
-          icon={CreditCard}
-          title="Invoice history coming soon"
-          description="Detailed invoice tracking will be available here."
-        />
-      </Card>
+      </section>
+
+      {/* Invoice History */}
+      <section>
+        <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--bb-color-text-primary)' }}>
+          Invoice History
+        </h3>
+        <div
+          className="text-center py-8 rounded-lg border-2 border-dashed"
+          style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+        >
+          <CreditCard className="w-10 h-10 mx-auto mb-2" style={{ color: 'var(--bb-color-text-muted)' }} />
+          <p className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
+            Invoice history coming soon
+          </p>
+        </div>
+      </section>
     </div>
   );
 }

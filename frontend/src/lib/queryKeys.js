@@ -1,3 +1,8 @@
+import { useTenantStore } from '@/stores/tenant';
+
+// Hook to get the tenant key for query key scoping
+export const useTenantKey = () => useTenantStore((state) => state.tenant?.slug ?? 'default');
+
 export const queryKeys = {
   tenantConfig: ['tenantConfig'],
   tenant: (tenantKey) => ['tenant', tenantKey],

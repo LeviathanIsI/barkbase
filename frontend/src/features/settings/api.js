@@ -820,6 +820,37 @@ export const usePaymentMethodsQuery = (options = {}) => {
 };
 
 // =============================================================================
+// BILLING CONTACT
+// =============================================================================
+
+/**
+ * Fetch billing contact information for the tenant
+ */
+export const useBillingContactQuery = (options = {}) => {
+  const tenantKey = useTenantKey();
+  const isTenantReady = useTenantReady();
+
+  return useQuery({
+    queryKey: [tenantKey, 'billing-contact'],
+    queryFn: async () => {
+      try {
+        const res = await apiClient.get('/api/v1/financial/billing-contact');
+        return {
+          contact: res.data?.contact || res.data || null,
+        };
+      } catch (e) {
+        console.warn('[billing-contact] Error fetching:', e?.message);
+        return { contact: null };
+      }
+    },
+    enabled: isTenantReady,
+    staleTime: 5 * 60 * 1000,
+    placeholderData: { contact: null },
+    ...options,
+  });
+};
+
+// =============================================================================
 // PLATFORM BILLING INVOICES (BarkBase → Tenant)
 // =============================================================================
 //

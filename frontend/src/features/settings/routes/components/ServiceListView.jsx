@@ -1,6 +1,11 @@
 import { Edit, MoreVertical, TrendingUp, Star, AlertTriangle } from 'lucide-react';
 import Button from '@/components/ui/Button';
-import { formatCurrency } from '@/lib/utils';
+
+// Safe currency formatter that handles null/undefined
+const safeFormatCurrency = (value) => {
+  if (value == null || isNaN(Number(value))) return '—';
+  return `$${Number(value).toFixed(2)}`;
+};
 
 const ServiceListView = ({ services, category, onEdit }) => {
   const getCategoryIcon = (cat) => {
@@ -70,7 +75,7 @@ const ServiceListView = ({ services, category, onEdit }) => {
                   {service.flatRate ? (
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600 dark:text-text-secondary">Base Price:</span>
-                      <span className="text-sm font-medium">{formatCurrency(service.basePrice * 100)} {service.unit}</span>
+                      <span className="text-sm font-medium">{safeFormatCurrency(service.basePrice)} {service.unit || ''}</span>
                     </div>
                   ) : service.sizePricing ? (
                     <div>
@@ -79,7 +84,7 @@ const ServiceListView = ({ services, category, onEdit }) => {
                         {Object.entries(service.sizePricing).map(([size, price]) => (
                           <div key={size} className="flex justify-between">
                             <span className="capitalize text-gray-600 dark:text-text-secondary">{size}:</span>
-                            <span className="font-medium">{formatCurrency(price * 100)}</span>
+                            <span className="font-medium">{safeFormatCurrency(price)}</span>
                           </div>
                         ))}
                       </div>
@@ -87,7 +92,7 @@ const ServiceListView = ({ services, category, onEdit }) => {
                   ) : (
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-600 dark:text-text-secondary">Base Price:</span>
-                      <span className="text-sm font-medium">{formatCurrency(service.basePrice * 100)} {service.unit}</span>
+                      <span className="text-sm font-medium">{safeFormatCurrency(service.basePrice)} {service.unit || ''}</span>
                     </div>
                   )}
 
@@ -114,7 +119,7 @@ const ServiceListView = ({ services, category, onEdit }) => {
                         {service.packages.map((pkg, index) => (
                           <div key={index} className="flex justify-between">
                             <span className="text-gray-600 dark:text-text-secondary">{pkg.name}:</span>
-                            <span className="font-medium">{formatCurrency(pkg.price * 100)} (save {formatCurrency(pkg.savings * 100)})</span>
+                            <span className="font-medium">{safeFormatCurrency(pkg.price)} (save {safeFormatCurrency(pkg.savings)})</span>
                           </div>
                         ))}
                       </div>
@@ -127,7 +132,7 @@ const ServiceListView = ({ services, category, onEdit }) => {
                       <div className="text-sm text-gray-600 dark:text-text-secondary mb-1">Unlimited Membership:</div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600 dark:text-text-secondary">Monthly:</span>
-                        <span className="font-medium">{formatCurrency(service.unlimitedMembership.monthlyPrice * 100)} (avg {service.unlimitedMembership.avgVisits} visits)</span>
+                        <span className="font-medium">{safeFormatCurrency(service.unlimitedMembership.monthlyPrice)} (avg {service.unlimitedMembership.avgVisits || 0} visits)</span>
                       </div>
                     </div>
                   )}
@@ -140,12 +145,12 @@ const ServiceListView = ({ services, category, onEdit }) => {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600 dark:text-text-secondary">Bookings this month:</span>
-                    <span className="text-sm font-medium">{service.bookingsThisMonth}</span>
+                    <span className="text-sm font-medium">{service.bookingsThisMonth ?? 0}</span>
                   </div>
 
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600 dark:text-text-secondary">Revenue this month:</span>
-                    <span className="text-sm font-medium">{formatCurrency(service.revenueThisMonth * 100)}</span>
+                    <span className="text-sm font-medium">{safeFormatCurrency(service.revenueThisMonth)}</span>
                   </div>
 
                   {service.avgStay && (

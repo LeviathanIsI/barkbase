@@ -7,9 +7,6 @@ import ActionableEmptyState from './components/ActionableEmptyState';
 import IndustryTemplatesModal from './components/IndustryTemplatesModal';
 import ServiceListView from './components/ServiceListView';
 import ServiceCreationModal from './components/ServiceCreationModal';
-import ServiceAnalyticsDashboard from './components/ServiceAnalyticsDashboard';
-import SmartRecommendations from './components/SmartRecommendations';
-import CompetitorPricingIntelligence from './components/CompetitorPricingIntelligence';
 import BulkImportModal from './components/BulkImportModal';
 import { useServicesQuery } from '../api';
 
@@ -107,33 +104,22 @@ const ServicesOverview = () => {
   }, [servicesData, servicesLoading, selectedCategory, searchQuery]);
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      {/* Page Header */}
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-text">Services & Pricing</h1>
-          <p className="mt-1 text-sm text-muted">
-            Configure boarding, daycare, grooming, and training services with flexible pricing
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm" onClick={handleImportServices}>
-            <Upload className="w-4 h-4 mr-2" />
-            Import
-          </Button>
-          <Button variant="secondary" size="sm" onClick={handleBrowseTemplates}>
-            <BookOpen className="w-4 h-4 mr-2" />
-            Templates
-          </Button>
-          <Button onClick={handleCreateService}>
-            <Plus className="h-4 w-4 mr-2" />
-            Create Service
-          </Button>
-        </div>
-      </header>
-
-      {/* Service Analytics Dashboard */}
-      {hasServices && <ServiceAnalyticsDashboard data={{ services: servicesData || [] }} />}
+    <div className="space-y-6">
+      {/* Action buttons */}
+      <div className="flex justify-end gap-2">
+        <Button variant="secondary" size="sm" onClick={handleImportServices}>
+          <Upload className="w-4 h-4 mr-2" />
+          Import
+        </Button>
+        <Button variant="secondary" size="sm" onClick={handleBrowseTemplates}>
+          <BookOpen className="w-4 h-4 mr-2" />
+          Templates
+        </Button>
+        <Button onClick={handleCreateService}>
+          <Plus className="h-4 w-4 mr-2" />
+          Create Service
+        </Button>
+      </div>
 
       {/* Category Tabs */}
       <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
@@ -155,10 +141,7 @@ const ServicesOverview = () => {
       {!hasServices ? (
         <ActionableEmptyState
           category={selectedCategory}
-          onBrowseTemplates={handleBrowseTemplates}
           onCreateService={handleCreateService}
-          onImportServices={handleImportServices}
-          onWatchTutorial={handleWatchTutorial}
         />
       ) : (
         <>
@@ -193,12 +176,6 @@ const ServicesOverview = () => {
               setIsCreateModalOpen(true);
             }}
           />
-
-          {/* Smart Recommendations */}
-          {hasServices && <SmartRecommendations services={servicesData || []} />}
-
-          {/* Competitor Pricing Intelligence */}
-          {hasServices && <CompetitorPricingIntelligence services={servicesData || []} />}
         </>
       )}
 

@@ -3,8 +3,7 @@ import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Switch from '@/components/ui/Switch';
 import Badge from '@/components/ui/Badge';
-import SettingsPage from '../components/SettingsPage';
-import { Mail, MessageSquare, Bell, Smartphone, Globe, Clock, AlertTriangle, Loader2, ExternalLink, Info } from 'lucide-react';
+import { Mail, MessageSquare, Smartphone, Globe, Clock, AlertTriangle, Loader2, ExternalLink, Info, Send, Settings } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
 import {
@@ -77,8 +76,7 @@ const CommunicationNotifications = () => {
         toast.success(result.message || `Test email sent to ${testEmail}`);
       } catch (err) {
         console.error('Error sending test email:', err);
-        const errorData = err.response?.data;
-        toast.error(errorData?.message || 'Failed to send test email');
+        toast.error(err.response?.data?.message || 'Failed to send test email');
       }
     }
 
@@ -120,339 +118,268 @@ const CommunicationNotifications = () => {
   // Loading state
   if (isLoading) {
     return (
-      <SettingsPage
-        title="Communication & Notifications"
-        description="Configure how you communicate with customers"
-      >
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          <span className="ml-3 text-muted">Loading notification settings...</span>
-        </div>
-      </SettingsPage>
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+        <span className="ml-3 text-gray-500 dark:text-text-secondary">Loading notification settings...</span>
+      </div>
     );
   }
 
   // Error state
   if (isError) {
     return (
-      <SettingsPage
-        title="Communication & Notifications"
-        description="Configure how you communicate with customers"
-      >
-        <Card>
-          <div className="flex items-center gap-3 text-danger">
-            <AlertTriangle className="w-5 h-5" />
-            <span>Failed to load notification settings: {error?.message || 'Unknown error'}</span>
-          </div>
-        </Card>
-      </SettingsPage>
+      <div className="p-6 bg-red-50 dark:bg-red-900/20 rounded-lg">
+        <div className="flex items-center gap-3 text-red-600 dark:text-red-400">
+          <AlertTriangle className="w-5 h-5" />
+          <span>Failed to load notification settings: {error?.message || 'Unknown error'}</span>
+        </div>
+      </div>
     );
   }
 
+  const channelOptions = [
+    {
+      key: 'emailEnabled',
+      icon: Mail,
+      label: 'Email Notifications',
+      desc: 'Send updates via email',
+      badge: null,
+      disabled: false,
+    },
+    {
+      key: 'smsEnabled',
+      icon: MessageSquare,
+      label: 'SMS Notifications',
+      desc: 'Send text message updates',
+      badge: { variant: 'warning', text: 'Premium Feature' },
+      disabled: false,
+    },
+    {
+      key: 'pushEnabled',
+      icon: Smartphone,
+      label: 'Push Notifications',
+      desc: 'Mobile app notifications',
+      badge: { variant: 'neutral', text: 'Coming Soon' },
+      disabled: true,
+    },
+  ];
+
+  const notificationOptions = [
+    { key: 'bookingConfirmations', label: 'Booking Confirmations', desc: 'Send when a booking is confirmed' },
+    { key: 'bookingReminders', label: 'Booking Reminders', desc: 'Send before upcoming appointments' },
+    { key: 'checkinReminders', label: 'Check-In Reminders', desc: 'Remind customers to check in pets' },
+    { key: 'vaccinationReminders', label: 'Vaccination Reminders', desc: 'Alert when vaccinations expiring' },
+    { key: 'paymentReceipts', label: 'Payment Receipts', desc: 'Send receipts after payments' },
+    { key: 'marketingEnabled', label: 'Marketing Communications', desc: 'Promotional emails and updates' },
+  ];
+
   return (
-    <SettingsPage
-      title="Communication & Notifications"
-      description="Configure how you communicate with customers"
-    >
-      {/* Communication Channels */}
-      <Card
-        title="Communication Channels"
-        description="Choose how to reach your customers"
-      >
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Mail className="w-5 h-5 text-gray-600 dark:text-text-secondary" />
-              <div>
-                <h4 className="font-medium">Email Notifications</h4>
-                <p className="text-sm text-gray-600 dark:text-text-secondary">Send updates via email</p>
-              </div>
-            </div>
-            <Switch
-              checked={settings.emailEnabled}
-              onChange={(checked) => updateSetting('emailEnabled', checked)}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <MessageSquare className="w-5 h-5 text-gray-600 dark:text-text-secondary" />
-              <div>
-                <h4 className="font-medium">SMS Notifications</h4>
-                <p className="text-sm text-gray-600 dark:text-text-secondary">Send text message updates</p>
-                <Badge variant="warning" className="mt-1">Premium Feature</Badge>
-              </div>
-            </div>
-            <Switch
-              checked={settings.smsEnabled}
-              onChange={(checked) => updateSetting('smsEnabled', checked)}
-            />
-          </div>
-
-          {/* SMS Warning when enabled */}
-          {settings.smsEnabled && (
-            <div className="ml-8 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-              <div className="flex items-start gap-2">
-                <Info className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                <div className="text-sm">
-                  <p className="text-amber-700 dark:text-amber-400">
-                    SMS requires Twilio integration to send messages.
-                  </p>
-                  <Link
-                    to="/settings/integrations"
-                    className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400 underline mt-1 hover:text-amber-800 dark:hover:text-amber-300"
-                  >
-                    Configure in Settings → Integrations
-                    <ExternalLink className="w-3 h-3" />
-                  </Link>
+    <div className="space-y-6">
+      {/* Row 1: Communication Channels | Notification Types */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Communication Channels */}
+        <Card title="Communication Channels" description="Choose how to reach your customers">
+          <div className="space-y-3">
+            {channelOptions.map(({ key, icon: Icon, label, desc, badge, disabled }) => (
+              <div key={key}>
+                <div className="flex items-center justify-between p-2">
+                  <div className="flex items-center gap-3">
+                    <Icon className="w-5 h-5 text-gray-500 dark:text-text-secondary flex-shrink-0" />
+                    <div>
+                      <span className="text-sm font-medium">{label}</span>
+                      <p className="text-xs text-gray-500 dark:text-text-secondary">{desc}</p>
+                      {badge && <Badge variant={badge.variant} size="sm" className="mt-1">{badge.text}</Badge>}
+                    </div>
+                  </div>
+                  <Switch
+                    checked={settings[key]}
+                    onChange={(checked) => updateSetting(key, checked)}
+                    disabled={disabled}
+                  />
                 </div>
-              </div>
-            </div>
-          )}
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Smartphone className="w-5 h-5 text-gray-600 dark:text-text-secondary" />
-              <div>
-                <h4 className="font-medium">Push Notifications</h4>
-                <p className="text-sm text-gray-600 dark:text-text-secondary">Mobile app notifications</p>
-                <Badge variant="neutral" className="mt-1">Coming Soon</Badge>
+                {/* SMS Warning when enabled */}
+                {key === 'smsEnabled' && settings.smsEnabled && (
+                  <div className="ml-10 mt-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/30 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                      <div className="text-sm">
+                        <p className="text-amber-700 dark:text-amber-300">
+                          SMS requires Twilio integration to send messages.
+                        </p>
+                        <Link
+                          to="/settings/sms"
+                          className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-300 underline mt-1 hover:text-amber-800 dark:hover:text-amber-200"
+                        >
+                          Configure in SMS Settings
+                          <ExternalLink className="w-3 h-3" />
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-            <Switch
-              checked={settings.pushEnabled}
-              onChange={(checked) => updateSetting('pushEnabled', checked)}
-              disabled
-            />
+            ))}
           </div>
-        </div>
-      </Card>
+        </Card>
 
-      {/* Notification Types */}
-      <Card
-        title="Notification Types"
-        description="Choose which events trigger notifications"
-      >
-        <div className="space-y-3">
-          <label className="flex items-center justify-between">
-            <div>
-              <span className="text-sm font-medium">Booking Confirmations</span>
-              <p className="text-xs text-muted">Send when a booking is confirmed</p>
+        {/* Notification Types */}
+        <Card title="Notification Types" description="Choose which events trigger notifications">
+          <div className="space-y-2">
+            {notificationOptions.map(({ key, label, desc }) => (
+              <div key={key} className="flex items-center justify-between p-2">
+                <div>
+                  <span className="text-sm font-medium">{label}</span>
+                  <p className="text-xs text-gray-500 dark:text-text-secondary">{desc}</p>
+                </div>
+                <Switch
+                  checked={settings[key]}
+                  onChange={(checked) => updateSetting(key, checked)}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-surface-border">
+            <label className="block text-sm font-medium mb-1">Send reminders</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                value={settings.reminderDaysBefore}
+                onChange={(e) => updateSetting('reminderDaysBefore', parseInt(e.target.value) || 1)}
+                min="1"
+                max="7"
+                className="w-16 px-2 py-1.5 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded text-gray-900 dark:text-text-primary text-sm"
+              />
+              <span className="text-sm text-gray-500 dark:text-text-secondary">days before appointment</span>
             </div>
-            <Switch
-              checked={settings.bookingConfirmations}
-              onChange={(checked) => updateSetting('bookingConfirmations', checked)}
-            />
-          </label>
+          </div>
+        </Card>
+      </div>
 
-          <label className="flex items-center justify-between">
-            <div>
-              <span className="text-sm font-medium">Booking Reminders</span>
-              <p className="text-xs text-muted">Send before upcoming appointments</p>
-            </div>
-            <Switch
-              checked={settings.bookingReminders}
-              onChange={(checked) => updateSetting('bookingReminders', checked)}
-            />
-          </label>
-
-          <label className="flex items-center justify-between">
-            <div>
-              <span className="text-sm font-medium">Check-In Reminders</span>
-              <p className="text-xs text-muted">Remind customers to check in their pets</p>
-            </div>
-            <Switch
-              checked={settings.checkinReminders}
-              onChange={(checked) => updateSetting('checkinReminders', checked)}
-            />
-          </label>
-
-          <label className="flex items-center justify-between">
-            <div>
-              <span className="text-sm font-medium">Vaccination Reminders</span>
-              <p className="text-xs text-muted">Alert when vaccinations are expiring</p>
-            </div>
-            <Switch
-              checked={settings.vaccinationReminders}
-              onChange={(checked) => updateSetting('vaccinationReminders', checked)}
-            />
-          </label>
-
-          <label className="flex items-center justify-between">
-            <div>
-              <span className="text-sm font-medium">Payment Receipts</span>
-              <p className="text-xs text-muted">Send receipts after payments</p>
-            </div>
-            <Switch
-              checked={settings.paymentReceipts}
-              onChange={(checked) => updateSetting('paymentReceipts', checked)}
-            />
-          </label>
-
-          <label className="flex items-center justify-between">
-            <div>
-              <span className="text-sm font-medium">Marketing Communications</span>
-              <p className="text-xs text-muted">Promotional emails and updates</p>
-            </div>
-            <Switch
-              checked={settings.marketingEnabled}
-              onChange={(checked) => updateSetting('marketingEnabled', checked)}
-            />
-          </label>
-        </div>
-
-        <div className="mt-4 pt-4 border-t">
-          <div className="flex items-center gap-4">
+      {/* Row 2: Quiet Hours | Test Messages */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Quiet Hours */}
+        <Card title="Quiet Hours" description="Prevent notifications during certain hours">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1">
-                Send reminders
+                <Clock className="inline-block w-4 h-4 mr-1" />
+                Quiet Hours Start
               </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  value={settings.reminderDaysBefore}
-                  onChange={(e) => updateSetting('reminderDaysBefore', parseInt(e.target.value) || 1)}
-                  min="1"
-                  max="7"
-                  className="w-16 px-2 py-1 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded text-gray-900 dark:text-text-primary"
-                />
-                <span className="text-sm text-gray-600 dark:text-text-secondary">days before appointment</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Quiet Hours */}
-      <Card
-        title="Quiet Hours"
-        description="Prevent notifications during certain hours"
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              <Clock className="inline-block w-4 h-4 mr-2" />
-              Quiet Hours Start
-            </label>
-            <input
-              type="time"
-              value={settings.quietHoursStart}
-              onChange={(e) => updateSetting('quietHoursStart', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-2">
-              <Clock className="inline-block w-4 h-4 mr-2" />
-              Quiet Hours End
-            </label>
-            <input
-              type="time"
-              value={settings.quietHoursEnd}
-              onChange={(e) => updateSetting('quietHoursEnd', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
-            />
-          </div>
-        </div>
-        <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-          <div className="flex items-start gap-2">
-            <Info className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-blue-700 dark:text-blue-400">
-              Non-urgent notifications (like marketing and reminders) will be queued during quiet hours
-              and sent after they end. Urgent notifications (like booking confirmations) will still be sent immediately.
-            </p>
-          </div>
-        </div>
-      </Card>
-
-      {/* Test Messages */}
-      <Card
-        title="Test Messages"
-        description="Send test notifications to verify settings"
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">Test Email</label>
-            <div className="flex gap-2">
               <input
-                type="email"
-                value={testEmail}
-                onChange={(e) => setTestEmail(e.target.value)}
-                placeholder="test@example.com"
-                className="flex-1 px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary"
+                type="time"
+                value={settings.quietHoursStart}
+                onChange={(e) => updateSetting('quietHoursStart', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
               />
-              <Button
-                onClick={() => sendTestMessage('email')}
-                variant="outline"
-                disabled={sendTestMutation.isPending || !settings.emailEnabled}
-              >
-                {sendTestMutation.isPending && sendTestMutation.variables?.type === 'email' ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  'Send Test'
-                )}
-              </Button>
             </div>
-            {!settings.emailEnabled && (
-              <p className="text-xs text-muted mt-1">Enable email notifications to send test emails</p>
-            )}
+
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                <Clock className="inline-block w-4 h-4 mr-1" />
+                Quiet Hours End
+              </label>
+              <input
+                type="time"
+                value={settings.quietHoursEnd}
+                onChange={(e) => updateSetting('quietHoursEnd', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
+              />
+            </div>
           </div>
 
-          {settings.smsEnabled && (
+          <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900/30 rounded-lg">
+            <div className="flex items-start gap-2">
+              <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-blue-700 dark:text-blue-300">
+                Non-urgent notifications (like marketing and reminders) will be queued during quiet hours
+                and sent after they end. Urgent notifications (like booking confirmations) will still be sent immediately.
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        {/* Test Messages */}
+        <Card title="Test Messages" description="Send test notifications to verify settings">
+          <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Test SMS</label>
+              <label className="block text-sm font-medium mb-1">Test Email</label>
               <div className="flex gap-2">
                 <input
-                  type="tel"
-                  value={testPhone}
-                  onChange={(e) => setTestPhone(e.target.value)}
-                  placeholder="+1234567890"
-                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary placeholder:text-gray-600 dark:placeholder:text-text-secondary"
+                  type="email"
+                  value={testEmail}
+                  onChange={(e) => setTestEmail(e.target.value)}
+                  placeholder="test@example.com"
+                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
                 />
                 <Button
-                  onClick={() => sendTestMessage('sms')}
+                  onClick={() => sendTestMessage('email')}
                   variant="outline"
-                  disabled={sendTestMutation.isPending}
+                  disabled={sendTestMutation.isPending || !settings.emailEnabled}
                 >
-                  {sendTestMutation.isPending && sendTestMutation.variables?.type === 'sms' ? (
+                  {sendTestMutation.isPending && sendTestMutation.variables?.type === 'email' ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    'Send Test'
+                    <><Send className="w-4 h-4 mr-2" />Send Test</>
                   )}
                 </Button>
               </div>
+              {!settings.emailEnabled && (
+                <p className="text-xs text-gray-500 dark:text-text-secondary mt-1">Enable email notifications to send test emails</p>
+              )}
             </div>
-          )}
-        </div>
 
-        <div className="flex justify-end gap-2 pt-4 mt-4 border-t">
-          <Button variant="outline" disabled>
-            <Globe className="w-4 h-4 mr-2" />
-            Preview Templates
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={updateMutation.isPending || !hasChanges}
-          >
-            {updateMutation.isPending ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              'Save Settings'
+            {settings.smsEnabled && (
+              <div>
+                <label className="block text-sm font-medium mb-1">Test SMS</label>
+                <div className="flex gap-2">
+                  <input
+                    type="tel"
+                    value={testPhone}
+                    onChange={(e) => setTestPhone(e.target.value)}
+                    placeholder="+15551234567"
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
+                  />
+                  <Button
+                    onClick={() => sendTestMessage('sms')}
+                    variant="outline"
+                    disabled={sendTestMutation.isPending}
+                  >
+                    {sendTestMutation.isPending && sendTestMutation.variables?.type === 'sms' ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <><Send className="w-4 h-4 mr-2" />Send Test</>
+                    )}
+                  </Button>
+                </div>
+              </div>
             )}
-          </Button>
-        </div>
+          </div>
+        </Card>
+      </div>
 
-        {hasChanges && (
-          <p className="text-xs text-amber-600 dark:text-amber-400 text-right mt-2">
-            You have unsaved changes
-          </p>
-        )}
-      </Card>
-    </SettingsPage>
+      {/* Save Button Row */}
+      <div className="flex justify-end gap-3">
+        <Button variant="outline" disabled>
+          <Globe className="w-4 h-4 mr-2" />
+          Preview Templates
+        </Button>
+        <Button onClick={handleSave} disabled={updateMutation.isPending || !hasChanges}>
+          {updateMutation.isPending ? (
+            <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</>
+          ) : (
+            <><Settings className="w-4 h-4 mr-2" />Save Settings</>
+          )}
+        </Button>
+      </div>
+
+      {hasChanges && (
+        <p className="text-xs text-amber-600 dark:text-amber-400 text-right">
+          You have unsaved changes
+        </p>
+      )}
+    </div>
   );
 };
 

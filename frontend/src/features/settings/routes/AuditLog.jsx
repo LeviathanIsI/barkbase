@@ -20,7 +20,6 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import { cn } from '@/lib/cn';
 import { useTenantStore } from '@/stores/tenant';
-import SettingsPage from '../components/SettingsPage';
 import apiClient from '@/lib/apiClient';
 
 // Action metadata for display styling - maps actions to frontend format
@@ -301,10 +300,7 @@ const AuditLog = () => {
   };
 
   return (
-    <SettingsPage
-      title="Audit Log"
-      description="Monitor staff actions, security signals, and configuration changes across your BarkBase workspace."
-    >
+    <div className="space-y-6">
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-6">
           {/* Filter Card */}
@@ -520,7 +516,7 @@ const AuditLog = () => {
           </Card>
         </div>
       </div>
-    </SettingsPage>
+    </div>
   );
 };
 

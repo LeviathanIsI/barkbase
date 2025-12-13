@@ -190,6 +190,29 @@ export const canonicalEndpoints = {
     impactAnalysis: build('/api/v2/properties/{id}/impact-analysis'),
   },
 
+  // Property Groups API (v2) - Organize properties into sections
+  propertyGroups: {
+    list: '/api/v2/property-groups',
+    create: '/api/v2/property-groups',
+    detail: build('/api/v2/property-groups/{id}'),
+    update: build('/api/v2/property-groups/{id}'),
+    delete: build('/api/v2/property-groups/{id}'),
+  },
+
+  // Property Logic Rules API (v2) - Conditional property visibility
+  propertyLogic: {
+    list: '/api/v2/property-logic',
+    create: '/api/v2/property-logic',
+    detail: build('/api/v2/property-logic/{id}'),
+    update: build('/api/v2/property-logic/{id}'),
+    delete: build('/api/v2/property-logic/{id}'),
+  },
+
+  // Property Templates API (v2) - Quick-add templates
+  propertyTemplates: {
+    list: '/api/v2/property-templates',
+  },
+
   // Property Values - Get/set custom field values for entities
   propertyValues: {
     get: (entityType: string, entityId: string) => `/api/v2/properties/values/${entityType}/${entityId}`,

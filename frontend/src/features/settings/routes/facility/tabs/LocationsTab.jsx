@@ -126,15 +126,18 @@ export default function LocationsTab() {
           </Button>
         }
       >
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {locations.map((location) => (
             <div key={location.id} className="border border-gray-200 dark:border-surface-border rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <MapPin className="w-5 h-5 text-gray-400 dark:text-text-tertiary" />
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-3">
+                  <MapPin className="w-5 h-5 text-gray-400 dark:text-text-tertiary mt-0.5" />
                   <div>
                     <h4 className="font-medium text-gray-900 dark:text-text-primary">{location.name}</h4>
-                    <p className="text-sm text-gray-600 dark:text-text-secondary">{getLocationSummary(location)}</p>
+                    <p className="text-sm text-gray-600 dark:text-text-secondary mt-1">{getLocationSummary(location)}</p>
+                    {location.notes && (
+                      <p className="text-xs text-gray-500 dark:text-text-tertiary mt-2">{location.notes}</p>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

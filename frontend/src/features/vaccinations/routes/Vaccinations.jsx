@@ -4,10 +4,11 @@ import {
   Shield, RefreshCw, Search, Trash2, ChevronDown, ChevronLeft, ChevronRight,
   Download, SlidersHorizontal, BookmarkPlus, Check, X, Mail, FileCheck,
   Calendar, Syringe, AlertTriangle, CheckCircle2, Clock, AlertCircle,
-  LayoutList, LayoutGrid, MoreHorizontal, Dog, Cat, User,
+  LayoutList, LayoutGrid, MoreHorizontal, Dog, Cat, User, Send, Loader2,
 } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import Modal from '@/components/ui/Modal';
 import { PageHeader } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollableTableContainer } from '@/components/ui/ScrollableTableContainer';
@@ -71,6 +72,15 @@ const Vaccinations = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [vaccinationToDelete, setVaccinationToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Email modal state
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+
+  // Reviewed records state (persisted in localStorage)
+  const [reviewedRecords, setReviewedRecords] = useState(() => {
+    const saved = localStorage.getItem('vaccinations-reviewed-records');
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
 
   // Refs for click outside
   const filterRef = useRef(null);
@@ -304,9 +314,13 @@ const Vaccinations = () => {
   };
 
   const handleBulkEmail = () => {
-    toast.success(`Preparing to email ${selectedRows.size} owner(s)...`);
-    // Future: implement actual email functionality
+    setEmailModalOpen(true);
   };
+
+  // Get selected records data for email modal
+  const selectedRecordsData = useMemo(() => {
+    return sortedRecords.filter(r => selectedRows.has(r.recordId ?? r.id));
+  }, [sortedRecords, selectedRows]);
 
   const handleBulkExport = () => {
     const selectedRecords = sortedRecords.filter(r => selectedRows.has(r.recordId ?? r.id));
@@ -322,10 +336,22 @@ const Vaccinations = () => {
   };
 
   const handleMarkReviewed = () => {
+    const newReviewed = new Set(reviewedRecords);
+    selectedRows.forEach(id => newReviewed.add(id));
+    setReviewedRecords(newReviewed);
+    // Persist to localStorage
+    localStorage.setItem('vaccinations-reviewed-records', JSON.stringify([...newReviewed]));
     toast.success(`Marked ${selectedRows.size} record(s) as reviewed`);
     setSelectedRows(new Set());
-    // Future: implement actual mark reviewed functionality
   };
+
+  // Clear reviewed status for a single record
+  const handleClearReviewed = useCallback((recordId) => {
+    const newReviewed = new Set(reviewedRecords);
+    newReviewed.delete(recordId);
+    setReviewedRecords(newReviewed);
+    localStorage.setItem('vaccinations-reviewed-records', JSON.stringify([...newReviewed]));
+  }, [reviewedRecords]);
 
   // Open vaccination edit drawer
   const handleEditVaccination = useCallback((record) => {
@@ -406,7 +432,7 @@ const Vaccinations = () => {
                 className="gap-1.5 h-9"
               >
                 <BookmarkPlus className="h-4 w-4" />
-                <span className="max-w-[120px] truncate">{savedViews.find(v => v.id === activeView)?.name || 'Views'}</span>
+                <span>{savedViews.find(v => v.id === activeView)?.name || 'Views'}</span>
                 <ChevronDown className={cn('h-4 w-4 transition-transform', showViewsDropdown && 'rotate-180')} />
               </Button>
               {showViewsDropdown && (
@@ -482,7 +508,7 @@ const Vaccinations = () => {
 
             <Button variant="outline" size="sm" onClick={handleExportAll} className="gap-1.5 h-9">
               <Download className="h-4 w-4" />
-              <span className="hidden sm:inline">Export</span>
+              <span className="hidden sm:inline">Export All</span>
             </Button>
 
             <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching} className="gap-1.5 h-9">
@@ -550,43 +576,53 @@ const Vaccinations = () => {
         )}
       </div>
 
-      {/* Sort Controls - fixed, doesn't shrink */}
+      {/* Sort Controls + Select All Header - fixed, doesn't shrink */}
       <div className="flex-shrink-0 flex items-center justify-between py-3 px-0">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-[color:var(--bb-color-text-muted)]">Sort by:</span>
-          <select
-            value={`${sortConfig.key}-${sortConfig.direction}`}
-            onChange={(e) => {
-              const [key, direction] = e.target.value.split('-');
-              setSortConfig({ key, direction });
-            }}
-            className="h-8 rounded-lg border px-2 text-sm"
-            style={{
-              backgroundColor: 'var(--bb-color-bg-body)',
-              borderColor: 'var(--bb-color-border-subtle)',
-              color: 'var(--bb-color-text-primary)',
-            }}
-          >
-            <option value="daysRemaining-asc">Soonest Expiry First</option>
-            <option value="daysRemaining-desc">Latest Expiry First</option>
-            <option value="petName-asc">Pet Name A–Z</option>
-            <option value="petName-desc">Pet Name Z–A</option>
-            <option value="ownerName-asc">Owner Name A–Z</option>
-            <option value="ownerName-desc">Owner Name Z–A</option>
-            <option value="type-asc">Vaccine Type A–Z</option>
-          </select>
+        <div className="flex items-center gap-4">
+          {/* Select All Checkbox */}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={selectedRows.size === paginatedRecords.length && paginatedRecords.length > 0}
+              onChange={handleSelectAll}
+              className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]"
+            />
+            <span className="text-sm font-medium text-[color:var(--bb-color-text-primary)]">
+              {selectedRows.size > 0 ? `${selectedRows.size} selected` : 'Select all'}
+            </span>
+          </label>
+
+          {/* Sort By */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-[color:var(--bb-color-text-muted)]">Sort by:</span>
+            <select
+              value={`${sortConfig.key}-${sortConfig.direction}`}
+              onChange={(e) => {
+                const [key, direction] = e.target.value.split('-');
+                setSortConfig({ key, direction });
+              }}
+              className="h-8 rounded-lg border px-2 text-sm"
+              style={{
+                backgroundColor: 'var(--bb-color-bg-body)',
+                borderColor: 'var(--bb-color-border-subtle)',
+                color: 'var(--bb-color-text-primary)',
+              }}
+            >
+              <option value="daysRemaining-asc">Soonest Expiry First</option>
+              <option value="daysRemaining-desc">Latest Expiry First</option>
+              <option value="petName-asc">Pet Name A–Z</option>
+              <option value="petName-desc">Pet Name Z–A</option>
+              <option value="ownerName-asc">Owner Name A–Z</option>
+              <option value="ownerName-desc">Owner Name Z–A</option>
+              <option value="type-asc">Vaccine Type A–Z</option>
+            </select>
+          </div>
         </div>
 
-        {/* Select All */}
-        <label className="flex items-center gap-2 text-sm text-[color:var(--bb-color-text-muted)] cursor-pointer">
-          <input
-            type="checkbox"
-            checked={selectedRows.size === paginatedRecords.length && paginatedRecords.length > 0}
-            onChange={handleSelectAll}
-            className="h-4 w-4 rounded border-gray-300 accent-[var(--bb-color-accent)]"
-          />
-          Select all on page
-        </label>
+        {/* Pagination info */}
+        <span className="text-sm text-[color:var(--bb-color-text-muted)]">
+          Page {currentPage} of {totalPages || 1}
+        </span>
       </div>
 
       {/* List Section - scrollable */}
@@ -605,9 +641,11 @@ const Vaccinations = () => {
                 record={record}
                 viewMode={viewMode}
                 isSelected={selectedRows.has(record.recordId ?? record.id)}
+                isReviewed={reviewedRecords.has(record.recordId ?? record.id)}
                 onSelect={() => handleSelectRow(record.recordId ?? record.id)}
                 onDelete={() => handleDeleteClick(record)}
                 onEdit={() => handleEditVaccination(record)}
+                onClearReviewed={() => handleClearReviewed(record.recordId ?? record.id)}
               />
             ))}
           </ScrollableTableContainer>
@@ -666,6 +704,13 @@ const Vaccinations = () => {
         variant="danger"
         isLoading={isDeleting}
       />
+
+      {/* Email Owners Preview Modal */}
+      <EmailOwnersModal
+        open={emailModalOpen}
+        onClose={() => setEmailModalOpen(false)}
+        records={selectedRecordsData}
+      />
     </div>
   );
 };
@@ -700,7 +745,7 @@ const FilterTag = ({ label, onRemove }) => (
 );
 
 // Vaccination Row Component
-const VaccinationRow = ({ record, viewMode, isSelected, onSelect, onDelete, onEdit }) => {
+const VaccinationRow = ({ record, viewMode, isSelected, isReviewed, onSelect, onDelete, onEdit, onClearReviewed }) => {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef(null);
 
@@ -785,6 +830,12 @@ const VaccinationRow = ({ record, viewMode, isSelected, onSelect, onDelete, onEd
               {record.petName || 'Unknown Pet'}
             </span>
             <Badge variant="accent" size="sm">{record.type || 'Vaccine'}</Badge>
+            {isReviewed && (
+              <Badge variant="success" size="sm" className="gap-1">
+                <CheckCircle2 className="h-3 w-3" />
+                Reviewed
+              </Badge>
+            )}
             {!record.isAppropriate && (
               <Badge variant="danger" size="sm" title="This vaccine is not typically given to this species">
                 ⚠️ Species Mismatch
@@ -856,6 +907,15 @@ const VaccinationRow = ({ record, viewMode, isSelected, onSelect, onDelete, onEd
                   >
                     <Syringe className="h-4 w-4" />Edit Vaccination
                   </button>
+                  {isReviewed && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onClearReviewed?.(); setShowMenu(false); }}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-[color:var(--bb-color-bg-elevated)] text-[color:var(--bb-color-text-primary)]"
+                    >
+                      <X className="h-4 w-4" />Clear Reviewed
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onDelete(); setShowMenu(false); }}
@@ -1055,6 +1115,182 @@ const EmptyState = ({ type, onClearFilters }) => (
     )}
   </div>
 );
+
+// Email Owners Modal Component
+const EmailOwnersModal = ({ open, onClose, records }) => {
+  const [subject, setSubject] = useState('Vaccination Reminder');
+  const [isSending, setIsSending] = useState(false);
+
+  // Reset form when modal opens
+  useEffect(() => {
+    if (open) {
+      setSubject('Vaccination Reminder');
+    }
+  }, [open]);
+
+  // Get unique owners from records
+  const uniqueOwners = useMemo(() => {
+    const ownerMap = new Map();
+    records.forEach(r => {
+      if (r.ownerEmail && !ownerMap.has(r.ownerEmail)) {
+        ownerMap.set(r.ownerEmail, {
+          email: r.ownerEmail,
+          name: r.ownerName,
+          phone: r.ownerPhone,
+          pets: [],
+        });
+      }
+      if (r.ownerEmail) {
+        ownerMap.get(r.ownerEmail).pets.push({
+          petName: r.petName,
+          vaccineType: r.type,
+          expiresAt: r.expiresAt,
+          daysRemaining: r.daysRemaining,
+          status: r.status,
+        });
+      }
+    });
+    return Array.from(ownerMap.values());
+  }, [records]);
+
+  const ownersWithoutEmail = records.filter(r => !r.ownerEmail).length;
+
+  const handleSend = async () => {
+    if (uniqueOwners.length === 0) {
+      toast.error('No owners with email addresses selected');
+      return;
+    }
+
+    setIsSending(true);
+    try {
+      await apiClient.post('/api/v1/communications/email/vaccination-reminder', {
+        ownerEmails: uniqueOwners.map(o => o.email),
+        subject,
+        records: records.map(r => ({
+          petName: r.petName,
+          vaccineType: r.type,
+          expiresAt: r.expiresAt,
+          ownerEmail: r.ownerEmail,
+        })),
+      });
+      toast.success(`Vaccination reminders sent to ${uniqueOwners.length} owner${uniqueOwners.length !== 1 ? 's' : ''}`);
+      onClose();
+    } catch (err) {
+      console.error('Failed to send emails:', err);
+      const errorMessage = err.response?.data?.message || 'Failed to send emails';
+      if (err.response?.status === 404 || errorMessage.includes('not found') || errorMessage.includes('not implemented')) {
+        toast.error('Email reminders feature coming soon');
+      } else {
+        toast.error(errorMessage);
+      }
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Email Vaccination Reminders"
+      description={`Send reminders to ${uniqueOwners.length} owner${uniqueOwners.length !== 1 ? 's' : ''} about expiring vaccinations`}
+      size="lg"
+      footer={
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={onClose} disabled={isSending}>
+            Cancel
+          </Button>
+          <Button onClick={handleSend} disabled={isSending || uniqueOwners.length === 0}>
+            {isSending ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Sending...</>
+            ) : (
+              <><Send className="h-4 w-4 mr-2" />Send Reminders</>
+            )}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        {/* Subject */}
+        <div>
+          <label className="block text-sm font-medium mb-1 text-[color:var(--bb-color-text-primary)]">
+            Email Subject
+          </label>
+          <input
+            type="text"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            placeholder="Vaccination Reminder"
+            className="w-full px-3 py-2 rounded-lg border text-sm"
+            style={{ backgroundColor: 'var(--bb-color-bg-body)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }}
+          />
+        </div>
+
+        {/* Preview */}
+        <div>
+          <label className="block text-sm font-medium mb-2 text-[color:var(--bb-color-text-primary)]">
+            Recipients Preview
+          </label>
+          <div
+            className="rounded-lg border max-h-64 overflow-y-auto"
+            style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)' }}
+          >
+            {uniqueOwners.length === 0 ? (
+              <div className="p-4 text-center text-[color:var(--bb-color-text-muted)]">
+                No owners with email addresses in selection
+              </div>
+            ) : (
+              <div className="divide-y" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+                {uniqueOwners.map((owner, idx) => (
+                  <div key={idx} className="p-3">
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
+                      <span className="font-medium text-sm text-[color:var(--bb-color-text-primary)]">{owner.name}</span>
+                      <span className="text-sm text-[color:var(--bb-color-text-muted)]">{owner.email}</span>
+                    </div>
+                    <div className="mt-1.5 pl-6 space-y-1">
+                      {owner.pets.map((pet, pIdx) => (
+                        <div key={pIdx} className="flex items-center gap-2 text-xs">
+                          <span className="text-[color:var(--bb-color-text-primary)]">{pet.petName}</span>
+                          <Badge variant="accent" size="sm">{pet.vaccineType}</Badge>
+                          <span className={cn(
+                            pet.status === 'overdue' ? 'text-red-500' :
+                            pet.status === 'critical' ? 'text-amber-500' :
+                            pet.status === 'expiring' ? 'text-orange-500' :
+                            'text-emerald-500'
+                          )}>
+                            {pet.daysRemaining !== null ? (
+                              pet.daysRemaining < 0 ? `${Math.abs(pet.daysRemaining)}d overdue` : `${pet.daysRemaining}d left`
+                            ) : 'N/A'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Warnings */}
+        {ownersWithoutEmail > 0 && (
+          <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+            <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+            <p className="text-xs">
+              {ownersWithoutEmail} selected record{ownersWithoutEmail !== 1 ? 's' : ''} {ownersWithoutEmail !== 1 ? 'have' : 'has'} no owner email address
+            </p>
+          </div>
+        )}
+
+        {/* Info */}
+        <p className="text-xs text-[color:var(--bb-color-text-muted)]">
+          Each owner will receive a personalized email listing their pet(s) with expiring vaccinations.
+        </p>
+      </div>
+    </Modal>
+  );
+};
 
 // CSV Generation Helpers
 const generateCSV = (records) => {

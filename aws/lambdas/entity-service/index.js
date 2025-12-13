@@ -152,6 +152,13 @@ const handlers = {
   // Staff Bulk Actions
   'POST /api/v1/entity/staff/bulk/delete': bulkDeleteStaff,
   'POST /api/v1/entity/staff/bulk/update': bulkUpdateStaff,
+
+  // Activities
+  'GET /api/v1/entity/activities': getActivities,
+  'GET /api/v1/entity/activities/{id}': getActivity,
+  'POST /api/v1/entity/activities': createActivity,
+  'PUT /api/v1/entity/activities/{id}': updateActivity,
+  'DELETE /api/v1/entity/activities/{id}': deleteActivity,
 };
 
 exports.handler = async (event, context) => {
@@ -2949,5 +2956,378 @@ async function bulkUpdateStaff(event) {
   } catch (error) {
     console.error('[ENTITY-SERVICE] bulkUpdateStaff error:', error);
     return createResponse(500, { error: 'InternalServerError', message: 'Failed to update staff' });
+  }
+}
+
+// ============================================================================
+// ACTIVITY HANDLERS
+// ============================================================================
+
+/**
+ * Get activities for an entity
+ * Query params: entity_type, entity_id, activity_type (optional filter), page, limit
+ */
+async function getActivities(event) {
+  const tenantId = resolveTenantId(event);
+  const queryParams = getQueryParams(event);
+  const entityType = queryParams.entity_type || queryParams.entityType;
+  const entityId = queryParams.entity_id || queryParams.entityId;
+  const activityType = queryParams.activity_type || queryParams.activityType;
+  const page = parseInt(queryParams.page, 10) || 1;
+  const limit = Math.min(parseInt(queryParams.limit, 10) || 50, 200);
+  const offset = (page - 1) * limit;
+
+  console.log('[ENTITY-SERVICE] Getting activities for tenant:', tenantId, 'entity:', entityType, entityId);
+
+  if (!tenantId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  if (!entityType || !entityId) {
+    return createResponse(400, { error: 'BadRequest', message: 'entity_type and entity_id are required' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Build WHERE clause
+    let whereClause = 'a.tenant_id = $1 AND a.entity_type = $2 AND a.entity_id = $3';
+    const params = [tenantId, entityType, entityId];
+    let paramIndex = 4;
+
+    if (activityType) {
+      whereClause += ` AND a.activity_type = $${paramIndex}`;
+      params.push(activityType);
+      paramIndex++;
+    }
+
+    // Get total count
+    const countResult = await query(
+      `SELECT COUNT(*) as total FROM "Activity" a WHERE ${whereClause}`,
+      params
+    );
+    const total = parseInt(countResult.rows[0]?.total || 0, 10);
+    const totalPages = Math.ceil(total / limit);
+
+    // Get activities with creator info
+    const result = await query(
+      `SELECT a.id, a.tenant_id, a.entity_type, a.entity_id,
+              a.activity_type, a.subject, a.content,
+              a.call_duration_seconds, a.call_direction, a.call_outcome,
+              a.recipient, a.is_pinned,
+              a.created_by, a.created_at, a.updated_at,
+              u.first_name as creator_first_name, u.last_name as creator_last_name,
+              u.email as creator_email
+       FROM "Activity" a
+       LEFT JOIN "User" u ON a.created_by = u.id
+       WHERE ${whereClause}
+       ORDER BY a.is_pinned DESC, a.created_at DESC
+       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+      [...params, limit, offset]
+    );
+
+    // Transform rows
+    const activities = result.rows.map(row => ({
+      id: row.id,
+      tenantId: row.tenant_id,
+      entityType: row.entity_type,
+      entityId: row.entity_id,
+      activityType: row.activity_type,
+      subject: row.subject,
+      content: row.content,
+      callDurationSeconds: row.call_duration_seconds,
+      callDirection: row.call_direction,
+      callOutcome: row.call_outcome,
+      recipient: row.recipient,
+      isPinned: row.is_pinned,
+      createdBy: row.created_by,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      creator: row.creator_first_name ? {
+        firstName: row.creator_first_name,
+        lastName: row.creator_last_name,
+        email: row.creator_email,
+        name: `${row.creator_first_name || ''} ${row.creator_last_name || ''}`.trim()
+      } : null
+    }));
+
+    return createResponse(200, {
+      data: activities,
+      pagination: { page, limit, total, totalPages }
+    });
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] getActivities error:', error);
+    return createResponse(500, { error: 'InternalServerError', message: 'Failed to get activities' });
+  }
+}
+
+/**
+ * Get a single activity by ID
+ */
+async function getActivity(event) {
+  const tenantId = resolveTenantId(event);
+  const pathParams = getPathParams(event);
+  const id = pathParams.id || event.path?.split('/').pop();
+
+  console.log('[ENTITY-SERVICE] Getting activity:', id, 'for tenant:', tenantId);
+
+  if (!tenantId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `SELECT a.id, a.tenant_id, a.entity_type, a.entity_id,
+              a.activity_type, a.subject, a.content,
+              a.call_duration_seconds, a.call_direction, a.call_outcome,
+              a.recipient, a.is_pinned,
+              a.created_by, a.created_at, a.updated_at,
+              u.first_name as creator_first_name, u.last_name as creator_last_name,
+              u.email as creator_email
+       FROM "Activity" a
+       LEFT JOIN "User" u ON a.created_by = u.id
+       WHERE a.id = $1 AND a.tenant_id = $2`,
+      [id, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'NotFound', message: 'Activity not found' });
+    }
+
+    const row = result.rows[0];
+    return createResponse(200, {
+      id: row.id,
+      tenantId: row.tenant_id,
+      entityType: row.entity_type,
+      entityId: row.entity_id,
+      activityType: row.activity_type,
+      subject: row.subject,
+      content: row.content,
+      callDurationSeconds: row.call_duration_seconds,
+      callDirection: row.call_direction,
+      callOutcome: row.call_outcome,
+      recipient: row.recipient,
+      isPinned: row.is_pinned,
+      createdBy: row.created_by,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      creator: row.creator_first_name ? {
+        firstName: row.creator_first_name,
+        lastName: row.creator_last_name,
+        email: row.creator_email,
+        name: `${row.creator_first_name || ''} ${row.creator_last_name || ''}`.trim()
+      } : null
+    });
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] getActivity error:', error);
+    return createResponse(500, { error: 'InternalServerError', message: 'Failed to get activity' });
+  }
+}
+
+/**
+ * Create a new activity
+ */
+async function createActivity(event) {
+  const tenantId = resolveTenantId(event);
+  const body = parseBody(event);
+  // Use the database User ID (userId/recordId), not event.user.id which is Cognito sub
+  const userId = event.user?.userId || event.user?.recordId;
+
+  console.log('[ENTITY-SERVICE] Creating activity for tenant:', tenantId, 'userId:', userId, body);
+
+  if (!tenantId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  // Validate required fields
+  const entityType = body.entityType || body.entity_type;
+  const entityId = body.entityId || body.entity_id;
+  const activityType = body.activityType || body.activity_type;
+
+  if (!entityType || !entityId) {
+    return createResponse(400, { error: 'BadRequest', message: 'entity_type and entity_id are required' });
+  }
+
+  if (!activityType) {
+    return createResponse(400, { error: 'BadRequest', message: 'activity_type is required' });
+  }
+
+  const validActivityTypes = ['note', 'call', 'email', 'sms', 'system'];
+  if (!validActivityTypes.includes(activityType)) {
+    return createResponse(400, { error: 'BadRequest', message: `activity_type must be one of: ${validActivityTypes.join(', ')}` });
+  }
+
+  const validEntityTypes = ['owner', 'pet', 'booking', 'invoice'];
+  if (!validEntityTypes.includes(entityType)) {
+    return createResponse(400, { error: 'BadRequest', message: `entity_type must be one of: ${validEntityTypes.join(', ')}` });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `INSERT INTO "Activity" (
+        tenant_id, entity_type, entity_id, activity_type,
+        subject, content,
+        call_duration_seconds, call_direction, call_outcome,
+        recipient, is_pinned, created_by
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING *`,
+      [
+        tenantId,
+        entityType,
+        entityId,
+        activityType,
+        body.subject || null,
+        body.content || null,
+        body.callDurationSeconds || body.call_duration_seconds || null,
+        body.callDirection || body.call_direction || null,
+        body.callOutcome || body.call_outcome || null,
+        body.recipient || null,
+        body.isPinned || body.is_pinned || false,
+        userId || null
+      ]
+    );
+
+    const row = result.rows[0];
+    return createResponse(201, {
+      id: row.id,
+      tenantId: row.tenant_id,
+      entityType: row.entity_type,
+      entityId: row.entity_id,
+      activityType: row.activity_type,
+      subject: row.subject,
+      content: row.content,
+      callDurationSeconds: row.call_duration_seconds,
+      callDirection: row.call_direction,
+      callOutcome: row.call_outcome,
+      recipient: row.recipient,
+      isPinned: row.is_pinned,
+      createdBy: row.created_by,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    });
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] createActivity error:', error);
+    return createResponse(500, { error: 'InternalServerError', message: 'Failed to create activity' });
+  }
+}
+
+/**
+ * Update an activity
+ */
+async function updateActivity(event) {
+  const tenantId = resolveTenantId(event);
+  const pathParams = getPathParams(event);
+  const id = pathParams.id || event.path?.split('/').pop();
+  const body = parseBody(event);
+
+  console.log('[ENTITY-SERVICE] Updating activity:', id, 'for tenant:', tenantId, body);
+
+  if (!tenantId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Build SET clause dynamically
+    const updates = [];
+    const params = [id, tenantId];
+    let paramIndex = 3;
+
+    const fieldMappings = {
+      subject: 'subject',
+      content: 'content',
+      callDurationSeconds: 'call_duration_seconds',
+      call_duration_seconds: 'call_duration_seconds',
+      callDirection: 'call_direction',
+      call_direction: 'call_direction',
+      callOutcome: 'call_outcome',
+      call_outcome: 'call_outcome',
+      recipient: 'recipient',
+      isPinned: 'is_pinned',
+      is_pinned: 'is_pinned'
+    };
+
+    for (const [bodyKey, dbColumn] of Object.entries(fieldMappings)) {
+      if (body[bodyKey] !== undefined) {
+        updates.push(`${dbColumn} = $${paramIndex}`);
+        params.push(body[bodyKey]);
+        paramIndex++;
+      }
+    }
+
+    if (updates.length === 0) {
+      return createResponse(400, { error: 'BadRequest', message: 'No fields to update' });
+    }
+
+    const result = await query(
+      `UPDATE "Activity" SET ${updates.join(', ')}, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2
+       RETURNING *`,
+      params
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'NotFound', message: 'Activity not found' });
+    }
+
+    const row = result.rows[0];
+    return createResponse(200, {
+      id: row.id,
+      tenantId: row.tenant_id,
+      entityType: row.entity_type,
+      entityId: row.entity_id,
+      activityType: row.activity_type,
+      subject: row.subject,
+      content: row.content,
+      callDurationSeconds: row.call_duration_seconds,
+      callDirection: row.call_direction,
+      callOutcome: row.call_outcome,
+      recipient: row.recipient,
+      isPinned: row.is_pinned,
+      createdBy: row.created_by,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    });
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] updateActivity error:', error);
+    return createResponse(500, { error: 'InternalServerError', message: 'Failed to update activity' });
+  }
+}
+
+/**
+ * Delete an activity
+ */
+async function deleteActivity(event) {
+  const tenantId = resolveTenantId(event);
+  const pathParams = getPathParams(event);
+  const id = pathParams.id || event.path?.split('/').pop();
+
+  console.log('[ENTITY-SERVICE] Deleting activity:', id, 'for tenant:', tenantId);
+
+  if (!tenantId) {
+    return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  try {
+    await getPoolAsync();
+
+    const result = await query(
+      `DELETE FROM "Activity" WHERE id = $1 AND tenant_id = $2 RETURNING id`,
+      [id, tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'NotFound', message: 'Activity not found' });
+    }
+
+    return createResponse(200, { success: true, id: result.rows[0].id });
+  } catch (error) {
+    console.error('[ENTITY-SERVICE] deleteActivity error:', error);
+    return createResponse(500, { error: 'InternalServerError', message: 'Failed to delete activity' });
   }
 }

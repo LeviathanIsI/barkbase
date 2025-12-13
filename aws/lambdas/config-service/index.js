@@ -791,6 +791,76 @@ exports.handler = async (event, context) => {
     }
 
     // =========================================================================
+    // PROPERTY GROUPS API
+    // =========================================================================
+
+    // GET /api/v2/property-groups - List all groups for entity type
+    if ((path === '/api/v2/property-groups' || path === '/api/v2/property-groups/') && method === 'GET') {
+      const queryParams = event.queryStringParameters || {};
+      return handleListPropertyGroups(user, queryParams);
+    }
+
+    // POST /api/v2/property-groups - Create property group
+    if ((path === '/api/v2/property-groups' || path === '/api/v2/property-groups/') && method === 'POST') {
+      return handleCreatePropertyGroup(user, parseBody(event));
+    }
+
+    // Single property group routes
+    const propertyGroupIdMatch = path.match(/^\/api\/v2\/property-groups\/([a-f0-9-]+)$/i);
+
+    // PUT/PATCH /api/v2/property-groups/:id
+    if (propertyGroupIdMatch && (method === 'PUT' || method === 'PATCH')) {
+      const groupId = propertyGroupIdMatch[1];
+      return handleUpdatePropertyGroup(user, groupId, parseBody(event));
+    }
+
+    // DELETE /api/v2/property-groups/:id
+    if (propertyGroupIdMatch && method === 'DELETE') {
+      const groupId = propertyGroupIdMatch[1];
+      return handleDeletePropertyGroup(user, groupId);
+    }
+
+    // =========================================================================
+    // PROPERTY LOGIC RULES API
+    // =========================================================================
+
+    // GET /api/v2/property-logic - List all logic rules for entity type
+    if ((path === '/api/v2/property-logic' || path === '/api/v2/property-logic/') && method === 'GET') {
+      const queryParams = event.queryStringParameters || {};
+      return handleListPropertyLogicRules(user, queryParams);
+    }
+
+    // POST /api/v2/property-logic - Create logic rule
+    if ((path === '/api/v2/property-logic' || path === '/api/v2/property-logic/') && method === 'POST') {
+      return handleCreatePropertyLogicRule(user, parseBody(event));
+    }
+
+    // Single property logic routes
+    const propertyLogicIdMatch = path.match(/^\/api\/v2\/property-logic\/([a-f0-9-]+)$/i);
+
+    // PUT/PATCH /api/v2/property-logic/:id
+    if (propertyLogicIdMatch && (method === 'PUT' || method === 'PATCH')) {
+      const ruleId = propertyLogicIdMatch[1];
+      return handleUpdatePropertyLogicRule(user, ruleId, parseBody(event));
+    }
+
+    // DELETE /api/v2/property-logic/:id
+    if (propertyLogicIdMatch && method === 'DELETE') {
+      const ruleId = propertyLogicIdMatch[1];
+      return handleDeletePropertyLogicRule(user, ruleId);
+    }
+
+    // =========================================================================
+    // PROPERTY TEMPLATES API (Quick-Add)
+    // =========================================================================
+
+    // GET /api/v2/property-templates - List templates for entity type
+    if ((path === '/api/v2/property-templates' || path === '/api/v2/property-templates/') && method === 'GET') {
+      const queryParams = event.queryStringParameters || {};
+      return handleListPropertyTemplates(user, queryParams);
+    }
+
+    // =========================================================================
     // ENTITY DEFINITIONS API (v2) - Custom Objects
     // =========================================================================
     // Allows tenants to define custom entity types beyond built-in ones.
@@ -2603,21 +2673,23 @@ async function checkPropertyLimits(tenantId, plan, entityType) {
 function formatPropertyResponse(row) {
   return {
     id: row.id,
+    propertyId: row.id,
     tenantId: row.tenant_id,
-    name: row.name,
-    label: row.label,
+    propertyName: row.name,
+    displayLabel: row.label,
     description: row.description,
-    fieldType: row.field_type,
+    dataType: row.field_type,
     entityType: row.entity_type,
     options: row.options || [],
-    required: row.required,
+    isRequired: row.is_required,
     defaultValue: row.default_value,
     validationRules: row.validation_rules || {},
     sortOrder: row.sort_order,
     propertyGroup: row.property_group,
     showInList: row.show_in_list,
     showInForm: row.show_in_form,
-    isSystem: row.is_system,
+    showInSearch: row.show_in_search,
+    isSystem: false, // Custom properties are never system
     isActive: row.is_active,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -2782,23 +2854,25 @@ function formatSystemPropertyResponse(row) {
   return {
     id: row.id,
     propertyId: row.id,
-    propertyName: row.column_name,
-    displayLabel: row.display_label,
+    propertyName: row.name,
+    displayLabel: row.label,
     description: row.description,
     entityType: row.entity_type,
-    dataType: row.data_type,
+    dataType: row.field_type,
     options: row.options || [],
     isRequired: row.is_required,
-    defaultValue: null,
+    defaultValue: row.default_value,
     validationRules: row.validation_rules || {},
     propertyGroup: row.property_group,
     sortOrder: row.sort_order,
     showInList: row.show_in_list,
     showInForm: row.show_in_form,
+    showInSearch: row.show_in_search,
+    isEditable: row.is_editable,
     isSystem: true, // Always true for system properties
     isActive: true, // System properties are always active
     createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    updatedAt: row.created_at, // System properties don't have updated_at
     archivedAt: null,
     // System properties can't have usage stats (they're built-in columns, not PropertyValue entries)
     usageCount: null,
@@ -14220,4 +14294,576 @@ function getSystemProperties(objectType) {
   };
 
   return [...(typeProps[objectType] || []), ...commonProps];
+}
+
+// ============================================================================
+// PROPERTY GROUPS HANDLERS
+// ============================================================================
+
+/**
+ * GET /api/v2/property-groups
+ * List all property groups for an entity type
+ */
+async function handleListPropertyGroups(user, queryParams) {
+  console.log('[CONFIG-SERVICE] handleListPropertyGroups');
+
+  try {
+    await getPoolAsync();
+
+    const ctx = await getTenantContext(user);
+    if (ctx.error) {
+      return createResponse(ctx.status, { error: ctx.error });
+    }
+
+    const { entityType, objectType } = queryParams;
+    const effectiveEntityType = entityType || objectType;
+
+    let sql = `SELECT * FROM "PropertyGroup" WHERE tenant_id = $1`;
+    const values = [ctx.tenantId];
+    let paramIndex = 2;
+
+    if (effectiveEntityType) {
+      sql += ` AND entity_type = $${paramIndex++}`;
+      values.push(effectiveEntityType);
+    }
+
+    sql += ` ORDER BY display_order, name`;
+
+    const result = await query(sql, values);
+
+    return createResponse(200, {
+      success: true,
+      groups: result.rows.map(row => ({
+        id: row.id,
+        tenantId: row.tenant_id,
+        entityType: row.entity_type,
+        name: row.name,
+        description: row.description,
+        icon: row.icon,
+        displayOrder: row.display_order,
+        isSystem: row.is_system,
+        isCollapsedDefault: row.is_collapsed_default,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      })),
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to list property groups:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve property groups',
+    });
+  }
+}
+
+/**
+ * POST /api/v2/property-groups
+ * Create a property group
+ */
+async function handleCreatePropertyGroup(user, body) {
+  console.log('[CONFIG-SERVICE] handleCreatePropertyGroup');
+
+  try {
+    await getPoolAsync();
+
+    const ctx = await getTenantContext(user, true);
+    if (ctx.error) {
+      return createResponse(ctx.status, { error: ctx.error });
+    }
+
+    const { entityType, name, description, icon, displayOrder = 0, isCollapsedDefault = false } = body;
+
+    if (!entityType || !name) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'entityType and name are required',
+      });
+    }
+
+    const result = await query(
+      `INSERT INTO "PropertyGroup" (tenant_id, entity_type, name, description, icon, display_order, is_collapsed_default)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [ctx.tenantId, entityType, name, description, icon, displayOrder, isCollapsedDefault]
+    );
+
+    const group = result.rows[0];
+
+    return createResponse(201, {
+      success: true,
+      group: {
+        id: group.id,
+        tenantId: group.tenant_id,
+        entityType: group.entity_type,
+        name: group.name,
+        description: group.description,
+        icon: group.icon,
+        displayOrder: group.display_order,
+        isSystem: group.is_system,
+        isCollapsedDefault: group.is_collapsed_default,
+        createdAt: group.created_at,
+        updatedAt: group.updated_at,
+      },
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to create property group:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to create property group',
+    });
+  }
+}
+
+/**
+ * PUT/PATCH /api/v2/property-groups/:id
+ * Update a property group
+ */
+async function handleUpdatePropertyGroup(user, groupId, body) {
+  console.log('[CONFIG-SERVICE] handleUpdatePropertyGroup -', groupId);
+
+  try {
+    await getPoolAsync();
+
+    const ctx = await getTenantContext(user, true);
+    if (ctx.error) {
+      return createResponse(ctx.status, { error: ctx.error });
+    }
+
+    // Check if group exists and belongs to tenant
+    const existing = await query(
+      `SELECT * FROM "PropertyGroup" WHERE id = $1 AND tenant_id = $2`,
+      [groupId, ctx.tenantId]
+    );
+
+    if (existing.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Property group not found' });
+    }
+
+    // System groups can only have display order updated
+    if (existing.rows[0].is_system) {
+      const allowedFields = ['displayOrder', 'isCollapsedDefault'];
+      const attemptedFields = Object.keys(body);
+      const disallowed = attemptedFields.filter(f => !allowedFields.includes(f));
+      if (disallowed.length > 0) {
+        return createResponse(403, {
+          error: 'Forbidden',
+          message: `Cannot modify ${disallowed.join(', ')} on system groups`,
+        });
+      }
+    }
+
+    const { name, description, icon, displayOrder, isCollapsedDefault } = body;
+
+    const result = await query(
+      `UPDATE "PropertyGroup"
+       SET name = COALESCE($3, name),
+           description = COALESCE($4, description),
+           icon = COALESCE($5, icon),
+           display_order = COALESCE($6, display_order),
+           is_collapsed_default = COALESCE($7, is_collapsed_default),
+           updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2
+       RETURNING *`,
+      [groupId, ctx.tenantId, name, description, icon, displayOrder, isCollapsedDefault]
+    );
+
+    const group = result.rows[0];
+
+    return createResponse(200, {
+      success: true,
+      group: {
+        id: group.id,
+        tenantId: group.tenant_id,
+        entityType: group.entity_type,
+        name: group.name,
+        description: group.description,
+        icon: group.icon,
+        displayOrder: group.display_order,
+        isSystem: group.is_system,
+        isCollapsedDefault: group.is_collapsed_default,
+        createdAt: group.created_at,
+        updatedAt: group.updated_at,
+      },
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to update property group:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to update property group',
+    });
+  }
+}
+
+/**
+ * DELETE /api/v2/property-groups/:id
+ * Delete a property group
+ */
+async function handleDeletePropertyGroup(user, groupId) {
+  console.log('[CONFIG-SERVICE] handleDeletePropertyGroup -', groupId);
+
+  try {
+    await getPoolAsync();
+
+    const ctx = await getTenantContext(user, true);
+    if (ctx.error) {
+      return createResponse(ctx.status, { error: ctx.error });
+    }
+
+    // Check if group exists
+    const existing = await query(
+      `SELECT * FROM "PropertyGroup" WHERE id = $1 AND tenant_id = $2`,
+      [groupId, ctx.tenantId]
+    );
+
+    if (existing.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Property group not found' });
+    }
+
+    // Cannot delete system groups
+    if (existing.rows[0].is_system) {
+      return createResponse(403, {
+        error: 'Forbidden',
+        message: 'Cannot delete system property groups',
+      });
+    }
+
+    // Check if any properties use this group
+    const propsInGroup = await query(
+      `SELECT COUNT(*) as count FROM "Property" WHERE tenant_id = $1 AND property_group = $2`,
+      [ctx.tenantId, existing.rows[0].name]
+    );
+
+    if (parseInt(propsInGroup.rows[0].count, 10) > 0) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Cannot delete group that contains properties. Move properties to another group first.',
+      });
+    }
+
+    await query(
+      `DELETE FROM "PropertyGroup" WHERE id = $1 AND tenant_id = $2`,
+      [groupId, ctx.tenantId]
+    );
+
+    return createResponse(200, {
+      success: true,
+      message: 'Property group deleted successfully',
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to delete property group:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to delete property group',
+    });
+  }
+}
+
+// ============================================================================
+// PROPERTY LOGIC RULES HANDLERS
+// ============================================================================
+
+/**
+ * GET /api/v2/property-logic
+ * List all logic rules for an entity type
+ */
+async function handleListPropertyLogicRules(user, queryParams) {
+  console.log('[CONFIG-SERVICE] handleListPropertyLogicRules');
+
+  try {
+    await getPoolAsync();
+
+    const ctx = await getTenantContext(user);
+    if (ctx.error) {
+      return createResponse(ctx.status, { error: ctx.error });
+    }
+
+    const { entityType, objectType } = queryParams;
+    const effectiveEntityType = entityType || objectType;
+
+    let sql = `SELECT * FROM "PropertyLogicRule" WHERE tenant_id = $1`;
+    const values = [ctx.tenantId];
+    let paramIndex = 2;
+
+    if (effectiveEntityType) {
+      sql += ` AND entity_type = $${paramIndex++}`;
+      values.push(effectiveEntityType);
+    }
+
+    sql += ` AND is_active = true ORDER BY created_at`;
+
+    const result = await query(sql, values);
+
+    return createResponse(200, {
+      success: true,
+      rules: result.rows.map(row => ({
+        id: row.id,
+        tenantId: row.tenant_id,
+        entityType: row.entity_type,
+        name: row.name,
+        triggerProperty: row.trigger_property,
+        conditionOperator: row.condition_operator,
+        conditionValue: row.condition_value,
+        affectedProperties: row.affected_properties || [],
+        action: row.action,
+        isActive: row.is_active,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      })),
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to list property logic rules:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve property logic rules',
+    });
+  }
+}
+
+/**
+ * POST /api/v2/property-logic
+ * Create a logic rule
+ */
+async function handleCreatePropertyLogicRule(user, body) {
+  console.log('[CONFIG-SERVICE] handleCreatePropertyLogicRule');
+
+  try {
+    await getPoolAsync();
+
+    const ctx = await getTenantContext(user, true);
+    if (ctx.error) {
+      return createResponse(ctx.status, { error: ctx.error });
+    }
+
+    const {
+      entityType,
+      name,
+      triggerProperty,
+      conditionOperator,
+      conditionValue,
+      affectedProperties,
+      action = 'show',
+    } = body;
+
+    if (!entityType || !triggerProperty || !conditionOperator || !affectedProperties?.length) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'entityType, triggerProperty, conditionOperator, and affectedProperties are required',
+      });
+    }
+
+    const result = await query(
+      `INSERT INTO "PropertyLogicRule" (tenant_id, entity_type, name, trigger_property, condition_operator, condition_value, affected_properties, action)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [ctx.tenantId, entityType, name, triggerProperty, conditionOperator, conditionValue, JSON.stringify(affectedProperties), action]
+    );
+
+    const rule = result.rows[0];
+
+    return createResponse(201, {
+      success: true,
+      rule: {
+        id: rule.id,
+        tenantId: rule.tenant_id,
+        entityType: rule.entity_type,
+        name: rule.name,
+        triggerProperty: rule.trigger_property,
+        conditionOperator: rule.condition_operator,
+        conditionValue: rule.condition_value,
+        affectedProperties: rule.affected_properties,
+        action: rule.action,
+        isActive: rule.is_active,
+        createdAt: rule.created_at,
+        updatedAt: rule.updated_at,
+      },
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to create property logic rule:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to create property logic rule',
+    });
+  }
+}
+
+/**
+ * PUT/PATCH /api/v2/property-logic/:id
+ * Update a logic rule
+ */
+async function handleUpdatePropertyLogicRule(user, ruleId, body) {
+  console.log('[CONFIG-SERVICE] handleUpdatePropertyLogicRule -', ruleId);
+
+  try {
+    await getPoolAsync();
+
+    const ctx = await getTenantContext(user, true);
+    if (ctx.error) {
+      return createResponse(ctx.status, { error: ctx.error });
+    }
+
+    const existing = await query(
+      `SELECT * FROM "PropertyLogicRule" WHERE id = $1 AND tenant_id = $2`,
+      [ruleId, ctx.tenantId]
+    );
+
+    if (existing.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Property logic rule not found' });
+    }
+
+    const {
+      name,
+      triggerProperty,
+      conditionOperator,
+      conditionValue,
+      affectedProperties,
+      action,
+      isActive,
+    } = body;
+
+    const result = await query(
+      `UPDATE "PropertyLogicRule"
+       SET name = COALESCE($3, name),
+           trigger_property = COALESCE($4, trigger_property),
+           condition_operator = COALESCE($5, condition_operator),
+           condition_value = COALESCE($6, condition_value),
+           affected_properties = COALESCE($7, affected_properties),
+           action = COALESCE($8, action),
+           is_active = COALESCE($9, is_active),
+           updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2
+       RETURNING *`,
+      [ruleId, ctx.tenantId, name, triggerProperty, conditionOperator, conditionValue,
+       affectedProperties ? JSON.stringify(affectedProperties) : null, action, isActive]
+    );
+
+    const rule = result.rows[0];
+
+    return createResponse(200, {
+      success: true,
+      rule: {
+        id: rule.id,
+        tenantId: rule.tenant_id,
+        entityType: rule.entity_type,
+        name: rule.name,
+        triggerProperty: rule.trigger_property,
+        conditionOperator: rule.condition_operator,
+        conditionValue: rule.condition_value,
+        affectedProperties: rule.affected_properties,
+        action: rule.action,
+        isActive: rule.is_active,
+        createdAt: rule.created_at,
+        updatedAt: rule.updated_at,
+      },
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to update property logic rule:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to update property logic rule',
+    });
+  }
+}
+
+/**
+ * DELETE /api/v2/property-logic/:id
+ * Delete (soft) a logic rule
+ */
+async function handleDeletePropertyLogicRule(user, ruleId) {
+  console.log('[CONFIG-SERVICE] handleDeletePropertyLogicRule -', ruleId);
+
+  try {
+    await getPoolAsync();
+
+    const ctx = await getTenantContext(user, true);
+    if (ctx.error) {
+      return createResponse(ctx.status, { error: ctx.error });
+    }
+
+    const result = await query(
+      `UPDATE "PropertyLogicRule"
+       SET is_active = false, updated_at = NOW()
+       WHERE id = $1 AND tenant_id = $2
+       RETURNING *`,
+      [ruleId, ctx.tenantId]
+    );
+
+    if (result.rows.length === 0) {
+      return createResponse(404, { error: 'Not Found', message: 'Property logic rule not found' });
+    }
+
+    return createResponse(200, {
+      success: true,
+      message: 'Property logic rule deleted successfully',
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to delete property logic rule:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to delete property logic rule',
+    });
+  }
+}
+
+// ============================================================================
+// PROPERTY TEMPLATES HANDLERS (Quick-Add)
+// ============================================================================
+
+/**
+ * GET /api/v2/property-templates
+ * List property templates for quick-add
+ */
+async function handleListPropertyTemplates(user, queryParams) {
+  console.log('[CONFIG-SERVICE] handleListPropertyTemplates');
+
+  try {
+    await getPoolAsync();
+
+    const { entityType, objectType } = queryParams;
+    const effectiveEntityType = entityType || objectType;
+
+    let sql = `SELECT * FROM "PropertyTemplate" WHERE 1=1`;
+    const values = [];
+    let paramIndex = 1;
+
+    if (effectiveEntityType) {
+      sql += ` AND entity_type = $${paramIndex++}`;
+      values.push(effectiveEntityType);
+    }
+
+    sql += ` ORDER BY entity_type, sort_order, name`;
+
+    const result = await query(sql, values);
+
+    return createResponse(200, {
+      success: true,
+      templates: result.rows.map(row => ({
+        id: row.id,
+        entityType: row.entity_type,
+        name: row.name,
+        label: row.label,
+        description: row.description,
+        fieldType: row.field_type,
+        options: row.options || [],
+        propertyGroup: row.property_group,
+        icon: row.icon,
+        category: row.category,
+        sortOrder: row.sort_order,
+      })),
+    });
+
+  } catch (error) {
+    console.error('[CONFIG-SERVICE] Failed to list property templates:', error.message);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to retrieve property templates',
+    });
+  }
 }

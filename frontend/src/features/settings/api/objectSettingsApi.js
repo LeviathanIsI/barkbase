@@ -480,6 +480,44 @@ export const useResetRecordLayout = (objectType) => {
   });
 };
 
+/**
+ * Delete a record layout
+ * DELETE /api/v1/settings/objects/:objectType/record-layout/:id
+ */
+export const useDeleteRecordLayout = (objectType) => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async (id) => {
+      const res = await apiClient.delete(`/api/v1/settings/objects/${objectType}/record-layout/${id}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.recordLayouts(tenantKey, objectType) });
+    },
+  });
+};
+
+/**
+ * Set a record layout as default
+ * PUT /api/v1/settings/objects/:objectType/record-layout/:id/set-default
+ */
+export const useSetDefaultRecordLayout = (objectType) => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async (id) => {
+      const res = await apiClient.put(`/api/v1/settings/objects/${objectType}/record-layout/${id}/set-default`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.recordLayouts(tenantKey, objectType) });
+    },
+  });
+};
+
 // =============================================================================
 // PREVIEW LAYOUTS (Preview Customization Tab)
 // =============================================================================
@@ -512,6 +550,63 @@ export const useUpdatePreviewLayout = (objectType) => {
   return useMutation({
     mutationFn: async (data) => {
       const res = await apiClient.put(`/api/v1/settings/objects/${objectType}/preview-layout`, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.previewLayouts(tenantKey, objectType) });
+    },
+  });
+};
+
+/**
+ * Create preview layout
+ * POST /api/v1/settings/objects/:objectType/preview-layout
+ */
+export const useCreatePreviewLayout = (objectType) => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async (data) => {
+      const res = await apiClient.post(`/api/v1/settings/objects/${objectType}/preview-layout`, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.previewLayouts(tenantKey, objectType) });
+    },
+  });
+};
+
+/**
+ * Delete preview layout
+ * DELETE /api/v1/settings/objects/:objectType/preview-layout/:id
+ */
+export const useDeletePreviewLayout = (objectType) => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async (id) => {
+      const res = await apiClient.delete(`/api/v1/settings/objects/${objectType}/preview-layout/${id}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.previewLayouts(tenantKey, objectType) });
+    },
+  });
+};
+
+/**
+ * Set preview layout as default
+ * PUT /api/v1/settings/objects/:objectType/preview-layout/:id/set-default
+ */
+export const useSetDefaultPreviewLayout = (objectType) => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async (id) => {
+      const res = await apiClient.put(`/api/v1/settings/objects/${objectType}/preview-layout/${id}/set-default`);
       return res.data;
     },
     onSuccess: () => {

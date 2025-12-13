@@ -140,7 +140,7 @@ export default function UsageTab() {
             Monthly booking trends (last 6 months)
           </p>
           
-          {trends.length > 0 ? (
+          {trends.length > 1 ? (
             <div className="flex items-end gap-2 h-32">
               {trends.map((month, index) => {
                 const height = chartMax > 0 ? (month.bookings / chartMax) * 100 : 0;
@@ -158,8 +158,10 @@ export default function UsageTab() {
               })}
             </div>
           ) : (
-            <div className="flex items-center justify-center h-32 text-gray-500 dark:text-text-secondary">
-              No trend data available yet
+            <div className="flex flex-col items-center justify-center h-32 text-gray-500 dark:text-text-secondary">
+              <BarChart3 className="w-8 h-8 mb-2 text-gray-300 dark:text-text-tertiary" />
+              <p>Not enough data yet</p>
+              <p className="text-sm">Check back after your first month</p>
             </div>
           )}
         </div>

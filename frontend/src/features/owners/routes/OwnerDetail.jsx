@@ -1,11 +1,12 @@
 /**
- * Owner Detail Page - Phase 7 Enterprise Layout
- * Two-column layout with strong detail header, clear content zones,
- * and token-based styling consistent with the enterprise design system.
+ * Owner Detail Page - 3-Column Enterprise Layout
+ * Left: Property cards (About, Address, Emergency, Preferences)
+ * Middle: Stats + Tabs (Overview, Activity, Bookings, Billing)
+ * Right: Associations (Pets, Bookings, Invoices, Segments)
  */
 
 import { useMemo, useState, useRef, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Users as UsersIcon,
   Mail,
@@ -26,16 +27,26 @@ import {
   RefreshCw,
   MoreHorizontal,
   Receipt,
-  Send,
-  ChevronDown,
-  Loader2,
+  ChevronRight,
+  ArrowLeft,
+  MapPin,
+  AlertCircle,
+  Clock,
+  CreditCard,
+  Tag,
+  MessageSquare,
+  Activity,
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { format, formatDistanceToNow } from 'date-fns';
 import AssociationModal from '@/components/ui/AssociationModal';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
-import { Card, PageHeader } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
+import { PropertyCard, PropertyList } from '@/components/ui/PropertyCard';
+import { AssociationCard, AssociationItem } from '@/components/ui/AssociationCard';
 import { StatusPill } from '@/components/primitives';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import { useOwnerQuery, useDeleteOwnerMutation, useAddPetToOwnerMutation, useRemovePetFromOwnerMutation } from '../api';
 import { usePetsQuery, useCreatePetMutation } from '@/features/pets/api';
 import { useBookingCheckInMutation, useBookingCheckOutMutation, useUpdateBookingMutation } from '@/features/bookings/api';
@@ -46,6 +57,29 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useTenantStore } from '@/stores/tenant';
 import { queryKeys } from '@/lib/queryKeys';
 import { cn, formatCurrency } from '@/lib/utils';
+
+// Helper to safely format dates
+const safeFormatDate = (dateStr, formatStr = 'MMM d, yyyy') => {
+  if (!dateStr) return null;
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return null;
+    return format(date, formatStr);
+  } catch {
+    return null;
+  }
+};
+
+const safeFormatDistance = (dateStr) => {
+  if (!dateStr) return null;
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return null;
+    return formatDistanceToNow(date, { addSuffix: true });
+  } catch {
+    return null;
+  }
+};
 
 const OwnerDetail = () => {
   const { ownerId } = useParams();
@@ -159,7 +193,7 @@ const OwnerDetail = () => {
 
   const handleConfirmRemovePet = async () => {
     if (!petToRemove) return;
-    
+
     setIsRemovingPet(true);
     try {
       await removePetMutation.mutateAsync(petToRemove.recordId);
@@ -175,32 +209,32 @@ const OwnerDetail = () => {
     }
   };
 
-  // Tabs configuration
-  const tabs = [
-    { id: 'overview', label: 'Overview', icon: UsersIcon },
-    { id: 'pets', label: 'Pets', icon: PawPrint },
-    { id: 'bookings', label: 'Bookings', icon: Calendar },
-    { id: 'payments', label: 'Payments', icon: DollarSign },
-  ];
-
+  // Loading state
   if (ownerQuery.isLoading) {
     return (
-      <div
-        className="flex items-center justify-center h-full"
-        style={{ color: 'var(--bb-color-text-muted)' }}
-      >
-        <div className="animate-pulse">Loading owner details...</div>
+      <div className="flex items-center justify-center h-full py-20">
+        <div className="animate-pulse" style={{ color: 'var(--bb-color-text-muted)' }}>
+          Loading owner details...
+        </div>
       </div>
     );
   }
 
+  // Not found state
   if (!owner) {
     return (
-      <div
-        className="flex items-center justify-center h-full"
-        style={{ color: 'var(--bb-color-text-muted)' }}
-      >
-        <p>Owner not found</p>
+      <div className="flex flex-col items-center justify-center h-full py-20">
+        <UsersIcon className="w-16 h-16 mb-4" style={{ color: 'var(--bb-color-text-muted)' }} />
+        <h2 className="text-xl font-semibold" style={{ color: 'var(--bb-color-text-primary)' }}>
+          Owner not found
+        </h2>
+        <p className="mt-2" style={{ color: 'var(--bb-color-text-muted)' }}>
+          This owner may have been deleted or you don't have access.
+        </p>
+        <Button variant="outline" className="mt-6" onClick={() => navigate('/owners')}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Owners
+        </Button>
       </div>
     );
   }
@@ -209,308 +243,340 @@ const OwnerDetail = () => {
   const pets = owner.pets?.filter(pet => pet && pet.recordId) || [];
   const bookings = owner.bookings || [];
   const payments = owner.payments || [];
+  const invoices = owner.invoices || [];
   const lifetimeValue = payments.reduce((sum, p) => sum + (p.amountCents || 0), 0);
-  const ownerAddress = owner.address
-    ? [owner.address.street, owner.address.city, owner.address.state, owner.address.zip].filter(Boolean).join(', ')
-    : null;
+
+  // Build address parts
+  const addressParts = [];
+  if (owner.address?.street) addressParts.push(owner.address.street);
+  if (owner.address?.city) addressParts.push(owner.address.city);
+  if (owner.address?.state) addressParts.push(owner.address.state);
+  if (owner.address?.zip) addressParts.push(owner.address.zip);
+  const hasAddress = addressParts.length > 0;
+
+  // Status badge
+  const ownerStatus = bookings.length > 0 ? 'Active Client' : 'New Client';
+  const ownerStatusVariant = bookings.length > 0 ? 'success' : 'neutral';
 
   return (
     <>
-      <div className="space-y-[var(--bb-space-6,1.5rem)]">
-        {/* Page Header with strong identity */}
-        <PageHeader
-          breadcrumb="Home > Clients > Owners"
-          title={fullName}
-          description={owner.email || 'No email on file'}
-          actions={
-            <div className="flex items-center gap-[var(--bb-space-2,0.5rem)]">
-              <Button variant="outline" size="md" onClick={() => navigate('/bookings?action=new')}>
-                <Plus className="h-4 w-4 mr-[var(--bb-space-2,0.5rem)]" />
+      <div className="h-full flex flex-col">
+        {/* Header */}
+        <div className="flex-shrink-0 px-6 py-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+          {/* Breadcrumb */}
+          <nav className="flex items-center gap-2 text-sm mb-2" style={{ color: 'var(--bb-color-text-muted)' }}>
+            <Link
+              to="/owners"
+              className="flex items-center gap-1 hover:text-[color:var(--bb-color-text-primary)] transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Customers
+            </Link>
+            <ChevronRight className="w-4 h-4" />
+            <span style={{ color: 'var(--bb-color-text-primary)' }}>{fullName}</span>
+          </nav>
+
+          {/* Title Row */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1
+                  className="text-2xl font-semibold truncate"
+                  style={{ color: 'var(--bb-color-text-primary)' }}
+                >
+                  {fullName}
+                </h1>
+                <Badge variant={ownerStatusVariant}>
+                  {ownerStatus}
+                </Badge>
+              </div>
+              <p className="mt-1 text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
+                {owner.email || 'No email on file'}
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Button variant="primary" onClick={() => navigate('/bookings?action=new')}>
+                <Plus className="w-4 h-4 mr-2" />
                 New Booking
               </Button>
-              <Button variant="secondary" size="md" onClick={handleEdit}>
-                <Edit className="h-4 w-4 mr-[var(--bb-space-2,0.5rem)]" />
+              <Button variant="secondary" onClick={handleEdit}>
+                <Edit className="w-4 h-4 mr-2" />
                 Edit
               </Button>
-              <Button variant="ghost" size="md" onClick={handleDelete}>
-                <Trash2 className="h-4 w-4" />
+              <Button variant="ghost" onClick={handleDelete} className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">
+                <Trash2 className="w-4 h-4" />
               </Button>
             </div>
-          }
-        />
-
-        {/* Two-column layout */}
-        <div className="grid gap-[var(--bb-space-6,1.5rem)] lg:grid-cols-12">
-          {/* Left column: Main profile & core info */}
-          <div className="lg:col-span-8 space-y-[var(--bb-space-6,1.5rem)]">
-            {/* Owner Profile Card */}
-            <Card className="p-[var(--bb-space-6,1.5rem)]">
-              <div className="flex items-start gap-[var(--bb-space-4,1rem)]">
-                <div
-                  className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full"
-                  style={{
-                    backgroundColor: 'var(--bb-color-purple-soft)',
-                    color: 'var(--bb-color-purple)',
-                  }}
-                >
-                  <UsersIcon className="h-8 w-8" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h2
-                    className="text-[var(--bb-font-size-xl,1.5rem)] font-[var(--bb-font-weight-semibold,600)]"
-                    style={{ color: 'var(--bb-color-text-primary)' }}
-                  >
-                    {fullName}
-                  </h2>
-                  {owner.email && (
-                    <p
-                      className="text-[var(--bb-font-size-sm,0.875rem)] mt-[var(--bb-space-1,0.25rem)]"
-                      style={{ color: 'var(--bb-color-text-muted)' }}
-                    >
-                      {owner.email}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-[var(--bb-space-2,0.5rem)] mt-[var(--bb-space-2,0.5rem)]">
-                    <Badge variant={bookings.length > 0 ? 'success' : 'neutral'}>
-                      {bookings.length > 0 ? 'Active Client' : 'New Client'}
-                    </Badge>
-                    <span
-                      className="text-[var(--bb-font-size-sm,0.875rem)]"
-                      style={{ color: 'var(--bb-color-text-muted)' }}
-                    >
-                      {pets.length} {pets.length === 1 ? 'pet' : 'pets'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Contact Info Grid */}
-              <div className="mt-[var(--bb-space-6,1.5rem)] grid gap-[var(--bb-space-4,1rem)] sm:grid-cols-2">
-                <InfoItem label="Email" value={owner.email || '—'} icon={Mail} />
-                <InfoItem label="Phone" value={owner.phone || '—'} icon={Phone} />
-                {ownerAddress && (
-                  <div className="sm:col-span-2">
-                    <InfoItem label="Address" value={ownerAddress} />
-                  </div>
-                )}
-              </div>
-            </Card>
-
-            {/* Tab Navigation */}
-            <Card className="p-0">
-              <nav
-                className="flex border-b px-[var(--bb-space-4,1rem)]"
-                style={{ borderColor: 'var(--bb-color-border-subtle)' }}
-              >
-                {tabs.map(tab => {
-                  const Icon = tab.icon;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={cn(
-                        "flex items-center gap-[var(--bb-space-2,0.5rem)] px-[var(--bb-space-4,1rem)] py-[var(--bb-space-3,0.75rem)] border-b-2 text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] transition-colors -mb-px",
-                        activeTab === tab.id
-                          ? "border-[color:var(--bb-color-accent)] text-[color:var(--bb-color-accent)]"
-                          : "border-transparent text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)] hover:border-[color:var(--bb-color-border-strong)]"
-                      )}
-                    >
-                      <Icon className="w-4 h-4" />
-                      {tab.label}
-                    </button>
-                  );
-                })}
-              </nav>
-
-              {/* Tab Content */}
-              <div className="p-[var(--bb-space-6,1.5rem)]">
-                {activeTab === 'overview' && (
-                  <OverviewTab owner={owner} bookings={bookings} lifetimeValue={lifetimeValue} />
-                )}
-                {activeTab === 'pets' && (
-                  <PetsTab
-                    pets={pets}
-                    onAddPet={() => setAddPetModalOpen(true)}
-                    onRemovePet={handleRemovePet}
-                    navigate={navigate}
-                  />
-                )}
-                {activeTab === 'bookings' && <BookingsTab bookings={bookings} ownerId={ownerId} navigate={navigate} onRefresh={() => ownerQuery.refetch()} />}
-                {activeTab === 'payments' && <PaymentsTab payments={payments} ownerId={ownerId} navigate={navigate} onRefresh={() => ownerQuery.refetch()} />}
-              </div>
-            </Card>
           </div>
+        </div>
 
-          {/* Right column: Status + quick actions + secondary info */}
-          <div className="lg:col-span-4 space-y-[var(--bb-space-6,1.5rem)]">
-            {/* Key Metrics Card */}
-            <Card className="p-[var(--bb-space-6,1.5rem)]">
-              <h3
-                className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)] uppercase tracking-wide mb-[var(--bb-space-4,1rem)]"
-                style={{ color: 'var(--bb-color-text-muted)' }}
-              >
-                Account Summary
-              </h3>
-              <div className="space-y-[var(--bb-space-3,0.75rem)]">
-                <MetricItem label="Total Bookings" value={bookings.length} />
-                <MetricItem label="Lifetime Value" value={formatCurrency(lifetimeValue)} />
-                <MetricItem
-                  label="Last Booking"
-                  value={
-                    bookings[0]
-                      ? new Date(bookings[0].checkIn).toLocaleDateString()
-                      : 'Never'
-                  }
-                />
-                <MetricItem
-                  label="Avg. Booking Value"
-                  value={
-                    bookings.length > 0
-                      ? formatCurrency(lifetimeValue / bookings.length)
-                      : '$0.00'
-                  }
-                />
+        {/* 3-Column Layout */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Left Sidebar - Property Cards */}
+          <aside
+            className="w-64 flex-shrink-0 border-r overflow-y-auto p-4 space-y-4"
+            style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+          >
+            {/* About this Owner */}
+            <PropertyCard title="About" icon={UsersIcon} storageKey={`owner_${ownerId}_about`}>
+              <PropertyList
+                properties={[
+                  { label: 'Name', value: fullName },
+                  { label: 'Email', value: owner.email, type: 'email' },
+                  { label: 'Phone', value: owner.phone, type: 'phone' },
+                  { label: 'Status', value: ownerStatus, type: 'badge', variant: ownerStatusVariant },
+                  { label: 'Created', value: safeFormatDate(owner.createdAt), type: 'date' },
+                ]}
+              />
+            </PropertyCard>
+
+            {/* Address */}
+            <PropertyCard title="Address" icon={MapPin} storageKey={`owner_${ownerId}_address`} defaultOpen={hasAddress}>
+              <PropertyList
+                properties={[
+                  { label: 'Street', value: owner.address?.street },
+                  { label: 'City', value: owner.address?.city },
+                  { label: 'State', value: owner.address?.state },
+                  { label: 'ZIP Code', value: owner.address?.zip },
+                  { label: 'Country', value: owner.address?.country },
+                ]}
+              />
+            </PropertyCard>
+
+            {/* Emergency Contact */}
+            <PropertyCard
+              title="Emergency Contact"
+              icon={AlertCircle}
+              storageKey={`owner_${ownerId}_emergency`}
+              defaultOpen={!!(owner.emergencyContactName || owner.emergencyContactPhone)}
+            >
+              <PropertyList
+                properties={[
+                  { label: 'Contact Name', value: owner.emergencyContactName },
+                  { label: 'Contact Phone', value: owner.emergencyContactPhone, type: 'phone' },
+                ]}
+              />
+            </PropertyCard>
+
+            {/* Preferences */}
+            <PropertyCard title="Preferences" icon={MessageSquare} storageKey={`owner_${ownerId}_preferences`} defaultOpen={!!owner.notes}>
+              <PropertyList
+                properties={[
+                  { label: 'Contact Method', value: owner.preferredContactMethod },
+                  { label: 'Notes', value: owner.notes },
+                ]}
+              />
+            </PropertyCard>
+
+            {/* Account */}
+            <PropertyCard title="Account" icon={CreditCard} storageKey={`owner_${ownerId}_account`}>
+              <PropertyList
+                properties={[
+                  { label: 'Lifetime Value', value: lifetimeValue, type: 'currency' },
+                  { label: 'Total Bookings', value: bookings.length },
+                  { label: 'Payment on File', value: owner.hasPaymentMethod ? 'Yes' : 'No' },
+                ]}
+              />
+            </PropertyCard>
+          </aside>
+
+          {/* Middle - Stats + Tabs */}
+          <main className="flex-1 overflow-y-auto">
+            {/* Stats Bar */}
+            <div className="px-6 py-4 border-b grid grid-cols-4 gap-4" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+              <StatItem label="Total Bookings" value={bookings.length} />
+              <StatItem label="Lifetime Value" value={formatCurrency(lifetimeValue)} />
+              <StatItem label="Active Pets" value={pets.length} />
+              <StatItem
+                label="Last Activity"
+                value={safeFormatDistance(bookings[0]?.checkIn) || 'Never'}
+              />
+            </div>
+
+            {/* Tabs */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
+              <div className="border-b px-6" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+                <TabsList className="h-12 bg-transparent">
+                  <TabsTrigger value="overview" className="flex items-center gap-2">
+                    <Activity className="w-4 h-4" />
+                    Overview
+                  </TabsTrigger>
+                  <TabsTrigger value="activity" className="flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    Activity
+                  </TabsTrigger>
+                  <TabsTrigger value="bookings" className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    Bookings
+                  </TabsTrigger>
+                  <TabsTrigger value="billing" className="flex items-center gap-2">
+                    <DollarSign className="w-4 h-4" />
+                    Billing
+                  </TabsTrigger>
+                </TabsList>
               </div>
-            </Card>
 
-            {/* Pets Card */}
-            <Card className="p-[var(--bb-space-6,1.5rem)]">
-              <div className="flex items-center justify-between mb-[var(--bb-space-4,1rem)]">
-                <h3
-                  className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)] uppercase tracking-wide"
-                  style={{ color: 'var(--bb-color-text-muted)' }}
-                >
-                  Pets ({pets.length})
-                </h3>
-                <Button size="xs" variant="ghost" onClick={() => setAddPetModalOpen(true)}>
-                  <Plus className="h-4 w-4" />
-                </Button>
+              <div className="p-6">
+                <TabsContent value="overview" className="mt-0">
+                  <OverviewTab owner={owner} bookings={bookings} pets={pets} lifetimeValue={lifetimeValue} />
+                </TabsContent>
+
+                <TabsContent value="activity" className="mt-0">
+                  <ActivityTab owner={owner} bookings={bookings} />
+                </TabsContent>
+
+                <TabsContent value="bookings" className="mt-0">
+                  <BookingsTab bookings={bookings} ownerId={ownerId} navigate={navigate} onRefresh={() => ownerQuery.refetch()} />
+                </TabsContent>
+
+                <TabsContent value="billing" className="mt-0">
+                  <BillingTab payments={payments} invoices={invoices} ownerId={ownerId} navigate={navigate} onRefresh={() => ownerQuery.refetch()} />
+                </TabsContent>
               </div>
-              {pets.length === 0 ? (
-                <p
-                  className="text-[var(--bb-font-size-sm,0.875rem)]"
-                  style={{ color: 'var(--bb-color-text-muted)' }}
-                >
-                  No pets yet
-                </p>
-              ) : (
-                <div className="space-y-[var(--bb-space-2,0.5rem)]">
-                  {pets.slice(0, 3).map((pet) => (
-                    <button
-                      key={pet.recordId}
-                      onClick={() => navigate(`/pets/${pet.recordId}`)}
-                      className="w-full flex items-center gap-[var(--bb-space-3,0.75rem)] p-[var(--bb-space-2,0.5rem)] rounded-lg transition-colors text-left"
-                      style={{
-                        backgroundColor: 'transparent',
-                      }}
-                    >
-                      <div
-                        className="flex h-8 w-8 items-center justify-center rounded-full"
-                        style={{
-                          backgroundColor: 'var(--bb-color-accent-soft)',
-                          color: 'var(--bb-color-accent)',
-                        }}
-                      >
-                        <PawPrint className="h-4 w-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p
-                          className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] truncate"
-                          style={{ color: 'var(--bb-color-text-primary)' }}
-                        >
-                          {pet.name}
-                        </p>
-                        <p
-                          className="text-[var(--bb-font-size-xs,0.75rem)] truncate"
-                          style={{ color: 'var(--bb-color-text-muted)' }}
-                        >
-                          {pet.breed || 'Unknown breed'}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
-                  {pets.length > 3 && (
-                    <button
-                      onClick={() => setActiveTab('pets')}
-                      className="w-full text-[var(--bb-font-size-sm,0.875rem)] py-[var(--bb-space-2,0.5rem)]"
-                      style={{ color: 'var(--bb-color-accent)' }}
-                    >
-                      View all {pets.length} pets →
-                    </button>
-                  )}
-                </div>
-              )}
-            </Card>
+            </Tabs>
+          </main>
 
-            {/* Quick Actions Card */}
-            <Card className="p-[var(--bb-space-6,1.5rem)]">
+          {/* Right Sidebar - Associations */}
+          <aside
+            className="w-72 flex-shrink-0 border-l overflow-y-auto p-4 space-y-4"
+            style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+          >
+            {/* Pets */}
+            <AssociationCard
+              title="Pets"
+              type="pet"
+              count={pets.length}
+              onAdd={() => setAddPetModalOpen(true)}
+              emptyMessage="No pets yet"
+            >
+              {pets.slice(0, 5).map((pet) => (
+                <AssociationItem
+                  key={pet.recordId}
+                  name={pet.name}
+                  subtitle={pet.breed || pet.species || 'Pet'}
+                  href={`/pets/${pet.recordId}`}
+                  type="pet"
+                  avatar={pet.profileImage}
+                />
+              ))}
+            </AssociationCard>
+
+            {/* Bookings */}
+            <AssociationCard
+              title="Bookings"
+              type="booking"
+              count={bookings.length}
+              onAdd={() => navigate(`/bookings?action=new&ownerId=${ownerId}`)}
+              viewAllLink={`/bookings?ownerId=${ownerId}`}
+              emptyMessage="No bookings yet"
+            >
+              {bookings.slice(0, 5).map((booking) => (
+                <AssociationItem
+                  key={booking.recordId}
+                  name={`${safeFormatDate(booking.checkIn, 'MMM d')} - ${safeFormatDate(booking.checkOut, 'MMM d')}`}
+                  subtitle={booking.pet?.name || 'Booking'}
+                  href={`/bookings/${booking.recordId}`}
+                  type="booking"
+                  status={booking.status?.replace(/_/g, ' ')}
+                  statusVariant={getStatusVariant(booking.status)}
+                />
+              ))}
+            </AssociationCard>
+
+            {/* Invoices */}
+            <AssociationCard
+              title="Invoices"
+              type="invoice"
+              count={invoices?.length || 0}
+              onAdd={() => navigate(`/invoices?action=new&ownerId=${ownerId}`)}
+              viewAllLink={`/invoices?ownerId=${ownerId}`}
+              showAdd={true}
+              emptyMessage="No invoices yet"
+            >
+              {(invoices || []).slice(0, 3).map((invoice) => (
+                <AssociationItem
+                  key={invoice.recordId}
+                  name={`Invoice #${invoice.invoiceNumber || invoice.recordId?.slice(0, 8)}`}
+                  subtitle={formatCurrency(invoice.totalCents || 0)}
+                  href={`/invoices/${invoice.recordId}`}
+                  type="invoice"
+                  status={invoice.status}
+                  statusVariant={invoice.status === 'paid' ? 'success' : invoice.status === 'overdue' ? 'danger' : 'warning'}
+                />
+              ))}
+            </AssociationCard>
+
+            {/* Segments */}
+            <AssociationCard
+              title="Segments"
+              type="segment"
+              count={owner.segments?.length || 0}
+              showAdd={false}
+              emptyMessage="No segments"
+            >
+              {(owner.segments || []).map((segment) => (
+                <AssociationItem
+                  key={segment.id || segment.name}
+                  name={segment.name || segment}
+                  type="segment"
+                />
+              ))}
+            </AssociationCard>
+
+            {/* Quick Actions */}
+            <Card className="p-4">
               <h3
-                className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)] uppercase tracking-wide mb-[var(--bb-space-4,1rem)]"
+                className="text-sm font-semibold uppercase tracking-wide mb-3"
                 style={{ color: 'var(--bb-color-text-muted)' }}
               >
                 Quick Actions
               </h3>
-              <div className="space-y-[var(--bb-space-2,0.5rem)]">
+              <div className="space-y-2">
                 {owner.phone && (
                   <Button
                     variant="outline"
+                    size="sm"
                     className="w-full justify-start"
                     onClick={() => window.open(`tel:${owner.phone}`)}
                   >
-                    <Phone className="w-4 h-4 mr-[var(--bb-space-2,0.5rem)]" />
+                    <Phone className="w-4 h-4 mr-2" />
                     Call
                   </Button>
                 )}
-
                 {owner.email && (
                   <Button
                     variant="outline"
+                    size="sm"
                     className="w-full justify-start"
                     onClick={() => window.open(`mailto:${owner.email}`)}
                   >
-                    <Mail className="w-4 h-4 mr-[var(--bb-space-2,0.5rem)]" />
+                    <Mail className="w-4 h-4 mr-2" />
                     Email
                   </Button>
                 )}
-
                 <Button
                   variant="outline"
+                  size="sm"
                   className="w-full justify-start"
                   onClick={() => navigate('/bookings?action=new')}
                 >
-                  <Calendar className="w-4 h-4 mr-[var(--bb-space-2,0.5rem)]" />
+                  <Calendar className="w-4 h-4 mr-2" />
                   New Booking
                 </Button>
-
                 <Button
                   variant="outline"
+                  size="sm"
                   className="w-full justify-start"
                   onClick={() => setAddPetModalOpen(true)}
                 >
-                  <PawPrint className="w-4 h-4 mr-[var(--bb-space-2,0.5rem)]" />
+                  <PawPrint className="w-4 h-4 mr-2" />
                   Add Pet
                 </Button>
               </div>
             </Card>
-
-            {/* Notes Card */}
-            {owner.notes && (
-              <Card className="p-[var(--bb-space-6,1.5rem)]">
-                <h3
-                  className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)] uppercase tracking-wide mb-[var(--bb-space-4,1rem)]"
-                  style={{ color: 'var(--bb-color-text-muted)' }}
-                >
-                  Notes
-                </h3>
-                <p
-                  className="text-[var(--bb-font-size-sm,0.875rem)]"
-                  style={{ color: 'var(--bb-color-text-primary)' }}
-                >
-                  {owner.notes}
-                </p>
-              </Card>
-            )}
-          </div>
+          </aside>
         </div>
       </div>
 
@@ -528,24 +594,18 @@ const OwnerDetail = () => {
         formatRecordDisplay={(pet) => `${pet.name}${pet.breed ? ` (${pet.breed})` : ''}`}
         isLoading={addPetMutation.isPending || createPetMutation.isPending || petsQuery.isLoading}
         createForm={
-          <div className="space-y-[var(--bb-space-4,1rem)]">
-            <p
-              className="text-[var(--bb-font-size-sm,0.875rem)]"
-              style={{ color: 'var(--bb-color-text-muted)' }}
-            >
+          <div className="space-y-4">
+            <p className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
               Create a new pet and automatically associate it with {fullName}.
             </p>
             <div>
-              <label
-                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] mb-[var(--bb-space-1,0.25rem)]"
-                style={{ color: 'var(--bb-color-text-primary)' }}
-              >
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--bb-color-text-primary)' }}>
                 Pet Name <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
               </label>
               <input
                 type="text"
                 id="petName"
-                className="w-full rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)] focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
+                className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
                 style={{
                   borderColor: 'var(--bb-color-border-subtle)',
                   backgroundColor: 'var(--bb-color-bg-surface)',
@@ -555,16 +615,13 @@ const OwnerDetail = () => {
               />
             </div>
             <div>
-              <label
-                className="block text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] mb-[var(--bb-space-1,0.25rem)]"
-                style={{ color: 'var(--bb-color-text-primary)' }}
-              >
+              <label className="block text-sm font-medium mb-1" style={{ color: 'var(--bb-color-text-primary)' }}>
                 Breed
               </label>
               <input
                 type="text"
                 id="petBreed"
-                className="w-full rounded-md border px-[var(--bb-space-3,0.75rem)] py-[var(--bb-space-2,0.5rem)] text-[var(--bb-font-size-sm,0.875rem)] focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
+                className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--bb-color-accent)]"
                 style={{
                   borderColor: 'var(--bb-color-border-subtle)',
                   backgroundColor: 'var(--bb-color-bg-surface)',
@@ -609,76 +666,59 @@ const OwnerDetail = () => {
 
 // Helper Components
 
-function InfoItem({ label, value, icon: Icon }) {
+function StatItem({ label, value }) {
   return (
-    <div className="flex items-start gap-[var(--bb-space-3,0.75rem)]">
-      {Icon && (
-        <Icon className="h-5 w-5 mt-0.5" style={{ color: 'var(--bb-color-text-muted)' }} />
-      )}
-      <div>
-        <p
-          className="text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide mb-[var(--bb-space-1,0.25rem)]"
-          style={{ color: 'var(--bb-color-text-muted)' }}
-        >
-          {label}
-        </p>
-        <p
-          className="text-[var(--bb-font-size-sm,0.875rem)]"
-          style={{ color: 'var(--bb-color-text-primary)' }}
-        >
-          {value}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function MetricItem({ label, value }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span
-        className="text-[var(--bb-font-size-sm,0.875rem)]"
+    <div>
+      <p
+        className="text-xs font-medium uppercase tracking-wide mb-0.5"
         style={{ color: 'var(--bb-color-text-muted)' }}
       >
         {label}
-      </span>
-      <span
-        className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)]"
+      </p>
+      <p
+        className="text-lg font-semibold"
         style={{ color: 'var(--bb-color-text-primary)' }}
       >
         {value}
-      </span>
+      </p>
     </div>
   );
 }
 
-// TAB COMPONENTS
+function getStatusVariant(status) {
+  const statusMap = {
+    PENDING: 'warning',
+    CONFIRMED: 'info',
+    CHECKED_IN: 'success',
+    CHECKED_OUT: 'neutral',
+    CANCELLED: 'danger',
+    COMPLETED: 'success',
+  };
+  return statusMap[status?.toUpperCase()] || 'neutral';
+}
 
-function OverviewTab({ owner, bookings, lifetimeValue }) {
+// Tab Components
+
+function OverviewTab({ owner, bookings, pets, lifetimeValue }) {
   const recentActivity = bookings.slice(0, 5);
 
   return (
-    <div className="space-y-[var(--bb-space-6,1.5rem)]">
-      <div>
-        <h3
-          className="text-[var(--bb-font-size-md,1.125rem)] font-[var(--bb-font-weight-semibold,600)] mb-[var(--bb-space-4,1rem)]"
-          style={{ color: 'var(--bb-color-text-primary)' }}
-        >
+    <div className="space-y-8">
+      {/* Recent Activity */}
+      <section>
+        <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--bb-color-text-primary)' }}>
           Recent Activity
         </h3>
         {recentActivity.length === 0 ? (
-          <p
-            className="text-[var(--bb-font-size-sm,0.875rem)]"
-            style={{ color: 'var(--bb-color-text-muted)' }}
-          >
+          <p className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
             No activity yet
           </p>
         ) : (
-          <div className="space-y-[var(--bb-space-3,0.75rem)]">
+          <div className="space-y-3">
             {recentActivity.map((booking) => (
               <div
                 key={booking.recordId}
-                className="flex items-center gap-[var(--bb-space-4,1rem)] p-[var(--bb-space-3,0.75rem)] rounded-lg border"
+                className="flex items-center gap-4 p-3 rounded-lg border"
                 style={{ borderColor: 'var(--bb-color-border-subtle)' }}
               >
                 <div
@@ -691,17 +731,11 @@ function OverviewTab({ owner, bookings, lifetimeValue }) {
                   <Calendar className="h-4 w-4" />
                 </div>
                 <div className="flex-1">
-                  <p
-                    className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
-                    style={{ color: 'var(--bb-color-text-primary)' }}
-                  >
-                    Booking #{booking.id?.slice(0, 8) || booking.recordId?.slice(0, 8)}
+                  <p className="text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+                    Booking {booking.pet?.name ? `for ${booking.pet.name}` : `#${booking.recordId?.slice(0, 8)}`}
                   </p>
-                  <p
-                    className="text-[var(--bb-font-size-xs,0.75rem)]"
-                    style={{ color: 'var(--bb-color-text-muted)' }}
-                  >
-                    {new Date(booking.checkIn).toLocaleDateString()} – {new Date(booking.checkOut).toLocaleDateString()}
+                  <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
+                    {safeFormatDate(booking.checkIn)} - {safeFormatDate(booking.checkOut)}
                   </p>
                 </div>
                 <StatusPill status={booking.status} />
@@ -709,117 +743,108 @@ function OverviewTab({ owner, bookings, lifetimeValue }) {
             ))}
           </div>
         )}
-      </div>
+      </section>
 
       {/* Account Created Info */}
-      <div className="grid gap-[var(--bb-space-4,1rem)] sm:grid-cols-2">
-        <div
-          className="p-[var(--bb-space-4,1rem)] rounded-lg"
-          style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
-        >
-          <p
-            className="text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide mb-[var(--bb-space-1,0.25rem)]"
-            style={{ color: 'var(--bb-color-text-muted)' }}
-          >
-            Created
-          </p>
-          <p
-            className="text-[var(--bb-font-size-sm,0.875rem)]"
-            style={{ color: 'var(--bb-color-text-primary)' }}
-          >
-            {owner.createdAt ? new Date(owner.createdAt).toLocaleDateString() : '—'}
-          </p>
+      <section>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+            <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--bb-color-text-muted)' }}>
+              Customer Since
+            </p>
+            <p className="text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>
+              {safeFormatDate(owner.createdAt) || 'Unknown'}
+            </p>
+          </div>
+          <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
+            <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--bb-color-text-muted)' }}>
+              Last Updated
+            </p>
+            <p className="text-sm" style={{ color: 'var(--bb-color-text-primary)' }}>
+              {safeFormatDate(owner.updatedAt) || 'Unknown'}
+            </p>
+          </div>
         </div>
-        <div
-          className="p-[var(--bb-space-4,1rem)] rounded-lg"
-          style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}
-        >
-          <p
-            className="text-[var(--bb-font-size-xs,0.75rem)] font-[var(--bb-font-weight-medium,500)] uppercase tracking-wide mb-[var(--bb-space-1,0.25rem)]"
-            style={{ color: 'var(--bb-color-text-muted)' }}
-          >
-            Last Updated
-          </p>
-          <p
-            className="text-[var(--bb-font-size-sm,0.875rem)]"
-            style={{ color: 'var(--bb-color-text-primary)' }}
-          >
-            {owner.updatedAt ? new Date(owner.updatedAt).toLocaleDateString() : '—'}
-          </p>
-        </div>
-      </div>
+      </section>
     </div>
   );
 }
 
-function PetsTab({ pets, onAddPet, onRemovePet, navigate }) {
+function ActivityTab({ owner, bookings }) {
+  // Combine various activities into a timeline
+  const activities = useMemo(() => {
+    const items = [];
+
+    // Add bookings as activities
+    bookings.forEach((booking) => {
+      items.push({
+        id: `booking_${booking.recordId}`,
+        type: 'booking',
+        title: `Booking ${booking.status === 'CHECKED_IN' ? 'checked in' : booking.status === 'CHECKED_OUT' ? 'completed' : 'created'}`,
+        description: booking.pet?.name ? `${booking.pet.name} - ${safeFormatDate(booking.checkIn)} to ${safeFormatDate(booking.checkOut)}` : `${safeFormatDate(booking.checkIn)} to ${safeFormatDate(booking.checkOut)}`,
+        timestamp: booking.updatedAt || booking.createdAt,
+        icon: Calendar,
+      });
+    });
+
+    // Sort by timestamp descending
+    items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    return items;
+  }, [bookings]);
+
   return (
-    <div className="space-y-[var(--bb-space-6,1.5rem)]">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3
-          className="text-[var(--bb-font-size-md,1.125rem)] font-[var(--bb-font-weight-semibold,600)]"
-          style={{ color: 'var(--bb-color-text-primary)' }}
-        >
-          Pets ({pets.length})
+        <h3 className="text-lg font-semibold" style={{ color: 'var(--bb-color-text-primary)' }}>
+          Activity Timeline
         </h3>
-        <Button size="sm" onClick={onAddPet}>
-          <Plus className="h-4 w-4 mr-[var(--bb-space-2,0.5rem)]" />
-          Add Pet
+        <Button variant="outline" size="sm">
+          <Plus className="w-4 h-4 mr-2" />
+          Log Activity
         </Button>
       </div>
 
-      {pets.length === 0 ? (
-        <p
-          className="text-[var(--bb-font-size-sm,0.875rem)] text-center py-[var(--bb-space-8,2rem)]"
-          style={{ color: 'var(--bb-color-text-muted)' }}
-        >
-          No pets yet
-        </p>
+      {activities.length === 0 ? (
+        <div className="text-center py-12 rounded-lg border-2 border-dashed" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+          <Clock className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--bb-color-text-muted)' }} />
+          <p className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
+            No activity recorded yet
+          </p>
+        </div>
       ) : (
-        <div className="space-y-[var(--bb-space-2,0.5rem)]">
-          {pets.map((pet) => (
-            <div
-              key={pet.recordId}
-              className="flex items-center gap-[var(--bb-space-3,0.75rem)] p-[var(--bb-space-3,0.75rem)] rounded-lg border transition-colors"
-              style={{ borderColor: 'var(--bb-color-border-subtle)' }}
-            >
+        <div className="space-y-3">
+          {activities.map((activity) => {
+            const Icon = activity.icon;
+            return (
               <div
-                className="flex h-10 w-10 items-center justify-center rounded-full cursor-pointer"
-                style={{
-                  backgroundColor: 'var(--bb-color-accent-soft)',
-                  color: 'var(--bb-color-accent)',
-                }}
-                onClick={() => navigate(`/pets/${pet.recordId}`)}
+                key={activity.id}
+                className="flex items-start gap-3 p-3 rounded-lg border"
+                style={{ borderColor: 'var(--bb-color-border-subtle)' }}
               >
-                <PawPrint className="h-5 w-5" />
-              </div>
-              <div
-                className="flex-1 min-w-0 cursor-pointer"
-                onClick={() => navigate(`/pets/${pet.recordId}`)}
-              >
-                <p
-                  className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)]"
-                  style={{ color: 'var(--bb-color-text-primary)' }}
+                <div
+                  className="flex h-8 w-8 items-center justify-center rounded-full flex-shrink-0"
+                  style={{
+                    backgroundColor: 'var(--bb-color-bg-elevated)',
+                    color: 'var(--bb-color-text-muted)',
+                  }}
                 >
-                  {pet.name}
-                </p>
-                <p
-                  className="text-[var(--bb-font-size-xs,0.75rem)]"
-                  style={{ color: 'var(--bb-color-text-muted)' }}
-                >
-                  {pet.breed || 'Unknown breed'}
-                </p>
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+                    {activity.title}
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--bb-color-text-muted)' }}>
+                    {activity.description}
+                  </p>
+                </div>
+                <span className="text-xs flex-shrink-0" style={{ color: 'var(--bb-color-text-muted)' }}>
+                  {safeFormatDistance(activity.timestamp)}
+                </span>
               </div>
-              <button
-                onClick={() => onRemovePet(pet)}
-                className="rounded-full p-[var(--bb-space-2,0.5rem)] transition-colors"
-                style={{ color: 'var(--bb-color-text-muted)' }}
-                title="Remove pet"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -829,12 +854,9 @@ function PetsTab({ pets, onAddPet, onRemovePet, navigate }) {
 function BookingsTab({ bookings, ownerId, navigate, onRefresh }) {
   const checkInMutation = useBookingCheckInMutation();
   const checkOutMutation = useBookingCheckOutMutation();
-  // For cancellation, we'll use a dedicated state since useUpdateBookingMutation needs bookingId
-  const [cancellingBookingId, setCancellingBookingId] = useState(null);
   const [actionDropdownOpen, setActionDropdownOpen] = useState(null);
   const dropdownRef = useRef(null);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -877,7 +899,6 @@ function BookingsTab({ bookings, ownerId, navigate, onRefresh }) {
         }
         break;
       case 'cancel':
-        // Navigate to booking with cancel action - cancellation should be confirmed in booking detail
         navigate(`/bookings/${bookingId}?action=cancel`);
         break;
       case 'rebook':
@@ -922,29 +943,26 @@ function BookingsTab({ bookings, ownerId, navigate, onRefresh }) {
   };
 
   return (
-    <div className="space-y-[var(--bb-space-6,1.5rem)]">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3
-          className="text-[var(--bb-font-size-md,1.125rem)] font-[var(--bb-font-weight-semibold,600)]"
-          style={{ color: 'var(--bb-color-text-primary)' }}
-        >
+        <h3 className="text-lg font-semibold" style={{ color: 'var(--bb-color-text-primary)' }}>
           All Bookings ({bookings.length})
         </h3>
         <Button size="sm" onClick={() => navigate(`/bookings?action=new&ownerId=${ownerId}`)}>
-          <Plus className="h-4 w-4 mr-[var(--bb-space-2,0.5rem)]" />
+          <Plus className="h-4 w-4 mr-2" />
           New Booking
         </Button>
       </div>
 
       {bookings.length === 0 ? (
-        <p
-          className="text-[var(--bb-font-size-sm,0.875rem)] text-center py-[var(--bb-space-8,2rem)]"
-          style={{ color: 'var(--bb-color-text-muted)' }}
-        >
-          No bookings yet
-        </p>
+        <div className="text-center py-12 rounded-lg border-2 border-dashed" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+          <Calendar className="w-12 h-12 mx-auto mb-3" style={{ color: 'var(--bb-color-text-muted)' }} />
+          <p className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
+            No bookings yet
+          </p>
+        </div>
       ) : (
-        <div className="space-y-[var(--bb-space-3,0.75rem)]">
+        <div className="space-y-3">
           {bookings.map((booking) => {
             const bookingId = booking.recordId || booking.id;
             const actions = getActionsForStatus(booking.status);
@@ -953,36 +971,28 @@ function BookingsTab({ bookings, ownerId, navigate, onRefresh }) {
             return (
               <div
                 key={bookingId}
-                className="group flex items-center justify-between p-[var(--bb-space-4,1rem)] rounded-lg border transition-all hover:shadow-sm"
+                className="group flex items-center justify-between p-4 rounded-lg border transition-all hover:shadow-sm"
                 style={{ borderColor: 'var(--bb-color-border-subtle)' }}
               >
                 <div
                   className="flex-1 cursor-pointer"
                   onClick={() => navigate(`/bookings/${bookingId}`)}
                 >
-                  <p
-                    className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-medium,500)] hover:text-[color:var(--bb-color-accent)] transition-colors"
-                    style={{ color: 'var(--bb-color-text-primary)' }}
-                  >
+                  <p className="text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
                     Booking #{bookingId?.slice(0, 8)}
                   </p>
-                  <p
-                    className="text-[var(--bb-font-size-sm,0.875rem)]"
-                    style={{ color: 'var(--bb-color-text-muted)' }}
-                  >
-                    {new Date(booking.checkIn).toLocaleDateString()} – {new Date(booking.checkOut).toLocaleDateString()}
+                  <p className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
+                    {safeFormatDate(booking.checkIn)} - {safeFormatDate(booking.checkOut)}
                   </p>
                   {booking.pet?.name && (
-                    <p className="text-[var(--bb-font-size-xs,0.75rem)] mt-1 flex items-center gap-1" style={{ color: 'var(--bb-color-text-muted)' }}>
+                    <p className="text-xs mt-1 flex items-center gap-1" style={{ color: 'var(--bb-color-text-muted)' }}>
                       <PawPrint className="h-3 w-3" />
                       {booking.pet.name}
                     </p>
                   )}
                 </div>
-                <div className="flex items-center gap-[var(--bb-space-3,0.75rem)]">
+                <div className="flex items-center gap-3">
                   <StatusPill status={booking.status} />
-
-                  {/* Action Dropdown */}
                   <div className="relative" ref={isDropdownOpen ? dropdownRef : null}>
                     <button
                       onClick={(e) => {
@@ -994,10 +1004,9 @@ function BookingsTab({ bookings, ownerId, navigate, onRefresh }) {
                     >
                       <MoreHorizontal className="h-4 w-4" />
                     </button>
-
                     {isDropdownOpen && (
                       <div
-                        className="absolute right-0 top-full mt-1 z-50 w-44 rounded-lg border shadow-lg py-1 animate-in fade-in-0 zoom-in-95 duration-150"
+                        className="absolute right-0 top-full mt-1 z-50 w-44 rounded-lg border shadow-lg py-1"
                         style={{
                           backgroundColor: 'var(--bb-color-bg-surface)',
                           borderColor: 'var(--bb-color-border-subtle)',
@@ -1039,197 +1048,93 @@ function BookingsTab({ bookings, ownerId, navigate, onRefresh }) {
   );
 }
 
-function PaymentsTab({ payments, ownerId, navigate, onRefresh }) {
+function BillingTab({ payments, invoices, ownerId, navigate, onRefresh }) {
   const sendInvoiceEmailMutation = useSendInvoiceEmailMutation();
-  const [actionDropdownOpen, setActionDropdownOpen] = useState(null);
-  const dropdownRef = useRef(null);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setActionDropdownOpen(null);
-      }
-    };
-    if (actionDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [actionDropdownOpen]);
-
-  const handleAction = async (action, payment) => {
-    const paymentId = payment.recordId || payment.id;
-    const invoiceId = payment.invoiceId;
-    setActionDropdownOpen(null);
-
-    switch (action) {
-      case 'viewInvoice':
-        if (invoiceId) {
-          navigate(`/invoices?selected=${invoiceId}`);
-        } else {
-          toast.error('No invoice associated with this payment');
-        }
-        break;
-      case 'sendReceipt':
-        if (invoiceId) {
-          try {
-            await sendInvoiceEmailMutation.mutateAsync(invoiceId);
-            toast.success('Receipt sent');
-          } catch (error) {
-            toast.error(error?.message || 'Failed to send receipt');
-          }
-        } else {
-          toast.error('No invoice associated with this payment');
-        }
-        break;
-      case 'refund':
-        toast.info('Refund functionality - open payment details for more options');
-        // Could navigate to a refund flow
-        break;
-      default:
-        break;
-    }
-  };
-
-  const getActionsForStatus = (status, hasInvoice) => {
-    const normalizedStatus = (status || '').toLowerCase();
-    const actions = [];
-
-    if (hasInvoice) {
-      actions.push({ action: 'viewInvoice', label: 'View Invoice', icon: Eye });
-    }
-
-    if (normalizedStatus === 'completed' || normalizedStatus === 'paid') {
-      actions.push({ action: 'sendReceipt', label: 'Send Receipt', icon: Receipt });
-      actions.push({ action: 'refund', label: 'Process Refund', icon: RefreshCw });
-    }
-
-    return actions.length > 0 ? actions : [{ action: 'viewInvoice', label: 'View Details', icon: Eye }];
-  };
 
   return (
-    <div className="space-y-[var(--bb-space-6,1.5rem)]">
-      <div className="flex items-center justify-between">
-        <h3
-          className="text-[var(--bb-font-size-md,1.125rem)] font-[var(--bb-font-weight-semibold,600)]"
-          style={{ color: 'var(--bb-color-text-primary)' }}
-        >
-          Payment History ({payments.length})
-        </h3>
-        <Button size="sm" onClick={() => navigate(`/invoices?action=new&ownerId=${ownerId}`)}>
-          <Plus className="h-4 w-4 mr-[var(--bb-space-2,0.5rem)]" />
-          Create Invoice
-        </Button>
-      </div>
-
-      {payments.length === 0 ? (
-        <div className="text-center py-[var(--bb-space-8,2rem)]">
-          <p
-            className="text-[var(--bb-font-size-sm,0.875rem)]"
-            style={{ color: 'var(--bb-color-text-muted)' }}
-          >
-            No payments yet
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-[var(--bb-space-4,1rem)]"
-            onClick={() => navigate(`/invoices?action=new&ownerId=${ownerId}`)}
-          >
-            <FileText className="h-4 w-4 mr-[var(--bb-space-2,0.5rem)]" />
-            Create First Invoice
+    <div className="space-y-8">
+      {/* Invoices Section */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold" style={{ color: 'var(--bb-color-text-primary)' }}>
+            Invoices ({invoices?.length || 0})
+          </h3>
+          <Button size="sm" onClick={() => navigate(`/invoices?action=new&ownerId=${ownerId}`)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Invoice
           </Button>
         </div>
-      ) : (
-        <div className="space-y-[var(--bb-space-3,0.75rem)]">
-          {payments.map((payment) => {
-            const paymentId = payment.recordId || payment.id;
-            const hasInvoice = !!payment.invoiceId;
-            const actions = getActionsForStatus(payment.status, hasInvoice);
-            const isDropdownOpen = actionDropdownOpen === paymentId;
 
-            return (
+        {(!invoices || invoices.length === 0) ? (
+          <div className="text-center py-8 rounded-lg border-2 border-dashed" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+            <FileText className="w-10 h-10 mx-auto mb-2" style={{ color: 'var(--bb-color-text-muted)' }} />
+            <p className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
+              No invoices yet
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {invoices.map((invoice) => (
               <div
-                key={paymentId}
-                className="group flex items-center justify-between p-[var(--bb-space-4,1rem)] rounded-lg border transition-all hover:shadow-sm"
+                key={invoice.recordId}
+                className="flex items-center justify-between p-3 rounded-lg border"
                 style={{ borderColor: 'var(--bb-color-border-subtle)' }}
               >
-                <div className="flex-1">
-                  <p
-                    className="text-[var(--bb-font-size-sm,0.875rem)] font-[var(--bb-font-weight-semibold,600)]"
-                    style={{ color: 'var(--bb-color-text-primary)' }}
-                  >
-                    {formatCurrency(payment.amountCents || 0)}
+                <div>
+                  <p className="text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+                    Invoice #{invoice.invoiceNumber || invoice.recordId?.slice(0, 8)}
                   </p>
-                  <p
-                    className="text-[var(--bb-font-size-sm,0.875rem)]"
-                    style={{ color: 'var(--bb-color-text-muted)' }}
-                  >
-                    {new Date(payment.createdAt).toLocaleDateString()}
+                  <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
+                    {safeFormatDate(invoice.createdAt)}
                   </p>
-                  {payment.invoiceNumber && (
-                    <p className="text-[var(--bb-font-size-xs,0.75rem)] mt-1 flex items-center gap-1" style={{ color: 'var(--bb-color-text-muted)' }}>
-                      <FileText className="h-3 w-3" />
-                      Invoice #{payment.invoiceNumber}
-                    </p>
-                  )}
                 </div>
-                <div className="flex items-center gap-[var(--bb-space-3,0.75rem)]">
-                  <StatusPill status={payment.status} />
-
-                  {/* Action Dropdown */}
-                  {actions.length > 0 && (
-                    <div className="relative" ref={isDropdownOpen ? dropdownRef : null}>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActionDropdownOpen(isDropdownOpen ? null : paymentId);
-                        }}
-                        className="p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-[var(--bb-color-bg-elevated)]"
-                        style={{ color: 'var(--bb-color-text-muted)' }}
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </button>
-
-                      {isDropdownOpen && (
-                        <div
-                          className="absolute right-0 top-full mt-1 z-50 w-44 rounded-lg border shadow-lg py-1 animate-in fade-in-0 zoom-in-95 duration-150"
-                          style={{
-                            backgroundColor: 'var(--bb-color-bg-surface)',
-                            borderColor: 'var(--bb-color-border-subtle)',
-                          }}
-                        >
-                          {actions.map((item) => {
-                            const ActionIcon = item.icon;
-                            return (
-                              <button
-                                key={item.action}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleAction(item.action, payment);
-                                }}
-                                className="w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-[var(--bb-color-bg-elevated)]"
-                                style={{ color: 'var(--bb-color-text-primary)' }}
-                              >
-                                <ActionIcon className={cn(
-                                  'h-4 w-4',
-                                  item.action === 'sendReceipt' && 'text-green-600',
-                                  item.action === 'refund' && 'text-amber-500'
-                                )} />
-                                <span>{item.label}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold" style={{ color: 'var(--bb-color-text-primary)' }}>
+                    {formatCurrency(invoice.totalCents || 0)}
+                  </span>
+                  <StatusPill status={invoice.status} />
                 </div>
               </div>
-            );
-          })}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Payments Section */}
+      <section>
+        <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--bb-color-text-primary)' }}>
+          Payment History ({payments.length})
+        </h3>
+
+        {payments.length === 0 ? (
+          <div className="text-center py-8 rounded-lg border-2 border-dashed" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+            <DollarSign className="w-10 h-10 mx-auto mb-2" style={{ color: 'var(--bb-color-text-muted)' }} />
+            <p className="text-sm" style={{ color: 'var(--bb-color-text-muted)' }}>
+              No payments yet
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {payments.map((payment) => (
+              <div
+                key={payment.recordId}
+                className="flex items-center justify-between p-3 rounded-lg border"
+                style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+              >
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--bb-color-text-primary)' }}>
+                    {formatCurrency(payment.amountCents || 0)}
+                  </p>
+                  <p className="text-xs" style={{ color: 'var(--bb-color-text-muted)' }}>
+                    {safeFormatDate(payment.createdAt)}
+                  </p>
+                </div>
+                <StatusPill status={payment.status} />
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

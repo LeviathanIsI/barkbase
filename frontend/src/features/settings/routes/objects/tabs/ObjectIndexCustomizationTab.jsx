@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import toast from 'react-hot-toast';
 import {
   Table, Plus, GripVertical, Trash2, RotateCcw, Search, Filter,
   MoreVertical, Star, Copy, Edit, Eye, ChevronDown, Settings,
@@ -22,6 +23,7 @@ import {
 
 const ObjectIndexCustomizationTab = ({ objectType }) => {
   const config = OBJECT_TYPES[objectType];
+  const menuRef = useRef(null);
 
   // API hooks
   const { data: indexSettings, isLoading: settingsLoading, error: settingsError } = useIndexSettings(objectType);
@@ -118,6 +120,17 @@ const ObjectIndexCustomizationTab = ({ objectType }) => {
     return savedViews.filter(v => v.name.toLowerCase().includes(query));
   }, [savedViews, viewSearchQuery]);
 
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setActionMenuOpen(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   if (!config) {
     return (
       <div className="text-center py-12">
@@ -179,8 +192,9 @@ const ObjectIndexCustomizationTab = ({ objectType }) => {
         enable_row_selection: enableRowSelection,
       });
       setHasChanges(false);
+      toast.success('Index configuration saved');
     } catch (error) {
-      console.error('Failed to save index settings:', error);
+      toast.error('Failed to save index settings');
     }
   };
 
@@ -196,18 +210,21 @@ const ObjectIndexCustomizationTab = ({ objectType }) => {
       });
       setShowCreateViewModal(false);
       setNewViewName('');
+      toast.success('View created');
     } catch (error) {
-      console.error('Failed to create view:', error);
+      toast.error('Failed to create view');
     }
   };
 
   const handleDeleteView = async (viewId) => {
-    if (!window.confirm('Are you sure you want to delete this view?')) return;
+    const view = savedViews.find(v => v.id === viewId);
+    if (!window.confirm(`Delete "${view?.name}"? This cannot be undone.`)) return;
     try {
       await deleteSavedView.mutateAsync(viewId);
       setActionMenuOpen(null);
+      toast.success('View deleted');
     } catch (error) {
-      console.error('Failed to delete view:', error);
+      toast.error('Failed to delete view');
     }
   };
 
@@ -215,8 +232,43 @@ const ObjectIndexCustomizationTab = ({ objectType }) => {
     try {
       await setDefaultView.mutateAsync(viewId);
       setActionMenuOpen(null);
+      toast.success('Default view updated');
     } catch (error) {
-      console.error('Failed to set default view:', error);
+      toast.error('Failed to set default view');
+    }
+  };
+
+  const handleEditView = async (viewId) => {
+    const view = savedViews.find(v => v.id === viewId);
+    const newName = prompt('Enter new name:', view?.name);
+    if (!newName || newName === view?.name) {
+      setActionMenuOpen(null);
+      return;
+    }
+    try {
+      await updateSavedView.mutateAsync({ id: viewId, name: newName });
+      setActionMenuOpen(null);
+      toast.success('View renamed');
+    } catch (error) {
+      toast.error('Failed to rename view');
+    }
+  };
+
+  const handleDuplicateView = async (viewId) => {
+    const view = savedViews.find(v => v.id === viewId);
+    if (!view) return;
+    try {
+      await createSavedView.mutateAsync({
+        name: `${view.name} (Copy)`,
+        columns: view.columns || [],
+        sort_column: view.sort_column,
+        sort_direction: view.sort_direction,
+        filters: view.filters || {},
+      });
+      setActionMenuOpen(null);
+      toast.success('View duplicated');
+    } catch (error) {
+      toast.error('Failed to duplicate view');
     }
   };
 
@@ -349,47 +401,50 @@ const ObjectIndexCustomizationTab = ({ objectType }) => {
                         : '-'}
                     </span>
                   </td>
-                  <td className="px-4 py-2.5 text-right relative">
-                    <button
-                      className="p-1.5 rounded hover:bg-surface-secondary"
-                      onClick={() => setActionMenuOpen(actionMenuOpen === view.id ? null : view.id)}
-                    >
-                      <MoreVertical className="w-4 h-4 text-muted" />
-                    </button>
-                    {actionMenuOpen === view.id && (
-                      <div className="absolute right-4 top-full mt-1 w-48 bg-surface border border-border rounded-lg shadow-lg py-1 z-10">
-                        {!view.is_default && (
+                  <td className="px-4 py-2.5 text-right">
+                    <div className="relative" ref={actionMenuOpen === view.id ? menuRef : null}>
+                      <button
+                        className="p-1.5 rounded hover:bg-surface-secondary"
+                        onClick={() => setActionMenuOpen(actionMenuOpen === view.id ? null : view.id)}
+                      >
+                        <MoreVertical className="w-4 h-4 text-muted" />
+                      </button>
+                      {actionMenuOpen === view.id && (
+                        <div className="absolute right-0 mt-1 w-48 bg-surface border border-border rounded-lg shadow-lg py-1 z-10">
                           <button
                             className="w-full px-3 py-2 text-left text-sm text-text hover:bg-surface-secondary flex items-center gap-2"
-                            onClick={() => handleSetDefaultView(view.id)}
+                            onClick={() => handleEditView(view.id)}
                           >
-                            <Star className="w-4 h-4" />
-                            Set as default
+                            <Edit className="w-4 h-4" />
+                            Rename
                           </button>
-                        )}
-                        <button
-                          className="w-full px-3 py-2 text-left text-sm text-text hover:bg-surface-secondary flex items-center gap-2"
-                          onClick={() => setActionMenuOpen(null)}
-                        >
-                          <Edit className="w-4 h-4" />
-                          Edit view
-                        </button>
-                        <button
-                          className="w-full px-3 py-2 text-left text-sm text-text hover:bg-surface-secondary flex items-center gap-2"
-                          onClick={() => setActionMenuOpen(null)}
-                        >
-                          <Copy className="w-4 h-4" />
-                          Duplicate
-                        </button>
-                        <button
-                          className="w-full px-3 py-2 text-left text-sm text-red-500 hover:bg-surface-secondary flex items-center gap-2"
-                          onClick={() => handleDeleteView(view.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Delete
-                        </button>
-                      </div>
-                    )}
+                          <button
+                            className="w-full px-3 py-2 text-left text-sm text-text hover:bg-surface-secondary flex items-center gap-2"
+                            onClick={() => handleDuplicateView(view.id)}
+                          >
+                            <Copy className="w-4 h-4" />
+                            Duplicate
+                          </button>
+                          {!view.is_default && (
+                            <button
+                              className="w-full px-3 py-2 text-left text-sm text-text hover:bg-surface-secondary flex items-center gap-2"
+                              onClick={() => handleSetDefaultView(view.id)}
+                            >
+                              <Star className="w-4 h-4" />
+                              Set as default
+                            </button>
+                          )}
+                          <div className="border-t border-border my-1" />
+                          <button
+                            className="w-full px-3 py-2 text-left text-sm text-red-500 hover:bg-surface-secondary flex items-center gap-2"
+                            onClick={() => handleDeleteView(view.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))

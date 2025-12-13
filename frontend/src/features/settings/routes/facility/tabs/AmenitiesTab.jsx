@@ -88,7 +88,7 @@ export default function AmenitiesTab() {
         title="Standard Accommodation Features"
         description="What's included in your Standard accommodations (Kennels)?"
       >
-        <div className="grid gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {standardFeatures.map((feature) => (
             <label key={feature.id} className="flex items-center gap-3">
               <input
@@ -110,7 +110,7 @@ export default function AmenitiesTab() {
         title="Premium Accommodation Features"
         description="What's included in Premium accommodations (Suites)?"
       >
-        <div className="grid gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {premiumFeatures.map((feature) => (
             <label key={feature.id} className="flex items-center gap-3">
               <input
@@ -132,7 +132,7 @@ export default function AmenitiesTab() {
         title="Daycare Features"
         description="What's included in Daycare?"
       >
-        <div className="grid gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {daycareFeatures.map((feature) => (
             <label key={feature.id} className="flex items-center gap-3">
               <input

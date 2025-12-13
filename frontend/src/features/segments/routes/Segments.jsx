@@ -65,11 +65,11 @@ export default function Segments() {
           }
         }
 
-        // Type filter
+        // Type filter - Use segment_type as single source of truth (consistent with detail page)
         if (typeFilter !== 'all') {
-          const isAuto = segment.isAutomatic ?? segment.isDynamic ?? segment.segment_type === 'active';
-          if (typeFilter === 'active' && !isAuto) return false;
-          if (typeFilter === 'static' && isAuto) return false;
+          const segmentType = segment.segment_type || (segment.isAutomatic ?? segment.isDynamic ? 'active' : 'static');
+          if (typeFilter === 'active' && segmentType !== 'active') return false;
+          if (typeFilter === 'static' && segmentType !== 'static') return false;
         }
 
         // Object filter
@@ -289,7 +289,10 @@ export default function Segments() {
             </thead>
             <tbody className="divide-y divide-[color:var(--bb-color-border-subtle)]">
               {filteredSegments.map((segment) => {
-                const isAuto = segment.isAutomatic ?? segment.isDynamic ?? segment.segment_type === 'active';
+                // Use segment_type as single source of truth (consistent with detail page)
+                // Falls back to isAutomatic/isDynamic for legacy data, defaults to 'static' if nothing set
+                const segmentType = segment.segment_type || (segment.isAutomatic ?? segment.isDynamic ? 'active' : 'static');
+                const isAuto = segmentType === 'active';
                 const memberCount = segment._count?.members ?? segment.memberCount ?? segment.member_count ?? 0;
                 const objectType = segment.object_type || segment.objectType || 'owners';
                 const change7d = segment.change7d ?? segment.sevenDayChange ?? null;
@@ -392,7 +395,9 @@ export default function Segments() {
 // Row Actions Menu Component
 const RowActionsMenu = ({ segment, onView, onEdit, onClone, onDelete }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const isAuto = segment.isAutomatic ?? segment.isDynamic ?? segment.segment_type === 'active';
+  // Use segment_type as single source of truth (consistent with detail page)
+  const segmentType = segment.segment_type || (segment.isAutomatic ?? segment.isDynamic ? 'active' : 'static');
+  const isAuto = segmentType === 'active';
 
   return (
     <div className="relative">

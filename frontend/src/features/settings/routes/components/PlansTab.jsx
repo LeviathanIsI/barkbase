@@ -48,9 +48,9 @@ export default function PlansTab() {
     {
       id: 'PRO',
       name: 'PRO',
-      price: '$79-$149',
-      monthlyPrice: 149,
-      annualPrice: 79,
+      price: '$89',
+      monthlyPrice: 89,
+      annualPrice: 69,
       period: '/month',
       badge: currentPlan === 'PRO' ? 'Current Plan' : 'Most Popular',
       badgeVariant: currentPlan === 'PRO' ? 'success' : 'primary',
@@ -72,9 +72,9 @@ export default function PlansTab() {
     {
       id: 'ENTERPRISE',
       name: 'ENTERPRISE',
-      price: '$399+',
-      monthlyPrice: 399,
-      annualPrice: 299,
+      price: '$199',
+      monthlyPrice: 199,
+      annualPrice: 149,
       period: '/month',
       badge: currentPlan === 'ENTERPRISE' ? 'Current Plan' : null,
       badgeVariant: 'success',
@@ -233,11 +233,6 @@ export default function PlansTab() {
               <div className="mt-2">
                 <span className="text-3xl font-bold text-gray-900 dark:text-text-primary">{plan.price}</span>
                 {plan.period && <span className="text-gray-600 dark:text-text-secondary">{plan.period}</span>}
-                {plan.name === 'PRO' && (
-                  <div className="text-xs text-gray-500 dark:text-text-secondary mt-1">
-                    (based on billing cycle)
-                  </div>
-                )}
               </div>
               <p className="text-sm text-gray-600 dark:text-text-secondary mt-3">{plan.description}</p>
             </div>

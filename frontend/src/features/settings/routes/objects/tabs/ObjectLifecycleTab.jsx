@@ -9,6 +9,8 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { OBJECT_TYPES } from '../objectConfig';
 import {
+  useObjectSettings,
+  useUpdateObjectSettings,
   useObjectStatuses,
   useCreateObjectStatus,
   useUpdateObjectStatus,
@@ -23,12 +25,39 @@ const ObjectLifecycleTab = ({ objectType }) => {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [draggedStatus, setDraggedStatus] = useState(null);
 
+  // Fetch object settings for lifecycle configuration
+  const { data: objectSettings } = useObjectSettings(objectType);
+  const updateObjectSettings = useUpdateObjectSettings(objectType);
+
   // Fetch statuses from API
   const { data: statuses = [], isLoading } = useObjectStatuses(objectType);
   const createStatus = useCreateObjectStatus(objectType);
   const updateStatus = useUpdateObjectStatus(objectType);
   const deleteStatus = useDeleteObjectStatus(objectType);
   const reorderStatuses = useReorderObjectStatuses(objectType);
+
+  // Lifecycle settings from object settings
+  const lifecycleSettings = objectSettings?.settings?.lifecycle || {};
+  const restrictStatusChanges = lifecycleSettings.restrictStatusChanges ?? false;
+  const logStatusChanges = lifecycleSettings.logStatusChanges ?? true;
+
+  const handleLifecycleSettingChange = async (key, value) => {
+    try {
+      const currentSettings = objectSettings?.settings || {};
+      await updateObjectSettings.mutateAsync({
+        settings: {
+          ...currentSettings,
+          lifecycle: {
+            ...currentSettings.lifecycle,
+            [key]: value,
+          },
+        },
+      });
+      toast.success('Setting updated');
+    } catch (error) {
+      toast.error('Failed to update setting');
+    }
+  };
 
   const { register, handleSubmit, reset, watch } = useForm({
     defaultValues: {
@@ -258,7 +287,13 @@ const ObjectLifecycleTab = ({ objectType }) => {
             <h3 className="text-sm font-semibold text-text mb-4">Status Transitions</h3>
             <div className="space-y-3">
               <label className="flex items-start gap-3 cursor-pointer">
-                <input type="checkbox" className="mt-0.5 rounded border-border" />
+                <input
+                  type="checkbox"
+                  className="mt-0.5 rounded border-border"
+                  checked={restrictStatusChanges}
+                  onChange={(e) => handleLifecycleSettingChange('restrictStatusChanges', e.target.checked)}
+                  disabled={updateObjectSettings.isPending}
+                />
                 <div>
                   <span className="text-sm font-medium text-text">Restrict status changes</span>
                   <p className="text-xs text-muted mt-0.5">
@@ -267,7 +302,13 @@ const ObjectLifecycleTab = ({ objectType }) => {
                 </div>
               </label>
               <label className="flex items-start gap-3 cursor-pointer">
-                <input type="checkbox" className="mt-0.5 rounded border-border" defaultChecked />
+                <input
+                  type="checkbox"
+                  className="mt-0.5 rounded border-border"
+                  checked={logStatusChanges}
+                  onChange={(e) => handleLifecycleSettingChange('logStatusChanges', e.target.checked)}
+                  disabled={updateObjectSettings.isPending}
+                />
                 <div>
                   <span className="text-sm font-medium text-text">Log status changes</span>
                   <p className="text-xs text-muted mt-0.5">
@@ -281,26 +322,12 @@ const ObjectLifecycleTab = ({ objectType }) => {
           {/* Automation */}
           <Card className="p-4">
             <h3 className="text-sm font-semibold text-text mb-4">Status Automations</h3>
-            {statuses.length === 0 ? (
-              <p className="text-xs text-muted">Add statuses to configure automations.</p>
-            ) : (
-              <div className="space-y-3">
-                {statuses.map((status) => (
-                  <div key={status.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: status.color }}
-                      />
-                      <span className="text-sm text-text">When set to {status.name}</span>
-                    </div>
-                    <button className="text-xs text-primary hover:underline">
-                      + Add action
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="text-center py-4 bg-surface-secondary/50 rounded-lg">
+              <p className="text-sm text-muted mb-1">Automations coming soon</p>
+              <p className="text-xs text-muted">
+                Configure actions that trigger when status changes.
+              </p>
+            </div>
           </Card>
         </div>
 

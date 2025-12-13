@@ -76,8 +76,8 @@ export default function SubscriptionTab() {
         plan: 'PRO',
         reason: 'Based on your actual usage, we recommend Pro Plan',
         details: reasons.slice(0, 4),
-        price: { monthly: 149, annual: 79 },
-        savings: 'Save $852/year (47% off)',
+        price: { monthly: 89, annual: 69 },
+        savings: 'Save $240/year with annual billing',
       };
     }
 

@@ -1241,17 +1241,6 @@ const CapacityOverview = ({ stats }) => {
         </Badge>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex justify-end gap-2">
-        <Button variant="ghost" size="sm" className="text-xs">
-          <Zap className="h-3 w-3 mr-1" />
-          Optimize
-        </Button>
-        <Button variant="ghost" size="sm" className="text-xs">
-          <BarChart3 className="h-3 w-3 mr-1" />
-          Analytics
-        </Button>
-      </div>
     </div>
   );
 };

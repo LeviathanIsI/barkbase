@@ -24,15 +24,7 @@ export default function BillingOverview() {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      {/* Header */}
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-text">Billing</h1>
-          <p className="mt-1 text-sm text-muted">Manage your subscription, payment methods, and invoices</p>
-        </div>
-      </header>
-
+    <div className="space-y-6">
       {/* Financial Dashboard */}
       <FinancialDashboard />
 

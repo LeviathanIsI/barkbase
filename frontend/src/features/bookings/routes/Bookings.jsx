@@ -32,15 +32,16 @@ const PERIOD_MODES = {
 };
 
 // Status color configurations - LEFT BORDER colors only, dark card background
+// Badge variants match the legend card border colors
 const STATUS_CONFIG = {
   PENDING: { label: 'Pending', variant: 'neutral', borderColor: 'border-l-gray-400' },
-  CONFIRMED: { label: 'Reserved', variant: 'info', borderColor: 'border-l-blue-500' },
+  CONFIRMED: { label: 'Confirmed', variant: 'info', borderColor: 'border-l-blue-500' },
   CHECKED_IN: { label: 'Checked In', variant: 'success', borderColor: 'border-l-emerald-500' },
   CHECKED_OUT: { label: 'Checked Out', variant: 'neutral', borderColor: 'border-l-gray-500' },
   CANCELLED: { label: 'Cancelled', variant: 'danger', borderColor: 'border-l-red-500' },
-  CHECKOUT_TODAY: { label: 'Checkout Today', variant: 'warning', borderColor: 'border-l-yellow-500' },
+  CHECKOUT_TODAY: { label: 'Checkout Today', variant: 'warning', borderColor: 'border-l-orange-500' },
   OVERDUE: { label: 'Overdue', variant: 'danger', borderColor: 'border-l-red-500' },
-  NO_SHOW: { label: 'No Show', variant: 'neutral', borderColor: 'border-l-purple-500' },
+  NO_SHOW: { label: 'No Show', variant: 'purple', borderColor: 'border-l-purple-500' },
 };
 
 const PAGE_SIZE_OPTIONS = [25, 50, 100];
@@ -154,27 +155,55 @@ const Bookings = () => {
       const checkIn = booking.checkIn ? new Date(booking.checkIn) : null;
       const checkOut = booking.checkOut ? new Date(booking.checkOut) : null;
 
-      // Keep the actual booking status for border color
-      let displayStatus = booking.status || 'PENDING';
-      // Track if checkout is today (for badge display, not border)
-      let isCheckoutToday = false;
-      // Track if overdue
-      let isOverdue = false;
+      // Track ALL applicable statuses for badge display
+      const statuses = [];
+      const baseStatus = booking.status || 'PENDING';
 
-      // Check if overdue (should have checked out but hasn't)
-      if (displayStatus === 'CHECKED_IN' && checkOut && checkOut < today) {
+      // Primary status from database
+      let displayStatus = baseStatus;
+
+      // Check various conditions and build status array
+      const checkInPassed = checkIn && checkIn < today;
+      const checkOutPassed = checkOut && checkOut < today;
+      const isCheckoutToday = checkOut && checkOut.toDateString() === today.toDateString();
+      const isCheckedIn = baseStatus === 'CHECKED_IN';
+      const isConfirmed = baseStatus === 'CONFIRMED';
+      const isPending = baseStatus === 'PENDING';
+
+      // Overdue: checked in but checkout date has passed
+      if (isCheckedIn && checkOutPassed) {
+        statuses.push('OVERDUE');
         displayStatus = 'OVERDUE';
-        isOverdue = true;
       }
-      // Check if checking out today - but keep CHECKED_IN status for border
-      else if (displayStatus === 'CHECKED_IN' && checkOut && checkOut.toDateString() === today.toDateString()) {
-        isCheckoutToday = true;
-        // Keep displayStatus as CHECKED_IN so border stays green
+      // Checkout Today: checked in and checkout is today
+      if (isCheckedIn && isCheckoutToday) {
+        statuses.push('CHECKOUT_TODAY');
+        if (!statuses.includes('OVERDUE')) displayStatus = 'CHECKOUT_TODAY';
       }
-      // Check if no-show (check-in date passed but never checked in, still CONFIRMED)
-      else if (displayStatus === 'CONFIRMED' && checkIn && checkIn < today) {
+      // No Show: confirmed/pending but check-in date has passed without checking in
+      if ((isConfirmed || isPending) && checkInPassed) {
+        statuses.push('NO_SHOW');
         displayStatus = 'NO_SHOW';
       }
+
+      // Same-day bookings (daycare) always show Checkout Today badge alongside main status
+      // This matches the split border shown in the calendar view
+      const isSameDayBooking = checkIn && checkOut && checkIn.toDateString() === checkOut.toDateString();
+      if (isSameDayBooking && statuses.length > 0 && !statuses.includes('CHECKED_OUT') && !statuses.includes('CANCELLED')) {
+        statuses.push('CHECKOUT_TODAY');
+      }
+      // Checked In (if actually checked in and not overdue)
+      if (isCheckedIn && !checkOutPassed && !isCheckoutToday) {
+        statuses.push('CHECKED_IN');
+      }
+      // Confirmed (if still confirmed and check-in hasn't passed)
+      if (isConfirmed && !checkInPassed) {
+        statuses.push('CONFIRMED');
+      }
+      // Other base statuses
+      if (baseStatus === 'CANCELLED') statuses.push('CANCELLED');
+      if (baseStatus === 'CHECKED_OUT') statuses.push('CHECKED_OUT');
+      if (isPending && !checkInPassed) statuses.push('PENDING');
 
       const petName = booking.pet?.name || 'Unknown Pet';
       const ownerName = booking.owner
@@ -193,8 +222,8 @@ const Bookings = () => {
         checkInDate: checkIn,
         checkOutDate: checkOut,
         displayStatus,
+        statuses, // Array of all applicable statuses for badge display
         isCheckoutToday,
-        isOverdue,
         petName,
         ownerName,
         ownerPhone,
@@ -1459,11 +1488,15 @@ const ListView = ({
 // Booking Row Component
 const BookingRow = ({ booking, isSelected, onSelect, onClick, isEven }) => {
   const [showActions, setShowActions] = useState(false);
-  const statusConfig = STATUS_CONFIG[booking.displayStatus] || STATUS_CONFIG.PENDING;
 
   const duration = booking.checkInDate && booking.checkOutDate
     ? Math.ceil((booking.checkOutDate - booking.checkInDate) / (1000 * 60 * 60 * 24))
     : 0;
+
+  // Get all status badges to display (from the statuses array)
+  const statusBadges = (booking.statuses || [booking.displayStatus]).map(status =>
+    STATUS_CONFIG[status] || STATUS_CONFIG.PENDING
+  );
 
   return (
     <tr
@@ -1526,7 +1559,11 @@ const BookingRow = ({ booking, isSelected, onSelect, onClick, isEven }) => {
         {duration} night{duration !== 1 ? 's' : ''}
       </td>
       <td className="px-4 py-3">
-        <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
+        <div className="flex flex-wrap items-center gap-1">
+          {statusBadges.map((config, idx) => (
+            <Badge key={idx} variant={config.variant}>{config.label}</Badge>
+          ))}
+        </div>
       </td>
       <td className="px-4 py-3 last:pr-6 lg:last:pr-12">
         <div className={cn('flex items-center gap-1 transition-opacity', showActions ? 'opacity-100' : 'opacity-0')}>

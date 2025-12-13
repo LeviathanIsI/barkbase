@@ -4,24 +4,18 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Switch from '@/components/ui/Switch';
 import SlideoutPanel from '@/components/SlideoutPanel';
-import SettingsPage from '../components/SettingsPage';
 import {
   useInvoiceSettingsQuery,
   useUpdateInvoiceSettingsMutation,
   useInvoicePreviewQuery,
 } from '../api';
 import {
-  FileText,
-  Receipt,
   Building2,
-  CreditCard,
-  Clock,
-  Zap,
   Image,
   Eye,
-  Save,
-  Percent,
-  DollarSign,
+  Settings,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -123,319 +117,283 @@ const Invoicing = () => {
 
   if (isLoading) {
     return (
-      <SettingsPage title="Invoicing" description="Configure invoice defaults, tax, and branding">
-        <div className="space-y-6">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i}>
-              <div className="animate-pulse space-y-4">
-                <div className="h-4 bg-surface-secondary rounded w-1/3" />
-                <div className="h-10 bg-surface-secondary rounded" />
-                <div className="h-10 bg-surface-secondary rounded" />
-              </div>
-            </Card>
-          ))}
-        </div>
-      </SettingsPage>
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+      </div>
     );
   }
 
   return (
-    <SettingsPage
-      title="Invoicing"
-      description="Configure invoice defaults, tax, branding, and automation"
-    >
-      {/* Invoice Defaults Card */}
-      <Card
-        title="Invoice Defaults"
-        description="Configure default settings for new invoices"
-        icon={<FileText className="h-5 w-5" />}
-      >
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
+    <div className="space-y-6">
+      {/* Row 1: Invoice Defaults & Tax Settings */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Invoice Defaults */}
+        <Card title="Invoice Defaults" description="Configure default settings for new invoices">
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Invoice Prefix</label>
+                <Input
+                  value={settings.invoicePrefix}
+                  onChange={(e) => handleChange('invoicePrefix', e.target.value)}
+                  placeholder="INV-"
+                />
+                <p className="text-xs text-gray-500 dark:text-text-muted mt-1">e.g., {settings.invoicePrefix}{settings.nextInvoiceNumber}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Next Invoice #</label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={settings.nextInvoiceNumber}
+                  onChange={(e) => handleChange('nextInvoiceNumber', parseInt(e.target.value, 10) || 1)}
+                  placeholder="1001"
+                />
+              </div>
+            </div>
+
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-2">Invoice Prefix</label>
-              <Input
-                value={settings.invoicePrefix}
-                onChange={(e) => handleChange('invoicePrefix', e.target.value)}
-                placeholder="INV-"
+              <label className="block text-sm font-medium mb-1">Payment Terms</label>
+              <select
+                value={settings.paymentTerms}
+                onChange={(e) => handleChange('paymentTerms', e.target.value)}
+                className="w-full rounded-lg border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                {PAYMENT_TERMS.map((term) => (
+                  <option key={term.value} value={term.value}>{term.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Default Notes</label>
+              <textarea
+                value={settings.defaultNotes}
+                onChange={(e) => handleChange('defaultNotes', e.target.value)}
+                placeholder="Thank you for choosing our services!"
+                rows={2}
+                className="w-full rounded-lg border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
               />
-              <p className="text-xs text-text-tertiary mt-1">e.g., {settings.invoicePrefix}{settings.nextInvoiceNumber}</p>
+              <p className="text-xs text-gray-500 dark:text-text-muted mt-1">Appears at the bottom of every invoice</p>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-2">Next Invoice Number</label>
-              <Input
-                type="number"
-                min="1"
-                value={settings.nextInvoiceNumber}
-                onChange={(e) => handleChange('nextInvoiceNumber', parseInt(e.target.value, 10) || 1)}
-                placeholder="1001"
+          </div>
+        </Card>
+
+        {/* Tax Settings */}
+        <Card title="Tax Settings" description="Configure sales tax for invoices">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-sm font-medium">Charge sales tax</span>
+                <p className="text-xs text-gray-500 dark:text-text-secondary">Add tax to invoice totals</p>
+              </div>
+              <Switch
+                checked={settings.chargeTax}
+                onChange={(checked) => handleChange('chargeTax', checked)}
               />
             </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">Payment Terms</label>
-            <select
-              value={settings.paymentTerms}
-              onChange={(e) => handleChange('paymentTerms', e.target.value)}
-              className="w-full rounded-lg border border-border bg-surface-primary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              {PAYMENT_TERMS.map((term) => (
-                <option key={term.value} value={term.value}>{term.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">Default Notes</label>
-            <textarea
-              value={settings.defaultNotes}
-              onChange={(e) => handleChange('defaultNotes', e.target.value)}
-              placeholder="Thank you for choosing our services!"
-              rows={3}
-              className="w-full rounded-lg border border-border bg-surface-primary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
-            />
-            <p className="text-xs text-text-tertiary mt-1">Appears at the bottom of every invoice</p>
-          </div>
-        </div>
-      </Card>
-
-      {/* Tax Settings Card */}
-      <Card
-        title="Tax Settings"
-        description="Configure sales tax for invoices"
-        icon={<Receipt className="h-5 w-5" />}
-      >
-        <div className="space-y-6">
-          <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-lg">
-            <div>
-              <span className="font-medium text-text-primary">Charge sales tax</span>
-              <p className="text-sm text-text-secondary">Add tax to invoice totals</p>
-            </div>
-            <Switch
-              checked={settings.chargeTax}
-              onChange={(checked) => handleChange('chargeTax', checked)}
-            />
-          </div>
-
-          {settings.chargeTax && (
-            <>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-text-primary mb-2">Tax Name</label>
-                  <Input
-                    value={settings.taxName}
-                    onChange={(e) => handleChange('taxName', e.target.value)}
-                    placeholder="Sales Tax"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-text-primary mb-2">Tax Rate</label>
-                  <div className="relative">
+            {settings.chargeTax && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Tax Name</label>
                     <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.01"
-                      value={settings.taxRate}
-                      onChange={(e) => handleChange('taxRate', parseFloat(e.target.value) || 0)}
-                      placeholder="7.5"
-                      className="pr-8"
+                      value={settings.taxName}
+                      onChange={(e) => handleChange('taxName', e.target.value)}
+                      placeholder="Sales Tax"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary">%</span>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Tax Rate</label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={settings.taxRate}
+                        onChange={(e) => handleChange('taxRate', parseFloat(e.target.value) || 0)}
+                        placeholder="7.5"
+                      />
+                      <span className="text-sm text-gray-500">%</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-text-primary mb-2">Tax ID / Business Number</label>
-                <Input
-                  value={settings.taxId}
-                  onChange={(e) => handleChange('taxId', e.target.value)}
-                  placeholder="XX-XXXXXXX"
-                />
-                <p className="text-xs text-text-tertiary mt-1">Shown on invoices for tax compliance</p>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-lg">
                 <div>
-                  <span className="font-medium text-text-primary">Tax inclusive pricing</span>
-                  <p className="text-sm text-text-secondary">Tax is included in service prices (instead of added)</p>
+                  <label className="block text-sm font-medium mb-1">Tax ID</label>
+                  <Input
+                    value={settings.taxId}
+                    onChange={(e) => handleChange('taxId', e.target.value)}
+                    placeholder="XX-XXXXXXX"
+                  />
                 </div>
-                <Switch
-                  checked={settings.taxInclusive}
-                  onChange={(checked) => handleChange('taxInclusive', checked)}
-                />
-              </div>
-            </>
-          )}
-        </div>
-      </Card>
 
-      {/* Invoice Branding Card */}
-      <Card
-        title="Invoice Appearance"
-        description="Customize how your invoices look"
-        icon={<Building2 className="h-5 w-5" />}
-      >
-        <div className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">Business Logo</label>
-            <div className="flex gap-4 items-center">
-              <div className="flex-shrink-0 w-20 h-20 bg-surface-secondary rounded-lg flex items-center justify-center border border-border overflow-hidden">
-                {settings.logoUrl ? (
-                  <img src={settings.logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
-                ) : (
-                  <Image className="h-8 w-8 text-text-tertiary" />
-                )}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm font-medium">Tax inclusive pricing</span>
+                    <p className="text-xs text-gray-500 dark:text-text-secondary">Tax included in prices</p>
+                  </div>
+                  <Switch
+                    checked={settings.taxInclusive}
+                    onChange={(checked) => handleChange('taxInclusive', checked)}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* Row 2: Invoice Appearance & Payment Instructions */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Invoice Appearance */}
+        <Card title="Invoice Appearance" description="Customize how your invoices look">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Business Logo</label>
+              <div className="flex gap-3 items-center">
+                <div className="flex-shrink-0 w-14 h-14 bg-gray-100 dark:bg-surface-secondary rounded flex items-center justify-center border border-gray-200 dark:border-surface-border overflow-hidden">
+                  {settings.logoUrl ? (
+                    <img src={settings.logoUrl} alt="Logo" className="max-w-full max-h-full object-contain" />
+                  ) : (
+                    <Image className="h-6 w-6 text-gray-400" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <Input
+                    value={settings.logoUrl}
+                    onChange={(e) => handleChange('logoUrl', e.target.value)}
+                    placeholder="https://example.com/logo.png"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-text-muted mt-1">Enter a URL to your logo image</p>
+                </div>
               </div>
-              <div className="flex-1">
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Business Name</label>
+              <Input
+                value={settings.businessName}
+                onChange={(e) => handleChange('businessName', e.target.value)}
+                placeholder="Sunny Paws Kennel LLC"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Business Address</label>
+              <textarea
+                value={settings.businessAddress}
+                onChange={(e) => handleChange('businessAddress', e.target.value)}
+                placeholder="123 Main Street&#10;Tampa, FL 33601"
+                rows={2}
+                className="w-full rounded-lg border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Business Phone</label>
                 <Input
-                  value={settings.logoUrl}
-                  onChange={(e) => handleChange('logoUrl', e.target.value)}
-                  placeholder="https://example.com/logo.png"
+                  type="tel"
+                  value={settings.businessPhone}
+                  onChange={(e) => handleChange('businessPhone', e.target.value)}
+                  placeholder="(555) 123-4567"
                 />
-                <p className="text-xs text-text-tertiary mt-1">Enter a URL to your logo image</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Business Email</label>
+                <Input
+                  type="email"
+                  value={settings.businessEmail}
+                  onChange={(e) => handleChange('businessEmail', e.target.value)}
+                  placeholder="billing@example.com"
+                />
               </div>
             </div>
           </div>
+        </Card>
 
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">Business Name</label>
-            <Input
-              value={settings.businessName}
-              onChange={(e) => handleChange('businessName', e.target.value)}
-              placeholder="Sunny Paws Kennel LLC"
-            />
-            <p className="text-xs text-text-tertiary mt-1">As shown on invoices</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">Business Address</label>
-            <textarea
-              value={settings.businessAddress}
-              onChange={(e) => handleChange('businessAddress', e.target.value)}
-              placeholder="123 Main Street&#10;Tampa, FL 33601"
-              rows={2}
-              className="w-full rounded-lg border border-border bg-surface-primary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-2">Business Phone</label>
-              <Input
-                type="tel"
-                value={settings.businessPhone}
-                onChange={(e) => handleChange('businessPhone', e.target.value)}
-                placeholder="(555) 123-4567"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-2">Business Email</label>
-              <Input
-                type="email"
-                value={settings.businessEmail}
-                onChange={(e) => handleChange('businessEmail', e.target.value)}
-                placeholder="billing@example.com"
-              />
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      {/* Payment Instructions Card */}
-      <Card
-        title="Payment Instructions"
-        description="Shown on invoices to tell customers how to pay"
-        icon={<CreditCard className="h-5 w-5" />}
-      >
-        <div>
+        {/* Payment Instructions */}
+        <Card title="Payment Instructions" description="Shown on invoices to tell customers how to pay">
           <textarea
             value={settings.paymentInstructions}
             onChange={(e) => handleChange('paymentInstructions', e.target.value)}
             placeholder="We accept all major credit cards, cash, and checks.&#10;Pay online at: yoursite.com/pay&#10;Make checks payable to: Your Business Name"
-            rows={4}
-            className="w-full rounded-lg border border-border bg-surface-primary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+            rows={6}
+            className="w-full rounded-lg border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
           />
-        </div>
-      </Card>
+        </Card>
+      </div>
 
-      {/* Late Fees Card */}
-      <Card
-        title="Late Payment Fees"
-        description="Automatically apply fees to overdue invoices"
-        icon={<Clock className="h-5 w-5" />}
-      >
-        <div className="space-y-6">
-          <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-lg">
-            <div>
-              <span className="font-medium text-text-primary">Enable late fees</span>
-              <p className="text-sm text-text-secondary">Automatically add fees to overdue invoices</p>
-            </div>
-            <Switch
-              checked={settings.enableLateFees}
-              onChange={(checked) => handleChange('enableLateFees', checked)}
-            />
-          </div>
-
-          {settings.enableLateFees && (
-            <>
+      {/* Row 3: Late Payment Fees & Automatic Invoicing */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Late Payment Fees */}
+        <Card title="Late Payment Fees" description="Automatically apply fees to overdue invoices">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-2">Grace Period</label>
+                <span className="text-sm font-medium">Enable late fees</span>
+                <p className="text-xs text-gray-500 dark:text-text-secondary">Automatically add fees to overdue</p>
+              </div>
+              <Switch
+                checked={settings.enableLateFees}
+                onChange={(checked) => handleChange('enableLateFees', checked)}
+              />
+            </div>
+
+            {settings.enableLateFees && (
+              <>
                 <div className="flex items-center gap-3">
+                  <label className="text-sm">Grace period:</label>
                   <Input
                     type="number"
                     min="0"
                     value={settings.lateFeeGraceDays}
                     onChange={(e) => handleChange('lateFeeGraceDays', parseInt(e.target.value, 10) || 0)}
-                    className="w-24"
+                    className="w-16"
                   />
-                  <span className="text-text-secondary text-sm">days after due date</span>
+                  <span className="text-sm text-gray-500">days after due date</span>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-text-primary mb-3">Late Fee Type</label>
-                <div className="space-y-3">
-                  <label className="flex items-center gap-3 p-3 bg-surface-secondary rounded-lg cursor-pointer">
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-surface-secondary rounded cursor-pointer">
                     <input
                       type="radio"
                       name="lateFeeType"
                       value="flat"
                       checked={settings.lateFeeType === 'flat'}
                       onChange={() => handleChange('lateFeeType', 'flat')}
-                      className="h-4 w-4 text-primary-600 focus:ring-primary-500"
+                      className="h-4 w-4 text-primary-600"
                     />
-                    <DollarSign className="h-4 w-4 text-text-tertiary" />
-                    <span className="text-text-primary">Flat fee</span>
+                    <span className="text-sm">Flat fee</span>
                     {settings.lateFeeType === 'flat' && (
-                      <div className="ml-auto flex items-center gap-2">
-                        <span className="text-text-tertiary">$</span>
+                      <div className="ml-auto flex items-center gap-1">
+                        <span className="text-sm">$</span>
                         <Input
                           type="number"
                           min="0"
                           step="0.01"
                           value={settings.lateFeeAmount}
                           onChange={(e) => handleChange('lateFeeAmount', parseFloat(e.target.value) || 0)}
-                          className="w-24"
+                          className="w-20"
                         />
                       </div>
                     )}
                   </label>
-                  <label className="flex items-center gap-3 p-3 bg-surface-secondary rounded-lg cursor-pointer">
+                  <label className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-surface-secondary rounded cursor-pointer">
                     <input
                       type="radio"
                       name="lateFeeType"
                       value="percentage"
                       checked={settings.lateFeeType === 'percentage'}
                       onChange={() => handleChange('lateFeeType', 'percentage')}
-                      className="h-4 w-4 text-primary-600 focus:ring-primary-500"
+                      className="h-4 w-4 text-primary-600"
                     />
-                    <Percent className="h-4 w-4 text-text-tertiary" />
-                    <span className="text-text-primary">Percentage of invoice total</span>
+                    <span className="text-sm">Percentage</span>
                     {settings.lateFeeType === 'percentage' && (
-                      <div className="ml-auto flex items-center gap-2">
+                      <div className="ml-auto flex items-center gap-1">
                         <Input
                           type="number"
                           min="0"
@@ -443,112 +401,99 @@ const Invoicing = () => {
                           step="0.1"
                           value={settings.lateFeeAmount}
                           onChange={(e) => handleChange('lateFeeAmount', parseFloat(e.target.value) || 0)}
-                          className="w-24"
+                          className="w-20"
                         />
-                        <span className="text-text-tertiary">%</span>
+                        <span className="text-sm">%</span>
                       </div>
                     )}
                   </label>
                 </div>
-              </div>
 
-              <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-lg">
-                <div>
-                  <span className="font-medium text-text-primary">Recurring late fees</span>
-                  <p className="text-sm text-text-secondary">Apply fee monthly for continued non-payment</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm font-medium">Recurring late fees</span>
+                    <p className="text-xs text-gray-500 dark:text-text-secondary">Apply monthly for non-payment</p>
+                  </div>
+                  <Switch
+                    checked={settings.lateFeeRecurring}
+                    onChange={(checked) => handleChange('lateFeeRecurring', checked)}
+                  />
                 </div>
-                <Switch
-                  checked={settings.lateFeeRecurring}
-                  onChange={(checked) => handleChange('lateFeeRecurring', checked)}
-                />
+              </>
+            )}
+          </div>
+        </Card>
+
+        {/* Automatic Invoicing */}
+        <Card title="Automatic Invoicing" description="Generate invoices automatically">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-sm font-medium">Create invoice when booking is checked out</span>
               </div>
+              <Switch
+                checked={settings.createInvoiceOnCheckout}
+                onChange={(checked) => handleChange('createInvoiceOnCheckout', checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-sm font-medium">Create invoice when booking is created</span>
+              </div>
+              <Switch
+                checked={settings.createInvoiceOnBooking}
+                onChange={(checked) => handleChange('createInvoiceOnBooking', checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-sm font-medium">Auto-send invoice to customer email</span>
+              </div>
+              <Switch
+                checked={settings.autoSendInvoice}
+                onChange={(checked) => handleChange('autoSendInvoice', checked)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between border-t dark:border-surface-border pt-3">
+              <div>
+                <span className="text-sm font-medium">Auto-charge card on file at checkout</span>
+                <p className="text-xs text-yellow-600 dark:text-yellow-400 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  Requires Stripe connection
+                </p>
+              </div>
+              <Switch
+                checked={settings.autoChargeCard}
+                onChange={(checked) => handleChange('autoChargeCard', checked)}
+              />
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Save Buttons */}
+      <div className="flex justify-end gap-3">
+        <Button variant="outline" onClick={handlePreview}>
+          <Eye className="h-4 w-4 mr-2" />
+          Preview Invoice
+        </Button>
+        <Button onClick={handleSave} disabled={!isDirty || updateSettingsMutation.isPending}>
+          {updateSettingsMutation.isPending ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <Settings className="w-4 h-4 mr-2" />
+              Save Settings
             </>
           )}
-        </div>
-      </Card>
-
-      {/* Auto-Invoicing Card */}
-      <Card
-        title="Automatic Invoicing"
-        description="Generate invoices automatically"
-        icon={<Zap className="h-5 w-5" />}
-      >
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-lg">
-            <div>
-              <span className="font-medium text-text-primary">Create invoice when booking is checked out</span>
-              <p className="text-sm text-text-secondary">Automatically generate invoice at checkout</p>
-            </div>
-            <Switch
-              checked={settings.createInvoiceOnCheckout}
-              onChange={(checked) => handleChange('createInvoiceOnCheckout', checked)}
-            />
-          </div>
-
-          <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-lg">
-            <div>
-              <span className="font-medium text-text-primary">Create invoice when booking is created</span>
-              <p className="text-sm text-text-secondary">Generate invoice immediately when booking is made</p>
-            </div>
-            <Switch
-              checked={settings.createInvoiceOnBooking}
-              onChange={(checked) => handleChange('createInvoiceOnBooking', checked)}
-            />
-          </div>
-
-          <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-lg">
-            <div>
-              <span className="font-medium text-text-primary">Auto-send invoice to customer email</span>
-              <p className="text-sm text-text-secondary">Email invoice to customer automatically</p>
-            </div>
-            <Switch
-              checked={settings.autoSendInvoice}
-              onChange={(checked) => handleChange('autoSendInvoice', checked)}
-            />
-          </div>
-
-          <div className="flex items-center justify-between p-4 bg-surface-secondary rounded-lg">
-            <div>
-              <span className="font-medium text-text-primary">Auto-charge card on file at checkout</span>
-              <p className="text-sm text-text-secondary text-warning-600">Requires Stripe connection</p>
-            </div>
-            <Switch
-              checked={settings.autoChargeCard}
-              onChange={(checked) => handleChange('autoChargeCard', checked)}
-            />
-          </div>
-        </div>
-      </Card>
-
-      {/* Sticky Save Bar */}
-      {isDirty && (
-        <div className="sticky bottom-0 left-0 right-0 p-4 bg-surface-primary border-t border-border shadow-lg -mx-6 -mb-6 mt-6">
-          <div className="flex items-center justify-between max-w-4xl mx-auto">
-            <p className="text-sm text-text-secondary">You have unsaved changes</p>
-            <div className="flex gap-3">
-              <Button variant="ghost" onClick={handlePreview}>
-                <Eye className="h-4 w-4 mr-2" />Preview Invoice
-              </Button>
-              <Button
-                variant="primary"
-                onClick={handleSave}
-                loading={updateSettingsMutation.isPending}
-              >
-                <Save className="h-4 w-4 mr-2" />Save Changes
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Always show preview button if no changes */}
-      {!isDirty && (
-        <div className="flex justify-end">
-          <Button variant="outline" onClick={handlePreview}>
-            <Eye className="h-4 w-4 mr-2" />Preview Invoice
-          </Button>
-        </div>
-      )}
+        </Button>
+      </div>
 
       {/* Invoice Preview Slideout */}
       <SlideoutPanel
@@ -668,7 +613,7 @@ const Invoicing = () => {
           </div>
         )}
       </SlideoutPanel>
-    </SettingsPage>
+    </div>
   );
 };
 

@@ -5,13 +5,14 @@ import {
   ChevronLeft, ChevronRight, Download, Columns, MoreHorizontal,
   MessageSquare, Eye, Check, X, Star, SlidersHorizontal,
   BookmarkPlus, PawPrint, ArrowUpDown, ArrowUp, ArrowDown, GripVertical,
-  Calendar, Loader2, ShieldCheck, ShieldOff, Crown, Ban, Clock,
+  Calendar, Loader2, ShieldCheck, ShieldOff, Crown, Ban, Clock, Send,
 } from 'lucide-react';
 import Breadcrumbs from '@/components/ui/Breadcrumbs';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 import EntityToolbar from '@/components/EntityToolbar';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import Modal from '@/components/ui/Modal';
 import { ScrollableTableContainer } from '@/components/ui/ScrollableTableContainer';
 // Replaced with LoadingState (mascot) for page-level loading
 import LoadingState from '@/components/ui/LoadingState';
@@ -22,6 +23,7 @@ import PetHoverCard from '../components/PetHoverCard';
 import { formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/cn';
 import toast from 'react-hot-toast';
+import apiClient from '@/lib/apiClient';
 
 // Saved views - persisted in localStorage
 const DEFAULT_VIEWS = [
@@ -50,7 +52,11 @@ const PAGE_SIZE_OPTIONS = [25, 50, 100];
 const Owners = () => {
   const navigate = useNavigate();
   const [formModalOpen, setFormModalOpen] = useState(false);
-  
+
+  // Modal states for bulk actions
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [smsModalOpen, setSmsModalOpen] = useState(false);
+
   // Search, filter, and view state
   const [searchTerm, setSearchTerm] = useState('');
   const [activeView, setActiveView] = useState('all');
@@ -303,6 +309,79 @@ const Owners = () => {
 
   const hasActiveFilters = searchTerm || Object.keys(customFilters).length > 0 || activeView !== 'all';
 
+  // Get selected owner data for modals
+  const selectedOwnerData = useMemo(() => {
+    return ownersWithMetrics.filter(o => selectedRows.has(o.id || o.recordId));
+  }, [ownersWithMetrics, selectedRows]);
+
+  // Export owners to CSV
+  const handleExportCSV = useCallback((ownersToExport) => {
+    if (!ownersToExport || ownersToExport.length === 0) {
+      toast.error('No owners to export');
+      return;
+    }
+
+    // CSV headers
+    const headers = ['Name', 'Email', 'Phone', 'Status', 'Pets', 'Bookings', 'Last Visit', 'Lifetime Value'];
+
+    // Convert owner data to CSV rows
+    const rows = ownersToExport.map(owner => {
+      const lastVisit = owner.lastBooking
+        ? format(new Date(owner.lastBooking), 'yyyy-MM-dd')
+        : 'Never';
+      const lifetimeValue = (owner.lifetimeValue / 100).toFixed(2);
+
+      return [
+        owner.fullName || '',
+        owner.email || '',
+        owner.phone || '',
+        owner.status || 'INACTIVE',
+        owner.petCount || owner.pets?.length || 0,
+        owner.totalBookings || 0,
+        lastVisit,
+        `$${lifetimeValue}`,
+      ];
+    });
+
+    // Build CSV content
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row =>
+        row.map(cell => {
+          // Escape quotes and wrap in quotes if contains comma
+          const str = String(cell);
+          if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            return `"${str.replace(/"/g, '""')}"`;
+          }
+          return str;
+        }).join(',')
+      ),
+    ].join('\n');
+
+    // Create and trigger download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `owners_export_${format(new Date(), 'yyyy-MM-dd_HHmm')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast.success(`Exported ${ownersToExport.length} owner${ownersToExport.length !== 1 ? 's' : ''}`);
+  }, []);
+
+  // Export all/filtered owners (header button)
+  const handleExportAll = useCallback(() => {
+    handleExportCSV(sortedOwners);
+  }, [sortedOwners, handleExportCSV]);
+
+  // Export selected owners (bulk action)
+  const handleExportSelected = useCallback(() => {
+    handleExportCSV(selectedOwnerData);
+  }, [selectedOwnerData, handleExportCSV]);
+
   if (error) {
     return (
       <div className="p-8 text-center">
@@ -435,7 +514,7 @@ const Owners = () => {
                   )}
                 </div>
 
-                <Button variant="outline" size="sm" className="gap-1.5 h-9">
+                <Button variant="outline" size="sm" className="gap-1.5 h-9" onClick={handleExportAll}>
                   <Download className="h-4 w-4" />
                   <span className="hidden sm:inline">Export</span>
                 </Button>
@@ -453,9 +532,9 @@ const Owners = () => {
             <div className="mt-3 flex items-center gap-3 rounded-lg border p-2" style={{ backgroundColor: 'var(--bb-color-accent-soft)', borderColor: 'var(--bb-color-accent)' }}>
               <span className="text-sm font-medium text-[color:var(--bb-color-accent)]">{selectedRows.size} selected</span>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="gap-1.5 h-8"><Mail className="h-3.5 w-3.5" />Email</Button>
-                <Button variant="outline" size="sm" className="gap-1.5 h-8"><MessageSquare className="h-3.5 w-3.5" />SMS</Button>
-                <Button variant="outline" size="sm" className="gap-1.5 h-8"><Download className="h-3.5 w-3.5" />Export</Button>
+                <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={() => setEmailModalOpen(true)}><Mail className="h-3.5 w-3.5" />Email</Button>
+                <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={() => setSmsModalOpen(true)}><MessageSquare className="h-3.5 w-3.5" />SMS</Button>
+                <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={handleExportSelected}><Download className="h-3.5 w-3.5" />Export</Button>
               </div>
               <button type="button" onClick={() => setSelectedRows(new Set())} className="ml-auto text-sm text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]">
                 Clear selection
@@ -581,6 +660,20 @@ const Owners = () => {
           }
         }}
         isLoading={createOwnerMutation.isPending}
+      />
+
+      {/* Compose Email Modal */}
+      <ComposeEmailModal
+        open={emailModalOpen}
+        onClose={() => setEmailModalOpen(false)}
+        recipients={selectedOwnerData}
+      />
+
+      {/* Compose SMS Modal */}
+      <ComposeSmsModal
+        open={smsModalOpen}
+        onClose={() => setSmsModalOpen(false)}
+        recipients={selectedOwnerData}
       />
     </>
   );
@@ -1149,6 +1242,291 @@ const BookingsHoverCard = ({ ownerId, bookingsCount, navigate, children }) => {
         </div>
       )}
     </div>
+  );
+};
+
+// Compose Email Modal Component
+const ComposeEmailModal = ({ open, onClose, recipients }) => {
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [isSending, setIsSending] = useState(false);
+
+  // Reset form when modal opens
+  useEffect(() => {
+    if (open) {
+      setSubject('');
+      setBody('');
+    }
+  }, [open]);
+
+  // Get valid email recipients (those with email addresses)
+  const validRecipients = useMemo(() => {
+    return recipients.filter(r => r.email);
+  }, [recipients]);
+
+  const missingEmailCount = recipients.length - validRecipients.length;
+
+  const handleSend = async () => {
+    if (!subject.trim() || !body.trim()) {
+      toast.error('Please enter a subject and message');
+      return;
+    }
+
+    if (validRecipients.length === 0) {
+      toast.error('No recipients have email addresses');
+      return;
+    }
+
+    setIsSending(true);
+    try {
+      await apiClient.post('/api/v1/communications/email/bulk', {
+        recipientIds: validRecipients.map(r => r.id || r.recordId),
+        subject,
+        body,
+      });
+      toast.success(`Email sent to ${validRecipients.length} recipient${validRecipients.length !== 1 ? 's' : ''}`);
+      onClose();
+    } catch (err) {
+      console.error('Failed to send email:', err);
+      const errorMessage = err.response?.data?.message || 'Failed to send email';
+      if (err.response?.status === 404 || errorMessage.includes('not found') || errorMessage.includes('not implemented')) {
+        toast.error('Bulk email feature coming soon');
+      } else {
+        toast.error(errorMessage);
+      }
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Compose Email"
+      description={`Send an email to ${recipients.length} selected owner${recipients.length !== 1 ? 's' : ''}`}
+      size="lg"
+      footer={
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={onClose} disabled={isSending}>
+            Cancel
+          </Button>
+          <Button onClick={handleSend} disabled={isSending || validRecipients.length === 0}>
+            {isSending ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Sending...</>
+            ) : (
+              <><Send className="h-4 w-4 mr-2" />Send Email</>
+            )}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        {/* Recipients */}
+        <div>
+          <label className="block text-sm font-medium mb-1 text-[color:var(--bb-color-text-primary)]">
+            To
+          </label>
+          <div className="w-full px-3 py-2 rounded-lg border text-sm" style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-muted)' }}>
+            {validRecipients.length > 0 ? (
+              <div className="flex flex-wrap gap-1">
+                {validRecipients.slice(0, 5).map((r, i) => (
+                  <Badge key={i} variant="neutral" className="text-xs">{r.email}</Badge>
+                ))}
+                {validRecipients.length > 5 && (
+                  <Badge variant="neutral" className="text-xs">+{validRecipients.length - 5} more</Badge>
+                )}
+              </div>
+            ) : (
+              <span className="text-[color:var(--bb-color-text-muted)]">No valid email addresses</span>
+            )}
+          </div>
+          {missingEmailCount > 0 && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+              {missingEmailCount} selected owner{missingEmailCount !== 1 ? 's' : ''} {missingEmailCount !== 1 ? 'have' : 'has'} no email address
+            </p>
+          )}
+        </div>
+
+        {/* Subject */}
+        <div>
+          <label className="block text-sm font-medium mb-1 text-[color:var(--bb-color-text-primary)]">
+            Subject
+          </label>
+          <input
+            type="text"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            placeholder="Enter email subject..."
+            className="w-full px-3 py-2 rounded-lg border text-sm"
+            style={{ backgroundColor: 'var(--bb-color-bg-body)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }}
+          />
+        </div>
+
+        {/* Body */}
+        <div>
+          <label className="block text-sm font-medium mb-1 text-[color:var(--bb-color-text-primary)]">
+            Message
+          </label>
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="Type your message here..."
+            rows={8}
+            className="w-full px-3 py-2 rounded-lg border text-sm resize-none"
+            style={{ backgroundColor: 'var(--bb-color-bg-body)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }}
+          />
+        </div>
+
+        {/* Help text */}
+        <p className="text-xs text-[color:var(--bb-color-text-muted)]">
+          Emails will be sent individually to each recipient. They will not see other recipients' addresses.
+        </p>
+      </div>
+    </Modal>
+  );
+};
+
+// Compose SMS Modal Component
+const ComposeSmsModal = ({ open, onClose, recipients }) => {
+  const [message, setMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
+
+  // Reset form when modal opens
+  useEffect(() => {
+    if (open) {
+      setMessage('');
+    }
+  }, [open]);
+
+  // Get valid SMS recipients (those with phone numbers)
+  const validRecipients = useMemo(() => {
+    return recipients.filter(r => r.phone);
+  }, [recipients]);
+
+  const missingPhoneCount = recipients.length - validRecipients.length;
+  const characterCount = message.length;
+  const segmentCount = Math.ceil(characterCount / 160) || 1;
+
+  const handleSend = async () => {
+    if (!message.trim()) {
+      toast.error('Please enter a message');
+      return;
+    }
+
+    if (validRecipients.length === 0) {
+      toast.error('No recipients have phone numbers');
+      return;
+    }
+
+    setIsSending(true);
+    try {
+      await apiClient.post('/api/v1/communications/sms/bulk', {
+        recipientIds: validRecipients.map(r => r.id || r.recordId),
+        message,
+      });
+      toast.success(`SMS sent to ${validRecipients.length} recipient${validRecipients.length !== 1 ? 's' : ''}`);
+      onClose();
+    } catch (err) {
+      console.error('Failed to send SMS:', err);
+      const errorMessage = err.response?.data?.message || 'Failed to send SMS';
+      if (err.response?.status === 404 || errorMessage.includes('not found') || errorMessage.includes('not implemented') || errorMessage.includes('Twilio')) {
+        toast.error('SMS requires Twilio integration. Configure in Settings > SMS');
+      } else {
+        toast.error(errorMessage);
+      }
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Compose SMS"
+      description={`Send a text message to ${recipients.length} selected owner${recipients.length !== 1 ? 's' : ''}`}
+      size="default"
+      footer={
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={onClose} disabled={isSending}>
+            Cancel
+          </Button>
+          <Button onClick={handleSend} disabled={isSending || validRecipients.length === 0}>
+            {isSending ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Sending...</>
+            ) : (
+              <><Send className="h-4 w-4 mr-2" />Send SMS</>
+            )}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        {/* Recipients */}
+        <div>
+          <label className="block text-sm font-medium mb-1 text-[color:var(--bb-color-text-primary)]">
+            Recipients
+          </label>
+          <div className="w-full px-3 py-2 rounded-lg border text-sm" style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-muted)' }}>
+            {validRecipients.length > 0 ? (
+              <div className="flex flex-wrap gap-1">
+                {validRecipients.slice(0, 5).map((r, i) => (
+                  <Badge key={i} variant="neutral" className="text-xs">
+                    <Phone className="h-3 w-3 mr-1" />
+                    {r.phone}
+                  </Badge>
+                ))}
+                {validRecipients.length > 5 && (
+                  <Badge variant="neutral" className="text-xs">+{validRecipients.length - 5} more</Badge>
+                )}
+              </div>
+            ) : (
+              <span className="text-[color:var(--bb-color-text-muted)]">No valid phone numbers</span>
+            )}
+          </div>
+          {missingPhoneCount > 0 && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+              {missingPhoneCount} selected owner{missingPhoneCount !== 1 ? 's' : ''} {missingPhoneCount !== 1 ? 'have' : 'has'} no phone number
+            </p>
+          )}
+        </div>
+
+        {/* Message */}
+        <div>
+          <label className="block text-sm font-medium mb-1 text-[color:var(--bb-color-text-primary)]">
+            Message
+          </label>
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Type your message here..."
+            rows={4}
+            className="w-full px-3 py-2 rounded-lg border text-sm resize-none"
+            style={{ backgroundColor: 'var(--bb-color-bg-body)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }}
+          />
+          <div className="flex items-center justify-between mt-1">
+            <span className={cn(
+              'text-xs',
+              characterCount > 160 ? 'text-amber-600 dark:text-amber-400' : 'text-[color:var(--bb-color-text-muted)]'
+            )}>
+              {characterCount} characters
+              {segmentCount > 1 && ` (${segmentCount} SMS segments)`}
+            </span>
+            {characterCount > 160 && (
+              <span className="text-xs text-amber-600 dark:text-amber-400">
+                Messages over 160 chars may cost more
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Help text */}
+        <p className="text-xs text-[color:var(--bb-color-text-muted)]">
+          SMS messages will be sent individually to each recipient. Standard SMS rates apply based on your Twilio plan.
+        </p>
+      </div>
+    </Modal>
   );
 };
 

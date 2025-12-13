@@ -109,7 +109,8 @@ export default function SegmentDetail() {
   const exportMutation = useExportSegment();
 
   // Single source of truth for segment type
-  const segmentType = segment?.segment_type || 'active';
+  // Falls back to isAutomatic/isDynamic for legacy data, defaults to 'static' if nothing set
+  const segmentType = segment?.segment_type || (segment?.isAutomatic ?? segment?.isDynamic ? 'active' : 'static');
   const isActive = segmentType === 'active';
   const memberCount = segment?._count?.members ?? segment?.memberCount ?? segment?.member_count ?? 0;
   const objectType = segment?.object_type || segment?.objectType || 'owners';

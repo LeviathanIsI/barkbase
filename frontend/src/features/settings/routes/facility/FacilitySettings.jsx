@@ -42,18 +42,14 @@ export default function FacilitySettings() {
   };
 
   return (
-    <div className="space-y-6 max-w-4xl">
-      {/* Page Header */}
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-text">Facility Setup</h1>
-          <p className="mt-1 text-sm text-muted">Configure kennels, locations, amenities, and facility rules</p>
-        </div>
+    <div className="space-y-6">
+      {/* Save Button - aligned right */}
+      <div className="flex justify-end">
         <Button onClick={handleSave} disabled={updateSettings.isPending}>
           <Save className="h-4 w-4 mr-2" />
           {updateSettings.isPending ? 'Saving...' : 'Save Changes'}
         </Button>
-      </header>
+      </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="border-b border-border w-full justify-start gap-6 bg-transparent px-0 mb-6">
