@@ -1105,11 +1105,8 @@ async function getOwners(event) {
   const offset = (page - 1) * limit;
   const search = queryParams.search || queryParams.q || '';
 
-  // Diagnostic logging
+  // Diagnostic logging (sanitized - no env values)
   console.log('[Owners][list] tenantId:', tenantId, 'page:', page, 'limit:', limit);
-  console.log('[Owners][list] env DB_HOST:', process.env.DB_HOST);
-  console.log('[Owners][list] env DB_NAME:', process.env.DB_NAME || process.env.DB_DATABASE);
-  console.log('[ENTITY-SERVICE] Getting owners for tenant:', tenantId);
 
   // Return 400 if no tenant context
   if (!tenantId) {

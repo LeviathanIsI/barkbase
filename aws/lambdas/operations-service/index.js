@@ -786,8 +786,6 @@ async function handleGetBookings(tenantId, queryParams) {
   const { status, date, startDate, endDate, days, pet_id, owner_id, limit = 50, offset = 0 } = queryParams;
 
   console.log('[Bookings][list] tenantId:', tenantId);
-  console.log('[Bookings][list] query:', JSON.stringify(queryParams || {}));
-  console.log('[Bookings][list] env DB_NAME:', process.env.DB_NAME || process.env.DB_DATABASE);
 
   try {
     await getPoolAsync();

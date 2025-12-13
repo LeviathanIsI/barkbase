@@ -555,8 +555,6 @@ async function handleGetInvoices(tenantId, queryParams) {
   const { status, customerId, limit = 50, offset = 0 } = queryParams;
 
   console.log('[Invoices][list] tenantId:', tenantId);
-  console.log('[Invoices][list] query:', JSON.stringify(queryParams || {}));
-  console.log('[Invoices][list] env DB_NAME:', process.env.DB_NAME || process.env.DB_DATABASE);
 
   try {
     await getPoolAsync();
@@ -1227,8 +1225,6 @@ async function handleGetPayments(tenantId, queryParams) {
   const { status, limit = 50, offset = 0 } = queryParams;
 
   console.log('[Payments][list] tenantId:', tenantId);
-  console.log('[Payments][list] query:', JSON.stringify(queryParams || {}));
-  console.log('[Payments][list] env DB_NAME:', process.env.DB_NAME || process.env.DB_DATABASE);
 
   try {
     await getPoolAsync();
