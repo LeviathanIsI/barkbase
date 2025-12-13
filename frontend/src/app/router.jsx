@@ -182,29 +182,9 @@ const Packages = lazy(() => import("@/features/packages/routes/Packages"));
 const Invoices = lazy(() => import("@/features/invoices/routes/Invoices"));
 // Removed placeholder routes: PricingRules, FollowUps, Webhooks, CustomCode, Tickets, KnowledgeBase, AuditLogs
 
-// Object setup pages
-const PetsSetup = lazy(() => import("@/features/objects/routes/PetsSetup"));
-const OwnersSetup = lazy(() => import("@/features/objects/routes/OwnersSetup"));
-const BookingsSetup = lazy(() =>
-  import("@/features/objects/routes/BookingsSetup")
-);
-const FacilitiesSetup = lazy(() =>
-  import("@/features/objects/routes/FacilitiesSetup")
-);
-const ServicesSetup = lazy(() =>
-  import("@/features/objects/routes/ServicesSetup")
-);
-const PackagesSetup = lazy(() =>
-  import("@/features/objects/routes/PackagesSetup")
-);
-const InvoicesSetup = lazy(() =>
-  import("@/features/objects/routes/InvoicesSetup")
-);
-const PaymentsSetup = lazy(() =>
-  import("@/features/objects/routes/PaymentsSetup")
-);
-const TicketsSetup = lazy(() =>
-  import("@/features/objects/routes/TicketsSetup")
+// Object settings page (unified for all object types)
+const ObjectSettings = lazy(() =>
+  import("@/features/settings/routes/objects/ObjectSettings")
 );
 const PropertiesSettings = lazy(() =>
   import("@/features/settings/routes/PropertiesSettings")
@@ -214,12 +194,6 @@ const PropertyDetail = lazy(() =>
 );
 const AssociationsSettings = lazy(() =>
   import("@/features/settings/routes/AssociationsSettings")
-);
-const PetsAssociations = lazy(() =>
-  import("@/features/objects/routes/PetsAssociations")
-);
-const OwnersAssociations = lazy(() =>
-  import("@/features/objects/routes/OwnersAssociations")
 );
 const CustomerDetail = lazy(() =>
   import("@/features/customers/routes/CustomerDetail")
@@ -414,18 +388,15 @@ export const router = createBrowserRouter([
                   // Data Management - Properties & Objects
                   { path: "properties", element: <PropertiesSettings /> },
                   { path: "properties/:objectType/:propertyId", element: <PropertyDetail /> },
-                  { path: "objects", element: <Navigate to="objects/pets" replace /> },
-                  { path: "objects/pets", element: <PetsSetup /> },
-                  { path: "objects/pets/associations", element: <PetsAssociations /> },
-                  { path: "objects/owners", element: <OwnersSetup /> },
-                  { path: "objects/owners/associations", element: <OwnersAssociations /> },
-                  { path: "objects/bookings", element: <BookingsSetup /> },
-                  { path: "objects/facilities", element: <FacilitiesSetup /> },
-                  { path: "objects/services", element: <ServicesSetup /> },
-                  { path: "objects/packages", element: <PackagesSetup /> },
-                  { path: "objects/invoices", element: <InvoicesSetup /> },
-                  { path: "objects/payments", element: <PaymentsSetup /> },
-                  { path: "objects/tickets", element: <TicketsSetup /> },
+                  { path: "objects", element: <Navigate to="objects/owners" replace /> },
+                  // Object settings - unified component handles all object types and tabs
+                  { path: "objects/:objectType", element: <ObjectSettings /> },
+                  { path: "objects/:objectType/associations", element: <ObjectSettings /> },
+                  { path: "objects/:objectType/pipelines", element: <ObjectSettings /> },
+                  { path: "objects/:objectType/lifecycle", element: <ObjectSettings /> },
+                  { path: "objects/:objectType/record", element: <ObjectSettings /> },
+                  { path: "objects/:objectType/preview", element: <ObjectSettings /> },
+                  { path: "objects/:objectType/index", element: <ObjectSettings /> },
                 ],
               },
 
