@@ -1129,27 +1129,6 @@ const RunAssignment = () => {
     win.document.close();
   };
 
-  // Debug: Log DragOverlay z-index/visibility
-  useEffect(() => {
-    if (activeId && activePet) {
-      console.log('=== DRAG OVERLAY ACTIVE ===');
-      console.log('Looking for portal container...');
-
-      // Check if there's already a drag overlay in the DOM
-      const existingOverlays = document.querySelectorAll('[data-dnd-kit-drag-overlay]');
-      console.log('Existing dnd-kit overlays in DOM:', existingOverlays.length);
-      existingOverlays.forEach((el, i) => {
-        console.log(`Overlay ${i}:`, {
-          zIndex: window.getComputedStyle(el).zIndex,
-          position: window.getComputedStyle(el).position,
-          parent: el.parentElement?.tagName,
-          visible: window.getComputedStyle(el).visibility,
-          display: window.getComputedStyle(el).display,
-        });
-      });
-    }
-  }, [activeId, activePet]);
-
   // Loading state
   if (isLoading) {
     return (
@@ -1390,7 +1369,6 @@ const RunAssignment = () => {
         {/* Drag Overlay - Portal entire component to body to escape overflow clipping */}
         {createPortal(
           <>
-            {console.log('=== INSIDE PORTAL ===', { activeId, activePet: activePet?.name })}
             <DragOverlay
               dropAnimation={{
                 duration: 200,
@@ -1399,15 +1377,10 @@ const RunAssignment = () => {
               zIndex={9999}
             >
               {activeId && activePet ? (
-                <>
-                  {console.log('=== RENDERING DRAG OVERLAY CHILDREN ===', activePet.name)}
-                  <div style={{ width: 280, border: '5px solid red' }}>
-                    <DraggablePetCard pet={activePet} isDragOverlay />
-                  </div>
-                </>
-              ) : (
-                console.log('=== NO CHILDREN - activeId or activePet missing ===', { activeId, activePet })
-              )}
+                <div style={{ width: 280 }}>
+                  <DraggablePetCard pet={activePet} isDragOverlay />
+                </div>
+              ) : null}
             </DragOverlay>
           </>,
           document.body
