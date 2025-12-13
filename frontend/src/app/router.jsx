@@ -68,9 +68,6 @@ const SettingsProfile = lazy(() =>
 const SettingsNotifications = lazy(() =>
   import("@/features/settings/routes/Notifications")
 );
-const SettingsSecurity = lazy(() =>
-  import("@/features/settings/routes/Security")
-);
 const SettingsBusiness = lazy(() =>
   import("@/features/settings/routes/Business")
 );
@@ -328,7 +325,6 @@ export const router = createBrowserRouter([
                   { path: "profile", element: <SettingsProfile /> },
                   // Removed: general settings consolidated into Business
                   { path: "notifications", element: <SettingsNotifications /> },
-                  { path: "security", element: <SettingsSecurity /> },
 
                   // Account Management
                   { path: "account", element: <SettingsAccountDefaults /> },

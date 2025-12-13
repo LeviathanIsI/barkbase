@@ -11,7 +11,6 @@ const NAV_SECTIONS = [
     items: [
       { label: "Profile", to: "/settings/profile" },
       { label: "Notifications", to: "/settings/notifications" },
-      { label: "Security", to: "/settings/security" },
     ],
   },
   {

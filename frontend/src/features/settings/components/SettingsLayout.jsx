@@ -9,7 +9,6 @@ import {
   BellRing,
   CreditCard,
   Users,
-  Shield,
   ShieldCheck,
   Tag,
   ChevronRight,
@@ -40,7 +39,6 @@ const NAV_SECTIONS = [
     items: [
       { id: "profile", label: "Profile", icon: User, path: "/settings/profile", description: "Manage your personal account" },
       { id: "notifications", label: "Notifications", icon: Bell, path: "/settings/notifications", description: "Email and alert preferences" },
-      { id: "security", label: "Security", icon: Shield, path: "/settings/security", description: "Password and login settings" },
     ],
   },
   {
@@ -194,10 +192,7 @@ export default function SettingsLayout() {
     if (currentPath === "/settings/business") {
       return ALL_ITEMS.find((item) => item.id === "account");
     }
-    if (currentPath === "/settings/account-security") {
-      return ALL_ITEMS.find((item) => item.id === "security");
-    }
-    if (currentPath === "/settings/custom-fields") {
+        if (currentPath === "/settings/custom-fields") {
       return ALL_ITEMS.find((item) => item.id === "properties");
     }
     if (currentPath === "/settings/exports") {
