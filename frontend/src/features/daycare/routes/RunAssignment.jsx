@@ -996,26 +996,44 @@ const RunAssignment = () => {
 
     const { pet, runId } = pendingAssignment;
 
-    setAssignmentState(prev => {
-      const newState = { ...prev };
-
-      // Remove from all runs first
-      Object.keys(newState).forEach(rid => {
-        newState[rid] = newState[rid].filter(a => a.pet?.recordId !== pet.recordId);
-      });
-
-      // Add to target run with time slots
-      if (!newState[runId]) {
-        newState[runId] = [];
-      }
-      newState[runId].push({
-        pet,
-        startTime,
-        endTime
-      });
-
-      return newState;
+    // Update local state
+    const newState = { ...assignmentState };
+    Object.keys(newState).forEach(rid => {
+      newState[rid] = newState[rid].filter(a => a.pet?.recordId !== pet.recordId);
     });
+    if (!newState[runId]) {
+      newState[runId] = [];
+    }
+    newState[runId].push({ pet, startTime, endTime });
+    setAssignmentState(newState);
+
+    // Save immediately to API
+    const assignments = [];
+    for (const [rId, runAssignments] of Object.entries(newState)) {
+      for (const assignment of runAssignments) {
+        assignments.push({
+          runId: rId,
+          petId: assignment.pet?.recordId || assignment.pet?.id,
+          startTime: assignment.startTime,
+          endTime: assignment.endTime,
+          bookingId: assignment.bookingId || null,
+          notes: assignment.notes || null,
+        });
+      }
+    }
+
+    try {
+      await saveAssignmentsMutation.mutateAsync({
+        date: selectedDate,
+        assignments,
+      });
+      setInitialState(JSON.parse(JSON.stringify(newState)));
+      toast.success(`${pet.name} assigned to run`);
+      refetchRuns();
+    } catch (error) {
+      console.error('[RunAssignment] Save failed:', error);
+      toast.error(error.message || 'Failed to save assignment');
+    }
 
     setTimePickerOpen(false);
     setPendingAssignment(null);
@@ -1187,7 +1205,7 @@ const RunAssignment = () => {
   }
 
   return (
-    <div className={cn('space-y-5', hasChanges && 'pb-20')}>
+    <div className="space-y-5">
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -1255,18 +1273,6 @@ const RunAssignment = () => {
           <Button variant="outline" onClick={handlePrintRunSheets}>
             <Printer className="h-4 w-4 mr-2" />
             Print Sheets
-          </Button>
-
-          <Button
-            onClick={handleSaveAssignments}
-            disabled={!hasChanges || saveAssignmentsMutation.isPending}
-          >
-            {saveAssignmentsMutation.isPending ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
-            )}
-            {saveAssignmentsMutation.isPending ? 'Saving...' : 'Save Assignments'}
           </Button>
         </div>
       </div>
@@ -1386,42 +1392,6 @@ const RunAssignment = () => {
           document.body
         )}
       </DndContext>
-
-      {/* Sticky Action Bar (when changes exist) */}
-      {hasChanges && (
-        <div className="fixed bottom-0 left-0 right-0 bg-primary/5 dark:bg-primary/10 border-t border-primary/20 shadow-lg z-50">
-          <div className="max-w-[1600px] mx-auto px-6 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Save className="h-5 w-5 text-primary" />
-              <div>
-                <span className="text-sm font-medium text-text">
-                  You have unsaved changes
-                </span>
-                <span className="text-xs text-muted ml-2">
-                  ({Object.values(assignmentState).flat().length} assignments)
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button variant="outline" onClick={handleResetChanges}>
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Reset Changes
-              </Button>
-              <Button
-                onClick={handleSaveAssignments}
-                disabled={saveAssignmentsMutation.isPending}
-              >
-                {saveAssignmentsMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4 mr-2" />
-                )}
-                {saveAssignmentsMutation.isPending ? 'Saving...' : 'Save Assignments'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Time Slot Picker Modal */}
       {pendingAssignment && (
