@@ -3836,14 +3836,16 @@ async function handleSaveRunAssignments(tenantId, body, user) {
         let finalBookingId = bookingId;
 
         // If no bookingId provided, try to find an active booking for this pet on this date
+        // Booking uses BookingPet junction table, not direct pet_id
         if (!finalBookingId) {
           const bookingResult = await query(
-            `SELECT id FROM "Booking"
-             WHERE tenant_id = $1
-               AND pet_id = $2
-               AND status IN ('CONFIRMED', 'CHECKED_IN')
-               AND DATE(check_in) <= $3::date
-               AND (check_out IS NULL OR DATE(check_out) >= $3::date)
+            `SELECT b.id FROM "Booking" b
+             JOIN "BookingPet" bp ON bp.booking_id = b.id
+             WHERE b.tenant_id = $1
+               AND bp.pet_id = $2
+               AND b.status IN ('CONFIRMED', 'CHECKED_IN')
+               AND DATE(b.check_in) <= $3::date
+               AND (b.check_out IS NULL OR DATE(b.check_out) >= $3::date)
              LIMIT 1`,
             [tenantId, petId, date]
           );
