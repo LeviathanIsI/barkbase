@@ -45,6 +45,43 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
 import { useTenantStore } from '@/stores/tenant';
 import { listQueryDefaults, detailQueryDefaults, searchQueryDefaults } from '@/lib/queryConfig';
+import toast from 'react-hot-toast';
+
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
+
+/**
+ * Extract user-friendly error message from API error
+ * @param {Error} error - Error object from mutation
+ * @returns {string} User-friendly error message
+ */
+export const extractErrorMessage = (error) => {
+  // API response error message
+  if (error?.response?.data?.message) {
+    return error.response.data.message;
+  }
+  if (error?.response?.data?.error) {
+    return error.response.data.error;
+  }
+  // Standard error message
+  if (error?.message) {
+    return error.message;
+  }
+  return 'An unexpected error occurred';
+};
+
+/**
+ * Default onError handler for mutations
+ * Shows toast notification with error message
+ * @param {string} context - Context for error logging (e.g., 'owners', 'pets')
+ * @returns {function} Error handler function
+ */
+export const createMutationErrorHandler = (context) => (error) => {
+  const message = extractErrorMessage(error);
+  toast.error(message);
+  console.error(`[${context}] Mutation failed:`, message);
+};
 
 // ============================================================================
 // TENANT HELPERS
@@ -312,6 +349,7 @@ export const createMutation = ({
   url,
   method = 'POST',
   invalidate = [],
+  errorContext = 'API',
   mutationOptions = {},
 }) => {
   return (idOrOptions = {}) => {
@@ -353,6 +391,7 @@ export const createMutation = ({
             throw new Error(`Unsupported method: ${method}`);
         }
       },
+      onError: createMutationErrorHandler(errorContext),
       onSettled: () => {
         // Invalidate all specified query keys
         invalidate.forEach((queryKey) => {
@@ -360,7 +399,7 @@ export const createMutation = ({
             queryKey: buildQueryKey(queryKey, tenantKey, {}),
           });
         });
-        
+
         // Also invalidate detail query if we have an id
         if (id) {
           queryClient.invalidateQueries({

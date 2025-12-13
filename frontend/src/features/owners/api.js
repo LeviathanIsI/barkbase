@@ -6,12 +6,13 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { canonicalEndpoints } from '@/lib/canonicalEndpoints';
 import { useTenantStore } from '@/stores/tenant';
 import { useAuthStore } from '@/stores/auth';
-import { normalizeListResponse } from '@/lib/createApiHooks';
+import { normalizeListResponse, extractErrorMessage } from '@/lib/createApiHooks';
 import { listQueryDefaults, detailQueryDefaults, searchQueryDefaults } from '@/lib/queryConfig';
 
 // ============================================================================
@@ -145,6 +146,10 @@ export const useCreateOwnerMutation = () => {
       if (created?.recordId) {
         queryClient.setQueryData(listKey, (old = []) => [created, ...old]);
       }
+      toast.success('Owner created successfully');
+    },
+    onError: (error) => {
+      toast.error(extractErrorMessage(error));
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: listKey });
@@ -179,10 +184,11 @@ export const useUpdateOwnerMutation = (ownerId) => {
       }
       return { previous };
     },
-    onError: (_error, _variables, context) => {
+    onError: (error, _variables, context) => {
       if (context?.previous) {
         queryClient.setQueryData(listKey, context.previous);
       }
+      toast.error(extractErrorMessage(error));
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: listKey });
@@ -219,10 +225,11 @@ export const useUpdateOwnerStatusMutation = () => {
       }
       return { previous };
     },
-    onError: (_error, _variables, context) => {
+    onError: (error, _variables, context) => {
       if (context?.previous) {
         queryClient.setQueryData(listKey, context.previous);
       }
+      toast.error(extractErrorMessage(error));
     },
     onSettled: (_, __, { ownerId }) => {
       queryClient.invalidateQueries({ queryKey: listKey });
@@ -252,10 +259,14 @@ export const useDeleteOwnerMutation = () => {
       }
       return { previous };
     },
-    onError: (_error, _variables, context) => {
+    onSuccess: () => {
+      toast.success('Owner deleted successfully');
+    },
+    onError: (error, _variables, context) => {
       if (context?.previous) {
         queryClient.setQueryData(listKey, context.previous);
       }
+      toast.error(extractErrorMessage(error));
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: listKey });
@@ -276,11 +287,17 @@ export const useAddPetToOwnerMutation = (ownerId) => {
   
   return useMutation({
     mutationFn: async ({ petId, isPrimary = false }) => {
-      const res = await apiClient.post(canonicalEndpoints.owners.pets(ownerId), { 
-        petId, 
-        isPrimary 
+      const res = await apiClient.post(canonicalEndpoints.owners.pets(ownerId), {
+        petId,
+        isPrimary
       });
       return res.data;
+    },
+    onSuccess: () => {
+      toast.success('Pet linked to owner');
+    },
+    onError: (error) => {
+      toast.error(extractErrorMessage(error));
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.owners(tenantKey) });
@@ -300,6 +317,12 @@ export const useRemovePetFromOwnerMutation = (ownerId) => {
     mutationFn: async (petId) => {
       await apiClient.delete(`${canonicalEndpoints.owners.pets(ownerId)}/${petId}`);
       return petId;
+    },
+    onSuccess: () => {
+      toast.success('Pet removed from owner');
+    },
+    onError: (error) => {
+      toast.error(extractErrorMessage(error));
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.owners(tenantKey) });
