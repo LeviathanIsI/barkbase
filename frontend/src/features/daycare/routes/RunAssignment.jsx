@@ -181,10 +181,12 @@ const SortablePetCard = ({
       <div className="flex items-start gap-3">
         {showCheckbox && (
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               onSelect(pet.recordId);
             }}
+            onPointerDown={(e) => e.stopPropagation()}
             className="mt-0.5 text-muted hover:text-primary transition-colors"
           >
             {isSelected ? (
@@ -198,7 +200,8 @@ const SortablePetCard = ({
         <div
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing text-muted hover:text-text mt-0.5"
+          className="cursor-grab active:cursor-grabbing text-muted hover:text-text mt-0.5 touch-none"
+          style={{ userSelect: 'none' }}
         >
           <GripVertical className="h-4 w-4" />
         </div>
@@ -251,10 +254,12 @@ const SortablePetCard = ({
         </div>
 
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
             onRemove(pet.recordId);
           }}
+          onPointerDown={(e) => e.stopPropagation()}
           className="opacity-0 group-hover:opacity-100 p-1 text-muted hover:text-danger hover:bg-danger/10 rounded transition-all"
           title="Remove from run"
         >
@@ -266,9 +271,9 @@ const SortablePetCard = ({
 };
 
 // Draggable Pet Card for unassigned pets
-const DraggablePetCard = ({ 
-  pet, 
-  isSelected, 
+const DraggablePetCard = ({
+  pet,
+  isSelected,
   onSelect,
   isDragOverlay = false,
 }) => {
@@ -321,10 +326,12 @@ const DraggablePetCard = ({
       <div className="flex items-start gap-3">
         {!isDragOverlay && (
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               onSelect(pet.recordId);
             }}
+            onPointerDown={(e) => e.stopPropagation()}
             className="mt-0.5 text-muted hover:text-primary transition-colors"
           >
             {isSelected ? (
@@ -338,7 +345,8 @@ const DraggablePetCard = ({
         <div
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing text-muted hover:text-text mt-0.5"
+          className="cursor-grab active:cursor-grabbing text-muted hover:text-text mt-0.5 touch-none"
+          style={{ userSelect: 'none' }}
         >
           <GripVertical className="h-4 w-4" />
         </div>
@@ -743,7 +751,7 @@ const RunAssignment = () => {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 5,
       },
     })
   );
@@ -1354,8 +1362,14 @@ const RunAssignment = () => {
           </div>
         </div>
 
-        {/* Drag Overlay */}
-        <DragOverlay>
+        {/* Drag Overlay - High z-index so it floats above all content */}
+        <DragOverlay
+          dropAnimation={{
+            duration: 200,
+            easing: 'ease',
+          }}
+          style={{ zIndex: 9999 }}
+        >
           {activeId && activePet && (
             <DraggablePetCard pet={activePet} isDragOverlay />
           )}
