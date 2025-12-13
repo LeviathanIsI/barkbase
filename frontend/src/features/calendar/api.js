@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import apiClient from '@/lib/apiClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { useTenantStore } from '@/stores/tenant';
@@ -85,31 +86,27 @@ export const useSuggestKennelQuery = (params, options = {}) => {
 };
 
 /**
- * Assign kennel mutation (stub - not yet implemented)
+ * Assign kennel mutation (gracefully disabled - not yet implemented)
  */
 export const useAssignKennelMutation = () => {
-  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async () => {
-      throw new Error('Kennel assignment not yet implemented');
-    },
-    onSuccess: () => {
-      // invalidate queries
+    mutationFn: async (/* bookingId, kennelId */) => {
+      // Feature not yet implemented - return gracefully
+      toast.info('Kennel assignment from calendar coming soon!');
+      return { success: false, message: 'Feature coming soon' };
     },
   });
 };
 
 /**
- * Reassign kennel mutation (stub - not yet implemented)
+ * Reassign kennel mutation (gracefully disabled - not yet implemented)
  */
 export const useReassignKennelMutation = () => {
-  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async () => {
-      throw new Error('Kennel reassignment not yet implemented');
-    },
-    onSuccess: () => {
-      // invalidate queries
+    mutationFn: async (/* bookingId, fromKennelId, toKennelId */) => {
+      // Feature not yet implemented - return gracefully
+      toast.info('Kennel reassignment from calendar coming soon!');
+      return { success: false, message: 'Feature coming soon' };
     },
   });
 };
