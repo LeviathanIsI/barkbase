@@ -21,6 +21,7 @@
  */
 
 import { createAWSClient } from './aws-client';
+import camelcaseKeys from 'camelcase-keys';
 
 // Initialize the AWS client - configuration is read from @/config/env
 const awsClient = createAWSClient();
@@ -155,7 +156,9 @@ const parseResponse = async (res) => {
   const contentType = res.headers.get('content-type') || '';
   if (contentType.includes('application/json')) {
     try {
-      return await res.json();
+      const data = await res.json();
+      // Convert snake_case keys to camelCase for frontend consistency
+      return camelcaseKeys(data, { deep: true });
     } catch {
       return null;
     }
