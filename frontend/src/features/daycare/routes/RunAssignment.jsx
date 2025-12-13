@@ -1000,16 +1000,34 @@ const RunAssignment = () => {
     if (!pet) return;
 
     console.log('Opening time picker for:', pet?.name, 'to run:', targetRun?.name);
-    console.log('Setting pendingAssignment:', { pet: pet?.name, runId: targetId, runName: targetRun?.name });
 
-    // Open time picker modal
-    setPendingAssignment({
-      pet,
-      run: targetRun,
-      runId: targetId
+    // TEMP: Direct assignment without time picker
+    console.log('DIRECT ASSIGN:', pet.name, 'to', targetRun.name);
+    setAssignmentState(prev => {
+      const newState = { ...prev };
+      Object.keys(newState).forEach(rid => {
+        newState[rid] = newState[rid].filter(a => a.pet?.recordId !== pet.recordId);
+      });
+      if (!newState[targetId]) {
+        newState[targetId] = [];
+      }
+      newState[targetId].push({
+        pet,
+        startTime: '09:00',
+        endTime: '12:00'
+      });
+      return newState;
     });
-    console.log('Setting timePickerOpen to true');
-    setTimePickerOpen(true);
+
+    // TODO: Restore time picker once working
+    // console.log('Setting pendingAssignment:', { pet: pet?.name, runId: targetId, runName: targetRun?.name });
+    // setPendingAssignment({
+    //   pet,
+    //   run: targetRun,
+    //   runId: targetId
+    // });
+    // console.log('Setting timePickerOpen to true');
+    // setTimePickerOpen(true);
   };
 
   const handleTimeSlotConfirm = async ({ startTime, endTime }) => {
