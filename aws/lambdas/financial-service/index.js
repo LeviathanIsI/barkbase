@@ -61,6 +61,53 @@ function getStripe() {
   return stripe;
 }
 
+// =============================================================================
+// INPUT VALIDATION HELPERS
+// =============================================================================
+
+/**
+ * Validate payment creation input
+ * Returns array of error messages (empty if valid)
+ */
+function validatePaymentInput(body) {
+  const errors = [];
+  const { amount, amountCents, invoiceId, method, paymentMethod } = body;
+
+  // Calculate cents for validation
+  const cents = amountCents || (amount ? Math.round(amount * 100) : null);
+
+  // Amount validation
+  if (cents === null || cents === undefined) {
+    errors.push('amount or amountCents is required');
+  } else if (typeof cents !== 'number' || isNaN(cents)) {
+    errors.push('amount must be a valid number');
+  } else {
+    if (cents <= 0) {
+      errors.push('amount must be greater than 0');
+    }
+    if (cents > 100000000) { // $1,000,000 max
+      errors.push('amount exceeds maximum allowed ($1,000,000)');
+    }
+  }
+
+  // If using dollar amount, check decimal places
+  if (amount !== undefined && amount !== null) {
+    const amountStr = amount.toString();
+    if (amountStr.includes('.') && amountStr.split('.')[1].length > 2) {
+      errors.push('amount cannot have more than 2 decimal places');
+    }
+  }
+
+  // Method validation
+  const validMethods = ['CARD', 'CASH', 'CHECK', 'BANK_TRANSFER', 'ACH', 'OTHER', 'CAPTURED'];
+  const methodValue = (method || paymentMethod || '').toUpperCase();
+  if (methodValue && !validMethods.includes(methodValue)) {
+    errors.push(`method must be one of: ${validMethods.join(', ')}`);
+  }
+
+  return errors;
+}
+
 /**
  * Resolve tenant ID with fallback precedence:
  * 1. X-Tenant-Id header (case-insensitive)
@@ -1389,15 +1436,18 @@ async function handleGetPayment(tenantId, paymentId) {
 async function handleCreatePayment(tenantId, body) {
   const { ownerId, amount, amountCents, paymentMethod, method, invoiceId, idempotencyKey } = body;
 
-  // Support both dollar amount and cents
-  const cents = amountCents || (amount ? Math.round(amount * 100) : null);
-
-  if (!cents) {
+  // Validate payment input
+  const validationErrors = validatePaymentInput(body);
+  if (validationErrors.length > 0) {
     return createResponse(400, {
-      error: 'Bad Request',
-      message: 'Amount is required',
+      error: 'Validation failed',
+      message: validationErrors.join('; '),
+      details: validationErrors,
     });
   }
+
+  // Support both dollar amount and cents
+  const cents = amountCents || (amount ? Math.round(amount * 100) : null);
 
   // Require idempotency key for payment creation to prevent duplicate charges
   if (!idempotencyKey) {
