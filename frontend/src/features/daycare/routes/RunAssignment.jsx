@@ -795,6 +795,7 @@ const RunAssignment = () => {
         if (!b.pet) return null;
         return {
           ...b.pet,
+          recordId: b.pet.recordId || b.pet.id, // ensure recordId is set
           owners: b.owner ? [{ owner: b.owner }] : [],
           bookingInfo: {
             checkIn: b.checkIn,
