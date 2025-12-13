@@ -20,6 +20,40 @@ const { createResponse, authenticateRequest, parseBody, getQueryParams, getPathP
 const { enforceLimit, getLimit, getTenantPlan, createTierErrorResponse } = sharedLayer;
 
 /**
+ * Validate email format
+ * @param {string} email - Email to validate
+ * @returns {object} - { valid: boolean, error?: string }
+ */
+function validateEmail(email) {
+  if (!email) {
+    return { valid: true }; // Email is optional, null/undefined is valid
+  }
+
+  if (typeof email !== 'string') {
+    return { valid: false, error: 'Email must be a string' };
+  }
+
+  // Trim whitespace
+  const trimmed = email.trim();
+
+  // Check length constraints
+  if (trimmed.length > 254) {
+    return { valid: false, error: 'Email exceeds maximum length of 254 characters' };
+  }
+
+  // RFC 5322 simplified email regex - covers 99% of valid emails
+  // Allows: letters, numbers, dots, underscores, hyphens, plus signs in local part
+  // Requires: @ symbol followed by domain with at least one dot
+  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+
+  if (!emailRegex.test(trimmed)) {
+    return { valid: false, error: 'Invalid email format' };
+  }
+
+  return { valid: true };
+}
+
+/**
  * Extract tenant ID from X-Tenant-Id header (case-insensitive)
  * @param {object} event - Lambda event
  * @returns {string|null} - Tenant ID or null
@@ -1242,6 +1276,14 @@ async function createOwner(event) {
     return createResponse(400, { error: 'BadRequest', message: 'At least one of firstName, lastName, or email is required' });
   }
 
+  // Validate email format if provided
+  if (body.email) {
+    const emailValidation = validateEmail(body.email);
+    if (!emailValidation.valid) {
+      return createResponse(400, { error: 'BadRequest', message: emailValidation.error });
+    }
+  }
+
   try {
     await getPoolAsync();
     // Schema: Owner has tags (TEXT[]), stripe_customer_id, created_by, updated_by
@@ -1289,6 +1331,14 @@ async function updateOwner(event) {
 
   if (!tenantId) {
     return createResponse(400, { error: 'BadRequest', message: 'Tenant context is required' });
+  }
+
+  // Validate email format if being updated
+  if (body.email !== undefined && body.email !== null) {
+    const emailValidation = validateEmail(body.email);
+    if (!emailValidation.valid) {
+      return createResponse(400, { error: 'BadRequest', message: emailValidation.error });
+    }
   }
 
   try {
