@@ -282,10 +282,14 @@ const DraggablePetCard = ({
     data: { pet },
   });
 
-  const style = isDragOverlay ? {} : {
-    transform: CSS.Translate.toString(transform),
-    opacity: isDragging ? 0.5 : 1,
-  };
+  // When using DragOverlay, original card stays in place but fades
+  // isDragOverlay cards (in DragOverlay) have no transform/opacity change
+  const style = isDragOverlay
+    ? {}
+    : {
+        opacity: isDragging ? 0.3 : 1,
+        // Don't apply transform - DragOverlay handles the visual drag
+      };
 
   const ownerName = pet.owners?.[0]?.owner
     ? `${pet.owners[0].owner.firstName} ${pet.owners[0].owner.lastName}`
@@ -1368,11 +1372,14 @@ const RunAssignment = () => {
             duration: 200,
             easing: 'ease',
           }}
-          style={{ zIndex: 9999 }}
+          zIndex={9999}
+          modifiers={[]}
         >
-          {activeId && activePet && (
-            <DraggablePetCard pet={activePet} isDragOverlay />
-          )}
+          {activeId && activePet ? (
+            <div style={{ width: 280, pointerEvents: 'none' }}>
+              <DraggablePetCard pet={activePet} isDragOverlay />
+            </div>
+          ) : null}
         </DragOverlay>
       </DndContext>
 
