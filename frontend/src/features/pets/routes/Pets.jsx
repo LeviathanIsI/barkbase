@@ -15,6 +15,7 @@ import EntityToolbar from '@/components/EntityToolbar';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import PetAvatar from '@/components/ui/PetAvatar';
+import { ScrollableTableContainer } from '@/components/ui/ScrollableTableContainer';
 // Replaced with LoadingState (mascot) for page-level loading
 import LoadingState from '@/components/ui/LoadingState';
 import { UpdateChip } from '@/components/PageLoader';
@@ -524,13 +525,13 @@ const Pets = () => {
 
   return (
     <>
-      {/* Main content container - stretches to fill available space in app shell */}
+      {/* Main content container - fixed height, no page scroll */}
       <div className={cn(
-        "flex flex-col flex-grow w-full min-h-[calc(100vh-180px)] transition-opacity duration-200",
+        "flex flex-col w-full h-[calc(100vh-120px)] overflow-hidden transition-opacity duration-200",
         hasLoaded ? "opacity-100" : "opacity-0"
       )}>
-        {/* Header Section */}
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between pb-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+        {/* Header Section - fixed, doesn't shrink */}
+        <div className="flex-shrink-0 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between pb-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
           <div>
             <Breadcrumbs items={['Clients', 'Pets']} />
             <h1 className="text-2xl font-bold text-[color:var(--bb-color-text-primary)]">Pets Directory</h1>
@@ -549,9 +550,9 @@ const Pets = () => {
           </div>
         </div>
 
-        {/* Sticky Toolbar */}
+        {/* Toolbar - fixed, doesn't shrink */}
         <div
-          className="sticky top-0 z-20 px-4 py-3 border-b shadow-sm rounded-lg"
+          className="flex-shrink-0 px-4 py-3 border-b shadow-sm rounded-lg"
           style={{
             backgroundColor: 'var(--bb-color-bg-surface)',
             borderColor: 'var(--bb-color-border-subtle)',
@@ -733,8 +734,8 @@ const Pets = () => {
           )}
         </div>
 
-        {/* Table Section - Uses full available width in content area */}
-        <div className="flex-1 flex flex-col mt-4">
+        {/* Table Section - Inner scroll with sticky header */}
+        <div className="flex-1 flex flex-col mt-4 min-h-0">
           {sortedPets.length === 0 ? (
             <div className="py-8">
               <EmptyState hasFilters={hasActiveFilters} onClearFilters={clearFilters} onAddPet={() => setPetFormModalOpen(true)} />
@@ -742,10 +743,10 @@ const Pets = () => {
           ) : (
             <>
               {/* Desktop Table View */}
-              <div className="hidden md:flex md:flex-1 overflow-x-auto max-w-full">
+              <ScrollableTableContainer className="hidden md:flex border rounded-t-lg" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
                 <table className="w-full text-sm min-w-[1024px]">
-                  <thead>
-                    <tr style={{ backgroundColor: 'var(--bb-color-bg-elevated)', borderBottom: '2px solid var(--bb-color-border-subtle)' }}>
+                  <thead className="sticky top-0 z-10">
+                    <tr style={{ backgroundColor: 'var(--bb-color-bg-elevated)', boxShadow: '0 1px 0 var(--bb-color-border-subtle)' }}>
                       {orderedColumns.map((column) => {
                         const thPadding = 'px-4 lg:px-6 py-3';
                         const alignClass = column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : 'text-left';
@@ -758,7 +759,7 @@ const Pets = () => {
                               'text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)] whitespace-nowrap',
                               column.sortable && 'cursor-pointer hover:text-[color:var(--bb-color-text-primary)] transition-colors'
                             )}
-                            style={{ minWidth: column.minWidth, maxWidth: column.maxWidth }}
+                            style={{ minWidth: column.minWidth, maxWidth: column.maxWidth, backgroundColor: 'var(--bb-color-bg-elevated)' }}
                             onClick={() => column.sortable && handleSort(column.sortKey)}
                           >
                             {column.id === 'select' ? (
@@ -802,7 +803,7 @@ const Pets = () => {
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </ScrollableTableContainer>
 
               {/* Mobile Cards View */}
               <div className="md:hidden px-4 space-y-3">
@@ -819,10 +820,10 @@ const Pets = () => {
             </>
           )}
 
-          {/* Pagination */}
+          {/* Pagination - fixed at bottom */}
           {sortedPets.length > 0 && (
             <div
-              className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4 px-4 border-t rounded-b-lg"
+              className="flex-shrink-0 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-3 px-4 border-t"
               style={{ borderColor: 'var(--bb-color-border-subtle)', backgroundColor: 'var(--bb-color-bg-surface)' }}
             >
               <div className="flex items-center gap-2 text-sm text-[color:var(--bb-color-text-muted)]">

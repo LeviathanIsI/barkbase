@@ -25,6 +25,7 @@ import {
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import LoadingState from '@/components/ui/LoadingState';
+import { ScrollableTableContainer } from '@/components/ui/ScrollableTableContainer';
 import {
   useSegments,
   useDeleteSegment,
@@ -159,9 +160,9 @@ export default function Segments() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="flex flex-col h-[calc(100vh-120px)] overflow-hidden">
+      {/* Header - fixed, doesn't shrink */}
+      <div className="flex-shrink-0 flex items-center justify-between pb-6">
         <div>
           <nav className="mb-2">
             <ol className="flex items-center gap-1 text-xs text-[color:var(--bb-color-text-muted)]">
@@ -193,8 +194,8 @@ export default function Segments() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-4 flex-wrap">
+      {/* Filters - fixed, doesn't shrink */}
+      <div className="flex-shrink-0 flex items-center gap-4 flex-wrap pb-4">
         {/* Search */}
         <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[color:var(--bb-color-text-muted)]" />
@@ -233,9 +234,9 @@ export default function Segments() {
         </select>
       </div>
 
-      {/* Table */}
+      {/* Table - scrollable */}
       {filteredSegments.length === 0 ? (
-        <div className="text-center py-16 rounded-lg border border-[color:var(--bb-color-border-subtle)] bg-[color:var(--bb-color-bg-surface)]">
+        <div className="flex-1 flex items-center justify-center text-center py-16 rounded-lg border border-[color:var(--bb-color-border-subtle)] bg-[color:var(--bb-color-bg-surface)]">
           <Users className="h-12 w-12 mx-auto mb-4 text-[color:var(--bb-color-text-muted)]" />
           <h3 className="text-lg font-medium text-[color:var(--bb-color-text-primary)] mb-2">
             {searchTerm || typeFilter !== 'all' || objectFilter !== 'all'
@@ -255,35 +256,35 @@ export default function Segments() {
           )}
         </div>
       ) : (
-        <div className="rounded-lg border border-[color:var(--bb-color-border-subtle)] overflow-hidden">
+        <ScrollableTableContainer className="flex-1 rounded-lg border border-[color:var(--bb-color-border-subtle)]">
           <table className="w-full">
-            <thead>
-              <tr className="bg-[color:var(--bb-color-bg-elevated)] border-b border-[color:var(--bb-color-border-subtle)]">
-                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]">
+            <thead className="sticky top-0 z-10">
+              <tr style={{ backgroundColor: 'var(--bb-color-bg-elevated)', boxShadow: '0 1px 0 var(--bb-color-border-subtle)' }}>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
                   <SortHeader field="name">Name</SortHeader>
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]">
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
                   Type
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]">
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
                   Object
                 </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]">
+                <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
                   <SortHeader field="memberCount">Size</SortHeader>
                 </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]">
+                <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
                   % of Total
                 </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]">
+                <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
                   7 Day Change
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]">
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
                   <SortHeader field="createdAt">Created</SortHeader>
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]">
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-[color:var(--bb-color-text-muted)]" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}>
                   <SortHeader field="updatedAt">Last Updated</SortHeader>
                 </th>
-                <th className="w-12"></th>
+                <th className="w-12" style={{ backgroundColor: 'var(--bb-color-bg-elevated)' }}></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[color:var(--bb-color-border-subtle)]">
@@ -382,7 +383,7 @@ export default function Segments() {
               })}
             </tbody>
           </table>
-        </div>
+        </ScrollableTableContainer>
       )}
     </div>
   );

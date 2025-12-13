@@ -10,6 +10,7 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { PageHeader } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollableTableContainer } from '@/components/ui/ScrollableTableContainer';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useExpiringVaccinationsQuery } from '@/features/pets/api-vaccinations';
 import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
@@ -340,9 +341,9 @@ const Vaccinations = () => {
   const hasActiveFilters = searchTerm || Object.keys(customFilters).length > 0 || activeView !== 'all';
 
   return (
-    <div className="flex flex-col flex-grow w-full min-h-[calc(100vh-180px)]">
-      {/* Header Section */}
-      <div className="pb-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+    <div className="flex flex-col w-full h-[calc(100vh-120px)] overflow-hidden">
+      {/* Header Section - fixed, doesn't shrink */}
+      <div className="flex-shrink-0 pb-4 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
         <PageHeader
           breadcrumbs={[
             { label: 'Clients' },
@@ -364,9 +365,9 @@ const Vaccinations = () => {
         </div>
       </div>
 
-      {/* Sticky Toolbar */}
+      {/* Toolbar - fixed, doesn't shrink */}
       <div
-        className="sticky top-0 z-20 px-4 py-3 border-b shadow-sm rounded-lg"
+        className="flex-shrink-0 px-4 py-3 border-b shadow-sm rounded-lg"
         style={{
           backgroundColor: 'var(--bb-color-bg-surface)',
           borderColor: 'var(--bb-color-border-subtle)',
@@ -549,8 +550,8 @@ const Vaccinations = () => {
         )}
       </div>
 
-      {/* Sort Controls */}
-      <div className="flex items-center justify-between py-3 px-0">
+      {/* Sort Controls - fixed, doesn't shrink */}
+      <div className="flex-shrink-0 flex items-center justify-between py-3 px-0">
         <div className="flex items-center gap-2">
           <span className="text-sm text-[color:var(--bb-color-text-muted)]">Sort by:</span>
           <select
@@ -588,8 +589,8 @@ const Vaccinations = () => {
         </label>
       </div>
 
-      {/* List Section */}
-      <div className="flex-1 flex flex-col">
+      {/* List Section - scrollable */}
+      <div className="flex-1 flex flex-col min-h-0">
         {isLoading ? (
           <ListSkeleton viewMode={viewMode} />
         ) : allRecords.length === 0 ? (
@@ -597,7 +598,7 @@ const Vaccinations = () => {
         ) : sortedRecords.length === 0 ? (
           <EmptyState type="no-results" onClearFilters={clearFilters} />
         ) : (
-          <div className={cn('space-y-2', viewMode === 'compact' && 'space-y-1')}>
+          <ScrollableTableContainer className={cn('space-y-2', viewMode === 'compact' && 'space-y-1')}>
             {paginatedRecords.map((record, index) => (
               <VaccinationRow
                 key={record.recordId ?? record.id ?? `vacc-${index}`}
@@ -609,14 +610,14 @@ const Vaccinations = () => {
                 onEdit={() => handleEditVaccination(record)}
               />
             ))}
-          </div>
+          </ScrollableTableContainer>
         )}
 
-        {/* Pagination */}
+        {/* Pagination - fixed at bottom */}
         {sortedRecords.length > 0 && !isLoading && (
           <div
-            className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-4 mt-4 border-t"
-            style={{ borderColor: 'var(--bb-color-border-subtle)' }}
+            className="flex-shrink-0 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-3 border-t"
+            style={{ borderColor: 'var(--bb-color-border-subtle)', backgroundColor: 'var(--bb-color-bg-surface)' }}
           >
             <div className="flex items-center gap-2 text-sm text-[color:var(--bb-color-text-muted)]">
               <span>Rows per page:</span>
