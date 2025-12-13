@@ -1,17 +1,13 @@
 import { useState } from 'react';
-import { Mail, Smartphone, Monitor, Clock, Bell, Users, History, AlertTriangle, User, TestTube, Smartphone as MobileIcon, Moon } from 'lucide-react';
-import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import CommunicationChannels from './components/CommunicationChannels';
 import NotificationSchedule from './components/NotificationSchedule';
 import ActivityAlerts from './components/ActivityAlerts';
 import TeamRouting from './components/TeamRouting';
-import NotificationHistory from './components/NotificationHistory';
 import CriticalAlerts from './components/CriticalAlerts';
 import CustomerNotifications from './components/CustomerNotifications';
 import NotificationTesting from './components/NotificationTesting';
 import MobilePush from './components/MobilePush';
-import DoNotDisturb from './components/DoNotDisturb';
 import toast from 'react-hot-toast';
 import apiClient from '@/lib/apiClient';
 import { useAuthStore } from '@/stores/auth';
@@ -40,9 +36,6 @@ const NotificationsOverview = () => {
         start: '23:00',
         end: '07:00',
         emailsOnly: true
-      },
-      doNotDisturb: {
-        enabled: false
       }
     },
     activityAlerts: {
@@ -121,14 +114,10 @@ const NotificationsOverview = () => {
     }
   };
 
-  const handleReset = () => {
-    // TODO: Reset to default preferences
-  };
-
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="max-w-6xl">
       {/* Header */}
-      <header className="flex items-start justify-between gap-4">
+      <header className="flex items-start justify-between gap-4 mb-6">
         <div>
           <h1 className="text-xl font-semibold text-text">Notifications</h1>
           <p className="mt-1 text-sm text-muted">Configure email, SMS, and push notification preferences</p>
@@ -136,56 +125,53 @@ const NotificationsOverview = () => {
         <Button onClick={handleSave}>Save Preferences</Button>
       </header>
 
-      {/* Communication Channels */}
-      <CommunicationChannels
-        preferences={preferences}
-        onUpdate={(updates) => setPreferences(prev => ({ ...prev, ...updates }))}
-      />
+      {/* Two-column layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left Column */}
+        <div className="space-y-6">
+          {/* Communication Channels */}
+          <CommunicationChannels
+            preferences={preferences}
+            onUpdate={(updates) => setPreferences(prev => ({ ...prev, ...updates }))}
+          />
 
-      {/* Notification Schedule */}
-      <NotificationSchedule
-        schedule={preferences.schedule}
-        onUpdate={(schedule) => setPreferences(prev => ({ ...prev, schedule }))}
-      />
+          {/* Activity Alerts */}
+          <ActivityAlerts
+            alerts={preferences.activityAlerts}
+            onUpdate={(activityAlerts) => setPreferences(prev => ({ ...prev, activityAlerts }))}
+          />
 
-      {/* Activity Alerts */}
-      <ActivityAlerts
-        alerts={preferences.activityAlerts}
-        onUpdate={(activityAlerts) => setPreferences(prev => ({ ...prev, activityAlerts }))}
-      />
+          {/* Critical Alerts */}
+          <CriticalAlerts
+            alerts={preferences.criticalAlerts}
+            onUpdate={(criticalAlerts) => setPreferences(prev => ({ ...prev, criticalAlerts }))}
+          />
+        </div>
 
-      {/* Team Notification Routing */}
-      <TeamRouting />
+        {/* Right Column */}
+        <div className="space-y-6">
+          {/* Notification Schedule */}
+          <NotificationSchedule
+            schedule={preferences.schedule}
+            onUpdate={(schedule) => setPreferences(prev => ({ ...prev, schedule }))}
+          />
 
-      {/* Critical Alerts */}
-      <CriticalAlerts
-        alerts={preferences.criticalAlerts}
-        onUpdate={(criticalAlerts) => setPreferences(prev => ({ ...prev, criticalAlerts }))}
-      />
+          {/* Team Notification Routing */}
+          <TeamRouting />
 
-      {/* Customer Notifications */}
-      <CustomerNotifications
-        notifications={preferences.customerNotifications}
-        onUpdate={(customerNotifications) => setPreferences(prev => ({ ...prev, customerNotifications }))}
-      />
+          {/* Customer Notifications */}
+          <CustomerNotifications
+            notifications={preferences.customerNotifications}
+            onUpdate={(customerNotifications) => setPreferences(prev => ({ ...prev, customerNotifications }))}
+          />
 
-      {/* Mobile Push Notifications */}
-      <MobilePush />
+          {/* Mobile Push Notifications */}
+          <MobilePush />
 
-      {/* Do Not Disturb */}
-      <DoNotDisturb
-        dnd={preferences.schedule.doNotDisturb}
-        onUpdate={(doNotDisturb) => setPreferences(prev => ({
-          ...prev,
-          schedule: { ...prev.schedule, doNotDisturb }
-        }))}
-      />
-
-      {/* Recent Notifications */}
-      <NotificationHistory />
-
-      {/* Notification Testing */}
-      <NotificationTesting />
+          {/* Notification Testing */}
+          <NotificationTesting />
+        </div>
+      </div>
     </div>
   );
 };
