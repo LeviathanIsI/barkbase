@@ -318,7 +318,7 @@ const Branding = () => {
               </div>
 
               {/* Sample Card Preview */}
-              <div className="p-3 rounded-lg border border-border mt-2" style={{ backgroundColor: watch('backgroundHex') }}>
+              <div className="p-3 rounded-lg border border-border mt-2 bg-surface-secondary">
                 <div className="flex items-center gap-2 mb-2">
                   <div
                     className="w-6 h-6 rounded-full"
