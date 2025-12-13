@@ -36,6 +36,9 @@ const NotificationsOverview = () => {
         start: '23:00',
         end: '07:00',
         emailsOnly: true
+      },
+      doNotDisturb: {
+        enabled: false
       }
     },
     activityAlerts: {
