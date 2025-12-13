@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   DndContext, 
   DragOverlay, 
@@ -1364,20 +1365,21 @@ const RunAssignment = () => {
           </div>
         </div>
 
-        {/* Drag Overlay - High z-index so it floats above all content */}
+        {/* Drag Overlay - Portal to body to escape overflow clipping */}
         <DragOverlay
           dropAnimation={{
             duration: 200,
             easing: 'ease',
           }}
-          zIndex={9999}
-          modifiers={[]}
         >
-          {activeId && activePet ? (
-            <div style={{ width: 280, pointerEvents: 'none' }}>
-              <DraggablePetCard pet={activePet} isDragOverlay />
-            </div>
-          ) : null}
+          {activeId && activePet
+            ? createPortal(
+                <div style={{ width: 280, pointerEvents: 'none', position: 'fixed', zIndex: 9999 }}>
+                  <DraggablePetCard pet={activePet} isDragOverlay />
+                </div>,
+                document.body
+              )
+            : null}
         </DragOverlay>
       </DndContext>
 
