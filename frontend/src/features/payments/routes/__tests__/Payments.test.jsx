@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { SlideoutProvider } from '@/components/slideout';
 import Payments from '../Payments';
 import { useTenantStore } from '@/stores/tenant';
 import { useAuthStore } from '@/stores/auth';
@@ -38,7 +39,9 @@ const renderPayments = () => {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <Payments />
+        <SlideoutProvider>
+          <Payments />
+        </SlideoutProvider>
       </MemoryRouter>
     </QueryClientProvider>
   );
