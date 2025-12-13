@@ -3842,8 +3842,8 @@ async function handleSaveRunAssignments(tenantId, body, user) {
              WHERE tenant_id = $1
                AND pet_id = $2
                AND status IN ('CONFIRMED', 'CHECKED_IN')
-               AND start_date <= $3::date
-               AND end_date >= $3::date
+               AND DATE(check_in) <= $3::date
+               AND (check_out IS NULL OR DATE(check_out) >= $3::date)
              LIMIT 1`,
             [tenantId, petId, date]
           );
