@@ -40,7 +40,7 @@ const OverbookingAlert = ({
         if (kennelId) params.append('kennelId', kennelId);
 
         const res = await apiClient.get(
-          `${canonicalEndpoints.OPERATIONS_BOOKINGS}/availability?${params.toString()}`
+          `${canonicalEndpoints.bookings.list}/availability?${params.toString()}`
         );
         return res?.data;
       } catch (e) {

@@ -403,7 +403,7 @@ export const useBookingConflictsQuery = (params = {}) => {
         }
 
         const res = await apiClient.get(
-          `${canonicalEndpoints.OPERATIONS_BOOKINGS}/conflicts?${queryParams.toString()}`
+          `${canonicalEndpoints.bookings.list}/conflicts?${queryParams.toString()}`
         );
 
         const conflicts = res?.data?.conflicts || [];
