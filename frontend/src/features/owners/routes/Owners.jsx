@@ -12,6 +12,7 @@ import { formatDistanceToNow } from 'date-fns';
 import EntityToolbar from '@/components/EntityToolbar';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import { ScrollableTableContainer } from '@/components/ui/ScrollableTableContainer';
 // Replaced with LoadingState (mascot) for page-level loading
 import LoadingState from '@/components/ui/LoadingState';
 import { UpdateChip } from '@/components/PageLoader';
@@ -470,10 +471,7 @@ const Owners = () => {
               <EmptyState hasFilters={hasActiveFilters} onClearFilters={clearFilters} onAddOwner={() => setFormModalOpen(true)} />
             </div>
           ) : (
-            <div
-              className="flex-1 overflow-auto border rounded-t-lg min-h-0"
-              style={{ borderColor: 'var(--bb-color-border-subtle)' }}
-            >
+            <ScrollableTableContainer className="border rounded-t-lg" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
               <table className="w-full text-sm min-w-[1024px]">
                 <thead className="sticky top-0 z-10">
                   <tr style={{ backgroundColor: 'var(--bb-color-bg-elevated)', boxShadow: '0 1px 0 var(--bb-color-border-subtle)' }}>
@@ -525,7 +523,7 @@ const Owners = () => {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ScrollableTableContainer>
           )}
 
           {/* Pagination - fixed at bottom */}

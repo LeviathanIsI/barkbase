@@ -20,6 +20,7 @@ export { default as Label } from './Label';
 export { default as Modal } from './Modal';
 export { default as PasswordStrength } from './PasswordStrength';
 export { default as Select } from './Select';
+export { ScrollableTableContainer } from './ScrollableTableContainer';
 // Base Skeleton component for backwards compatibility
 export { default as Skeleton } from './skeleton/Skeleton';
 export { default as Switch } from './Switch';
