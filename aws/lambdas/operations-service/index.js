@@ -44,6 +44,60 @@ const {
   createTierErrorResponse,
 } = sharedLayer;
 
+// =============================================================================
+// INPUT VALIDATION HELPERS
+// =============================================================================
+
+/**
+ * Validate booking dates
+ * Returns array of error messages (empty if valid)
+ */
+function validateBookingDates(checkIn, checkOut) {
+  const errors = [];
+  const now = new Date();
+  const maxFutureDate = new Date();
+  maxFutureDate.setFullYear(maxFutureDate.getFullYear() + 2); // Max 2 years out
+
+  const checkInDate = new Date(checkIn);
+  const checkOutDate = new Date(checkOut);
+
+  // Validate date formats
+  if (isNaN(checkInDate.getTime())) {
+    errors.push('startDate/checkIn is not a valid date');
+  }
+  if (isNaN(checkOutDate.getTime())) {
+    errors.push('endDate/checkOut is not a valid date');
+  }
+
+  // Only validate relationships if both dates are valid
+  if (errors.length === 0) {
+    // Check-out must be after check-in
+    if (checkOutDate <= checkInDate) {
+      errors.push('endDate/checkOut must be after startDate/checkIn');
+    }
+
+    // Not too far in the past (allow 1 day grace for timezone issues)
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (checkInDate < yesterday) {
+      errors.push('startDate/checkIn cannot be in the past');
+    }
+
+    // Not too far in the future
+    if (checkInDate > maxFutureDate) {
+      errors.push('startDate/checkIn cannot be more than 2 years in the future');
+    }
+
+    // Reasonable stay duration (max 365 days)
+    const stayDuration = (checkOutDate - checkInDate) / (1000 * 60 * 60 * 24);
+    if (stayDuration > 365) {
+      errors.push('Booking duration cannot exceed 365 days');
+    }
+  }
+
+  return errors;
+}
+
 /**
  * Extract tenant ID from X-Tenant-Id header (case-insensitive)
  * @param {object} event - Lambda event
@@ -1140,6 +1194,16 @@ async function handleCreateBooking(tenantId, user, body) {
     });
   }
 
+  // Validate booking dates (format, range, and business rules)
+  const dateValidationErrors = validateBookingDates(startDate, endDate);
+  if (dateValidationErrors.length > 0) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'Invalid booking dates',
+      details: dateValidationErrors,
+    });
+  }
+
   try {
     await getPoolAsync();
 
@@ -1617,6 +1681,18 @@ async function handleUpdateBooking(tenantId, bookingId, body) {
   const { status, startDate, endDate, kennelId, serviceId, ownerId, petId, notes, specialInstructions, totalPriceInCents, roomNumber } = body;
 
   console.log('[Bookings][update] id:', bookingId, 'tenantId:', tenantId, body);
+
+  // Validate booking dates if both are being updated
+  if (startDate && endDate) {
+    const dateValidationErrors = validateBookingDates(startDate, endDate);
+    if (dateValidationErrors.length > 0) {
+      return createResponse(400, {
+        error: 'Bad Request',
+        message: 'Invalid booking dates',
+        details: dateValidationErrors,
+      });
+    }
+  }
 
   try {
     await getPoolAsync();
