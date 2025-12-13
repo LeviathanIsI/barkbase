@@ -278,9 +278,24 @@ const DraggablePetCard = ({
   onSelect,
   isDragOverlay = false,
 }) => {
+  console.log('DraggablePetCard render:', {
+    petName: pet.name,
+    petId: pet.recordId,
+    isDragOverlay,
+    isSelected
+  });
+
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `pet-${pet.recordId}`,
     data: { pet },
+  });
+
+  console.log('useDraggable state:', {
+    petName: pet.name,
+    isDragging,
+    transform,
+    hasListeners: !!listeners,
+    hasAttributes: !!attributes
   });
 
   const style = isDragOverlay
@@ -792,10 +807,16 @@ const RunAssignment = () => {
     return pets;
   }, [bookingsData]);
 
+  // Debug: Check portal target exists
+  useEffect(() => {
+    console.log('document.body exists:', !!document.body);
+    console.log('Portal will render to:', document.body);
+  }, []);
+
   // Initialize assignment state from API data
   useEffect(() => {
     if (!runs || initializedDate === selectedDate) return;
-    
+
     const newState = {};
     runs.forEach(run => {
       newState[run.recordId] = run.assignments || [];
@@ -891,26 +912,39 @@ const RunAssignment = () => {
   // Drag handlers
   const handleDragStart = (event) => {
     const { active } = event;
+    console.log('=== DRAG START ===');
+    console.log('active.id:', active.id);
+    console.log('active.data:', active.data);
+
     setActiveId(active.id);
-    
+
     const petId = active.id.replace('pet-', '');
+    console.log('petId extracted:', petId);
+
     let pet = checkedInPets.find(p => p.recordId === petId);
-    
+    console.log('pet found in checkedInPets:', pet?.name || 'NOT FOUND');
+
     if (!pet) {
       for (const assignments of Object.values(assignmentState)) {
         const assignment = assignments.find(a => a.pet?.recordId === petId);
         if (assignment) {
           pet = assignment.pet;
+          console.log('pet found in assignmentState:', pet?.name);
           break;
         }
       }
     }
-    
+
+    console.log('Setting activePet to:', pet?.name || 'NULL');
     setActivePet(pet);
   };
 
   const handleDragEnd = async (event) => {
     const { active, over } = event;
+    console.log('=== DRAG END ===');
+    console.log('active:', active);
+    console.log('over:', over);
+
     setActiveId(null);
     setActivePet(null);
 
@@ -1366,6 +1400,7 @@ const RunAssignment = () => {
         </div>
 
         {/* Drag Overlay - Portal entire component to body to escape overflow clipping */}
+        {console.log('=== DRAG OVERLAY RENDER ===', { activeId, activePet: activePet?.name })}
         {createPortal(
           <DragOverlay
             dropAnimation={{
@@ -1375,9 +1410,12 @@ const RunAssignment = () => {
             zIndex={9999}
           >
             {activeId && activePet ? (
-              <div style={{ width: 280 }}>
-                <DraggablePetCard pet={activePet} isDragOverlay />
-              </div>
+              <>
+                {console.log('Rendering overlay card for:', activePet.name)}
+                <div style={{ width: 280 }}>
+                  <DraggablePetCard pet={activePet} isDragOverlay />
+                </div>
+              </>
             ) : null}
           </DragOverlay>,
           document.body
