@@ -1391,7 +1391,7 @@ async function handleGetPayment(tenantId, paymentId) {
  * Schema: amount_cents, method (not amount, payment_method)
  */
 async function handleCreatePayment(tenantId, body) {
-  const { ownerId, amount, amountCents, paymentMethod, method, invoiceId } = body;
+  const { ownerId, amount, amountCents, paymentMethod, method, invoiceId, idempotencyKey } = body;
 
   // Support both dollar amount and cents
   const cents = amountCents || (amount ? Math.round(amount * 100) : null);
@@ -1403,17 +1403,50 @@ async function handleCreatePayment(tenantId, body) {
     });
   }
 
+  // Require idempotency key for payment creation to prevent duplicate charges
+  if (!idempotencyKey) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'idempotencyKey is required to prevent duplicate charges',
+    });
+  }
+
   try {
     await getPoolAsync();
+
+    // Check if this idempotency key was already used
+    const existingPayment = await query(
+      `SELECT id, amount_cents, status, method FROM "Payment"
+       WHERE tenant_id = $1 AND idempotency_key = $2`,
+      [tenantId, idempotencyKey]
+    );
+
+    if (existingPayment.rows.length > 0) {
+      // Return the existing payment instead of creating duplicate
+      const existing = existingPayment.rows[0];
+      console.log('[PAYMENT] Idempotent request - returning existing payment:', existing.id);
+      return createResponse(200, {
+        success: true,
+        payment: {
+          id: existing.id,
+          amount: existing.amount_cents / 100,
+          amountCents: existing.amount_cents,
+          status: existing.status,
+          method: existing.method,
+        },
+        idempotent: true,
+        message: 'Payment already exists (idempotent)',
+      });
+    }
 
     const paymentMethodValue = (method || paymentMethod || 'CARD').toUpperCase();
     const statusValue = (body.status || 'CAPTURED').toUpperCase();
 
     const result = await query(
-      `INSERT INTO "Payment" (tenant_id, owner_id, invoice_id, amount_cents, method, status, processed_at, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW(), NOW())
+      `INSERT INTO "Payment" (tenant_id, owner_id, invoice_id, amount_cents, method, status, idempotency_key, processed_at, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW(), NOW())
        RETURNING *`,
-      [tenantId, ownerId || null, invoiceId || null, cents, paymentMethodValue, statusValue]
+      [tenantId, ownerId || null, invoiceId || null, cents, paymentMethodValue, statusValue, idempotencyKey]
     );
 
     const payment = result.rows[0];
