@@ -1225,6 +1225,10 @@ const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut,
   // Check if this assignment spans multiple hours (needs downward line)
   const spansMultipleHours = pet.position === 'start' && !showEndMarker;
 
+  // Calculate height based on duration in this hour slot
+  // 15 min = 25%, 30 min = 50%, 45 min = 75%, 60 min = 100%
+  const cellHeightPercent = heightPercent;
+
   return (
     <div
       className="absolute transition-all"
@@ -1232,6 +1236,8 @@ const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut,
         left: `${4 + trackOffset}px`,
         right: '4px',
         top: '4px',
+        height: `calc(${cellHeightPercent}% - 8px)`, // Subtract padding
+        minHeight: '20px', // Minimum height for very short slots
         zIndex: showTooltip ? 50 : 1, // Pop to front on hover
       }}
       onMouseEnter={() => setShowTooltip(true)}
@@ -1240,8 +1246,9 @@ const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut,
       {/* Main chip */}
       <div
         className={cn(
-          'relative rounded border-l-4 px-2 py-1 cursor-pointer transition-all',
+          'relative rounded border-l-4 px-2 cursor-pointer transition-all h-full',
           'hover:shadow-md hover:-translate-y-0.5 hover:ring-1 hover:ring-[var(--bb-color-accent)]',
+          'flex items-center',
           getStatusBorderColor()
         )}
         style={{
@@ -1253,7 +1260,7 @@ const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut,
         }}
       >
         {/* Compact single-row layout */}
-        <div className="flex items-center justify-between gap-1.5">
+        <div className="flex items-center justify-between gap-1.5 w-full">
           {/* Left: Activity dot + Pet name */}
           <div className="flex items-center gap-1.5 min-w-0 flex-1">
             {/* Activity type dot */}
@@ -1335,11 +1342,11 @@ const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut,
       )}
       </div>
 
-      {/* Downward dashed line for multi-hour assignments */}
+      {/* Downward dashed line for multi-hour assignments - extends from chip bottom to cell bottom */}
       {spansMultipleHours && (
         <div
           className={cn(
-            'absolute left-1/2 -translate-x-1/2 w-0.5',
+            'absolute w-0.5',
             'border-l-2 border-dashed',
             pet.serviceType?.toLowerCase().includes('social') ? 'border-emerald-400' :
             pet.serviceType?.toLowerCase().includes('individual') ? 'border-blue-400' :
@@ -1347,8 +1354,8 @@ const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut,
             'border-gray-400'
           )}
           style={{
-            top: '32px',
-            bottom: '-4px',
+            top: '100%', // Start from bottom of the chip container
+            height: `calc(${100 - cellHeightPercent}% + 8px)`, // Extend to cell bottom
             opacity: 0.6,
             left: '12px',
           }}
