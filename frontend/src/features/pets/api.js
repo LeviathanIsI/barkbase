@@ -102,7 +102,6 @@ export const usePetsQuery = (params = {}) => {
       }
     },
     ...listQueryDefaults,
-    placeholderData: (previousData) => previousData,
   });
 };
 
@@ -130,7 +129,6 @@ export const usePetDetailsQuery = (petId, options = {}) => {
     },
     enabled,
     ...detailQueryDefaults,
-    placeholderData: (previousData) => previousData,
     ...queryOptions,
   });
 };
@@ -160,7 +158,6 @@ export const usePetVaccinationsQuery = (petId, options = {}) => {
       }
     },
     ...detailQueryDefaults,
-    placeholderData: (previousData) => previousData,
     ...options,
   });
 };

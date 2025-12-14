@@ -163,7 +163,6 @@ export const useBookingsQuery = (params = {}) => {
       }
     },
     ...listQueryDefaults,
-    placeholderData: (previousData) => previousData,
   });
 };
 
@@ -195,7 +194,6 @@ export const useBookingDetailQuery = (bookingId, options = {}) => {
     },
     enabled,
     ...detailQueryDefaults,
-    placeholderData: (previousData) => previousData,
     ...queryOptions,
   });
 };

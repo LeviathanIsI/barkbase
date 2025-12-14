@@ -26,7 +26,6 @@ export const useUnreadNotificationsCount = () => {
     refetchInterval: 60_000, // Refetch every minute
     retry: 1,
     // Return 0 on error so UI doesn't break
-    placeholderData: 0,
   });
 };
 

@@ -35,7 +35,6 @@ export const useExpiringVaccinationsQuery = (daysAhead = 30, options = {}) => {
       return vaccinations;
     },
     staleTime: 5 * 60 * 1000,
-    placeholderData: (previousData) => previousData ?? [],
     ...options,
   });
 };

@@ -34,7 +34,6 @@ export const useRunTemplatesQuery = () => {
       return data;
     },
     staleTime: 5 * 60 * 1000,
-    placeholderData: (previousData) => previousData ?? [],
   });
 };
 
@@ -105,6 +104,5 @@ export const useAvailableSlotsQuery = (runId, date) => {
       const slots = res.data?.data || res.data?.slots || res.data || [];
       return slots;
     },
-    placeholderData: (previousData) => previousData ?? [],
   });
 };

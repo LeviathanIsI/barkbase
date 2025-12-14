@@ -84,7 +84,6 @@ export const useBusinessInvoicesQuery = (filters = {}) => {
     },
     enabled: isTenantReady,
     staleTime: 2 * 60 * 1000,
-    placeholderData: (previousData) => previousData ?? { invoices: [], total: 0 },
   });
 };
 

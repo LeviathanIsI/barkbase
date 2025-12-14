@@ -58,7 +58,6 @@ export const useOwnersQuery = (params = {}) => {
       }
     },
     ...listQueryDefaults,
-    placeholderData: (previousData) => previousData,
   });
 };
 
@@ -86,7 +85,6 @@ export const useOwnerDetailsQuery = (ownerId, options = {}) => {
     },
     enabled,
     ...detailQueryDefaults,
-    placeholderData: (previousData) => previousData,
     ...queryOptions,
   });
 };

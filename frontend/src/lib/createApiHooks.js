@@ -213,7 +213,6 @@ export const createListQuery = ({
         }
       },
       ...listQueryDefaults,
-      placeholderData: (previousData) => previousData,
       ...queryOptions,
       ...options,
     });
@@ -265,7 +264,6 @@ export const createDetailQuery = ({
       },
       enabled,
       ...detailQueryDefaults,
-      placeholderData: (previousData) => previousData,
       ...queryOptions,
       ...restOptions,
     });

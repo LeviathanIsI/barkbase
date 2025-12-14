@@ -99,7 +99,6 @@ export const useKennels = (filters = {}) => {
     },
     staleTime: 5 * 60 * 1000,
     enabled: isTenantReady,
-    placeholderData: (previousData) => previousData ?? [],
   });
 };
 

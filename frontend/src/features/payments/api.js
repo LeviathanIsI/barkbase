@@ -57,7 +57,6 @@ export const usePaymentsQuery = (params = {}, options = {}) => {
     },
     enabled: isTenantReady,
     staleTime: 2 * 60 * 1000,
-    placeholderData: (previousData) => previousData ?? { payments: [], total: 0 },
     ...options,
   });
 };

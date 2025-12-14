@@ -129,7 +129,6 @@ const useTodayBookingsSnapshot = (date) => {
     refetchInterval: 30000, // Auto-refresh every 30 seconds
     staleTime: 30000,
     refetchOnWindowFocus: false,
-    placeholderData: (previousData) => previousData,
   });
 };
 

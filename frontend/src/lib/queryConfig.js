@@ -4,7 +4,6 @@
  * Use these defaults to prevent skeleton flashing on background refetches:
  * - staleTime: Data is fresh for a reasonable time
  * - refetchOnWindowFocus: false - Don't refetch when user switches tabs
- * - placeholderData: keepPreviousData - Show old data while fetching new
  * - retry: 1 - Don't hammer the API on errors
  */
 

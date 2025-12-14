@@ -85,7 +85,6 @@ export const useDashboardStatsQuery = (options = {}) => {
       }
     },
     ...dashboardQueryDefaults,
-    placeholderData: (previousData) => previousData,
     ...options,
   });
 };
@@ -107,7 +106,6 @@ export const useTodaysPetsQuery = (options = {}) => {
       }
     },
     ...dashboardQueryDefaults,
-    placeholderData: (previousData) => previousData,
     ...options,
   });
 };
@@ -131,7 +129,6 @@ export const useUpcomingArrivalsQuery = (days = 7, options = {}) => {
     },
     ...dashboardQueryDefaults,
     staleTime: 2 * 60 * 1000,
-    placeholderData: (previousData) => previousData,
     ...options,
   });
 };
@@ -155,7 +152,6 @@ export const useUpcomingDeparturesQuery = (days = 7, options = {}) => {
     },
     ...dashboardQueryDefaults,
     staleTime: 2 * 60 * 1000,
-    placeholderData: (previousData) => previousData,
     ...options,
   });
 };
@@ -200,7 +196,6 @@ export const useOccupancyQuery = (options = {}) => {
     },
     ...dashboardQueryDefaults,
     staleTime: 5 * 60 * 1000,
-    placeholderData: (previousData) => previousData,
     ...options,
   });
 };
@@ -247,7 +242,6 @@ export const useRevenueMetricsQuery = (period = 'month', options = {}) => {
     },
     ...dashboardQueryDefaults,
     staleTime: 10 * 60 * 1000,
-    placeholderData: (previousData) => previousData,
     ...options,
   });
 };
@@ -271,7 +265,6 @@ export const useActivityFeedQuery = (limit = 20, options = {}) => {
     },
     ...dashboardQueryDefaults,
     staleTime: 30 * 1000,
-    placeholderData: (previousData) => previousData,
     ...options,
   });
 };
@@ -374,7 +367,6 @@ export const useDashboardVaccinations = (options = {}) => {
     },
     ...dashboardQueryDefaults,
     staleTime: 5 * 60 * 1000,
-    placeholderData: (previousData) => previousData,
     ...options,
   });
 };

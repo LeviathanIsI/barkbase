@@ -186,7 +186,6 @@ export const useTasksQuery = (filters = {}) => {
       }
     },
     ...listQueryDefaults,
-    placeholderData: (previousData) => previousData,
   });
 };
 
@@ -222,7 +221,6 @@ export const useTodaysTasksQuery = () => {
     },
     ...listQueryDefaults,
     staleTime: 60 * 1000, // 1 minute for today's tasks
-    placeholderData: (previousData) => previousData,
   });
 };
 
@@ -253,7 +251,6 @@ export const useOverdueTasksQuery = () => {
     },
     ...listQueryDefaults,
     staleTime: 60 * 1000,
-    placeholderData: (previousData) => previousData,
   });
 };
 
@@ -284,7 +281,6 @@ export const useTaskQuery = (taskId, options = {}) => {
     },
     enabled: !!taskId && (options.enabled !== false),
     ...detailQueryDefaults,
-    placeholderData: (previousData) => previousData,
     ...options,
   });
 };

@@ -70,7 +70,6 @@ export const useStaffQuery = () => {
       }
     },
     ...listQueryDefaults,
-    placeholderData: (previousData) => previousData ?? [],
   });
 };
 

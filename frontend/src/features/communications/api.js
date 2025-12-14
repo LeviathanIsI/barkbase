@@ -22,7 +22,6 @@ export const useCommunicationsQuery = (ownerId) => {
     },
     enabled: !!ownerId,
     ...listQueryDefaults,
-    placeholderData: (previousData) => previousData,
   });
 };
 
@@ -84,7 +83,6 @@ export const useCommunicationStats = (ownerId) => {
     },
     enabled: !!ownerId,
     ...detailQueryDefaults,
-    placeholderData: (previousData) => previousData,
   });
 };
 
@@ -122,7 +120,6 @@ export const useEntityNotes = (entityType, entityId, options = {}) => {
     },
     enabled: !!entityType && !!entityId,
     ...listQueryDefaults,
-    placeholderData: (previousData) => previousData,
   });
 };
 
@@ -220,7 +217,6 @@ export const useSegments = (options = {}) => {
       return Array.isArray(data) ? data : [];
     },
     ...listQueryDefaults,
-    placeholderData: (previousData) => previousData ?? [],
   });
 };
 

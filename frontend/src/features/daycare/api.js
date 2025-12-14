@@ -40,7 +40,6 @@ export const useRunsQuery = (params = {}) => {
       }));
     },
     staleTime: 30 * 1000,
-    placeholderData: (previousData) => previousData ?? [],
   });
 };
 
@@ -304,7 +303,6 @@ export const useTodaysAssignmentsQuery = (date) => {
       return runs;
     },
     staleTime: 60 * 1000,
-    placeholderData: (previousData) => previousData ?? [],
   });
 };
 
@@ -333,7 +331,6 @@ export const useRunAssignmentsQuery = (params = {}) => {
       };
     },
     staleTime: 60 * 1000,
-    placeholderData: (previousData) => previousData ?? { assignments: [], runs: [], total: 0 },
   });
 };
 

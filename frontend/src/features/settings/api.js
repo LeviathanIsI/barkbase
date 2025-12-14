@@ -707,7 +707,6 @@ export const useSubscriptionQuery = (options = {}) => {
     },
     enabled: isTenantReady,
     staleTime: 5 * 60 * 1000,
-    placeholderData: (previousData) => previousData ?? { currentPlan: null, subscriptions: [] },
     ...options,
   });
 };
@@ -814,7 +813,6 @@ export const usePaymentMethodsQuery = (options = {}) => {
     },
     enabled: isTenantReady,
     staleTime: 5 * 60 * 1000,
-    placeholderData: (previousData) => previousData ?? { methods: [], primaryMethod: null },
     ...options,
   });
 };
@@ -845,7 +843,6 @@ export const useBillingContactQuery = (options = {}) => {
     },
     enabled: isTenantReady,
     staleTime: 5 * 60 * 1000,
-    placeholderData: { contact: null },
     ...options,
   });
 };
@@ -892,7 +889,6 @@ export const useTenantBillingInvoicesQuery = (options = {}) => {
     },
     enabled: isTenantReady,
     staleTime: 5 * 60 * 1000,
-    placeholderData: { invoices: [], total: 0 },
     ...options,
   });
 };

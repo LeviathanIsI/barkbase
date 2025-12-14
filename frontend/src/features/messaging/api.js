@@ -39,7 +39,6 @@ export const useConversationsQuery = () => {
       }));
     },
     staleTime: 30 * 1000,
-    placeholderData: (previousData) => previousData ?? [],
   });
 };
 
@@ -62,7 +61,6 @@ export const useConversationMessagesQuery = (conversationId) => {
       const messages = data?.data || data?.messages || (Array.isArray(data) ? data : []);
       return messages;
     },
-    placeholderData: (previousData) => previousData ?? [],
   });
 };
 
@@ -122,6 +120,5 @@ export const useUnreadCountQuery = () => {
     },
     staleTime: 30 * 1000,
     refetchInterval: 60000, // Refresh every 60 seconds
-    placeholderData: 0,
   });
 };
