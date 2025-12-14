@@ -714,7 +714,7 @@ const DailyHourlyGrid = ({
       .map((a, idx) => {
         // Determine position: start, middle, or end
         const isStartHour = hour === a._startHour;
-        const isEndHour = hour === a._endHour || (hour === a._endHour - 1 && a._endMinute === 0);
+        const isEndHour = hour === a._endHour;
         // If assignment spans only 1 hour, it's both start and end
         const isSingleHour = a._startHour === a._endHour || (a._endHour - a._startHour === 1 && a._endMinute === 0);
 
