@@ -9,7 +9,8 @@
     "db:wipe": "node scripts/wipe-database.js",
     "db:seed": "node scripts/seed-database.js",
     "db:reset": "node scripts/wipe-database.js && node scripts/seed-database.js",
-    "db:seed:missing": "node scripts/seed-missing-data.js"
+    "db:seed:missing": "node scripts/seed-missing-data.js",
+    "db:seed:runs": "node scripts/seed-runs.js"
   },
   "keywords": [],
   "author": "",
