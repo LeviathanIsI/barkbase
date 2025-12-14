@@ -515,127 +515,147 @@ async function handleGetDashboard(tenantId, queryParams = {}) {
   try {
     await getPoolAsync();
 
-    // Get active bookings count (status CHECKED_IN)
-    const activeBookingsResult = await query(
-      `SELECT COUNT(*) as count FROM "Booking"
-       WHERE tenant_id = $1 AND status = 'CHECKED_IN' `,
-      [tenantId]
-    );
+    // OPTIMIZED: Run all dashboard queries in parallel using Promise.all
+    // This reduces response time from ~15 sequential queries to 1 parallel batch
+    const [
+      activeBookingsResult,
+      totalBookingsResult,
+      compareBookingsResult,
+      pendingBookingsResult,
+      arrivalsResult,
+      departuresResult,
+      capacityResult,
+      pendingTasksResult,
+      customersResult,
+      totalCustomersResult,
+      compareCustomersResult,
+      petsResult,
+      revenueResult,
+      compareRevenueResult,
+      noShowsResult,
+    ] = await Promise.all([
+      // Active bookings count (status CHECKED_IN)
+      query(
+        `SELECT COUNT(*) as count FROM "Booking"
+         WHERE tenant_id = $1 AND status = 'CHECKED_IN'`,
+        [tenantId]
+      ),
 
-    // Get total bookings in date range
-    const totalBookingsResult = await query(
-      `SELECT COUNT(*) as count FROM "Booking"
-       WHERE tenant_id = $1
-       AND created_at >= $2::date
-       AND created_at <= ($3::date + INTERVAL '1 day')`,
-      [tenantId, start, end]
-    );
+      // Total bookings in date range
+      query(
+        `SELECT COUNT(*) as count FROM "Booking"
+         WHERE tenant_id = $1
+         AND created_at >= $2::date
+         AND created_at <= ($3::date + INTERVAL '1 day')`,
+        [tenantId, start, end]
+      ),
 
-    // Get bookings in comparison period
-    const compareBookingsResult = await query(
-      `SELECT COUNT(*) as count FROM "Booking"
-       WHERE tenant_id = $1
-       AND created_at >= $2::date
-       AND created_at <= ($3::date + INTERVAL '1 day')`,
-      [tenantId, compStart, compEnd]
-    );
+      // Bookings in comparison period
+      query(
+        `SELECT COUNT(*) as count FROM "Booking"
+         WHERE tenant_id = $1
+         AND created_at >= $2::date
+         AND created_at <= ($3::date + INTERVAL '1 day')`,
+        [tenantId, compStart, compEnd]
+      ),
 
-    // Get pending bookings
-    const pendingBookingsResult = await query(
-      `SELECT COUNT(*) as count FROM "Booking"
-       WHERE tenant_id = $1 AND status IN ('PENDING', 'CONFIRMED')`,
-      [tenantId]
-    );
+      // Pending bookings
+      query(
+        `SELECT COUNT(*) as count FROM "Booking"
+         WHERE tenant_id = $1 AND status IN ('PENDING', 'CONFIRMED')`,
+        [tenantId]
+      ),
 
-    // Get today's arrivals (check_in date is today, schema uses check_in not start_date)
-    const arrivalsResult = await query(
-      `SELECT COUNT(*) as count FROM "Booking"
-       WHERE tenant_id = $1 AND status IN ('PENDING', 'CONFIRMED')
-       AND DATE(check_in) = CURRENT_DATE `,
-      [tenantId]
-    );
+      // Today's arrivals (check_in date is today)
+      query(
+        `SELECT COUNT(*) as count FROM "Booking"
+         WHERE tenant_id = $1 AND status IN ('PENDING', 'CONFIRMED')
+         AND DATE(check_in) = CURRENT_DATE`,
+        [tenantId]
+      ),
 
-    // Get today's departures (check_out date is today)
-    const departuresResult = await query(
-      `SELECT COUNT(*) as count FROM "Booking"
-       WHERE tenant_id = $1 AND status = 'CHECKED_IN'
-       AND DATE(check_out) = CURRENT_DATE `,
-      [tenantId]
-    );
+      // Today's departures (check_out date is today)
+      query(
+        `SELECT COUNT(*) as count FROM "Booking"
+         WHERE tenant_id = $1 AND status = 'CHECKED_IN'
+         AND DATE(check_out) = CURRENT_DATE`,
+        [tenantId]
+      ),
 
-    // Get total capacity (kennels) - Kennel table uses max_occupancy column
-    const capacityResult = await query(
-      `SELECT COALESCE(SUM(max_occupancy), 0) as capacity, COUNT(*) as count FROM "Kennel"
-       WHERE tenant_id = $1 AND is_active = true `,
-      [tenantId]
-    );
+      // Total capacity (kennels) - Kennel table uses max_occupancy column
+      query(
+        `SELECT COALESCE(SUM(max_occupancy), 0) as capacity, COUNT(*) as count FROM "Kennel"
+         WHERE tenant_id = $1 AND is_active = true`,
+        [tenantId]
+      ),
 
-    // Get pending tasks
-    const pendingTasksResult = await query(
-      `SELECT COUNT(*) as count FROM "Task"
-       WHERE tenant_id = $1 AND status = 'PENDING' `,
-      [tenantId]
-    );
+      // Pending tasks
+      query(
+        `SELECT COUNT(*) as count FROM "Task"
+         WHERE tenant_id = $1 AND status = 'PENDING'`,
+        [tenantId]
+      ),
 
-    // Get total customers (owners) created in date range
-    const customersResult = await query(
-      `SELECT COUNT(*) as count FROM "Owner"
-       WHERE tenant_id = $1
-       AND created_at >= $2::date
-       AND created_at <= ($3::date + INTERVAL '1 day')`,
-      [tenantId, start, end]
-    );
+      // Total customers (owners) created in date range
+      query(
+        `SELECT COUNT(*) as count FROM "Owner"
+         WHERE tenant_id = $1
+         AND created_at >= $2::date
+         AND created_at <= ($3::date + INTERVAL '1 day')`,
+        [tenantId, start, end]
+      ),
 
-    // Get total customers overall
-    const totalCustomersResult = await query(
-      `SELECT COUNT(*) as count FROM "Owner" WHERE tenant_id = $1 `,
-      [tenantId]
-    );
+      // Total customers overall
+      query(
+        `SELECT COUNT(*) as count FROM "Owner" WHERE tenant_id = $1`,
+        [tenantId]
+      ),
 
-    // Get customers in comparison period
-    const compareCustomersResult = await query(
-      `SELECT COUNT(*) as count FROM "Owner"
-       WHERE tenant_id = $1
-       AND created_at >= $2::date
-       AND created_at <= ($3::date + INTERVAL '1 day')`,
-      [tenantId, compStart, compEnd]
-    );
+      // Customers in comparison period
+      query(
+        `SELECT COUNT(*) as count FROM "Owner"
+         WHERE tenant_id = $1
+         AND created_at >= $2::date
+         AND created_at <= ($3::date + INTERVAL '1 day')`,
+        [tenantId, compStart, compEnd]
+      ),
 
-    // Get total pets
-    const petsResult = await query(
-      `SELECT COUNT(*) as count FROM "Pet" WHERE tenant_id = $1 `,
-      [tenantId]
-    );
+      // Total pets
+      query(
+        `SELECT COUNT(*) as count FROM "Pet" WHERE tenant_id = $1`,
+        [tenantId]
+      ),
 
-    // Get total revenue in date range (from successful payments) - amount_cents is in cents
-    const revenueResult = await query(
-      `SELECT COALESCE(SUM(amount_cents), 0) as total FROM "Payment"
-       WHERE tenant_id = $1
-       AND status IN ('SUCCEEDED', 'CAPTURED')
-       AND processed_at >= $2::date
-       AND processed_at <= ($3::date + INTERVAL '1 day')`,
-      [tenantId, start, end]
-    );
+      // Total revenue in date range (from successful payments)
+      query(
+        `SELECT COALESCE(SUM(amount_cents), 0) as total FROM "Payment"
+         WHERE tenant_id = $1
+         AND status IN ('SUCCEEDED', 'CAPTURED')
+         AND processed_at >= $2::date
+         AND processed_at <= ($3::date + INTERVAL '1 day')`,
+        [tenantId, start, end]
+      ),
 
-    // Get revenue in comparison period
-    const compareRevenueResult = await query(
-      `SELECT COALESCE(SUM(amount_cents), 0) as total FROM "Payment"
-       WHERE tenant_id = $1
-       AND status IN ('SUCCEEDED', 'CAPTURED')
-       AND processed_at >= $2::date
-       AND processed_at <= ($3::date + INTERVAL '1 day')`,
-      [tenantId, compStart, compEnd]
-    );
+      // Revenue in comparison period
+      query(
+        `SELECT COALESCE(SUM(amount_cents), 0) as total FROM "Payment"
+         WHERE tenant_id = $1
+         AND status IN ('SUCCEEDED', 'CAPTURED')
+         AND processed_at >= $2::date
+         AND processed_at <= ($3::date + INTERVAL '1 day')`,
+        [tenantId, compStart, compEnd]
+      ),
 
-    // Get no-shows in date range
-    const noShowsResult = await query(
-      `SELECT COUNT(*) as count FROM "Booking"
-       WHERE tenant_id = $1
-       AND status = 'NO_SHOW'
-       AND check_in >= $2::date
-       AND check_in <= ($3::date + INTERVAL '1 day')`,
-      [tenantId, start, end]
-    );
+      // No-shows in date range
+      query(
+        `SELECT COUNT(*) as count FROM "Booking"
+         WHERE tenant_id = $1
+         AND status = 'NO_SHOW'
+         AND check_in >= $2::date
+         AND check_in <= ($3::date + INTERVAL '1 day')`,
+        [tenantId, start, end]
+      ),
+    ]);
 
     const activeBookings = parseInt(activeBookingsResult.rows[0]?.count || 0);
     const totalCapacity = parseInt(capacityResult.rows[0]?.capacity || 0);

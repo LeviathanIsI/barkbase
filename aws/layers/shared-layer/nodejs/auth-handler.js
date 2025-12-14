@@ -584,7 +584,7 @@ function setRequestContext(event) {
  * @param {object} headers - Additional headers
  * @returns {object} Lambda response
  */
-function createResponse(statusCode, body, headers = {}) {
+function createResponse(statusCode, body, headers = {}, options = {}) {
   const corsOrigins = process.env.CORS_ORIGINS || 'http://localhost:5173';
   const corsOrigin = getCorsOrigin(currentRequestOrigin, corsOrigins);
 
@@ -598,7 +598,40 @@ function createResponse(statusCode, body, headers = {}) {
   // Remove the marker header if present
   delete headers['X-Auth-Endpoint'];
 
-  // Merge security headers with CORS and custom headers
+  // Cache control options for performance optimization
+  const {
+    cacheable = false,
+    maxAge = 0,
+    private: isPrivate = true,
+    staleWhileRevalidate = 0,
+  } = options;
+
+  // Build cache headers
+  let cacheHeaders = {};
+  if (cacheable && statusCode === 200) {
+    // Generate ETag for cacheable responses
+    const crypto = require('crypto');
+    const content = typeof body === 'string' ? body : JSON.stringify(body);
+    const etag = `"${crypto.createHash('md5').update(content).digest('hex')}"`;
+
+    let cacheControl = isPrivate ? 'private' : 'public';
+    cacheControl += `, max-age=${maxAge}`;
+    if (staleWhileRevalidate > 0) {
+      cacheControl += `, stale-while-revalidate=${staleWhileRevalidate}`;
+    }
+
+    cacheHeaders = {
+      'Cache-Control': cacheControl,
+      'ETag': etag,
+    };
+  } else {
+    cacheHeaders = {
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      'Pragma': 'no-cache',
+    };
+  }
+
+  // Merge security headers with CORS, cache, and custom headers
   const finalHeaders = mergeSecurityHeaders(
     {
       'Content-Type': 'application/json',
@@ -606,6 +639,7 @@ function createResponse(statusCode, body, headers = {}) {
       'Access-Control-Allow-Credentials': 'true',
       'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-Tenant-Id,X-Request-Id',
       'Access-Control-Allow-Methods': 'GET,POST,PUT,PATCH,DELETE,OPTIONS',
+      ...cacheHeaders,
       ...headers,
     },
     isAuthEndpoint

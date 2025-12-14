@@ -933,6 +933,7 @@ async function handleGetBookings(tenantId, queryParams) {
 
     // Schema: check_in, check_out, total_price_cents, deposit_cents
     // Note: pet_id is NOT on Booking table - pets are linked via BookingPet join table
+    // OPTIMIZED: Single query with JSON aggregation for pets (eliminates N+1 query pattern)
     const result = await query(
       `SELECT
          b.id,
@@ -957,50 +958,30 @@ async function handleGetBookings(tenantId, queryParams) {
          o.first_name as owner_first_name,
          o.last_name as owner_last_name,
          o.email as owner_email,
-         o.phone as owner_phone
+         o.phone as owner_phone,
+         COALESCE(
+           (SELECT json_agg(json_build_object(
+             'id', p.id,
+             'name', p.name,
+             'species', p.species,
+             'breed', p.breed
+           ))
+           FROM "BookingPet" bp
+           JOIN "Pet" p ON bp.pet_id = p.id
+           WHERE bp.booking_id = b.id),
+           '[]'::json
+         ) as pets
        FROM "Booking" b
        LEFT JOIN "Kennel" k ON b.kennel_id = k.id
        LEFT JOIN "Service" s ON b.service_id = s.id
        LEFT JOIN "Owner" o ON b.owner_id = o.id
+       LEFT JOIN "BookingPet" bp ON bp.booking_id = b.id
        WHERE ${whereClause}
+       GROUP BY b.id, k.name, s.name, o.id, o.first_name, o.last_name, o.email, o.phone
        ORDER BY b.check_in DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
       [...params, parseInt(limit), parseInt(offset)]
     );
-
-    // Get pets for each booking
-    const bookingIds = result.rows.map(b => b.id);
-    let petsMap = {};
-
-    if (bookingIds.length > 0) {
-      // First, try to get pets from BookingPet join table
-      const petsResult = await query(
-        `SELECT
-           bp.booking_id,
-           p.id,
-           p.name,
-           p.species,
-           p.breed
-         FROM "BookingPet" bp
-         JOIN "Pet" p ON bp.pet_id = p.id
-         WHERE bp.booking_id = ANY($1)`,
-        [bookingIds]
-      );
-
-      petsResult.rows.forEach(pet => {
-        if (!petsMap[pet.booking_id]) {
-          petsMap[pet.booking_id] = [];
-        }
-        petsMap[pet.booking_id].push({
-          id: pet.id,
-          name: pet.name,
-          species: pet.species,
-          breed: pet.breed,
-        });
-      });
-
-      // Note: Pets are linked via BookingPet join table only (no pet_id on Booking)
-    }
 
     console.log('[Bookings][diag] count:', result.rows.length);
 
@@ -1036,7 +1017,7 @@ async function handleGetBookings(tenantId, queryParams) {
         email: row.owner_email,
         phone: row.owner_phone,
       } : null,
-      pets: petsMap[row.id] || [],
+      pets: row.pets || [],
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));
