@@ -1077,6 +1077,7 @@ const SpanningDashLine = ({ pet, startHourIndex, endHourIndex, hours, trackOffse
         width: '2px',
         height: `${lineHeight}px`,
         overflow: 'visible',
+        zIndex: 10,
       }}
     >
       <line
