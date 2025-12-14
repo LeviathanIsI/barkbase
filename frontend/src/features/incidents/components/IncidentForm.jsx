@@ -8,7 +8,6 @@ import Select from 'react-select';
 import Button from '@/components/ui/Button';
 import SlideoutPanel from '@/components/SlideoutPanel';
 import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
-import StyledSelect from '@/components/ui/StyledSelect';
 import { cn } from '@/lib/cn';
 import { getPets } from '@/features/pets/api';
 
@@ -297,15 +296,14 @@ export default function IncidentForm({
               <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
                 Incident Type <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
               </label>
-              <StyledSelect
-                options={[
-                  { value: '', label: 'Select type...' },
-                  ...INCIDENT_TYPES.map((type) => ({ value: type.value, label: type.label }))
-                ]}
-                value={watch('incidentType')}
+              <Select
+                options={INCIDENT_TYPES.map((type) => ({ value: type.value, label: type.label }))}
+                value={INCIDENT_TYPES.find(t => t.value === watch('incidentType')) || null}
                 onChange={(opt) => setValue('incidentType', opt?.value || '', { shouldDirty: true })}
+                placeholder="Select type..."
                 isClearable={false}
-                isSearchable={false}
+                isSearchable
+                styles={selectStyles}
                 menuPortalTarget={document.body}
               />
               {errors.incidentType && (
@@ -319,12 +317,14 @@ export default function IncidentForm({
               <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
                 Severity <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
               </label>
-              <StyledSelect
+              <Select
                 options={SEVERITY_LEVELS.map((level) => ({ value: level.value, label: `${level.label} - ${level.description}` }))}
-                value={watch('severity')}
+                value={SEVERITY_LEVELS.map((level) => ({ value: level.value, label: `${level.label} - ${level.description}` })).find(l => l.value === watch('severity')) || null}
                 onChange={(opt) => setValue('severity', opt?.value || 'LOW', { shouldDirty: true })}
+                placeholder="Select severity..."
                 isClearable={false}
-                isSearchable={false}
+                isSearchable
+                styles={selectStyles}
                 menuPortalTarget={document.body}
               />
             </div>
