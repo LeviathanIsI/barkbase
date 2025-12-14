@@ -709,7 +709,9 @@ const DailyHourlyGrid = ({
         const slotEnd = hour + 1;
         const assignStart = a._startHour + a._startMinute / 60;
         const assignEnd = a._endHour + a._endMinute / 60;
-        return assignStart < slotEnd && assignEnd > slotStart;
+        const isActiveInSlot = assignStart < slotEnd && assignEnd > slotStart;
+        const needsEndMarker = hour === a._endHour;
+        return isActiveInSlot || needsEndMarker;
       })
       .map((a, idx) => {
         // Determine position: start, middle, or end
