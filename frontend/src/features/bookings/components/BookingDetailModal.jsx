@@ -21,6 +21,7 @@ import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
 import { useKennels } from '@/features/kennels/api';
 import { useAssignKennelMutation, useDeleteBookingMutation, useBookingCheckInMutation, useBookingCheckOutMutation } from '@/features/bookings/api';
 import { useRunTemplatesQuery } from '@/features/daycare/api-templates';
+import { useUpdateRunAssignmentMutation } from '@/features/daycare/api';
 import { useAuthStore } from '@/stores/auth';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/cn';
@@ -33,6 +34,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
   const deleteBookingMutation = useDeleteBookingMutation();
   const checkInMutation = useBookingCheckInMutation();
   const checkOutMutation = useBookingCheckOutMutation();
+  const updateAssignmentMutation = useUpdateRunAssignmentMutation();
 
   // Get current user for audit fields
   const userId = useAuthStore((state) => state.user?.id);
@@ -646,14 +648,27 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
                   <Button
                     variant="primary"
                     className="flex-1"
-                    disabled={!selectedRunId || selectedRunId === displayBooking.runId}
-                    onClick={() => {
-                      // TODO: Call API to change run assignment
-                      toast.success('Run changed successfully');
-                      setAssignmentView('main');
+                    disabled={!selectedRunId || selectedRunId === displayBooking.runId || updateAssignmentMutation.isPending}
+                    onClick={async () => {
+                      const assignmentId = displayBooking.runAssignmentId;
+                      if (!assignmentId) {
+                        toast.error('No assignment ID found');
+                        return;
+                      }
+                      try {
+                        await updateAssignmentMutation.mutateAsync({
+                          assignmentId,
+                          runId: selectedRunId,
+                          date: new Date().toISOString().split('T')[0],
+                        });
+                        toast.success('Run changed successfully');
+                        setAssignmentView('main');
+                      } catch (error) {
+                        toast.error(error?.message || 'Failed to change run');
+                      }
                     }}
                   >
-                    Save Changes
+                    {updateAssignmentMutation.isPending ? 'Saving...' : 'Save Changes'}
                   </Button>
                 </div>
               </div>
@@ -784,14 +799,28 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
                   <Button
                     variant="primary"
                     className="flex-1"
-                    disabled={!adjustedStartTime || !adjustedEndTime}
-                    onClick={() => {
-                      // TODO: Call API to update assignment times
-                      toast.success('Time adjusted successfully');
-                      setAssignmentView('main');
+                    disabled={!adjustedStartTime || !adjustedEndTime || updateAssignmentMutation.isPending}
+                    onClick={async () => {
+                      const assignmentId = displayBooking.runAssignmentId;
+                      if (!assignmentId) {
+                        toast.error('No assignment ID found');
+                        return;
+                      }
+                      try {
+                        await updateAssignmentMutation.mutateAsync({
+                          assignmentId,
+                          startTime: adjustedStartTime,
+                          endTime: adjustedEndTime,
+                          date: new Date().toISOString().split('T')[0],
+                        });
+                        toast.success('Time adjusted successfully');
+                        setAssignmentView('main');
+                      } catch (error) {
+                        toast.error(error?.message || 'Failed to adjust time');
+                      }
                     }}
                   >
-                    Save Changes
+                    {updateAssignmentMutation.isPending ? 'Saving...' : 'Save Changes'}
                   </Button>
                 </div>
               </div>

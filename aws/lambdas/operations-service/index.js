@@ -693,6 +693,15 @@ exports.handler = async (event, context) => {
       }
     }
 
+    // Single assignment update: PUT /api/v1/runs/assignments/:assignmentId
+    const singleAssignmentMatch = path.match(/\/api\/v1\/runs\/assignments\/([a-f0-9-]+)$/i);
+    if (singleAssignmentMatch) {
+      const assignmentId = singleAssignmentMatch[1];
+      if (method === 'PUT' || method === 'PATCH') {
+        return handleUpdateRunAssignment(tenantId, assignmentId, parseBody(event), user);
+      }
+    }
+
     // Bulk update run assignments for a specific run
     const runAssignMatch = path.match(/\/api\/v1\/runs\/([a-f0-9-]+)\/assignments$/i);
     if (runAssignMatch) {
@@ -4020,6 +4029,110 @@ async function handleSaveRunAssignments(tenantId, body, user) {
       error: 'Internal Server Error',
       message: 'Failed to save run assignments',
       details: error.message, // Include actual error for debugging
+    });
+  }
+}
+
+/**
+ * Update a single run assignment
+ * PUT /api/v1/runs/assignments/:assignmentId
+ * Body: { startTime, endTime, runId?, notes? }
+ */
+async function handleUpdateRunAssignment(tenantId, assignmentId, body, user) {
+  const { startTime, endTime, runId, notes } = body;
+  const userId = user?.userId || user?.id || null;
+
+  console.log('[RunAssignments][update] assignmentId:', assignmentId, 'startTime:', startTime, 'endTime:', endTime, 'runId:', runId);
+
+  if (!assignmentId) {
+    return createResponse(400, {
+      error: 'Bad Request',
+      message: 'assignmentId is required',
+    });
+  }
+
+  try {
+    await getPoolAsync();
+
+    // Verify assignment exists and belongs to tenant
+    const existingResult = await query(
+      `SELECT id, run_id, pet_id, booking_id, assigned_date, start_time, end_time
+       FROM "RunAssignment"
+       WHERE id = $1 AND tenant_id = $2`,
+      [assignmentId, tenantId]
+    );
+
+    if (existingResult.rows.length === 0) {
+      return createResponse(404, {
+        error: 'Not Found',
+        message: 'Run assignment not found',
+      });
+    }
+
+    // Build dynamic update
+    const updates = [];
+    const values = [assignmentId, tenantId];
+    let paramIndex = 3;
+
+    if (startTime !== undefined) {
+      updates.push(`start_time = $${paramIndex}::time`);
+      values.push(startTime);
+      paramIndex++;
+    }
+
+    if (endTime !== undefined) {
+      updates.push(`end_time = $${paramIndex}::time`);
+      values.push(endTime);
+      paramIndex++;
+    }
+
+    if (runId !== undefined) {
+      updates.push(`run_id = $${paramIndex}`);
+      values.push(runId);
+      paramIndex++;
+    }
+
+    if (notes !== undefined) {
+      updates.push(`notes = $${paramIndex}`);
+      values.push(notes);
+      paramIndex++;
+    }
+
+    // Always update updated_at
+    updates.push('updated_at = NOW()');
+
+    if (updates.length === 1) {
+      // Only updated_at, no actual changes
+      return createResponse(200, {
+        success: true,
+        message: 'No changes to update',
+        assignment: existingResult.rows[0],
+      });
+    }
+
+    const result = await query(
+      `UPDATE "RunAssignment"
+       SET ${updates.join(', ')}
+       WHERE id = $1 AND tenant_id = $2
+       RETURNING id, run_id as "runId", pet_id as "petId", booking_id as "bookingId",
+                 assigned_date as "assignedDate", start_time as "startTime", end_time as "endTime", notes`,
+      values
+    );
+
+    console.log('[RunAssignments][update] Updated assignment:', result.rows[0]);
+
+    return createResponse(200, {
+      success: true,
+      message: 'Assignment updated successfully',
+      assignment: result.rows[0],
+    });
+
+  } catch (error) {
+    console.error('[RunAssignments][update] Failed:', error.message, error.stack);
+    return createResponse(500, {
+      error: 'Internal Server Error',
+      message: 'Failed to update run assignment',
+      details: error.message,
     });
   }
 }

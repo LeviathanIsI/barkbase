@@ -177,6 +177,35 @@ export const useRemovePetFromRunMutation = () => {
 };
 
 /**
+ * Update a single run assignment
+ * PUT /api/v1/runs/assignments/:assignmentId
+ * Body: { startTime, endTime, runId?, notes? }
+ */
+export const useUpdateRunAssignmentMutation = () => {
+  const queryClient = useQueryClient();
+  const tenantKey = useTenantKey();
+
+  return useMutation({
+    mutationFn: async ({ assignmentId, startTime, endTime, runId, notes, date }) => {
+      const res = await apiClient.put(`/api/v1/runs/assignments/${assignmentId}`, {
+        startTime,
+        endTime,
+        runId,
+        notes,
+      });
+      return { ...res.data, date };
+    },
+    onSuccess: (data) => {
+      // Invalidate today's assignments to refresh the grid
+      const date = data.date || new Date().toISOString().split('T')[0];
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.runs(tenantKey, { date, type: 'today' })
+      });
+    },
+  });
+};
+
+/**
  * Get run assignments for a date (or date range)
  *
  * Backend returns: {
