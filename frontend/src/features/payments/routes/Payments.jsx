@@ -57,6 +57,7 @@ import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import SlidePanel from '@/components/ui/SlidePanel';
+import StyledSelect from '@/components/ui/StyledSelect';
 // Unified loader: replaced inline loading with LoadingState
 import LoadingState from '@/components/ui/LoadingState';
 import { usePaymentsQuery, usePaymentSummaryQuery, useCreatePaymentMutation } from '../api';
@@ -1539,44 +1540,56 @@ const Payments = () => {
                 </div>
 
                 {/* Status */}
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="px-3 py-2 text-sm bg-surface border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
-                >
-                  <option value="all">All Status</option>
-                  <option value="CAPTURED">Captured</option>
-                  <option value="PENDING">Pending</option>
-                  <option value="AUTHORIZED">Authorized</option>
-                  <option value="REFUNDED">Refunded</option>
-                  <option value="FAILED">Failed</option>
-                </select>
+                <div className="min-w-[130px]">
+                  <StyledSelect
+                    options={[
+                      { value: 'all', label: 'All Status' },
+                      { value: 'CAPTURED', label: 'Captured' },
+                      { value: 'PENDING', label: 'Pending' },
+                      { value: 'AUTHORIZED', label: 'Authorized' },
+                      { value: 'REFUNDED', label: 'Refunded' },
+                      { value: 'FAILED', label: 'Failed' },
+                    ]}
+                    value={statusFilter}
+                    onChange={(opt) => setStatusFilter(opt?.value || 'all')}
+                    isClearable={false}
+                    isSearchable={false}
+                  />
+                </div>
 
                 {/* Method */}
-                <select
-                  value={methodFilter}
-                  onChange={(e) => setMethodFilter(e.target.value)}
-                  className="px-3 py-2 text-sm bg-surface border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
-                >
-                  <option value="all">All Methods</option>
-                  <option value="card">Card</option>
-                  <option value="cash">Cash</option>
-                  <option value="check">Check</option>
-                  <option value="bank_transfer">Bank Transfer</option>
-                </select>
+                <div className="min-w-[130px]">
+                  <StyledSelect
+                    options={[
+                      { value: 'all', label: 'All Methods' },
+                      { value: 'card', label: 'Card' },
+                      { value: 'cash', label: 'Cash' },
+                      { value: 'check', label: 'Check' },
+                      { value: 'bank_transfer', label: 'Bank Transfer' },
+                    ]}
+                    value={methodFilter}
+                    onChange={(opt) => setMethodFilter(opt?.value || 'all')}
+                    isClearable={false}
+                    isSearchable={false}
+                  />
+                </div>
 
                 {/* Date Range */}
-                <select
-                  value={dateRange}
-                  onChange={(e) => setDateRange(e.target.value)}
-                  className="px-3 py-2 text-sm bg-surface border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
-                >
-                  <option value="all">All Time</option>
-                  <option value="today">Today</option>
-                  <option value="week">This Week</option>
-                  <option value="month">This Month</option>
-                  <option value="quarter">This Quarter</option>
-                </select>
+                <div className="min-w-[130px]">
+                  <StyledSelect
+                    options={[
+                      { value: 'all', label: 'All Time' },
+                      { value: 'today', label: 'Today' },
+                      { value: 'week', label: 'This Week' },
+                      { value: 'month', label: 'This Month' },
+                      { value: 'quarter', label: 'This Quarter' },
+                    ]}
+                    value={dateRange}
+                    onChange={(opt) => setDateRange(opt?.value || 'all')}
+                    isClearable={false}
+                    isSearchable={false}
+                  />
+                </div>
 
                 {hasActiveFilters && (
                   <Button variant="ghost" size="sm" onClick={clearFilters}>
@@ -1733,15 +1746,19 @@ const Payments = () => {
                       Showing {((currentPage - 1) * pageSize) + 1}–{Math.min(currentPage * pageSize, filteredPayments.length)} of {filteredPayments.length}
                     </div>
                     <div className="flex items-center gap-2">
-                      <select
-                        value={pageSize}
-                        onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
-                        className="px-2 py-1 text-sm bg-surface border-0 rounded focus:outline-none"
-                      >
-                        <option value={25}>25</option>
-                        <option value={50}>50</option>
-                        <option value={100}>100</option>
-                      </select>
+                      <div className="min-w-[80px]">
+                        <StyledSelect
+                          options={[
+                            { value: 25, label: '25' },
+                            { value: 50, label: '50' },
+                            { value: 100, label: '100' },
+                          ]}
+                          value={pageSize}
+                          onChange={(opt) => { setPageSize(Number(opt?.value || 25)); setCurrentPage(1); }}
+                          isClearable={false}
+                          isSearchable={false}
+                        />
+                      </div>
                       <Button
                         variant="outline"
                         size="sm"

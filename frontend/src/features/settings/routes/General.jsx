@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Card from '@/components/ui/Card';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 import SettingsPage from '../components/SettingsPage';
 import apiClient from '@/lib/apiClient';
 import toast from 'react-hot-toast';
@@ -118,52 +119,60 @@ const General = () => {
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <label className="mb-1 block text-sm font-medium text-text">Time Zone</label>
-            <select
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+            <StyledSelect
+              options={[
+                { value: 'America/New_York', label: 'America/New_York (EST)' },
+                { value: 'America/Chicago', label: 'America/Chicago (CST)' },
+                { value: 'America/Denver', label: 'America/Denver (MST)' },
+                { value: 'America/Los_Angeles', label: 'America/Los_Angeles (PST)' },
+              ]}
               value={formData.timezone}
-              onChange={(e) => handleInputChange('timezone', e.target.value)}
-            >
-              <option value="America/New_York">America/New_York (EST)</option>
-              <option value="America/Chicago">America/Chicago (CST)</option>
-              <option value="America/Denver">America/Denver (MST)</option>
-              <option value="America/Los_Angeles">America/Los_Angeles (PST)</option>
-            </select>
+              onChange={(opt) => handleInputChange('timezone', opt?.value || 'America/New_York')}
+              isClearable={false}
+              isSearchable={true}
+            />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-text">Language</label>
-            <select
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+            <StyledSelect
+              options={[
+                { value: 'en', label: 'English' },
+                { value: 'es', label: 'Spanish' },
+                { value: 'fr', label: 'French' },
+              ]}
               value={formData.language}
-              onChange={(e) => handleInputChange('language', e.target.value)}
-            >
-              <option value="en">English</option>
-              <option value="es">Spanish</option>
-              <option value="fr">French</option>
-            </select>
+              onChange={(opt) => handleInputChange('language', opt?.value || 'en')}
+              isClearable={false}
+              isSearchable={false}
+            />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-text">Date Format</label>
-            <select
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+            <StyledSelect
+              options={[
+                { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY' },
+                { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY' },
+                { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD' },
+              ]}
               value={formData.dateFormat}
-              onChange={(e) => handleInputChange('dateFormat', e.target.value)}
-            >
-              <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-              <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-              <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-            </select>
+              onChange={(opt) => handleInputChange('dateFormat', opt?.value || 'MM/DD/YYYY')}
+              isClearable={false}
+              isSearchable={false}
+            />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-text">Currency</label>
-            <select
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+            <StyledSelect
+              options={[
+                { value: 'USD', label: 'USD ($)' },
+                { value: 'EUR', label: 'EUR (€)' },
+                { value: 'GBP', label: 'GBP (£)' },
+              ]}
               value={formData.currency}
-              onChange={(e) => handleInputChange('currency', e.target.value)}
-            >
-              <option value="USD">USD ($)</option>
-              <option value="EUR">EUR (€)</option>
-              <option value="GBP">GBP (£)</option>
-            </select>
+              onChange={(opt) => handleInputChange('currency', opt?.value || 'USD')}
+              isClearable={false}
+              isSearchable={false}
+            />
           </div>
         </div>
       </Card>

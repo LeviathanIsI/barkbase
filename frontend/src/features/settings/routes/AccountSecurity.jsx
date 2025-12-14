@@ -1,5 +1,6 @@
 import Card from '@/components/ui/Card';
 import UpgradeBanner from '@/components/ui/UpgradeBanner';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { useTenantStore } from '@/stores/tenant';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/apiClient';
@@ -42,43 +43,56 @@ const AccountSecurity = () => {
 
       <Card title="Session Timeout" description="Automatically log out inactive users for security.">
         <div className="space-y-3">
-          <label className="block text-sm">
+          <div className="block text-sm">
             <span className="font-medium text-text">Timeout after</span>
-            <select className="mt-1 w-full max-w-xs rounded-lg border border-border bg-surface px-3 py-2" disabled={plan === 'FREE'}>
-              <option>15 minutes</option>
-              <option selected>30 minutes</option>
-              <option>1 hour</option>
-              <option>2 hours</option>
-              <option>Never</option>
-            </select>
+            <div className="mt-1 max-w-xs">
+              <StyledSelect
+                options={[
+                  { value: '15', label: '15 minutes' },
+                  { value: '30', label: '30 minutes' },
+                  { value: '60', label: '1 hour' },
+                  { value: '120', label: '2 hours' },
+                  { value: 'never', label: 'Never' },
+                ]}
+                value="30"
+                onChange={() => {}}
+                isDisabled={plan === 'FREE'}
+                isClearable={false}
+                isSearchable={false}
+              />
+            </div>
             {plan === 'FREE' && (
               <span className="mt-1 block text-xs text-muted">Upgrade to Pro to configure timeout</span>
             )}
-          </label>
+          </div>
         </div>
       </Card>
 
       
       <Card title="Auto-Logout Interval" description="Users will be logged out at 11:59 PM after this duration.">
         <div className="space-y-3">
-          <label className="block text-sm">
+          <div className="block text-sm">
             <span className="font-medium text-text">Logout interval</span>
-            <select 
-              className="mt-1 w-full max-w-xs rounded-lg border border-border bg-surface px-3 py-2"
-              value={tenant?.autoLogoutIntervalHours || 24}
-              onChange={(e) => handleAutoLogoutChange(Number(e.target.value))}
-              disabled={isSaving}
-            >
-              <option value={8}>8 hours</option>
-              <option value={12}>12 hours</option>
-              <option value={24}>24 hours (Default)</option>
-              <option value={48}>48 hours</option>
-              <option value={72}>72 hours</option>
-            </select>
+            <div className="mt-1 max-w-xs">
+              <StyledSelect
+                options={[
+                  { value: 8, label: '8 hours' },
+                  { value: 12, label: '12 hours' },
+                  { value: 24, label: '24 hours (Default)' },
+                  { value: 48, label: '48 hours' },
+                  { value: 72, label: '72 hours' },
+                ]}
+                value={tenant?.autoLogoutIntervalHours || 24}
+                onChange={(opt) => handleAutoLogoutChange(Number(opt?.value || 24))}
+                isDisabled={isSaving}
+                isClearable={false}
+                isSearchable={false}
+              />
+            </div>
             <span className="mt-1 block text-xs text-muted">
               Users will be automatically logged out at 11:59 PM after the selected duration
             </span>
-          </label>
+          </div>
         </div>
       </Card>
 

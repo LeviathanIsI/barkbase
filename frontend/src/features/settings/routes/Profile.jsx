@@ -11,6 +11,7 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import Avatar from '@/components/ui/Avatar';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/Alert';
 import PasswordStrength from '@/components/ui/PasswordStrength';
 import { useUserProfileQuery, useUpdateUserProfileMutation } from '../api-user';
@@ -321,40 +322,36 @@ const Profile = () => {
 
               <div>
                 <label className="block text-xs font-medium text-muted mb-1">Language</label>
-                <div className="relative">
-                  <Globe className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted z-10" />
-                  <select
-                    name="language"
-                    value={formData.language}
-                    onChange={handleChange}
-                    className="w-full pl-8 pr-3 py-2 text-sm border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary appearance-none bg-white dark:bg-surface-primary"
-                  >
-                    <option value="en">English</option>
-                    <option value="es">Spanish</option>
-                    <option value="fr">French</option>
-                  </select>
-                </div>
+                <StyledSelect
+                  options={[
+                    { value: 'en', label: 'English' },
+                    { value: 'es', label: 'Spanish' },
+                    { value: 'fr', label: 'French' },
+                  ]}
+                  value={formData.language}
+                  onChange={(opt) => setFormData(prev => ({ ...prev, language: opt?.value || 'en' }))}
+                  isClearable={false}
+                  isSearchable={false}
+                />
               </div>
 
               <div className="sm:col-span-2">
                 <label className="block text-xs font-medium text-muted mb-1">Timezone</label>
-                <div className="relative">
-                  <Clock className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted z-10" />
-                  <select
-                    name="timezone"
-                    value={formData.timezone}
-                    onChange={handleChange}
-                    className="w-full pl-8 pr-3 py-2 text-sm border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary appearance-none bg-white dark:bg-surface-primary"
-                  >
-                    <option value="">Auto-detect</option>
-                    <option value="America/New_York">Eastern (US)</option>
-                    <option value="America/Chicago">Central (US)</option>
-                    <option value="America/Denver">Mountain (US)</option>
-                    <option value="America/Los_Angeles">Pacific (US)</option>
-                    <option value="Europe/London">London</option>
-                    <option value="Europe/Paris">Paris</option>
-                  </select>
-                </div>
+                <StyledSelect
+                  options={[
+                    { value: '', label: 'Auto-detect' },
+                    { value: 'America/New_York', label: 'Eastern (US)' },
+                    { value: 'America/Chicago', label: 'Central (US)' },
+                    { value: 'America/Denver', label: 'Mountain (US)' },
+                    { value: 'America/Los_Angeles', label: 'Pacific (US)' },
+                    { value: 'Europe/London', label: 'London' },
+                    { value: 'Europe/Paris', label: 'Paris' },
+                  ]}
+                  value={formData.timezone}
+                  onChange={(opt) => setFormData(prev => ({ ...prev, timezone: opt?.value || '' }))}
+                  isClearable={false}
+                  isSearchable={true}
+                />
               </div>
             </div>
           </Card>
@@ -494,39 +491,45 @@ const Profile = () => {
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-muted mb-1">Layout</label>
-                <select
+                <StyledSelect
+                  options={[
+                    { value: 'compact', label: 'Compact' },
+                    { value: 'comfortable', label: 'Comfortable' },
+                    { value: 'spacious', label: 'Spacious' },
+                  ]}
                   value={personalization.dashboardLayout}
-                  onChange={(e) => setPersonalization(p => ({ ...p, dashboardLayout: e.target.value }))}
-                  className="w-full px-2.5 py-1.5 text-sm border border-border rounded-md"
-                >
-                  <option value="compact">Compact</option>
-                  <option value="comfortable">Comfortable</option>
-                  <option value="spacious">Spacious</option>
-                </select>
+                  onChange={(opt) => setPersonalization(p => ({ ...p, dashboardLayout: opt?.value || 'comfortable' }))}
+                  isClearable={false}
+                  isSearchable={false}
+                />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-medium text-muted mb-1">Date</label>
-                  <select
+                  <StyledSelect
+                    options={[
+                      { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY' },
+                      { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY' },
+                      { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD' },
+                    ]}
                     value={personalization.dateFormat}
-                    onChange={(e) => setPersonalization(p => ({ ...p, dateFormat: e.target.value }))}
-                    className="w-full px-2.5 py-1.5 text-sm border border-border rounded-md"
-                  >
-                    <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-                    <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                    <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                  </select>
+                    onChange={(opt) => setPersonalization(p => ({ ...p, dateFormat: opt?.value || 'MM/DD/YYYY' }))}
+                    isClearable={false}
+                    isSearchable={false}
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted mb-1">Time</label>
-                  <select
+                  <StyledSelect
+                    options={[
+                      { value: '12-hour', label: '12-hour' },
+                      { value: '24-hour', label: '24-hour' },
+                    ]}
                     value={personalization.timeFormat}
-                    onChange={(e) => setPersonalization(p => ({ ...p, timeFormat: e.target.value }))}
-                    className="w-full px-2.5 py-1.5 text-sm border border-border rounded-md"
-                  >
-                    <option value="12-hour">12-hour</option>
-                    <option value="24-hour">24-hour</option>
-                  </select>
+                    onChange={(opt) => setPersonalization(p => ({ ...p, timeFormat: opt?.value || '12-hour' }))}
+                    isClearable={false}
+                    isSearchable={false}
+                  />
                 </div>
               </div>
             </div>

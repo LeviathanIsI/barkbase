@@ -31,6 +31,7 @@ import {
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { Skeleton } from '@/components/ui/skeleton';
 import LoadingState from '@/components/ui/LoadingState';
 import {
@@ -826,32 +827,26 @@ const Messages = () => {
 
             {/* Filter & Sort Row */}
             <div className="flex items-center gap-2">
-              <select
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                className="flex-1 px-2 py-1.5 text-xs rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]/50"
-                style={{
-                  backgroundColor: 'var(--bb-color-bg-elevated)',
-                  color: 'var(--bb-color-text-primary)',
-                }}
-              >
-                {FILTER_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="flex-1 px-2 py-1.5 text-xs rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]/50"
-                style={{
-                  backgroundColor: 'var(--bb-color-bg-elevated)',
-                  color: 'var(--bb-color-text-primary)',
-                }}
-              >
-                {SORT_OPTIONS.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
+              <div className="flex-1">
+                <StyledSelect
+                  options={FILTER_OPTIONS}
+                  value={filter}
+                  onChange={(opt) => setFilter(opt?.value || 'all')}
+                  isClearable={false}
+                  isSearchable={false}
+                  size="sm"
+                />
+              </div>
+              <div className="flex-1">
+                <StyledSelect
+                  options={SORT_OPTIONS}
+                  value={sortBy}
+                  onChange={(opt) => setSortBy(opt?.value || 'recent')}
+                  isClearable={false}
+                  isSearchable={false}
+                  size="sm"
+                />
+              </div>
             </div>
           </div>
 
