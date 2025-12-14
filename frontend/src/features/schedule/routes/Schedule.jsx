@@ -845,14 +845,14 @@ const DailyHourlyGrid = ({
 
       {/* Filter Bar */}
       <div className="flex items-center gap-3 px-4 py-2 border-b" style={{ borderColor: 'var(--bb-color-border-subtle)', backgroundColor: 'var(--bb-color-bg-elevated)' }}>
-        {/* Service Filter */}
+        {/* Activity Filter */}
         <div className="min-w-[150px]">
           <StyledSelect
             options={[
-              { value: 'all', label: 'All Services' },
-              { value: 'boarding', label: 'Boarding' },
-              { value: 'daycare', label: 'Daycare' },
-              { value: 'grooming', label: 'Grooming' },
+              { value: 'all', label: 'All Activities' },
+              { value: 'social', label: 'Social Play' },
+              { value: 'individual', label: 'Individual' },
+              { value: 'training', label: 'Training' },
             ]}
             value={serviceFilter}
             onChange={(opt) => onServiceFilterChange(opt?.value || 'all')}
