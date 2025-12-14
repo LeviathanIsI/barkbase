@@ -673,13 +673,15 @@ const DailyHourlyGrid = ({
         // Parse start/end time - could be TIME strings like "08:00" or timestamps
         let startHour = 0;
         let startMinute = 0;
-        let endHour = 23;
-        let endMinute = 59;
+        let endHour = 18; // Default to 6pm
+        let endMinute = 0;
 
         if (a.startTime) {
           const parts = a.startTime.split(':');
-          startHour = parseInt(parts[0], 10) || 0;
-          startMinute = parseInt(parts[1], 10) || 0;
+          const h = parseInt(parts[0], 10);
+          const m = parseInt(parts[1], 10);
+          startHour = isNaN(h) ? 0 : h;
+          startMinute = isNaN(m) ? 0 : m;
         } else if (a.startAt) {
           const d = new Date(a.startAt);
           startHour = d.getHours();
@@ -688,8 +690,10 @@ const DailyHourlyGrid = ({
 
         if (a.endTime) {
           const parts = a.endTime.split(':');
-          endHour = parseInt(parts[0], 10) || 23;
-          endMinute = parseInt(parts[1], 10) || 59;
+          const h = parseInt(parts[0], 10);
+          const m = parseInt(parts[1], 10);
+          endHour = isNaN(h) ? 18 : h;
+          endMinute = isNaN(m) ? 0 : m;
         } else if (a.endAt) {
           const d = new Date(a.endAt);
           endHour = d.getHours();
@@ -1189,18 +1193,10 @@ const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut,
 
   const heightPercent = calculateWidthPercent();
 
-  // Determine check-in/out eligibility
-  const today = new Date().toISOString().split('T')[0];
-  const isArrivalToday = pet.bookingCheckIn?.split('T')[0] === today || pet.startAt?.split('T')[0] === today;
-  const isDepartureToday = pet.bookingCheckOut?.split('T')[0] === today || pet.endAt?.split('T')[0] === today;
+  // Status for tooltip display
   const status = pet.bookingStatus || pet.status || 'CONFIRMED';
   const isCheckedIn = status === 'CHECKED_IN';
   const isCheckedOut = status === 'CHECKED_OUT';
-
-  // Show check-in button if arrival is today and not yet checked in
-  const showCheckIn = isArrivalToday && !isCheckedIn && !isCheckedOut && status !== 'CANCELLED';
-  // Show check-out button if checked in and departure is today
-  const showCheckOut = isCheckedIn && isDepartureToday;
 
   // Activity type dot color (based on run type)
   const getActivityDotColor = (service) => {
@@ -1266,31 +1262,6 @@ const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut,
           </span>
         </div>
 
-        {/* Right: Check In/Out buttons only (no text badge) */}
-        <div className="flex items-center gap-1 shrink-0">
-          {showCheckIn && (
-            <button
-              type="button"
-              onClick={(e) => onCheckIn(e, pet)}
-              disabled={checkInPending}
-              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-medium bg-emerald-500 text-white hover:bg-emerald-600 transition-colors"
-            >
-              <LogIn className="h-2.5 w-2.5" />
-              {checkInPending ? '...' : 'In'}
-            </button>
-          )}
-          {showCheckOut && (
-            <button
-              type="button"
-              onClick={(e) => onCheckOut(e, pet)}
-              disabled={checkOutPending}
-              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-medium bg-amber-500 text-white hover:bg-amber-600 transition-colors"
-            >
-              <LogOut className="h-2.5 w-2.5" />
-              {checkOutPending ? '...' : 'Out'}
-            </button>
-          )}
-        </div>
       </div>
 
       {/* Tooltip on hover */}
