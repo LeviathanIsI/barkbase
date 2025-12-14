@@ -161,6 +161,97 @@ export async function getWorkflowStats() {
   return apiClient.get(`${BASE_URL}/stats`);
 }
 
+// ===== TEMPLATES =====
+
+/**
+ * Get all workflow templates
+ */
+export async function getWorkflowTemplates(params = {}) {
+  const searchParams = new URLSearchParams();
+
+  if (params.category) searchParams.append('category', params.category);
+  if (params.objectType) searchParams.append('objectType', params.objectType);
+
+  const queryString = searchParams.toString();
+  const url = queryString
+    ? `${BASE_URL}/templates?${queryString}`
+    : `${BASE_URL}/templates`;
+
+  return apiClient.get(url);
+}
+
+/**
+ * Get a single template by ID
+ */
+export async function getWorkflowTemplate(templateId) {
+  return apiClient.get(`${BASE_URL}/templates/${templateId}`);
+}
+
+/**
+ * Create workflow from template
+ */
+export async function createWorkflowFromTemplate(templateId, data = {}) {
+  return apiClient.post(`${BASE_URL}/templates/${templateId}/use`, data);
+}
+
+// ===== ENROLLMENTS =====
+
+/**
+ * Manually enroll a record in a workflow
+ */
+export async function enrollRecord(workflowId, data) {
+  return apiClient.post(`${BASE_URL}/${workflowId}/enroll`, data);
+}
+
+/**
+ * Unenroll a record from a workflow
+ */
+export async function unenrollRecord(workflowId, enrollmentId) {
+  return apiClient.delete(`${BASE_URL}/${workflowId}/enrollments/${enrollmentId}`);
+}
+
+/**
+ * Get workflow history/logs
+ */
+export async function getWorkflowHistory(workflowId, params = {}) {
+  const searchParams = new URLSearchParams();
+
+  if (params.eventType) searchParams.append('eventType', params.eventType);
+  if (params.stepId) searchParams.append('stepId', params.stepId);
+  if (params.limit) searchParams.append('limit', params.limit);
+  if (params.offset) searchParams.append('offset', params.offset);
+
+  const queryString = searchParams.toString();
+  const url = queryString
+    ? `${BASE_URL}/${workflowId}/history?${queryString}`
+    : `${BASE_URL}/${workflowId}/history`;
+
+  return apiClient.get(url);
+}
+
+/**
+ * Get workflow analytics
+ */
+export async function getWorkflowAnalytics(workflowId, params = {}) {
+  const searchParams = new URLSearchParams();
+
+  if (params.period) searchParams.append('period', params.period);
+
+  const queryString = searchParams.toString();
+  const url = queryString
+    ? `${BASE_URL}/${workflowId}/analytics?${queryString}`
+    : `${BASE_URL}/${workflowId}/analytics`;
+
+  return apiClient.get(url);
+}
+
+/**
+ * Test workflow with a specific record (dry run)
+ */
+export async function testWorkflow(workflowId, data) {
+  return apiClient.post(`${BASE_URL}/${workflowId}/test`, data);
+}
+
 // Export default object for convenience
 export default {
   getWorkflows,
@@ -182,4 +273,14 @@ export default {
   deleteWorkflowFolder,
   moveWorkflowToFolder,
   getWorkflowStats,
+  // Templates
+  getWorkflowTemplates,
+  getWorkflowTemplate,
+  createWorkflowFromTemplate,
+  // Enrollments
+  enrollRecord,
+  unenrollRecord,
+  getWorkflowHistory,
+  getWorkflowAnalytics,
+  testWorkflow,
 };
