@@ -1058,9 +1058,10 @@ const SpanningDashLine = ({ pet, startHourIndex, endHourIndex, hours, trackOffse
   const chipHeight = Math.max(20, (rowHeight - 8) * chipHeightPercent / 100); // min 20px
   const yStart = chipTopPadding + chipHeight;
 
-  // Y end: top of the end time marker in the last cell (small offset from top)
+  // Y end: position based on actual end minute within the final cell
   const totalRows = endHourIndex - startHourIndex;
-  const yEnd = (totalRows * rowHeight) + 12; // End 12px into the final cell
+  const endMinutePercent = (pet._endMinute || 0) / 60;
+  const yEnd = (totalRows * rowHeight) + (rowHeight * endMinutePercent);
 
   // X position: align with activity dot (8px from left edge of track)
   const xPos = 4 + trackOffset + 8;
@@ -1140,6 +1141,9 @@ const TimeSpanLine = ({ pet, trackOffset = 0, onBookingClick }) => {
 const EndTimeMarker = ({ pet, trackOffset = 0, onBookingClick }) => {
   const [showTooltip, setShowTooltip] = useState(false);
 
+  // Calculate vertical position based on end minute (0-59 maps to 0-100% of cell)
+  const endMinutePercent = ((pet._endMinute || 0) / 60) * 100;
+
   // Format end time
   const formatEndTime = () => {
     if (pet._endHour !== undefined) {
@@ -1168,14 +1172,14 @@ const EndTimeMarker = ({ pet, trackOffset = 0, onBookingClick }) => {
         onBookingClick(pet);
       }}
     >
-      {/* End time label - positioned below where the SVG line ends */}
+      {/* End time label - positioned at actual end time within cell */}
       <div
         className={cn(
-          'absolute top-3 text-[9px] font-medium px-1 rounded',
+          'absolute text-[9px] font-medium px-1 rounded',
           'text-[color:var(--bb-color-text-muted)]',
           'group-hover:bg-[var(--bb-color-accent-soft)]'
         )}
-        style={{ left: '2px' }}
+        style={{ left: '2px', top: `${endMinutePercent}%` }}
       >
         {formatEndTime()}
       </div>
