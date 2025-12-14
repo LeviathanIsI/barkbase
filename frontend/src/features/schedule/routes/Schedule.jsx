@@ -28,7 +28,7 @@ import { cn } from '@/lib/cn';
 import toast from 'react-hot-toast';
 
 const Schedule = () => {
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, _setCurrentDate] = useState(new Date());
 
   // Modals & panels
   const [showNewBookingModal, setShowNewBookingModal] = useState(false);
@@ -54,8 +54,8 @@ const Schedule = () => {
   // Get current user for audit fields
   const userId = useAuthStore((state) => state.user?.id);
 
-  // Stats
-  const todayStats = useTodayStats(currentDate);
+  // Stats (hook must be called, but result currently unused)
+  const _todayStats = useTodayStats(currentDate);
 
   // Week dates for grid
   const weekStart = startOfWeek(currentDate);
@@ -67,8 +67,8 @@ const Schedule = () => {
   const weekEndStr = weekDates[6].toISOString().split('T')[0];
 
   // Data fetching
-  const { data: runTemplates = [], isLoading: runsLoading, refetch: refetchRuns } = useRunTemplatesQuery();
-  const { data: weekBookings = [], isLoading: bookingsLoading, refetch: refetchBookings } = useBookingsQuery({
+  const { data: runTemplates = [], isLoading: runsLoading, refetch: _refetchRuns } = useRunTemplatesQuery();
+  const { data: weekBookings = [], isLoading: bookingsLoading, refetch: _refetchBookings } = useBookingsQuery({
     startDate: weekStartStr,
     endDate: weekEndStr,
   });
@@ -194,8 +194,8 @@ const Schedule = () => {
     });
   }, [processedBookings, searchTerm, serviceFilter]);
 
-  // Calculate occupancy per day based on run assignments
-  const occupancyByDate = useMemo(() => {
+  // Calculate occupancy per day based on run assignments (currently unused but kept for future features)
+  const _occupancyByDate = useMemo(() => {
     const map = {};
     weekDates.forEach(date => {
       const dateStr = format(date, 'yyyy-MM-dd');
@@ -899,7 +899,8 @@ const DailyHourlyGrid = ({
                   )}
                   style={{
                     gridTemplateColumns: `80px repeat(${runs.length}, minmax(120px, 1fr))`,
-                    borderColor: 'var(--bb-color-border-subtle)'
+                    borderColor: 'var(--bb-color-border-subtle)',
+                    overflow: 'visible', // Allow spanning lines to extend vertically
                   }}
                 >
                   {/* Hour Label - Sticky */}
@@ -938,31 +939,48 @@ const DailyHourlyGrid = ({
                         style={{
                           backgroundColor: isCurrentHour ? undefined : 'var(--bb-color-bg-body)',
                           borderColor: 'var(--bb-color-border-subtle)',
+                          overflow: 'visible', // Allow spanning lines to extend into subsequent cells
                         }}
                         onClick={() => hasPets ? onBookingClick(cellPets[0]) : onEmptyCellClick(run, hour)}
                       >
                         {hasPets ? (
-                          <div className="absolute inset-0 p-1 overflow-hidden">
+                          <div className="absolute inset-0 p-1" style={{ overflow: 'visible' }}>
                             {cellPets.slice(0, 4).map((pet, idx) => {
                               const position = pet.position || 'single';
                               const trackOffset = pet.trackIndex * 28; // Offset for parallel tracks
 
                               if (position === 'start' || position === 'single') {
-                                return (
+                                // Calculate start/end hour indices for spanning line
+                                const startHourIndex = hours.indexOf(pet._startHour);
+                                const endHourIndex = hours.indexOf(pet._endHour);
+                                const isMultiHour = position === 'start' && startHourIndex >= 0 && endHourIndex > startHourIndex;
+
+                                // Use array return for multiple elements with keys
+                                const elements = [
                                   <PetTimeBar
-                                    key={pet.id || idx}
+                                    key={`bar-${pet.id || idx}`}
                                     pet={pet}
                                     hour={hour}
-                                    dateStr={dateStr}
                                     onBookingClick={onBookingClick}
-                                    onCheckIn={handleCheckIn}
-                                    onCheckOut={handleCheckOut}
-                                    checkInPending={checkInMutation.isPending}
-                                    checkOutPending={checkOutMutation.isPending}
                                     trackOffset={trackOffset}
-                                    showEndMarker={position === 'single'}
                                   />
-                                );
+                                ];
+                                /* Render spanning SVG line for multi-hour assignments */
+                                if (isMultiHour) {
+                                  elements.push(
+                                    <SpanningDashLine
+                                      key={`line-${pet.id || idx}`}
+                                      pet={pet}
+                                      startHourIndex={startHourIndex}
+                                      endHourIndex={endHourIndex}
+                                      hours={hours}
+                                      trackOffset={trackOffset}
+                                      rowHeight={60}
+                                      onBookingClick={onBookingClick}
+                                    />
+                                  );
+                                }
+                                return elements;
                               }
 
                               if (position === 'middle') {
@@ -1013,16 +1031,70 @@ const DailyHourlyGrid = ({
   );
 };
 
-// Activity type dot color helper (shared by multiple components)
-const getActivityDotColorStatic = (service) => {
+// Get stroke color for SVG lines based on service type
+const getStrokeColor = (service) => {
   const s = (service || '').toLowerCase();
-  if (s.includes('social')) return 'bg-emerald-500';
-  if (s.includes('individual')) return 'bg-blue-500';
-  if (s.includes('training')) return 'bg-amber-500';
-  return 'bg-gray-400';
+  if (s.includes('social')) return '#34d399'; // emerald-400
+  if (s.includes('individual')) return '#60a5fa'; // blue-400
+  if (s.includes('training')) return '#fbbf24'; // amber-400
+  return '#9ca3af'; // gray-400
 };
 
-// Time Span Line - Dashed vertical line for middle hours of an assignment
+// SpanningDashLine - ONE SVG line per multi-hour assignment spanning from start to end
+const SpanningDashLine = ({ pet, startHourIndex, endHourIndex, hours, trackOffset = 0, rowHeight = 60 }) => {
+  // Calculate chip height in first cell (based on duration overlap)
+  const firstHour = hours[startHourIndex];
+  const slotStart = firstHour;
+  const slotEnd = firstHour + 1;
+  const assignStart = pet._startHour + pet._startMinute / 60;
+  const assignEnd = pet._endHour + pet._endMinute / 60;
+  const overlapStart = Math.max(assignStart, slotStart);
+  const overlapEnd = Math.min(assignEnd, slotEnd);
+  const overlapDuration = Math.max(0, overlapEnd - overlapStart);
+  const chipHeightPercent = Math.round(overlapDuration * 100);
+
+  // Y start: after the chip in the first cell (chip top padding + chip height)
+  const chipTopPadding = 4;
+  const chipHeight = Math.max(20, (rowHeight - 8) * chipHeightPercent / 100); // min 20px
+  const yStart = chipTopPadding + chipHeight;
+
+  // Y end: top of the end time marker in the last cell (small offset from top)
+  const totalRows = endHourIndex - startHourIndex;
+  const yEnd = (totalRows * rowHeight) + 12; // End 12px into the final cell
+
+  // X position: align with activity dot (8px from left edge of track)
+  const xPos = 4 + trackOffset + 8;
+
+  const strokeColor = getStrokeColor(pet.serviceType);
+  const lineHeight = yEnd - yStart;
+
+  return (
+    <svg
+      className="absolute pointer-events-none"
+      style={{
+        left: `${xPos}px`,
+        top: `${yStart}px`,
+        width: '2px',
+        height: `${lineHeight}px`,
+        overflow: 'visible',
+      }}
+    >
+      <line
+        x1="1"
+        y1="0"
+        x2="1"
+        y2={lineHeight}
+        stroke={strokeColor}
+        strokeWidth="2"
+        strokeDasharray="6 4"
+        strokeLinecap="round"
+        opacity="0.6"
+      />
+    </svg>
+  );
+};
+
+// Time Span Line - Hover/click target for middle hours of an assignment (no line - SVG handles it)
 const TimeSpanLine = ({ pet, trackOffset = 0, onBookingClick }) => {
   const [showTooltip, setShowTooltip] = useState(false);
 
@@ -1042,24 +1114,7 @@ const TimeSpanLine = ({ pet, trackOffset = 0, onBookingClick }) => {
         onBookingClick(pet);
       }}
     >
-      {/* Dashed vertical line - positioned at 8px to align with activity dot */}
-      <div
-        className={cn(
-          'absolute w-0.5',
-          'border-l-2 border-dashed',
-          pet.serviceType?.toLowerCase().includes('social') ? 'border-emerald-400' :
-          pet.serviceType?.toLowerCase().includes('individual') ? 'border-blue-400' :
-          pet.serviceType?.toLowerCase().includes('training') ? 'border-amber-400' :
-          'border-gray-400'
-        )}
-        style={{
-          left: '8px', // Align with activity dot center (4px chip offset + 4px to dot center)
-          top: 0,
-          height: '100%',
-          opacity: 0.6,
-        }}
-      />
-      {/* Hover highlight */}
+      {/* Hover highlight only - SVG line is rendered separately as spanning element */}
       <div className="absolute inset-0 rounded opacity-0 group-hover:opacity-100 transition-opacity bg-[var(--bb-color-accent-soft)]" />
 
       {/* Tooltip on hover */}
@@ -1080,7 +1135,7 @@ const TimeSpanLine = ({ pet, trackOffset = 0, onBookingClick }) => {
   );
 };
 
-// End Time Marker - Shows end time with connecting line
+// End Time Marker - Shows end time label (no line - SVG handles it)
 const EndTimeMarker = ({ pet, trackOffset = 0, onBookingClick }) => {
   const [showTooltip, setShowTooltip] = useState(false);
 
@@ -1102,7 +1157,7 @@ const EndTimeMarker = ({ pet, trackOffset = 0, onBookingClick }) => {
       style={{
         left: `${4 + trackOffset}px`,
         top: 0,
-        width: '24px',
+        width: '40px',
         height: '100%',
       }}
       onMouseEnter={() => setShowTooltip(true)}
@@ -1112,24 +1167,7 @@ const EndTimeMarker = ({ pet, trackOffset = 0, onBookingClick }) => {
         onBookingClick(pet);
       }}
     >
-      {/* Vertical line connecting from top - aligned with activity dot */}
-      <div
-        className={cn(
-          'absolute w-0.5',
-          'border-l-2 border-dashed',
-          pet.serviceType?.toLowerCase().includes('social') ? 'border-emerald-400' :
-          pet.serviceType?.toLowerCase().includes('individual') ? 'border-blue-400' :
-          pet.serviceType?.toLowerCase().includes('training') ? 'border-amber-400' :
-          'border-gray-400'
-        )}
-        style={{
-          left: '8px', // Align with activity dot
-          top: 0,
-          height: '12px',
-          opacity: 0.6,
-        }}
-      />
-      {/* End time label */}
+      {/* End time label - positioned below where the SVG line ends */}
       <div
         className={cn(
           'absolute top-3 text-[9px] font-medium px-1 rounded',
@@ -1160,7 +1198,7 @@ const EndTimeMarker = ({ pet, trackOffset = 0, onBookingClick }) => {
 };
 
 // Pet Time Bar - Shows at START of assignment with activity dot
-const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut, checkInPending, checkOutPending, trackOffset = 0, showEndMarker = false }) => {
+const PetTimeBar = ({ pet, hour, onBookingClick, trackOffset = 0 }) => {
   const [showTooltip, setShowTooltip] = useState(false);
 
   // Calculate width percentage based on how much of this hour the assignment covers
@@ -1227,14 +1265,11 @@ const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut,
     return 'border-l-gray-400';
   };
 
-  const formatTime = (dateStr) => {
-    if (!dateStr) return '';
-    const d = new Date(dateStr);
+  const formatTime = (timeStr) => {
+    if (!timeStr) return '';
+    const d = new Date(timeStr);
     return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   };
-
-  // Check if this assignment spans multiple hours (needs downward line)
-  const spansMultipleHours = pet.position === 'start' && !showEndMarker;
 
   // Calculate height based on duration in this hour slot
   // 15 min = 25%, 30 min = 50%, 45 min = 75%, 60 min = 100%
@@ -1353,25 +1388,7 @@ const PetTimeBar = ({ pet, hour, dateStr, onBookingClick, onCheckIn, onCheckOut,
       )}
       </div>
 
-      {/* Downward dashed line for multi-hour assignments - extends from chip bottom to cell bottom */}
-      {spansMultipleHours && (
-        <div
-          className={cn(
-            'absolute w-0.5',
-            'border-l-2 border-dashed',
-            pet.serviceType?.toLowerCase().includes('social') ? 'border-emerald-400' :
-            pet.serviceType?.toLowerCase().includes('individual') ? 'border-blue-400' :
-            pet.serviceType?.toLowerCase().includes('training') ? 'border-amber-400' :
-            'border-gray-400'
-          )}
-          style={{
-            top: '100%', // Start at chip bottom
-            height: `calc(${100 - cellHeightPercent}% + 8px)`, // Extend to cell bottom
-            left: '8px', // Align with activity dot (same as TimeSpanLine)
-            opacity: 0.6,
-          }}
-        />
-      )}
+      {/* SVG spanning line is rendered separately at the column level for continuous dash pattern */}
     </div>
   );
 };
