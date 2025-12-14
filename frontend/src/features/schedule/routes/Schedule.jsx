@@ -658,6 +658,44 @@ const DailyHourlyGrid = ({
   // Get the date string for filtering (use local date, not UTC)
   const dateStr = format(currentDate, 'yyyy-MM-dd');
 
+  // Build track maps for each run - determines which track each pet occupies
+  // This ensures the same pet gets the same track index in start, middle, and end cells
+  const trackMaps = useMemo(() => {
+    const maps = {};
+    runs.forEach(run => {
+      maps[run.id] = {};
+      // Get all assignments for this run on this date
+      const runAssignments = assignments
+        .filter(a => a.runId === run.id && a.dateStr === dateStr)
+        .map(a => {
+          // Parse start time for sorting
+          let startHour = 0;
+          let startMinute = 0;
+          if (a.startTime) {
+            const parts = a.startTime.split(':');
+            startHour = parseInt(parts[0], 10) || 0;
+            startMinute = parseInt(parts[1], 10) || 0;
+          } else if (a.startAt) {
+            const d = new Date(a.startAt);
+            startHour = d.getHours();
+            startMinute = d.getMinutes();
+          }
+          return { ...a, _sortStart: startHour * 60 + startMinute };
+        })
+        // Sort by start time so earlier assignments get lower track indices
+        .sort((x, y) => x._sortStart - y._sortStart);
+
+      // Assign track index to each pet based on their position in the sorted list
+      runAssignments.forEach((a, idx) => {
+        const petKey = a.petId || a.id;
+        if (maps[run.id][petKey] === undefined) {
+          maps[run.id][petKey] = idx;
+        }
+      });
+    });
+    return maps;
+  }, [runs, assignments, dateStr]);
+
   // Scroll to current hour on mount
   useEffect(() => {
     if (isToday && currentHourRef.current) {
@@ -713,8 +751,6 @@ const DailyHourlyGrid = ({
         const needsEndMarker = hour === a._endHour;
         return isActiveInSlot || needsEndMarker;
       })
-      // Sort by petId for consistent trackIndex across all cells
-      .sort((a, b) => String(a.petId || a.id).localeCompare(String(b.petId || b.id)))
       .map((a, idx) => {
         // Determine position: start, middle, or end
         const isStartHour = hour === a._startHour;
@@ -731,7 +767,11 @@ const DailyHourlyGrid = ({
           position = 'end';
         }
 
-        return { ...a, position, trackIndex: idx };
+        // Use track map for consistent track index across all cells (start, middle, end)
+        const petKey = a.petId || a.id;
+        const trackIndex = trackMaps[runId]?.[petKey] ?? idx;
+
+        return { ...a, position, trackIndex };
       });
 
     if (runAssignments.length > 0) return runAssignments;
