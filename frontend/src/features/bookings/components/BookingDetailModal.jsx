@@ -5,7 +5,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { Calendar, PawPrint, User, CheckCircle, Clock, DollarSign, Phone, Edit2, X, MessageSquare, Home, ChevronDown, LogIn, LogOut } from 'lucide-react';
+import { Calendar, PawPrint, User, CheckCircle, Clock, DollarSign, Phone, Edit2, X, MessageSquare, Home, ChevronDown, LogIn, LogOut, Play, ArrowRight, Timer } from 'lucide-react';
 import {
   InspectorRoot,
   InspectorHeader,
@@ -36,6 +36,7 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
   const userId = useAuthStore((state) => state.user?.id);
 
   // Local state
+  const [activeTab, setActiveTab] = useState('assignment'); // 'assignment' | 'booking'
   const [showKennelDropdown, setShowKennelDropdown] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showQuickCheckoutDialog, setShowQuickCheckoutDialog] = useState(false);
@@ -52,6 +53,13 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
     setLocalStatus(null);
     setLocalCheckedInAt(null);
   }, [booking?.id]);
+
+  // Reset to assignment tab when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab('assignment');
+    }
+  }, [isOpen]);
 
   // Click outside to close kennel dropdown
   useEffect(() => {
@@ -124,6 +132,13 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
     notes: booking?.notes || booking?.specialInstructions || null,
     totalCents: booking?.totalCents || 0,
     amountPaidCents: booking?.amountPaidCents || 0,
+    // Run assignment data (from Schedule page)
+    runName: booking?.runName || null,
+    runId: booking?.runId || null,
+    startAt: booking?.startAt || null,
+    endAt: booking?.endAt || null,
+    serviceType: booking?.serviceType || 'Social',
+    runAssignmentId: booking?.runAssignmentId || null,
   };
 
   const balance = displayBooking.totalCents - displayBooking.amountPaidCents;
@@ -352,338 +367,438 @@ const BookingDetailModal = ({ booking, isOpen, onClose, onEdit }) => {
           metrics={metrics}
         />
 
-        {/* Check In / Check Out Action Buttons - Prominent placement */}
-        {(() => {
-          const status = displayBooking.status;
+        {/* Tab Bar */}
+        <div className="flex border-b" style={{ borderColor: 'var(--bb-color-border-subtle)' }}>
+          <button
+            type="button"
+            onClick={() => setActiveTab('assignment')}
+            className={cn(
+              'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+              activeTab === 'assignment'
+                ? 'border-[var(--bb-color-accent)] text-[var(--bb-color-accent)]'
+                : 'border-transparent text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]'
+            )}
+          >
+            Run Assignment
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('booking')}
+            className={cn(
+              'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+              activeTab === 'booking'
+                ? 'border-[var(--bb-color-accent)] text-[var(--bb-color-accent)]'
+                : 'border-transparent text-[color:var(--bb-color-text-muted)] hover:text-[color:var(--bb-color-text-primary)]'
+            )}
+          >
+            Booking Details
+          </button>
+        </div>
 
-          // Compare dates only (not times) - check if check-in is tomorrow or later
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const checkInDate = displayBooking.checkIn ? new Date(displayBooking.checkIn) : null;
-          const checkInDateOnly = checkInDate ? new Date(checkInDate) : null;
-          if (checkInDateOnly) checkInDateOnly.setHours(0, 0, 0, 0);
-          const isFutureBooking = checkInDateOnly && checkInDateOnly > today;
-
-          // Already checked out - show badge
-          if (status === 'CHECKED_OUT') {
-            return (
-              <div className="px-[var(--bb-space-4)] py-[var(--bb-space-3)] border-b border-[var(--bb-color-border-subtle)]">
-                <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-[var(--bb-color-bg-elevated)]">
-                  <CheckCircle className="w-5 h-5 text-[var(--bb-color-status-positive)]" />
-                  <span className="text-sm font-medium text-[var(--bb-color-text-muted)]">
-                    Checked Out
-                  </span>
+        {/* ===== ASSIGNMENT TAB ===== */}
+        {activeTab === 'assignment' && (
+          <>
+            {/* Pet Info */}
+            <InspectorSection title="Pet" icon={PawPrint}>
+              <div className="flex items-center gap-[var(--bb-space-3)]">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--bb-color-accent-soft)] text-[var(--bb-color-accent)]">
+                  <PawPrint className="h-6 w-6" />
                 </div>
-              </div>
-            );
-          }
-
-          // Cancelled - no buttons
-          if (status === 'CANCELLED') {
-            return null;
-          }
-
-          // Currently checked in - show check out button
-          if (status === 'CHECKED_IN') {
-            return (
-              <div className="px-[var(--bb-space-4)] py-[var(--bb-space-3)] border-b border-[var(--bb-color-border-subtle)]">
-                <Button
-                  variant="primary"
-                  size="lg"
-                  className="w-full bg-amber-500 hover:bg-amber-600"
-                  onClick={handleCheckOut}
-                  disabled={checkOutMutation.isPending}
-                >
-                  <LogOut className="w-5 h-5 mr-2" />
-                  {checkOutMutation.isPending ? 'Checking Out...' : 'Check Out'}
+                <div className="flex-1">
+                  <p className="text-[var(--bb-font-size-md)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)]">
+                    {displayBooking.pet.name || 'Unknown Pet'}
+                  </p>
+                  <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
+                    {displayBooking.pet.breed || 'Unknown breed'}
+                    {displayBooking.pet.age && ` • ${displayBooking.pet.age}`}
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleViewPet}>
+                  <PawPrint className="w-4 h-4 mr-2" />
+                  View Profile
                 </Button>
               </div>
-            );
-          }
+            </InspectorSection>
 
-          // Future booking (tomorrow or later) - show scheduled state
-          if (isFutureBooking) {
-            return (
-              <div className="px-[var(--bb-space-4)] py-[var(--bb-space-3)] border-b border-[var(--bb-color-border-subtle)]">
-                <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-[var(--bb-color-bg-elevated)]">
-                  <Clock className="w-5 h-5 text-[var(--bb-color-text-muted)]" />
-                  <span className="text-sm font-medium text-[var(--bb-color-text-muted)]">
-                    Scheduled for {checkInDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </span>
+            {/* Owner Info */}
+            <InspectorSection title="Owner" icon={User}>
+              <div className="flex items-center gap-[var(--bb-space-3)]">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--bb-color-purple-soft)] text-[var(--bb-color-purple)]">
+                  <User className="h-6 w-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[var(--bb-font-size-md)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)]">
+                    {displayBooking.owner.firstName || displayBooking.owner.name || 'Unknown'}
+                    {displayBooking.owner.lastName && ` ${displayBooking.owner.lastName}`}
+                  </p>
+                  {displayBooking.owner.phone && (
+                    <a
+                      href={`tel:${displayBooking.owner.phone}`}
+                      className="flex items-center gap-[var(--bb-space-1)] text-[var(--bb-font-size-sm)] text-[var(--bb-color-accent)] hover:underline"
+                    >
+                      <Phone className="w-3 h-3" />
+                      {displayBooking.owner.phone}
+                    </a>
+                  )}
+                </div>
+                <div className="flex gap-[var(--bb-space-2)]">
+                  <Button variant="outline" size="sm" onClick={handleViewOwner}>
+                    <User className="w-4 h-4 mr-2" />
+                    View Profile
+                  </Button>
+                  {displayBooking.owner.phone && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(`tel:${displayBooking.owner.phone}`)}
+                      title="Call owner"
+                    >
+                      <Phone className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
-            );
-          }
+            </InspectorSection>
 
-          // Ready to check in (CONFIRMED or PENDING status, today or past)
-          if (status === 'CONFIRMED' || status === 'PENDING') {
-            return (
-              <div className="px-[var(--bb-space-4)] py-[var(--bb-space-3)] border-b border-[var(--bb-color-border-subtle)]">
-                <Button
-                  variant="primary"
-                  size="lg"
-                  className="w-full bg-emerald-600 hover:bg-emerald-700"
-                  onClick={handleCheckIn}
-                  disabled={checkInMutation.isPending}
-                >
-                  <LogIn className="w-5 h-5 mr-2" />
-                  {checkInMutation.isPending ? 'Checking In...' : 'Check In'}
+            {/* Run Assignment Info */}
+            <InspectorSection title="Current Assignment" icon={Play}>
+              <div className="space-y-[var(--bb-space-3)]">
+                {/* Run/Play Area */}
+                <InspectorField label="Run / Play Area" layout="grid">
+                  <span className="font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)]">
+                    {displayBooking.runName || 'Not assigned'}
+                  </span>
+                </InspectorField>
+
+                {/* Times */}
+                <div className="grid grid-cols-2 gap-[var(--bb-space-4)]">
+                  <InspectorField label="Start Time" layout="stacked" icon={Clock}>
+                    <span className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+                      {displayBooking.startAt ? formatTime(displayBooking.startAt) : '—'}
+                    </span>
+                  </InspectorField>
+                  <InspectorField label="End Time" layout="stacked" icon={Timer}>
+                    <span className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+                      {displayBooking.endAt ? formatTime(displayBooking.endAt) : '—'}
+                    </span>
+                  </InspectorField>
+                </div>
+
+                {/* Activity Type */}
+                <InspectorField label="Activity Type" layout="grid">
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      'w-2 h-2 rounded-full',
+                      displayBooking.serviceType?.toLowerCase().includes('social') && 'bg-emerald-500',
+                      displayBooking.serviceType?.toLowerCase().includes('individual') && 'bg-blue-500',
+                      displayBooking.serviceType?.toLowerCase().includes('training') && 'bg-amber-500',
+                      !displayBooking.serviceType?.toLowerCase().includes('social') &&
+                      !displayBooking.serviceType?.toLowerCase().includes('individual') &&
+                      !displayBooking.serviceType?.toLowerCase().includes('training') && 'bg-gray-400'
+                    )} />
+                    <span className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)]">
+                      {displayBooking.serviceType || 'Social'}
+                    </span>
+                  </div>
+                </InspectorField>
+              </div>
+            </InspectorSection>
+
+            {/* Quick Actions */}
+            <InspectorSection title="Quick Actions" icon={ArrowRight}>
+              <div className="grid grid-cols-3 gap-2">
+                <Button variant="outline" size="sm" className="w-full">
+                  <Home className="w-4 h-4 mr-1" />
+                  Change Run
+                </Button>
+                <Button variant="outline" size="sm" className="w-full">
+                  <Clock className="w-4 h-4 mr-1" />
+                  Extend Time
+                </Button>
+                <Button variant="outline" size="sm" className="w-full text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20">
+                  <X className="w-4 h-4 mr-1" />
+                  End Early
                 </Button>
               </div>
-            );
-          }
+            </InspectorSection>
+          </>
+        )}
 
-          return null;
-        })()}
+        {/* ===== BOOKING TAB ===== */}
+        {activeTab === 'booking' && (
+          <>
+            {/* Check In / Check Out Action Buttons - Prominent placement */}
+            {(() => {
+              const status = displayBooking.status;
 
-        {/* Pet Info */}
-        <InspectorSection title="Pet" icon={PawPrint}>
-          <div className="flex items-center gap-[var(--bb-space-3)]">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--bb-color-accent-soft)] text-[var(--bb-color-accent)]">
-              <PawPrint className="h-6 w-6" />
-            </div>
-            <div className="flex-1">
-              <p className="text-[var(--bb-font-size-md)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)]">
-                {displayBooking.pet.name || 'Unknown Pet'}
-              </p>
-              <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-muted)]">
-                {displayBooking.pet.breed || 'Unknown breed'}
-                {displayBooking.pet.age && ` • ${displayBooking.pet.age}`}
-              </p>
-            </div>
-            <Button variant="outline" size="sm" onClick={handleViewPet}>
-              <PawPrint className="w-4 h-4 mr-2" />
-              View Profile
-            </Button>
-          </div>
-        </InspectorSection>
+              // Compare dates only (not times) - check if check-in is tomorrow or later
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const checkInDate = displayBooking.checkIn ? new Date(displayBooking.checkIn) : null;
+              const checkInDateOnly = checkInDate ? new Date(checkInDate) : null;
+              if (checkInDateOnly) checkInDateOnly.setHours(0, 0, 0, 0);
+              const isFutureBooking = checkInDateOnly && checkInDateOnly > today;
 
-        {/* Owner Info */}
-        <InspectorSection title="Owner" icon={User}>
-          <div className="flex items-center gap-[var(--bb-space-3)]">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--bb-color-purple-soft)] text-[var(--bb-color-purple)]">
-              <User className="h-6 w-6" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[var(--bb-font-size-md)] font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-text-primary)]">
-                {displayBooking.owner.firstName || displayBooking.owner.name || 'Unknown'}
-                {displayBooking.owner.lastName && ` ${displayBooking.owner.lastName}`}
-              </p>
-              {displayBooking.owner.phone && (
-                <a
-                  href={`tel:${displayBooking.owner.phone}`}
-                  className="flex items-center gap-[var(--bb-space-1)] text-[var(--bb-font-size-sm)] text-[var(--bb-color-accent)] hover:underline"
-                >
-                  <Phone className="w-3 h-3" />
-                  {displayBooking.owner.phone}
-                </a>
+              // Already checked out - show badge
+              if (status === 'CHECKED_OUT') {
+                return (
+                  <div className="px-[var(--bb-space-4)] py-[var(--bb-space-3)] border-b border-[var(--bb-color-border-subtle)]">
+                    <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-[var(--bb-color-bg-elevated)]">
+                      <CheckCircle className="w-5 h-5 text-[var(--bb-color-status-positive)]" />
+                      <span className="text-sm font-medium text-[var(--bb-color-text-muted)]">
+                        Checked Out
+                      </span>
+                    </div>
+                  </div>
+                );
+              }
+
+              // Cancelled - no buttons
+              if (status === 'CANCELLED') {
+                return null;
+              }
+
+              // Currently checked in - show check out button
+              if (status === 'CHECKED_IN') {
+                return (
+                  <div className="px-[var(--bb-space-4)] py-[var(--bb-space-3)] border-b border-[var(--bb-color-border-subtle)]">
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      className="w-full bg-amber-500 hover:bg-amber-600"
+                      onClick={handleCheckOut}
+                      disabled={checkOutMutation.isPending}
+                    >
+                      <LogOut className="w-5 h-5 mr-2" />
+                      {checkOutMutation.isPending ? 'Checking Out...' : 'Check Out'}
+                    </Button>
+                  </div>
+                );
+              }
+
+              // Future booking (tomorrow or later) - show scheduled state
+              if (isFutureBooking) {
+                return (
+                  <div className="px-[var(--bb-space-4)] py-[var(--bb-space-3)] border-b border-[var(--bb-color-border-subtle)]">
+                    <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-[var(--bb-color-bg-elevated)]">
+                      <Clock className="w-5 h-5 text-[var(--bb-color-text-muted)]" />
+                      <span className="text-sm font-medium text-[var(--bb-color-text-muted)]">
+                        Scheduled for {checkInDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
+                    </div>
+                  </div>
+                );
+              }
+
+              // Ready to check in (CONFIRMED or PENDING status, today or past)
+              if (status === 'CONFIRMED' || status === 'PENDING') {
+                return (
+                  <div className="px-[var(--bb-space-4)] py-[var(--bb-space-3)] border-b border-[var(--bb-color-border-subtle)]">
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      className="w-full bg-emerald-600 hover:bg-emerald-700"
+                      onClick={handleCheckIn}
+                      disabled={checkInMutation.isPending}
+                    >
+                      <LogIn className="w-5 h-5 mr-2" />
+                      {checkInMutation.isPending ? 'Checking In...' : 'Check In'}
+                    </Button>
+                  </div>
+                );
+              }
+
+              return null;
+            })()}
+
+            {/* Booking Details */}
+            <InspectorSection title="Schedule" icon={Calendar}>
+              <div className="grid grid-cols-2 gap-[var(--bb-space-4)]">
+                <div>
+                  <InspectorField label="Check-In" layout="stacked" icon={Calendar}>
+                    <div>
+                      <p className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+                        {formatDate(displayBooking.checkIn)}
+                      </p>
+                      <p className="text-[var(--bb-font-size-xs)] text-[var(--bb-color-text-muted)]">
+                        {formatTime(displayBooking.checkIn)}
+                      </p>
+                    </div>
+                  </InspectorField>
+                </div>
+                <div>
+                  <InspectorField label="Check-Out" layout="stacked" icon={Calendar}>
+                    <div>
+                      <p className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
+                        {formatDate(displayBooking.checkOut)}
+                      </p>
+                      <p className="text-[var(--bb-font-size-xs)] text-[var(--bb-color-text-muted)]">
+                        {formatTime(displayBooking.checkOut)}
+                      </p>
+                    </div>
+                  </InspectorField>
+                </div>
+              </div>
+              {/* Kennel Assignment - Inline Dropdown */}
+              <div className="mt-[var(--bb-space-3)] pt-[var(--bb-space-3)] border-t border-[var(--bb-color-border-subtle)] relative" ref={kennelDropdownRef}>
+                <InspectorField label="Assigned Kennel" icon={Home}>
+                  <button
+                    type="button"
+                    onClick={() => setShowKennelDropdown(!showKennelDropdown)}
+                    className={cn(
+                      'flex items-center justify-between w-full px-2 py-1 -mx-2 rounded-md transition-colors',
+                      'hover:bg-[var(--bb-color-bg-elevated)] cursor-pointer',
+                      !displayBooking.kennel.name && 'text-[var(--bb-color-status-warning)]'
+                    )}
+                  >
+                    <div className="flex flex-col">
+                      <span className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)]">
+                        {fullKennelData?.name || 'Unassigned'}
+                      </span>
+                      {fullKennelData?.name && (fullKennelData?.building || fullKennelData?.floor) && (
+                        <span className="text-xs text-[var(--bb-color-text-muted)]">
+                          {[fullKennelData.building, fullKennelData.floor].filter(Boolean).join(' - ')}
+                        </span>
+                      )}
+                    </div>
+                    <ChevronDown className={cn(
+                      'w-4 h-4 transition-transform',
+                      showKennelDropdown && 'rotate-180'
+                    )} />
+                  </button>
+                </InspectorField>
+
+                {/* Kennel Dropdown */}
+                {showKennelDropdown && (
+                  <div
+                    className="absolute left-0 right-0 mt-1 z-50 rounded-lg border shadow-lg overflow-hidden"
+                    style={{
+                      backgroundColor: 'var(--bb-color-bg-surface)',
+                      borderColor: 'var(--bb-color-border-subtle)'
+                    }}
+                  >
+                    <div className="max-h-48 overflow-y-auto py-1">
+                      {availableKennels.length === 0 ? (
+                        <p className="px-3 py-2 text-sm text-[var(--bb-color-text-muted)]">
+                          No kennels available
+                        </p>
+                      ) : (
+                        availableKennels.map((kennel) => (
+                          <button
+                            key={kennel.id || kennel.recordId}
+                            type="button"
+                            onClick={() => handleAssignKennel(kennel.id || kennel.recordId)}
+                            disabled={assignKennelMutation.isPending}
+                            className={cn(
+                              'w-full px-3 py-2 text-left text-sm transition-colors',
+                              'hover:bg-[var(--bb-color-bg-elevated)]',
+                              (kennel.id || kennel.recordId) === displayBooking.kennel.id && 'bg-[var(--bb-color-accent-soft)] text-[var(--bb-color-accent)]'
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span>{kennel.name}</span>
+                              {kennel.capacity && (
+                                <span className="text-xs text-[var(--bb-color-text-muted)]">
+                                  Cap: {kennel.capacity}
+                                </span>
+                              )}
+                            </div>
+                            {kennel.building && (
+                              <p className="text-xs text-[var(--bb-color-text-muted)]">
+                                {kennel.building}
+                              </p>
+                            )}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </InspectorSection>
+
+            {/* Notes */}
+            <InspectorSection title="Notes & Instructions" icon={MessageSquare}>
+              {displayBooking.notes && (
+                <div className="rounded-[var(--bb-radius-lg)] bg-[var(--bb-color-status-warning-soft)] border border-[var(--bb-color-status-warning)] p-[var(--bb-space-4)] mb-3">
+                  <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)]">
+                    {displayBooking.notes}
+                  </p>
+                </div>
               )}
-            </div>
-            <div className="flex gap-[var(--bb-space-2)]">
-              <Button variant="outline" size="sm" onClick={handleViewOwner}>
-                <User className="w-4 h-4 mr-2" />
-                View Profile
-              </Button>
-              {displayBooking.owner.phone && (
+
+              {/* Add Note Form */}
+              {addingNote ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    placeholder="Add a note..."
+                    rows={3}
+                    className="w-full rounded-lg border px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]"
+                    style={{
+                      backgroundColor: 'var(--bb-color-bg-body)',
+                      borderColor: 'var(--bb-color-border-subtle)',
+                      color: 'var(--bb-color-text-primary)',
+                    }}
+                    autoFocus
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setAddingNote(false); setNoteText(''); }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleAddNote}
+                      disabled={!noteText.trim()}
+                    >
+                      Add Note
+                    </Button>
+                  </div>
+                </div>
+              ) : (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => window.open(`tel:${displayBooking.owner.phone}`)}
-                  title="Call owner"
+                  onClick={() => setAddingNote(true)}
+                  className="w-full"
                 >
-                  <Phone className="w-4 h-4" />
-                </Button>
-              )}
-            </div>
-          </div>
-        </InspectorSection>
-
-        {/* Booking Details */}
-        <InspectorSection title="Schedule" icon={Calendar}>
-          <div className="grid grid-cols-2 gap-[var(--bb-space-4)]">
-            <div>
-              <InspectorField label="Check-In" layout="stacked" icon={Calendar}>
-                <div>
-                  <p className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
-                    {formatDate(displayBooking.checkIn)}
-                  </p>
-                  <p className="text-[var(--bb-font-size-xs)] text-[var(--bb-color-text-muted)]">
-                    {formatTime(displayBooking.checkIn)}
-                  </p>
-                </div>
-              </InspectorField>
-            </div>
-            <div>
-              <InspectorField label="Check-Out" layout="stacked" icon={Calendar}>
-                <div>
-                  <p className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)] text-[var(--bb-color-text-primary)]">
-                    {formatDate(displayBooking.checkOut)}
-                  </p>
-                  <p className="text-[var(--bb-font-size-xs)] text-[var(--bb-color-text-muted)]">
-                    {formatTime(displayBooking.checkOut)}
-                  </p>
-                </div>
-              </InspectorField>
-            </div>
-          </div>
-          {/* Kennel Assignment - Inline Dropdown */}
-          <div className="mt-[var(--bb-space-3)] pt-[var(--bb-space-3)] border-t border-[var(--bb-color-border-subtle)] relative" ref={kennelDropdownRef}>
-            <InspectorField label="Assigned Kennel" icon={Home}>
-              <button
-                type="button"
-                onClick={() => setShowKennelDropdown(!showKennelDropdown)}
-                className={cn(
-                  'flex items-center justify-between w-full px-2 py-1 -mx-2 rounded-md transition-colors',
-                  'hover:bg-[var(--bb-color-bg-elevated)] cursor-pointer',
-                  !displayBooking.kennel.name && 'text-[var(--bb-color-status-warning)]'
-                )}
-              >
-                <div className="flex flex-col">
-                  <span className="text-[var(--bb-font-size-sm)] font-[var(--bb-font-weight-medium)]">
-                    {fullKennelData?.name || 'Unassigned'}
-                  </span>
-                  {fullKennelData?.name && (fullKennelData?.building || fullKennelData?.floor) && (
-                    <span className="text-xs text-[var(--bb-color-text-muted)]">
-                      {[fullKennelData.building, fullKennelData.floor].filter(Boolean).join(' - ')}
-                    </span>
-                  )}
-                </div>
-                <ChevronDown className={cn(
-                  'w-4 h-4 transition-transform',
-                  showKennelDropdown && 'rotate-180'
-                )} />
-              </button>
-            </InspectorField>
-
-            {/* Kennel Dropdown */}
-            {showKennelDropdown && (
-              <div
-                className="absolute left-0 right-0 mt-1 z-50 rounded-lg border shadow-lg overflow-hidden"
-                style={{
-                  backgroundColor: 'var(--bb-color-bg-surface)',
-                  borderColor: 'var(--bb-color-border-subtle)'
-                }}
-              >
-                <div className="max-h-48 overflow-y-auto py-1">
-                  {availableKennels.length === 0 ? (
-                    <p className="px-3 py-2 text-sm text-[var(--bb-color-text-muted)]">
-                      No kennels available
-                    </p>
-                  ) : (
-                    availableKennels.map((kennel) => (
-                      <button
-                        key={kennel.id || kennel.recordId}
-                        type="button"
-                        onClick={() => handleAssignKennel(kennel.id || kennel.recordId)}
-                        disabled={assignKennelMutation.isPending}
-                        className={cn(
-                          'w-full px-3 py-2 text-left text-sm transition-colors',
-                          'hover:bg-[var(--bb-color-bg-elevated)]',
-                          (kennel.id || kennel.recordId) === displayBooking.kennel.id && 'bg-[var(--bb-color-accent-soft)] text-[var(--bb-color-accent)]'
-                        )}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span>{kennel.name}</span>
-                          {kennel.capacity && (
-                            <span className="text-xs text-[var(--bb-color-text-muted)]">
-                              Cap: {kennel.capacity}
-                            </span>
-                          )}
-                        </div>
-                        {kennel.building && (
-                          <p className="text-xs text-[var(--bb-color-text-muted)]">
-                            {kennel.building}
-                          </p>
-                        )}
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </InspectorSection>
-
-        {/* Notes */}
-        <InspectorSection title="Notes & Instructions" icon={MessageSquare}>
-          {displayBooking.notes && (
-            <div className="rounded-[var(--bb-radius-lg)] bg-[var(--bb-color-status-warning-soft)] border border-[var(--bb-color-status-warning)] p-[var(--bb-space-4)] mb-3">
-              <p className="text-[var(--bb-font-size-sm)] text-[var(--bb-color-text-primary)]">
-                {displayBooking.notes}
-              </p>
-            </div>
-          )}
-
-          {/* Add Note Form */}
-          {addingNote ? (
-            <div className="space-y-2">
-              <textarea
-                value={noteText}
-                onChange={(e) => setNoteText(e.target.value)}
-                placeholder="Add a note..."
-                rows={3}
-                className="w-full rounded-lg border px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--bb-color-accent)]"
-                style={{
-                  backgroundColor: 'var(--bb-color-bg-body)',
-                  borderColor: 'var(--bb-color-border-subtle)',
-                  color: 'var(--bb-color-text-primary)',
-                }}
-                autoFocus
-              />
-              <div className="flex gap-2 justify-end">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => { setAddingNote(false); setNoteText(''); }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handleAddNote}
-                  disabled={!noteText.trim()}
-                >
+                  <MessageSquare className="w-4 h-4 mr-2" />
                   Add Note
                 </Button>
-              </div>
-            </div>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setAddingNote(true)}
-              className="w-full"
-            >
-              <MessageSquare className="w-4 h-4 mr-2" />
-              Add Note
-            </Button>
-          )}
-        </InspectorSection>
+              )}
+            </InspectorSection>
 
-        {/* Billing */}
-        <InspectorSection title="Billing" icon={DollarSign}>
-          <div className="space-y-[var(--bb-space-2)]">
-            <InspectorField label="Total" layout="grid">
-              <span className="font-[var(--bb-font-weight-semibold)]">
-                {formatCurrency(displayBooking.totalCents)}
-              </span>
-            </InspectorField>
-            <InspectorField label="Paid" layout="grid">
-              <span className="text-[var(--bb-color-status-positive)]">
-                {formatCurrency(displayBooking.amountPaidCents)}
-              </span>
-            </InspectorField>
-            {balance > 0 && (
-              <div className="pt-[var(--bb-space-2)] border-t border-[var(--bb-color-border-subtle)]">
-                <InspectorField label="Balance Due" layout="grid">
-                  <span className="font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-status-negative)]">
-                    {formatCurrency(balance)}
+            {/* Billing */}
+            <InspectorSection title="Billing" icon={DollarSign}>
+              <div className="space-y-[var(--bb-space-2)]">
+                <InspectorField label="Total" layout="grid">
+                  <span className="font-[var(--bb-font-weight-semibold)]">
+                    {formatCurrency(displayBooking.totalCents)}
                   </span>
                 </InspectorField>
+                <InspectorField label="Paid" layout="grid">
+                  <span className="text-[var(--bb-color-status-positive)]">
+                    {formatCurrency(displayBooking.amountPaidCents)}
+                  </span>
+                </InspectorField>
+                {balance > 0 && (
+                  <div className="pt-[var(--bb-space-2)] border-t border-[var(--bb-color-border-subtle)]">
+                    <InspectorField label="Balance Due" layout="grid">
+                      <span className="font-[var(--bb-font-weight-semibold)] text-[var(--bb-color-status-negative)]">
+                        {formatCurrency(balance)}
+                      </span>
+                    </InspectorField>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </InspectorSection>
+            </InspectorSection>
+          </>
+        )}
 
         {/* Footer Actions */}
         <InspectorFooter>
