@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { usePetsQuery } from '@/features/pets/api';
 
 const AddPetToOwnerModal = ({ open, onClose, onAdd, currentPetIds = [] }) => {
@@ -60,19 +61,20 @@ const AddPetToOwnerModal = ({ open, onClose, onAdd, currentPetIds = [] }) => {
                   : 'All pets are already associated with this owner.'}
               </p>
             ) : (
-              <select
+              <StyledSelect
+                options={[
+                  { value: '', label: 'Choose a pet...' },
+                  ...availablePets.map((pet) => ({
+                    value: pet.recordId,
+                    label: `${pet.name}${pet.breed ? ` (${pet.breed})` : ''}`
+                  }))
+                ]}
                 value={selectedPetId}
-                onChange={(e) => setSelectedPetId(e.target.value)}
-                className="w-full rounded-md border border-[var(--bb-color-border-subtle)] bg-[var(--bb-color-bg-surface)] px-3 py-2 text-sm focus:border-[var(--bb-color-accent)] focus:outline-none focus:ring-1 focus:ring-[var(--bb-color-accent)]"
-                required
-              >
-                <option value="">Choose a pet...</option>
-                {availablePets.map((pet) => (
-                  <option key={pet.recordId} value={pet.recordId}>
-                    {pet.name} {pet.breed ? `(${pet.breed})` : ''}
-                  </option>
-                ))}
-              </select>
+                onChange={(opt) => setSelectedPetId(opt?.value || '')}
+                isClearable={false}
+                isSearchable={true}
+                menuPortalTarget={document.body}
+              />
             )}
           </div>
 

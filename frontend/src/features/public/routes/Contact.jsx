@@ -6,6 +6,7 @@ import React, { useState } from 'react';
 import { Mail, Send, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import StyledSelect from '@/components/ui/StyledSelect';
 import PublicPageLayout from '../components/PublicPageLayout';
 
 const faqs = [
@@ -200,19 +201,19 @@ const Contact = () => {
                   <label className="block text-sm font-medium mb-2" style={{ color: 'var(--bb-color-text-primary)' }}>
                     Subject
                   </label>
-                  <select
-                    name="subject"
+                  <StyledSelect
+                    options={[
+                      { value: 'general', label: 'General Inquiry' },
+                      { value: 'demo', label: 'Request a Demo' },
+                      { value: 'support', label: 'Support Question' },
+                      { value: 'feedback', label: 'Feedback' },
+                    ]}
                     value={formData.subject}
-                    onChange={handleChange}
-                    disabled={isSubmitting}
-                    className="w-full px-4 py-3 rounded-lg border text-[var(--bb-color-text-primary)] disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ backgroundColor: 'var(--bb-color-bg-base)', borderColor: 'var(--bb-color-border-subtle)' }}
-                  >
-                    <option value="general">General Inquiry</option>
-                    <option value="demo">Request a Demo</option>
-                    <option value="support">Support Question</option>
-                    <option value="feedback">Feedback</option>
-                  </select>
+                    onChange={(opt) => setFormData({ ...formData, subject: opt?.value || 'general' })}
+                    isDisabled={isSubmitting}
+                    isClearable={false}
+                    isSearchable={false}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2" style={{ color: 'var(--bb-color-text-primary)' }}>

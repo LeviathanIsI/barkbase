@@ -14,6 +14,7 @@ import {
 import { format, differenceInYears, differenceInMonths, addDays } from 'date-fns';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { cn } from '@/lib/cn';
 import { usePetQuery } from '@/features/pets/api';
 import { useBookingsQuery, useCreateBookingMutation } from '@/features/bookings/api';
@@ -365,6 +366,8 @@ const BookingPanel = ({ pet, ownerId, onBack, onSuccess }) => {
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: {
@@ -405,18 +408,19 @@ const BookingPanel = ({ pet, ownerId, onBack, onSuccess }) => {
         <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
           Service <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
         </label>
-        <select
-          {...register('serviceId', { required: 'Service is required' })}
-          className={inputClass}
-          style={inputStyles}
-        >
-          <option value="">Select a service</option>
-          {services.map(service => (
-            <option key={service.recordId || service.id} value={service.recordId || service.id}>
-              {service.name} {service.priceCents ? `- $${(service.priceCents / 100).toFixed(2)}/day` : ''}
-            </option>
-          ))}
-        </select>
+        <StyledSelect
+          options={[
+            { value: '', label: 'Select a service' },
+            ...services.map(service => ({
+              value: service.recordId || service.id,
+              label: `${service.name}${service.priceCents ? ` - $${(service.priceCents / 100).toFixed(2)}/day` : ''}`
+            }))
+          ]}
+          value={watch('serviceId')}
+          onChange={(opt) => setValue('serviceId', opt?.value || '', { shouldDirty: true })}
+          isClearable={false}
+          isSearchable={true}
+        />
         {errors.serviceId && (
           <p className="text-xs" style={{ color: 'var(--bb-color-status-negative)' }}>{errors.serviceId.message}</p>
         )}
@@ -508,6 +512,8 @@ const VaccinationPanel = ({ pet, petId, species, onBack, onSuccess }) => {
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: {
@@ -547,17 +553,17 @@ const VaccinationPanel = ({ pet, petId, species, onBack, onSuccess }) => {
         <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
           Vaccine Type <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
         </label>
-        <select
-          {...register('vaccineType', { required: 'Vaccine type is required' })}
-          className={inputClass}
-          style={inputStyles}
-        >
-          <option value="">Select a vaccine</option>
-          {vaccineOptions.map(type => (
-            <option key={type} value={type}>{type}</option>
-          ))}
-          <option value="Other">Other</option>
-        </select>
+        <StyledSelect
+          options={[
+            { value: '', label: 'Select a vaccine' },
+            ...vaccineOptions.map(type => ({ value: type, label: type })),
+            { value: 'Other', label: 'Other' }
+          ]}
+          value={watch('vaccineType')}
+          onChange={(opt) => setValue('vaccineType', opt?.value || '', { shouldDirty: true })}
+          isClearable={false}
+          isSearchable={false}
+        />
         {errors.vaccineType && (
           <p className="text-xs" style={{ color: 'var(--bb-color-status-negative)' }}>{errors.vaccineType.message}</p>
         )}

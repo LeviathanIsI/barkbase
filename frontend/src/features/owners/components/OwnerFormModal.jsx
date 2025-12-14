@@ -6,6 +6,7 @@
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import Button from '@/components/ui/Button';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { cn } from '@/lib/cn';
 import SlideoutPanel from '@/components/SlideoutPanel';
 import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
@@ -22,6 +23,8 @@ const OwnerFormModal = ({
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors, isDirty },
   } = useForm({
     defaultValues: {
@@ -287,16 +290,18 @@ const OwnerFormModal = ({
               >
                 Country
               </label>
-              <select
-                {...register('address.country')}
-                className={inputClass}
-                style={inputStyles}
-              >
-                <option value="US">United States</option>
-                <option value="CA">Canada</option>
-                <option value="MX">Mexico</option>
-                <option value="GB">United Kingdom</option>
-              </select>
+              <StyledSelect
+                options={[
+                  { value: 'US', label: 'United States' },
+                  { value: 'CA', label: 'Canada' },
+                  { value: 'MX', label: 'Mexico' },
+                  { value: 'GB', label: 'United Kingdom' },
+                ]}
+                value={watch('address.country')}
+                onChange={(opt) => setValue('address.country', opt?.value || 'US', { shouldDirty: true })}
+                isClearable={false}
+                isSearchable={false}
+              />
             </div>
           </FormGrid>
         </FormSection>
