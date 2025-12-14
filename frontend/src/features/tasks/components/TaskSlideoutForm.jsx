@@ -5,12 +5,45 @@
 import { useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { format } from 'date-fns';
+import Select from 'react-select';
 import Button from '@/components/ui/Button';
-import StyledSelect from '@/components/ui/StyledSelect';
 import { cn } from '@/lib/cn';
 import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
 import { useCreateTaskMutation, useUpdateTaskMutation, useTaskQuery } from '../api';
 import toast from 'react-hot-toast';
+
+const selectStyles = {
+  control: (base, state) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    borderColor: state.isFocused ? 'var(--bb-color-accent)' : 'var(--bb-color-border-subtle)',
+    borderRadius: '0.5rem',
+    minHeight: '40px',
+    boxShadow: state.isFocused ? '0 0 0 1px var(--bb-color-accent)' : 'none',
+  }),
+  menu: (base) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    border: '1px solid var(--bb-color-border-subtle)',
+    borderRadius: '0.5rem',
+    zIndex: 9999,
+  }),
+  menuPortal: (base) => ({ ...base, zIndex: 99999 }),
+  menuList: (base) => ({ ...base, padding: '4px' }),
+  option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isSelected ? 'var(--bb-color-accent)' : state.isFocused ? 'var(--bb-color-bg-muted)' : 'transparent',
+    color: state.isSelected ? 'white' : 'var(--bb-color-text-primary)',
+    cursor: 'pointer',
+    borderRadius: '0.375rem',
+    padding: '8px 12px',
+  }),
+  singleValue: (base) => ({ ...base, color: 'var(--bb-color-text-primary)' }),
+  input: (base) => ({ ...base, color: 'var(--bb-color-text-primary)' }),
+  placeholder: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+  indicatorSeparator: () => ({ display: 'none' }),
+  dropdownIndicator: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+};
 
 const TASK_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 const TASK_CATEGORIES = ['cleaning', 'feeding', 'medication', 'exercise', 'grooming', 'general'];
@@ -137,34 +170,42 @@ const TaskSlideoutForm = ({
             name="category"
             control={control}
             render={({ field }) => (
-              <StyledSelect
-                label="Category"
-                options={TASK_CATEGORIES.map(cat => ({
-                  value: cat,
-                  label: cat.charAt(0).toUpperCase() + cat.slice(1)
-                }))}
-                value={field.value}
-                onChange={(opt) => field.onChange(opt?.value || 'general')}
-                isClearable={false}
-                isSearchable
-              />
+              <div className="space-y-2">
+                <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>Category</label>
+                <Select
+                  options={TASK_CATEGORIES.map(cat => ({
+                    value: cat,
+                    label: cat.charAt(0).toUpperCase() + cat.slice(1)
+                  }))}
+                  value={TASK_CATEGORIES.map(cat => ({ value: cat, label: cat.charAt(0).toUpperCase() + cat.slice(1) })).find(o => o.value === field.value) || null}
+                  onChange={(opt) => field.onChange(opt?.value || 'general')}
+                  isClearable={false}
+                  isSearchable
+                  styles={selectStyles}
+                  menuPortalTarget={document.body}
+                />
+              </div>
             )}
           />
           <Controller
             name="priority"
             control={control}
             render={({ field }) => (
-              <StyledSelect
-                label="Priority"
-                options={TASK_PRIORITIES.map(pri => ({
-                  value: pri,
-                  label: pri.charAt(0).toUpperCase() + pri.slice(1)
-                }))}
-                value={field.value}
-                onChange={(opt) => field.onChange(opt?.value || 'medium')}
-                isClearable={false}
-                isSearchable
-              />
+              <div className="space-y-2">
+                <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>Priority</label>
+                <Select
+                  options={TASK_PRIORITIES.map(pri => ({
+                    value: pri,
+                    label: pri.charAt(0).toUpperCase() + pri.slice(1)
+                  }))}
+                  value={TASK_PRIORITIES.map(pri => ({ value: pri, label: pri.charAt(0).toUpperCase() + pri.slice(1) })).find(o => o.value === field.value) || null}
+                  onChange={(opt) => field.onChange(opt?.value || 'medium')}
+                  isClearable={false}
+                  isSearchable
+                  styles={selectStyles}
+                  menuPortalTarget={document.body}
+                />
+              </div>
             )}
           />
         </FormGrid>

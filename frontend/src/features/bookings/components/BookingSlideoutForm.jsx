@@ -6,13 +6,46 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { format, addDays } from 'date-fns';
-import StyledSelect from '@/components/ui/StyledSelect';
+import Select from 'react-select';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import { cn } from '@/lib/cn';
 import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
 import { useOwnerSearchQuery } from '@/features/owners/api';
+
+const selectStyles = {
+  control: (base, state) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    borderColor: state.isFocused ? 'var(--bb-color-accent)' : 'var(--bb-color-border-subtle)',
+    borderRadius: '0.5rem',
+    minHeight: '40px',
+    boxShadow: state.isFocused ? '0 0 0 1px var(--bb-color-accent)' : 'none',
+  }),
+  menu: (base) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    border: '1px solid var(--bb-color-border-subtle)',
+    borderRadius: '0.5rem',
+    zIndex: 9999,
+  }),
+  menuPortal: (base) => ({ ...base, zIndex: 99999 }),
+  menuList: (base) => ({ ...base, padding: '4px' }),
+  option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isSelected ? 'var(--bb-color-accent)' : state.isFocused ? 'var(--bb-color-bg-muted)' : 'transparent',
+    color: state.isSelected ? 'white' : 'var(--bb-color-text-primary)',
+    cursor: 'pointer',
+    borderRadius: '0.375rem',
+    padding: '8px 12px',
+  }),
+  singleValue: (base) => ({ ...base, color: 'var(--bb-color-text-primary)' }),
+  input: (base) => ({ ...base, color: 'var(--bb-color-text-primary)' }),
+  placeholder: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+  indicatorSeparator: () => ({ display: 'none' }),
+  dropdownIndicator: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+};
 import { usePetsQuery, usePetQuery } from '@/features/pets/api';
 import { useServicesQuery } from '@/features/services/api';
 import { useCreateBookingMutation, useUpdateBookingMutation } from '../api';
@@ -285,20 +318,30 @@ const BookingSlideoutForm = ({
             control={control}
             rules={{ required: 'Service is required' }}
             render={({ field }) => (
-              <StyledSelect
-                label="Service"
-                required
-                options={services.map(service => ({
-                  value: service.id || service.recordId,
-                  label: `${service.name}${service.priceInCents ? ` - $${(service.priceInCents / 100).toFixed(2)}/day` : ''}`
-                }))}
-                value={field.value}
-                onChange={(opt) => field.onChange(opt?.value || '')}
-                placeholder="Select a service"
-                error={errors.serviceId?.message}
-                isClearable
-                isSearchable
-              />
+              <div className="space-y-2">
+                <label className="block text-sm font-medium" style={{ color: 'var(--bb-color-text-primary)' }}>
+                  Service <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
+                </label>
+                <Select
+                  options={services.map(service => ({
+                    value: service.id || service.recordId,
+                    label: `${service.name}${service.priceInCents ? ` - $${(service.priceInCents / 100).toFixed(2)}/day` : ''}`
+                  }))}
+                  value={services.map(service => ({
+                    value: service.id || service.recordId,
+                    label: `${service.name}${service.priceInCents ? ` - $${(service.priceInCents / 100).toFixed(2)}/day` : ''}`
+                  })).find(o => o.value === field.value) || null}
+                  onChange={(opt) => field.onChange(opt?.value || '')}
+                  placeholder="Select a service"
+                  isClearable
+                  isSearchable
+                  styles={selectStyles}
+                  menuPortalTarget={document.body}
+                />
+                {errors.serviceId?.message && (
+                  <p className="text-sm" style={{ color: 'var(--bb-color-status-negative)' }}>{errors.serviceId.message}</p>
+                )}
+              </div>
             )}
           />
 

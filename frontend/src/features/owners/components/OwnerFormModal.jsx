@@ -5,11 +5,44 @@
 
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
+import Select from 'react-select';
 import Button from '@/components/ui/Button';
-import StyledSelect from '@/components/ui/StyledSelect';
 import { cn } from '@/lib/cn';
 import SlideoutPanel from '@/components/SlideoutPanel';
 import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
+
+const selectStyles = {
+  control: (base, state) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    borderColor: state.isFocused ? 'var(--bb-color-accent)' : 'var(--bb-color-border-subtle)',
+    borderRadius: '0.5rem',
+    minHeight: '40px',
+    boxShadow: state.isFocused ? '0 0 0 1px var(--bb-color-accent)' : 'none',
+  }),
+  menu: (base) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    border: '1px solid var(--bb-color-border-subtle)',
+    borderRadius: '0.5rem',
+    zIndex: 9999,
+  }),
+  menuPortal: (base) => ({ ...base, zIndex: 99999 }),
+  menuList: (base) => ({ ...base, padding: '4px' }),
+  option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isSelected ? 'var(--bb-color-accent)' : state.isFocused ? 'var(--bb-color-bg-muted)' : 'transparent',
+    color: state.isSelected ? 'white' : 'var(--bb-color-text-primary)',
+    cursor: 'pointer',
+    borderRadius: '0.375rem',
+    padding: '8px 12px',
+  }),
+  singleValue: (base) => ({ ...base, color: 'var(--bb-color-text-primary)' }),
+  input: (base) => ({ ...base, color: 'var(--bb-color-text-primary)' }),
+  placeholder: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+  indicatorSeparator: () => ({ display: 'none' }),
+  dropdownIndicator: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+};
 
 const OwnerFormModal = ({
   open,
@@ -290,17 +323,20 @@ const OwnerFormModal = ({
               >
                 Country
               </label>
-              <StyledSelect
+              <Select
                 options={[
                   { value: 'US', label: 'United States' },
                   { value: 'CA', label: 'Canada' },
                   { value: 'MX', label: 'Mexico' },
                   { value: 'GB', label: 'United Kingdom' },
                 ]}
-                value={watch('address.country')}
+                value={[{ value: 'US', label: 'United States' }, { value: 'CA', label: 'Canada' }, { value: 'MX', label: 'Mexico' }, { value: 'GB', label: 'United Kingdom' }].find(o => o.value === watch('address.country')) || null}
                 onChange={(opt) => setValue('address.country', opt?.value || 'US', { shouldDirty: true })}
+                placeholder="Select country"
                 isClearable={false}
-                isSearchable={false}
+                isSearchable
+                styles={selectStyles}
+                menuPortalTarget={document.body}
               />
             </div>
           </FormGrid>

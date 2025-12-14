@@ -6,11 +6,44 @@
 
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
+import Select from 'react-select';
 import SlideoutPanel from '@/components/SlideoutPanel';
 import Button from '@/components/ui/Button';
-import StyledSelect from '@/components/ui/StyledSelect';
 import { cn } from '@/lib/cn';
 import { FormActions, FormGrid, FormSection } from '@/components/ui/FormField';
+
+const selectStyles = {
+  control: (base, state) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    borderColor: state.isFocused ? 'var(--bb-color-accent)' : 'var(--bb-color-border-subtle)',
+    borderRadius: '0.5rem',
+    minHeight: '40px',
+    boxShadow: state.isFocused ? '0 0 0 1px var(--bb-color-accent)' : 'none',
+  }),
+  menu: (base) => ({
+    ...base,
+    backgroundColor: 'var(--bb-color-bg-surface)',
+    border: '1px solid var(--bb-color-border-subtle)',
+    borderRadius: '0.5rem',
+    zIndex: 9999,
+  }),
+  menuPortal: (base) => ({ ...base, zIndex: 99999 }),
+  menuList: (base) => ({ ...base, padding: '4px' }),
+  option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isSelected ? 'var(--bb-color-accent)' : state.isFocused ? 'var(--bb-color-bg-muted)' : 'transparent',
+    color: state.isSelected ? 'white' : 'var(--bb-color-text-primary)',
+    cursor: 'pointer',
+    borderRadius: '0.375rem',
+    padding: '8px 12px',
+  }),
+  singleValue: (base) => ({ ...base, color: 'var(--bb-color-text-primary)' }),
+  input: (base) => ({ ...base, color: 'var(--bb-color-text-primary)' }),
+  placeholder: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+  indicatorSeparator: () => ({ display: 'none' }),
+  dropdownIndicator: (base) => ({ ...base, color: 'var(--bb-color-text-muted)' }),
+};
 
 // Standardized vaccine types
 const VACCINE_TYPES = {
@@ -127,15 +160,15 @@ const VaccinationFormModal = ({
           >
             Vaccine Type <span style={{ color: 'var(--bb-color-status-negative)' }}>*</span>
           </label>
-          <StyledSelect
-            options={[
-              { value: '', label: 'Select vaccine type' },
-              ...getVaccineOptions().map((type) => ({ value: type, label: type }))
-            ]}
-            value={watch('type')}
+          <Select
+            options={getVaccineOptions().map((type) => ({ value: type, label: type }))}
+            value={getVaccineOptions().map((type) => ({ value: type, label: type })).find(o => o.value === watch('type')) || null}
             onChange={(opt) => setValue('type', opt?.value || '', { shouldDirty: true })}
+            placeholder="Select vaccine type"
             isClearable={false}
-            isSearchable={false}
+            isSearchable
+            styles={selectStyles}
+            menuPortalTarget={document.body}
           />
           {errors.type && (
             <p
