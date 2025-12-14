@@ -246,8 +246,8 @@ export default function Segments() {
 
       {/* Table - scrollable */}
       {filteredSegments.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center text-center py-16 rounded-lg border border-[color:var(--bb-color-border-subtle)] bg-[color:var(--bb-color-bg-surface)]">
-          <Users className="h-12 w-12 mx-auto mb-4 text-[color:var(--bb-color-text-muted)]" />
+        <div className="flex-1 flex flex-col items-center justify-center text-center py-16 rounded-lg border border-[color:var(--bb-color-border-subtle)] bg-[color:var(--bb-color-bg-surface)]">
+          <Users className="h-12 w-12 mb-4 text-[color:var(--bb-color-text-muted)]" />
           <h3 className="text-lg font-medium text-[color:var(--bb-color-text-primary)] mb-2">
             {searchTerm || typeFilter !== 'all' || objectFilter !== 'all'
               ? 'No segments match your filters'
