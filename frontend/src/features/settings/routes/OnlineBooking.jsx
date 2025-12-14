@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Switch from '@/components/ui/Switch';
+import StyledSelect from '@/components/ui/StyledSelect';
 import {
   Globe,
   Link2,
@@ -383,18 +384,20 @@ const OnlineBooking = () => {
             </div>
             {settings.requireWaiver && (
               <div className="ml-6">
-                <select
+                <StyledSelect
+                  options={[
+                    { value: '', label: 'Select a waiver...' },
+                    ...policies.map((policy) => ({
+                      value: policy.id,
+                      label: policy.name || policy.title,
+                    })),
+                  ]}
                   value={settings.waiverId || ''}
-                  onChange={(e) => updateSetting('waiverId', e.target.value || null)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-sm"
-                >
-                  <option value="">Select a waiver...</option>
-                  {policies.map((policy) => (
-                    <option key={policy.id} value={policy.id}>
-                      {policy.name || policy.title}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(opt) => updateSetting('waiverId', opt?.value || null)}
+                  isClearable
+                  isSearchable
+                  placeholder="Select a waiver..."
+                />
               </div>
             )}
 

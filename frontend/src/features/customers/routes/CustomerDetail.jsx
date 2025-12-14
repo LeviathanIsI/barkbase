@@ -41,6 +41,7 @@ import {
 import { format, formatDistanceToNow, isAfter, isBefore, startOfToday } from 'date-fns';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { Card, MetricCard } from '@/components/ui/Card';
 import { PropertyCard, PropertyList } from '@/components/ui/PropertyCard';
 import { AssociationCard, AssociationItem } from '@/components/ui/AssociationCard';
@@ -853,21 +854,20 @@ function BookingsTab({ bookings, ownerName, ownerId }) {
           All Bookings ({bookings.length})
         </h3>
         <div className="flex items-center gap-2">
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="text-sm rounded-md border px-3 py-1.5"
-            style={{
-              backgroundColor: 'var(--bb-color-bg-surface)',
-              borderColor: 'var(--bb-color-border-subtle)',
-              color: 'var(--bb-color-text-primary)',
-            }}
-          >
-            <option value="all">All</option>
-            <option value="upcoming">Upcoming</option>
-            <option value="past">Past</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
+          <div className="min-w-[130px]">
+            <StyledSelect
+              options={[
+                { value: 'all', label: 'All' },
+                { value: 'upcoming', label: 'Upcoming' },
+                { value: 'past', label: 'Past' },
+                { value: 'cancelled', label: 'Cancelled' },
+              ]}
+              value={filter}
+              onChange={(opt) => setFilter(opt?.value || 'all')}
+              isClearable={false}
+              isSearchable={false}
+            />
+          </div>
           <Button size="sm" onClick={() => openSlideout(SLIDEOUT_TYPES.BOOKING_CREATE, { ownerId })}>
             <Plus className="w-4 h-4 mr-2" />
             New Booking

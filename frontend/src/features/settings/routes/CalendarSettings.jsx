@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Switch from '@/components/ui/Switch';
+import StyledSelect from '@/components/ui/StyledSelect';
 import {
   Settings,
   Loader2,
@@ -30,17 +31,15 @@ const ColorPicker = ({ value, onChange, label }) => {
           className="w-5 h-5 rounded border border-gray-300 dark:border-surface-border"
           style={{ backgroundColor: value }}
         />
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="px-2 py-1 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded text-sm min-w-[90px]"
-        >
-          {COLOR_OPTIONS.map((color) => (
-            <option key={color.value} value={color.value}>
-              {color.label}
-            </option>
-          ))}
-        </select>
+        <div className="min-w-[100px]">
+          <StyledSelect
+            options={COLOR_OPTIONS}
+            value={value}
+            onChange={(opt) => onChange(opt?.value || value)}
+            isClearable={false}
+            isSearchable={false}
+          />
+        </div>
       </div>
     </div>
   );
@@ -172,15 +171,17 @@ const CalendarSettings = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Week Starts On</label>
-              <select
+              <StyledSelect
+                label="Week Starts On"
+                options={[
+                  { value: 'sunday', label: 'Sunday' },
+                  { value: 'monday', label: 'Monday' },
+                ]}
                 value={settings.weekStartsOn}
-                onChange={(e) => updateSetting('weekStartsOn', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
-              >
-                <option value="sunday">Sunday</option>
-                <option value="monday">Monday</option>
-              </select>
+                onChange={(opt) => updateSetting('weekStartsOn', opt?.value || 'sunday')}
+                isClearable={false}
+                isSearchable={false}
+              />
             </div>
 
             <div className="space-y-3 border-t pt-4">
@@ -390,16 +391,18 @@ const CalendarSettings = () => {
             </div>
 
             <div className="border-t pt-4">
-              <label className="block text-sm font-medium mb-2">Time slot duration</label>
-              <select
+              <StyledSelect
+                label="Time slot duration"
+                options={[
+                  { value: 15, label: '15 minutes' },
+                  { value: 30, label: '30 minutes' },
+                  { value: 60, label: '1 hour' },
+                ]}
                 value={settings.timeSlotMinutes}
-                onChange={(e) => updateSetting('timeSlotMinutes', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-surface-border bg-white dark:bg-surface-primary rounded-md text-gray-900 dark:text-text-primary"
-              >
-                <option value={15}>15 minutes</option>
-                <option value={30}>30 minutes</option>
-                <option value={60}>1 hour</option>
-              </select>
+                onChange={(opt) => updateSetting('timeSlotMinutes', opt?.value || 30)}
+                isClearable={false}
+                isSearchable={false}
+              />
             </div>
           </div>
         </Card>

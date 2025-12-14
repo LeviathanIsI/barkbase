@@ -35,6 +35,7 @@ import {
   OBJECT_TYPES,
 } from '../api';
 import { formatDistanceToNow, format } from 'date-fns';
+import StyledSelect from '@/components/ui/StyledSelect';
 import { cn } from '@/lib/cn';
 
 export default function Segments() {
@@ -219,29 +220,33 @@ export default function Segments() {
         </div>
 
         {/* Type Filter */}
-        <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          className="px-3 py-2 rounded-lg border border-[color:var(--bb-color-border-subtle)] bg-[color:var(--bb-color-bg-surface)] text-[color:var(--bb-color-text-primary)] text-sm"
-        >
-          <option value="all">All Types</option>
-          <option value="active">Active</option>
-          <option value="static">Static</option>
-        </select>
+        <div className="min-w-[140px]">
+          <StyledSelect
+            options={[
+              { value: 'all', label: 'All Types' },
+              { value: 'active', label: 'Active' },
+              { value: 'static', label: 'Static' },
+            ]}
+            value={typeFilter}
+            onChange={(opt) => setTypeFilter(opt?.value || 'all')}
+            isClearable={false}
+            isSearchable={false}
+          />
+        </div>
 
         {/* Object Filter */}
-        <select
-          value={objectFilter}
-          onChange={(e) => setObjectFilter(e.target.value)}
-          className="px-3 py-2 rounded-lg border border-[color:var(--bb-color-border-subtle)] bg-[color:var(--bb-color-bg-surface)] text-[color:var(--bb-color-text-primary)] text-sm"
-        >
-          <option value="all">All Objects</option>
-          {OBJECT_TYPES.map((type) => (
-            <option key={type.value} value={type.value}>
-              {type.label}
-            </option>
-          ))}
-        </select>
+        <div className="min-w-[140px]">
+          <StyledSelect
+            options={[
+              { value: 'all', label: 'All Objects' },
+              ...OBJECT_TYPES.map((type) => ({ value: type.value, label: type.label })),
+            ]}
+            value={objectFilter}
+            onChange={(opt) => setObjectFilter(opt?.value || 'all')}
+            isClearable={false}
+            isSearchable
+          />
+        </div>
       </div>
 
       {/* Table - scrollable */}

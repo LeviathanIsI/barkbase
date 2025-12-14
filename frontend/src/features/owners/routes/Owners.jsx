@@ -10,6 +10,7 @@ import {
 import Breadcrumbs from '@/components/ui/Breadcrumbs';
 import { formatDistanceToNow, format } from 'date-fns';
 import EntityToolbar from '@/components/EntityToolbar';
+import StyledSelect from '@/components/ui/StyledSelect';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Modal from '@/components/ui/Modal';
@@ -613,14 +614,15 @@ const Owners = () => {
             >
               <div className="flex items-center gap-2 text-sm text-[color:var(--bb-color-text-muted)]">
                 <span>Rows per page:</span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => setPageSize(Number(e.target.value))}
-                  className="rounded border px-2 py-1.5 text-sm"
-                  style={{ backgroundColor: 'var(--bb-color-bg-body)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }}
-                >
-                  {PAGE_SIZE_OPTIONS.map((size) => (<option key={size} value={size}>{size}</option>))}
-                </select>
+                <div className="w-20">
+                  <StyledSelect
+                    options={PAGE_SIZE_OPTIONS.map((size) => ({ value: size, label: String(size) }))}
+                    value={pageSize}
+                    onChange={(opt) => setPageSize(opt?.value || 25)}
+                    isClearable={false}
+                    isSearchable={false}
+                  />
+                </div>
               </div>
 
               <div className="flex items-center gap-3">
@@ -894,12 +896,18 @@ const FilterPanel = ({ filters, onFiltersChange, onClose }) => (
     </div>
     <div className="space-y-4">
       <div>
-        <label className="block text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-1.5">Status</label>
-        <select value={filters.status || ''} onChange={(e) => onFiltersChange({ ...filters, status: e.target.value || undefined })} className="w-full rounded-lg border px-3 py-2 text-sm" style={{ backgroundColor: 'var(--bb-color-bg-body)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }}>
-          <option value="">Any</option>
-          <option value="ACTIVE">Active</option>
-          <option value="INACTIVE">Inactive</option>
-        </select>
+        <StyledSelect
+          label="Status"
+          options={[
+            { value: '', label: 'Any' },
+            { value: 'ACTIVE', label: 'Active' },
+            { value: 'INACTIVE', label: 'Inactive' },
+          ]}
+          value={filters.status || ''}
+          onChange={(opt) => onFiltersChange({ ...filters, status: opt?.value || undefined })}
+          isClearable={false}
+          isSearchable={false}
+        />
       </div>
       <div>
         <label className="block text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-1.5">Min Pet Count</label>

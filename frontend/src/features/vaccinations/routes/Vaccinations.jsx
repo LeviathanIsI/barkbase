@@ -15,6 +15,7 @@ import { ScrollableTableContainer } from '@/components/ui/ScrollableTableContain
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { useExpiringVaccinationsQuery } from '@/features/pets/api-vaccinations';
 import { useSlideout, SLIDEOUT_TYPES } from '@/components/slideout';
+import StyledSelect from '@/components/ui/StyledSelect';
 import apiClient from '@/lib/apiClient';
 import toast from 'react-hot-toast';
 import { useQueryClient } from '@tanstack/react-query';
@@ -595,27 +596,28 @@ const Vaccinations = () => {
           {/* Sort By */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-[color:var(--bb-color-text-muted)]">Sort by:</span>
-            <select
-              value={`${sortConfig.key}-${sortConfig.direction}`}
-              onChange={(e) => {
-                const [key, direction] = e.target.value.split('-');
-                setSortConfig({ key, direction });
-              }}
-              className="h-8 rounded-lg border px-2 text-sm"
-              style={{
-                backgroundColor: 'var(--bb-color-bg-body)',
-                borderColor: 'var(--bb-color-border-subtle)',
-                color: 'var(--bb-color-text-primary)',
-              }}
-            >
-              <option value="daysRemaining-asc">Soonest Expiry First</option>
-              <option value="daysRemaining-desc">Latest Expiry First</option>
-              <option value="petName-asc">Pet Name A–Z</option>
-              <option value="petName-desc">Pet Name Z–A</option>
-              <option value="ownerName-asc">Owner Name A–Z</option>
-              <option value="ownerName-desc">Owner Name Z–A</option>
-              <option value="type-asc">Vaccine Type A–Z</option>
-            </select>
+            <div className="min-w-[180px]">
+              <StyledSelect
+                options={[
+                  { value: 'daysRemaining-asc', label: 'Soonest Expiry First' },
+                  { value: 'daysRemaining-desc', label: 'Latest Expiry First' },
+                  { value: 'petName-asc', label: 'Pet Name A–Z' },
+                  { value: 'petName-desc', label: 'Pet Name Z–A' },
+                  { value: 'ownerName-asc', label: 'Owner Name A–Z' },
+                  { value: 'ownerName-desc', label: 'Owner Name Z–A' },
+                  { value: 'type-asc', label: 'Vaccine Type A–Z' },
+                ]}
+                value={`${sortConfig.key}-${sortConfig.direction}`}
+                onChange={(opt) => {
+                  if (opt?.value) {
+                    const [key, direction] = opt.value.split('-');
+                    setSortConfig({ key, direction });
+                  }
+                }}
+                isClearable={false}
+                isSearchable={false}
+              />
+            </div>
           </div>
         </div>
 
@@ -659,14 +661,15 @@ const Vaccinations = () => {
           >
             <div className="flex items-center gap-2 text-sm text-[color:var(--bb-color-text-muted)]">
               <span>Rows per page:</span>
-              <select
-                value={pageSize}
-                onChange={(e) => setPageSize(Number(e.target.value))}
-                className="rounded border px-2 py-1.5 text-sm"
-                style={{ backgroundColor: 'var(--bb-color-bg-body)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }}
-              >
-                {PAGE_SIZE_OPTIONS.map((size) => (<option key={size} value={size}>{size}</option>))}
-              </select>
+              <div className="w-20">
+                <StyledSelect
+                  options={PAGE_SIZE_OPTIONS.map((size) => ({ value: size, label: String(size) }))}
+                  value={pageSize}
+                  onChange={(opt) => setPageSize(opt?.value || 25)}
+                  isClearable={false}
+                  isSearchable={false}
+                />
+              </div>
             </div>
 
             <div className="flex items-center gap-3">
@@ -987,34 +990,36 @@ const FilterPanel = ({ filters, onFiltersChange, onClose }) => {
 
         {/* Species */}
         <div>
-          <label className="block text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-1.5">Species</label>
-          <select
+          <StyledSelect
+            label="Species"
+            options={[
+              { value: '', label: 'All Species' },
+              { value: 'dog', label: 'Dogs' },
+              { value: 'cat', label: 'Cats' },
+            ]}
             value={localFilters.species || ''}
-            onChange={(e) => setLocalFilters({ ...localFilters, species: e.target.value || undefined })}
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-            style={{ backgroundColor: 'var(--bb-color-bg-body)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }}
-          >
-            <option value="">All Species</option>
-            <option value="dog">Dogs</option>
-            <option value="cat">Cats</option>
-          </select>
+            onChange={(opt) => setLocalFilters({ ...localFilters, species: opt?.value || undefined })}
+            isClearable={false}
+            isSearchable={false}
+          />
         </div>
 
         {/* Status */}
         <div>
-          <label className="block text-xs font-medium text-[color:var(--bb-color-text-muted)] mb-1.5">Status</label>
-          <select
+          <StyledSelect
+            label="Status"
+            options={[
+              { value: '', label: 'All Status' },
+              { value: 'current', label: 'Current' },
+              { value: 'expiring', label: 'Expiring in 30 days' },
+              { value: 'critical', label: 'Critical (7 days)' },
+              { value: 'overdue', label: 'Overdue' },
+            ]}
             value={localFilters.status || ''}
-            onChange={(e) => setLocalFilters({ ...localFilters, status: e.target.value || undefined })}
-            className="w-full rounded-lg border px-3 py-2 text-sm"
-            style={{ backgroundColor: 'var(--bb-color-bg-body)', borderColor: 'var(--bb-color-border-subtle)', color: 'var(--bb-color-text-primary)' }}
-          >
-            <option value="">All Status</option>
-            <option value="current">Current</option>
-            <option value="expiring">Expiring in 30 days</option>
-            <option value="critical">Critical (7 days)</option>
-            <option value="overdue">Overdue</option>
-          </select>
+            onChange={(opt) => setLocalFilters({ ...localFilters, status: opt?.value || undefined })}
+            isClearable={false}
+            isSearchable={false}
+          />
         </div>
 
         {/* Date Range */}
